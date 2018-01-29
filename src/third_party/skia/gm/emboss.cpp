@@ -10,7 +10,7 @@
 #include "SkCanvas.h"
 #include "SkColorFilter.h"
 
-#include "SkColorFilter.h"
+#ifdef SK_SUPPORT_LEGACY_EMBOSSMASKFILTER
 static SkBitmap make_bm() {
     SkBitmap bm;
     bm.allocN32Pixels(100, 100);
@@ -29,27 +29,27 @@ public:
     }
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("emboss");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(600, 120);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         SkPaint paint;
         SkBitmap bm = make_bm();
         canvas->drawBitmap(bm, 10, 10, &paint);
 
         const SkScalar dir[] = { 1, 1, 1 };
-        paint.setMaskFilter(SkBlurMaskFilter::CreateEmboss(3, dir, 0.3f, 0.1f))->unref();
+        paint.setMaskFilter(SkBlurMaskFilter::MakeEmboss(3, dir, 0.3f, 0.1f));
         canvas->translate(bm.width() + SkIntToScalar(10), 0);
         canvas->drawBitmap(bm, 10, 10, &paint);
 
         // this combination of emboss+colorfilter used to crash -- so we exercise it to
         // confirm that we have a fix.
-        paint.setColorFilter(SkColorFilter::CreateModeFilter(0xFFFF0000, SkXfermode::kSrcATop_Mode))->unref();
+        paint.setColorFilter(SkColorFilter::MakeModeFilter(0xFFFF0000, SkBlendMode::kSrcATop));
         canvas->translate(bm.width() + SkIntToScalar(10), 0);
         canvas->drawBitmap(bm, 10, 10, &paint);
     }
@@ -58,4 +58,5 @@ private:
     typedef skiagm::GM INHERITED;
 };
 
-DEF_GM( return SkNEW(EmbossGM); )
+DEF_GM(return new EmbossGM;)
+#endif

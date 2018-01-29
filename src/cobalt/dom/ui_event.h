@@ -60,7 +60,7 @@ class UIEvent : public Event {
                    const scoped_refptr<Window>& view,
                    const UIEventInit& init_dict);
 
-  ~UIEvent() OVERRIDE {}
+  ~UIEvent() override {}
 
   scoped_refptr<Window> view_;
   int32 detail_;

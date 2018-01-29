@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_V8C_V8C_CALLBACK_INTERFACE_H_
 
 #include "cobalt/script/callback_interface_traits.h"
+#include "cobalt/script/v8c/v8c_global_environment.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -26,7 +27,7 @@ namespace v8c {
 // implementing a callback interface.
 // Returns true if a callable was found, and false if not.
 v8::MaybeLocal<v8::Object> GetCallableForCallbackInterface(
-    V8cGlobalEnvironment* env, v8::Local<v8::Object> implementing_object,
+    v8::Isolate* isolate, v8::Local<v8::Object> implementing_object,
     const char* property_name);
 
 }  // namespace v8c

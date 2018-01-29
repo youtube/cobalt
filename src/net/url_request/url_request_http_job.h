@@ -70,32 +70,32 @@ class URLRequestHttpJob : public URLRequestJob {
   void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
   // Overridden from URLRequestJob:
-  virtual void SetUpload(UploadDataStream* upload) OVERRIDE;
+  virtual void SetUpload(UploadDataStream* upload) override;
   virtual void SetExtraRequestHeaders(
-      const HttpRequestHeaders& headers) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Kill() OVERRIDE;
-  virtual LoadState GetLoadState() const OVERRIDE;
-  virtual UploadProgress GetUploadProgress() const OVERRIDE;
-  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
-  virtual bool GetCharset(std::string* charset) OVERRIDE;
-  virtual void GetResponseInfo(HttpResponseInfo* info) OVERRIDE;
-  virtual bool GetResponseCookies(std::vector<std::string>* cookies) OVERRIDE;
-  virtual int GetResponseCode() const OVERRIDE;
-  virtual Filter* SetupFilter() const OVERRIDE;
-  virtual bool IsSafeRedirect(const GURL& location) OVERRIDE;
-  virtual bool NeedsAuth() OVERRIDE;
-  virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*) OVERRIDE;
-  virtual void SetAuth(const AuthCredentials& credentials) OVERRIDE;
-  virtual void CancelAuth() OVERRIDE;
-  virtual void ContinueWithCertificate(X509Certificate* client_cert) OVERRIDE;
-  virtual void ContinueDespiteLastError() OVERRIDE;
+      const HttpRequestHeaders& headers) override;
+  virtual void Start() override;
+  virtual void Kill() override;
+  virtual LoadState GetLoadState() const override;
+  virtual UploadProgress GetUploadProgress() const override;
+  virtual bool GetMimeType(std::string* mime_type) const override;
+  virtual bool GetCharset(std::string* charset) override;
+  virtual void GetResponseInfo(HttpResponseInfo* info) override;
+  virtual bool GetResponseCookies(std::vector<std::string>* cookies) override;
+  virtual int GetResponseCode() const override;
+  virtual Filter* SetupFilter() const override;
+  virtual bool IsSafeRedirect(const GURL& location) override;
+  virtual bool NeedsAuth() override;
+  virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*) override;
+  virtual void SetAuth(const AuthCredentials& credentials) override;
+  virtual void CancelAuth() override;
+  virtual void ContinueWithCertificate(X509Certificate* client_cert) override;
+  virtual void ContinueDespiteLastError() override;
   virtual bool ReadRawData(IOBuffer* buf, int buf_size,
-                           int* bytes_read) OVERRIDE;
-  virtual void StopCaching() OVERRIDE;
-  virtual void DoneReading() OVERRIDE;
-  virtual HostPortPair GetSocketAddress() const OVERRIDE;
-  virtual void NotifyURLRequestDestroyed() OVERRIDE;
+                           int* bytes_read) override;
+  virtual void StopCaching() override;
+  virtual void DoneReading() override;
+  virtual HostPortPair GetSocketAddress() const override;
+  virtual void NotifyURLRequestDestroyed() override;
 
   HttpRequestInfo request_info_;
   const HttpResponseInfo* response_info_;
@@ -154,7 +154,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void RecordTimer();
   void ResetTimer();
 
-  virtual void UpdatePacketReadTimes() OVERRIDE;
+  virtual void UpdatePacketReadTimes() override;
   void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
 
   void RecordCompressionHistograms();
@@ -197,7 +197,7 @@ class URLRequestHttpJob : public URLRequestJob {
   HttpResponseHeaders* GetResponseHeaders() const;
 
   // Override of the private interface of URLRequestJob.
-  virtual void OnDetachRequest() OVERRIDE;
+  virtual void OnDetachRequest() override;
 
   base::Time request_creation_time_;
 

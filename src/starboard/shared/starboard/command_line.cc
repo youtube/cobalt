@@ -61,7 +61,7 @@ bool IsSwitch(const CommandLine::StringType& string,
 }
 
 // Append switches and arguments, keeping switches before arguments.
-void AppendSwitchesAndArguments(CommandLine& command_line,
+void AppendSwitchesAndArguments(CommandLine* command_line,
                                 const CommandLine::StringVector& argv) {
   bool parse_switches = true;
   for (size_t i = 1; i < argv.size(); ++i) {
@@ -87,9 +87,9 @@ void AppendSwitchesAndArguments(CommandLine& command_line,
     CommandLine::StringType switch_value;
     parse_switches &= (arg != kSwitchTerminator);
     if (parse_switches && IsSwitch(arg, &switch_string, &switch_value)) {
-      command_line.AppendSwitch(switch_string, switch_value);
+      command_line->AppendSwitch(switch_string, switch_value);
     } else {
-      command_line.AppendArg(arg);
+      command_line->AppendArg(arg);
     }
   }
 }
@@ -103,10 +103,14 @@ std::string LowerASCIIOnWindows(const std::string& string) {
 
 CommandLine::CommandLine(int argc, const CommandLine::CharType* const* argv)
     : argv_(1),
-      begin_args_(1),
-      original_argument_count_(argc),
-      original_argument_vector_(argv) {
+      begin_args_(1) {
   InitFromArgv(argc, argv);
+}
+
+CommandLine::CommandLine(const StringVector& argv)
+    : argv_(1),
+      begin_args_(1) {
+  InitFromArgv(argv);
 }
 
 CommandLine::~CommandLine() {
@@ -122,8 +126,11 @@ void CommandLine::InitFromArgv(int argc,
 
 void CommandLine::InitFromArgv(const StringVector& argv) {
   argv_ = StringVector(1);
+  if (!argv.empty()) {
+    argv_[0] = argv[0];
+  }
   begin_args_ = 1;
-  AppendSwitchesAndArguments(*this, argv);
+  AppendSwitchesAndArguments(this, argv);
 }
 
 bool CommandLine::HasSwitch(const std::string& switch_string) const {
@@ -170,7 +177,7 @@ void CommandLine::AppendArg(const CommandLine::StringType& value) {
 void CommandLine::AppendArguments(const CommandLine& other,
                                   bool include_program) {
   SB_UNREFERENCED_PARAMETER(include_program);
-  AppendSwitchesAndArguments(*this, other.argv());
+  AppendSwitchesAndArguments(this, other.argv());
 }
 
 }  // namespace starboard

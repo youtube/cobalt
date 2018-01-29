@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2008 The Android Open Source Project
  *
@@ -6,15 +5,17 @@
  * found in the LICENSE file.
  */
 
-
 #include "SkInterpolator.h"
+
+#include "SkFixed.h"
 #include "SkMath.h"
+#include "SkMalloc.h"
 #include "SkTSearch.h"
 
 SkInterpolatorBase::SkInterpolatorBase() {
-    fStorage    = NULL;
-    fTimes      = NULL;
-    SkDEBUGCODE(fTimesArray = NULL;)
+    fStorage    = nullptr;
+    fTimes      = nullptr;
+    SkDEBUGCODE(fTimesArray = nullptr;)
 }
 
 SkInterpolatorBase::~SkInterpolatorBase() {
@@ -30,9 +31,9 @@ void SkInterpolatorBase::reset(int elemCount, int frameCount) {
     fRepeat = SK_Scalar1;
     if (fStorage) {
         sk_free(fStorage);
-        fStorage = NULL;
-        fTimes = NULL;
-        SkDEBUGCODE(fTimesArray = NULL);
+        fStorage = nullptr;
+        fTimes = nullptr;
+        SkDEBUGCODE(fTimesArray = nullptr);
     }
 }
 
@@ -62,14 +63,13 @@ SkScalar SkInterpolatorBase::ComputeRelativeT(SkMSec time, SkMSec prevTime,
                                   SkMSec nextTime, const SkScalar blend[4]) {
     SkASSERT(time > prevTime && time < nextTime);
 
-    SkScalar t = SkScalarDiv((SkScalar)(time - prevTime),
-                             (SkScalar)(nextTime - prevTime));
+    SkScalar t = (SkScalar)(time - prevTime) / (SkScalar)(nextTime - prevTime);
     return blend ?
             SkUnitCubicInterp(t, blend[0], blend[1], blend[2], blend[3]) : t;
 }
 
 SkInterpolatorBase::Result SkInterpolatorBase::timeToT(SkMSec time, SkScalar* T,
-                                        int* indexPtr, SkBool* exactPtr) const {
+                                        int* indexPtr, bool* exactPtr) const {
     SkASSERT(fFrameCount > 0);
     Result  result = kNormal_Result;
     if (fRepeat != SK_Scalar1) {
@@ -130,8 +130,8 @@ SkInterpolatorBase::Result SkInterpolatorBase::timeToT(SkMSec time, SkScalar* T,
 
 SkInterpolator::SkInterpolator() {
     INHERITED::reset(0, 0);
-    fValues = NULL;
-    SkDEBUGCODE(fScalarsArray = NULL;)
+    fValues = nullptr;
+    SkDEBUGCODE(fScalarsArray = nullptr;)
 }
 
 SkInterpolator::SkInterpolator(int elemCount, int frameCount) {
@@ -160,9 +160,9 @@ static const SkScalar gIdentityBlend[4] = {
 
 bool SkInterpolator::setKeyFrame(int index, SkMSec time,
                             const SkScalar values[], const SkScalar blend[4]) {
-    SkASSERT(values != NULL);
+    SkASSERT(values != nullptr);
 
-    if (blend == NULL) {
+    if (blend == nullptr) {
         blend = gIdentityBlend;
     }
 
@@ -183,7 +183,7 @@ SkInterpolator::Result SkInterpolator::timeToValues(SkMSec time,
                                                     SkScalar values[]) const {
     SkScalar T;
     int index;
-    SkBool exact;
+    bool exact;
     Result result = timeToT(time, &T, &index, &exact);
     if (values) {
         const SkScalar* nextSrc = &fValues[index * fElemCount];

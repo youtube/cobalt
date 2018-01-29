@@ -6,10 +6,9 @@
  */
 #include "PathOpsTestCommon.h"
 #include "SkIntersections.h"
+#include "SkOpContour.h"
 #include "SkOpSegment.h"
-#include "SkPathOpsTriangle.h"
 #include "SkRandom.h"
-#include "SkTArray.h"
 #include "SkTSort.h"
 #include "Test.h"
 
@@ -52,7 +51,7 @@ DEF_TEST(PathOpsAngleFindCrossEpsilon, reporter) {
                     float p2 = SkDoubleToScalar(line[1].fY * test.fX);
                     int p1Bits = SkFloatAs2sCompliment(p1);
                     int p2Bits = SkFloatAs2sCompliment(p2);
-                    int epsilon = abs(p1Bits - p2Bits);
+                    int epsilon = SkTAbs(p1Bits - p2Bits);
                     if (maxEpsilon < epsilon) {
                         SkDebugf("line={{0, 0}, {%1.7g, %1.7g}} t=%1.7g pt={%1.7g, %1.7g}"
                             " epsilon=%d\n",
@@ -82,7 +81,9 @@ DEF_TEST(PathOpsAngleFindQuadEpsilon, reporter) {
         SkDPoint qPt2 = line.ptAtT(t3);
         qPt.fX += qPt2.fY;
         qPt.fY -= qPt2.fX;
-        SkDQuad quad = {{line[0], dPt, qPt}};
+        QuadPts q = {{line[0], dPt, qPt}};
+        SkDQuad quad;
+        quad.debugSet(q.fPts);
         // binary search for maximum movement of quad[1] towards test that still has 1 intersection
         double moveT = 0.5f;
         double deltaT = moveT / 2;
@@ -105,7 +106,7 @@ DEF_TEST(PathOpsAngleFindQuadEpsilon, reporter) {
         float p2 = SkDoubleToScalar(line[1].fY * last.fX);
         int p1Bits = SkFloatAs2sCompliment(p1);
         int p2Bits = SkFloatAs2sCompliment(p2);
-        int epsilon = abs(p1Bits - p2Bits);
+        int epsilon = SkTAbs(p1Bits - p2Bits);
         if (maxEpsilon < epsilon) {
             SkDebugf("line={{0, 0}, {%1.7g, %1.7g}} t=%1.7g/%1.7g/%1.7g moveT=%1.7g"
                     " pt={%1.7g, %1.7g} epsilon=%d\n",
@@ -191,20 +192,24 @@ DEF_TEST(PathOpsAngleFindSlop, reporter) {
 
 class PathOpsAngleTester {
 public:
-    static int After(const SkOpAngle& lh, const SkOpAngle& rh) {
+    static int After(SkOpAngle& lh, SkOpAngle& rh) {
         return lh.after(&rh);
     }
 
-    static int ConvexHullOverlaps(const SkOpAngle& lh, const SkOpAngle& rh) {
-        return lh.convexHullOverlaps(rh);
+    static int AllOnOneSide(SkOpAngle& lh, SkOpAngle& rh) {
+        return lh.allOnOneSide(&rh);
     }
 
-    static int Orderable(const SkOpAngle& lh, const SkOpAngle& rh) {
-        return lh.orderable(rh);
+    static int ConvexHullOverlaps(SkOpAngle& lh, SkOpAngle& rh) {
+        return lh.convexHullOverlaps(&rh);
     }
 
-    static int EndsIntersect(const SkOpAngle& lh, const SkOpAngle& rh) {
-        return lh.endsIntersect(rh);
+    static int Orderable(SkOpAngle& lh, SkOpAngle& rh) {
+        return lh.orderable(&rh);
+    }
+
+    static int EndsIntersect(SkOpAngle& lh, SkOpAngle& rh) {
+        return lh.endsIntersect(&rh);
     }
 
     static void SetNext(SkOpAngle& lh, SkOpAngle& rh) {
@@ -214,25 +219,13 @@ public:
 
 class PathOpsSegmentTester {
 public:
-    static void ConstructCubic(SkOpSegment* segment, SkPoint shortCubic[4]) {
-        segment->debugConstructCubic(shortCubic);
-    }
-
-    static void ConstructLine(SkOpSegment* segment, SkPoint shortLine[2]) {
-        segment->debugConstructLine(shortLine);
-    }
-
-    static void ConstructQuad(SkOpSegment* segment, SkPoint shortQuad[3]) {
-        segment->debugConstructQuad(shortQuad);
-    }
-
     static void DebugReset(SkOpSegment* segment) {
         segment->debugReset();
     }
 };
 
 struct CircleData {
-    const SkDCubic fPts;
+    const CubicPts fPts;
     const int fPtCount;
     SkPoint fShortPts[4];
 };
@@ -246,7 +239,10 @@ static CircleData circleDataSet[] = {
 static const int circleDataSetSize = (int) SK_ARRAY_COUNT(circleDataSet);
 
 DEF_TEST(PathOpsAngleCircle, reporter) {
-    SkOpSegment segment[2];
+    SkSTArenaAlloc<4096> allocator;
+    SkOpContourHead contour;
+    SkOpGlobalState state(&contour, &allocator  SkDEBUGPARAMS(false) SkDEBUGPARAMS(nullptr));
+    contour.init(&state, false, false);
     for (int index = 0; index < circleDataSetSize; ++index) {
         CircleData& data = circleDataSet[index];
         for (int idx2 = 0; idx2 < data.fPtCount; ++idx2) {
@@ -254,21 +250,25 @@ DEF_TEST(PathOpsAngleCircle, reporter) {
         }
         switch (data.fPtCount) {
             case 2:
-                PathOpsSegmentTester::ConstructLine(&segment[index], data.fShortPts);
+                contour.addLine(data.fShortPts);
                 break;
             case 3:
-                PathOpsSegmentTester::ConstructQuad(&segment[index], data.fShortPts);
+                contour.addQuad(data.fShortPts);
                 break;
             case 4:
-                PathOpsSegmentTester::ConstructCubic(&segment[index], data.fShortPts);
+                contour.addCubic(data.fShortPts);
                 break;
         }
     }
-    PathOpsAngleTester::Orderable(*segment[0].debugLastAngle(), *segment[1].debugLastAngle());
+    SkOpSegment* first = contour.first();
+    first->debugAddAngle(0, 1);
+    SkOpSegment* next = first->next();
+    next->debugAddAngle(0, 1);
+    PathOpsAngleTester::Orderable(*first->debugLastAngle(), *next->debugLastAngle());
 }
 
 struct IntersectData {
-    const SkDCubic fPts;
+    const CubicPts fPts;
     const int fPtCount;
     double fTStart;
     double fTEnd;
@@ -379,11 +379,39 @@ static IntersectData intersectDataSet16[] = { // pathops_visualizer.htm:7419
     { {{{5.000,4.000}, {2.000,3.000}}}, 2, 0.5, 0, {} }, // pathops_visualizer.htm:7377
 }; //
 
+// from skpi_gino_com_16
+static IntersectData intersectDataSet17[] = {
+    { /*seg=7*/ {{{270.974121f, 770.025879f}, {234.948273f, 734}, {184, 734}}}
+        , 3, 0.74590454, 0.547660352, {} },
+    { /*seg=8*/ {{{185, 734}, {252.93103f, 734}, {308, 789.06897f}, {308, 857}}}
+        , 4, 0.12052623, 0, {} },
+    { /*seg=7*/ {{{270.974121f, 770.025879f}, {234.948273f, 734}, {184, 734}}}
+        , 3, 0.74590454, 1, {} },
+};
+
+static IntersectData intersectDataSet18[] = {
+    { /*seg=7*/ {{{270.974121f, 770.025879f}, {234.948273f, 734}, {184, 734}}}
+        , 3, 0.74590454, 1, {} },
+    { /*seg=8*/ {{{185, 734}, {252.93103f, 734}, {308, 789.06897f}, {308, 857}}}
+        , 4, 0.12052623, 0.217351928, {} },
+    { /*seg=7*/ {{{270.974121f, 770.025879f}, {234.948273f, 734}, {184, 734}}}
+        , 3, 0.74590454, 0.547660352, {} },
+};
+
+static IntersectData intersectDataSet19[] = {
+    { /*seg=1*/ {{{0, 1}, {3, 5}, {2, 1}, {3, 1}}}
+        , 4, 0.135148995, 0.134791946, {} },
+    { /*seg=3*/ {{{1, 2}, {1, 2.15061641f}, {1, 2.21049166f}, {1.01366711f, 2.21379328f}}}
+        , 4, 0.956740456, 0.894913214, {} },
+    { /*seg=1*/ {{{0, 1}, {3, 5}, {2, 1}, {3, 1}}}
+        , 4, 0.135148995, 0.551812363, {} },
+};
+
 #define I(x) intersectDataSet##x
 
 static IntersectData* intersectDataSets[] = {
     I(1), I(2), I(3), I(4), I(5), I(6), I(7), I(8), I(9), I(10),
-    I(11), I(12), I(13), I(14), I(15), I(16),
+    I(11), I(12), I(13), I(14), I(15), I(16), I(17), I(18), I(19),
 };
 
 #undef I
@@ -391,56 +419,55 @@ static IntersectData* intersectDataSets[] = {
 
 static const int intersectDataSetSizes[] = {
     I(1), I(2), I(3), I(4), I(5), I(6), I(7), I(8), I(9), I(10),
-    I(11), I(12), I(13), I(14), I(15), I(16),
+    I(11), I(12), I(13), I(14), I(15), I(16), I(17), I(18), I(19),
 };
 
 #undef I
 
 static const int intersectDataSetsSize = (int) SK_ARRAY_COUNT(intersectDataSetSizes);
 
+struct FourPoints {
+    SkPoint pts[4];
+};
+
 DEF_TEST(PathOpsAngleAfter, reporter) {
+    SkSTArenaAlloc<4096> allocator;
+    SkOpContourHead contour;
+    SkOpGlobalState state(&contour, &allocator  SkDEBUGPARAMS(false) SkDEBUGPARAMS(nullptr));
+    contour.init(&state, false, false);
     for (int index = intersectDataSetsSize - 1; index >= 0; --index) {
         IntersectData* dataArray = intersectDataSets[index];
         const int dataSize = intersectDataSetSizes[index];
-        SkOpSegment segment[3];
         for (int index2 = 0; index2 < dataSize - 2; ++index2) {
-            for (int temp = 0; temp < (int) SK_ARRAY_COUNT(segment); ++temp) {
-                PathOpsSegmentTester::DebugReset(&segment[temp]);
-            }
-            for (int index3 = 0; index3 < (int) SK_ARRAY_COUNT(segment); ++index3) {
+            allocator.reset();
+            contour.reset();
+            for (int index3 = 0; index3 < 3; ++index3) {
                 IntersectData& data = dataArray[index2 + index3];
-                SkPoint temp[4];
+                SkPoint* temp = (SkPoint*) allocator.make<FourPoints>();
                 for (int idx2 = 0; idx2 < data.fPtCount; ++idx2) {
                     temp[idx2] = data.fPts.fPts[idx2].asSkPoint();
                 }
                 switch (data.fPtCount) {
                     case 2: {
-                        SkDLine seg = SkDLine::SubDivide(temp, data.fTStart,
-                                data.fTStart < data.fTEnd ? 1 : 0);
-                        data.fShortPts[0] = seg[0].asSkPoint();
-                        data.fShortPts[1] = seg[1].asSkPoint();
-                        PathOpsSegmentTester::ConstructLine(&segment[index3], data.fShortPts);
+                        contour.addLine(temp);
                         } break;
                     case 3: {
-                        SkDQuad seg = SkDQuad::SubDivide(temp, data.fTStart, data.fTEnd);
-                        data.fShortPts[0] = seg[0].asSkPoint();
-                        data.fShortPts[1] = seg[1].asSkPoint();
-                        data.fShortPts[2] = seg[2].asSkPoint();
-                        PathOpsSegmentTester::ConstructQuad(&segment[index3], data.fShortPts);
+                        contour.addQuad(temp);
                         } break;
                     case 4: {
-                        SkDCubic seg = SkDCubic::SubDivide(temp, data.fTStart, data.fTEnd);
-                        data.fShortPts[0] = seg[0].asSkPoint();
-                        data.fShortPts[1] = seg[1].asSkPoint();
-                        data.fShortPts[2] = seg[2].asSkPoint();
-                        data.fShortPts[3] = seg[3].asSkPoint();
-                        PathOpsSegmentTester::ConstructCubic(&segment[index3], data.fShortPts);
+                        contour.addCubic(temp);
                         } break;
                 }
             }
-            SkOpAngle& angle1 = *const_cast<SkOpAngle*>(segment[0].debugLastAngle());
-            SkOpAngle& angle2 = *const_cast<SkOpAngle*>(segment[1].debugLastAngle());
-            SkOpAngle& angle3 = *const_cast<SkOpAngle*>(segment[2].debugLastAngle());
+            SkOpSegment* seg1 = contour.first();
+            seg1->debugAddAngle(dataArray[index2 + 0].fTStart, dataArray[index2 + 0].fTEnd);
+            SkOpSegment* seg2 = seg1->next();
+            seg2->debugAddAngle(dataArray[index2 + 1].fTStart, dataArray[index2 + 1].fTEnd);
+            SkOpSegment* seg3 = seg2->next();
+            seg3->debugAddAngle(dataArray[index2 + 2].fTStart, dataArray[index2 + 2].fTEnd);
+            SkOpAngle& angle1 = *seg1->debugLastAngle();
+            SkOpAngle& angle2 = *seg2->debugLastAngle();
+            SkOpAngle& angle3 = *seg3->debugLastAngle();
             PathOpsAngleTester::SetNext(angle1, angle3);
        // These data sets are seeded when the set itself fails, so likely the dataset does not
        // match the expected result. The tests above return 1 when first added, but
@@ -451,35 +478,52 @@ DEF_TEST(PathOpsAngleAfter, reporter) {
     }
 }
 
-void SkOpSegment::debugConstruct() {
-    addStartSpan(1);
-    addEndSpan(1);
-    debugAddAngle(0, 1);
+void SkOpSegment::debugAddAngle(double startT, double endT) {
+    SkOpPtT* startPtT = startT == 0 ? fHead.ptT() : startT == 1 ? fTail.ptT()
+            : this->addT(startT);
+    SkOpPtT* endPtT = endT == 0 ? fHead.ptT() : endT == 1 ? fTail.ptT()
+            : this->addT(endT);
+    SkOpAngle* angle = this->globalState()->allocator()->make<SkOpAngle>();
+    SkOpSpanBase* startSpan = &fHead;
+    while (startSpan->ptT() != startPtT) {
+        startSpan = startSpan->upCast()->next();
+    }
+    SkOpSpanBase* endSpan = &fHead;
+    while (endSpan->ptT() != endPtT) {
+        endSpan = endSpan->upCast()->next();
+    }
+    angle->set(startSpan, endSpan);
+    if (startT < endT) {
+        startSpan->upCast()->setToAngle(angle);
+        endSpan->setFromAngle(angle);
+    } else {
+        endSpan->upCast()->setToAngle(angle);
+        startSpan->setFromAngle(angle);
+    }
 }
 
-void SkOpSegment::debugAddAngle(int start, int end) {
-    SkASSERT(start != end);
-    SkOpAngle& angle = fAngles.push_back();
-    angle.set(this, start, end);
-}
-
-void SkOpSegment::debugConstructCubic(SkPoint shortQuad[4]) {
-    addCubic(shortQuad, false, false);
-    addT(NULL, shortQuad[0], 0);
-    addT(NULL, shortQuad[3], 1);
-    debugConstruct();
-}
-
-void SkOpSegment::debugConstructLine(SkPoint shortQuad[2]) {
-    addLine(shortQuad, false, false);
-    addT(NULL, shortQuad[0], 0);
-    addT(NULL, shortQuad[1], 1);
-    debugConstruct();
-}
-
-void SkOpSegment::debugConstructQuad(SkPoint shortQuad[3]) {
-    addQuad(shortQuad, false, false);
-    addT(NULL, shortQuad[0], 0);
-    addT(NULL, shortQuad[2], 1);
-    debugConstruct();
+DEF_TEST(PathOpsAngleAllOnOneSide, reporter) {
+    SkSTArenaAlloc<4096> allocator;
+    SkOpContourHead contour;
+    SkOpGlobalState state(&contour, &allocator  SkDEBUGPARAMS(false) SkDEBUGPARAMS(nullptr));
+    contour.init(&state, false, false);
+    SkPoint conicPts[3] = {{494.37100219726562f, 224.66200256347656f},
+        {494.37360910682298f, 224.6729026561527f},
+        {494.37600708007813f, 224.68400573730469f}};
+    SkPoint linePts[2] = {{494.371002f, 224.662003f}, {494.375000f, 224.675995f}};
+    for (int i = 10; i >= 0; --i) {
+        SkPoint modLinePts[2] = { linePts[0], linePts[1] };
+        modLinePts[1].fX += i * .1f;
+        contour.addLine(modLinePts);
+        contour.addQuad(conicPts);
+   //     contour.addConic(conicPts, 0.999935746f, &allocator);
+        SkOpSegment* first = contour.first();
+        first->debugAddAngle(0, 1);
+        SkOpSegment* next = first->next();
+        next->debugAddAngle(0, 1);
+        /* int result = */
+            PathOpsAngleTester::AllOnOneSide(*first->debugLastAngle(), *next->debugLastAngle());
+  //      SkDebugf("i=%d result=%d\n", i , result);
+  //      SkDebugf("");
+    }
 }

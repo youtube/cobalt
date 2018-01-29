@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -15,7 +14,7 @@
 #include "SkMath.h"
 
 // This correctly favors the lower-pixel when y0 is on a 1/2 pixel boundary
-#define SkEdge_Compute_DY(top, y0)  ((top << 6) + 32 - (y0))
+#define SkEdge_Compute_DY(top, y0)  (SkLeftShift(top, 6) + 32 - (y0))
 
 struct SkEdge {
     enum Type {
@@ -36,8 +35,7 @@ struct SkEdge {
     uint8_t fCubicDShift;   // applied to fCDx and fCDy only in cubic
     int8_t  fWinding;       // 1 or -1
 
-    int setLine(const SkPoint& p0, const SkPoint& p1, const SkIRect* clip,
-                int shiftUp);
+    int setLine(const SkPoint& p0, const SkPoint& p1, const SkIRect* clip, int shiftUp);
     // call this version if you know you don't have a clip
     inline int setLine(const SkPoint& p0, const SkPoint& p1, int shiftUp);
     inline int updateLine(SkFixed ax, SkFixed ay, SkFixed bx, SkFixed by);
@@ -70,6 +68,7 @@ struct SkQuadraticEdge : public SkEdge {
     SkFixed fQDDx, fQDDy;
     SkFixed fQLastX, fQLastY;
 
+    bool setQuadraticWithoutUpdate(const SkPoint pts[3], int shiftUp);
     int setQuadratic(const SkPoint pts[3], int shiftUp);
     int updateQuadratic();
 };
@@ -81,7 +80,8 @@ struct SkCubicEdge : public SkEdge {
     SkFixed fCDDDx, fCDDDy;
     SkFixed fCLastX, fCLastY;
 
-    int setCubic(const SkPoint pts[4], const SkIRect* clip, int shiftUp);
+    bool setCubicWithoutUpdate(const SkPoint pts[4], int shiftUp);
+    int setCubic(const SkPoint pts[4], int shiftUp);
     int updateCubic();
 };
 
@@ -120,7 +120,7 @@ int SkEdge::setLine(const SkPoint& p0, const SkPoint& p1, int shift) {
     }
 
     SkFixed slope = SkFDot6Div(x1 - x0, y1 - y0);
-    const int dy  = SkEdge_Compute_DY(top, y0);
+    const SkFDot6 dy  = SkEdge_Compute_DY(top, y0);
 
     fX          = SkFDot6ToFixed(x0 + SkFixedMul(slope, dy));   // + SK_Fixed1/2
     fDX         = slope;
@@ -131,6 +131,5 @@ int SkEdge::setLine(const SkPoint& p0, const SkPoint& p1, int shift) {
     fCurveShift = 0;
     return 1;
 }
-
 
 #endif

@@ -47,15 +47,14 @@ void* SendToServerSocketEntryPoint(void* trio_as_void_ptr) {
 
   // Continue sending to the socket until it fails to send. It's expected that
   // SbSocketSendTo will fail when the server socket closes, but the application
-  // should
-  // not terminate.
-  SbTime start = SbTimeGetNow();
+  // should not terminate.
+  SbTime start = SbTimeGetMonotonicNow();
   SbTime now = start;
   SbTime kTimeout = kSbTimeSecond;
   int result = 0;
   while (result >= 0 && (now - start < kTimeout)) {
     result = SbSocketSendTo(trio->server_socket, send_buf, kBufSize, NULL);
-    now = SbTimeGetNow();
+    now = SbTimeGetMonotonicNow();
   }
 
   delete[] send_buf;
@@ -66,6 +65,28 @@ TEST(SbSocketSendToTest, RainyDayInvalidSocket) {
   char buf[16];
   int result = SbSocketSendTo(NULL, buf, sizeof(buf), NULL);
   EXPECT_EQ(-1, result);
+}
+
+TEST(SbSocketSendToTest, RainyDayUnconnectedSocket) {
+  SbSocket socket =
+      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+  ASSERT_TRUE(SbSocketIsValid(socket));
+
+  char buf[16];
+  int result = SbSocketSendTo(socket, buf, sizeof(buf), NULL);
+  EXPECT_EQ(-1, result);
+
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
+    SB_API_VERSION >= 9
+  EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(socket),
+                            kSbSocketErrorConnectionReset,
+                            kSbSocketErrorFailed);
+#else
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(socket));
+#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
+        // SB_API_VERSION >= 9
+
+  EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
 TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
@@ -91,8 +112,16 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
   // Wait for the thread to exit and check the last socket error.
   void* thread_result;
   EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
-  // Check that the server_socket failed, as expected.
-  EXPECT_EQ(SbSocketGetLastError(trio.server_socket), kSbSocketErrorFailed);
+
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
+    SB_API_VERSION >= 9
+  EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(trio.server_socket),
+                            kSbSocketErrorConnectionReset,
+                            kSbSocketErrorFailed);
+#else
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(trio.server_socket));
+#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
+        // SB_API_VERSION >= 9
 
   // Clean up the server socket.
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));

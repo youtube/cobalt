@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2012 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,6 @@
 # limitations under the License.
 """Utilities for use by gyp_cobalt and other build tools."""
 
-import importlib
 import json
 import logging
 import os
@@ -26,36 +24,15 @@ import urllib2
 
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
+from starboard.build import clang
+from starboard.tools import build
 
-_CLANG_REVISION = '298539-1'
-_CLANG_VERSION = '5.0.0'
-
-_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
 
 # The path to the build.id file that preserves a build ID.
-BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
-
-
-def GetGyp():
-  if 'gyp' not in sys.modules:
-    sys.path.insert(0,
-                    os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp',
-                                 'pylib'))
-    importlib.import_module('gyp')
-  return sys.modules['gyp']
-
-
-def GypDebugOptions():
-  """Returns all valid GYP debug options."""
-  debug_modes = []
-  gyp = GetGyp()
-  for name in dir(gyp):
-    if name.startswith('DEBUG_'):
-      debug_modes.append(getattr(gyp, name))
-  return debug_modes
+BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 
 
 def GetRevinfo():
@@ -78,8 +55,12 @@ def GetRevinfo():
       url = url.strip()
       revinfo[repo] = url
     return revinfo
-  except subprocess.CalledProcessError as e:
+  except (subprocess.CalledProcessError, ValueError) as e:
     logging.warning('Failed to get revision information: %s', e)
+    try:
+      logging.warning('Command output was: %s', line)
+    except NameError:
+      pass
     return {}
 
 
@@ -122,122 +103,6 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
   return build_number
 
 
-def Which(filename):
-  for path in os.environ['PATH'].split(os.pathsep):
-    full_name = os.path.join(path, filename)
-    if os.path.exists(full_name) and os.path.isfile(full_name):
-      return full_name
-  return None
-
-
-def _EnsureGomaRunning():
-  """Ensure goma is running."""
-
-  cmd_line = ['goma_ctl.py', 'ensure_start']
-  try:
-    subprocess.check_output(cmd_line, stderr=subprocess.STDOUT)
-    return True
-  except subprocess.CalledProcessError as e:
-    logging.error('goma failed to start.\nCommand: %s\n%s', ' '.join(e.cmd),
-                  e.output)
-    return False
-
-
-def GetToolchainsDir():
-  toolchains_dir = os.path.realpath(
-      os.getenv('COBALT_TOOLCHAINS_DIR',
-                os.path.join(os.environ.get('HOME'), 'cobalt-toolchains')))
-  # Ensure the toolchains directory exists.
-  if not os.path.exists(toolchains_dir):
-    os.mkdir(toolchains_dir)
-  return toolchains_dir
-
-
-def GetClangBasePath():
-  return os.path.join(GetToolchainsDir(),
-                      'x86_64-linux-gnu-clang-chromium-' + _CLANG_REVISION)
-
-
-def GetClangBinPath():
-  return os.path.join('llvm-build', 'Release+Asserts', 'bin')
-
-
-def EnsureClangAvailable(base_dir, bin_path):
-  """Ensure the expected version of clang is available."""
-
-  # Run the clang update script to get the correct version of clang.
-  # Then check that clang is in the path.
-  update_script = os.path.join(paths.REPOSITORY_ROOT, 'tools', 'clang',
-                               'scripts', 'update.py')
-  update_proc = subprocess.Popen([
-      update_script, '--force-clang-revision', _CLANG_REVISION,
-      '--clang-version', _CLANG_VERSION, '--force-base-dir', base_dir
-  ])
-  rc = update_proc.wait()
-  if rc != 0:
-    raise RuntimeError('%s failed.' % update_script)
-
-  # update.sh downloads clang to this path.
-  clang_bin = os.path.join(base_dir, bin_path, 'clang')
-
-  if not os.path.exists(clang_bin):
-    raise RuntimeError('Clang not found.')
-
-
-def FindAndInitGoma():
-  """Checks if goma is installed and makes sure that it's initialized.
-
-  Returns:
-    True if goma was found and correctly initialized.
-  """
-
-  # GOMA is only supported on Linux.
-  if not sys.platform.startswith('linux'):
-    return False
-
-  # See if we can find gomacc somewhere the path.
-  gomacc_path = Which('gomacc')
-
-  if 'USE_GOMA' in os.environ:
-    use_goma = int(os.environ['USE_GOMA'])
-    if use_goma and not gomacc_path:
-      logging.critical('goma was requested but gomacc not found in PATH.')
-      sys.exit(1)
-  else:
-    use_goma = bool(gomacc_path)
-
-  if use_goma:
-    use_goma = _EnsureGomaRunning()
-  return use_goma
-
-
-def GetHostCompilerEnvironment(goma_supports_compiler=False):
-  """Return the host compiler toolchain environment."""
-
-  base_dir = GetClangBasePath()
-  bin_path = GetClangBinPath()
-  toolchain_bin_dir = os.path.join(base_dir, bin_path)
-  EnsureClangAvailable(base_dir, bin_path)
-
-  cc_clang = os.path.join(toolchain_bin_dir, 'clang')
-  cxx_clang = os.path.join(toolchain_bin_dir, 'clang++')
-  host_clang_environment = {
-      'CC_host': cc_clang,
-      'CXX_host': cxx_clang,
-      'LD_host': cxx_clang,
-      'ARFLAGS_host': 'rcs',
-      'ARTHINFLAGS_host': 'rcsT',
-  }
-  # Check if goma is installed. Initialize if needed and use if possible.
-  if goma_supports_compiler and FindAndInitGoma():
-    logging.info('Using Goma')
-    host_clang_environment.update({
-        'CC_host': 'gomacc ' + cc_clang,
-        'CXX_host': 'gomacc ' + cxx_clang,
-    })
-  return host_clang_environment
-
-
 def GetConstantValue(file_path, constant_name):
   """Return an rvalue from a C++ header file.
 
@@ -267,3 +132,9 @@ def GetConstantValue(file_path, constant_name):
   expression = match.group(1)
   value = eval(expression)  # pylint:disable=eval-used
   return value
+
+
+def GetHostCompilerEnvironment(goma_supports_compiler=False):
+  # Assume the same clang that Starboard declares.
+  return build.GetHostCompilerEnvironment(clang.GetClangSpecification(),
+                                          goma_supports_compiler)

@@ -28,7 +28,7 @@ namespace mozjs {
 class MozjsScriptValueFactory : public ScriptValueFactory {
  public:
   explicit MozjsScriptValueFactory(MozjsGlobalEnvironment* global_environment);
-  ~MozjsScriptValueFactory() OVERRIDE {}
+  ~MozjsScriptValueFactory() override {}
 
   template <typename T>
   scoped_ptr<ScriptValue<Promise<T> > > CreatePromise() {

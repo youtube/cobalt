@@ -40,10 +40,10 @@ namespace backend {
 // Hookup glimp tracing to Chromium's base trace_event tracing.
 class GlimpToBaseTraceEventBridge : public glimp::TraceEventImpl {
  public:
-  void BeginTrace(const char* name) OVERRIDE {
+  void BeginTrace(const char* name) override {
     TRACE_EVENT_BEGIN0("glimp", name);
   }
-  void EndTrace(const char* name) OVERRIDE { TRACE_EVENT_END0("glimp", name); }
+  void EndTrace(const char* name) override { TRACE_EVENT_END0("glimp", name); }
 };
 
 GlimpToBaseTraceEventBridge s_glimp_to_base_trace_event_bridge;
@@ -84,10 +84,6 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
     8,
     EGL_ALPHA_SIZE,
     8,
-#if !SB_HAS_QUIRK(NO_EGL_BIND_TO_TEXTURE)
-    EGL_BIND_TO_TEXTURE_RGBA,
-    EGL_TRUE,
-#endif
     EGL_RENDERABLE_TYPE,
 #if defined(GLES3_SUPPORTED)
     EGL_OPENGL_ES3_BIT,

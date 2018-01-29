@@ -1,15 +1,14 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+#include "sk_tool_utils.h"
 #include "SampleCode.h"
 #include "SkView.h"
 #include "SkCanvas.h"
 #include "SkColorFilter.h"
-#include "SkDevice.h"
 #include "SkPaint.h"
 #include "SkShader.h"
 
@@ -84,20 +83,6 @@ static void test_5bits() {
     SkDebugf("--- trunc: %d %d  round: %d %d new: %d %d\n", e0, ae0, e1, ae1, e2, ae2);
 }
 
-// No longer marked static, since it is externed in SampleUnpremul.
-SkShader* createChecker();
-SkShader* createChecker() {
-    SkBitmap bm;
-    bm.allocN32Pixels(2, 2);
-    bm.lockPixels();
-    *bm.getAddr32(0, 0) = *bm.getAddr32(1, 1) = SkPreMultiplyColor(0xFFFFFFFF);
-    *bm.getAddr32(0, 1) = *bm.getAddr32(1, 0) = SkPreMultiplyColor(0xFFCCCCCC);
-    SkMatrix m;
-    m.setScale(12, 12);
-    return SkShader::CreateBitmapShader(bm, SkShader::kRepeat_TileMode,
-                                        SkShader::kRepeat_TileMode, &m);
-}
-
 static SkBitmap createBitmap(int n) {
     SkBitmap bitmap;
     bitmap.allocN32Pixels(n, n);
@@ -115,7 +100,7 @@ static SkBitmap createBitmap(int n) {
     canvas.drawOval(r, paint);
 
     r.inset(SK_Scalar1*n/4, SK_Scalar1*n/4);
-    paint.setXfermodeMode(SkXfermode::kSrc_Mode);
+    paint.setBlendMode(SkBlendMode::kSrc);
     paint.setColor(0x800000FF);
     canvas.drawOval(r, paint);
 
@@ -124,22 +109,19 @@ static SkBitmap createBitmap(int n) {
 
 class ColorFilterView : public SampleView {
     SkBitmap fBitmap;
-    SkShader* fShader;
+    sk_sp<SkShader> fShader;
     enum {
         N = 64
     };
 public:
     ColorFilterView() {
         fBitmap = createBitmap(N);
-        fShader = createChecker();
+        fShader = sk_tool_utils::create_checkerboard_shader(
+                0xFFCCCCCC, 0xFFFFFFFF, 12);
 
         if (false) { // avoid bit rot, suppress warning
             test_5bits();
         }
-    }
-
-    virtual ~ColorFilterView() {
-        fShader->unref();
     }
 
 protected:
@@ -169,21 +151,21 @@ protected:
             return;
         }
 
-        static const SkXfermode::Mode gModes[] = {
-            SkXfermode::kClear_Mode,
-            SkXfermode::kSrc_Mode,
-            SkXfermode::kDst_Mode,
-            SkXfermode::kSrcOver_Mode,
-            SkXfermode::kDstOver_Mode,
-            SkXfermode::kSrcIn_Mode,
-            SkXfermode::kDstIn_Mode,
-            SkXfermode::kSrcOut_Mode,
-            SkXfermode::kDstOut_Mode,
-            SkXfermode::kSrcATop_Mode,
-            SkXfermode::kDstATop_Mode,
-            SkXfermode::kXor_Mode,
-            SkXfermode::kPlus_Mode,
-            SkXfermode::kModulate_Mode,
+        static const SkBlendMode gModes[] = {
+            SkBlendMode::kClear,
+            SkBlendMode::kSrc,
+            SkBlendMode::kDst,
+            SkBlendMode::kSrcOver,
+            SkBlendMode::kDstOver,
+            SkBlendMode::kSrcIn,
+            SkBlendMode::kDstIn,
+            SkBlendMode::kSrcOut,
+            SkBlendMode::kDstOut,
+            SkBlendMode::kSrcATop,
+            SkBlendMode::kDstATop,
+            SkBlendMode::kXor,
+            SkBlendMode::kPlus,
+            SkBlendMode::kModulate,
         };
 
         static const SkColor gColors[] = {
@@ -200,8 +182,7 @@ protected:
 
         for (size_t y = 0; y < SK_ARRAY_COUNT(gColors); y++) {
             for (size_t x = 0; x < SK_ARRAY_COUNT(gModes); x++) {
-                SkColorFilter* cf = SkColorFilter::CreateModeFilter(gColors[y], gModes[x]);
-                SkSafeUnref(paint.setColorFilter(cf));
+                paint.setColorFilter(SkColorFilter::MakeModeFilter(gColors[y], gModes[x]));
                 canvas->drawBitmap(fBitmap, x * N * 1.25f, y * N * scale, &paint);
             }
         }

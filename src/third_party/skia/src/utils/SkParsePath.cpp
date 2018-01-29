@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -40,7 +39,9 @@ static const char* skip_ws(const char str[]) {
 }
 
 static const char* skip_sep(const char str[]) {
-    SkASSERT(str);
+    if (!str) {
+        return nullptr;
+    }
     while (is_sep(*str))
         str++;
     return str;
@@ -61,15 +62,19 @@ static const char* find_points(const char str[], SkPoint value[], int count,
 static const char* find_scalar(const char str[], SkScalar* value,
                                bool isRelative, SkScalar relative) {
     str = SkParse::FindScalar(str, value);
+    if (!str) {
+        return nullptr;
+    }
     if (isRelative) {
         *value += relative;
     }
+    str = skip_sep(str);
     return str;
 }
 
 bool SkParsePath::FromSVGString(const char data[], SkPath* result) {
     SkPath path;
-    SkPoint f = {0, 0};
+    SkPoint first = {0, 0};
     SkPoint c = {0, 0};
     SkPoint lastc = {0, 0};
     SkPoint points[3];
@@ -77,15 +82,21 @@ bool SkParsePath::FromSVGString(const char data[], SkPath* result) {
     char previousOp = '\0';
     bool relative = false;
     for (;;) {
+        if (!data) {
+            // Truncated data
+            return false;
+        }
         data = skip_ws(data);
         if (data[0] == '\0') {
             break;
         }
         char ch = data[0];
-        if (is_digit(ch) || ch == '-' || ch == '+') {
+        if (is_digit(ch) || ch == '-' || ch == '+' || ch == '.') {
             if (op == '\0') {
                 return false;
             }
+        } else if (is_sep(ch)) {
+            data = skip_sep(data);
         } else {
             op = ch;
             relative = false;
@@ -100,6 +111,7 @@ bool SkParsePath::FromSVGString(const char data[], SkPath* result) {
             case 'M':
                 data = find_points(data, points, 1, relative, &c);
                 path.moveTo(points[0]);
+                previousOp = '\0';
                 op = 'L';
                 c = points[0];
                 break;
@@ -140,32 +152,40 @@ bool SkParsePath::FromSVGString(const char data[], SkPath* result) {
                 goto quadraticCommon;
             case 'T':
                 data = find_points(data, &points[1], 1, relative, &c);
-                points[0] = points[1];
+                points[0] = c;
                 if (previousOp == 'Q' || previousOp == 'T') {
-                    points[0].fX = c.fX * 2 - lastc.fX;
-                    points[0].fY = c.fY * 2 - lastc.fY;
+                    points[0].fX -= lastc.fX - c.fX;
+                    points[0].fY -= lastc.fY - c.fY;
                 }
             quadraticCommon:
                 path.quadTo(points[0], points[1]);
                 lastc = points[0];
                 c = points[1];
                 break;
+            case 'A': {
+                SkPoint radii;
+                SkScalar angle, largeArc, sweep;
+                if ((data = find_points(data, &radii, 1, false, nullptr))
+                        && (data = skip_sep(data))
+                        && (data = find_scalar(data, &angle, false, 0))
+                        && (data = skip_sep(data))
+                        && (data = find_scalar(data, &largeArc, false, 0))
+                        && (data = skip_sep(data))
+                        && (data = find_scalar(data, &sweep, false, 0))
+                        && (data = skip_sep(data))
+                        && (data = find_points(data, &points[0], 1, relative, &c))) {
+                    path.arcTo(radii, angle, (SkPath::ArcSize) SkToBool(largeArc),
+                            (SkPath::Direction) !SkToBool(sweep), points[0]);
+                    path.getLastPt(&c);
+                }
+                } break;
             case 'Z':
                 path.close();
-#if 0   // !!! still a bug?
-                if (fPath.isEmpty() && (f.fX != 0 || f.fY != 0)) {
-                    c.fX -= SkScalar.Epsilon;   // !!! enough?
-                    fPath.moveTo(c);
-                    fPath.lineTo(f);
-                    fPath.close();
-                }
-#endif
-                c = f;
-                op = '\0';
+                c = first;
                 break;
             case '~': {
                 SkPoint args[2];
-                data = find_points(data, args, 2, false, NULL);
+                data = find_points(data, args, 2, false, nullptr);
                 path.moveTo(args[0].fX, args[0].fY);
                 path.lineTo(args[1].fX, args[1].fY);
             } break;
@@ -173,7 +193,7 @@ bool SkParsePath::FromSVGString(const char data[], SkPath* result) {
                 return false;
         }
         if (previousOp == 0) {
-            f = c;
+            first = c;
         }
         previousOp = op;
     }
@@ -184,6 +204,7 @@ bool SkParsePath::FromSVGString(const char data[], SkPath* result) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#include "SkGeometry.h"
 #include "SkString.h"
 #include "SkStream.h"
 
@@ -216,9 +237,14 @@ void SkParsePath::ToSVGString(const SkPath& path, SkString* str) {
 
     for (;;) {
         switch (iter.next(pts, false)) {
-             case SkPath::kConic_Verb:
-                SkASSERT(0);
-                break;
+            case SkPath::kConic_Verb: {
+                const SkScalar tol = SK_Scalar1 / 1024; // how close to a quad
+                SkAutoConicToQuads quadder;
+                const SkPoint* quadPts = quadder.computeQuads(pts, iter.conicWeight(), tol);
+                for (int i = 0; i < quadder.countQuads(); ++i) {
+                    append_scalars(&stream, 'Q', &quadPts[i*2 + 1].fX, 4);
+                }
+            } break;
            case SkPath::kMove_Verb:
                 append_scalars(&stream, 'M', &pts[0].fX, 2);
                 break;
@@ -235,7 +261,7 @@ void SkParsePath::ToSVGString(const SkPath& path, SkString* str) {
                 stream.write("Z", 1);
                 break;
             case SkPath::kDone_Verb:
-                str->resize(stream.getOffset());
+                str->resize(stream.bytesWritten());
                 stream.copyTo(str->writable_str());
             return;
         }

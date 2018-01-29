@@ -35,14 +35,14 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
       size_t minimum_alignment);
 
   scoped_refptr<FrameBuffer> AllocateFrameBuffer(size_t size,
-                                                 size_t alignment) OVERRIDE;
+                                                 size_t alignment) override;
   scoped_refptr<VideoFrame> CreateYV12Frame(
       const scoped_refptr<FrameBuffer>& frame_buffer, const YV12Param& param,
-      const base::TimeDelta& timestamp) OVERRIDE;
+      const base::TimeDelta& timestamp) override;
 
   scoped_refptr<VideoFrame> CreateNV12Frame(
       const scoped_refptr<FrameBuffer>& frame_buffer, const NV12Param& param,
-      const base::TimeDelta& timestamp) OVERRIDE;
+      const base::TimeDelta& timestamp) override;
 
  private:
   typedef cobalt::render_tree::RawImageMemory RawImageMemory;
@@ -51,11 +51,11 @@ class ShellVideoDataAllocatorCommon : public ShellVideoDataAllocator {
    public:
     explicit FrameBufferCommon(scoped_ptr<RawImageMemory> raw_image_memory);
 
-    uint8* data() const OVERRIDE {
+    uint8* data() const override {
       return raw_image_memory_ ? raw_image_memory_->GetMemory() : NULL;
     }
 
-    size_t size() const OVERRIDE {
+    size_t size() const override {
       return raw_image_memory_ ? raw_image_memory_->GetSizeInBytes() : 0;
     }
 

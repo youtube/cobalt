@@ -19,16 +19,14 @@ public:
     PictureNesting(const char* name, int maxLevel, int maxPictureLevel)
         : fMaxLevel(maxLevel)
         , fMaxPictureLevel(maxPictureLevel) {
-
+        fName.printf("picture_nesting_%s_%d", name, this->countPics());
         fPaint.setColor(SK_ColorRED);
         fPaint.setAntiAlias(true);
         fPaint.setStyle(SkPaint::kStroke_Style);
-        SkAutoTUnref<SkCanvas> nullCanvas(SkCreateNullCanvas());
-        fName.printf("picture_nesting_%s_%d", name, this->sierpinsky(nullCanvas, 0, fPaint));
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
@@ -37,7 +35,8 @@ protected:
         canvas->save();
         canvas->scale(SkIntToScalar(canvasSize.x()), SkIntToScalar(canvasSize.y()));
 
-        this->sierpinsky(canvas, 0, fPaint);
+        SkDEBUGCODE(int pics = ) this->sierpinsky(canvas, 0, fPaint);
+        SkASSERT(pics == this->countPics());
 
         canvas->restore();
     }
@@ -75,8 +74,7 @@ protected:
         c->restore();
 
         if (recordPicture) {
-            SkAutoTUnref<SkPicture> picture(recorder.endRecording());
-            canvas->drawPicture(picture);
+            canvas->drawPicture(recorder.finishRecordingAsPicture());
         }
 
         return pics;
@@ -86,6 +84,21 @@ protected:
     int fMaxPictureLevel;
 
 private:
+    int countPics() const {
+        // Solve: pics from sierpinsky
+        // f(m) = 1 + 3*f(m - 1)
+        // f(0) = 0
+        //   via "recursive function to closed form" tricks
+        // f(m) = 1/2 (3^m - 1)
+        int pics = 1;
+        for (int i = 0; i < fMaxPictureLevel; i++) {
+            pics *= 3;
+        }
+        pics--;
+        pics /= 2;
+        return pics;
+    }
+
     SkString fName;
     SkPaint  fPaint;
 
@@ -99,11 +112,11 @@ public:
     }
 
 protected:
-    virtual bool isSuitableFor(Backend backend) {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         SkIPoint canvasSize = onGetSize();
         SkPictureRecorder recorder;
 
@@ -111,7 +124,7 @@ protected:
             SkCanvas* c = recorder.beginRecording(SkIntToScalar(canvasSize.x()),
                                                   SkIntToScalar(canvasSize.y()));
             this->doDraw(c);
-            SkAutoTUnref<SkPicture> picture(recorder.endRecording());
+            (void)recorder.finishRecordingAsPicture();
         }
     }
 
@@ -123,6 +136,10 @@ class PictureNestingPlayback : public PictureNesting {
 public:
     PictureNestingPlayback(int maxLevel, int maxPictureLevel)
         : INHERITED("playback", maxLevel, maxPictureLevel) {
+    }
+protected:
+    void onDelayedSetup() override {
+        this->INHERITED::onDelayedSetup();
 
         SkIPoint canvasSize = onGetSize();
         SkPictureRecorder recorder;
@@ -130,18 +147,17 @@ public:
                                               SkIntToScalar(canvasSize.y()));
 
         this->doDraw(c);
-        fPicture.reset(recorder.endRecording());
+        fPicture = recorder.finishRecordingAsPicture();
     }
 
-protected:
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    void onDraw(int loops, SkCanvas* canvas) override {
         for (int i = 0; i < loops; i++) {
             canvas->drawPicture(fPicture);
         }
     }
 
 private:
-    SkAutoTUnref<SkPicture> fPicture;
+    sk_sp<SkPicture> fPicture;
 
     typedef PictureNesting INHERITED;
 };

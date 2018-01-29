@@ -97,13 +97,12 @@ class MediaSource : public EventTarget {
   // Methods used by HTMLMediaElement
   void SetReadyState(MediaSourceReadyState ready_state);
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
-
   DEFINE_WRAPPABLE_TYPE(MediaSource);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "MediaSource"; }
+  std::string GetDebugName() override { return "MediaSource"; }
 
   MediaSourceReadyState ready_state_;
   ::media::WebMediaPlayer* player_;

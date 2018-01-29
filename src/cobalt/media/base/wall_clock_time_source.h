@@ -20,17 +20,17 @@ namespace media {
 class MEDIA_EXPORT WallClockTimeSource : public TimeSource {
  public:
   WallClockTimeSource();
-  ~WallClockTimeSource() OVERRIDE;
+  ~WallClockTimeSource() override;
 
   // TimeSource implementation.
-  void StartTicking() OVERRIDE;
-  void StopTicking() OVERRIDE;
-  void SetPlaybackRate(double playback_rate) OVERRIDE;
-  void SetMediaTime(base::TimeDelta time) OVERRIDE;
-  base::TimeDelta CurrentMediaTime() OVERRIDE;
+  void StartTicking() override;
+  void StopTicking() override;
+  void SetPlaybackRate(double playback_rate) override;
+  void SetMediaTime(base::TimeDelta time) override;
+  base::TimeDelta CurrentMediaTime() override;
   bool GetWallClockTimes(
       const std::vector<base::TimeDelta>& media_timestamps,
-      std::vector<base::TimeTicks>* wall_clock_times) OVERRIDE;
+      std::vector<base::TimeTicks>* wall_clock_times) override;
 
   void set_tick_clock_for_testing(base::TickClock* tick_clock) {
     tick_clock_ = tick_clock;

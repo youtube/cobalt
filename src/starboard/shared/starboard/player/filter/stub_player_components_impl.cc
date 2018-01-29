@@ -16,12 +16,14 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/player/closure.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -49,14 +51,13 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
         audio_header_(audio_header),
         stream_ended_(false) {}
 
-  void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) SB_OVERRIDE {
+  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override {
     SB_UNREFERENCED_PARAMETER(error_cb);
     output_cb_ = output_cb;
   }
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE {
+              const ConsumedCB& consumed_cb) override {
     SB_DCHECK(input_buffer);
 
     // Values to represent what kind of dummy audio to fill the decoded audio
@@ -102,7 +103,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     last_input_buffer_ = input_buffer;
   }
 
-  void WriteEndOfStream() SB_OVERRIDE {
+  void WriteEndOfStream() override {
     if (last_input_buffer_) {
       // There won't be a next pts, so just guess that the decoded size is
       // 4 times the encoded size.
@@ -121,7 +122,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     Schedule(output_cb_);
   }
 
-  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE {
+  scoped_refptr<DecodedAudio> Read() override {
     scoped_refptr<DecodedAudio> result;
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
@@ -130,7 +131,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     return result;
   }
 
-  void Reset() SB_OVERRIDE {
+  void Reset() override {
     while (!decoded_audios_.empty()) {
       decoded_audios_.pop();
     }
@@ -139,18 +140,18 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
     CancelPendingJobs();
   }
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
+  SbMediaAudioSampleType GetSampleType() const override {
     return sample_type_;
   }
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
+  SbMediaAudioFrameStorageType GetStorageType() const override {
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }
-  int GetSamplesPerSecond() const SB_OVERRIDE {
+  int GetSamplesPerSecond() const override {
     return audio_header_.samples_per_second;
   }
 
  private:
-  Closure output_cb_;
+  OutputCB output_cb_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioHeader audio_header_;
   bool stream_ended_;
@@ -158,29 +159,32 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   scoped_refptr<InputBuffer> last_input_buffer_;
 };
 
-class StubVideoDecoder : public HostedVideoDecoder {
+class StubVideoDecoder : public VideoDecoder {
  public:
-  StubVideoDecoder() : host_(NULL) {}
+  StubVideoDecoder() {}
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override {
+    SB_UNREFERENCED_PARAMETER(error_cb);
+    SB_DCHECK(decoder_status_cb_);
+    decoder_status_cb_ = decoder_status_cb;
+  }
+  size_t GetPrerollFrameCount() const override { return 1; }
+  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE {
+      override {
     SB_DCHECK(input_buffer);
-    SB_DCHECK(host_ != NULL);
-    host_->OnDecoderStatusUpdate(
-        kNeedMoreInput, VideoFrame::CreateEmptyFrame(input_buffer->pts()));
+    decoder_status_cb_(kNeedMoreInput, new VideoFrame(input_buffer->pts()));
   }
-  void WriteEndOfStream() SB_OVERRIDE {
-    SB_DCHECK(host_ != NULL);
-    host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+  void WriteEndOfStream() override {
+    decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   }
-  void Reset() SB_OVERRIDE {}
-  void SetHost(Host* host) {
-    SB_DCHECK(host != NULL);
-    SB_DCHECK(host_ == NULL);
-    host_ = host;
+  void Reset() override {}
+  SbDecodeTarget GetCurrentDecodeTarget() override {
+    return kSbDecodeTargetInvalid;
   }
 
  private:
-  Host* host_;
+  DecoderStatusCB decoder_status_cb_;
 };
 
 // static
@@ -190,22 +194,39 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
   return output_mode == kSbPlayerOutputModePunchOut;
 }
 
-// static
-scoped_ptr<PlayerComponents> PlayerComponents::Create(
-    const AudioParameters& audio_parameters,
-    const VideoParameters& video_parameters) {
-  StubAudioDecoder* audio_decoder =
-      new StubAudioDecoder(audio_parameters.audio_header);
-  StubVideoDecoder* video_decoder = new StubVideoDecoder();
-  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
-      make_scoped_ptr<AudioDecoder>(audio_decoder),
-      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header);
-  VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(make_scoped_ptr<HostedVideoDecoder>(video_decoder));
+class PlayerComponentsImpl : public PlayerComponents {
+  void CreateAudioComponents(
+      const AudioParameters& audio_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+    SB_DCHECK(audio_decoder);
+    SB_DCHECK(audio_renderer_sink);
 
-  return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer, video_renderer));
+    audio_decoder->reset(new StubAudioDecoder(audio_parameters.audio_header));
+    audio_renderer_sink->reset(new AudioRendererSinkImpl);
+  }
+
+  void CreateVideoComponents(
+      const VideoParameters& video_parameters,
+      scoped_ptr<VideoDecoder>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+    const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+
+    SB_DCHECK(video_decoder);
+    SB_DCHECK(video_render_algorithm);
+    SB_DCHECK(video_renderer_sink);
+
+    video_decoder->reset(new StubVideoDecoder);
+    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    *video_renderer_sink = new PunchoutVideoRendererSink(
+        video_parameters.player, kVideoSinkRenderInterval);
+  }
+};
+
+// static
+scoped_ptr<PlayerComponents> PlayerComponents::Create() {
+  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
 }  // namespace filter

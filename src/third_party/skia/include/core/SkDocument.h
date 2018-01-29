@@ -10,11 +10,18 @@
 
 #include "SkBitmap.h"
 #include "SkPicture.h"
+#include "SkPixelSerializer.h"
 #include "SkRect.h"
 #include "SkRefCnt.h"
+#include "SkString.h"
+#include "SkTime.h"
 
 class SkCanvas;
 class SkWStream;
+
+#ifdef SK_BUILD_FOR_WIN
+struct IXpsOMObjectFactory;
+#endif
 
 /** SK_ScalarDefaultDPI is 72 DPI.
 */
@@ -30,55 +37,140 @@ class SkWStream;
  *      c. doc->endPage();
  *  3. Close the document with doc->close().
  */
-class SkDocument : public SkRefCnt {
+class SK_API SkDocument : public SkRefCnt {
 public:
-    SK_DECLARE_INST_COUNT(SkDocument)
+    struct OptionalTimestamp {
+        SkTime::DateTime fDateTime;
+        bool fEnabled;
+        OptionalTimestamp() : fEnabled(false) {}
+    };
+
+    /**
+     *  Optional metadata to be passed into the PDF factory function.
+     */
+    struct PDFMetadata {
+        /**
+         * The document's title.
+         */
+        SkString fTitle;
+        /**
+         * The name of the person who created the document.
+         */
+        SkString fAuthor;
+        /**
+         * The subject of the document.
+         */
+        SkString fSubject;
+        /**
+         * Keywords associated with the document.  Commas may be used
+         * to delineate keywords within the string.
+         */
+        SkString fKeywords;
+        /**
+         * If the document was converted to PDF from another format,
+         * the name of the conforming product that created the
+         * original document from which it was converted.
+         */
+        SkString fCreator;
+        /**
+         * The product that is converting this document to PDF.
+         *
+         * Leave fProducer empty to get the default, correct value.
+         */
+        SkString fProducer;
+        /**
+         * The date and time the document was created.
+         */
+        OptionalTimestamp fCreation;
+        /**
+         * The date and time the document was most recently modified.
+         */
+        OptionalTimestamp fModified;
+    };
+
+    /**
+     *  Create a PDF-backed document, writing the results into a
+     *  SkWStream.
+     *
+     *  PDF pages are sized in point units. 1 pt == 1/72 inch ==
+     *  127/360 mm.
+     *
+     *  @param stream A PDF document will be written to this
+     *         stream.  The document may write to the stream at
+     *         anytime during its lifetime, until either close() is
+     *         called or the document is deleted.
+     *  @param dpi The DPI (pixels-per-inch) at which features without
+     *         native PDF support will be rasterized (e.g. draw image
+     *         with perspective, draw text with perspective, ...)  A
+     *         larger DPI would create a PDF that reflects the
+     *         original intent with better fidelity, but it can make
+     *         for larger PDF files too, which would use more memory
+     *         while rendering, and it would be slower to be processed
+     *         or sent online or to printer.
+     *  @param metadata a PDFmetadata object.  Any fields may be left
+     *         empty.
+     *  @param jpegEncoder For PDF documents, if a jpegEncoder is set,
+     *         use it to encode SkImages and SkBitmaps as [JFIF]JPEGs.
+     *         This feature is deprecated and is only supplied for
+     *         backwards compatability.
+     *         The prefered method to create PDFs with JPEG images is
+     *         to use SkImage::NewFromEncoded() and not jpegEncoder.
+     *         Chromium uses NewFromEncoded.
+     *         If the encoder is unset, or if jpegEncoder->onEncode()
+     *         returns NULL, fall back on encoding images losslessly
+     *         with Deflate.
+     *  @param pdfa Iff true, include XMP metadata, a document UUID,
+     *         and sRGB output intent information.  This adds length
+     *         to the document and makes it non-reproducable, but are
+     *         necessary features for PDF/A-2b conformance
+     *
+     *  @returns NULL if there is an error, otherwise a newly created
+     *           PDF-backed SkDocument.
+     */
+    static sk_sp<SkDocument> MakePDF(SkWStream* stream,
+                                     SkScalar dpi,
+                                     const SkDocument::PDFMetadata& metadata,
+                                     sk_sp<SkPixelSerializer> jpegEncoder,
+                                     bool pdfa);
+
+    static sk_sp<SkDocument> MakePDF(SkWStream* stream,
+                                     SkScalar dpi = SK_ScalarDefaultRasterDPI) {
+        return SkDocument::MakePDF(stream, dpi, SkDocument::PDFMetadata(),
+                                   nullptr, false);
+    }
 
     /**
      *  Create a PDF-backed document, writing the results into a file.
-     *  If there is an error trying to create the doc, returns NULL.
-     *  encoder sets the DCTEncoder for images, to encode a bitmap
-     *    as JPEG (DCT).
-     *  rasterDpi - the DPI at which features without native PDF support
-     *              will be rasterized (e.g. draw image with perspective,
-     *              draw text with perspective, ...)
-     *              A larger DPI would create a PDF that reflects the original
-     *              intent with better fidelity, but it can make for larger
-     *              PDF files too, which would use more memory while rendering,
-     *              and it would be slower to be processed or sent online or
-     *              to printer.
      */
-    static SkDocument* CreatePDF(
-            const char filename[],
-            SkPicture::EncodeBitmap encoder = NULL,
-            SkScalar rasterDpi = SK_ScalarDefaultRasterDPI);
+    static sk_sp<SkDocument> MakePDF(const char outputFilePath[],
+                                     SkScalar dpi = SK_ScalarDefaultRasterDPI);
 
+#ifdef SK_BUILD_FOR_WIN
     /**
-     *  Create a PDF-backed document, writing the results into a stream.
-     *  If there is an error trying to create the doc, returns NULL.
+     *  Create a XPS-backed document, writing the results into the stream.
      *
-     *  The document may write to the stream at anytime during its lifetime,
-     *  until either close() is called or the document is deleted. Once close()
-     *  has been called, and all of the data has been written to the stream,
-     *  if there is a Done proc provided, it will be called with the stream.
-     *  The proc can delete the stream, or whatever it needs to do.
-     *  encoder sets the DCTEncoder for images, to encode a bitmap
-     *    as JPEG (DCT).
-     *  Done - clean up method intended to allow deletion of the stream.
-     *         Its aborted parameter is true if the cleanup is due to an abort
-     *         call. It is false otherwise.
-     *  rasterDpi - the DPI at which features without native PDF support
-     *              will be rasterized (e.g. draw image with perspective,
-     *              draw text with perspective, ...)
-     *              A larger DPI would create a PDF that reflects the original
-     *              intent with better fidelity, but it can make for larger
-     *              PDF files too, which would use more memory while rendering,
-     *              and it would be slower to be processed or sent online or
-     *              to printer.     */
-    static SkDocument* CreatePDF(
-            SkWStream*, void (*Done)(SkWStream*,bool aborted) = NULL,
-            SkPicture::EncodeBitmap encoder = NULL,
-            SkScalar rasterDpi = SK_ScalarDefaultRasterDPI);
+     *  @param stream A XPS document will be written to this stream.  The
+     *                document may write to the stream at anytime during its
+     *                lifetime, until either close() or abort() are called or
+     *                the document is deleted.
+     *  @param xpsFactory A pointer to a COM XPS factory.  Must be non-null.
+     *                    The document will take a ref to the factory. See
+     *                    dm/DMSrcSink.cpp for an example.
+     *  @param dpi The DPI (pixels-per-inch) at which features without
+     *             native XPS support will be rasterized (e.g. draw image
+     *             with perspective, draw text with perspective, ...)  A
+     *             larger DPI would create a XPS that reflects the
+     *             original intent with better fidelity, but it can make
+     *             for larger XPS files too, which would use more memory
+     *             while rendering, and it would be slower to be processed
+     *             or sent online or to printer.
+     *
+     *  @returns nullptr if XPS is not supported.
+     */
+    static sk_sp<SkDocument> MakeXPS(SkWStream* stream,
+                                     IXpsOMObjectFactory* xpsFactory,
+                                     SkScalar dpi = SK_ScalarDefaultRasterDPI);
+#endif
 
     /**
      *  Begin a new page for the document, returning the canvas that will draw
@@ -100,9 +192,8 @@ public:
      *  or stream holding the document's contents. After close() the document
      *  can no longer add new pages. Deleting the document will automatically
      *  call close() if need be.
-     *  Returns true on success or false on failure.
      */
-    bool close();
+    void close();
 
     /**
      *  Call abort() to stop producing the document immediately.
@@ -112,15 +203,18 @@ public:
 
 protected:
     SkDocument(SkWStream*, void (*)(SkWStream*, bool aborted));
+
     // note: subclasses must call close() in their destructor, as the base class
     // cannot do this for them.
     virtual ~SkDocument();
 
-    virtual SkCanvas* onBeginPage(SkScalar width, SkScalar height,
-                                  const SkRect& content) = 0;
+    virtual SkCanvas* onBeginPage(SkScalar width, SkScalar height) = 0;
     virtual void onEndPage() = 0;
-    virtual bool onClose(SkWStream*) = 0;
+    virtual void onClose(SkWStream*) = 0;
     virtual void onAbort() = 0;
+
+    // Allows subclasses to write to the stream as pages are written.
+    SkWStream* getStream() { return fStream; }
 
     enum State {
         kBetweenPages_State,

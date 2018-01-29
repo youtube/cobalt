@@ -15,6 +15,11 @@
 {
   'variables': {
     'enable_map_to_mesh%': 1,
+
+    'cobalt_platform_dependencies': [
+      # GL Linux makes some GL calls within decode_target_internal.cc.
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+    ],
   },
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
@@ -35,6 +40,7 @@
   },
 
   'includes': [
+    'enable_glx_via_angle.gypi',
     'libraries.gypi',
     '../shared/compiler_flags.gypi',
     '../shared/gyp_configuration.gypi',

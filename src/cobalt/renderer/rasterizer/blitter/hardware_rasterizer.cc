@@ -29,8 +29,6 @@
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/blitter/resource_provider.h"
-#include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
-#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/software_rasterizer.h"
 
 #if SB_HAS(BLITTER)
@@ -45,7 +43,6 @@ class HardwareRasterizer::Impl {
   explicit Impl(backend::GraphicsContext* graphics_context,
                 int skia_atlas_width, int skia_atlas_height,
                 int scratch_surface_size_in_bytes,
-                int surface_cache_size_in_bytes,
                 int software_surface_cache_size_in_bytes,
                 bool purge_skia_font_caches_on_destruction);
   ~Impl();
@@ -81,8 +78,6 @@ class HardwareRasterizer::Impl {
   SbBlitterSurface current_frame_;
 
   ScratchSurfaceCache scratch_surface_cache_;
-  base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
-  base::optional<common::SurfaceCache> surface_cache_;
 
   CachedSoftwareRasterizer software_surface_cache_;
   LinearGradientCache linear_gradient_cache_;
@@ -99,7 +94,6 @@ class HardwareRasterizer::Impl {
 HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int scratch_surface_size_in_bytes,
-                               int surface_cache_size_in_bytes,
                                int software_surface_cache_size_in_bytes,
                                bool purge_skia_font_caches_on_destruction)
     : context_(base::polymorphic_downcast<backend::GraphicsContextBlitter*>(
@@ -132,14 +126,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
           software_surface_cache_.GetResourceProvider(),
           base::Bind(&HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget,
                      base::Unretained(this))));
-
-  if (surface_cache_size_in_bytes > 0) {
-    surface_cache_delegate_.emplace(context_->GetSbBlitterDevice(),
-                                    context_->GetSbBlitterContext());
-
-    surface_cache_.emplace(&surface_cache_delegate_.value(),
-                           surface_cache_size_in_bytes);
-  }
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -186,13 +172,6 @@ void HardwareRasterizer::Impl::Submit(
   }
   CHECK(SbBlitterSetRenderTarget(context, visitor_render_target));
 
-  // Update our surface cache to do per-frame calculations such as deciding
-  // which render tree nodes are candidates for caching in this upcoming
-  // frame.
-  if (surface_cache_) {
-    surface_cache_->Frame();
-  }
-
   software_surface_cache_.OnStartNewFrame();
 
   // Clear the background before proceeding if the clear option is set.
@@ -230,8 +209,6 @@ void HardwareRasterizer::Impl::Submit(
     RenderTreeNodeVisitor visitor(
         context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
         initial_render_state, &scratch_surface_cache_,
-        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
-        surface_cache_ ? &surface_cache_.value() : NULL,
         &software_surface_cache_, &linear_gradient_cache_);
     render_tree->Accept(&visitor);
   }
@@ -281,12 +258,10 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
   CHECK(SbBlitterFillRect(
       context, SbBlitterMakeRect(0, 0, size.width(), size.height())));
 
-  RenderTreeNodeVisitor visitor(
-      context_->GetSbBlitterDevice(), context, initial_render_state,
-      &scratch_surface_cache_,
-      surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
-      surface_cache_ ? &surface_cache_.value() : NULL, &software_surface_cache_,
-      &linear_gradient_cache_);
+  RenderTreeNodeVisitor visitor(context_->GetSbBlitterDevice(), context,
+                                initial_render_state, &scratch_surface_cache_,
+                                &software_surface_cache_,
+                                &linear_gradient_cache_);
   render_tree->Accept(&visitor);
 
   CHECK(SbBlitterFlushContext(context));
@@ -307,10 +282,10 @@ void HardwareRasterizer::Impl::SetupLastFrameSurface(int width, int height) {
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int scratch_surface_size_in_bytes,
-    int surface_cache_size_in_bytes, int software_surface_cache_size_in_bytes,
+    int software_surface_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction)
     : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
-                     scratch_surface_size_in_bytes, surface_cache_size_in_bytes,
+                     scratch_surface_size_in_bytes,
                      software_surface_cache_size_in_bytes,
                      purge_skia_font_caches_on_destruction)) {}
 

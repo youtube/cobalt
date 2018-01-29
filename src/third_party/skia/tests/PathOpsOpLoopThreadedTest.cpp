@@ -6,6 +6,25 @@
  */
 #include "PathOpsExtendedTest.h"
 #include "PathOpsThreadedCommon.h"
+#include "SkString.h"
+
+static int loopNo = 17;
+
+static void add_point(SkString* str, SkScalar x, SkScalar y) {
+    int asInt = SkScalarRoundToInt(x);
+    if (SkIntToScalar(asInt) == x) {
+        str->appendf("%d", asInt);
+    } else {
+        str->appendf("%1.9gf", x);
+    }
+    str->appendf(",");
+    asInt = SkScalarRoundToInt(y);
+    if (SkIntToScalar(asInt) == y) {
+        str->appendf("%d", asInt);
+    } else {
+        str->appendf("%1.9gf", y);
+    }
+}
 
 static void testOpLoopsMain(PathOpsThreadState* data) {
 #if DEBUG_SHOW_TEST_NAME
@@ -13,11 +32,7 @@ static void testOpLoopsMain(PathOpsThreadState* data) {
 #endif
     SkASSERT(data);
     PathOpsThreadState& state = *data;
-    char pathStr[1024];  // gdb: set print elements 400
-    bool progress = state.fReporter->verbose(); // FIXME: break out into its own parameter?
-    if (progress) {
-        sk_bzero(pathStr, sizeof(pathStr));
-    }
+    SkString pathStr;
     for (int a = 0 ; a < 6; ++a) {
         for (int b = a + 1 ; b < 7; ++b) {
             for (int c = 0 ; c < 6; ++c) {
@@ -33,17 +48,6 @@ static void testOpLoopsMain(PathOpsThreadState* data) {
         SkPoint endD = { midB.fX - v.fY * state.fD / 3,
                           midB.fY + v.fX * state.fD / 3 };
         SkPath pathA, pathB;
-        if (progress) {
-            char* str = pathStr;
-            str += sprintf(str, "    path.moveTo(%d,%d);\n", a, b);
-            str += sprintf(str, "    path.cubicTo(%d,%d, %1.9gf,%1.9gf, %1.9gf,%1.9gf);\n",
-                    c, d, endC.fX, endC.fY, endD.fX, endD.fY);
-            str += sprintf(str, "    path.close();\n");
-            str += sprintf(str, "    pathB.moveTo(%d,%d);\n", c, d);
-            str += sprintf(str, "    pathB.cubicTo(%1.9gf,%1.9gf, %1.9gf,%1.9gf, %d,%d);\n",
-                    endC.fX, endC.fY, endD.fX, endD.fY, a, b);
-            str += sprintf(str, "    pathB.close();\n");
-        }
         pathA.moveTo(SkIntToScalar(a), SkIntToScalar(b));
         pathA.cubicTo(SkIntToScalar(c), SkIntToScalar(d), endC.fX, endC.fY, endD.fX, endD.fY);
         pathA.close();
@@ -51,10 +55,30 @@ static void testOpLoopsMain(PathOpsThreadState* data) {
         pathB.cubicTo(endC.fX, endC.fY, endD.fX, endD.fY, SkIntToScalar(a), SkIntToScalar(b));
         pathB.close();
 //        SkDebugf("%s\n", pathStr);
-        if (progress) {
-            outputProgress(state.fPathStr, pathStr, kIntersect_PathOp);
+        if (state.fReporter->verbose()) {
+            pathStr.printf("static void loop%d(skiatest::Reporter* reporter,"
+                    " const char* filename) {\n", loopNo);
+            pathStr.appendf("    SkPath path, pathB;\n");
+            pathStr.appendf("    path.moveTo(%d,%d);\n", a, b);
+            pathStr.appendf("    path.cubicTo(%d,%d, ", c, d);
+            add_point(&pathStr, endC.fX, endC.fY);
+            pathStr.appendf(", ");
+            add_point(&pathStr, endD.fX, endD.fY);
+            pathStr.appendf(");\n");
+            pathStr.appendf("    path.close();\n");
+            pathStr.appendf("    pathB.moveTo(%d,%d);\n", c, d);
+            pathStr.appendf("    pathB.cubicTo(");
+            add_point(&pathStr, endC.fX, endC.fY);
+            pathStr.appendf(", ");
+            add_point(&pathStr, endD.fX, endD.fY);
+            pathStr.appendf(", %d,%d);\n", a, b);
+            pathStr.appendf("    pathB.close();\n");
+            pathStr.appendf("    testPathOp(reporter, path, pathB, kIntersect_SkPathOp,"
+                    " filename);\n");
+            pathStr.appendf("}\n");
+            state.outputProgress(pathStr.c_str(), kIntersect_SkPathOp);
         }
-        testThreadedPathOp(state.fReporter, pathA, pathB, kIntersect_PathOp, "loops");
+        testPathOp(state.fReporter, pathA, pathB, kIntersect_SkPathOp, "loops");
                 }
             }
         }
@@ -62,17 +86,14 @@ static void testOpLoopsMain(PathOpsThreadState* data) {
 }
 
 DEF_TEST(PathOpsOpLoopsThreaded, reporter) {
-    if (!FLAGS_runFail) {
-        return;
-    }
-    initializeTests(reporter, "cubicOp");
+    initializeTests(reporter, "loopOp");
     PathOpsThreadedTestRunner testRunner(reporter);
     for (int a = 0; a < 6; ++a) {  // outermost
         for (int b = a + 1; b < 7; ++b) {
             for (int c = 0 ; c < 6; ++c) {
                 for (int d = c + 1; d < 7; ++d) {
-                    *testRunner.fRunnables.append() = SkNEW_ARGS(PathOpsThreadedRunnable,
-                            (&testOpLoopsMain, a, b, c, d, &testRunner));
+                    *testRunner.fRunnables.append() =
+                            new PathOpsThreadedRunnable(&testOpLoopsMain, a, b, c, d, &testRunner);
                 }
             }
             if (!reporter->allowExtendedTest()) goto finish;
@@ -80,30 +101,4 @@ DEF_TEST(PathOpsOpLoopsThreaded, reporter) {
     }
 finish:
     testRunner.render();
-    ShowTestArray();
-}
-
-DEF_TEST(PathOpsOpLoops, reporter) {
-    if (!FLAGS_runFail) {
-        return;
-    }
-    initializeTests(reporter, "cubicOp");
-    PathOpsThreadState state;
-    state.fReporter = reporter;
-    SkBitmap bitmap;
-    state.fBitmap = &bitmap;
-    char pathStr[PATH_STR_SIZE];
-    state.fPathStr = pathStr;
-    for (state.fA = 0; state.fA < 6; ++state.fA) {  // outermost
-        for (state.fB = state.fA + 1; state.fB < 7; ++state.fB) {
-            for (state.fC = 0 ; state.fC < 6; ++state.fC) {
-                for (state.fD = state.fC + 1; state.fD < 7; ++state.fD) {
-                    testOpLoopsMain(&state);
-                }
-            }
-            if (!reporter->allowExtendedTest()) goto finish;
-        }
-    }
-finish:
-    ShowTestArray();
 }

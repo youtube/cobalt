@@ -88,7 +88,7 @@ class HangingHostResolverWithCancel : public HostResolver {
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE {
+                      const BoundNetLog& net_log) override {
     DCHECK(addresses);
     DCHECK_EQ(false, callback.is_null());
     EXPECT_FALSE(HasOutstandingRequest());
@@ -99,12 +99,12 @@ class HangingHostResolverWithCancel : public HostResolver {
 
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE {
+                               const BoundNetLog& net_log) override {
     NOTIMPLEMENTED();
     return ERR_UNEXPECTED;
   }
 
-  virtual void CancelRequest(RequestHandle req) OVERRIDE {
+  virtual void CancelRequest(RequestHandle req) override {
     EXPECT_TRUE(HasOutstandingRequest());
     EXPECT_EQ(outstanding_request_, req);
     outstanding_request_ = NULL;

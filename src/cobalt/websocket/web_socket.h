@@ -152,19 +152,19 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
             script::ExceptionState* exception_state,
             const bool require_network_module);
 
-  void OnConnected(const std::string& selected_subprotocol) OVERRIDE;
+  void OnConnected(const std::string& selected_subprotocol) override;
 
   void OnDisconnected(bool was_clean, uint16 code,
-                      const std::string& reason) OVERRIDE;
+                      const std::string& reason) override;
 
-  void OnSentData(int amount_sent) OVERRIDE {
+  void OnSentData(int amount_sent) override {
     DCHECK_GE(buffered_amount_, amount_sent);
     buffered_amount_ -= amount_sent;
     PotentiallyAllowGarbageCollection();
   }
   void OnReceivedData(bool is_text_frame,
-                      scoped_refptr<net::IOBufferWithSize> data) OVERRIDE;
-  void OnError() OVERRIDE {
+                      scoped_refptr<net::IOBufferWithSize> data) override;
+  void OnError() override {
     this->DispatchEvent(new dom::Event(base::Tokens::error()));
   }
 

@@ -12,7 +12,7 @@
 #include "Test.h"
 
 struct lineCubic {
-    SkDCubic cubic;
+    CubicPts cubic;
     SkDLine line;
 };
 
@@ -25,7 +25,9 @@ static lineCubic failLineCubicTests[] = {
 static const size_t failLineCubicTests_count = SK_ARRAY_COUNT(failLineCubicTests);
 
 static void testFail(skiatest::Reporter* reporter, int iIndex) {
-    const SkDCubic& cubic = failLineCubicTests[iIndex].cubic;
+    const CubicPts& cuPts = failLineCubicTests[iIndex].cubic;
+    SkDCubic cubic;
+    cubic.debugSet(cuPts.fPts);
     SkASSERT(ValidCubic(cubic));
     const SkDLine& line = failLineCubicTests[iIndex].line;
     SkASSERT(ValidLine(line));
@@ -49,6 +51,12 @@ static void testFail(skiatest::Reporter* reporter, int iIndex) {
 }
 
 static lineCubic lineCubicTests[] = {
+    {{{{0, 6}, {1.0851458311080933, 4.3722810745239258}, {1.5815209150314331, 3.038947582244873}, {1.9683018922805786, 1.9999997615814209}}},
+     {{{3,2}, {1,2}}}},
+
+    {{{{0.468027353,4}, {1.06734705,1.33333337}, {1.36700678,0}, {3,0}}},
+    {{{2,1}, {0,1}}}},
+
     {{{{-634.60540771484375, -481.262939453125}, {266.2696533203125, -752.70867919921875},
             {-751.8370361328125, -317.37921142578125}, {-969.7427978515625, 824.7255859375}}},
             {{{-287.9506133720805678, -557.1376476615772617},
@@ -117,7 +125,9 @@ static int doIntersect(SkIntersections& intersections, const SkDCubic& cubic, co
 }
 
 static void testOne(skiatest::Reporter* reporter, int iIndex) {
-    const SkDCubic& cubic = lineCubicTests[iIndex].cubic;
+    const CubicPts& cuPts = lineCubicTests[iIndex].cubic;
+    SkDCubic cubic;
+    cubic.debugSet(cuPts.fPts);
     SkASSERT(ValidCubic(cubic));
     const SkDLine& line = lineCubicTests[iIndex].line;
     SkASSERT(ValidLine(line));
@@ -151,8 +161,6 @@ static void testOne(skiatest::Reporter* reporter, int iIndex) {
         double cubicT = i[0][0];
         SkDPoint prev = cubic.ptAtT(cubicT * 2 - 1);
         SkDPoint sect = cubic.ptAtT(cubicT);
-        double left[3] = { line.isLeft(prev), line.isLeft(sect), line.isLeft(cubic[3]) };
-        SkDebugf("cubic=(%1.9g, %1.9g, %1.9g)\n", left[0], left[1], left[2]);
         SkDebugf("{{%1.9g,%1.9g}, {%1.9g,%1.9g}},\n", prev.fX, prev.fY, sect.fX, sect.fY);
         SkDebugf("{{%1.9g,%1.9g}, {%1.9g,%1.9g}},\n", sect.fX, sect.fY, cubic[3].fX, cubic[3].fY);
         SkDPoint prevL = line.ptAtT(i[1][0] - 0.0000007);
@@ -184,7 +192,9 @@ DEF_TEST(PathOpsCubicLineIntersection, reporter) {
 DEF_TEST(PathOpsCubicLineIntersectionOneOff, reporter) {
     int iIndex = 0;
     testOne(reporter, iIndex);
-    const SkDCubic& cubic = lineCubicTests[iIndex].cubic;
+    const CubicPts& cuPts = lineCubicTests[iIndex].cubic;
+    SkDCubic cubic;
+    cubic.debugSet(cuPts.fPts);
     const SkDLine& line = lineCubicTests[iIndex].line;
     SkIntersections i;
     i.intersect(cubic, line);

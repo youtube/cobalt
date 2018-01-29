@@ -106,6 +106,14 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_frame_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm_impl.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm_impl.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/wsola_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
@@ -124,14 +132,12 @@
       '<(DEPTH)/starboard/shared/starboard/player/player_worker.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_end_of_stream.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/video_frame_internal.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
 
       # Shared renderers
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_impl_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
     ],
     'starboard_platform_dependent_files': [
@@ -278,6 +284,7 @@
         '<(DEPTH)/starboard/shared/win32/directory_close.cc',
         '<(DEPTH)/starboard/shared/win32/directory_create.cc',
         '<(DEPTH)/starboard/shared/win32/directory_get_next.cc',
+        '<(DEPTH)/starboard/shared/win32/directory_internal.cc',
         '<(DEPTH)/starboard/shared/win32/directory_internal.h',
         '<(DEPTH)/starboard/shared/win32/directory_open.cc',
         '<(DEPTH)/starboard/shared/win32/error_utils.cc',
@@ -377,6 +384,8 @@
         '<(DEPTH)/starboard/shared/win32/thread_get_name.cc',
         '<(DEPTH)/starboard/shared/win32/thread_is_equal.cc',
         '<(DEPTH)/starboard/shared/win32/thread_join.cc',
+        '<(DEPTH)/starboard/shared/win32/thread_local_internal.cc',
+        '<(DEPTH)/starboard/shared/win32/thread_local_internal.h',
         '<(DEPTH)/starboard/shared/win32/thread_private.cc',
         '<(DEPTH)/starboard/shared/win32/thread_private.h',
         '<(DEPTH)/starboard/shared/win32/thread_set_local_value.cc',
@@ -400,6 +409,8 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
+        # We assume most modern Windows PCs can handle 4k H264.
+        'ENABLE_H264_4K_SUPPORT'
       ],
       'dependencies': [
         'convert_i18n_data',

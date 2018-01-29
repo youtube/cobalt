@@ -188,7 +188,7 @@ class NET_EXPORT HttpAuthHandlerRegistryFactory
                                 CreateReason reason,
                                 int digest_nonce_count,
                                 const BoundNetLog& net_log,
-                                scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
+                                scoped_ptr<HttpAuthHandler>* handler) override;
 
  private:
   typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;

@@ -170,7 +170,6 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       muted_(false),
       paused_(true),
       seeking_(false),
-      loop_(false),
       controls_(false),
       last_time_update_event_wall_time_(0),
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
@@ -547,6 +546,11 @@ float HTMLMediaElement::duration() const {
   return static_cast<float>(duration_);
 }
 
+base::Time HTMLMediaElement::GetStartDate() const {
+  MLOG() << start_date_.ToSbTime();
+  return start_date_;
+}
+
 bool HTMLMediaElement::paused() const {
   MLOG() << paused_;
   return paused_;
@@ -636,13 +640,18 @@ void HTMLMediaElement::set_autoplay(bool autoplay) {
 }
 
 bool HTMLMediaElement::loop() const {
-  MLOG() << loop_;
-  return loop_;
+  MLOG() << HasAttribute("loop");
+  return HasAttribute("loop");
 }
 
 void HTMLMediaElement::set_loop(bool loop) {
-  MLOG() << loop;
-  loop_ = loop;
+  // The value of 'loop' is true when the 'loop' attribute is present.
+  // The value of the attribute is irrelevant.
+  if (loop) {
+    SetAttribute("loop", "");
+  } else {
+    RemoveAttribute("loop");
+  }
 }
 
 void HTMLMediaElement::Play() {
@@ -754,8 +763,7 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
   HTMLElement::TraceMembers(tracer);
 
-  event_queue_.TraceMembers(tracer);
-
+  tracer->Trace(event_queue_);
   tracer->Trace(played_time_ranges_);
   tracer->Trace(media_source_);
   tracer->Trace(error_);
@@ -1045,7 +1053,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
         new media::FetcherBufferedDataSource(
             base::MessageLoopProxy::current(), url, csp_callback,
             html_element_context()->fetcher_factory()->network_module(),
-            request_mode_, node_document()->location()->OriginObject()));
+            request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, data_source.Pass());
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1269,6 +1277,9 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
     duration_ = player_->GetDuration();
+#if SB_HAS(PLAYER_WITH_URL)
+    start_date_ = player_->GetStartDate();
+#endif
     ScheduleOwnEvent(base::Tokens::durationchange());
     ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }
@@ -1722,21 +1733,18 @@ void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
 float HTMLMediaElement::Volume() const { return volume(NULL); }
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
-void HTMLMediaElement::SourceOpened(media::ChunkDemuxer* chunk_demuxer) {
+void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
+  DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
+#if defined(COBALT_MEDIA_SOURCE_2016)
   DCHECK(media_source_);
   media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
-  EndProcessingMediaPlayerCallback();
-}
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-void HTMLMediaElement::SourceOpened() {
-  BeginProcessingMediaPlayerCallback();
   SetSourceState(kMediaSourceReadyStateOpen);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   EndProcessingMediaPlayerCallback();
 }
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
@@ -1820,7 +1828,7 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
   }
   if (!current_url.SchemeIs("http") &&
       OriginIsSafe(request_mode_, current_url,
-                   node_document()->location()->OriginObject())) {
+                   node_document()->location()->GetOriginAsObject())) {
     media_encrypted_event_init.set_init_data_type(
         ToInitDataTypeString(init_data_type));
     media_encrypted_event_init.set_init_data(

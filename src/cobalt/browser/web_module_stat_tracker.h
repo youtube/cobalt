@@ -62,6 +62,13 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // |OnRenderTreeProduced| ends stat tracking for the current event.
   void OnRenderTreeProduced();
 
+  // |OnRenderTreeRasterized| ends stat tracking for the current event.
+  void OnRenderTreeRasterized(const base::TimeTicks& on_rasterize_time);
+
+  // Returns whether or not an event-based render tree has been produced but not
+  // yet rasterized.
+  bool IsRenderTreeRasterizationPending() const;
+
  private:
   enum EventType {
     kEventTypeInvalid = -1,
@@ -81,7 +88,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   struct EventStats {
     explicit EventStats(const std::string& name);
 
-    base::CVal<bool, base::CValPublic> produced_render_tree_;
+    base::TimeTicks start_time;
+    base::CVal<bool, base::CValPublic> produced_render_tree;
 
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;
@@ -116,16 +124,24 @@ class WebModuleStatTracker : public base::StopWatchOwner {
         duration_layout_render_and_animate;
 
 #if defined(ENABLE_WEBDRIVER)
-    // A string containing all of the event's values as a dictionary of
-    // key-value pairs. This is used by the Webdriver and is only enabled with
-    // it.
+    // A string containing all of the event's values, excluding post-event
+    // delays, as a dictionary of key-value pairs. This is used by the Webdriver
+    // and is only enabled with it.
     base::CVal<std::string> value_dictionary;
 #endif  // ENABLE_WEBDRIVER
+
+    // Post-event delay-related
+    base::CVal<base::TimeDelta, base::CValPublic>
+        duration_renderer_rasterize_render_tree_delay;
+
+    // Whether or not the first rasterization for the render tree produced by
+    // the event is pending.
+    bool is_render_tree_rasterization_pending;
   };
 
   // From base::StopWatchOwner
-  bool IsStopWatchEnabled(int id) const OVERRIDE;
-  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
+  bool IsStopWatchEnabled(int id) const override;
+  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) override;
 
   // End the current event if one is active. This triggers an update of all
   // |EventStats| for the event.
@@ -141,7 +157,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   const bool should_track_event_stats_;
   EventType current_event_type_;
   // Each individual |EventType| has its own entry in the vector.
-  ScopedVector<EventStats> event_stats_;
+  ScopedVector<EventStats> event_stats_list_;
 
   // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;

@@ -19,7 +19,8 @@ namespace starboard {
 namespace shared {
 namespace uwp {
 
-starboard::CommandLine* GetCommandLinePointer(starboard::Application* app) {
+const starboard::CommandLine*
+GetCommandLinePointer(starboard::Application* app) {
   return app->GetCommandLine();
 }
 

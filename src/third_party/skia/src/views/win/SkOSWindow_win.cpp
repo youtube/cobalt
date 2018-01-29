@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -9,9 +8,11 @@
 
 #if defined(SK_BUILD_FOR_WIN)
 
+#include "SkLeanWindows.h"
+
 #include <GL/gl.h>
 #include <WindowsX.h>
-#include "SkWGL.h"
+#include "win/SkWGL.h"
 #include "SkWindow.h"
 #include "SkCanvas.h"
 #include "SkOSMenu.h"
@@ -21,41 +22,49 @@
 #include "SkGraphics.h"
 
 #if SK_ANGLE
+#include "gl/GrGLAssembleInterface.h"
 #include "gl/GrGLInterface.h"
-
 #include "GLES2/gl2.h"
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#endif // SK_ANGLE
 
-#define ANGLE_GL_CALL(IFACE, X)                                 \
-    do {                                                        \
-        (IFACE)->fFunctions.f##X;                               \
+const int kDefaultWindowWidth = 500;
+const int kDefaultWindowHeight = 500;
+
+#define GL_CALL(IFACE, X)                                 \
+    SkASSERT(IFACE);                                      \
+    do {                                                  \
+        (IFACE)->fFunctions.f##X;                         \
     } while (false)
-
-#endif
-
-#define INVALIDATE_DELAY_MS 200
-
-static SkOSWindow* gCurrOSWin;
-static HWND gEventTarget;
 
 #define WM_EVENT_CALLBACK (WM_USER+0)
 
-void post_skwinevent()
+void post_skwinevent(HWND hwnd)
 {
-    PostMessage(gEventTarget, WM_EVENT_CALLBACK, 0, 0);
+    PostMessage(hwnd, WM_EVENT_CALLBACK, 0, 0);
 }
 
-SkOSWindow::SkOSWindow(void* hWnd) {
-    fHWND = hWnd;
+SkTHashMap<void*, SkOSWindow*> SkOSWindow::gHwndToOSWindowMap;
+
+SkOSWindow::SkOSWindow(const void* winInit) {
+    fWinInit = *(const WindowInit*)winInit;
+
+    fHWND = CreateWindow(fWinInit.fClass, NULL, WS_OVERLAPPEDWINDOW,
+                         CW_USEDEFAULT, 0, kDefaultWindowWidth, kDefaultWindowHeight, NULL, NULL,
+                         fWinInit.fInstance, NULL);
+    gHwndToOSWindowMap.set(fHWND, this);
 #if SK_SUPPORT_GPU
 #if SK_ANGLE
     fDisplay = EGL_NO_DISPLAY;
     fContext = EGL_NO_CONTEXT;
     fSurface = EGL_NO_SURFACE;
 #endif
+
     fHGLRC = NULL;
 #endif
     fAttached = kNone_BackEndType;
-    gEventTarget = (HWND)hWnd;
+    fFullscreen = false;
 }
 
 SkOSWindow::~SkOSWindow() {
@@ -80,6 +89,7 @@ SkOSWindow::~SkOSWindow() {
     }
 #endif // SK_ANGLE
 #endif // SK_SUPPORT_GPU
+    this->closeWindow();
 }
 
 static SkKey winToskKey(WPARAM vk) {
@@ -127,7 +137,8 @@ bool SkOSWindow::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             this->handleChar((SkUnichar) wParam);
             return true;
         case WM_CHAR: {
-            this->handleChar(SkUTF8_ToUnichar((char*)&wParam));
+            const uint16_t* c = reinterpret_cast<uint16_t*>(&wParam);
+            this->handleChar(SkUTF16_NextUnichar(&c));
             return true;
         } break;
         case WM_SIZE: {
@@ -143,14 +154,6 @@ bool SkOSWindow::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
             EndPaint(hWnd, &ps);
             return true;
             } break;
-
-        case WM_TIMER: {
-            RECT* rect = (RECT*)wParam;
-            InvalidateRect(hWnd, rect, FALSE);
-            KillTimer(hWnd, (UINT_PTR)rect);
-            delete rect;
-            return true;
-        } break;
 
         case WM_LBUTTONDOWN:
             this->handleClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam),
@@ -169,7 +172,7 @@ bool SkOSWindow::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
         case WM_EVENT_CALLBACK:
             if (SkEvent::ProcessEvent()) {
-                post_skwinevent();
+                post_skwinevent(hWnd);
             }
             return true;
     }
@@ -204,7 +207,6 @@ void SkOSWindow::doPaint(void* ctx) {
         //       seems to be to copy the bitmap to a temporary (contiguous)
         //       buffer before passing to SetDIBitsToDevice().
         SkASSERT(bitmap.width() * bitmap.bytesPerPixel() == bitmap.rowBytes());
-        bitmap.lockPixels();
         int ret = SetDIBitsToDevice(hdc,
             0, 0,
             bitmap.width(), bitmap.height(),
@@ -214,26 +216,23 @@ void SkOSWindow::doPaint(void* ctx) {
             &bmi,
             DIB_RGB_COLORS);
         (void)ret; // we're ignoring potential failures for now.
-        bitmap.unlockPixels();
     }
 }
 
-#if 0
 void SkOSWindow::updateSize()
 {
     RECT    r;
-    GetWindowRect((HWND)this->getHWND(), &r);
+    GetWindowRect((HWND)fHWND, &r);
     this->resize(r.right - r.left, r.bottom - r.top);
 }
-#endif
 
 void SkOSWindow::onHandleInval(const SkIRect& r) {
-    RECT* rect = new RECT;
-    rect->left    = r.fLeft;
-    rect->top     = r.fTop;
-    rect->right   = r.fRight;
-    rect->bottom  = r.fBottom;
-    SetTimer((HWND)fHWND, (UINT_PTR)rect, INVALIDATE_DELAY_MS, NULL);
+    RECT rect;
+    rect.left    = r.fLeft;
+    rect.top     = r.fTop;
+    rect.right   = r.fRight;
+    rect.bottom  = r.fBottom;
+    InvalidateRect((HWND)fHWND, &rect, FALSE);
 }
 
 void SkOSWindow::onAddMenu(const SkOSMenu* sk_menu)
@@ -300,8 +299,9 @@ static SkKey raw2key(uint32_t raw)
 
 void SkEvent::SignalNonEmptyQueue()
 {
-    post_skwinevent();
-    //SkDebugf("signal nonempty\n");
+    SkOSWindow::ForAllWindows([](void* hWND, SkOSWindow**) {
+        post_skwinevent((HWND)hWND);
+    });
 }
 
 static UINT_PTR gTimer;
@@ -328,10 +328,10 @@ void SkEvent::SignalQueueTimer(SkMSec delay)
 
 #if SK_SUPPORT_GPU
 
-bool SkOSWindow::attachGL(int msaaSampleCount, AttachmentInfo* info) {
+bool SkOSWindow::attachGL(int msaaSampleCount, bool deepColor, AttachmentInfo* info) {
     HDC dc = GetDC((HWND)fHWND);
     if (NULL == fHGLRC) {
-        fHGLRC = SkCreateWGLContext(dc, msaaSampleCount,
+        fHGLRC = SkCreateWGLContext(dc, msaaSampleCount, deepColor,
                 kGLPreferCompatibilityProfile_SkWGLContextRequest);
         if (NULL == fHGLRC) {
             return false;
@@ -342,11 +342,13 @@ bool SkOSWindow::attachGL(int msaaSampleCount, AttachmentInfo* info) {
         glClear(GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     }
     if (wglMakeCurrent(dc, (HGLRC)fHGLRC)) {
-        // use DescribePixelFormat to get the stencil bit depth.
+        // use DescribePixelFormat to get the stencil and color bit depth.
         int pixelFormat = GetPixelFormat(dc);
         PIXELFORMATDESCRIPTOR pfd;
         DescribePixelFormat(dc, pixelFormat, sizeof(pfd), &pfd);
         info->fStencilBits = pfd.cStencilBits;
+        // pfd.cColorBits includes alpha, so it will be 32 in 8/8/8/8 and 10/10/10/2
+        info->fColorBits = pfd.cRedBits + pfd.cGreenBits + pfd.cBlueBits;
 
         // Get sample count if the MSAA WGL extension is present
         SkWGLExtensions extensions;
@@ -377,13 +379,76 @@ void SkOSWindow::detachGL() {
 }
 
 void SkOSWindow::presentGL() {
-    glFlush();
     HDC dc = GetDC((HWND)fHWND);
     SwapBuffers(dc);
     ReleaseDC((HWND)fHWND, dc);
 }
 
 #if SK_ANGLE
+
+static void* get_angle_egl_display(void* nativeDisplay) {
+    PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT;
+    eglGetPlatformDisplayEXT =
+        (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
+
+    // We expect ANGLE to support this extension
+    if (!eglGetPlatformDisplayEXT) {
+        return EGL_NO_DISPLAY;
+    }
+
+    EGLDisplay display = EGL_NO_DISPLAY;
+    // Try for an ANGLE D3D11 context, fall back to D3D9, and finally GL.
+    EGLint attribs[3][3] = {
+        {
+            EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+            EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
+            EGL_NONE
+        },
+        {
+            EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+            EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE,
+            EGL_NONE
+        },
+    };
+    for (int i = 0; i < 3 && display == EGL_NO_DISPLAY; ++i) {
+        display = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,nativeDisplay, attribs[i]);
+    }
+    return display;
+}
+
+struct ANGLEAssembleContext {
+    ANGLEAssembleContext() {
+        fEGL = GetModuleHandle("libEGL.dll");
+        fGL = GetModuleHandle("libGLESv2.dll");
+    }
+
+    bool isValid() const { return SkToBool(fEGL) && SkToBool(fGL); }
+
+    HMODULE fEGL;
+    HMODULE fGL;
+};
+
+static GrGLFuncPtr angle_get_gl_proc(void* ctx, const char name[]) {
+    const ANGLEAssembleContext& context = *reinterpret_cast<const ANGLEAssembleContext*>(ctx);
+    GrGLFuncPtr proc = (GrGLFuncPtr) GetProcAddress(context.fGL, name);
+    if (proc) {
+        return proc;
+    }
+    proc = (GrGLFuncPtr) GetProcAddress(context.fEGL, name);
+    if (proc) {
+        return proc;
+    }
+    return eglGetProcAddress(name);
+}
+
+static const GrGLInterface* get_angle_gl_interface() {
+    ANGLEAssembleContext context;
+    if (!context.isValid()) {
+        return nullptr;
+    }
+    return GrGLAssembleGLESInterface(&context, angle_get_gl_proc);
+}
+
 bool create_ANGLE(EGLNativeWindowType hWnd,
                   int msaaSampleCount,
                   EGLDisplay* eglDisplay,
@@ -407,9 +472,11 @@ bool create_ANGLE(EGLNativeWindowType hWnd,
         EGL_NONE, EGL_NONE
     };
 
-    EGLDisplay display = eglGetDisplay(GetDC(hWnd));
-    if (display == EGL_NO_DISPLAY ) {
-       return false;
+    EGLDisplay display = get_angle_egl_display(GetDC(hWnd));
+
+    if (EGL_NO_DISPLAY == display) {
+        SkDebugf("Could not create ANGLE egl display!\n");
+        return false;
     }
 
     // Initialize EGL
@@ -438,7 +505,7 @@ bool create_ANGLE(EGLNativeWindowType hWnd,
         msaaConfigAttribList[kConfigAttribListCnt + 1] = EGL_SAMPLES;
         msaaConfigAttribList[kConfigAttribListCnt + 2] = msaaSampleCount;
         msaaConfigAttribList[kConfigAttribListCnt + 3] = EGL_NONE;
-        if (eglChooseConfig(display, configAttribList, eglConfig, 1, &numConfigs)) {
+        if (eglChooseConfig(display, msaaConfigAttribList, eglConfig, 1, &numConfigs)) {
             SkASSERT(numConfigs > 0);
             foundConfig = true;
         }
@@ -487,32 +554,30 @@ bool SkOSWindow::attachANGLE(int msaaSampleCount, AttachmentInfo* info) {
         if (false == bResult) {
             return false;
         }
-        SkAutoTUnref<const GrGLInterface> intf(GrGLCreateANGLEInterface());
-
-        if (intf) {
-            ANGLE_GL_CALL(intf, ClearStencil(0));
-            ANGLE_GL_CALL(intf, ClearColor(0, 0, 0, 0));
-            ANGLE_GL_CALL(intf, StencilMask(0xffffffff));
-            ANGLE_GL_CALL(intf, Clear(GL_STENCIL_BUFFER_BIT |GL_COLOR_BUFFER_BIT));
+        fANGLEInterface.reset(get_angle_gl_interface());
+        if (!fANGLEInterface) {
+            this->detachANGLE();
+            return false;
         }
+        GL_CALL(fANGLEInterface, ClearStencil(0));
+        GL_CALL(fANGLEInterface, ClearColor(0, 0, 0, 0));
+        GL_CALL(fANGLEInterface, StencilMask(0xffffffff));
+        GL_CALL(fANGLEInterface, Clear(GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT));
     }
-    if (eglMakeCurrent(fDisplay, fSurface, fSurface, fContext)) {
-        eglGetConfigAttrib(fDisplay, fConfig, EGL_STENCIL_SIZE, &info->fStencilBits);
-        eglGetConfigAttrib(fDisplay, fConfig, EGL_SAMPLES, &info->fSampleCount);
-
-        SkAutoTUnref<const GrGLInterface> intf(GrGLCreateANGLEInterface());
-
-        if (intf ) {
-            ANGLE_GL_CALL(intf, Viewport(0, 0,
-                                         SkScalarRoundToInt(this->width()),
-                                         SkScalarRoundToInt(this->height())));
-        }
-        return true;
+    if (!eglMakeCurrent(fDisplay, fSurface, fSurface, fContext)) {
+        this->detachANGLE();
+        return false;
     }
-    return false;
+    eglGetConfigAttrib(fDisplay, fConfig, EGL_STENCIL_SIZE, &info->fStencilBits);
+    eglGetConfigAttrib(fDisplay, fConfig, EGL_SAMPLES, &info->fSampleCount);
+
+    GL_CALL(fANGLEInterface, Viewport(0, 0, SkScalarRoundToInt(this->width()),
+                                      SkScalarRoundToInt(this->height())));
+    return true;
 }
 
 void SkOSWindow::detachANGLE() {
+    fANGLEInterface.reset(nullptr);
     eglMakeCurrent(fDisplay, EGL_NO_SURFACE , EGL_NO_SURFACE , EGL_NO_CONTEXT);
 
     eglDestroyContext(fDisplay, fContext);
@@ -526,19 +591,17 @@ void SkOSWindow::detachANGLE() {
 }
 
 void SkOSWindow::presentANGLE() {
-    SkAutoTUnref<const GrGLInterface> intf(GrGLCreateANGLEInterface());
-
-    if (intf) {
-        ANGLE_GL_CALL(intf, Flush());
-    }
+    GL_CALL(fANGLEInterface, Flush());
 
     eglSwapBuffers(fDisplay, fSurface);
 }
 #endif // SK_ANGLE
+
 #endif // SK_SUPPORT_GPU
 
 // return true on success
-bool SkOSWindow::attach(SkBackEndTypes attachType, int msaaSampleCount, AttachmentInfo* info) {
+bool SkOSWindow::attach(SkBackEndTypes attachType, int msaaSampleCount, bool deepColor,
+                        AttachmentInfo* info) {
 
     // attach doubles as "windowResize" so we need to allo
     // already bound states to pass through again
@@ -552,7 +615,7 @@ bool SkOSWindow::attach(SkBackEndTypes attachType, int msaaSampleCount, Attachme
         break;
 #if SK_SUPPORT_GPU
     case kNativeGL_BackEndType:
-        result = attachGL(msaaSampleCount, info);
+        result = attachGL(msaaSampleCount, deepColor, info);
         break;
 #if SK_ANGLE
     case kANGLE_BackEndType:
@@ -573,7 +636,7 @@ bool SkOSWindow::attach(SkBackEndTypes attachType, int msaaSampleCount, Attachme
     return result;
 }
 
-void SkOSWindow::detach() {
+void SkOSWindow::release() {
     switch (fAttached) {
     case kNone_BackEndType:
         // nothing to do
@@ -616,4 +679,92 @@ void SkOSWindow::present() {
     }
 }
 
+bool SkOSWindow::makeFullscreen() {
+    if (fFullscreen) {
+        return true;
+    }
+#if SK_SUPPORT_GPU
+    if (fHGLRC) {
+        this->detachGL();
+    }
+#endif // SK_SUPPORT_GPU
+    // This is hacked together from various sources on the web. It can certainly be improved and be
+    // made more robust.
+
+    // Save current window/resolution information. We do this in case we ever implement switching
+    // back to windowed mode.
+    fSavedWindowState.fZoomed = SkToBool(IsZoomed((HWND)fHWND));
+    if (fSavedWindowState.fZoomed) {
+        SendMessage((HWND)fHWND, WM_SYSCOMMAND, SC_RESTORE, 0);
+    }
+    fSavedWindowState.fStyle = GetWindowLong((HWND)fHWND, GWL_STYLE);
+    fSavedWindowState.fExStyle = GetWindowLong((HWND)fHWND, GWL_EXSTYLE);
+    GetWindowRect((HWND)fHWND, &fSavedWindowState.fRect);
+    DEVMODE currScreenSettings;
+    memset(&currScreenSettings,0,sizeof(currScreenSettings));
+    currScreenSettings.dmSize = sizeof(currScreenSettings);
+    EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &currScreenSettings);
+    fSavedWindowState.fScreenWidth = currScreenSettings.dmPelsWidth;
+    fSavedWindowState.fScreenHeight = currScreenSettings.dmPelsHeight;
+    fSavedWindowState.fScreenBits = currScreenSettings.dmBitsPerPel;
+    fSavedWindowState.fHWND = fHWND;
+
+    // Try different sizes to find an allowed setting? Use ChangeDisplaySettingsEx?
+    static const int kWidth = 1280;
+    static const int kHeight = 1024;
+    DEVMODE newScreenSettings;
+    memset(&newScreenSettings, 0, sizeof(newScreenSettings));
+    newScreenSettings.dmSize = sizeof(newScreenSettings);
+    newScreenSettings.dmPelsWidth    = kWidth;
+    newScreenSettings.dmPelsHeight   = kHeight;
+    newScreenSettings.dmBitsPerPel   = 32;
+    newScreenSettings.dmFields = DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT;
+    if (ChangeDisplaySettings(&newScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+        return false;
+    }
+    RECT WindowRect;
+    WindowRect.left = 0;
+    WindowRect.right = kWidth;
+    WindowRect.top = 0;
+    WindowRect.bottom = kHeight;
+    ShowCursor(FALSE);
+    AdjustWindowRectEx(&WindowRect, WS_POPUP, FALSE, WS_EX_APPWINDOW);
+    HWND fsHWND = CreateWindowEx(
+        WS_EX_APPWINDOW,
+        fWinInit.fClass,
+        NULL,
+        WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP,
+        0, 0, WindowRect.right-WindowRect.left, WindowRect.bottom-WindowRect.top,
+        NULL,
+        NULL,
+        fWinInit.fInstance,
+        NULL
+    );
+    if (!fsHWND) {
+        return false;
+    }
+    // Hide the old window and set the entry in the global mapping for this SkOSWindow to the
+    // new HWND.
+    ShowWindow((HWND)fHWND, SW_HIDE);
+    gHwndToOSWindowMap.remove(fHWND);
+    fHWND = fsHWND;
+    gHwndToOSWindowMap.set(fHWND, this);
+    this->updateSize();
+
+    fFullscreen = true;
+    return true;
+}
+
+void SkOSWindow::setVsync(bool enable) {
+    SkWGLExtensions wgl;
+    wgl.swapInterval(enable ? 1 : 0);
+}
+
+void SkOSWindow::closeWindow() {
+    DestroyWindow((HWND)fHWND);
+    if (fFullscreen) {
+        DestroyWindow((HWND)fSavedWindowState.fHWND);
+    }
+    gHwndToOSWindowMap.remove(fHWND);
+}
 #endif

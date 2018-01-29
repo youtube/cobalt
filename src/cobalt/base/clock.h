@@ -39,14 +39,39 @@ class SystemMonotonicClock : public Clock {
  public:
   SystemMonotonicClock() { origin_ = base::TimeTicks::HighResNow(); }
 
-  base::TimeDelta Now() OVERRIDE {
+  base::TimeDelta Now() override {
     return base::TimeTicks::HighResNow() - origin_;
   }
 
  private:
   base::TimeTicks origin_;
 
-  ~SystemMonotonicClock() OVERRIDE {}
+  ~SystemMonotonicClock() override {}
+};
+
+// The MinimumResolutionClock modifies the output of an existing clock by
+// clamping its minimum resolution to a predefined amount.  This is implemented
+// by rounding down the existing clock's time to the previous multiple of the
+// desired clock resolution.
+class MinimumResolutionClock : public Clock {
+ public:
+  MinimumResolutionClock(scoped_refptr<Clock> parent,
+                         const base::TimeDelta& min_resolution)
+      : parent_(parent),
+        min_resolution_in_microseconds_(min_resolution.InMicroseconds()) {
+    DCHECK(parent);
+  }
+
+  base::TimeDelta Now() override {
+    base::TimeDelta now = parent_->Now();
+    int64 microseconds = now.InMicroseconds();
+    return base::TimeDelta::FromMicroseconds(
+        microseconds - (microseconds % min_resolution_in_microseconds_));
+  }
+
+ private:
+  scoped_refptr<Clock> parent_;
+  const int64_t min_resolution_in_microseconds_;
 };
 
 // The OffsetClock takes a parent clock and an offset upon construction, and
@@ -59,12 +84,12 @@ class OffsetClock : public Clock {
     DCHECK(parent_);
   }
 
-  base::TimeDelta Now() OVERRIDE { return parent_->Now() - origin_; }
+  base::TimeDelta Now() override { return parent_->Now() - origin_; }
 
   base::TimeDelta origin() const { return origin_; }
 
  private:
-  ~OffsetClock() OVERRIDE {}
+  ~OffsetClock() override {}
 
   scoped_refptr<Clock> parent_;
   const base::TimeDelta origin_;
@@ -73,7 +98,7 @@ class OffsetClock : public Clock {
 // Simple clock that needs to be manually advanced.
 class ManualAdvanceClock : public base::Clock {
  public:
-  base::TimeDelta Now() OVERRIDE { return value_; }
+  base::TimeDelta Now() override { return value_; }
 
   void Advance(const base::TimeDelta& advance_amount) {
     DCHECK_GE(advance_amount, base::TimeDelta());
@@ -81,7 +106,7 @@ class ManualAdvanceClock : public base::Clock {
   }
 
  private:
-  ~ManualAdvanceClock() OVERRIDE {}
+  ~ManualAdvanceClock() override {}
 
   base::TimeDelta value_;
 };

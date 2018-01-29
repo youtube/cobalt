@@ -41,13 +41,14 @@ namespace uwp {
 // UNICODE is defined.
 // This function was added so that it could be used as a work around when
 // GetCommandLine() needed to be called.
-starboard::CommandLine* GetCommandLinePointer(starboard::Application* app);
+const starboard::CommandLine*
+GetCommandLinePointer(starboard::Application* app);
 
 class ApplicationUwp : public shared::starboard::Application,
                        private AnalogThumbstickThread::Callback {
  public:
   ApplicationUwp();
-  ~ApplicationUwp() SB_OVERRIDE;
+  ~ApplicationUwp() override;
 
   static ApplicationUwp* Get() {
     return static_cast<ApplicationUwp*>(shared::starboard::Application::Get());
@@ -95,18 +96,11 @@ class ApplicationUwp : public shared::starboard::Application,
                   Windows::UI::Core::KeyEventArgs^ args,
                   bool up);
 
-  void Inject(Event* event) SB_OVERRIDE;
+  void Inject(Event* event) override;
 
-  void SetStartLink(const char* link) SB_OVERRIDE {
+  void SetStartLink(const char* link) {
     shared::starboard::Application::SetStartLink(link);
   }
-
-  SbSystemPlatformError OnSbSystemRaisePlatformError(
-      SbSystemPlatformErrorType type,
-      SbSystemPlatformErrorCallback callback,
-      void* user_data);
-
-  void OnSbSystemClearPlatformError(SbSystemPlatformError handle);
 
   Platform::String^ GetString(const char* id, const char* fallback) const;
 
@@ -118,18 +112,18 @@ class ApplicationUwp : public shared::starboard::Application,
 
  private:
   // --- Application overrides ---
-  bool IsStartImmediate() SB_OVERRIDE { return false; }
-  void Initialize() SB_OVERRIDE;
-  void Teardown() SB_OVERRIDE;
-  Event* GetNextEvent() SB_OVERRIDE;
-  bool DispatchNextEvent() SB_OVERRIDE;
-  void InjectTimedEvent(TimedEvent* timed_event) SB_OVERRIDE;
-  void CancelTimedEvent(SbEventId event_id) SB_OVERRIDE;
-  TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
-  SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
+  bool IsStartImmediate() override { return false; }
+  void Initialize() override;
+  void Teardown() override;
+  Event* GetNextEvent() override;
+  bool DispatchNextEvent() override;
+  void InjectTimedEvent(TimedEvent* timed_event) override;
+  void CancelTimedEvent(SbEventId event_id) override;
+  TimedEvent* GetNextDueTimedEvent() override;
+  SbTimeMonotonic GetNextTimedEventTargetTime() override;
 
   int device_id() const { return device_id_; }
-  void OnJoystickUpdate(SbKey key, SbInputVector value) SB_OVERRIDE;
+  void OnJoystickUpdate(SbKey key, SbInputVector value) override;
 
   // These two functions should only be called while holding
   // |hdcp_session_mutex_|.

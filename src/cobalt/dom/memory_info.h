@@ -35,7 +35,7 @@ class MemoryInfo : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(MemoryInfo);
 
  private:
-  ~MemoryInfo() OVERRIDE {}
+  ~MemoryInfo() override {}
 
   DISALLOW_COPY_AND_ASSIGN(MemoryInfo);
 };

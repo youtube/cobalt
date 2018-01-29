@@ -5,18 +5,19 @@
  * found in the LICENSE file.
  */
 
+#include "SkAutoMalloc.h"
 #include "SkColor.h"
 #include "SkColorFilter.h"
 #include "SkColorPriv.h"
 #include "SkLumaColorFilter.h"
+#include "SkRandom.h"
 #include "SkReadBuffer.h"
 #include "SkWriteBuffer.h"
 #include "SkRandom.h"
-#include "SkXfermode.h"
 #include "Test.h"
 
-static SkColorFilter* reincarnate_colorfilter(SkFlattenable* obj) {
-    SkWriteBuffer wb;
+static sk_sp<SkColorFilter> reincarnate_colorfilter(SkFlattenable* obj) {
+    SkBinaryWriteBuffer wb;
     wb.writeFlattenable(obj);
 
     size_t size = wb.bytesWritten();
@@ -30,45 +31,63 @@ static SkColorFilter* reincarnate_colorfilter(SkFlattenable* obj) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define ILLEGAL_MODE    ((SkXfermode::Mode)-1)
+static sk_sp<SkColorFilter> make_filter() {
+    // pick a filter that cannot compose with itself via newComposed()
+    return SkColorFilter::MakeModeFilter(SK_ColorRED, SkBlendMode::kColorBurn);
+}
+
+static void test_composecolorfilter_limit(skiatest::Reporter* reporter) {
+    // Test that CreateComposeFilter() has some finite limit (i.e. that the factory can return null)
+    const int way_too_many = 100;
+    auto parent(make_filter());
+    for (int i = 2; i < way_too_many; ++i) {
+        auto filter(make_filter());
+        parent = SkColorFilter::MakeComposeFilter(parent, filter);
+        if (nullptr == parent) {
+            REPORTER_ASSERT(reporter, i > 2); // we need to have succeeded at least once!
+            return;
+        }
+    }
+    REPORTER_ASSERT(reporter, false); // we never saw a nullptr :(
+}
+
+#define ILLEGAL_MODE    ((SkBlendMode)-1)
 
 DEF_TEST(ColorFilter, reporter) {
     SkRandom rand;
 
-    for (int mode = 0; mode <= SkXfermode::kLastMode; mode++) {
+    for (int mode = 0; mode <= (int)SkBlendMode::kLastMode; mode++) {
         SkColor color = rand.nextU();
 
         // ensure we always get a filter, by avoiding the possibility of a
-        // special case that would return NULL (if color's alpha is 0 or 0xFF)
+        // special case that would return nullptr (if color's alpha is 0 or 0xFF)
         color = SkColorSetA(color, 0x7F);
 
-        SkColorFilter* cf = SkColorFilter::CreateModeFilter(color,
-                                                        (SkXfermode::Mode)mode);
+        auto cf = SkColorFilter::MakeModeFilter(color, (SkBlendMode)mode);
 
         // allow for no filter if we're in Dst mode (its a no op)
-        if (SkXfermode::kDst_Mode == mode && NULL == cf) {
+        if (SkBlendMode::kDst == (SkBlendMode)mode && nullptr == cf) {
             continue;
         }
 
-        SkAutoUnref aur(cf);
         REPORTER_ASSERT(reporter, cf);
 
         SkColor c = ~color;
-        SkXfermode::Mode m = ILLEGAL_MODE;
+        SkBlendMode m = ILLEGAL_MODE;
 
         SkColor expectedColor = color;
-        SkXfermode::Mode expectedMode = (SkXfermode::Mode)mode;
+        SkBlendMode expectedMode = (SkBlendMode)mode;
 
 //        SkDebugf("--- mc [%d %x] ", mode, color);
 
-        REPORTER_ASSERT(reporter, cf->asColorMode(&c, &m));
+        REPORTER_ASSERT(reporter, cf->asColorMode(&c, (SkBlendMode*)&m));
         // handle special-case folding by the factory
-        if (SkXfermode::kClear_Mode == mode) {
+        if (SkBlendMode::kClear == (SkBlendMode)mode) {
             if (c != expectedColor) {
                 expectedColor = 0;
             }
             if (m != expectedMode) {
-                expectedMode = SkXfermode::kSrc_Mode;
+                expectedMode = SkBlendMode::kSrc;
             }
         }
 
@@ -78,50 +97,16 @@ DEF_TEST(ColorFilter, reporter) {
         REPORTER_ASSERT(reporter, m == expectedMode);
 
         {
-            SkColorFilter* cf2 = reincarnate_colorfilter(cf);
-            SkAutoUnref aur2(cf2);
+            auto cf2 = reincarnate_colorfilter(cf.get());
             REPORTER_ASSERT(reporter, cf2);
 
             SkColor c2 = ~color;
-            SkXfermode::Mode m2 = ILLEGAL_MODE;
-            REPORTER_ASSERT(reporter, cf2->asColorMode(&c2, &m2));
+            SkBlendMode m2 = ILLEGAL_MODE;
+            REPORTER_ASSERT(reporter, cf2->asColorMode(&c2, (SkBlendMode*)&m2));
             REPORTER_ASSERT(reporter, c2 == expectedColor);
             REPORTER_ASSERT(reporter, m2 == expectedMode);
         }
     }
-}
 
-///////////////////////////////////////////////////////////////////////////////
-
-DEF_TEST(LumaColorFilter, reporter) {
-    SkPMColor in, out;
-    SkAutoTUnref<SkColorFilter> lf(SkLumaColorFilter::Create());
-
-    // Applying luma to white produces black with the same transparency.
-    for (unsigned i = 0; i < 256; ++i) {
-        in = SkPackARGB32(i, i, i, i);
-        lf->filterSpan(&in, 1, &out);
-        REPORTER_ASSERT(reporter, SkGetPackedA32(out) == i);
-        REPORTER_ASSERT(reporter, SkGetPackedR32(out) == 0);
-        REPORTER_ASSERT(reporter, SkGetPackedG32(out) == 0);
-        REPORTER_ASSERT(reporter, SkGetPackedB32(out) == 0);
-    }
-
-    // Applying luma to black yields transparent black (luminance(black) == 0)
-    for (unsigned i = 0; i < 256; ++i) {
-        in = SkPackARGB32(i, 0, 0, 0);
-        lf->filterSpan(&in, 1, &out);
-        REPORTER_ASSERT(reporter, out == SK_ColorTRANSPARENT);
-    }
-
-    // For general colors, a luma filter generates black with an attenuated alpha channel.
-    for (unsigned i = 1; i < 256; ++i) {
-        in = SkPackARGB32(i, i, i / 2, i / 3);
-        lf->filterSpan(&in, 1, &out);
-        REPORTER_ASSERT(reporter, out != in);
-        REPORTER_ASSERT(reporter, SkGetPackedA32(out) <= i);
-        REPORTER_ASSERT(reporter, SkGetPackedR32(out) == 0);
-        REPORTER_ASSERT(reporter, SkGetPackedG32(out) == 0);
-        REPORTER_ASSERT(reporter, SkGetPackedB32(out) == 0);
-    }
+    test_composecolorfilter_limit(reporter);
 }

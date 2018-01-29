@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2012 Intel Inc.
  *
@@ -9,6 +8,7 @@
 #include "SkBlurDrawLooper.h"
 #include "SkBlurMask.h"
 #include "SkBlurMaskFilter.h"
+#include "SkColorFilter.h"
 #include "SkGradientShader.h"
 #include "SkMatrix.h"
 #include "SkRandom.h"
@@ -25,15 +25,12 @@ public:
     }
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("circles");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(1200, 900);
     }
 
@@ -55,11 +52,10 @@ protected:
         // AA with mask filter
         SkPaint p;
         p.setAntiAlias(true);
-        SkMaskFilter* mf = SkBlurMaskFilter::Create(
+        p.setMaskFilter(SkBlurMaskFilter::Make(
                                kNormal_SkBlurStyle,
                                SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
-                               SkBlurMaskFilter::kHighQuality_BlurFlag);
-        p.setMaskFilter(mf)->unref();
+                               SkBlurMaskFilter::kHighQuality_BlurFlag));
         fPaints.push_back(p);
         }
 
@@ -70,13 +66,8 @@ protected:
         SkPoint center = SkPoint::Make(SkIntToScalar(40), SkIntToScalar(40));
         SkColor colors[] = { SK_ColorBLUE, SK_ColorRED, SK_ColorGREEN };
         SkScalar pos[] = { 0, SK_ScalarHalf, SK_Scalar1 };
-        SkShader* s = SkGradientShader::CreateRadial(center,
-                                                     SkIntToScalar(20),
-                                                     colors,
-                                                     pos,
-                                                     SK_ARRAY_COUNT(colors),
-                                                     SkShader::kClamp_TileMode);
-        p.setShader(s)->unref();
+        p.setShader(SkGradientShader::MakeRadial(center, 20, colors, pos, SK_ARRAY_COUNT(colors),
+                                                 SkShader::kClamp_TileMode));
         fPaints.push_back(p);
         }
 
@@ -84,15 +75,9 @@ protected:
         // AA with blur
         SkPaint p;
         p.setAntiAlias(true);
-        SkBlurDrawLooper* shadowLooper =
-            SkBlurDrawLooper::Create(SK_ColorBLUE,
+        p.setLooper(SkBlurDrawLooper::Make(SK_ColorBLUE,
                                      SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(10)),
-                                     SkIntToScalar(5), SkIntToScalar(10),
-                                     SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                     SkBlurDrawLooper::kOverrideColor_BlurFlag |
-                                     SkBlurDrawLooper::kHighQuality_BlurFlag);
-        SkAutoUnref aurL0(shadowLooper);
-        p.setLooper(shadowLooper);
+                                     SkIntToScalar(5), SkIntToScalar(10)));
         fPaints.push_back(p);
         }
 
@@ -155,8 +140,19 @@ protected:
         }
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        SkLCGRandom rand;
+    void onDraw(SkCanvas* canvas) override {
+        // Draw a giant AA circle as the background.
+        SkISize size = this->getISize();
+        SkScalar giantRadius = SkTMin(SkIntToScalar(size.fWidth),
+                                      SkIntToScalar(size.fHeight)) / 2.f;
+        SkPoint giantCenter = SkPoint::Make(SkIntToScalar(size.fWidth/2),
+                                            SkIntToScalar(size.fHeight/2));
+        SkPaint giantPaint;
+        giantPaint.setAntiAlias(true);
+        giantPaint.setColor(0x80808080);
+        canvas->drawCircle(giantCenter, giantRadius, giantPaint);
+
+        SkRandom rand;
         canvas->translate(20 * SK_Scalar1, 20 * SK_Scalar1);
         int i;
         for (i = 0; i < fPaints.count(); ++i) {

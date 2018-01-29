@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -6,7 +5,6 @@
  * found in the LICENSE file.
  */
 
-#include "SkBitmapScaler.h"
 #include "SkBitmapProcState.h"
 
 /*  A platform may optionally overwrite any of these with accelerated
@@ -23,6 +21,3 @@
 
 // empty implementation just uses default supplied function pointers
 void SkBitmapProcState::platformProcs() {}
-
-// empty implementation just uses default supplied function pointers
-void SkBitmapScaler::PlatformConvolutionProcs(SkConvolutionProcs*) {}

@@ -33,8 +33,8 @@ class ResourceProviderArrayBufferAllocator
       render_tree::ResourceProvider* resource_provider);
 
  private:
-  void* Allocate(size_t size) OVERRIDE;
-  void Free(void* p) OVERRIDE;
+  void* Allocate(size_t size) override;
+  void Free(void* p) override;
 
   scoped_ptr<render_tree::RawImageMemory> gpu_memory_buffer_space_;
   starboard::LockedPtr<nb::FirstFitMemoryPool> gpu_memory_pool_;

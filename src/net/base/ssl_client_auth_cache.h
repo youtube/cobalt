@@ -47,7 +47,7 @@ class NET_EXPORT_PRIVATE SSLClientAuthCache : public CertDatabase::Observer {
   void Remove(const std::string& server);
 
   // CertDatabase::Observer methods:
-  virtual void OnCertAdded(const X509Certificate* cert) OVERRIDE;
+  virtual void OnCertAdded(const X509Certificate* cert) override;
 
  private:
   typedef std::string AuthCacheKey;

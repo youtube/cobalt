@@ -6,11 +6,13 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
+#include "SkBlurMaskFilter.h"
 #include "SkCanvas.h"
 #include "SkGraphics.h"
-#include "SkRandom.h"
 #include "SkLayerDrawLooper.h"
-#include "SkBlurMaskFilter.h"
+#include "SkPath.h"
+#include "SkRandom.h"
 
 static SkRect inset(const SkRect& r) {
     SkRect rect = r;
@@ -21,15 +23,15 @@ static SkRect inset(const SkRect& r) {
 class PathInteriorGM : public skiagm::GM {
 public:
     PathInteriorGM() {
-        this->setBGColor(0xFFDDDDDD);
+        this->setBGColor(sk_tool_utils::color_to_565(0xFFDDDDDD));
     }
 
 protected:
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(770, 770);
     }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("pathinterior");
     }
 
@@ -44,7 +46,7 @@ protected:
         bool hasInterior = false;
 #endif
 
-        paint.setColor(hasInterior ? 0xFF8888FF : SK_ColorGRAY);
+        paint.setColor(sk_tool_utils::color_to_565(hasInterior ? 0xFF8888FF : SK_ColorGRAY));
         canvas->drawPath(path, paint);
         paint.setStyle(SkPaint::kStroke_Style);
         paint.setColor(SK_ColorRED);
@@ -57,7 +59,7 @@ protected:
         }
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         canvas->translate(8.5f, 8.5f);
 
         const SkRect rect = { 0, 0, 80, 80 };
@@ -109,5 +111,4 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-static skiagm::GM* MyFactory(void*) { return new PathInteriorGM; }
-static skiagm::GMRegistry reg(MyFactory);
+DEF_GM( return new PathInteriorGM; )

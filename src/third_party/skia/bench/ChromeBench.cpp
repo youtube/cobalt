@@ -461,7 +461,7 @@ public:
 protected:
 
     virtual const char* onGetName() { return "chrome_scrollGmail"; }
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    virtual void onDraw(int loops, SkCanvas* canvas) {
         SkDEBUGCODE(this->validateBounds(canvas));
         SkPaint paint;
         this->setupPaint(&paint);
@@ -480,10 +480,11 @@ protected:
                     SkIntToScalar(gmailScrollingRectSpec[i*3+1]), SkIntToScalar(gmailScrollingRectSpec[i*3+2]));
     }
     void validateBounds(SkCanvas* canvas) {
-        SkIRect bounds;
-        canvas->getClipDeviceBounds(&bounds);
+#ifdef SK_DEBUG
+        SkIRect bounds = canvas->getDeviceClipBounds();
         SkASSERT(bounds.right()-bounds.left() >= W);
         SkASSERT(bounds.bottom()-bounds.top() >= H);
+#endif
     }
 
 
@@ -493,4 +494,4 @@ private:
 
 // Disabled this benchmark: it takes 15x longer than any other benchmark
 // and is probably not giving us important information.
-// DEF_BENCH(return SkNEW(ScrollGmailBench));
+// DEF_BENCH(return new ScrollGmailBench);

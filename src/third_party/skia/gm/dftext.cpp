@@ -5,57 +5,54 @@
  * found in the LICENSE file.
  */
 #include "gm.h"
+#include "sk_tool_utils.h"
+#include "Resources.h"
+#include "SkCanvas.h"
+#include "SkStream.h"
 #include "SkSurface.h"
 #include "SkTypeface.h"
 
-namespace skiagm {
-
-class DFTextGM : public GM {
+class DFTextGM : public skiagm::GM {
 public:
     DFTextGM() {
         this->setBGColor(0xFFFFFFFF);
     }
 
-    virtual ~DFTextGM() {
-    }
-
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kGPUOnly_Flag;
+    void onOnceBeforeDraw() override {
+        fEmojiTypeface = sk_tool_utils::emoji_typeface();
+        fEmojiText = sk_tool_utils::emoji_sample_text();
     }
 
-    virtual SkString onShortName() {
-        return SkString("dftext");
+    SkString onShortName() override {
+        SkString name("dftext");
+        name.append(sk_tool_utils::platform_os_emoji());
+        return name;
     }
 
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(1024, 768);
     }
 
-    static void rotate_about(SkCanvas* canvas,
-        SkScalar degrees,
-        SkScalar px, SkScalar py) {
-        canvas->translate(px, py);
-        canvas->rotate(degrees);
-        canvas->translate(-px, -py);
-    }
-
-    virtual void onDraw(SkCanvas* inputCanvas) {
-        SkScalar textSizes[] = { 11.0f, 11.0f*2.0f, 11.0f*5.0f, 11.0f*2.0f*5.0f };
+    virtual void onDraw(SkCanvas* inputCanvas) override {
+        SkScalar textSizes[] = { 9.0f, 9.0f*2.0f, 9.0f*5.0f, 9.0f*2.0f*5.0f };
         SkScalar scales[] = { 2.0f*5.0f, 5.0f, 2.0f, 1.0f };
 
         // set up offscreen rendering with distance field text
 #if SK_SUPPORT_GPU
         GrContext* ctx = inputCanvas->getGrContext();
-        SkImageInfo info = SkImageInfo::MakeN32Premul(onISize());
-        SkSurfaceProps props(SkSurfaceProps::kUseDistanceFieldFonts_Flag,
+        SkISize size = onISize();
+        SkImageInfo info = SkImageInfo::MakeN32(size.width(), size.height(), kPremul_SkAlphaType,
+                                                inputCanvas->imageInfo().refColorSpace());
+        SkSurfaceProps props(SkSurfaceProps::kUseDeviceIndependentFonts_Flag,
                              SkSurfaceProps::kLegacyFontHost_InitType);
-        SkAutoTUnref<SkSurface> surface(SkSurface::NewRenderTarget(ctx, info, 0, &props));
-        SkCanvas* canvas = surface.get() ? surface->getCanvas() : inputCanvas;
+        auto surface(SkSurface::MakeRenderTarget(ctx, SkBudgeted::kNo, info, 0, &props));
+        SkCanvas* canvas = surface ? surface->getCanvas() : inputCanvas;
+        // init our new canvas with the old canvas's matrix
+        canvas->setMatrix(inputCanvas->getTotalMatrix());
 #else
         SkCanvas* canvas = inputCanvas;
 #endif
-        
         // apply global scale to test glyph positioning
         canvas->scale(1.05f, 1.05f);
         canvas->clear(0xffffffff);
@@ -63,10 +60,8 @@ protected:
         SkPaint paint;
         paint.setAntiAlias(true);
         paint.setSubpixelText(true);
-#if !SK_SUPPORT_GPU
-        paint.setDistanceFieldTextTEMP(true);
-#endif
-        sk_tool_utils::set_portable_typeface(&paint, "Times New Roman", SkTypeface::kNormal);
+
+        sk_tool_utils::set_portable_typeface(&paint, "serif");
 
         const char* text = "Hamburgefons";
         const size_t textLen = strlen(text);
@@ -80,7 +75,7 @@ protected:
             canvas->scale(scales[i], scales[i]);
             paint.setTextSize(textSizes[i]);
             canvas->drawText(text, textLen, 0, 0, paint);
-            y += paint.getFontMetrics(NULL)*scales[i];
+            y += paint.getFontMetrics(nullptr)*scales[i];
         }
 
         // check rotation
@@ -90,11 +85,11 @@ protected:
 
             SkAutoCanvasRestore acr(canvas, true);
             canvas->translate(SkIntToScalar(10 + i * 200), -80);
-            rotate_about(canvas, SkIntToScalar(i * 5), rotX, rotY);
+            canvas->rotate(SkIntToScalar(i * 5), rotX, rotY);
             for (int ps = 6; ps <= 32; ps += 3) {
                 paint.setTextSize(SkIntToScalar(ps));
                 canvas->drawText(text, textLen, rotX, rotY, paint);
-                rotY += paint.getFontMetrics(NULL);
+                rotY += paint.getFontMetrics(nullptr);
             }
         }
 
@@ -110,7 +105,7 @@ protected:
             canvas->scale(scaleFactor, scaleFactor);
             paint.setTextSize(textSizes[i]);
             canvas->drawText(text, textLen, 0, 0, paint);
-            y += paint.getFontMetrics(NULL)*scaleFactor;
+            y += paint.getFontMetrics(nullptr)*scaleFactor;
         }
 
         // check pos text
@@ -119,8 +114,8 @@ protected:
 
             canvas->scale(2.0f, 2.0f);
 
-            SkAutoTArray<SkPoint>  pos(textLen);
-            SkAutoTArray<SkScalar> widths(textLen);
+            SkAutoTArray<SkPoint>  pos(SkToInt(textLen));
+            SkAutoTArray<SkScalar> widths(SkToInt(textLen));
             paint.setTextSize(textSizes[0]);
 
             paint.getTextWidths(text, textLen, &widths[0]);
@@ -144,51 +139,72 @@ protected:
             0xFF000000,
         };
 
-        paint.setColor(0xFFF1F1F1);
-        SkRect r = SkRect::MakeLTRB(670, 250, 820, 460);
+        paint.setColor(0xFFF7F3F7);
+        SkRect r = SkRect::MakeLTRB(670, 215, 820, 397);
         canvas->drawRect(r, paint);
 
         x = SkIntToScalar(680);
-        y = SkIntToScalar(270);
-        paint.setTextSize(SkIntToScalar(22));
+        y = SkIntToScalar(235);
+        paint.setTextSize(SkIntToScalar(19));
         for (size_t i = 0; i < SK_ARRAY_COUNT(fg); ++i) {
             paint.setColor(fg[i]);
 
             canvas->drawText(text, textLen, x, y, paint);
-            y += paint.getFontMetrics(NULL);
+            y += paint.getFontMetrics(nullptr);
         }
 
-        paint.setColor(0xFF1F1F1F);
-        r = SkRect::MakeLTRB(820, 250, 970, 460);
+        paint.setColor(0xFF181C18);
+        r = SkRect::MakeLTRB(820, 215, 970, 397);
         canvas->drawRect(r, paint);
 
         x = SkIntToScalar(830);
-        y = SkIntToScalar(270);
-        paint.setTextSize(SkIntToScalar(22));
+        y = SkIntToScalar(235);
+        paint.setTextSize(SkIntToScalar(19));
         for (size_t i = 0; i < SK_ARRAY_COUNT(fg); ++i) {
             paint.setColor(fg[i]);
 
             canvas->drawText(text, textLen, x, y, paint);
-            y += paint.getFontMetrics(NULL);
+            y += paint.getFontMetrics(nullptr);
         }
 
+        // check skew
+        {
+            paint.setLCDRenderText(false);
+            SkAutoCanvasRestore acr(canvas, true);
+            canvas->skew(0.0f, 0.151515f);
+            paint.setTextSize(SkIntToScalar(32));
+            canvas->drawText(text, textLen, 745, 70, paint);
+        }
+        {
+            paint.setLCDRenderText(true);
+            SkAutoCanvasRestore acr(canvas, true);
+            canvas->skew(0.5f, 0.0f);
+            paint.setTextSize(SkIntToScalar(32));
+            canvas->drawText(text, textLen, 580, 125, paint);
+        }
+
+        // check color emoji
+        if (fEmojiTypeface) {
+            paint.setTypeface(fEmojiTypeface);
+            paint.setTextSize(SkIntToScalar(19));
+            canvas->drawString(fEmojiText, 670, 90, paint);
+        }
 #if SK_SUPPORT_GPU
         // render offscreen buffer
         if (surface) {
-            SkImage* image = surface->newImageSnapshot();
-            inputCanvas->drawImage(image, 0, 0, NULL);
-            image->unref();
+            SkAutoCanvasRestore acr(inputCanvas, true);
+            // since we prepended this matrix already, we blit using identity
+            inputCanvas->resetMatrix();
+            inputCanvas->drawImage(surface->makeImageSnapshot().get(), 0, 0, nullptr);
         }
 #endif
     }
 
 private:
-    typedef GM INHERITED;
+    sk_sp<SkTypeface> fEmojiTypeface;
+    const char* fEmojiText;
+
+    typedef skiagm::GM INHERITED;
 };
 
-//////////////////////////////////////////////////////////////////////////////
-
-static GM* MyFactory(void*) { return new DFTextGM; }
-static GMRegistry reg(MyFactory);
-
-}
+DEF_GM(return new DFTextGM;)

@@ -25,7 +25,7 @@ using base::TimeTicks;
 // See also pr_time_unittests.cc
 class TimeTest : public testing::Test {
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
 #if defined(OS_STARBOARD)
     // Since we don't have access to mktime, let's use time_helpers to do the
     // same thing in a portable way.

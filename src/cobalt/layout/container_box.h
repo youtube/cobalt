@@ -48,7 +48,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
                    css_computed_style_declaration,
                UsedStyleProvider* used_style_provider,
                LayoutStatTracker* layout_stat_tracker);
-  ~ContainerBox() OVERRIDE;
+  ~ContainerBox() override;
 
   // Attempts to add a child box and takes the ownership if succeeded. Returns
   // true if the child's box level is compatible with the container box. Block
@@ -66,21 +66,21 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   virtual scoped_refptr<ContainerBox> TrySplitAtEnd() = 0;
 
   // From |Box|.
-  void SplitBidiLevelRuns() OVERRIDE;
+  void SplitBidiLevelRuns() override;
 
   // Invalidates the cross references, indicating that they need to be
   // re-generated the next time they are needed.
-  void InvalidateCrossReferencesOfBoxAndAncestors() OVERRIDE;
+  void InvalidateCrossReferencesOfBoxAndAncestors() override;
 
-  ContainerBox* AsContainerBox() OVERRIDE;
-  const ContainerBox* AsContainerBox() const OVERRIDE;
+  ContainerBox* AsContainerBox() override;
+  const ContainerBox* AsContainerBox() const override;
 
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      ContainerBox* stacking_context) const OVERRIDE;
+      ContainerBox* stacking_context) const override;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
+  void DumpChildrenWithIndent(std::ostream* stream, int indent) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
   // Returns true if the given style allows a container box to act as a
@@ -100,7 +100,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // by various other specification documents such as those describing opacity
   // (https://www.w3.org/TR/css3-color/#transparency) and transforms
   // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
-  bool IsStackingContext() const OVERRIDE;
+  bool IsStackingContext() const override;
 
  protected:
   class ZIndexComparator {
@@ -143,9 +143,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
       RelationshipToBox nearest_fixed_containing_block,
       RelationshipToBox nearest_stacking_context,
       StackingContextContainerBoxStack* stacking_context_container_box_stack)
-      OVERRIDE;
+      override;
 
-  bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+  bool ValidateUpdateSizeInputs(const LayoutParams& params) override;
   void InvalidateUpdateSizeInputs() { update_size_results_valid_ = false; }
 
   // Add a box and all of its descendants that are contained within the
@@ -153,7 +153,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // used when a render tree node that is already cached is encountered to
   // ensure that it maintains the proper draw order in its stacking context.
   void AddBoxAndDescendantsToDrawOrderInStackingContext(
-      ContainerBox* stacking_context) OVERRIDE;
+      ContainerBox* stacking_context) override;
 
  private:
   static Boxes::iterator RemoveConst(Boxes* container,

@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -23,7 +22,7 @@ bool SkPtrSet::Less(const Pair& a, const Pair& b) {
 }
 
 uint32_t SkPtrSet::find(void* ptr) const {
-    if (NULL == ptr) {
+    if (nullptr == ptr) {
         return 0;
     }
 
@@ -39,7 +38,7 @@ uint32_t SkPtrSet::find(void* ptr) const {
 }
 
 uint32_t SkPtrSet::add(void* ptr) {
-    if (NULL == ptr) {
+    if (nullptr == ptr) {
         return 0;
     }
 

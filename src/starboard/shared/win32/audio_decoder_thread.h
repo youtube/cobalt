@@ -45,14 +45,14 @@ class AudioDecoderThread : private SimpleThread {
  public:
   AudioDecoderThread(AbstractWin32AudioDecoder* decoder_impl,
                      AudioDecodedCallback* callback);
-  ~AudioDecoderThread() SB_OVERRIDE;
+  ~AudioDecoderThread() override;
 
   // Returns true if more input can be pushed to this thread.
   bool QueueInput(const scoped_refptr<InputBuffer>& buffer);
   void QueueEndOfStream();
 
  private:
-  void Run() SB_OVERRIDE;
+  void Run() override;
   void TransferPendingInputTo(
       std::deque<scoped_refptr<InputBuffer> >* destination);
   AbstractWin32AudioDecoder* win32_audio_decoder_;

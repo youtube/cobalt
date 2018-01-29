@@ -19,6 +19,8 @@
 
 #if defined(SB_USE_SB_MICROPHONE)
 
+#include <string>
+
 #include "cobalt/speech/microphone.h"
 #include "starboard/microphone.h"
 
@@ -27,21 +29,25 @@ namespace speech {
 
 class MicrophoneStarboard : public Microphone {
  public:
-  MicrophoneStarboard(int sample_rate, int buffer_size_bytes);
-  ~MicrophoneStarboard() OVERRIDE;
+  static const int kDefaultSampleRate = 16000;
 
-  bool Open() OVERRIDE;
-  int Read(char* out_data, int data_size) OVERRIDE;
-  bool Close() OVERRIDE;
-  int MinMicrophoneReadInBytes() OVERRIDE {
+  MicrophoneStarboard(int sample_rate, int buffer_size_bytes);
+  ~MicrophoneStarboard() override;
+
+  bool Open() override;
+  int Read(char* out_data, int data_size) override;
+  bool Close() override;
+  int MinMicrophoneReadInBytes() override {
     return min_microphone_read_in_bytes_;
   }
-  bool IsValid() OVERRIDE { return SbMicrophoneIsValid(microphone_); }
+  bool IsValid() override { return SbMicrophoneIsValid(microphone_); }
+  const char* Label() override { return label_.c_str(); }
 
  private:
   // Minimum requested bytes per microphone read.
   int min_microphone_read_in_bytes_;
   SbMicrophone microphone_;
+  std::string label_;
 };
 
 }  // namespace speech

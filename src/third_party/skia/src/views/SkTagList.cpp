@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -17,7 +16,7 @@ SkTagList* SkTagList::Find(SkTagList* rec, U8CPU tag)
 {
     SkASSERT(tag < kSkTagListCount);
 
-    while (rec != NULL)
+    while (rec != nullptr)
     {
         if (rec->fTag == tag)
             break;
@@ -31,9 +30,9 @@ void SkTagList::DeleteTag(SkTagList** head, U8CPU tag)
     SkASSERT(tag < kSkTagListCount);
 
     SkTagList* rec = *head;
-    SkTagList* prev = NULL;
+    SkTagList* prev = nullptr;
 
-    while (rec != NULL)
+    while (rec != nullptr)
     {
         SkTagList* next = rec->fNext;
 

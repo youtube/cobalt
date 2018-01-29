@@ -29,26 +29,23 @@ public:
                           they can pass in a different seedAssist to get a
                           different set of path segments.
     */
-    static SkDiscretePathEffect* Create(SkScalar segLength,
-                                        SkScalar deviation,
-                                        uint32_t seedAssist=0) {
-        return SkNEW_ARGS(SkDiscretePathEffect,
-                          (segLength, deviation, seedAssist));
-    }
+    static sk_sp<SkPathEffect> Make(SkScalar segLength, SkScalar dev, uint32_t seedAssist = 0);
 
     virtual bool filterPath(SkPath* dst, const SkPath& src,
-                            SkStrokeRec*, const SkRect*) const SK_OVERRIDE;
+                            SkStrokeRec*, const SkRect*) const override;
 
+    SK_TO_STRING_OVERRIDE()
     SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkDiscretePathEffect)
+
+#ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
+    bool exposedInAndroidJavaAPI() const override { return true; }
+#endif
 
 protected:
     SkDiscretePathEffect(SkScalar segLength,
                          SkScalar deviation,
                          uint32_t seedAssist);
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-    explicit SkDiscretePathEffect(SkReadBuffer&);
-#endif
-    virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
+    void flatten(SkWriteBuffer&) const override;
 
 private:
     SkScalar fSegLength, fPerterb;

@@ -36,7 +36,7 @@ int AlsaWriteFrames(void* playback_handle,
                     int frames_to_write);
 int AlsaGetBufferedFrames(void* playback_handle);
 void AlsaCloseDevice(void* playback_handle);
-void AlsaDrain(void* playback_handle);
+bool AlsaDrain(void* playback_handle);
 
 }  // namespace alsa
 }  // namespace shared

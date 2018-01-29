@@ -63,17 +63,25 @@ class Window::RelayLoadEvent : public DocumentObserver {
   explicit RelayLoadEvent(Window* window) : window_(window) {}
 
   // From DocumentObserver.
-  void OnLoad() OVERRIDE {
+  void OnLoad() override {
     window_->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   }
-  void OnMutation() OVERRIDE {}
-  void OnFocusChanged() OVERRIDE {}
+  void OnMutation() override {}
+  void OnFocusChanged() override {}
 
  private:
   Window* window_;
 
   DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
+
+namespace {
+// Ensure that the timer resolution is at the lowest 20 microseconds in
+// order to mitigate potential Spectre-related attacks.  This is following
+// Mozilla's lead as described here:
+//   https://www.mozilla.org/en-US/security/advisories/mfsa2018-01/
+const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
+}  // namespace
 
 Window::Window(int width, int height, float device_pixel_ratio,
                base::ApplicationState initial_application_state,
@@ -106,7 +114,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const CloseCallback& window_close_callback,
                const base::Closure& window_minimize_callback,
-               const base::Callback<SbWindow()>& get_sb_window_callback,
+               OnScreenKeyboardBridge* on_screen_keyboard_bridge,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
@@ -130,9 +138,14 @@ Window::Window(int width, int height, float device_pixel_ratio,
           video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
-          clock_type == kClockTypeTestRunner ? test_runner_->GetClock() :
+          clock_type == kClockTypeTestRunner
+              ? test_runner_->GetClock()
+              :
 #endif
-                                             new base::SystemMonotonicClock())),
+              new base::MinimumResolutionClock(
+                  new base::SystemMonotonicClock(),
+                  base::TimeDelta::FromMicroseconds(
+                      kPerformanceTimerMinResolutionInMicroseconds)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -165,13 +178,13 @@ Window::Window(int width, int height, float device_pixel_ratio,
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
       window_minimize_callback_(window_minimize_callback),
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_(new OnScreenKeyboard(get_sb_window_callback)),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+      // We only have an on_screen_keyboard_bridge when the platform supports
+      // it. Otherwise don't even expose it in the DOM.
+      on_screen_keyboard_(on_screen_keyboard_bridge
+                              ? new OnScreenKeyboard(on_screen_keyboard_bridge,
+                                                     script_value_factory)
+                              : NULL),
       splash_screen_cache_callback_(splash_screen_cache_callback) {
-#if !SB_HAS(ON_SCREEN_KEYBOARD)
-  UNREFERENCED_PARAMETER(get_sb_window_callback);
-#endif  // !SB_HAS(ON_SCREEN_KEYBOARD)
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
@@ -587,6 +600,11 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
 }
 
 void Window::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+#if defined(ENABLE_TEST_RUNNER)
+  tracer->Trace(test_runner_);
+#endif  // ENABLE_TEST_RUNNER
   tracer->Trace(performance_);
   tracer->Trace(document_);
   tracer->Trace(history_);
@@ -598,6 +616,7 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(local_storage_);
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
+  tracer->Trace(on_screen_keyboard_);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {

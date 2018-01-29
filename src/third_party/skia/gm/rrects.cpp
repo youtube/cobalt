@@ -6,11 +6,14 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #if SK_SUPPORT_GPU
-#include "GrTest.h"
+#include "GrContext.h"
+#include "GrRenderTargetContextPriv.h"
 #include "effects/GrRRectEffect.h"
+#include "ops/GrDrawOp.h"
+#include "ops/GrRectOpFactory.h"
 #endif
-#include "SkDevice.h"
 #include "SkRRect.h"
 
 namespace skiagm {
@@ -26,13 +29,16 @@ public:
         kAA_Clip_Type,
         kEffect_Type,
     };
-    RRectGM(Type type) : fType(type) {
-        this->setBGColor(0xFFDDDDDD);
+    RRectGM(Type type) : fType(type) { }
+
+protected:
+
+    void onOnceBeforeDraw() override {
+        this->setBGColor(sk_tool_utils::color_to_565(0xFFDDDDDD));
         this->setUpRRects();
     }
 
-protected:
-    SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         SkString name("rrect");
         switch (fType) {
             case kBW_Draw_Type:
@@ -54,35 +60,26 @@ protected:
         return name;
     }
 
-    virtual SkISize onISize() SK_OVERRIDE { return SkISize::Make(kImageWidth, kImageHeight); }
+    SkISize onISize() override { return SkISize::Make(kImageWidth, kImageHeight); }
 
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        if (kEffect_Type == fType) {
-            return kGPUOnly_Flag | kSkipTiled_Flag;
-        } else {
-            return kSkipTiled_Flag;
-        }
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-#if SK_SUPPORT_GPU
-        GrRenderTarget* rt = canvas->internal_private_accessTopLayerRenderTarget();
-        GrContext* context = rt ? rt->getContext() : NULL;
-        if (kEffect_Type == fType && NULL == context) {
+    void onDraw(SkCanvas* canvas) override {
+        GrRenderTargetContext* renderTargetContext =
+            canvas->internal_private_accessTopLayerRenderTargetContext();
+        if (kEffect_Type == fType && !renderTargetContext) {
+            skiagm::GM::DrawGpuOnlyMessage(canvas);
             return;
         }
-#endif
 
         SkPaint paint;
         if (kAA_Draw_Type == fType) {
             paint.setAntiAlias(true);
         }
 
-        static const SkRect kMaxTileBound = SkRect::MakeWH(SkIntToScalar(kTileX),
-                                                           SkIntToScalar(kTileY));
+        const SkRect kMaxTileBound = SkRect::MakeWH(SkIntToScalar(kTileX),
+                                                     SkIntToScalar(kTileY));
 #ifdef SK_DEBUG
-        static const SkRect kMaxImageBound = SkRect::MakeWH(SkIntToScalar(kImageWidth),
-                                                            SkIntToScalar(kImageHeight));
+        const SkRect kMaxImageBound = SkRect::MakeWH(SkIntToScalar(kImageWidth),
+                                                     SkIntToScalar(kImageHeight));
 #endif
 
 #if SK_SUPPORT_GPU
@@ -106,36 +103,30 @@ protected:
                     canvas->translate(SkIntToScalar(x), SkIntToScalar(y));
                     if (kEffect_Type == fType) {
 #if SK_SUPPORT_GPU
-                        GrTestTarget tt;
-                        context->getTestTarget(&tt);
-                        if (NULL == tt.target()) {
-                            SkDEBUGFAIL("Couldn't get Gr test target.");
-                            return;
-                        }
-                        GrDrawState* drawState = tt.target()->drawState();
-
                         SkRRect rrect = fRRects[curRRect];
                         rrect.offset(SkIntToScalar(x), SkIntToScalar(y));
                         GrPrimitiveEdgeType edgeType = (GrPrimitiveEdgeType) et;
-                        SkAutoTUnref<GrFragmentProcessor> fp(GrRRectEffect::Create(edgeType,
-                                                                                   rrect));
+                        sk_sp<GrFragmentProcessor> fp(GrRRectEffect::Make(edgeType, rrect));
                         if (fp) {
-                            drawState->addCoverageProcessor(fp);
-                            drawState->setIdentityViewMatrix();
-                            drawState->setRenderTarget(rt);
-                            drawState->setColor(0xff000000);
+                            GrPaint grPaint;
+                            grPaint.setXPFactory(GrPorterDuffXPFactory::Get(SkBlendMode::kSrc));
+                            grPaint.addCoverageFragmentProcessor(std::move(fp));
+                            grPaint.setColor4f(GrColor4f(0, 0, 0, 1.f));
 
                             SkRect bounds = rrect.getBounds();
                             bounds.outset(2.f, 2.f);
 
-                            tt.target()->drawSimpleRect(bounds);
+                            renderTargetContext->priv().testingOnly_addDrawOp(
+                                    GrRectOpFactory::MakeNonAAFill(std::move(grPaint),
+                                                                   SkMatrix::I(), bounds,
+                                                                   GrAAType::kNone));
                         } else {
                             drew = false;
                         }
 #endif
                     } else if (kBW_Clip_Type == fType || kAA_Clip_Type == fType) {
                         bool aaClip = (kAA_Clip_Type == fType);
-                        canvas->clipRRect(fRRects[curRRect], SkRegion::kReplace_Op, aaClip);
+                        canvas->clipRRect(fRRects[curRRect], aaClip);
                         canvas->drawRect(kMaxTileBound, paint);
                     } else {
                         canvas->drawRRect(fRRects[curRRect], paint);
@@ -179,17 +170,17 @@ protected:
 private:
     Type fType;
 
-    static const int kImageWidth = 640;
-    static const int kImageHeight = 480;
+    static constexpr int kImageWidth = 640;
+    static constexpr int kImageHeight = 480;
 
-    static const int kTileX = 80;
-    static const int kTileY = 40;
+    static constexpr int kTileX = 80;
+    static constexpr int kTileY = 40;
 
-    static const int kNumSimpleCases = 7;
-    static const int kNumComplexCases = 35;
+    static constexpr int kNumSimpleCases = 7;
+    static constexpr int kNumComplexCases = 35;
     static const SkVector gRadii[kNumComplexCases][4];
 
-    static const int kNumRRects = kNumSimpleCases + kNumComplexCases;
+    static constexpr int kNumRRects = kNumSimpleCases + kNumComplexCases;
     SkRRect fRRects[kNumRRects];
 
     typedef GM INHERITED;

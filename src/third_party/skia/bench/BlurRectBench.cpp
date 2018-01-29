@@ -51,7 +51,7 @@ protected:
         fName = name;
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    virtual void onDraw(int loops, SkCanvas*) {
         SkPaint paint;
         this->setupPaint(&paint);
 
@@ -63,7 +63,7 @@ protected:
         preBenchSetup(r);
 
         for (int i = 0; i < loops; i++) {
-            makeBlurryRect(r);
+            this->makeBlurryRect(r);
         }
     }
 
@@ -88,10 +88,12 @@ class BlurRectDirectBench: public BlurRectBench {
         this->setName(name);
     }
 protected:
-    virtual void makeBlurryRect(const SkRect& r) SK_OVERRIDE {
+    void makeBlurryRect(const SkRect& r) override {
         SkMask mask;
-        SkBlurMask::BlurRect(SkBlurMask::ConvertRadiusToSigma(this->radius()),
-                             &mask, r, kNormal_SkBlurStyle);
+        if (!SkBlurMask::BlurRect(SkBlurMask::ConvertRadiusToSigma(this->radius()),
+                                  &mask, r, kNormal_SkBlurStyle)) {
+            return;
+        }
         SkMask::FreeImage(mask.fImage);
     }
 private:
@@ -101,16 +103,14 @@ private:
 class BlurRectSeparableBench: public BlurRectBench {
 
 public:
-    BlurRectSeparableBench(SkScalar rad) : INHERITED(rad) {
-        fSrcMask.fImage = NULL;
-    }
+    BlurRectSeparableBench(SkScalar rad) : INHERITED(rad) { }
 
-    ~BlurRectSeparableBench() {
+    ~BlurRectSeparableBench() override {
         SkMask::FreeImage(fSrcMask.fImage);
     }
 
 protected:
-    virtual void preBenchSetup(const SkRect& r) SK_OVERRIDE {
+    void preBenchSetup(const SkRect& r) override {
         SkMask::FreeImage(fSrcMask.fImage);
 
         r.roundOut(&fSrcMask.fBounds);
@@ -142,11 +142,12 @@ public:
 
 protected:
 
-    virtual void makeBlurryRect(const SkRect&) SK_OVERRIDE {
+    void makeBlurryRect(const SkRect&) override {
         SkMask mask;
-        mask.fImage = NULL;
-        SkBlurMask::BoxBlur(&mask, fSrcMask, SkBlurMask::ConvertRadiusToSigma(this->radius()),
-                            kNormal_SkBlurStyle, kHigh_SkBlurQuality);
+        if (!SkBlurMask::BoxBlur(&mask, fSrcMask, SkBlurMask::ConvertRadiusToSigma(this->radius()),
+                                 kNormal_SkBlurStyle, kHigh_SkBlurQuality)) {
+            return;
+        }
         SkMask::FreeImage(mask.fImage);
     }
 private:
@@ -169,11 +170,12 @@ public:
 
 protected:
 
-    virtual void makeBlurryRect(const SkRect&) SK_OVERRIDE {
+    void makeBlurryRect(const SkRect&) override {
         SkMask mask;
-        mask.fImage = NULL;
-        SkBlurMask::BlurGroundTruth(SkBlurMask::ConvertRadiusToSigma(this->radius()),
-                                    &mask, fSrcMask, kNormal_SkBlurStyle);
+        if (!SkBlurMask::BlurGroundTruth(SkBlurMask::ConvertRadiusToSigma(this->radius()),
+                                         &mask, fSrcMask, kNormal_SkBlurStyle)) {
+            return;
+        }
         SkMask::FreeImage(mask.fImage);
     }
 private:

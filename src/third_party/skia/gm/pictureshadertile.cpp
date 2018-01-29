@@ -12,58 +12,97 @@
 #include "SkPictureRecorder.h"
 #include "SkShader.h"
 
-static const SkScalar kPictureSize = SK_Scalar1;
-static const SkScalar kFillSize = 100;
-static const unsigned kRowSize = 6;
+constexpr SkScalar kPictureSize = SK_Scalar1;
+constexpr SkScalar kFillSize = 100;
+constexpr unsigned kRowSize = 6;
 
-static const struct {
+constexpr struct {
     SkScalar x, y, w, h;
     SkScalar offsetX, offsetY;
 } tiles[] = {
     {      0,      0,    1,    1,      0,    0 },
-    {   0.5f,   0.5f,    1,    1,      0,    0 },
     {  -0.5f,  -0.5f,    1,    1,      0,    0 },
+    {   0.5f,   0.5f,    1,    1,      0,    0 },
 
     {      0,      0, 1.5f, 1.5f,      0,    0 },
-    {   0.5f,   0.5f, 1.5f, 1.5f,      0,    0 },
     {  -0.5f,  -0.5f, 1.5f, 1.5f,      0,    0 },
+    {   0.5f,   0.5f, 1.5f, 1.5f,      0,    0 },
 
     {      0,      0, 0.5f, 0.5f,      0,    0 },
-    { -0.25f, -0.25f, 0.5f, 0.5f,      0,    0 },
     {  0.25f,  0.25f, 0.5f, 0.5f,      0,    0 },
+    { -0.25f, -0.25f, 0.5f, 0.5f,      0,    0 },
 
     {      0,      0,    1,    1,   0.5f, 0.5f },
-    {   0.5f,   0.5f,    1,    1,   0.5f, 0.5f },
     {  -0.5f,  -0.5f,    1,    1,   0.5f, 0.5f },
+    {   0.5f,   0.5f,    1,    1,   0.5f, 0.5f },
 
     {      0,      0, 1.5f, 1.5f,   0.5f, 0.5f },
-    {   0.5f,   0.5f, 1.5f, 1.5f,   0.5f, 0.5f },
     {  -0.5f,  -0.5f, 1.5f, 1.5f,   0.5f, 0.5f },
+    {   0.5f,   0.5f, 1.5f, 1.5f,   0.5f, 0.5f },
 
     {      0,      0, 1.5f,    1,      0,    0 },
-    {   0.5f,   0.5f, 1.5f,    1,      0,    0 },
     {  -0.5f,  -0.5f, 1.5f,    1,      0,    0 },
+    {   0.5f,   0.5f, 1.5f,    1,      0,    0 },
 
     {      0,      0, 0.5f,    1,      0,    0 },
-    { -0.25f, -0.25f, 0.5f,    1,      0,    0 },
     {  0.25f,  0.25f, 0.5f,    1,      0,    0 },
+    { -0.25f, -0.25f, 0.5f,    1,      0,    0 },
 
     {      0,      0,    1, 1.5f,      0,    0 },
-    {   0.5f,   0.5f,    1, 1.5f,      0,    0 },
     {  -0.5f,  -0.5f,    1, 1.5f,      0,    0 },
+    {   0.5f,   0.5f,    1, 1.5f,      0,    0 },
 
     {      0,      0,    1, 0.5f,      0,    0 },
-    { -0.25f, -0.25f,    1, 0.5f,      0,    0 },
     {  0.25f,  0.25f,    1, 0.5f,      0,    0 },
+    { -0.25f, -0.25f,    1, 0.5f,      0,    0 },
 };
 
+static void draw_scene(SkCanvas* canvas, SkScalar pictureSize) {
+    canvas->clear(SK_ColorWHITE);
+
+    SkPaint paint;
+    paint.setColor(SK_ColorGREEN);
+    paint.setStyle(SkPaint::kFill_Style);
+    paint.setAntiAlias(true);
+
+    canvas->drawCircle(pictureSize / 4, pictureSize / 4, pictureSize / 4, paint);
+    canvas->drawRect(SkRect::MakeXYWH(pictureSize / 2, pictureSize / 2,
+                                      pictureSize / 2, pictureSize / 2), paint);
+
+    paint.setColor(SK_ColorRED);
+    canvas->drawLine(pictureSize / 2, pictureSize * 1 / 3,
+                     pictureSize / 2, pictureSize * 2 / 3, paint);
+    canvas->drawLine(pictureSize * 1 / 3, pictureSize / 2,
+                     pictureSize * 2 / 3, pictureSize / 2, paint);
+
+    paint.setColor(SK_ColorBLACK);
+    paint.setStyle(SkPaint::kStroke_Style);
+    canvas->drawRect(SkRect::MakeWH(pictureSize, pictureSize), paint);
+}
+
 class PictureShaderTileGM : public skiagm::GM {
-public:
-    PictureShaderTileGM() {
+protected:
+
+    SkString onShortName() override {
+        return SkString("pictureshadertile");
+    }
+
+    SkISize onISize() override {
+        return SkISize::Make(800, 600);
+    }
+
+    void onOnceBeforeDraw() override {
         SkPictureRecorder recorder;
-        SkCanvas* pictureCanvas = recorder.beginRecording(kPictureSize, kPictureSize, NULL, 0);
-        drawScene(pictureCanvas, kPictureSize);
-        SkAutoTUnref<SkPicture> picture(recorder.endRecording());
+        SkCanvas* pictureCanvas = recorder.beginRecording(kPictureSize, kPictureSize);
+        draw_scene(pictureCanvas, kPictureSize);
+        sk_sp<SkPicture> picture(recorder.finishRecordingAsPicture());
+
+        SkPoint offset = SkPoint::Make(100, 100);
+        pictureCanvas = recorder.beginRecording(SkRect::MakeXYWH(offset.x(), offset.y(),
+                                                                 kPictureSize, kPictureSize));
+        pictureCanvas->translate(offset.x(), offset.y());
+        draw_scene(pictureCanvas, kPictureSize);
+        sk_sp<SkPicture> offsetPicture(recorder.finishRecordingAsPicture());
 
         for (unsigned i = 0; i < SK_ARRAY_COUNT(tiles); ++i) {
             SkRect tile = SkRect::MakeXYWH(tiles[i].x * kPictureSize,
@@ -75,28 +114,23 @@ public:
                                      tiles[i].offsetY * kPictureSize);
             localMatrix.postScale(kFillSize / (2 * kPictureSize),
                                   kFillSize / (2 * kPictureSize));
-            fShaders[i].reset(SkShader::CreatePictureShader(picture,
-                              SkShader::kRepeat_TileMode,
-                              SkShader::kRepeat_TileMode,
-                              &localMatrix,
-                              &tile));
+
+            sk_sp<SkPicture> pictureRef = picture;
+            SkRect* tilePtr = &tile;
+
+            if (tile == SkRect::MakeWH(kPictureSize, kPictureSize)) {
+                // When the tile == picture bounds, exercise the picture + offset path.
+                pictureRef = offsetPicture;
+                tilePtr = nullptr;
+            }
+
+            fShaders[i] = SkShader::MakePictureShader(pictureRef, SkShader::kRepeat_TileMode,
+                                                      SkShader::kRepeat_TileMode, &localMatrix,
+                                                      tilePtr);
         }
     }
 
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    virtual SkString onShortName() SK_OVERRIDE {
-        return SkString("pictureshadertile");
-    }
-
-    virtual SkISize onISize() SK_OVERRIDE {
-        return SkISize::Make(800, 600);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         canvas->clear(SK_ColorBLACK);
 
         SkPaint paint;
@@ -114,32 +148,9 @@ protected:
     }
 
 private:
-    void drawScene(SkCanvas* canvas, SkScalar pictureSize) {
-        canvas->clear(SK_ColorWHITE);
-
-        SkPaint paint;
-        paint.setColor(SK_ColorGREEN);
-        paint.setStyle(SkPaint::kFill_Style);
-        paint.setAntiAlias(true);
-
-        canvas->drawCircle(pictureSize / 4, pictureSize / 4, pictureSize / 4, paint);
-        canvas->drawRect(SkRect::MakeXYWH(pictureSize / 2, pictureSize / 2,
-                                          pictureSize / 2, pictureSize / 2), paint);
-
-        paint.setColor(SK_ColorRED);
-        canvas->drawLine(pictureSize / 2, pictureSize * 1 / 3,
-                         pictureSize / 2, pictureSize * 2 / 3, paint);
-        canvas->drawLine(pictureSize * 1 / 3, pictureSize / 2,
-                         pictureSize * 2 / 3, pictureSize / 2, paint);
-
-        paint.setColor(SK_ColorBLACK);
-        paint.setStyle(SkPaint::kStroke_Style);
-        canvas->drawRect(SkRect::MakeWH(pictureSize, pictureSize), paint);
-    }
-
-    SkAutoTUnref<SkShader> fShaders[SK_ARRAY_COUNT(tiles)];
+    sk_sp<SkShader> fShaders[SK_ARRAY_COUNT(tiles)];
 
     typedef GM INHERITED;
 };
 
-DEF_GM( return SkNEW(PictureShaderTileGM); )
+DEF_GM(return new PictureShaderTileGM;)

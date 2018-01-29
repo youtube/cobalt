@@ -42,19 +42,19 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 8
+#define SB_MAXIMUM_API_VERSION 10
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 8
+#define SB_EXPERIMENTAL_API_VERSION 10
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-// #define SB_RELEASE_CANDIDATE_API_VERSION 8
+// #define SB_RELEASE_CANDIDATE_API_VERSION 9
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -68,9 +68,8 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-#define SB_PLAYER_WITH_URL_API_VERSION SB_EXPERIMENTAL_API_VERSION
-#define SB_WINDOW_SIZE_CHANGED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-#define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION SB_EXPERIMENTAL_API_VERSION
+// Minimum API version for supporting system-level closed caption settings.
+#define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -468,7 +467,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
 
-#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < SB_PLAYER_WITH_URL_API_VERSION
+#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < 8
 #error "SB_HAS_PLAYER_WITH_URL is not supported in this API version."
 #endif
 
@@ -556,9 +555,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
 
-#if SB_HAS(ON_SCREEN_KEYBOARD) && \
-    (SB_API_VERSION < SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION)
+#if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
+#endif
+
+#if SB_HAS(CAPTIONS) && \
+    (SB_API_VERSION < SB_ACCESSIBILITY_CAPTIONS_API_VERSION)
+#error "SB_HAS_CAPTIONS not supported in this API version."
 #endif
 
 // --- Derived Configuration -------------------------------------------------
@@ -588,7 +591,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 // Specifies whether this platform has a performant OpenGL ES 2 implementation,
 // which allows client applications to use GL rendering paths.  Derived from
-// the gyp variable 'gl_type' which indicates what kind of GL implementation
+// the gyp variable `gl_type` which indicates what kind of GL implementation
 // is available.
 #if !defined(SB_HAS_GLES2)
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE

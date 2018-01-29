@@ -11,50 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X64 DirectFB platform configuration for gyp_cobalt."""
+"""Starboard Linux X64 DirectFB platform configuration."""
 
-import logging
-
-# Import the shared Linux platform configuration.
-from starboard.linux.shared import gyp_configuration
+from starboard.linux.shared import gyp_configuration as shared_configuration
 from starboard.tools.testing import test_filter
 
 
-def CreatePlatformConfig():
-  try:
-    return PlatformConfig(
-        'linux-x64directfb')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
-
-
-class PlatformConfig(gyp_configuration.PlatformConfig):
+class CobaltLinuxX64DirectFbConfiguration(
+    shared_configuration.LinuxConfiguration):
 
   # Unfortunately, some memory leaks outside of our control, and difficult
   # to pattern match with ASAN's suppression list, appear in DirectFB
-  # builds, and so this must be disabled.
-  def __init__(self, platform, asan_enabled_by_default=False,
+  # builds, and so ASAN must be disabled.
+  def __init__(self, platform='linux-x64directfb',
+               asan_enabled_by_default=False,
                goma_supported_by_compiler=True):
-    super(PlatformConfig, self).__init__(
+    super(CobaltLinuxX64DirectFbConfiguration, self).__init__(
         platform, asan_enabled_by_default, goma_supported_by_compiler)
 
   def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
+    filters = super(CobaltLinuxX64DirectFbConfiguration, self).GetTestFilters()
+    filters.extend([
+        test_filter.TestFilter(
+            'starboard_platform_tests', test_filter.FILTER_ALL),
+    ])
+    return filters
 
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return [
-        test_filter.TestFilter(
-            'bindings_test', ('GlobalInterfaceBindingsTest.'
-                              'PropertiesAndOperationsAreOwnProperties')),
-        test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL)
-    ]
+
+def CreatePlatformConfig():
+  return CobaltLinuxX64DirectFbConfiguration()

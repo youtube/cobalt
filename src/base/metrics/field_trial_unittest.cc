@@ -28,7 +28,7 @@ class TestFieldTrialObserver : public FieldTrialList::Observer {
   }
 
   virtual void OnFieldTrialGroupFinalized(const std::string& trial,
-                                          const std::string& group) OVERRIDE {
+                                          const std::string& group) override {
     trial_name_ = trial;
     group_name_ = group;
   }

@@ -35,7 +35,7 @@ const char kStarboardStabilitySuffix[] = "-ReleaseCandidate";
 const char kStarboardStabilitySuffix[] = "";
 #endif
 
-bool SystemDeviceTypeIsTv(SbSystemDeviceType device_type) {
+bool ShouldUsePlatformInfo(SbSystemDeviceType device_type) {
   switch (device_type) {
     case kSbSystemDeviceTypeBlueRayDiskPlayer:
     case kSbSystemDeviceTypeGameConsole:
@@ -69,16 +69,16 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
   SB_DCHECK(result);
   os_name_and_version_ = value;
 
-  // Fill YouTube TV info if it is a YouTube TV device.
+  // Fill platform info if it is a hardware TV device.
   SbSystemDeviceType device_type = SbSystemGetDeviceType();
-  if (SystemDeviceTypeIsTv(device_type)) {
-    youtube_tv_info_ = YouTubeTVInfo();
+  if (ShouldUsePlatformInfo(device_type)) {
+    platform_info_ = PlatformInfo();
 
     // Network operator
     result = SbSystemGetProperty(kSbSystemPropertyNetworkOperatorName, value,
                                  kSystemPropertyMaxLength);
     if (result) {
-      youtube_tv_info_->network_operator = value;
+      platform_info_->network_operator = value;
     }
 
 #if SB_API_VERSION >= 5
@@ -92,40 +92,40 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
     // Device Type
     switch (device_type) {
       case kSbSystemDeviceTypeBlueRayDiskPlayer:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kBlueRayDiskPlayer;
+        platform_info_->device_type = PlatformInfo::kBlueRayDiskPlayer;
         break;
       case kSbSystemDeviceTypeGameConsole:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kGameConsole;
+        platform_info_->device_type = PlatformInfo::kGameConsole;
         break;
       case kSbSystemDeviceTypeOverTheTopBox:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
+        platform_info_->device_type = PlatformInfo::kOverTheTopBox;
         break;
       case kSbSystemDeviceTypeSetTopBox:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kSetTopBox;
+        platform_info_->device_type = PlatformInfo::kSetTopBox;
         break;
       case kSbSystemDeviceTypeTV:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kTV;
+        platform_info_->device_type = PlatformInfo::kTV;
         break;
       case kSbSystemDeviceTypeAndroidTV:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kAndroidTV;
+        platform_info_->device_type = PlatformInfo::kAndroidTV;
         break;
       case kSbSystemDeviceTypeDesktopPC:
       default:
-        youtube_tv_info_->device_type = YouTubeTVInfo::kInvalidDeviceType;
+        platform_info_->device_type = PlatformInfo::kInvalidDeviceType;
     }
 
     // Chipset model number
     result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber, value,
                                  kSystemPropertyMaxLength);
     if (result) {
-      youtube_tv_info_->chipset_model_number = value;
+      platform_info_->chipset_model_number = value;
     }
 
     // Firmware version
     result = SbSystemGetProperty(kSbSystemPropertyFirmwareVersion, value,
                                  kSystemPropertyMaxLength);
     if (result) {
-      youtube_tv_info_->firmware_version = value;
+      platform_info_->firmware_version = value;
     }
 
     // Brand
@@ -133,7 +133,7 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
                                  kSystemPropertyMaxLength);
     SB_DCHECK(result);
     if (result) {
-      youtube_tv_info_->brand = value;
+      platform_info_->brand = value;
     }
 
     // Model
@@ -141,15 +141,15 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
                                  kSystemPropertyMaxLength);
     SB_DCHECK(result);
     if (result) {
-      youtube_tv_info_->model = value;
+      platform_info_->model = value;
     }
 
     // Connection type
     SbSystemConnectionType connection_type = SbSystemGetConnectionType();
     if (connection_type == kSbSystemConnectionTypeWired) {
-      youtube_tv_info_->connection_type = YouTubeTVInfo::kWiredConnection;
+      platform_info_->connection_type = PlatformInfo::kWiredConnection;
     } else if (connection_type == kSbSystemConnectionTypeWireless) {
-      youtube_tv_info_->connection_type = YouTubeTVInfo::kWirelessConnection;
+      platform_info_->connection_type = PlatformInfo::kWirelessConnection;
     }
   }
 }

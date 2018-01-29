@@ -6,6 +6,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkCanvas.h"
 #include "SkRRect.h"
 #include "SkPath.h"
@@ -104,7 +105,7 @@ static void draw_rrect_color(SkCanvas* canvas, const SkRRect& rrect) {
     if (rrect.isRect()) {
         paint.setColor(SK_ColorRED);
     } else if (rrect.isOval()) {
-        paint.setColor(0xFF008800);
+        paint.setColor(sk_tool_utils::color_to_565(0xFF008800));
     } else if (rrect.isSimple()) {
         paint.setColor(SK_ColorBLUE);
     } else {
@@ -126,20 +127,17 @@ public:
     RRectGM() {}
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         return SkString("rrect");
     }
 
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(820, 710);
     }
 
-    virtual void onDraw(SkCanvas* canvas) {
-        static const InsetProc insetProcs[] = {
+    void onDraw(SkCanvas* canvas) override {
+        constexpr InsetProc insetProcs[] = {
             inset0, inset1, inset2, inset3
         };
 

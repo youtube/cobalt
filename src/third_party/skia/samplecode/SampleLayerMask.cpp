@@ -1,13 +1,15 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+
 #include "SampleCode.h"
+#include "SkBitmap.h"
 #include "SkCanvas.h"
 #include "SkPaint.h"
+#include "SkPath.h"
 #include "SkView.h"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,13 +45,13 @@ protected:
             bounds.offset(-bounds.fLeft, -bounds.fTop);
             c.drawOval(bounds, paint);
 
-            paint.setXfermodeMode(SkXfermode::kDstIn_Mode);
+            paint.setBlendMode(SkBlendMode::kDstIn);
             canvas->drawBitmap(mask, r.fLeft, r.fTop, &paint);
         } else {
             SkPath p;
             p.addOval(r);
             p.setFillType(SkPath::kInverseWinding_FillType);
-            paint.setXfermodeMode(SkXfermode::kDstOut_Mode);
+            paint.setBlendMode(SkBlendMode::kDstOut);
             canvas->drawPath(p, paint);
         }
     }
@@ -57,7 +59,7 @@ protected:
     virtual void onDrawContent(SkCanvas* canvas) {
         SkRect  r;
         r.set(SkIntToScalar(20), SkIntToScalar(20), SkIntToScalar(120), SkIntToScalar(120));
-        canvas->saveLayer(&r, NULL);
+        canvas->saveLayer(&r, nullptr);
         canvas->drawColor(SK_ColorRED);
         drawMask(canvas, r);
         canvas->restore();

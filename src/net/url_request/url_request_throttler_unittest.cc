@@ -86,7 +86,7 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
   }
 
   // Overridden for tests.
-  virtual TimeTicks ImplGetTimeNow() const OVERRIDE { return fake_time_now_; }
+  virtual TimeTicks ImplGetTimeNow() const override { return fake_time_now_; }
 
   void set_exponential_backoff_release_time(
       const base::TimeTicks& release_time) {

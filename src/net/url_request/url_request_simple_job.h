@@ -20,12 +20,12 @@ class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
  public:
   URLRequestSimpleJob(URLRequest* request, NetworkDelegate* network_delegate);
 
-  virtual void Start() OVERRIDE;
+  virtual void Start() override;
   virtual bool ReadRawData(IOBuffer* buf,
                            int buf_size,
-                           int *bytes_read) OVERRIDE;
-  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
-  virtual bool GetCharset(std::string* charset) OVERRIDE;
+                           int *bytes_read) override;
+  virtual bool GetMimeType(std::string* mime_type) const override;
+  virtual bool GetCharset(std::string* charset) override;
 
  protected:
   virtual ~URLRequestSimpleJob();

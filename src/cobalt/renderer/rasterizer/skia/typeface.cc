@@ -23,13 +23,13 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SkiaTypeface::SkiaTypeface(SkTypeface_Cobalt* typeface)
-    : typeface_(SkRef(typeface)) {
+SkiaTypeface::SkiaTypeface(const sk_sp<SkTypeface_Cobalt>& typeface)
+    : typeface_(typeface) {
   character_glyph_thread_checker_.DetachFromThread();
 }
 
-SkTypeface_Cobalt* SkiaTypeface::GetSkTypeface() const {
-  return SkRef(typeface_.get());
+const sk_sp<SkTypeface_Cobalt>& SkiaTypeface::GetSkTypeface() const {
+  return typeface_;
 }
 
 render_tree::TypefaceId SkiaTypeface::GetId() const {

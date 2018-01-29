@@ -47,7 +47,7 @@ class OpenMaxImageDecodeComponent : private OpenMaxComponent {
   int ProcessOutput();
 
   // OpenMaxComponent callbacks
-  bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) SB_OVERRIDE;
+  bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) override;
 
   enum State {
     kStateIdle,

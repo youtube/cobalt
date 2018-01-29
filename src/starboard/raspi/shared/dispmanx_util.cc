@@ -152,14 +152,14 @@ void DispmanxVideoRenderer::Update(
     return;
   }
 
-  if (video_frame->IsEndOfStream()) {
+  if (video_frame->is_end_of_stream()) {
     element_->ChangeSource(black_frame_);
     frame_ = video_frame;
     return;
   }
 
   DispmanxYUV420Resource* resource =
-      reinterpret_cast<DispmanxYUV420Resource*>(video_frame->native_texture());
+      static_cast<DispmanxVideoFrame*>(video_frame.get())->resource();
   element_->ChangeSource(*resource);
   frame_ = video_frame;
 }

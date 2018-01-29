@@ -5,14 +5,15 @@
  * found in the LICENSE file.
  */
 
+#include "DecodeFile.h"
 #include "SampleCode.h"
 #include "SkDumpCanvas.h"
 #include "SkView.h"
 #include "SkCanvas.h"
 #include "SkGradientShader.h"
 #include "SkGraphics.h"
-#include "SkImageDecoder.h"
 #include "SkOSFile.h"
+#include "SkOSPath.h"
 #include "SkPath.h"
 #include "SkPicture.h"
 #include "SkPictureRecorder.h"
@@ -24,42 +25,46 @@
 #include "SkColorFilter.h"
 #include "SkTime.h"
 #include "SkTypeface.h"
-#include "SkXfermode.h"
-
 #include "SkStream.h"
 #include "SkSurface.h"
-#include "SkXMLParser.h"
+
+#include "SkGlyphCache.h"
 
 class PictFileView : public SampleView {
 public:
-    PictFileView(const char name[] = NULL)
+    PictFileView(const char name[] = nullptr)
         : fFilename(name)
         , fBBox(kNo_BBoxType)
         , fTileSize(SkSize::Make(0, 0)) {
         for (int i = 0; i < kBBoxTypeCount; ++i) {
-            fPictures[i] = NULL;
+            fPictures[i] = nullptr;
         }
+        fCount = 0;
     }
 
-    virtual ~PictFileView() {
+    ~PictFileView() override {
+        this->freePictures();
+    }
+    
+    void freePictures() {
         for (int i = 0; i < kBBoxTypeCount; ++i) {
             SkSafeUnref(fPictures[i]);
+            fPictures[i] = nullptr;
         }
     }
 
-    virtual void onTileSizeChanged(const SkSize &tileSize) SK_OVERRIDE {
+    void onTileSizeChanged(const SkSize &tileSize) override {
         if (tileSize != fTileSize) {
             fTileSize = tileSize;
-            SkSafeSetNull(fPictures[kTileGrid_BBoxType]);
         }
     }
 
 protected:
     // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) SK_OVERRIDE {
+    bool onQuery(SkEvent* evt) override {
         if (SampleCode::TitleQ(*evt)) {
             SkString name("P:");
-            const char* basename = strrchr(fFilename.c_str(), SkPATH_SEPARATOR);
+            const char* basename = strrchr(fFilename.c_str(), SkOSPath::SEPARATOR);
             name.append(basename ? basename+1: fFilename.c_str());
             switch (fBBox) {
             case kNo_BBoxType:
@@ -68,9 +73,6 @@ protected:
             case kRTree_BBoxType:
                 name.append(" <bbox: R>");
                 break;
-            case kTileGrid_BBoxType:
-                name.append(" <bbox: T>");
-                break;
             default:
                 SkASSERT(false);
                 break;
@@ -78,10 +80,25 @@ protected:
             SampleCode::TitleR(evt, name.c_str());
             return true;
         }
+        SkUnichar uni;
+        if (SampleCode::CharQ(*evt, &uni)) {
+            switch (uni) {
+                case 'n': fCount += 1; this->inval(nullptr); return true;
+                case 'p': fCount -= 1; this->inval(nullptr); return true;
+                case 's': fCount =  0; this->inval(nullptr); return true;
+                case 'F':
+                    fFilterQuality = (kNone_SkFilterQuality == fFilterQuality) ?
+                                     kHigh_SkFilterQuality : kNone_SkFilterQuality;
+                    this->freePictures();
+                    this->inval(nullptr);
+                    return true;
+                default: break;
+            }
+        }
         return this->INHERITED::onQuery(evt);
     }
 
-    virtual bool onEvent(const SkEvent& evt) SK_OVERRIDE {
+    bool onEvent(const SkEvent& evt) override {
         if (evt.isType("PictFileView::toggleBBox")) {
             fBBox = (BBoxType)((fBBox + 1) % kBBoxTypeCount);
             return true;
@@ -89,25 +106,34 @@ protected:
         return this->INHERITED::onEvent(evt);
     }
 
-    virtual void onDrawContent(SkCanvas* canvas) SK_OVERRIDE {
+    void onDrawContent(SkCanvas* canvas) override {
         SkASSERT(static_cast<int>(fBBox) < kBBoxTypeCount);
         SkPicture** picture = fPictures + fBBox;
 
+#ifdef SK_GLYPHCACHE_TRACK_HASH_STATS
+        SkGraphics::PurgeFontCache();
+#endif
+
         if (!*picture) {
-            *picture = LoadPicture(fFilename.c_str(), fBBox);
+            *picture = LoadPicture(fFilename.c_str(), fBBox).release();
         }
+
         if (*picture) {
             canvas->drawPicture(*picture);
         }
+
+#ifdef SK_GLYPHCACHE_TRACK_HASH_STATS
+        SkGlyphCache::Dump();
+        SkDebugf("\n");
+#endif
     }
 
 private:
     enum BBoxType {
         kNo_BBoxType,
         kRTree_BBoxType,
-        kTileGrid_BBoxType,
 
-        kLast_BBoxType = kTileGrid_BBoxType
+        kLast_BBoxType = kRTree_BBoxType,
     };
     static const int kBBoxTypeCount = kLast_BBoxType + 1;
 
@@ -115,39 +141,35 @@ private:
     SkPicture*  fPictures[kBBoxTypeCount];
     BBoxType    fBBox;
     SkSize      fTileSize;
+    int         fCount;
+    SkFilterQuality fFilterQuality = kNone_SkFilterQuality;
 
-    SkPicture* LoadPicture(const char path[], BBoxType bbox) {
-        SkAutoTUnref<SkPicture> pic;
+    sk_sp<SkPicture> LoadPicture(const char path[], BBoxType bbox) {
+        sk_sp<SkPicture> pic;
 
-        SkBitmap bm;
-        if (SkImageDecoder::DecodeFile(path, &bm)) {
-            bm.setImmutable();
+        if (sk_sp<SkImage> img = decode_file(path)) {
             SkPictureRecorder recorder;
-            SkCanvas* can = recorder.beginRecording(SkIntToScalar(bm.width()), 
-                                                    SkIntToScalar(bm.height()), 
-                                                    NULL, 0);
-            can->drawBitmap(bm, 0, 0, NULL);
-            pic.reset(recorder.endRecording());
+            SkCanvas* can = recorder.beginRecording(SkIntToScalar(img->width()),
+                                                    SkIntToScalar(img->height()),
+                                                    nullptr, 0);
+            SkPaint paint;
+            paint.setFilterQuality(fFilterQuality);
+            can->drawImage(img, 0, 0, &paint);
+            pic = recorder.finishRecordingAsPicture();
         } else {
             SkFILEStream stream(path);
             if (stream.isValid()) {
-                pic.reset(SkPicture::CreateFromStream(&stream));
+                pic = SkPicture::MakeFromStream(&stream);
             } else {
                 SkDebugf("coun't load picture at \"path\"\n", path);
             }
 
-            if (false) {
-                SkSurface* surf = SkSurface::NewRasterPMColor(SkScalarCeilToInt(pic->cullRect().width()), 
-                                                              SkScalarCeilToInt(pic->cullRect().height()));
-                surf->getCanvas()->drawPicture(pic);
-                surf->unref();
-            }
             if (false) { // re-record
                 SkPictureRecorder recorder;
                 pic->playback(recorder.beginRecording(pic->cullRect().width(),
-                                                      pic->cullRect().height(), 
-                                                      NULL, 0));
-                SkAutoTUnref<SkPicture> p2(recorder.endRecording());
+                                                      pic->cullRect().height(),
+                                                      nullptr, 0));
+                sk_sp<SkPicture> p2(recorder.finishRecordingAsPicture());
 
                 SkString path2(path);
                 path2.append(".new.skp");
@@ -156,36 +178,27 @@ private:
             }
         }
 
-        if (NULL == pic) {
-            return NULL;
+        if (nullptr == pic) {
+            return nullptr;
         }
 
-        SkAutoTDelete<SkBBHFactory> factory;
+        std::unique_ptr<SkBBHFactory> factory;
         switch (bbox) {
         case kNo_BBoxType:
             // no bbox playback necessary
-            return pic.detach();
+            return pic;
         case kRTree_BBoxType:
-            factory.reset(SkNEW(SkRTreeFactory));
+            factory.reset(new SkRTreeFactory);
             break;
-        case kTileGrid_BBoxType: {
-            SkASSERT(!fTileSize.isEmpty());
-            SkTileGridFactory::TileGridInfo gridInfo;
-            gridInfo.fMargin = SkISize::Make(0, 0);
-            gridInfo.fOffset = SkIPoint::Make(0, 0);
-            gridInfo.fTileInterval = fTileSize.toRound();
-            factory.reset(SkNEW_ARGS(SkTileGridFactory, (gridInfo)));
-            break;
-        }
         default:
             SkASSERT(false);
         }
 
         SkPictureRecorder recorder;
         pic->playback(recorder.beginRecording(pic->cullRect().width(),
-                                              pic->cullRect().height(), 
+                                              pic->cullRect().height(),
                                               factory.get(), 0));
-        return recorder.endRecording();
+        return recorder.finishRecordingAsPicture();
     }
 
     typedef SampleView INHERITED;

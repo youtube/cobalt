@@ -15,6 +15,7 @@
 #include "starboard/system.h"
 
 #include "starboard/shared/uwp/application_uwp.h"
+#include "starboard/shared/uwp/system_platform_error_internal.h"
 
 using starboard::shared::uwp::ApplicationUwp;
 
@@ -22,6 +23,17 @@ SbSystemPlatformError SbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
     void* user_data) {
-  return ApplicationUwp::Get()->OnSbSystemRaisePlatformError(
-      type, callback, user_data);
+  ApplicationUwp* app = ApplicationUwp::Get();
+  if (!app) {
+    return kSbSystemPlatformErrorInvalid;
+  }
+
+  SbSystemPlatformError handle = new SbSystemPlatformErrorPrivate(
+      app, type, callback, user_data);
+  if (!handle->IsValid()) {
+    handle->ClearAndDelete();
+    handle = kSbSystemPlatformErrorInvalid;
+  }
+
+  return handle;
 }

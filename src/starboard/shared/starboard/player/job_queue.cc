@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "starboard/log.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
 
@@ -62,7 +63,10 @@ void ResetCurrentThreadJobQueue() {
 }  // namespace
 
 JobQueue::JobQueue()
-    : thread_id_(SbThreadGetId()), condition_(mutex_), stopped_(false) {
+    : thread_id_(SbThreadGetId()),
+      condition_(mutex_),
+      current_job_token_(JobToken::kInvalidToken + 1),
+      stopped_(false) {
   SB_DCHECK(SbThreadIsValidId(thread_id_));
   SetCurrentThreadJobQueue(this);
 }
@@ -73,27 +77,23 @@ JobQueue::~JobQueue() {
   ResetCurrentThreadJobQueue();
 }
 
-void JobQueue::Schedule(Closure closure, SbTimeMonotonic delay /*= 0*/) {
-  Schedule(closure, NULL, delay);
+JobQueue::JobToken JobQueue::Schedule(Job job, SbTimeMonotonic delay /*= 0*/) {
+  return Schedule(job, NULL, delay);
 }
 
-void JobQueue::Remove(Closure closure) {
+void JobQueue::RemoveJobByToken(JobToken job_token) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(closure.is_valid());
+
+  if (!job_token.is_valid()) {
+    return;
+  }
 
   ScopedLock scoped_lock(mutex_);
-  // std::multimap::erase() doesn't return an iterator until C++11.  So this has
-  // to be done in a nested loop to delete multiple occurrences of |closure|.
-  bool should_keep_running = true;
-  while (should_keep_running) {
-    should_keep_running = false;
-    for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
-         iter != time_to_job_map_.end(); ++iter) {
-      if (iter->second.closure == closure) {
-        time_to_job_map_.erase(iter);
-        should_keep_running = true;
-        break;
-      }
+  for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
+       iter != time_to_job_map_.end(); ++iter) {
+    if (iter->second.job_token == job_token) {
+      time_to_job_map_.erase(iter);
+      return;
     }
   }
 }
@@ -140,35 +140,39 @@ JobQueue* JobQueue::current() {
   return GetCurrentThreadJobQueue();
 }
 
-void JobQueue::Schedule(Closure closure,
-                        JobOwner* owner,
-                        SbTimeMonotonic delay) {
-  SB_DCHECK(closure.is_valid());
+JobQueue::JobToken JobQueue::Schedule(Job job,
+                                      JobOwner* owner,
+                                      SbTimeMonotonic delay) {
+  SB_DCHECK(job);
   SB_DCHECK(delay >= 0) << delay;
 
-  Job job = {closure, owner};
+  ++current_job_token_;
+
+  JobToken job_token(current_job_token_);
+  JobRecord job_record = {job_token, job, owner};
 
   ScopedLock scoped_lock(mutex_);
   if (stopped_) {
-    return;
+    return JobToken();
   }
   SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
   bool is_first_job = time_to_job_map_.empty() ||
                       time_to_run_job < time_to_job_map_.begin()->first;
 
-  time_to_job_map_.insert(std::make_pair(time_to_run_job, job));
+  time_to_job_map_.insert(std::make_pair(time_to_run_job, job_record));
   if (is_first_job) {
     condition_.Signal();
   }
+  return job_token;
 }
 
-void JobQueue::RemoveJobsByToken(JobOwner* owner) {
+void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
   ScopedLock scoped_lock(mutex_);
   // std::multimap::erase() doesn't return an iterator until C++11.  So this has
-  // to be done in a nested loop to delete multiple occurrences of |closure|.
+  // to be done in a nested loop to delete multiple occurrences of |job|.
   bool should_keep_running = true;
   while (should_keep_running) {
     should_keep_running = false;
@@ -186,7 +190,7 @@ void JobQueue::RemoveJobsByToken(JobOwner* owner) {
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  Closure job;
+  Job job;
 
   {
     ScopedLock scoped_lock(mutex_);
@@ -219,12 +223,12 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (delay > 0) {
       return false;
     }
-    job = first_delayed_job->second.closure;
+    job = first_delayed_job->second.job;
     time_to_job_map_.erase(first_delayed_job);
   }
 
-  SB_DCHECK(job.is_valid());
-  job.Run();
+  SB_DCHECK(job);
+  job();
   return true;
 }
 

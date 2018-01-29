@@ -38,7 +38,7 @@ class MockErrorCallback : public base::Callback<void(const std::string&)> {
 class XMLDecoderTest : public ::testing::Test {
  protected:
   XMLDecoderTest();
-  ~XMLDecoderTest() OVERRIDE {}
+  ~XMLDecoderTest() override {}
 
   dom::HTMLElementContext html_element_context_;
   scoped_refptr<dom::XMLDocument> document_;

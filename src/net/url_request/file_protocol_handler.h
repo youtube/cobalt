@@ -21,7 +21,7 @@ class NET_EXPORT FileProtocolHandler :
  public:
   FileProtocolHandler();
   virtual URLRequestJob* MaybeCreateJob(
-      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE;
+      URLRequest* request, NetworkDelegate* network_delegate) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FileProtocolHandler);

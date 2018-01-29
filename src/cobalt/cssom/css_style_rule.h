@@ -49,17 +49,17 @@ class CSSStyleRule : public CSSRule {
 
   // Web API: CSSRule
   //
-  Type type() const OVERRIDE { return kStyleRule; }
-  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  Type type() const override { return kStyleRule; }
+  std::string css_text(script::ExceptionState* exception_state) const override;
   void set_css_text(const std::string& css_text,
-                    script::ExceptionState* exception_state) OVERRIDE;
+                    script::ExceptionState* exception_state) override;
 
   // Custom, not in any spec.
   //
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
-  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
-  CSSStyleRule* AsCSSStyleRule() OVERRIDE { return this; }
+  void Accept(CSSRuleVisitor* visitor) override;
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) override;
+  CSSStyleRule* AsCSSStyleRule() override { return this; }
 
   const Selectors& selectors() const { return selectors_; }
 
@@ -78,7 +78,7 @@ class CSSStyleRule : public CSSRule {
   DEFINE_WRAPPABLE_TYPE(CSSStyleRule);
 
  private:
-  ~CSSStyleRule() OVERRIDE;
+  ~CSSStyleRule() override;
 
   Selectors selectors_;
   scoped_refptr<CSSRuleStyleDeclaration> style_;

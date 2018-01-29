@@ -52,7 +52,7 @@ static void test_pack8(skiatest::Reporter* reporter) {
         REPORTER_ASSERT(reporter, match);
     }
 
-    for (size_t size = 1; size <= 512; size += 1) {
+    for (uint32_t size = 1; size <= 512; size += 1) {
         for (int n = 100; n; n--) {
             uint8_t src[600], src2[600];
             uint8_t dst[600];

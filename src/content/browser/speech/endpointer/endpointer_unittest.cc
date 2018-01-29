@@ -124,7 +124,7 @@ TEST(EndpointerTest, TestEnergyEndpointerEvents) {
 // Test endpointer wrapper class.
 class EndpointerFrameProcessor : public FrameProcessor {
  public:
-  typedef ::media::ShellAudioBus ShellAudioBus;
+  typedef Endpointer::ShellAudioBus ShellAudioBus;
   explicit EndpointerFrameProcessor(Endpointer* endpointer)
       : endpointer_(endpointer) {}
 

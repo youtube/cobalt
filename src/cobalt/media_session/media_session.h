@@ -50,7 +50,7 @@ class MediaSession : public script::Wrappable {
 
  public:
   explicit MediaSession(MediaSessionClient* client);
-  ~MediaSession() OVERRIDE;
+  ~MediaSession() override;
 
   scoped_refptr<MediaMetadata> metadata() const { return metadata_; }
 
@@ -64,6 +64,7 @@ class MediaSession : public script::Wrappable {
                         const MediaSessionActionHandlerHolder& handler);
 
   DEFINE_WRAPPABLE_TYPE(MediaSession);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void MaybeQueueChangeTask();

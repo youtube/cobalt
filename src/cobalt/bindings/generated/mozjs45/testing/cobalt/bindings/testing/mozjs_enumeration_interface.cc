@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +50,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::EnumerationInterface;
 using cobalt::bindings::testing::MozjsEnumerationInterface;
@@ -89,7 +92,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsEnumerationInterfaceHandler : public ProxyHandler {
  public:
@@ -109,6 +119,7 @@ MozjsEnumerationInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsEnumerationInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -122,6 +133,8 @@ static base::LazyInstance<MozjsEnumerationInterfaceHandler>
     proxy_handler;
 
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -280,6 +293,7 @@ bool set_enumProperty(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_optionalEnumWithDefault(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -345,6 +359,7 @@ bool fcn_optionalEnumWithDefault(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "enumProperty",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -362,6 +377,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -402,17 +418,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "EnumerationInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      Constructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "EnumerationInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -527,8 +551,10 @@ JSObject* MozjsEnumerationInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
+
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   MozjsExceptionState exception_state(context);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -541,6 +567,8 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   args.rval().setObject(result_value.toObject());
   return true;
 }
+
+
 }  // namespace
 
 

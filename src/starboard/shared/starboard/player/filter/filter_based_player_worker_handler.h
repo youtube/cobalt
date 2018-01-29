@@ -15,13 +15,16 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_
 
+#include <functional>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -40,7 +43,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
       SbMediaVideoCodec video_codec,
       SbMediaAudioCodec audio_codec,
       SbDrmSystem drm_system,
-      const SbMediaAudioHeader& audio_header,
+      const SbMediaAudioHeader* audio_header,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider* provider);
 
@@ -51,28 +54,29 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
             SbPlayer player,
             UpdateMediaTimeCB update_media_time_cb,
             GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb) SB_OVERRIDE;
-  bool Seek(SbMediaTime seek_to_pts, int ticket) SB_OVERRIDE;
+            UpdatePlayerStateCB update_player_state_cb) override;
+  bool Seek(SbMediaTime seek_to_pts, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
-                   bool* written) SB_OVERRIDE;
-  bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
-  bool SetPause(bool pause) SB_OVERRIDE;
-  bool SetPlaybackRate(double playback_rate) SB_OVERRIDE;
-  void SetVolume(double volume) SB_OVERRIDE;
-  bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
-  void Stop() SB_OVERRIDE;
+                   bool* written) override;
+  bool WriteEndOfStream(SbMediaType sample_type) override;
+  bool SetPause(bool pause) override;
+  bool SetPlaybackRate(double playback_rate) override;
+  void SetVolume(double volume) override;
+  bool SetBounds(const PlayerWorker::Bounds& bounds) override;
+  void Stop() override;
 
   void Update();
   void OnError();
 
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
+  MediaTimeProvider* GetMediaTimeProvider() const;
 
-  PlayerWorker* player_worker_;
-  JobQueue* job_queue_;
-  SbPlayer player_;
-  UpdateMediaTimeCB update_media_time_cb_;
-  GetPlayerStateCB get_player_state_cb_;
-  UpdatePlayerStateCB update_player_state_cb_;
+  PlayerWorker* player_worker_ = NULL;
+  JobQueue* job_queue_ = NULL;
+  SbPlayer player_ = kSbPlayerInvalid;
+  UpdateMediaTimeCB update_media_time_cb_ = NULL;
+  GetPlayerStateCB get_player_state_cb_ = NULL;
+  UpdatePlayerStateCB update_player_state_cb_ = NULL;
 
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
@@ -84,14 +88,19 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 #endif  // SB_API_VERSION >= 6
   SbMediaAudioHeader audio_header_;
 
+  // |media_time_provider_impl_| is used to provide the media playback time when
+  // there is no audio track.  In such case |audio_renderer_| will be NULL.
+  // When there is an audio track, |media_time_provider_impl_| will be NULL.
+  scoped_ptr<MediaTimeProviderImpl> media_time_provider_impl_;
   scoped_ptr<AudioRenderer> audio_renderer_;
   scoped_ptr<VideoRenderer> video_renderer_;
 
-  bool paused_;
-  double playback_rate_;
-  double volume_;
+  bool paused_ = false;
+  double playback_rate_ = 1.0;
+  double volume_ = 1.0;
   PlayerWorker::Bounds bounds_;
-  Closure update_closure_;
+  JobQueue::JobToken update_job_token_;
+  std::function<void()> update_job_;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |video_renderer_| object.  This is necessary because calls to

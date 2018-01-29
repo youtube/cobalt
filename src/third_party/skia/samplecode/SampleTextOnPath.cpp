@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -35,10 +34,8 @@ static void textStrokePath(SkCanvas* canvas) {
 
     canvas->drawPath(path, paint);
 
-    paint.setLooper(SkBlurDrawLooper::Create(SK_ColorBLACK,
-                                             SkBlurMask::ConvertRadiusToSigma(0.002f),
-                                             0.0f,
-                                             0.0f))->unref();
+    paint.setLooper(SkBlurDrawLooper::Make(SK_ColorBLACK, SkBlurMask::ConvertRadiusToSigma(0.002f),
+                                           0.0f, 0.0f));
 
     const char* text = "DRAWING STROKED TEXT WITH A BLUR ON A PATH";
     size_t      len = strlen(text);
@@ -71,7 +68,7 @@ static void textPathMatrix(SkCanvas* canvas) {
     SkPathMeasure   meas(path, false);
     SkScalar pathLen = meas.getLength();
 
-    canvas->drawTextOnPath(text, len, path, NULL, paint);
+    canvas->drawTextOnPath(text, len, path, nullptr, paint);
 
     paint.setColor(SK_ColorRED);
     matrix.setScale(-SK_Scalar1, SK_Scalar1);
@@ -93,7 +90,8 @@ public:
     SkPath      fPath;
     SkScalar    fHOffset;
 
-    TextOnPathView() {
+protected:
+    void onOnceBeforeDraw() override {
         SkRect r;
         r.set(SkIntToScalar(100), SkIntToScalar(100),
               SkIntToScalar(300), SkIntToScalar(300));
@@ -103,9 +101,8 @@ public:
         fHOffset = SkIntToScalar(50);
     }
 
-protected:
     // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) {
+    bool onQuery(SkEvent* evt) override {
         if (SampleCode::TitleQ(*evt)) {
             SampleCode::TitleR(evt, "Text On Path");
             return true;
@@ -113,7 +110,7 @@ protected:
         return this->INHERITED::onQuery(evt);
     }
 
-    virtual void onDrawContent(SkCanvas* canvas) {
+    void onDrawContent(SkCanvas* canvas) override {
         SkPaint paint;
         paint.setAntiAlias(true);
         paint.setTextSize(SkIntToScalar(48));
@@ -148,16 +145,16 @@ protected:
         textPathMatrix(canvas);
 
         if (REPEAT_COUNT > 1)
-            this->inval(NULL);
+            this->inval(nullptr);
     }
 
-    virtual SkView::Click* onFindClickHandler(SkScalar x, SkScalar y, unsigned modi) SK_OVERRIDE {
+    SkView::Click* onFindClickHandler(SkScalar x, SkScalar y, unsigned modi) override {
         fHints += 1;
-        this->inval(NULL);
+        this->inval(nullptr);
         return this->INHERITED::onFindClickHandler(x, y, modi);
     }
 
-    virtual bool onClick(Click* click) {
+    bool onClick(Click* click) override {
         return this->INHERITED::onClick(click);
     }
 

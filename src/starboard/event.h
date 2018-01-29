@@ -16,45 +16,46 @@
 //
 // Defines the event system that wraps the Starboard main loop and entry point.
 //
-// ## The Starboard Application life cycle
+// # The Starboard Application Lifecycle
 //
-// |     ---------- *
-// |    |           |
-// |    |        Preload
-// |    |           |
-// |    |           V
-// |  Start   [ PRELOADING ] ------------
-// |    |           |                    |
-// |    |         Start                  |
-// |    |           |                    |
-// |    |           V                    |
-// |     ----> [ STARTED ] <----         |
-// |                |           |        |
-// |              Pause       Unpause    |
-// |                |           |     Suspend
-// |                V           |        |
-// |     -----> [ PAUSED ] -----         |
-// |    |           |                    |
-// | Resume      Suspend                 |
-// |    |           |                    |
-// |    |           V                    |
-// |     ---- [ SUSPENDED ] <------------
-// |                |
-// |               Stop
-// |                |
-// |                V
-// |           [ STOPPED ]
+//         ---------- *
+//        |           |
+//        |        Preload
+//        |           |
+//        |           V
+//      Start   [ PRELOADING ] ------------
+//        |           |                    |
+//        |         Start                  |
+//        |           |                    |
+//        |           V                    |
+//         ----> [ STARTED ] <----         |
+//                    |           |        |
+//                  Pause       Unpause    |
+//                    |           |     Suspend
+//                    V           |        |
+//         -----> [ PAUSED ] -----         |
+//        |           |                    |
+//     Resume      Suspend                 |
+//        |           |                    |
+//        |           V                    |
+//         ---- [ SUSPENDED ] <------------
+//                    |
+//                   Stop
+//                    |
+//                    V
+//               [ STOPPED ]
 //
 // The first event that a Starboard application receives is either |Start|
-// (kSbEventTypeStart) or |Preload| (kSbEventTypePreload). |Start| puts the
+// (|kSbEventTypeStart|) or |Preload| (|kSbEventTypePreload|). |Start| puts the
 // application in the |STARTED| state, whereas |Preload| puts the application in
 // the |PRELOADING| state.
 //
 // |PRELOADING| can only happen as the first application state. In this state,
 // the application should start and run as normal, but will not receive any
 // input, and should not try to initialize graphics resources (via GL or
-// SbBlitter). In |PRELOADING|, the application can receive |Start| or |Suspend|
-// events. |Start| will receive the same data that was passed into |Preload|.
+// |SbBlitter|). In |PRELOADING|, the application can receive |Start| or
+// |Suspend| events. |Start| will receive the same data that was passed into
+// |Preload|.
 //
 // In the |STARTED| state, the application is in the foreground and can expect
 // to do all of the normal things it might want to do. Once in the |STARTED|
@@ -214,14 +215,48 @@ typedef enum SbEventType {
   kSbEventTypeLowMemory,
 #endif  // SB_API_VERSION >= 6
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // The size or position of a SbWindow has changed. The data is
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
+  // The platform has shown the on screen keyboard. This event is triggered by
+  // the system or by the application's OnScreenKeyboard show method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the show method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowShowOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardShown,
+
+  // The platform has hidden the on screen keyboard. This event is triggered by
+  // the system or by the application's OnScreenKeyboard hide method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the hide method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowHideOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardHidden,
+
+  // The platform has focused the on screen keyboard. This event is triggered by
+  // the system or by the application's OnScreenKeyboard focus method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the focus method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowFocusOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
+  kSbEventTypeOnScreenKeyboardFocused,
+
+  // The platform has blurred the on screen keyboard. This event is triggered by
+  // the system or by the application's OnScreenKeyboard blur method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the blur method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
+  kSbEventTypeOnScreenKeyboardBlurred,
+
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 } SbEventType;
 
@@ -253,13 +288,13 @@ typedef struct SbEventStartData {
   const char* link;
 } SbEventStartData;
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
 // Event data for kSbEventTypeWindowSizeChanged events.
 typedef struct SbEventWindowSizeChangedData {
   SbWindow window;
   SbWindowSize size;
 } SbEventWindowSizeChangedData;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #define kSbEventIdInvalid (SbEventId)0
 

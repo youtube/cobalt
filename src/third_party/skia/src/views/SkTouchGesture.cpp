@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2010 Google Inc.
  *
@@ -6,7 +5,7 @@
  * found in the LICENSE file.
  */
 
-
+#include <algorithm>
 
 #include "SkTouchGesture.h"
 #include "SkMatrix.h"
@@ -110,12 +109,13 @@ SkTouchGesture::~SkTouchGesture() {
 }
 
 void SkTouchGesture::reset() {
+    fIsTransLimited = false;
     fTouches.reset();
     fState = kEmpty_State;
     fLocalM.reset();
     fGlobalM.reset();
 
-    fLastUpT = SkTime::GetMSecs() - 2*MAX_DBL_TAP_INTERVAL;
+    fLastUpMillis = SkTime::GetMSecs() - 2*MAX_DBL_TAP_INTERVAL;
     fLastUpP.set(0, 0);
 }
 
@@ -138,11 +138,11 @@ void SkTouchGesture::appendNewRec(void* owner, float x, float y) {
     rec->fOwner = owner;
     rec->fStartX = rec->fPrevX = rec->fLastX = x;
     rec->fStartY = rec->fPrevY = rec->fLastY = y;
-    rec->fLastT = rec->fPrevT = SkTime::GetMSecs();
+    rec->fLastT = rec->fPrevT = static_cast<float>(SkTime::GetSecs());
 }
 
 void SkTouchGesture::touchBegin(void* owner, float x, float y) {
-//    GrPrintf("--- %d touchBegin %p %g %g\n", fTouches.count(), owner, x, y);
+//    SkDebugf("--- %d touchBegin %p %g %g\n", fTouches.count(), owner, x, y);
 
     int index = this->findRec(owner);
     if (index >= 0) {
@@ -201,7 +201,7 @@ float SkTouchGesture::limitTotalZoom(float scale) const {
 }
 
 void SkTouchGesture::touchMoved(void* owner, float x, float y) {
-//    GrPrintf("--- %d touchMoved %p %g %g\n", fTouches.count(), owner, x, y);
+//    SkDebugf("--- %d touchMoved %p %g %g\n", fTouches.count(), owner, x, y);
 
     if (kEmpty_State == fState) {
         return;
@@ -209,10 +209,8 @@ void SkTouchGesture::touchMoved(void* owner, float x, float y) {
 
     int index = this->findRec(owner);
     if (index < 0) {
-        // not found, so I guess we should add it...
-        SkDebugf("---- add missing begin\n");
-        this->appendNewRec(owner, x, y);
-        index = fTouches.count() - 1;
+        SkDebugf("---- ignoring move without begin\n");
+        return;
     }
 
     Rec& rec = fTouches[index];
@@ -220,14 +218,15 @@ void SkTouchGesture::touchMoved(void* owner, float x, float y) {
     // not sure how valuable this is
     if (fTouches.count() == 2) {
         if (close_enough_for_jitter(rec.fLastX, rec.fLastY, x, y)) {
-//            GrPrintf("--- drop touchMove, withing jitter tolerance %g %g\n", rec.fLastX - x, rec.fLastY - y);
+//            SkDebugf("--- drop touchMove, within jitter tolerance %g %g\n", rec.fLastX - x, rec.fLastY - y);
             return;
         }
     }
 
     rec.fPrevX = rec.fLastX; rec.fLastX = x;
     rec.fPrevY = rec.fLastY; rec.fLastY = y;
-    rec.fPrevT = rec.fLastT; rec.fLastT = SkTime::GetMSecs();
+    rec.fPrevT = rec.fLastT;
+    rec.fLastT = static_cast<float>(SkTime::GetSecs());
 
     switch (fTouches.count()) {
         case 1: {
@@ -257,7 +256,7 @@ void SkTouchGesture::touchMoved(void* owner, float x, float y) {
 }
 
 void SkTouchGesture::touchEnd(void* owner) {
-//    GrPrintf("--- %d touchEnd   %p\n", fTouches.count(), owner);
+//    SkDebugf("--- %d touchEnd   %p\n", fTouches.count(), owner);
 
     int index = this->findRec(owner);
     if (index < 0) {
@@ -276,7 +275,7 @@ void SkTouchGesture::touchEnd(void* owner) {
             this->flushLocalM();
             float dx = rec.fLastX - rec.fPrevX;
             float dy = rec.fLastY - rec.fPrevY;
-            float dur = (rec.fLastT - rec.fPrevT) * 0.001f;
+            float dur = rec.fLastT - rec.fPrevT;
             if (dur > 0) {
                 fFlinger.reset(dx / dur, dy / dur);
             }
@@ -293,6 +292,8 @@ void SkTouchGesture::touchEnd(void* owner) {
     }
 
     fTouches.removeShuffle(index);
+
+    limitTrans();
 }
 
 float SkTouchGesture::computePinch(const Rec& rec0, const Rec& rec1) {
@@ -310,8 +311,8 @@ float SkTouchGesture::computePinch(const Rec& rec0, const Rec& rec1) {
 
 bool SkTouchGesture::handleDblTap(float x, float y) {
     bool found = false;
-    SkMSec now = SkTime::GetMSecs();
-    if (now - fLastUpT <= MAX_DBL_TAP_INTERVAL) {
+    double now = SkTime::GetMSecs();
+    if (now - fLastUpMillis <= MAX_DBL_TAP_INTERVAL) {
         if (SkPoint::Length(fLastUpP.fX - x,
                             fLastUpP.fY - y) <= MAX_DBL_TAP_DISTANCE) {
             fFlinger.stop();
@@ -323,7 +324,31 @@ bool SkTouchGesture::handleDblTap(float x, float y) {
         }
     }
 
-    fLastUpT = now;
+    fLastUpMillis = now;
     fLastUpP.set(x, y);
     return found;
+}
+
+void SkTouchGesture::setTransLimit(const SkRect& contentRect, const SkRect& windowRect,
+                                   const SkMatrix& preTouchMatrix) {
+    fIsTransLimited = true;
+    fContentRect = contentRect;
+    fWindowRect = windowRect;
+    fPreTouchM = preTouchMatrix;
+}
+
+void SkTouchGesture::limitTrans() {
+    if (!fIsTransLimited) {
+        return;
+    }
+
+    SkRect scaledContent = fContentRect;
+    fPreTouchM.mapRect(&scaledContent);
+    fGlobalM.mapRect(&scaledContent);
+    const SkScalar ZERO = 0;
+
+    fGlobalM.postTranslate(ZERO, std::min(ZERO, fWindowRect.fBottom - scaledContent.fTop));
+    fGlobalM.postTranslate(ZERO, std::max(ZERO, fWindowRect.fTop - scaledContent.fBottom));
+    fGlobalM.postTranslate(std::min(ZERO, fWindowRect.fRight - scaledContent.fLeft), ZERO);
+    fGlobalM.postTranslate(std::max(ZERO, fWindowRect.fLeft - scaledContent.fRight), ZERO);
 }

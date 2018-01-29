@@ -18,7 +18,6 @@
 #include <D3d11_1.h>
 #include <wrl/client.h>
 
-#include <deque>
 #include <list>
 #include <memory>
 
@@ -28,6 +27,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/thread.h"
@@ -37,26 +37,32 @@ namespace shared {
 namespace win32 {
 
 class VideoDecoder
-    : public
-        ::starboard::shared::starboard::player::filter::HostedVideoDecoder {
+    : public ::starboard::shared::starboard::player::filter::VideoDecoder {
  public:
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
+  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
+      VideoRendererSink;
+
+  class Sink;
 
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
                SbDrmSystem drm_system);
-  ~VideoDecoder() SB_OVERRIDE;
+  ~VideoDecoder() override;
 
-  // Implement HostedVideoDecoder interface.
-  void SetHost(Host* host) SB_OVERRIDE;
-  void Initialize(const Closure& error_cb) SB_OVERRIDE;
+  scoped_refptr<VideoRendererSink> GetSink();
+
+  // Implement VideoDecoder interface.
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override;
+  size_t GetPrerollFrameCount() const override;
+  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
+
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+      override;
+  void WriteEndOfStream() override;
+  void Reset() override;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
   template <typename T>
@@ -82,10 +88,11 @@ class VideoDecoder
 
   void InitializeCodec();
   void ShutdownCodec();
+  static void ReleaseDecodeTargets(void* context);
 
   void UpdateVideoArea(const ComPtr<IMFMediaType>& media);
   scoped_refptr<VideoFrame> CreateVideoFrame(const ComPtr<IMFSample>& sample);
-  static void DeleteVideoFrame(void* context, void* native_texture);
+  void DeleteVideoFrame(VideoFrame* video_frame);
   static void CreateDecodeTargetHelper(void* context);
   SbDecodeTarget CreateDecodeTarget();
 
@@ -99,8 +106,8 @@ class VideoDecoder
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  Closure error_cb_;
-  Host* host_;
+  DecoderStatusCB decoder_status_cb_;
+  ErrorCB error_cb_;
   SbDecodeTargetGraphicsContextProvider* graphics_context_provider_;
   SbDrmSystem const drm_system_;
 
@@ -119,7 +126,7 @@ class VideoDecoder
   volatile bool decoder_thread_stop_requested_;
   bool decoder_thread_stopped_;
   Mutex thread_lock_;
-  std::deque<std::unique_ptr<Event> > thread_events_;
+  std::list<std::unique_ptr<Event> > thread_events_;
 
   // This structure shadows the list of outstanding frames held by the host.
   // When a new output is added to this structure, the host should be notified
@@ -132,9 +139,15 @@ class VideoDecoder
   Mutex outputs_reset_lock_;
   std::list<Output> thread_outputs_;
 
+  // To workaround the startup hitch for VP9, exercise the decoder for a
+  // certain number of frames while prerolling the initial playback.
+  int priming_output_count_;
+
   Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_;
-  SbDecodeTarget prev_decode_target_;
+  std::list<SbDecodeTarget> prev_decode_targets_;
+
+  scoped_refptr<Sink> sink_;
 };
 
 }  // namespace win32

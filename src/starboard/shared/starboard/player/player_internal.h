@@ -30,6 +30,7 @@ struct SbPlayerPrivate
   typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
 
   SbPlayerPrivate(
+      SbMediaAudioCodec audio_codec,
       SbMediaTime duration_pts,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
@@ -57,8 +58,8 @@ struct SbPlayerPrivate
 
  private:
   // PlayerWorker::Host methods.
-  void UpdateMediaTime(SbMediaTime media_time, int ticket) SB_OVERRIDE;
-  void UpdateDroppedVideoFrames(int dropped_video_frames) SB_OVERRIDE;
+  void UpdateMediaTime(SbMediaTime media_time, int ticket) override;
+  void UpdateDroppedVideoFrames(int dropped_video_frames) override;
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;

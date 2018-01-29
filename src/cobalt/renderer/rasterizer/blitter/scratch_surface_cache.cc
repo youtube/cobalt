@@ -30,9 +30,9 @@ class BlitterSurface : public common::ScratchSurfaceCache::Surface {
  public:
   BlitterSurface(SbBlitterSurface surface, const math::Size& size)
       : surface_(surface), size_(size) {}
-  ~BlitterSurface() OVERRIDE { SbBlitterDestroySurface(surface_); }
+  ~BlitterSurface() override { SbBlitterDestroySurface(surface_); }
 
-  math::Size GetSize() const OVERRIDE { return size_; }
+  math::Size GetSize() const override { return size_; }
 
   SbBlitterSurface blitter_surface() { return surface_; }
 

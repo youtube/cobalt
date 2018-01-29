@@ -13,9 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-
-  },
   'includes': [
     '../libraries.gypi',
     '../../shared/gyp_configuration.gypi',

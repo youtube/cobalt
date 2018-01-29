@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -6,16 +5,13 @@
  * found in the LICENSE file.
  */
 
-
-
 #ifndef SkTLazy_DEFINED
 #define SkTLazy_DEFINED
 
+#include "../private/SkTemplates.h"
 #include "SkTypes.h"
 #include <new>
-
-template <typename T> class SkTLazy;
-template <typename T> void* operator new(size_t, SkTLazy<T>* lazy);
+#include <utility>
 
 /**
  *  Efficient way to defer allocating/initializing a class until it is needed
@@ -23,21 +19,12 @@ template <typename T> void* operator new(size_t, SkTLazy<T>* lazy);
  */
 template <typename T> class SkTLazy {
 public:
-    SkTLazy() : fPtr(NULL) {}
+    SkTLazy() : fPtr(nullptr) {}
 
-    explicit SkTLazy(const T* src) : fPtr(NULL) {
-        if (src) {
-            fPtr = new (fStorage) T(*src);
-        }
-    }
+    explicit SkTLazy(const T* src)
+        : fPtr(src ? new (fStorage.get()) T(*src) : nullptr) {}
 
-    SkTLazy(const SkTLazy<T>& src) : fPtr(NULL) {
-        if (src.isValid()) {
-            fPtr = new (fStorage) T(*src->get());
-        } else {
-            fPtr = NULL;
-        }
-    }
+    SkTLazy(const SkTLazy& src) : fPtr(nullptr) { *this = src; }
 
     ~SkTLazy() {
         if (this->isValid()) {
@@ -45,17 +32,26 @@ public:
         }
     }
 
+    SkTLazy& operator=(const SkTLazy& src) {
+        if (src.isValid()) {
+            this->set(*src.get());
+        } else {
+            this->reset();
+        }
+        return *this;
+    }
+
     /**
-     *  Return a pointer to a default-initialized instance of the class. If a
-     *  previous instance had been initialized (either from init() or set()) it
-     *  will first be destroyed, so that a freshly initialized instance is
-     *  always returned.
+     *  Return a pointer to an instance of the class initialized with 'args'.
+     *  If a previous instance had been initialized (either from init() or
+     *  set()) it will first be destroyed, so that a freshly initialized
+     *  instance is always returned.
      */
-    T* init() {
+    template <typename... Args> T* init(Args&&... args) {
         if (this->isValid()) {
             fPtr->~T();
         }
-        fPtr = new (SkTCast<T*>(fStorage)) T;
+        fPtr = new (SkTCast<T*>(fStorage.get())) T(std::forward<Args>(args)...);
         return fPtr;
     }
 
@@ -69,7 +65,7 @@ public:
         if (this->isValid()) {
             *fPtr = src;
         } else {
-            fPtr = new (SkTCast<T*>(fStorage)) T(src);
+            fPtr = new (SkTCast<T*>(fStorage.get())) T(src);
         }
         return fPtr;
     }
@@ -80,7 +76,7 @@ public:
     void reset() {
         if (this->isValid()) {
             fPtr->~T();
-            fPtr = NULL;
+            fPtr = nullptr;
         }
     }
 
@@ -98,31 +94,14 @@ public:
 
     /**
      * Like above but doesn't assert if object isn't initialized (in which case
-     * NULL is returned).
+     * nullptr is returned).
      */
     T* getMaybeNull() const { return fPtr; }
 
 private:
-    friend void* operator new<T>(size_t, SkTLazy* lazy);
-
-    T*   fPtr; // NULL or fStorage
-    char fStorage[sizeof(T)];
+    SkAlignedSTStorage<1, T> fStorage;
+    T*                       fPtr; // nullptr or fStorage
 };
-
-// Use the below macro (SkNEW_IN_TLAZY) rather than calling this directly
-template <typename T> void* operator new(size_t, SkTLazy<T>* lazy) {
-    SkASSERT(!lazy->isValid());
-    lazy->fPtr = reinterpret_cast<T*>(lazy->fStorage);
-    return lazy->fPtr;
-}
-
-// Skia doesn't use C++ exceptions but it may be compiled with them enabled. Having an op delete
-// to match the op new silences warnings about missing op delete when a constructor throws an
-// exception.
-template <typename T> void operator delete(void*, SkTLazy<T>*) { SK_CRASH(); }
-
-// Use this to construct a T inside an SkTLazy using a non-default constructor.
-#define SkNEW_IN_TLAZY(tlazy_ptr, type_name, args) (new (tlazy_ptr) type_name args)
 
 /**
  * A helper built on top of SkTLazy to do copy-on-first-write. The object is initialized
@@ -152,12 +131,14 @@ class SkTCopyOnFirstWrite {
 public:
     SkTCopyOnFirstWrite(const T& initial) : fObj(&initial) {}
 
+    SkTCopyOnFirstWrite(const T* initial) : fObj(initial) {}
+
     // Constructor for delayed initialization.
-    SkTCopyOnFirstWrite() : fObj(NULL) {}
+    SkTCopyOnFirstWrite() : fObj(nullptr) {}
 
     // Should only be called once, and only if the default constructor was used.
     void init(const T& initial) {
-        SkASSERT(NULL == fObj);
+        SkASSERT(nullptr == fObj);
         SkASSERT(!fLazy.isValid());
         fObj = &initial;
     }

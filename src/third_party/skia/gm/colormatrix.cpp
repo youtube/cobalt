@@ -6,62 +6,43 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkColorMatrixFilter.h"
 #include "SkGradientShader.h"
+#include "SkImage.h"
 
 #define WIDTH 500
 #define HEIGHT 500
 
-class SkDoOnce {
-public:
-    SkDoOnce() : fOnce(false) {};
-
-    bool once() const {
-        if (fOnce) {
-            return false;
-        }
-        fOnce = true;
-        return true;
-    }
-
-private:
-    mutable bool fOnce;
-};
-
-static void setColorMatrix(SkPaint* paint, const SkColorMatrix& matrix) {
-    paint->setColorFilter(SkColorMatrixFilter::Create(matrix))->unref();
+static void set_color_matrix(SkPaint* paint, const SkColorMatrix& matrix) {
+    paint->setColorFilter(SkColorFilter::MakeMatrixFilterRowMajor255(matrix.fMat));
 }
 
-static void setArray(SkPaint* paint, const SkScalar array[]) {
-    paint->setColorFilter(SkColorMatrixFilter::Create(array))->unref();
+static void set_array(SkPaint* paint, const SkScalar array[]) {
+    paint->setColorFilter(SkColorFilter::MakeMatrixFilterRowMajor255(array));
 }
 
-namespace skiagm {
-
-class ColorMatrixGM : public GM {
-    SkDoOnce fOnce;
-    void init() {
-        if (fOnce.once()) {
-            fSolidBitmap = this->createSolidBitmap(64, 64);
-            fTransparentBitmap = this->createTransparentBitmap(64, 64);
-        }
-    }
-
+class ColorMatrixGM : public skiagm::GM {
 public:
     ColorMatrixGM() {
-        this->setBGColor(0xFF808080);
+        this->setBGColor(sk_tool_utils::color_to_565(0xFF808080));
     }
 
 protected:
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         return SkString("colormatrix");
     }
 
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(WIDTH, HEIGHT);
     }
 
-    SkBitmap createSolidBitmap(int width, int height) {
+    void onOnceBeforeDraw() override {
+        fSolidImg = CreateSolidBitmap(64, 64);
+        fTransparentImg = CreateTransparentBitmap(64, 64);
+    }
+
+    static sk_sp<SkImage> CreateSolidBitmap(int width, int height) {
         SkBitmap bm;
         bm.allocN32Pixels(width, height);
         SkCanvas canvas(bm);
@@ -74,11 +55,11 @@ protected:
                     SkIntToScalar(y), SK_Scalar1, SK_Scalar1), paint);
             }
         }
-        return bm;
+        return SkImage::MakeFromBitmap(bm);
     }
 
     // creates a bitmap with shades of transparent gray.
-    SkBitmap createTransparentBitmap(int width, int height) {
+    static sk_sp<SkImage> CreateTransparentBitmap(int width, int height) {
         SkBitmap bm;
         bm.allocN32Pixels(width, height);
         SkCanvas canvas(bm);
@@ -87,62 +68,59 @@ protected:
         SkPoint pts[] = {{0, 0}, {SkIntToScalar(width), SkIntToScalar(height)}};
         SkColor colors[] = {0x00000000, 0xFFFFFFFF};
         SkPaint paint;
-        paint.setShader(SkGradientShader::CreateLinear(pts, colors, NULL, 2,
-                                                       SkShader::kClamp_TileMode))->unref();
+        paint.setShader(SkGradientShader::MakeLinear(pts, colors, nullptr, 2,
+                                                     SkShader::kClamp_TileMode));
         canvas.drawRect(SkRect::MakeWH(SkIntToScalar(width), SkIntToScalar(height)), paint);
-        return bm;
+        return SkImage::MakeFromBitmap(bm);
     }
 
-    virtual void onDraw(SkCanvas* canvas) {
-        this->init();
-
+    void onDraw(SkCanvas* canvas) override {
         SkPaint paint;
         SkColorMatrix matrix;
 
-        paint.setXfermodeMode(SkXfermode::kSrc_Mode);
-        const SkBitmap bmps[] = { fSolidBitmap, fTransparentBitmap };
+        paint.setBlendMode(SkBlendMode::kSrc);
+        const SkImage* bmps[] = { fSolidImg.get(), fTransparentImg.get() };
 
         for (size_t i = 0; i < SK_ARRAY_COUNT(bmps); ++i) {
-
             matrix.setIdentity();
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 0, 0, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 0, 0, &paint);
 
             matrix.setRotate(SkColorMatrix::kR_Axis, 90);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 80, 0, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 80, 0, &paint);
 
             matrix.setRotate(SkColorMatrix::kG_Axis, 90);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 160, 0, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 160, 0, &paint);
 
             matrix.setRotate(SkColorMatrix::kB_Axis, 90);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 240, 0, &paint);
-
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 240, 0, &paint);
+            ///////////////////////////////////////////////
             matrix.setSaturation(0.0f);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 0, 80, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 0, 80, &paint);
 
             matrix.setSaturation(0.5f);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 80, 80, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 80, 80, &paint);
 
             matrix.setSaturation(1.0f);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 160, 80, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 160, 80, &paint);
 
             matrix.setSaturation(2.0f);
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 240, 80, &paint);
-
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 240, 80, &paint);
+            ///////////////////////////////////////////////
             matrix.setRGB2YUV();
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 0, 160, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 0, 160, &paint);
 
             matrix.setYUV2RGB();
-            setColorMatrix(&paint, matrix);
-            canvas->drawBitmap(bmps[i], 80, 160, &paint);
+            set_color_matrix(&paint, matrix);
+            canvas->drawImage(bmps[i], 80, 160, &paint);
 
             SkScalar s1 = SK_Scalar1;
             SkScalar s255 = SkIntToScalar(255);
@@ -154,22 +132,17 @@ protected:
                 s1, 0, 0, 0, 0,
             };
 
-            setArray(&paint, data);
-            canvas->drawBitmap(bmps[i], 160, 160, &paint);
-
+            set_array(&paint, data);
+            canvas->drawImage(bmps[i], 160, 160, &paint);
+            ///////////////////////////////////////////////
             canvas->translate(0, 240);
         }
     }
 
 private:
-    SkBitmap fSolidBitmap;
-    SkBitmap fTransparentBitmap;
-    typedef GM INHERITED;
+    sk_sp<SkImage>   fSolidImg;
+    sk_sp<SkImage>   fTransparentImg;
+
+    typedef skiagm::GM INHERITED;
 };
-
-//////////////////////////////////////////////////////////////////////////////
-
-static GM* MyFactory(void*) { return new ColorMatrixGM; }
-static GMRegistry reg(MyFactory);
-
-}
+DEF_GM( return new ColorMatrixGM; )

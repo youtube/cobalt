@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -8,148 +7,6 @@
 
 
 #include "SkUtils.h"
-#include "SkLazyFnPtr.h"
-
-#if 0
-#define assign_16_longs(dst, value)             \
-    do {                                        \
-        (dst)[0] = value;   (dst)[1] = value;   \
-        (dst)[2] = value;   (dst)[3] = value;   \
-        (dst)[4] = value;   (dst)[5] = value;   \
-        (dst)[6] = value;   (dst)[7] = value;   \
-        (dst)[8] = value;   (dst)[9] = value;   \
-        (dst)[10] = value;  (dst)[11] = value;  \
-        (dst)[12] = value;  (dst)[13] = value;  \
-        (dst)[14] = value;  (dst)[15] = value;  \
-    } while (0)
-#else
-#define assign_16_longs(dst, value)             \
-    do {                                        \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-        *(dst)++ = value;   *(dst)++ = value;   \
-    } while (0)
-#endif
-
-///////////////////////////////////////////////////////////////////////////////
-
-static void sk_memset16_portable(uint16_t dst[], uint16_t value, int count) {
-    SkASSERT(dst != NULL && count >= 0);
-
-    if (count <= 0) {
-        return;
-    }
-
-    // not sure if this helps to short-circuit on small values of count
-    if (count < 8) {
-        do {
-            *dst++ = (uint16_t)value;
-        } while (--count != 0);
-        return;
-    }
-
-    // ensure we're on a long boundary
-    if ((size_t)dst & 2) {
-        *dst++ = (uint16_t)value;
-        count -= 1;
-    }
-
-    uint32_t value32 = ((uint32_t)value << 16) | value;
-
-    // handle the bulk with our unrolled macro
-    {
-        int sixteenlongs = count >> 5;
-        if (sixteenlongs) {
-            uint32_t* dst32 = (uint32_t*)dst;
-            do {
-                assign_16_longs(dst32, value32);
-            } while (--sixteenlongs != 0);
-            dst = (uint16_t*)dst32;
-            count &= 31;
-        }
-    }
-
-    // handle (most) of the rest
-    {
-        int longs = count >> 1;
-        if (longs) {
-            do {
-                *(uint32_t*)dst = value32;
-                dst += 2;
-            } while (--longs != 0);
-        }
-    }
-
-    // cleanup a possible trailing short
-    if (count & 1) {
-        *dst = (uint16_t)value;
-    }
-}
-
-static void sk_memset32_portable(uint32_t dst[], uint32_t value, int count) {
-    SkASSERT(dst != NULL && count >= 0);
-
-    int sixteenlongs = count >> 4;
-    if (sixteenlongs) {
-        do {
-            assign_16_longs(dst, value);
-        } while (--sixteenlongs != 0);
-        count &= 15;
-    }
-
-    if (count) {
-        do {
-            *dst++ = value;
-        } while (--count != 0);
-    }
-}
-
-static void sk_memcpy32_portable(uint32_t dst[], const uint32_t src[], int count) {
-    memcpy(dst, src, count * sizeof(uint32_t));
-}
-
-namespace {
-// These three methods technically need external linkage to be passed as template parameters.
-// Since they can't be static, we hide them in an anonymous namespace instead.
-
-SkMemset16Proc choose_memset16() {
-    SkMemset16Proc proc = SkMemset16GetPlatformProc();
-    return proc ? proc : sk_memset16_portable;
-}
-
-SkMemset32Proc choose_memset32() {
-    SkMemset32Proc proc = SkMemset32GetPlatformProc();
-    return proc ? proc : sk_memset32_portable;
-}
-
-SkMemcpy32Proc choose_memcpy32() {
-    SkMemcpy32Proc proc = SkMemcpy32GetPlatformProc();
-    return proc ? proc : sk_memcpy32_portable;
-}
-
-}  // namespace
-
-void sk_memset16(uint16_t dst[], uint16_t value, int count) {
-    SK_DECLARE_STATIC_LAZY_FN_PTR(SkMemset16Proc, proc, choose_memset16);
-    proc.get()(dst, value, count);
-}
-
-void sk_memset32(uint32_t dst[], uint32_t value, int count) {
-    SK_DECLARE_STATIC_LAZY_FN_PTR(SkMemset32Proc, proc, choose_memset32);
-    proc.get()(dst, value, count);
-}
-
-void sk_memcpy32(uint32_t dst[], const uint32_t src[], int count) {
-    SK_DECLARE_STATIC_LAZY_FN_PTR(SkMemcpy32Proc, proc, choose_memcpy32);
-    proc.get()(dst, src, count);
-}
-
-///////////////////////////////////////////////////////////////////////////////
 
 /*  0xxxxxxx    1 total
     10xxxxxx    // never a leading byte
@@ -162,10 +19,19 @@ void sk_memcpy32(uint32_t dst[], const uint32_t src[], int count) {
     0xE5 << 24
 */
 
+static bool utf8_byte_is_valid(uint8_t c) {
+    return c < 0xF5 && (c & 0xFE) != 0xC0;
+}
+static bool utf8_byte_is_continuation(uint8_t c) {
+    return  (c & 0xC0) == 0x80;
+}
+static bool utf8_byte_is_leading_byte(uint8_t c) {
+    return utf8_byte_is_valid(c) && !utf8_byte_is_continuation(c);
+}
+
 #ifdef SK_DEBUG
     static void assert_utf8_leadingbyte(unsigned c) {
-        SkASSERT(c <= 0xF7);    // otherwise leading byte is too big (more than 4 bytes)
-        SkASSERT((c & 0xC0) != 0x80);   // can't begin with a middle char
+        SkASSERT(utf8_byte_is_leading_byte(SkToU8(c)));
     }
 
     int SkUTF8_LeadByteToCount(unsigned c) {
@@ -175,6 +41,29 @@ void sk_memcpy32(uint32_t dst[], const uint32_t src[], int count) {
 #else
     #define assert_utf8_leadingbyte(c)
 #endif
+
+/**
+ * @returns -1  iff invalid UTF8 byte,
+ *           0  iff UTF8 continuation byte,
+ *           1  iff ASCII byte,
+ *           2  iff leading byte of 2-byte sequence,
+ *           3  iff leading byte of 3-byte sequence, and
+ *           4  iff leading byte of 4-byte sequence.
+ *
+ * I.e.: if return value > 0, then gives length of sequence.
+*/
+static int utf8_byte_type(uint8_t c) {
+    if (c < 0x80) {
+        return 1;
+    } else if (c < 0xC0) {
+        return 0;
+    } else if (c < 0xF5 && (c & 0xFE) != 0xC0) { // "octet values C0, C1, F5 to FF never appear"
+        return (((0xE5 << 24) >> ((unsigned)c >> 4 << 1)) & 3) + 1;
+    } else {
+        return -1;
+    }
+}
+static bool utf8_type_is_valid_leading_byte(int type) { return type > 0; }
 
 int SkUTF8_CountUnichars(const char utf8[]) {
     SkASSERT(utf8);
@@ -192,15 +81,28 @@ int SkUTF8_CountUnichars(const char utf8[]) {
     return count;
 }
 
-int SkUTF8_CountUnichars(const char utf8[], size_t byteLength) {
+// SAFE: returns -1 if invalid UTF-8
+int SkUTF8_CountUnicharsWithError(const char utf8[], size_t byteLength) {
     SkASSERT(utf8 || 0 == byteLength);
 
     int         count = 0;
     const char* stop = utf8 + byteLength;
 
     while (utf8 < stop) {
-        utf8 += SkUTF8_LeadByteToCount(*(const uint8_t*)utf8);
-        count += 1;
+        int type = utf8_byte_type(*(const uint8_t*)utf8);
+        SkASSERT(type >= -1 && type <= 4);
+        if (!utf8_type_is_valid_leading_byte(type) ||
+            utf8 + type > stop) {  // Sequence extends beyond end.
+            return -1;
+        }
+        while(type-- > 1) {
+            ++utf8;
+            if (!utf8_byte_is_continuation(*(const uint8_t*)utf8)) {
+                return -1;
+            }
+        }
+        ++utf8;
+        ++count;
     }
     return count;
 }
@@ -216,13 +118,46 @@ SkUnichar SkUTF8_ToUnichar(const char utf8[]) {
 
     if (hic < 0) {
         uint32_t mask = (uint32_t)~0x3F;
-        hic <<= 1;
+        hic = SkLeftShift(hic, 1);
         do {
             c = (c << 6) | (*++p & 0x3F);
             mask <<= 5;
-        } while ((hic <<= 1) < 0);
+        } while ((hic = SkLeftShift(hic, 1)) < 0);
         c &= ~mask;
     }
+    return c;
+}
+
+// SAFE: returns -1 on invalid UTF-8 sequence.
+SkUnichar SkUTF8_NextUnicharWithError(const char** ptr, const char* end) {
+    SkASSERT(ptr && *ptr);
+    SkASSERT(*ptr < end);
+    const uint8_t*  p = (const uint8_t*)*ptr;
+    int             c = *p;
+    int             hic = c << 24;
+
+    if (!utf8_byte_is_leading_byte(c)) {
+        return -1;
+    }
+    if (hic < 0) {
+        uint32_t mask = (uint32_t)~0x3F;
+        hic = SkLeftShift(hic, 1);
+        do {
+            ++p;
+            if (p >= (const uint8_t*)end) {
+                return -1;
+            }
+            // check before reading off end of array.
+            uint8_t nextByte = *p;
+            if (!utf8_byte_is_continuation(nextByte)) {
+                return -1;
+            }
+            c = (c << 6) | (nextByte & 0x3F);
+            mask <<= 5;
+        } while ((hic = SkLeftShift(hic, 1)) < 0);
+        c &= ~mask;
+    }
+    *ptr = (char*)p + 1;
     return c;
 }
 
@@ -237,11 +172,11 @@ SkUnichar SkUTF8_NextUnichar(const char** ptr) {
 
     if (hic < 0) {
         uint32_t mask = (uint32_t)~0x3F;
-        hic <<= 1;
+        hic = SkLeftShift(hic, 1);
         do {
             c = (c << 6) | (*++p & 0x3F);
             mask <<= 5;
-        } while ((hic <<= 1) < 0);
+        } while ((hic = SkLeftShift(hic, 1)) < 0);
         c &= ~mask;
     }
     *ptr = (char*)p + 1;
@@ -297,7 +232,7 @@ size_t SkUTF8_FromUnichar(SkUnichar uni, char utf8[]) {
         *--utf8 = (char)(~(0xFF >> count) | uni);
     }
 
-    SkASSERT(utf8 == NULL || orig == SkUTF8_ToUnichar(utf8));
+    SkASSERT(utf8 == nullptr || orig == SkUTF8_ToUnichar(utf8));
     return count;
 }
 
@@ -402,14 +337,14 @@ size_t SkUTF16_ToUTF8(const uint16_t utf16[], int numberOf16BitValues,
         return 0;
     }
 
-    SkASSERT(utf16 != NULL);
+    SkASSERT(utf16 != nullptr);
 
     const uint16_t* stop = utf16 + numberOf16BitValues;
     size_t          size = 0;
 
-    if (utf8 == NULL) {    // just count
+    if (utf8 == nullptr) {    // just count
         while (utf16 < stop) {
-            size += SkUTF8_FromUnichar(SkUTF16_NextUnichar(&utf16), NULL);
+            size += SkUTF8_FromUnichar(SkUTF16_NextUnichar(&utf16), nullptr);
         }
     } else {
         char* start = utf8;
@@ -420,3 +355,9 @@ size_t SkUTF16_ToUTF8(const uint16_t utf16[], int numberOf16BitValues,
     }
     return size;
 }
+
+const char SkHexadecimalDigits::gUpper[16] =
+           { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+const char SkHexadecimalDigits::gLower[16] =
+           { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+

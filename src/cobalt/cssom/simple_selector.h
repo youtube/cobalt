@@ -28,6 +28,7 @@ namespace cssom {
 
 class AttributeSelector;
 class ClassSelector;
+class CompoundSelector;
 class IdSelector;
 class PseudoClass;
 class PseudoElement;
@@ -40,29 +41,34 @@ class SimpleSelector : public Selector {
  public:
   SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text)
       : type_(type), prefix_(prefix), text_(text) {}
-  ~SimpleSelector() OVERRIDE {}
+  ~SimpleSelector() override {}
 
   // From Selector.
-  SimpleSelector* AsSimpleSelector() OVERRIDE { return this; }
+  SimpleSelector* AsSimpleSelector() override { return this; }
 
   // Rest of public methods.
+
+  // Used to sort simple selectors when normalizing compound selector.
+  SimpleSelectorType type() const { return type_; }
+
+  // Returns token representation of the selector.
+  base::Token prefix() const { return prefix_; }
+  base::Token text() const { return text_; }
+
   virtual PseudoElement* AsPseudoElement() { return NULL; }
 
   virtual bool AlwaysRequiresRuleMatchingVerificationVisit() const {
     return false;
   }
 
-  // Used to sort simple selectors when normalizing compound selector.
-  SimpleSelectorType type() const { return type_; }
+  virtual CompoundSelector* GetContainedCompoundSelector() const {
+    return NULL;
+  }
 
   // Used to index selector tree node's children.
   virtual void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                      SelectorTree::Node* child_node,
                                      CombinatorType combinator) = 0;
-
-  // Returns token representation of the selector.
-  base::Token prefix() const { return prefix_; }
-  base::Token text() const { return text_; }
 
  private:
   SimpleSelectorType type_;

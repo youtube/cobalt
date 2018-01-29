@@ -15,7 +15,7 @@ namespace net {
 
 class UploadBytesElementReaderTest : public PlatformTest {
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     const char kData[] = "123abc";
     bytes_.assign(kData, kData + arraysize(kData));
     reader_.reset(new UploadBytesElementReader(&bytes_[0], bytes_.size()));

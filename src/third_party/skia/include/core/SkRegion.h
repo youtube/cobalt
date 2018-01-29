@@ -59,7 +59,6 @@ public:
      *  resulting region is non-empty.
      */
     bool set(const SkRegion& src) {
-        SkASSERT(&src);
         *this = src;
         return !this->isEmpty();
     }
@@ -256,7 +255,15 @@ public:
      *  specified rectangle: this = (this op rect).
      *  Return true if the resulting region is non-empty.
      */
-    bool op(const SkIRect& rect, Op op) { return this->op(*this, rect, op); }
+    bool op(const SkIRect& rect, Op op) {
+        if (this->isRect() && kIntersect_Op == op) {
+            if (!fBounds.intersect(rect)) {
+                return this->setEmpty();
+            }
+            return true;
+        }
+        return this->op(*this, rect, op);
+    }
 
     /**
      *  Set this region to the result of applying the Op to this region and the
@@ -428,6 +435,8 @@ private:
     bool setRuns(RunType runs[], int count);
 
     int count_runtype_values(int* itop, int* ibot) const;
+
+    bool isValid() const;
 
     static void BuildRectRuns(const SkIRect& bounds,
                               RunType runs[kRectRegionRuns]);

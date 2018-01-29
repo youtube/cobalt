@@ -27,11 +27,11 @@ namespace script {
 class LoggingExceptionState : public ExceptionState {
  public:
   LoggingExceptionState() : is_exception_set_(false) {}
-  void SetException(const scoped_refptr<ScriptException>& exception) OVERRIDE {
+  void SetException(const scoped_refptr<ScriptException>& exception) override {
     LogException(exception->name(), exception->message());
   }
   void SetSimpleExceptionVA(SimpleExceptionType type, const char* format,
-                            va_list arguments) OVERRIDE {
+                            va_list arguments) override {
     LogException(SimpleExceptionToString(type),
                  base::StringPrintV(format, arguments));
   }

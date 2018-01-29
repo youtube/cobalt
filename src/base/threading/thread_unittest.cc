@@ -35,7 +35,7 @@ class SleepInsideInitThread : public Thread {
     Stop();
   }
 
-  virtual void Init() OVERRIDE {
+  virtual void Init() override {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
     init_called_ = true;
   }
@@ -74,11 +74,11 @@ class CaptureToEventList : public Thread {
     Stop();
   }
 
-  virtual void Init() OVERRIDE {
+  virtual void Init() override {
     event_list_->push_back(THREAD_EVENT_INIT);
   }
 
-  virtual void CleanUp() OVERRIDE {
+  virtual void CleanUp() override {
     event_list_->push_back(THREAD_EVENT_CLEANUP);
   }
 
@@ -96,7 +96,7 @@ class CapturingDestructionObserver : public MessageLoop::DestructionObserver {
   }
 
   // DestructionObserver implementation:
-  virtual void WillDestroyCurrentMessageLoop() OVERRIDE {
+  virtual void WillDestroyCurrentMessageLoop() override {
     event_list_->push_back(THREAD_EVENT_MESSAGE_LOOP_DESTROYED);
     event_list_ = NULL;
   }

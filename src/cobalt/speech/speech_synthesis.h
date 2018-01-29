@@ -66,9 +66,10 @@ class SpeechSynthesis : public dom::EventTarget {
   SpeechSynthesisVoiceSequence GetVoices() const { return voices_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesis);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  ~SpeechSynthesis() OVERRIDE;
+  ~SpeechSynthesis() override;
 
   void DispatchErrorEvent(
       const scoped_refptr<SpeechSynthesisUtterance>& utterance,

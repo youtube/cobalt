@@ -44,8 +44,7 @@ class SplashScreen : public LifecycleObserver {
                const GURL& initial_main_web_module_url,
                cobalt::browser::SplashScreenCache* splash_screen_cache,
                const base::Callback<void(base::TimeDelta)>&
-                   on_splash_screen_shutdown_complete,
-               const dom::Window::GetSbWindowCallback& get_sb_window_callback);
+                   on_splash_screen_shutdown_complete);
   ~SplashScreen();
 
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
@@ -53,14 +52,14 @@ class SplashScreen : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  void Prestart() OVERRIDE { web_module_->Prestart(); }
-  void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+  void Prestart() override { web_module_->Prestart(); }
+  void Start(render_tree::ResourceProvider* resource_provider) override {
     web_module_->Start(resource_provider);
   }
-  void Pause() OVERRIDE { web_module_->Pause(); }
-  void Unpause() OVERRIDE { web_module_->Unpause(); }
-  void Suspend() OVERRIDE { web_module_->Suspend(); }
-  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+  void Pause() override { web_module_->Pause(); }
+  void Unpause() override { web_module_->Unpause(); }
+  void Suspend() override { web_module_->Suspend(); }
+  void Resume(render_tree::ResourceProvider* resource_provider) override {
     web_module_->Resume(resource_provider);
   }
 

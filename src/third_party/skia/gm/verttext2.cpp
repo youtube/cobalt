@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -11,6 +10,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkCanvas.h"
 #include "SkTypeface.h"
 
@@ -18,32 +18,27 @@ namespace skiagm {
 
 class VertText2GM : public GM {
 public:
-    VertText2GM() {
-        const int pointSize = 24;
-        textHeight = SkIntToScalar(pointSize);
-        fProp = sk_tool_utils::create_portable_typeface("Helvetica", SkTypeface::kNormal);
-        fMono = sk_tool_utils::create_portable_typeface("Courier New", SkTypeface::kNormal);
-    }
-
-    virtual ~VertText2GM() {
-        SkSafeUnref(fProp);
-        SkSafeUnref(fMono);
-    }
+    VertText2GM() {}
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
+    void onOnceBeforeDraw() override {
+        const int pointSize = 24;
+        textHeight = SkIntToScalar(pointSize);
+        fProp = SkTypeface::MakeFromName(sk_tool_utils::platform_font_name("sans-serif"),
+                SkFontStyle());
+        fMono = SkTypeface::MakeFromName(sk_tool_utils::platform_font_name("monospace"),
+                SkFontStyle());
     }
 
-
-    SkString onShortName() {
-        return SkString("verttext2");
+    SkString onShortName() override {
+        SkString name("verttext2");
+        name.append(sk_tool_utils::major_platform_os_name());
+        return name;
     }
 
-    SkISize onISize() { return SkISize::Make(640, 480); }
+    SkISize onISize() override { return SkISize::Make(640, 480); }
 
-    virtual void onDraw(SkCanvas* canvas) {
-
+    void onDraw(SkCanvas* canvas) override {
         for (int i = 0; i < 3; ++i) {
             SkPaint paint;
             paint.setColor(SK_ColorRED);
@@ -72,16 +67,16 @@ protected:
     }
 
     void drawText(SkCanvas* canvas, const SkString& string,
-                  SkTypeface* family, SkPaint::Align alignment) {
+                  sk_sp<SkTypeface> family, SkPaint::Align alignment) {
         SkPaint paint;
         paint.setColor(SK_ColorBLACK);
         paint.setAntiAlias(true);
         paint.setVerticalText(true);
         paint.setTextAlign(alignment);
-        paint.setTypeface(family);
+        paint.setTypeface(std::move(family));
         paint.setTextSize(textHeight);
 
-        canvas->drawText(string.c_str(), string.size(), y,
+        canvas->drawString(string, y,
                 SkIntToScalar(alignment == SkPaint::kLeft_Align ? 10 : 240),
                 paint);
         y += textHeight;
@@ -90,8 +85,8 @@ protected:
 private:
     typedef GM INHERITED;
     SkScalar y, textHeight;
-    SkTypeface* fProp;
-    SkTypeface* fMono;
+    sk_sp<SkTypeface> fProp;
+    sk_sp<SkTypeface> fMono;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

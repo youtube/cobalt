@@ -85,7 +85,7 @@ class SocketStreamEventRecorder : public SocketStream::Delegate {
 
   virtual int OnStartOpenConnection(
       SocketStream* socket,
-      const CompletionCallback& callback) OVERRIDE {
+      const CompletionCallback& callback) override {
     connection_callback_ = callback;
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
@@ -95,7 +95,7 @@ class SocketStreamEventRecorder : public SocketStream::Delegate {
     return OK;
   }
   virtual void OnConnected(SocketStream* socket,
-                           int num_pending_send_allowed) OVERRIDE {
+                           int num_pending_send_allowed) override {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_CONNECTED,
                           socket, num_pending_send_allowed, std::string(),
@@ -104,7 +104,7 @@ class SocketStreamEventRecorder : public SocketStream::Delegate {
       on_connected_.Run(&events_.back());
   }
   virtual void OnSentData(SocketStream* socket,
-                          int amount_sent) OVERRIDE {
+                          int amount_sent) override {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_SENT_DATA, socket,
                           amount_sent, std::string(), NULL, OK));
@@ -112,14 +112,14 @@ class SocketStreamEventRecorder : public SocketStream::Delegate {
       on_sent_data_.Run(&events_.back());
   }
   virtual void OnReceivedData(SocketStream* socket,
-                              const char* data, int len) OVERRIDE {
+                              const char* data, int len) override {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_RECEIVED_DATA, socket, len,
                           std::string(data, len), NULL, OK));
     if (!on_received_data_.is_null())
       on_received_data_.Run(&events_.back());
   }
-  virtual void OnClose(SocketStream* socket) OVERRIDE {
+  virtual void OnClose(SocketStream* socket) override {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_CLOSE, socket, 0,
                           std::string(), NULL, OK));
@@ -129,14 +129,14 @@ class SocketStreamEventRecorder : public SocketStream::Delegate {
       callback_.Run(OK);
   }
   virtual void OnAuthRequired(SocketStream* socket,
-                              AuthChallengeInfo* auth_info) OVERRIDE {
+                              AuthChallengeInfo* auth_info) override {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_AUTH_REQUIRED, socket, 0,
                           std::string(), auth_info, OK));
     if (!on_auth_required_.is_null())
       on_auth_required_.Run(&events_.back());
   }
-  virtual void OnError(const SocketStream* socket, int error) OVERRIDE {
+  virtual void OnError(const SocketStream* socket, int error) override {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_ERROR, NULL, 0,
                           std::string(), NULL, error));
@@ -199,7 +199,7 @@ class TestSocketStreamNetworkDelegate : public TestNetworkDelegate {
 
   virtual int OnBeforeSocketStreamConnect(
       SocketStream* stream,
-      const CompletionCallback& callback) OVERRIDE {
+      const CompletionCallback& callback) override {
     return before_connect_result_;
   }
 

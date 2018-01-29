@@ -15,6 +15,7 @@
 #ifndef COBALT_LOADER_RESOURCE_CACHE_H_
 #define COBALT_LOADER_RESOURCE_CACHE_H_
 
+#include <algorithm>
 #include <list>
 #include <map>
 #include <string>
@@ -27,6 +28,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_checker.h"
+#include "base/timer.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/decoder.h"
@@ -66,10 +68,9 @@ class CachedResource
   typedef typename CacheType::ResourceType ResourceType;
 
   typedef base::Callback<scoped_ptr<Loader>(
-      const GURL&, const csp::SecurityCallback&,
+      const GURL&, const Origin&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const std::string&)>&, const Origin&)>
-      CreateLoaderFunction;
+      const base::Callback<void(const std::string&)>&)> CreateLoaderFunction;
 
   // This class can be used to attach success or error callbacks to
   // CachedResource objects that are executed when the resource finishes
@@ -98,10 +99,8 @@ class CachedResource
   };
 
   // Request fetching and decoding a single resource based on the url.
-  CachedResource(const GURL& url,
-                 const csp::SecurityCallback& security_callback,
-                 const CreateLoaderFunction& create_loader_function,
-                 ResourceCacheType* resource_cache, const Origin& origin);
+  CachedResource(const GURL& url, const Origin& origin,
+                 ResourceCacheType* resource_cache);
 
   // Resource is available. CachedResource is a wrapper of the resource
   // and there is no need to fetch or load this resource again. |loader_|
@@ -115,9 +114,11 @@ class CachedResource
   // available.
   scoped_refptr<ResourceType> TryGetResource();
 
-  bool IsLoading();
+  // Whether not the resource located at |url_| is finished loading.
+  bool IsLoadingComplete();
 
   const GURL& url() const { return url_; }
+  const Origin& origin() const { return origin_; }
 
  private:
   friend class base::RefCountedThreadSafe<CachedResource>;
@@ -128,6 +129,17 @@ class CachedResource
   typedef std::list<base::Closure>::iterator CallbackListIterator;
 
   ~CachedResource();
+
+  // Start loading the resource located at |url_|. This encompasses both
+  // fetching and decoding it.
+  void StartLoading();
+
+  // Schedule a loading retry on the resource located at |url_|. While there is
+  // no limit on the number of retry attempts that can occur, the retry
+  // scheduling uses an exponential backoff. The wait time doubles with each
+  // subsequent attempt until a maximum wait time of 1024 seconds (~17 minutes)
+  // is reached.
+  void ScheduleLoadingRetry();
 
   // Callbacks for decoders.
   //
@@ -146,6 +158,7 @@ class CachedResource
   void EnableCompletionCallbacks();
 
   const GURL url_;
+  const Origin origin_;
 
   scoped_refptr<ResourceType> resource_;
   ResourceCacheType* const resource_cache_;
@@ -160,8 +173,13 @@ class CachedResource
   // triggered from within the resource initialization callstack, and we are
   // not prepared to handle that. These members let us ensure that we are fully
   // initialized before we proceed with any completion callbacks.
-  bool completion_callbacks_enabled_;
+  bool are_completion_callbacks_enabled_;
   base::Closure completion_callback_;
+
+  // When the resource cache is set to allow retries and a transient loading
+  // error causes a resource to fail to load, a retry is scheduled.
+  int retry_count_;
+  scoped_ptr<base::Timer> retry_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(CachedResource);
 };
@@ -212,20 +230,15 @@ CachedResource<CacheType>::OnLoadedCallbackHandler::~OnLoadedCallbackHandler() {
 //////////////////////////////////////////////////////////////////////////
 
 template <typename CacheType>
-CachedResource<CacheType>::CachedResource(
-    const GURL& url, const csp::SecurityCallback& security_callback,
-    const CreateLoaderFunction& create_loader_function,
-    ResourceCacheType* resource_cache, const Origin& origin)
+CachedResource<CacheType>::CachedResource(const GURL& url, const Origin& origin,
+                                          ResourceCacheType* resource_cache)
     : url_(url),
+      origin_(origin),
       resource_cache_(resource_cache),
-      completion_callbacks_enabled_(false) {
+      are_completion_callbacks_enabled_(false),
+      retry_count_(0) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-
-  loader_ = create_loader_function.Run(
-      url, security_callback,
-      base::Bind(&CachedResource::OnLoadingSuccess, base::Unretained(this)),
-      base::Bind(&CachedResource::OnLoadingError, base::Unretained(this)),
-      origin);
+  StartLoading();
 }
 
 template <typename CacheType>
@@ -235,32 +248,71 @@ CachedResource<CacheType>::CachedResource(const GURL& url,
     : url_(url),
       resource_(resource),
       resource_cache_(resource_cache),
-      completion_callbacks_enabled_(false) {
+      are_completion_callbacks_enabled_(false),
+      retry_count_(0) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-}
-
-template <typename CacheType>
-scoped_refptr<typename CacheType::ResourceType>
-CachedResource<CacheType>::TryGetResource() {
-  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
-
-  return resource_;
-}
-
-template <typename CacheType>
-bool CachedResource<CacheType>::IsLoading() {
-  return loader_;
 }
 
 template <typename CacheType>
 CachedResource<CacheType>::~CachedResource() {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
+  if (retry_timer_) {
+    retry_timer_->Stop();
+  }
+
   resource_cache_->NotifyResourceDestroyed(this);
 
   for (int i = 0; i < kCallbackTypeCount; ++i) {
     DCHECK(callback_lists[i].empty());
   }
+}
+
+template <typename CacheType>
+scoped_refptr<typename CacheType::ResourceType>
+CachedResource<CacheType>::TryGetResource() {
+  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  return resource_;
+}
+
+template <typename CacheType>
+void CachedResource<CacheType>::StartLoading() {
+  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK(!loader_);
+  DCHECK(!retry_timer_ || !retry_timer_->IsRunning());
+
+  loader_ = resource_cache_->StartLoadingResource(this);
+}
+
+template <typename CacheType>
+bool CachedResource<CacheType>::IsLoadingComplete() {
+  return !loader_ && !retry_timer_;
+}
+
+template <typename CacheType>
+void CachedResource<CacheType>::ScheduleLoadingRetry() {
+  DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
+  DCHECK(!loader_);
+  DCHECK(!retry_timer_ || !retry_timer_->IsRunning());
+
+  LOG(WARNING) << "Scheduling loading retry for '" << url_ << "'";
+  resource_cache_->NotifyResourceLoadingRetryScheduled(this);
+
+  // The delay starts at 1 second and doubles every subsequent retry until the
+  // maxiumum delay of 1024 seconds (~17 minutes) is reached. After this, all
+  // additional attempts also wait 1024 seconds.
+  const int64 kBaseRetryDelayInMilliseconds = 1000;
+  const int kMaxRetryCountShift = 10;
+  int64 delay = kBaseRetryDelayInMilliseconds
+                << std::min(kMaxRetryCountShift, retry_count_++);
+
+  // The retry timer is lazily created the first time that it is needed.
+  if (!retry_timer_) {
+    retry_timer_.reset(new base::Timer(false, false));
+  }
+  retry_timer_->Start(
+      FROM_HERE, base::TimeDelta::FromMilliseconds(delay),
+      base::Bind(&CachedResource::StartLoading, base::Unretained(this)));
 }
 
 template <typename CacheType>
@@ -271,12 +323,13 @@ void CachedResource<CacheType>::OnLoadingSuccess(
   resource_ = resource;
 
   loader_.reset();
+  retry_timer_.reset();
 
   completion_callback_ =
       base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
                  base::Unretained(resource_cache_), base::Unretained(this),
                  kOnLoadingSuccessCallbackType);
-  if (completion_callbacks_enabled_) {
+  if (are_completion_callbacks_enabled_) {
     completion_callback_.Run();
   }
 }
@@ -285,15 +338,25 @@ template <typename CacheType>
 void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
-  LOG(WARNING) << "Error while loading '" << url_ << "': " << error;
+  LOG(WARNING) << " Error while loading '" << url_ << "': " << error;
+
+  bool should_retry = resource_cache_->are_loading_retries_enabled() &&
+                      loader_->DidFailFromTransientError();
 
   loader_.reset();
-  completion_callback_ =
-      base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
-                 base::Unretained(resource_cache_), base::Unretained(this),
-                 kOnLoadingErrorCallbackType);
-  if (completion_callbacks_enabled_) {
-    completion_callback_.Run();
+
+  if (should_retry) {
+    ScheduleLoadingRetry();
+  } else {
+    retry_timer_.reset();
+
+    completion_callback_ =
+        base::Bind(&ResourceCacheType::NotifyResourceLoadingComplete,
+                   base::Unretained(resource_cache_), base::Unretained(this),
+                   kOnLoadingErrorCallbackType);
+    if (are_completion_callbacks_enabled_) {
+      completion_callback_.Run();
+    }
   }
 }
 
@@ -332,7 +395,7 @@ void CachedResource<CacheType>::RunCallbacks(CallbackType type) {
 
 template <typename CacheType>
 void CachedResource<CacheType>::EnableCompletionCallbacks() {
-  completion_callbacks_enabled_ = true;
+  are_completion_callbacks_enabled_ = true;
   if (!completion_callback_.is_null()) {
     completion_callback_.Run();
   }
@@ -400,6 +463,7 @@ class ResourceCache {
   };
 
   ResourceCache(const std::string& name, uint32 cache_capacity,
+                bool are_load_retries_enabled,
                 const CreateLoaderFunction& create_loader_function);
 
   // |CreateCachedResource| returns CachedResource. If the CachedResource is not
@@ -444,9 +508,15 @@ class ResourceCache {
       ResourceMap;
   typedef typename ResourceMap::iterator ResourceMapIterator;
 
+  scoped_ptr<Loader> StartLoadingResource(CachedResourceType* cached_resource);
+
   // Called by CachedResource objects after they finish loading.
   void NotifyResourceLoadingComplete(CachedResourceType* cached_resource,
                                      CallbackType callback_type);
+
+  // Called by CachedResource objects when they fail to load as a result of a
+  // transient error and are scheduling a retry.
+  void NotifyResourceLoadingRetryScheduled(CachedResourceType* cached_resource);
 
   // Called by the destructor of CachedResource to remove CachedResource from
   // |cached_resource_map_| and either immediately free the resource from memory
@@ -470,10 +540,15 @@ class ResourceCache {
   // |callback_blocking_loading_resource_set_| is empty.
   void ProcessPendingCallbacksIfUnblocked();
 
+  bool are_loading_retries_enabled() const {
+    return are_loading_retries_enabled_;
+  }
+
   // The name of this resource cache object, useful while debugging.
   const std::string name_;
 
   uint32 cache_capacity_;
+  bool are_loading_retries_enabled_;
 
   CreateLoaderFunction create_loader_function_;
 
@@ -534,9 +609,11 @@ class ResourceCache {
 template <typename CacheType>
 ResourceCache<CacheType>::ResourceCache(
     const std::string& name, uint32 cache_capacity,
+    bool are_loading_retries_enabled,
     const CreateLoaderFunction& create_loader_function)
     : name_(name),
       cache_capacity_(cache_capacity),
+      are_loading_retries_enabled_(are_loading_retries_enabled),
       create_loader_function_(create_loader_function),
       is_processing_pending_callbacks_(false),
       are_callbacks_disabled_(false),
@@ -599,22 +676,9 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url,
   // If we reach this point, then the resource doesn't exist yet.
   ++count_resources_requested_;
 
-  // Add the resource to a loading set. If no current resources have pending
-  // callbacks, then this resource will block callbacks until it is decoded.
-  // However, if there are resources with pending callbacks, then the decoding
-  // of this resource won't block the callbacks from occurring. This ensures
-  // that a steady stream of new resources won't prevent callbacks from ever
-  // occurring.
-  if (pending_callback_map_.empty()) {
-    callback_blocking_loading_resource_set_.insert(url.spec());
-  } else {
-    non_callback_blocking_loading_resource_set_.insert(url.spec());
-  }
-  ++count_resources_loading_;
-
   // Create the cached resource and fetch its resource based on the url.
-  scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
-      url, security_callback_, create_loader_function_, this, origin));
+  scoped_refptr<CachedResourceType> cached_resource(
+      new CachedResourceType(url, origin, this));
   cached_resource_map_.insert(
       std::make_pair(url.spec(), cached_resource.get()));
 
@@ -672,6 +736,40 @@ void ResourceCache<CacheType>::DisableCallbacks() {
 }
 
 template <typename CacheType>
+scoped_ptr<Loader> ResourceCache<CacheType>::StartLoadingResource(
+    CachedResourceType* cached_resource) {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  const std::string& url = cached_resource->url().spec();
+
+  // The resource should not already be in either of the loading sets.
+  DCHECK(callback_blocking_loading_resource_set_.find(url) ==
+         callback_blocking_loading_resource_set_.end());
+  DCHECK(non_callback_blocking_loading_resource_set_.find(url) ==
+         non_callback_blocking_loading_resource_set_.end());
+
+  // Add the resource to a loading set. If no current resources have pending
+  // callbacks, then this resource will block callbacks until it is decoded.
+  // However, if there are resources with pending callbacks, then the decoding
+  // of this resource won't block the callbacks from occurring. This ensures
+  // that a steady stream of new resources won't prevent callbacks from ever
+  // occurring.
+  if (pending_callback_map_.empty()) {
+    callback_blocking_loading_resource_set_.insert(url);
+  } else {
+    non_callback_blocking_loading_resource_set_.insert(url);
+  }
+
+  ++count_resources_loading_;
+
+  return create_loader_function_.Run(
+      cached_resource->url(), cached_resource->origin(), security_callback_,
+      base::Bind(&CachedResourceType::OnLoadingSuccess,
+                 base::Unretained(cached_resource)),
+      base::Bind(&CachedResourceType::OnLoadingError,
+                 base::Unretained(cached_resource)));
+}
+
+template <typename CacheType>
 void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
     CachedResourceType* cached_resource, CallbackType callback_type) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
@@ -708,6 +806,29 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
 
   ProcessPendingCallbacksIfUnblocked();
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
+}
+
+template <typename CacheType>
+void ResourceCache<CacheType>::NotifyResourceLoadingRetryScheduled(
+    CachedResourceType* cached_resource) {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  const std::string& url = cached_resource->url().spec();
+
+  // Remove the resource from those currently loading. It'll be re-added once
+  // the retry starts.
+
+  // Remove the resource from its loading set. It should exist in exactly one
+  // of the loading sets.
+  if (callback_blocking_loading_resource_set_.erase(url)) {
+    DCHECK(non_callback_blocking_loading_resource_set_.find(url) ==
+           non_callback_blocking_loading_resource_set_.end());
+  } else if (!non_callback_blocking_loading_resource_set_.erase(url)) {
+    DCHECK(false);
+  }
+
+  --count_resources_loading_;
+
+  ProcessPendingCallbacksIfUnblocked();
 }
 
 template <typename CacheType>

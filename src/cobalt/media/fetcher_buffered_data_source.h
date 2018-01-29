@@ -74,18 +74,19 @@ class FetcherBufferedDataSource : public BufferedDataSource,
       const GURL& url, const csp::SecurityCallback& security_callback,
       network::NetworkModule* network_module, loader::RequestMode requset_mode,
       loader::Origin origin);
-  ~FetcherBufferedDataSource() OVERRIDE;
+  ~FetcherBufferedDataSource() override;
 
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
-            const ReadCB& read_cb) OVERRIDE;
-  void Stop() OVERRIDE;
-  bool GetSize(int64* size_out) OVERRIDE;
-  bool IsStreaming() OVERRIDE { return false; }
-  void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
+            const ReadCB& read_cb) override;
+  void Stop() override;
+  bool GetSize(int64* size_out) override;
+  bool IsStreaming() override { return false; }
+  void SetBitrate(int bitrate) override { UNREFERENCED_PARAMETER(bitrate); }
 
   // BufferedDataSource methods.
-  void SetDownloadingStatusCB(const DownloadingStatusCB& downloading_status_cb);
+  void SetDownloadingStatusCB(
+      const DownloadingStatusCB& downloading_status_cb) override;
 
  private:
   class CancelableClosure
@@ -104,11 +105,11 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   };
 
   // net::URLFetcherDelegate methods
-  void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
-  bool ShouldSendDownloadData() OVERRIDE { return true; }
+  void OnURLFetchResponseStarted(const net::URLFetcher* source) override;
+  bool ShouldSendDownloadData() override { return true; }
   void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) OVERRIDE;
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
+                              scoped_ptr<std::string> download_data) override;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
 
   void CreateNewFetcher();
   void UpdateDownloadingStatus(bool is_downloading);

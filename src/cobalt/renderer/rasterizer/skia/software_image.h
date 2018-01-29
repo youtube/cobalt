@@ -33,8 +33,8 @@ class SoftwareImageData : public render_tree::ImageData {
                     render_tree::PixelFormat pixel_format,
                     render_tree::AlphaFormat alpha_format);
 
-  const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE;
-  uint8_t* GetMemory() OVERRIDE;
+  const render_tree::ImageDataDescriptor& GetDescriptor() const override;
+  uint8_t* GetMemory() override;
 
   scoped_array<uint8_t> PassPixelData();
 
@@ -49,20 +49,20 @@ class SoftwareImage : public SinglePlaneImage {
   SoftwareImage(uint8_t* source_data,
                 const render_tree::ImageDataDescriptor& descriptor);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
-  const SkBitmap* GetBitmap() const OVERRIDE { return &bitmap_; }
+  const sk_sp<SkImage>& GetImage() const override { return image_; }
 
-  bool EnsureInitialized() OVERRIDE { return false; }
+  bool EnsureInitialized() override { return false; }
 
-  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+  bool IsOpaque() const override { return is_opaque_; }
 
  private:
   void Initialize(uint8_t* source_data,
                   const render_tree::ImageDataDescriptor& descriptor);
 
   scoped_array<uint8_t> owned_pixel_data_;
-  SkBitmap bitmap_;
+  sk_sp<SkImage> image_;
   math::Size size_;
   bool is_opaque_;
 };
@@ -71,8 +71,8 @@ class SoftwareRawImageMemory : public render_tree::RawImageMemory {
  public:
   SoftwareRawImageMemory(size_t size_in_bytes, size_t alignment);
 
-  size_t GetSizeInBytes() const OVERRIDE;
-  uint8_t* GetMemory() OVERRIDE;
+  size_t GetSizeInBytes() const override;
+  uint8_t* GetMemory() override;
 
   scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree> PassPixelData();
 
@@ -87,20 +87,25 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
       scoped_ptr<SoftwareRawImageMemory> raw_image_memory,
       const render_tree::MultiPlaneImageDataDescriptor& descriptor);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
-  render_tree::MultiPlaneImageFormat GetFormat() const OVERRIDE {
+  render_tree::MultiPlaneImageFormat GetFormat() const override {
     return format_;
   }
-  const SkBitmap* GetBitmap(int plane_index) const OVERRIDE {
-    return planes_[plane_index]->GetBitmap();
+  const sk_sp<SkImage>& GetImage(int plane_index) const {
+    return planes_[plane_index]->GetImage();
   }
 
-  bool EnsureInitialized() OVERRIDE { return false; }
+  const scoped_refptr<SoftwareImage>& GetSoftwareFrontendImage(
+      int plane_index) const {
+    return planes_[plane_index];
+  }
+
+  bool EnsureInitialized() override { return false; }
 
   // Currently, all supported multiplane images (e.g. mostly YUV) do not
   // support alpha, so multiplane images will always be opaque.
-  bool IsOpaque() const OVERRIDE { return true; }
+  bool IsOpaque() const override { return true; }
 
  private:
   math::Size size_;

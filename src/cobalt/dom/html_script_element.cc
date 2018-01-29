@@ -151,7 +151,7 @@ void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
-  DCHECK(!loader_);
+  DCHECK(!loader_ || is_already_started_);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Prepare()");
 
   // If the script element is marked as having "already started", then the user
@@ -297,7 +297,7 @@ void HTMLScriptElement::Prepare() {
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback, request_mode_,
-              document_->location() ? document_->location()->OriginObject()
+              document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin()),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncLoadingDone,
@@ -340,7 +340,7 @@ void HTMLScriptElement::Prepare() {
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback, request_mode_,
-              document_->location() ? document_->location()->OriginObject()
+              document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin()),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
@@ -367,7 +367,7 @@ void HTMLScriptElement::Prepare() {
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
               csp_callback, request_mode_,
-              document_->location() ? document_->location()->OriginObject()
+              document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin()),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
@@ -385,7 +385,7 @@ void HTMLScriptElement::Prepare() {
           csp_delegate->AllowInline(CspDelegate::kScript,
                                     inline_script_location_,
                                     text)) {
-        fetched_last_url_origin_ = document_->location()->OriginObject();
+        fetched_last_url_origin_ = document_->location()->GetOriginAsObject();
         ExecuteInternal();
       } else {
         PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
@@ -577,7 +577,7 @@ void HTMLScriptElement::Execute(const std::string& content,
   // object.
   bool mute_errors =
       request_mode_ == loader::kNoCORSMode &&
-      fetched_last_url_origin_ != document_->location()->OriginObject();
+      fetched_last_url_origin_ != document_->location()->GetOriginAsObject();
   html_element_context()->script_runner()->Execute(
       content, script_location, mute_errors, NULL /*out_succeeded*/);
 

@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::AnonymousNamedIndexedGetterInterface;
 using cobalt::bindings::testing::MozjsAnonymousNamedIndexedGetterInterface;
@@ -87,7 +90,9 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
 
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
@@ -145,6 +150,8 @@ bool GetNamedProperty(
   return !exception_state.is_exception_set();
 }
 
+
+
 bool SetNamedProperty(
   JSContext* context, JS::HandleObject object, JS::HandleId id,
   JS::MutableHandleValue vp, JS::ObjectOpResult& object_op_result) {
@@ -185,6 +192,9 @@ bool SetNamedProperty(
     return false;
   }
 }
+
+
+
 
 bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
                               uint32_t index) {
@@ -242,6 +252,8 @@ bool GetIndexedProperty(
   return !exception_state.is_exception_set();
 }
 
+
+
 bool SetIndexedProperty(
   JSContext* context, JS::HandleObject object, JS::HandleId id,
   JS::MutableHandleValue vp, JS::ObjectOpResult& object_op_result) {
@@ -281,6 +293,8 @@ bool SetIndexedProperty(
   }
 }
 
+
+
 class MozjsAnonymousNamedIndexedGetterInterfaceHandler : public ProxyHandler {
  public:
   MozjsAnonymousNamedIndexedGetterInterfaceHandler()
@@ -299,6 +313,7 @@ MozjsAnonymousNamedIndexedGetterInterfaceHandler::named_property_hooks = {
   SetNamedProperty,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsAnonymousNamedIndexedGetterInterfaceHandler::indexed_property_hooks = {
   IsSupportedIndexProperty,
@@ -310,6 +325,14 @@ MozjsAnonymousNamedIndexedGetterInterfaceHandler::indexed_property_hooks = {
 
 static base::LazyInstance<MozjsAnonymousNamedIndexedGetterInterfaceHandler>
     proxy_handler;
+
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "AnonymousNamedIndexedGetterInterface is not constructible.");
+  return false;
+}
+
 
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
@@ -420,6 +443,7 @@ bool get_length(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Readonly attribute
     "length",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -434,6 +458,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -474,17 +499,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "AnonymousNamedIndexedGetterInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "AnonymousNamedIndexedGetterInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -590,8 +623,9 @@ JSObject* MozjsAnonymousNamedIndexedGetterInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

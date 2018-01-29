@@ -470,8 +470,12 @@ typedef struct SbMediaAudioHeader {
 } SbMediaAudioHeader;
 
 // --- Constants -------------------------------------------------------------
+
 // One second in SbMediaTime (90KHz ticks).
 #define kSbMediaTimeSecond ((SbMediaTime)(90000))
+
+// Use the minimum value of int64_t to indicate an invalid media time.
+#define kSbMediaTimeInvalid ((SbMediaTime)kSbInt64Min)
 
 // --- Functions -------------------------------------------------------------
 

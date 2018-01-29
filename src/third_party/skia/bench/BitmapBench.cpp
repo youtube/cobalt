@@ -14,53 +14,6 @@
 #include "SkString.h"
 #include "sk_tool_utils.h"
 
-static int conv6ToByte(int x) {
-    return x * 0xFF / 5;
-}
-
-static int convByteTo6(int x) {
-    return x * 5 / 255;
-}
-
-static uint8_t compute666Index(SkPMColor c) {
-    int r = SkGetPackedR32(c);
-    int g = SkGetPackedG32(c);
-    int b = SkGetPackedB32(c);
-
-    return convByteTo6(r) * 36 + convByteTo6(g) * 6 + convByteTo6(b);
-}
-
-static void convertToIndex666(const SkBitmap& src, SkBitmap* dst, SkAlphaType aType) {
-    SkPMColor storage[216];
-    SkPMColor* colors = storage;
-    // rrr ggg bbb
-    for (int r = 0; r < 6; r++) {
-        int rr = conv6ToByte(r);
-        for (int g = 0; g < 6; g++) {
-            int gg = conv6ToByte(g);
-            for (int b = 0; b < 6; b++) {
-                int bb = conv6ToByte(b);
-                *colors++ = SkPreMultiplyARGB(0xFF, rr, gg, bb);
-            }
-        }
-    }
-    SkColorTable* ctable = new SkColorTable(storage, 216, aType);
-    dst->allocPixels(SkImageInfo::Make(src.width(), src.height(), kIndex_8_SkColorType, aType),
-                     NULL, ctable);
-    ctable->unref();
-
-    SkAutoLockPixels alps(src);
-    SkAutoLockPixels alpd(*dst);
-
-    for (int y = 0; y < src.height(); y++) {
-        const SkPMColor* srcP = src.getAddr32(0, y);
-        uint8_t* dstP = dst->getAddr8(0, y);
-        for (int x = src.width() - 1; x >= 0; --x) {
-            *dstP++ = compute666Index(*srcP++);
-        }
-    }
-}
-
 /*  Variants for bitmaps
 
     - src depth (32 w+w/o alpha), 565, 4444, index, a8
@@ -75,6 +28,7 @@ class BitmapBench : public Benchmark {
     const SkAlphaType   fAlphaType;
     const bool          fForceUpdate; //bitmap marked as dirty before each draw. forces bitmap to be updated on device cache
     const bool          fIsVolatile;
+    const bool          fDoScale;
 
     SkBitmap            fBitmap;
     SkPaint             fPaint;
@@ -83,48 +37,48 @@ class BitmapBench : public Benchmark {
     enum { W = 128 };
     enum { H = 128 };
 public:
-    BitmapBench(SkColorType ct, SkAlphaType at, bool forceUpdate = false, bool isVolatile = false)
+    BitmapBench(SkColorType ct, SkAlphaType at, bool forceUpdate, bool isVolatile, bool doScale)
         : fColorType(ct)
         , fAlphaType(at)
         , fForceUpdate(forceUpdate)
         , fIsVolatile(isVolatile)
+        , fDoScale(doScale)
     {}
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         fName.set("bitmap");
         fName.appendf("_%s%s", sk_tool_utils::colortype_name(fColorType),
                       kOpaque_SkAlphaType == fAlphaType ? "" : "_A");
-        if (fForceUpdate)
+        if (fDoScale) {
+            fName.append("_scale");
+        }
+        if (fForceUpdate) {
             fName.append("_update");
-        if (fIsVolatile)
+        }
+        if (fIsVolatile) {
             fName.append("_volatile");
+        }
 
         return fName.c_str();
     }
 
-    virtual void onPreDraw() {
+    void onDelayedSetup() override {
         SkBitmap bm;
 
-        if (kIndex_8_SkColorType == fColorType) {
-            bm.allocPixels(SkImageInfo::MakeN32(W, H, fAlphaType));
-        } else {
-            bm.allocPixels(SkImageInfo::Make(W, H, fColorType, fAlphaType));
-        }
+        bm.allocPixels(SkImageInfo::Make(W, H, fColorType, fAlphaType));
         bm.eraseColor(kOpaque_SkAlphaType == fAlphaType ? SK_ColorBLACK : 0);
 
-        onDrawIntoBitmap(bm);
+        this->onDrawIntoBitmap(bm);
 
-        if (kIndex_8_SkColorType == fColorType) {
-            convertToIndex666(bm, &fBitmap, fAlphaType);
-        } else {
-            fBitmap = bm;
-        }
-
+        fBitmap = bm;
         fBitmap.setIsVolatile(fIsVolatile);
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    void onDraw(int loops, SkCanvas* canvas) override {
+        if (fDoScale) {
+            canvas->scale(.99f, .99f);
+        }
         SkIPoint dim = this->getSize();
         SkRandom rand;
 
@@ -146,7 +100,7 @@ protected:
         }
     }
 
-    virtual void onDrawIntoBitmap(const SkBitmap& bm) {
+     virtual void onDrawIntoBitmap(const SkBitmap& bm) {
         const int w = bm.width();
         const int h = bm.height();
 
@@ -193,12 +147,12 @@ class FilterBitmapBench : public BitmapBench {
 public:
     FilterBitmapBench(SkColorType ct, SkAlphaType at,
                       bool forceUpdate, bool isVolitile, uint32_t flags)
-        : INHERITED(ct, at, forceUpdate, isVolitile)
+        : INHERITED(ct, at, forceUpdate, isVolitile, false)
         , fFlags(flags) {
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         fFullName.set(INHERITED::onGetName());
         if (fFlags & kScale_Flag) {
             fFullName.append("_scale");
@@ -215,8 +169,8 @@ protected:
         return fFullName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
-        SkISize dim = canvas->getDeviceSize();
+    void onDraw(int loops, SkCanvas* canvas) override {
+        SkISize dim = canvas->getBaseLayerSize();
         if (fFlags & kScale_Flag) {
             const SkScalar x = SkIntToScalar(dim.fWidth) / 2;
             const SkScalar y = SkIntToScalar(dim.fHeight) / 2;
@@ -229,15 +183,12 @@ protected:
         if (fFlags & kRotate_Flag) {
             const SkScalar x = SkIntToScalar(dim.fWidth) / 2;
             const SkScalar y = SkIntToScalar(dim.fHeight) / 2;
-
-            canvas->translate(x, y);
-            canvas->rotate(SkIntToScalar(35));
-            canvas->translate(-x, -y);
+            canvas->rotate(SkIntToScalar(35), x, y);
         }
         INHERITED::onDraw(loops, canvas);
     }
 
-    virtual void setupPaint(SkPaint* paint) SK_OVERRIDE {
+    void setupPaint(SkPaint* paint) override {
         this->INHERITED::setupPaint(paint);
 
         int index = 0;
@@ -247,13 +198,13 @@ protected:
         if (fFlags & kBicubic_Flag) {
             index |= 2;
         }
-        static const SkPaint::FilterLevel gLevels[] = {
-            SkPaint::kNone_FilterLevel,
-            SkPaint::kLow_FilterLevel,
-            SkPaint::kMedium_FilterLevel,
-            SkPaint::kHigh_FilterLevel
+        static const SkFilterQuality gQualitys[] = {
+            kNone_SkFilterQuality,
+            kLow_SkFilterQuality,
+            kMedium_SkFilterQuality,
+            kHigh_SkFilterQuality
         };
-        paint->setFilterLevel(gLevels[index]);
+        paint->setFilterQuality(gQualitys[index]);
 }
 
 private:
@@ -272,12 +223,12 @@ private:
 public:
     SourceAlphaBitmapBench(SourceAlpha alpha, SkColorType ct,
                 bool forceUpdate = false, bool bitmapVolatile = false)
-        : INHERITED(ct, kPremul_SkAlphaType, forceUpdate, bitmapVolatile)
+        : INHERITED(ct, kPremul_SkAlphaType, forceUpdate, bitmapVolatile, false)
         , fSourceAlpha(alpha) {
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         fFullName.set(INHERITED::onGetName());
 
         if (fSourceAlpha == kOpaque_SourceAlpha) {
@@ -293,7 +244,7 @@ protected:
         return fFullName.c_str();
     }
 
-    virtual void onDrawIntoBitmap(const SkBitmap& bm) SK_OVERRIDE {
+    void onDrawIntoBitmap(const SkBitmap& bm) override {
         const int w = bm.width();
         const int h = bm.height();
 
@@ -349,13 +300,12 @@ private:
     typedef BitmapBench INHERITED;
 };
 
-DEF_BENCH( return new BitmapBench(kN32_SkColorType, kPremul_SkAlphaType); )
-DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType); )
-DEF_BENCH( return new BitmapBench(kRGB_565_SkColorType, kOpaque_SkAlphaType); )
-DEF_BENCH( return new BitmapBench(kIndex_8_SkColorType, kPremul_SkAlphaType); )
-DEF_BENCH( return new BitmapBench(kIndex_8_SkColorType, kOpaque_SkAlphaType); )
-DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType, true, true); )
-DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType, true, false); )
+DEF_BENCH( return new BitmapBench(kN32_SkColorType, kPremul_SkAlphaType, false, false, false); )
+DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType, false, false, false); )
+DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType, false, false, true); )
+DEF_BENCH( return new BitmapBench(kRGB_565_SkColorType, kOpaque_SkAlphaType, false, false, false); )
+DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType, true, true, false); )
+DEF_BENCH( return new BitmapBench(kN32_SkColorType, kOpaque_SkAlphaType, true, false, false); )
 
 // scale filter -> S32_opaque_D32_filter_DX_{SSE2,SSSE3} and Fact9 is also for S32_D16_filter_DX_SSE2
 DEF_BENCH( return new FilterBitmapBench(kN32_SkColorType, kPremul_SkAlphaType, false, false, kScale_Flag | kBilerp_Flag); )

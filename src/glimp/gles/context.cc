@@ -169,6 +169,12 @@ void Context::GetIntegerv(GLenum pname, GLint* params) {
     case GL_MAX_FRAGMENT_UNIFORM_VECTORS:
       *params = impl_->GetMaxFragmentUniformVectors();
       break;
+    case GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS:
+      *params = impl_->GetMaxVertexTextureImageUnits();
+      break;
+    case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS:
+      *params = impl_->GetMaxCombinedTextureImageUnits();
+      break;
     default: {
       SB_NOTIMPLEMENTED();
       SetError(GL_INVALID_ENUM);
@@ -340,7 +346,6 @@ void Context::Disable(GLenum cap) {
     case GL_SAMPLE_COVERAGE:
       // Since these are not implemented yet, it is not an error to do nothing
       // when we ask for them to be disabled!
-      SB_NOTIMPLEMENTED();
       break;
     default:
       SetError(GL_INVALID_ENUM);
@@ -417,6 +422,19 @@ BlendState::Factor BlendStateFactorFromGLenum(GLenum blend_factor) {
       return BlendState::kFactorInvalid;
   }
 }
+
+BlendState::Equation BlendStateEquationFromGLenum(GLenum equation) {
+  switch (equation) {
+    case GL_FUNC_ADD:
+      return BlendState::kEquationFuncAdd;
+    case GL_FUNC_SUBTRACT:
+      return BlendState::kEquationFuncSubtract;
+    case GL_FUNC_REVERSE_SUBTRACT:
+      return BlendState::kEquationFuncReverseSubtract;
+    default:
+      return BlendState::kEquationFuncInvalid;
+  }
+}
 }  // namespace
 
 void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
@@ -431,6 +449,18 @@ void Context::BlendFunc(GLenum sfactor, GLenum dfactor) {
 
   draw_state_.blend_state.src_factor = src_factor;
   draw_state_.blend_state.dst_factor = dst_factor;
+  draw_state_dirty_flags_.blend_state_dirty = true;
+}
+
+void Context::BlendEquation(GLenum mode) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
+  BlendState::Equation equation = BlendStateEquationFromGLenum(mode);
+  if (equation == BlendState::kEquationFuncInvalid) {
+    SetError(GL_INVALID_ENUM);
+    return;
+  }
+
+  draw_state_.blend_state.equation = equation;
   draw_state_dirty_flags_.blend_state_dirty = true;
 }
 
@@ -665,6 +695,20 @@ void Context::GenBuffers(GLsizei n, GLuint* buffers) {
   }
 }
 
+void Context::FrontFace(GLenum mode) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
+  if ((mode != GL_CW) && (mode != GL_CCW)) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  // The default face is GL_CCW, per documentation at:
+  // https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glFrontFace.xml
+  if (mode != GL_CCW) {
+    SB_NOTIMPLEMENTED();
+  }
+}
+
 void Context::DeleteBuffers(GLsizei n, const GLuint* buffers) {
   GLIMP_TRACE_EVENT0(__FUNCTION__);
   if (n < 0) {
@@ -723,8 +767,9 @@ bool IsValidBufferTarget(GLenum target) {
     case GL_PIXEL_PACK_BUFFER:
     case GL_TRANSFORM_FEEDBACK_BUFFER:
     case GL_UNIFORM_BUFFER:
-      SB_NOTIMPLEMENTED() << "Buffer target " << target << " is not supported "
-                                                           "in glimp.";
+      SB_NOTIMPLEMENTED() << "Buffer target " << target
+                          << " is not supported "
+                             "in glimp.";
     default:
       return false;
   }
@@ -849,10 +894,9 @@ namespace {
 // of the specification:
 //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
 bool MapBufferRangeAccessFlagsAreValid(GLbitfield access) {
-  if (access &
-      ~(GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT |
-        GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_FLUSH_EXPLICIT_BIT |
-        GL_MAP_UNSYNCHRONIZED_BIT)) {
+  if (access & ~(GL_MAP_READ_BIT | GL_MAP_WRITE_BIT |
+                 GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT |
+                 GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_UNSYNCHRONIZED_BIT)) {
     return false;
   }
 
@@ -943,6 +987,17 @@ bool Context::UnmapBuffer(GLenum target) {
     // was not mapped to begin with, so we return GL_FALSE in this case.
     //   https://www.khronos.org/opengles/sdk/docs/man3/html/glMapBufferRange.xhtml
     return GL_FALSE;
+  }
+}
+
+void Context::LineWidth(GLfloat width) {
+  if (width <= 0) {
+    SetError(GL_INVALID_VALUE);
+    return;
+  }
+  const GLfloat kDefaultLineWidth = 1.0f;
+  if (fabs(width - kDefaultLineWidth) > 0.01f * kDefaultLineWidth) {
+    SB_NOTIMPLEMENTED();
   }
 }
 

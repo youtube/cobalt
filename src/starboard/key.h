@@ -228,7 +228,14 @@ typedef enum SbKey {
   //   https://apps.cablelabs.com/specification/opencable-application-platform-ocap/
   kSbKeyLast = 0x25f,
   kSbKeyPreviousChannel = kSbKeyLast,
+#endif  // SB_API_VERSION >= 6
 
+#if SB_API_VERSION >= 9
+  // Also from OCAP
+  kSbKeyInstantReplay = 0x273,
+#endif  // SB_API_VERSION >= 9
+
+#if SB_API_VERSION >= 6
   // Custom Starboard-defined keycodes.
 
   // A button that will directly launch the current application.

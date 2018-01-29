@@ -7,6 +7,7 @@
  */
 
 #include "SkDebuggerGUI.h"
+#include "SkGraphics.h"
 #include <QApplication>
 
 static void usage(const char * argv0) {
@@ -17,8 +18,14 @@ static void usage(const char * argv0) {
 }
 
 int main(int argc, char *argv[]) {
+#ifndef SK_BUILD_FOR_WIN32
+    // Set numeric formatting to default. Otherwise shaders will have numbers with wrong comma.
+    // QApplication documentation recommends setlocale("LC_NUMERIC", "C") after QApplication
+    // constuction.  However, the components Qt calls (X11 libs, ..) will override that.
+    setenv("LC_NUMERIC", "C", 1);
+#endif
+    SkGraphics::Init();
     QApplication a(argc, argv);
-
     QStringList argList = a.arguments();
 
     if (argList.count() <= 0) {
@@ -55,5 +62,6 @@ int main(int argc, char *argv[]) {
     }
 
     w.show();
-    return a.exec();
+    int result = a.exec();
+    return result;
 }

@@ -16,8 +16,6 @@
 
 interface URL {
   [CallWith=EnvironmentSettings] static DOMString
-      createObjectURL(MediaSource mediaSource);
-  [CallWith=EnvironmentSettings] static DOMString
       createObjectURL(Blob blob);
   [CallWith=EnvironmentSettings] static void revokeObjectURL(DOMString url);
 };

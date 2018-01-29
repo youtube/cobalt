@@ -47,7 +47,7 @@ class CORSPreflight : public net::URLFetcherDelegate {
                 base::Closure success_callback, std::string origin,
                 base::Closure error_callback,
                 scoped_refptr<CORSPreflightCache> preflight_cache);
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
   void set_force_preflight(bool forcepreflight) {
     force_preflight_ = forcepreflight;
   }

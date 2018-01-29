@@ -40,7 +40,7 @@ class MyNewInterface : public script::Wrappable {
  private:
   // Since script::Wrappable inherits from base::RefCounted<>, we make the
   // destructor private.
-  ~MyNewInterface() OVERRIDE;
+  ~MyNewInterface() override;
 
   std::string foo_;
 

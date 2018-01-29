@@ -58,7 +58,7 @@ class Application {
   // The message loop that will handle UI events.
   MessageLoop* message_loop_;
 
-  base::Closure quit_closure_;
+  const base::Closure quit_closure_;
 
  protected:
   // Called to handle a network event.
@@ -70,14 +70,16 @@ class Application {
   // Called to handle a deep link event.
   void OnDeepLinkEvent(const base::Event* event);
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShownEvent(const base::Event* event);
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
+  void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
+  void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Called when a navigation occurs in the BrowserModule.
@@ -95,12 +97,14 @@ class Application {
   // Event callbacks.
   base::EventCallback network_event_callback_;
   base::EventCallback deep_link_event_callback_;
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   base::EventCallback window_size_change_event_callback_;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
+  base::EventCallback on_screen_keyboard_focused_event_callback_;
+  base::EventCallback on_screen_keyboard_blurred_event_callback_;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Thread checkers to ensure that callbacks for network and application events

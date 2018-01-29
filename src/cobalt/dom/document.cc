@@ -359,6 +359,10 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   return NULL;
 }
 
+bool Document::HasFocus() const {
+  return page_visibility_state()->HasWindowFocus();
+}
+
 // https://www.w3.org/TR/html5/editing.html#dom-document-activeelement
 scoped_refptr<Element> Document::active_element() const {
   // The activeElement attribute on Document objects must return the element in
@@ -396,7 +400,7 @@ void Document::set_cookie(const std::string& cookie,
                      "setting cookie.";
     return;
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DOMException::Raise(DOMException::kSecurityErr,
                         "Document origin is opaque, cookie setting failed",
                         exception_state);
@@ -414,7 +418,7 @@ std::string Document::cookie(script::ExceptionState* exception_state) const {
                      "empty cookie.";
     return "";
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DOMException::Raise(DOMException::kSecurityErr,
                         "Document origin is opaque, cookie getting failed",
                         exception_state);
@@ -434,7 +438,7 @@ void Document::set_cookie(const std::string& cookie) {
                      "setting cookie.";
     return;
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DLOG(WARNING) << "Document origin is opaque, cookie setting failed";
     return;
   }
@@ -449,7 +453,7 @@ std::string Document::cookie() const {
                      "empty cookie.";
     return "";
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DLOG(WARNING) << "Document origin is opaque, cookie getting failed";
     return "";
   }
@@ -950,16 +954,12 @@ void Document::TraceMembers(script::Tracer* tracer) {
 
   tracer->Trace(implementation_);
   tracer->Trace(style_sheets_);
-  for (std::deque<HTMLScriptElement*>::iterator it =
-           scripts_to_be_executed_.begin();
-       it != scripts_to_be_executed_.end(); ++it) {
-    tracer->Trace(static_cast<Wrappable*>(*it));
-  }
-  for (cssom::CSSKeyframesRule::NameMap::iterator it = keyframes_map_.begin();
-       it != keyframes_map_.end(); ++it) {
-    tracer->Trace(it->second);
-  }
+  tracer->TraceItems(scripts_to_be_executed_);
+  tracer->TraceValues(keyframes_map_);
   tracer->Trace(location_);
+  tracer->Trace(active_element_);
+  tracer->Trace(indicated_element_);
+  tracer->Trace(default_timeline_);
   tracer->Trace(user_agent_style_sheet_);
   tracer->Trace(initial_computed_style_declaration_);
 }

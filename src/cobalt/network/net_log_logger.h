@@ -48,7 +48,7 @@ class NetLogLogger : public net::NetLog::ThreadSafeObserver {
   void StartObserving(net::NetLog* net_log);
 
   // net::NetLog::ThreadSafeObserver implementation:
-  void OnAddEntry(const net::NetLog::Entry& entry) OVERRIDE;
+  void OnAddEntry(const net::NetLog::Entry& entry) override;
 
  private:
   void WriteToLog(const std::string& data);

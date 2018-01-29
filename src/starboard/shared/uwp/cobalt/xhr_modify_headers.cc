@@ -18,24 +18,26 @@
 #include "base/synchronization/waitable_event.h"
 
 #include "starboard/mutex.h"
+#include "starboard/once.h"
+#include "starboard/shared/uwp/app_accessors.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/string.h"
 
-using Windows::Security::Authentication::Web::Core::
-    WebAuthenticationCoreManager;
-using Windows::Security::Authentication::Web::Core::WebTokenRequest;
 using Windows::Security::Authentication::Web::Core::WebTokenResponse;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestResult;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestStatus;
-using Windows::Security::Credentials::WebAccountProvider;
 using Windows::System::UserAuthenticationStatus;
-using Windows::UI::Core::CoreWindow;
-using Windows::UI::Core::CoreDispatcherPriority;
-using Windows::UI::Core::DispatchedHandler;
 
 namespace sbwin32 = starboard::shared::win32;
+namespace sbuwp = starboard::shared::uwp;
 
 namespace {
+
+const char kCobaltBootstrapUrl[] =
+    "https://www.youtube.com/api/xbox/cobalt_bootstrap";
+const char kXboxLiveAccountProviderId[] = "https://xsts.auth.xboxlive.com";
+
 // The name of the header to send the STS token out on.
 const char kXauthHeaderName[] = "Authorization";
 
@@ -50,116 +52,58 @@ const char kXauthHeaderPrefix[] = "XBL3.0 x=";
 // header with a valid STS token for the current primary user.
 const base::StringPiece kXauthTriggerHeaderName = "X-STS-RelyingPartyId";
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const UserAuthenticationStatus& state) {
-  switch (state) {
-    case UserAuthenticationStatus::Unauthenticated:
-      os << "Unauthenticated";
-      break;
-    case UserAuthenticationStatus::LocallyAuthenticated:
-      os << "LocallyAuthenticated";
-      break;
-    case UserAuthenticationStatus::RemotelyAuthenticated:
-      os << "RemotelyAuthenticated";
-      break;
-    default:
-      os << "Unknown";
+class LastTokenCache {
+  bool has_last_token_ = false;
+  std::string last_token_;
+  starboard::Mutex mutex_;
+ public:
+  bool MaybeGetLastToken(std::string* out) {
+    starboard::ScopedLock lock(mutex_);
+    out->assign(last_token_);
+    return has_last_token_;
   }
-  return os;
-}
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const WebTokenRequestStatus& status) {
-  switch (status) {
-    case WebTokenRequestStatus::Success:
-      os << "Success";
-      break;
-    case WebTokenRequestStatus::AccountProviderNotAvailable:
-      os << "Account provider is not available.";
-      break;
-    case WebTokenRequestStatus::AccountSwitch:
-      os << "Account associated with the request was switched.";
-      break;
-    case WebTokenRequestStatus::ProviderError:
-      os << "Provider Error.  See Provider's documentation.";
-      break;
-    case WebTokenRequestStatus::UserCancel:
-      os << "User Cancel";
-      break;
-    case WebTokenRequestStatus::UserInteractionRequired:
-      os << "User interaction is required.  Try the request with "
-            "RequestTokenAsync";
-      break;
-    default:
-      os << "Unknown case";
+  void SetLastToken(const std::string& in) {
+    starboard::ScopedLock lock(mutex_);
+    has_last_token_ = true;
+    last_token_ = in;
   }
-  return os;
-}
+};
 
-WebTokenRequestResult^ RequestToken(WebTokenRequest^ request) {
-  using starboard::shared::uwp::WaitForResult;
-  IAsyncOperation<WebTokenRequestResult^>^ request_operation = nullptr;
-  base::WaitableEvent request_operation_set(false, false);
-  // Ensure WebAuthenticationCoreManager::RequestTokenAsync is called on the
-  // UI thread, since documentation states that "This method cannot be called
-  // from background threads", per
-  // https://docs.microsoft.com/en-us/uwp/api/windows.security.authentication.web.core.webauthenticationcoremanager
-  Windows::ApplicationModel::Core::CoreApplication::MainView->CoreWindow
-      ->Dispatcher->RunAsync(
-          CoreDispatcherPriority::Normal,
-          ref new DispatchedHandler(
-              [&request, &request_operation_set, &request_operation] {
-                request_operation =
-                    WebAuthenticationCoreManager::RequestTokenAsync(request);
-                request_operation_set.Signal();
-              }));
-  request_operation_set.Wait();
-  WebTokenRequestResult^ result = WaitForResult(request_operation);
-  return result;
-}
+SB_ONCE_INITIALIZE_FUNCTION(LastTokenCache, GetLastTokenCache);
 
 bool PopulateToken(const std::string& relying_party, std::string* out) {
-  using starboard::shared::uwp::WaitForResult;
-  DCHECK(out);
-  WebAccountProvider^ xbox_provider =
-      WaitForResult(WebAuthenticationCoreManager::FindAccountProviderAsync(
-          "https://xsts.auth.xboxlive.com"));
-  WebTokenRequest^ request = ref new WebTokenRequest(xbox_provider);
-  Platform::String^ relying_party_cx =
-    sbwin32::stringToPlatformString(relying_party);
-  request->Properties->Insert("Url", relying_party_cx);
-  request->Properties->Insert("Target", "xboxlive.signin");
-  request->Properties->Insert("Policy", "DELEGATION");
+  out->clear();
+  DCHECK(!sbuwp::GetDispatcher()->HasThreadAccess)
+      << "Must not be called from the UWP main thread";
 
-  WebTokenRequestResult^ token_result = WaitForResult(
-      WebAuthenticationCoreManager::GetTokenSilentlyAsync(request));
-  if (token_result->ResponseStatus ==
-      WebTokenRequestStatus::UserInteractionRequired) {
-    token_result = RequestToken(request);
+  WebTokenRequestResult^ token_result;
+  try {
+    token_result = sbuwp::TryToFetchSsoToken(relying_party).get();
+  } catch (Platform::Exception^) {
+    token_result = nullptr;
+  }
+  if (!token_result ||
+      token_result->ResponseStatus != WebTokenRequestStatus::Success ||
+      token_result->ResponseData->Size != 1) {
+    // The token is valid for 16 hours, however there appears to be
+    // no easy way for us to check on the client side when it expires.
+    // We must use it hourly.
+    // However, it appears that sometimes asking for a new token will
+    // fail for unknown reasons.
+    // Therefore, simply use the last token we had in case it's still good.
+    // Note that while "relying_party" may change slightly, it
+    // never changes any of the token's attributes.
+    return GetLastTokenCache()->MaybeGetLastToken(out);
   }
 
-  if (token_result->ResponseStatus == WebTokenRequestStatus::Success) {
-    SB_DCHECK(token_result->ResponseData->Size == 1);
-    if (token_result->ResponseData->Size != 1) {
-      *out = "";
-      return false;
-    }
-    WebTokenResponse^ token_response = token_result->ResponseData->GetAt(0);
-    *out = sbwin32::platformStringToString(token_response->Token);
-    return true;
-  } else {
-    SB_DLOG(INFO) << "Response Status " << token_result->ResponseStatus;
-    if (token_result->ResponseError) {
-      unsigned int error_code = token_result->ResponseError->ErrorCode;
-      Platform::String^ message = token_result->ResponseError->ErrorMessage;
-      SB_DLOG(INFO) << "Error code: " << error_code;
-      SB_DLOG(INFO) << "Error message: "
-        << sbwin32::platformStringToString(message);
-    }
-    *out = "";
-  }
-
-  return false;
+  WebTokenResponse^ token_response = token_result->ResponseData->GetAt(0);
+  *out = sbwin32::platformStringToString(token_response->Token);
+  GetLastTokenCache()->SetLastToken(
+      sbwin32::platformStringToString(token_response->Token));
+  // Always get the token through the cache so the exceptional case
+  // is less exceptional.
+  return GetLastTokenCache()->MaybeGetLastToken(out);
 }
 
 void AppendUrlPath(const std::string& path, std::string* url_parameter) {
@@ -179,7 +123,40 @@ void AppendUrlPath(const std::string& path, std::string* url_parameter) {
   url.append(path);
 }
 
+bool StringStartsWith(const std::string& str, const char* starts_with) {
+  size_t starts_with_length = SbStringGetLength(starts_with);
+  if (str.size() < starts_with_length) {
+    return false;
+  }
+
+  std::string sub_str = str.substr(0, starts_with_length);
+  return sub_str == starts_with;
+}
+
 }  // namespace
+
+namespace cobalt {
+namespace loader {
+
+std::string CobaltFetchMaybeAddHeader(const GURL& url) {
+  std::string out_string;
+  if (!StringStartsWith(url.spec(), kCobaltBootstrapUrl)) {
+    return out_string;
+  }
+
+  if (!PopulateToken(url.spec(), &out_string)) {
+    return out_string;
+  }
+  std::string result;
+  result.append(kXauthHeaderName);
+  result.append(": ");
+  result.append(out_string);
+
+  return result;
+}
+
+}  // namespace loader
+}  // namespace cobalt
 
 namespace cobalt {
 namespace xhr {

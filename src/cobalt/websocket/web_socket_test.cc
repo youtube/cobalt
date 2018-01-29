@@ -43,7 +43,7 @@ class FakeSettings : public dom::DOMSettings {
         base_("https://example.com") {
     this->set_network_module(NULL);
   }
-  const GURL& base_url() const OVERRIDE { return base_; }
+  const GURL& base_url() const override { return base_; }
 
   // public members, so that they're easier for testing.
   GURL base_;

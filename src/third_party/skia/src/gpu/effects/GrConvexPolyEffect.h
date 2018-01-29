@@ -8,11 +8,12 @@
 #ifndef GrConvexPolyEffect_DEFINED
 #define GrConvexPolyEffect_DEFINED
 
-#include "GrDrawTargetCaps.h"
+#include "GrCaps.h"
+#include "GrFragmentProcessor.h"
 #include "GrProcessor.h"
 #include "GrTypesPriv.h"
 
-class GrGLConvexPolyEffect;
+class GrInvariantOutput;
 class SkPath;
 
 /**
@@ -37,30 +38,28 @@ public:
      * have to modify the effect/shaderbuilder interface to make it possible (e.g. give access
      * to the view matrix or untransformed positions in the fragment shader).
      */
-    static GrFragmentProcessor* Create(GrPrimitiveEdgeType edgeType, int n,
-                                       const SkScalar edges[]) {
+    static sk_sp<GrFragmentProcessor> Make(GrPrimitiveEdgeType edgeType, int n,
+                                           const SkScalar edges[]) {
         if (n <= 0 || n > kMaxEdges || kHairlineAA_GrProcessorEdgeType == edgeType) {
-            return NULL;
+            return nullptr;
         }
-        return SkNEW_ARGS(GrConvexPolyEffect, (edgeType, n, edges));
+        return sk_sp<GrFragmentProcessor>(new GrConvexPolyEffect(edgeType, n, edges));
     }
 
     /**
      * Creates an effect that clips against the path. If the path is not a convex polygon, is
-     * inverse filled, or has too many edges, this will return NULL. If offset is non-NULL, then
-     * the path is translated by the vector.
+     * inverse filled, or has too many edges, this will return nullptr.
      */
-    static GrFragmentProcessor* Create(GrPrimitiveEdgeType, const SkPath&,
-                                       const SkVector* offset = NULL);
+    static sk_sp<GrFragmentProcessor> Make(GrPrimitiveEdgeType, const SkPath&);
 
     /**
      * Creates an effect that fills inside the rect with AA edges..
      */
-    static GrFragmentProcessor* Create(GrPrimitiveEdgeType, const SkRect&);
+    static sk_sp<GrFragmentProcessor> Make(GrPrimitiveEdgeType, const SkRect&);
 
-    virtual ~GrConvexPolyEffect();
+    ~GrConvexPolyEffect() override;
 
-    static const char* Name() { return "ConvexPoly"; }
+    const char* name() const override { return "ConvexPoly"; }
 
     GrPrimitiveEdgeType getEdgeType() const { return fEdgeType; }
 
@@ -68,22 +67,20 @@ public:
 
     const SkScalar* getEdges() const { return fEdges; }
 
-    typedef GrGLConvexPolyEffect GLProcessor;
-
-    virtual void getConstantColorComponents(GrColor* color, uint32_t* validFlags) const SK_OVERRIDE;
-
-    virtual const GrBackendFragmentProcessorFactory& getFactory() const SK_OVERRIDE;
-
 private:
     GrConvexPolyEffect(GrPrimitiveEdgeType edgeType, int n, const SkScalar edges[]);
 
-    virtual bool onIsEqual(const GrProcessor& other) const SK_OVERRIDE;
+    GrGLSLFragmentProcessor* onCreateGLSLInstance() const override;
+
+    void onGetGLSLProcessorKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+
+    bool onIsEqual(const GrFragmentProcessor& other) const override;
 
     GrPrimitiveEdgeType    fEdgeType;
     int                    fEdgeCount;
     SkScalar               fEdges[3 * kMaxEdges];
 
-    GR_DECLARE_FRAGMENT_PROCESSOR_TEST;
+    GR_DECLARE_FRAGMENT_PROCESSOR_TEST
 
     typedef GrFragmentProcessor INHERITED;
 };

@@ -33,7 +33,7 @@ namespace {
 class MemoryBytesHistogramCSV : public HistogramTableCSVBase<int64_t> {
  public:
   MemoryBytesHistogramCSV() : HistogramTableCSVBase<int64_t>(0) {}
-  std::string ValueToString(const int64_t& bytes) const OVERRIDE {
+  std::string ValueToString(const int64_t& bytes) const override {
     return ToMegabyteString(bytes);
   }
 

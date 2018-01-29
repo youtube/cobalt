@@ -29,7 +29,7 @@ public:
     GrAllocator(size_t itemSize, int itemsPerBlock, void* initialBlock)
         : fItemSize(itemSize)
         , fItemsPerBlock(itemsPerBlock)
-        , fOwnFirstBlock(NULL == initialBlock)
+        , fOwnFirstBlock(nullptr == initialBlock)
         , fCount(0)
         , fInsertionIndexInBlock(0) {
         SkASSERT(itemsPerBlock > 0);
@@ -192,7 +192,7 @@ public:
 protected:
     /**
      * Set first block of memory to write into.  Must be called before any other methods.
-     * This requires that you have passed NULL in the constructor.
+     * This requires that you have passed nullptr in the constructor.
      *
      * @param   initialBlock    optional memory to use for the first block.
      *                          Must be at least itemSize*itemsPerBlock sized.
@@ -229,7 +229,7 @@ template <typename T> void* operator new(size_t, GrTAllocator<T>*);
 
 template <typename T> class GrTAllocator : SkNoncopyable {
 public:
-    virtual ~GrTAllocator() { this->reset(); };
+    virtual ~GrTAllocator() { this->reset(); }
 
     /**
      * Create an allocator
@@ -237,7 +237,7 @@ public:
      * @param   itemsPerBlock   the number of items to allocate at once
      */
     explicit GrTAllocator(int itemsPerBlock)
-        : fAllocator(sizeof(T), itemsPerBlock, NULL) {}
+        : fAllocator(sizeof(T), itemsPerBlock, nullptr) {}
 
     /**
      * Adds an item and returns it.
@@ -247,14 +247,21 @@ public:
     T& push_back() {
         void* item = fAllocator.push_back();
         SkASSERT(item);
-        SkNEW_PLACEMENT(item, T);
+        new (item) T;
         return *(T*)item;
     }
 
     T& push_back(const T& t) {
         void* item = fAllocator.push_back();
         SkASSERT(item);
-        SkNEW_PLACEMENT_ARGS(item, T, (t));
+        new (item) T(t);
+        return *(T*)item;
+    }
+
+    template <typename... Args> T& emplace_back(Args&&... args) {
+        void* item = fAllocator.push_back();
+        SkASSERT(item);
+        new (item) T(std::forward<Args>(args)...);
         return *(T*)item;
     }
 
@@ -389,7 +396,7 @@ template <typename T> void* operator new(size_t size, GrTAllocator<T>* allocator
 // to match the op new silences warnings about missing op delete when a constructor throws an
 // exception.
 template <typename T> void operator delete(void*, GrTAllocator<T>*) {
-    SK_CRASH();
+    SK_ABORT("Invalid Operation");
 }
 
 #define GrNEW_APPEND_TO_ALLOCATOR(allocator_ptr, type_name, args) \

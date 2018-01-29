@@ -1,10 +1,11 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+
+#include "SkDOM.h"
 #include "SkViewPriv.h"
 
 //////////////////////////////////////////////////////////////////////
@@ -29,14 +30,14 @@ void SkView::Artist::onInflate(const SkDOM&, const SkDOM::Node*)
 SkView::Artist* SkView::getArtist() const
 {
     Artist_SkTagList* rec = (Artist_SkTagList*)this->findTagList(kViewArtist_SkTagList);
-    SkASSERT(rec == NULL || rec->fArtist != NULL);
+    SkASSERT(rec == nullptr || rec->fArtist != nullptr);
 
-    return rec ? rec->fArtist : NULL;
+    return rec ? rec->fArtist : nullptr;
 }
 
 SkView::Artist* SkView::setArtist(Artist* obj)
 {
-    if (obj == NULL)
+    if (obj == nullptr)
     {
         this->removeTagList(kViewArtist_SkTagList);
     }
@@ -75,14 +76,14 @@ void SkView::Layout::onInflate(const SkDOM&, const SkDOM::Node*)
 SkView::Layout* SkView::getLayout() const
 {
     Layout_SkTagList* rec = (Layout_SkTagList*)this->findTagList(kViewLayout_SkTagList);
-    SkASSERT(rec == NULL || rec->fLayout != NULL);
+    SkASSERT(rec == nullptr || rec->fLayout != nullptr);
 
-    return rec ? rec->fLayout : NULL;
+    return rec ? rec->fLayout : nullptr;
 }
 
 SkView::Layout* SkView::setLayout(Layout* obj, bool invokeLayoutNow)
 {
-    if (obj == NULL)
+    if (obj == nullptr)
     {
         this->removeTagList(kViewLayout_SkTagList);
     }

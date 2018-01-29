@@ -26,12 +26,12 @@ namespace {
 // script::ExceptionState that will DCHECK on exception.
 class NativeExceptionState : public script::ExceptionState {
  public:
-  void SetException(const scoped_refptr<script::ScriptException>&) OVERRIDE {
+  void SetException(const scoped_refptr<script::ScriptException>&) override {
     NOTREACHED();
   }
 
   void SetSimpleExceptionVA(script::SimpleExceptionType, const char*,
-                            va_list) OVERRIDE {
+                            va_list) override {
     NOTREACHED();
   }
 };
@@ -52,7 +52,7 @@ class ScriptCallback : public MutationObserver::CallbackInternal {
                  MutationObserver* owner)
       : callback_(owner, callback) {}
   bool RunCallback(const MutationObserver::MutationRecordSequence& mutations,
-                   const scoped_refptr<MutationObserver>& observer) OVERRIDE {
+                   const scoped_refptr<MutationObserver>& observer) override {
     script::CallbackResult<void> result =
         callback_.value().Run(mutations, observer);
     return !result.exception;
@@ -69,7 +69,7 @@ class NativeCallback : public MutationObserver::CallbackInternal {
       const MutationObserver::NativeMutationCallback& callback)
       : callback_(callback) {}
   bool RunCallback(const MutationObserver::MutationRecordSequence& mutations,
-                   const scoped_refptr<MutationObserver>& observer) OVERRIDE {
+                   const scoped_refptr<MutationObserver>& observer) override {
     callback_.Run(mutations, observer);
     return true;
   }
@@ -153,6 +153,11 @@ bool MutationObserver::Notify() {
   }
   // If no records, return true to indicate no error occurred.
   return true;
+}
+
+void MutationObserver::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(observed_nodes_);
+  tracer->TraceSequence(record_queue_);
 }
 
 void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {

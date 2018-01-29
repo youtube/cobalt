@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -20,26 +19,26 @@ public:
     FSRectBench() : fInit(false) { }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE { return "fullscreen_rects"; }
+    const char* onGetName() override { return "fullscreen_rects"; }
 
-    virtual void onPreDraw() SK_OVERRIDE {
+    void onDelayedSetup() override {
         if (!fInit) {
             SkRandom rand;
             static const SkScalar kMinOffset = 0;
             static const SkScalar kMaxOffset = 100 * SK_Scalar1;
             static const SkScalar kOffsetRange = kMaxOffset - kMinOffset;
             for (int i = 0; i < N; ++i) {
-                fRects[i].fLeft = -kMinOffset - SkScalarMul(rand.nextUScalar1(), kOffsetRange);
-                fRects[i].fTop = -kMinOffset - SkScalarMul(rand.nextUScalar1(), kOffsetRange);
-                fRects[i].fRight = W + kMinOffset + SkScalarMul(rand.nextUScalar1(), kOffsetRange);
-                fRects[i].fBottom = H + kMinOffset + SkScalarMul(rand.nextUScalar1(), kOffsetRange);
+                fRects[i].fLeft = -kMinOffset - rand.nextUScalar1() * kOffsetRange;
+                fRects[i].fTop = -kMinOffset - rand.nextUScalar1() * kOffsetRange;
+                fRects[i].fRight = W + kMinOffset + rand.nextUScalar1() * kOffsetRange;
+                fRects[i].fBottom = H + kMinOffset + rand.nextUScalar1() * kOffsetRange;
                 fColors[i] = rand.nextU() | 0xFF000000;
             }
             fInit = true;
         }
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint paint;
         for (int i = 0; i < loops; ++i) {
             paint.setColor(fColors[i % N]);
@@ -60,4 +59,4 @@ private:
     typedef Benchmark INHERITED;
 };
 
-DEF_BENCH( return SkNEW_ARGS(FSRectBench, ()); )
+DEF_BENCH(return new FSRectBench();)

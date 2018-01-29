@@ -22,42 +22,21 @@ import sys
 import textwrap
 
 import _env  # pylint: disable=unused-import
-from cobalt.build import config as build_config
-from cobalt.build import gyp_utils
+from cobalt.build import cobalt_configuration
 from cobalt.tools import paths
+from starboard.build.gyp_runner import GypRunner
 from starboard.tools import build
 from starboard.tools import config
 from starboard.tools import platform
 
 
-SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-
 # Return values used by main().
 RETVAL_SUCCESS = 0
 RETVAL_ERROR = 1
 
+
 def _ListAsString(items):
   return ', '.join('"%s"' % x for x in items)
-
-
-def _GetHostOS():
-  """Returns the name of the hosting OS."""
-  host_os_names = {
-      'linux2': 'linux',
-      'linux3': 'linux',
-      'darwin': 'linux',
-      'win32': 'win',
-  }
-
-  if not sys.platform in host_os_names:
-    if sys.platform == 'cygwin':
-       logging.error('There may be several incompatibilities when trying to\n'
-                     'build from within cygwin. When using a bash shell is\n'
-                     'preferred, consider using msysgit instead (see\n'
-                     'https://msysgit.github.io).\n')
-    raise RuntimeError('Unsupported platform: %s' % sys.platform)
-
-  return host_os_names[sys.platform]
 
 
 def _ParseCommandLineArguments(argv):
@@ -67,17 +46,14 @@ def _ParseCommandLineArguments(argv):
       formatter_class=argparse.RawDescriptionHelpFormatter,
       description=textwrap.dedent(__doc__))
 
-  default_config, _ = build.GetDefaultConfigAndPlatform()
   parser.add_argument('-C', '--config', dest='build_configs', metavar='CONFIG',
-                      action='append',
-                      choices=config.GetAll(),
-                      default=[default_config] if default_config else [],
+                      action='append', default=[], choices=config.GetAll(),
                       help='Specifies build configurations. Supported '
                       'configurations are %s. Can be specified multiple '
                       'times, creates all configurations if nothing is '
                       'given.' % _ListAsString(config.GetAll()))
 
-  gyp_debug_options = gyp_utils.GypDebugOptions()
+  gyp_debug_options = build.GypDebugOptions()
   parser.add_argument('-D', '--debug', dest='debug', metavar='DEBUGMODE',
                       action='append', default=[],
                       choices=gyp_debug_options + ['all'],
@@ -90,198 +66,63 @@ def _ParseCommandLineArguments(argv):
   parser.add_argument('-v', '--verbose', dest='verbose_count',
                       default=0, action='count',
                       help='Verbose level (multiple times for more).')
-  # TODO: Figure out how to set a default platform, which probably means making
-  # platform no longer be a positional argument.
   parser.add_argument('platform', choices=platform.GetAll(),
                       metavar='platform',
                       help='Target platform. Supported platforms are: %s.' % (
                           _ListAsString(platform.GetAll())))
   parser.add_argument('build_file', nargs='?',
-                      default=os.path.join(SCRIPT_DIR, 'all.gyp'),
+                      default=None,
                       help='GYP build file. Uses all.gyp if nothing is given.')
 
   options = parser.parse_args(argv)
-
-  if options.build_configs:
-    # Get rid of duplicates.
-    options.build_configs = list(set(options.build_configs))
-  else:
-    options.build_configs = config.GetAll()
-
+  options.application = cobalt_configuration.APPLICATION_NAME
   return options
 
 
-def _AppendIncludes(includes, args):
-  for include in includes:
-    args.append('-I{}'.format(include))
-
-
-def _AppendVariables(variables, args):
-  for var in variables:
-    args.append('-D{}={}'.format(var, variables[var]))
-
-
-def _AppendGeneratorVariables(variables, args):
-  for var in variables:
-    args.append('-G{}={}'.format(var, variables[var]))
-
-
-def _SetupLogging(options):
+def _SetupLogging():
   logging_level = logging.WARNING
-  if options.verbose_count == 1:
-    logging_level = logging.INFO
-  elif options.verbose_count >= 2:
-    logging_level = logging.DEBUG
-
   logging_format = '%(message)s'
-  logging.basicConfig(level=logging_level,
-                      format=logging_format)
+  logging.basicConfig(level=logging_level, format=logging_format)
 
 
-class _GypRunner(object):
-  """Responsible for running GYP."""
+def _SetLogLevel(verbose_count):
+  logging_level = logging.WARNING
+  if verbose_count == 1:
+    logging_level = logging.INFO
+  elif verbose_count >= 2:
+    logging_level = logging.DEBUG
+  logging.getLogger().setLevel(logging_level)
 
-  def __init__(self, options):
-    self.options = options
-    self.common_args = []
-    self.platform_config = build_config.GetPlatformConfig(options.platform)
-    if not self.platform_config:
-      raise RuntimeError('Unable to load platform configuration.')
-
-    os.environ.update(self.platform_config.GetEnvironmentVariables())
-    self._MakeCommonArguments()
-
-  def BuildConfig(self, config_name):
-    """Builds the GYP file for a given config."""
-
-    # Make a copy of the common arguments.
-    args = self.common_args[:]
-
-    variables = {
-        # Add config specific variables.
-        'cobalt_config': config_name,
-        # Default deploy script. Certain platforms may choose to change this.
-        'include_path_platform_deploy_gypi': 'starboard/build/deploy.gypi'
-    }
-    variables.update(self.platform_config.GetVariables(config_name))
-    _AppendVariables(variables, args)
-
-    # Add the symbolizer path for ASAN to allow translation of callstacks.
-    asan_symbolizer_path = ''
-    if variables.get('use_asan', 0) == 1:
-      compiler_commandline = shlex.split(os.environ.get('CC', ''))
-      for path in compiler_commandline:
-        if os.path.isfile(path):
-          test_path = os.path.join(os.path.dirname(path), 'llvm-symbolizer')
-          if os.path.isfile(test_path):
-            asan_symbolizer_path = test_path
-            break
-    asan_variables = {
-      'asan_symbolizer_path': asan_symbolizer_path,
-    }
-    _AppendVariables(asan_variables, args)
-
-    # Add config specific generator variables.
-    generator_config = '{}_{}'.format(self.options.platform, config_name)
-
-    generator_variables = {
-        'config': generator_config,
-    }
-    generator_variables.update(
-        self.platform_config.GetGeneratorVariables(config_name))
-    _AppendGeneratorVariables(generator_variables, args)
-
-    # That target build file goes last.
-    args.append(self.options.build_file)
-
-    gyp = gyp_utils.GetGyp()
-    return gyp.main(args)
-
-  def _MakeCommonArguments(self):
-    """Makes a list of GYP arguments that is common to all configurations."""
-
-    # Flavor will be used by the generator to figure out the target platform.
-    flavor = self.platform_config.GetBuildFlavor()
-    source_tree_dir = paths.REPOSITORY_ROOT
-    self.common_args = [
-        # Set the build format
-        '--format={}-{}'.format(self.platform_config.GetBuildFormat(), flavor),
-        # Set the depth argument to the top level directory. This will define
-        # the DEPTH variable which is the relative path between the directory
-        # containing the processed build file and the top level directory.
-        '--depth={}'.format(source_tree_dir),
-        # Set the top of the source tree.
-        '--toplevel-dir={}'.format(source_tree_dir),
-    ]
-
-    # Add the source tree root to the Python path so that build files can
-    # easily reference other build files in the source tree.
-    sys.path.append(source_tree_dir)
-
-    # Pass through the debug options.
-    for debug in self.options.debug:
-      self.common_args.append('--debug=%s' % debug)
-
-    if self.options.check:
-      self.common_args.append('--check')
-
-    # Append GYP variables
-    variables = {
-        'OS': 'starboard',
-        'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
-        'cobalt_version': gyp_utils.GetBuildNumber(),
-        'host_os': _GetHostOS(),
-        'CC_HOST': os.environ.get('CC_HOST', os.environ.get('CC','')),
-    }
-
-    platform_name = self.platform_config.platform
-    if platform.IsValid(platform_name):
-      full_starboard_path = platform.Get(platform_name).path
-      assert full_starboard_path[:len(source_tree_dir)] == source_tree_dir
-      starboard_path = full_starboard_path[len(source_tree_dir) + 1:]
-      starboard_path = starboard_path.replace(os.sep, '/')
-      assert starboard_path[0] not in [ os.sep, os.altsep ]
-      variables['starboard_path'] = starboard_path
-    _AppendVariables(variables, self.common_args)
-
-    # Append generator variables.
-    generator_variables = {
-        # set output folder name, affects all generators but MSVS
-        'output_dir': 'out',
-    }
-    _AppendGeneratorVariables(generator_variables, self.common_args)
-
-    # Append GYPI includes which will be includes by GYP before any processed
-    # build file.
-    gyp_includes = [
-        os.path.join(SCRIPT_DIR, 'config', 'base.gypi'),
-        # TODO: Consider removing dependency on common.gypi
-        # going forward by moving the required bits into config/base.gypi.
-        os.path.join(source_tree_dir, 'build', 'common.gypi'),
-    ]
-    gyp_includes.extend(self.platform_config.GetIncludes())
-    _AppendIncludes(gyp_includes, self.common_args)
-
+def _GetBuildConfigs(build_configs):
+  if build_configs:
+    return build_configs
+  else:
+    default_config, _ = build.GetDefaultConfigAndPlatform()
+    if default_config:
+      return default_config
+    else:
+      return config.GetAll()
 
 def main(argv):
+  _SetupLogging()
+  options = _ParseCommandLineArguments(argv)
+  _SetLogLevel(options.verbose_count)
+
   if os.environ.get('GYP_DEFINES'):
     logging.error('GYP_DEFINES environment variable is not supported.')
     return RETVAL_ERROR
 
-  options = _ParseCommandLineArguments(argv)
-  _SetupLogging(options)
-
   try:
-    gyp_runner = _GypRunner(options)
+    gyp_runner = GypRunner(options)
   except RuntimeError as e:
     logging.error(e)
     return RETVAL_ERROR
 
-  for config_name in options.build_configs:
-    logging.info('Building config: %s.', config_name)
+  for config_name in _GetBuildConfigs(options.build_configs):
+    logging.info('Building config: %s', config_name)
     gyp_return = gyp_runner.BuildConfig(config_name)
     if gyp_return:
-      logging.error('Gyp failed with error code %d.', gyp_return)
+      logging.error('GYP failed with error code %d.', gyp_return)
       return gyp_return
 
   logging.info('Done.')

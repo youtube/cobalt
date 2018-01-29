@@ -8,8 +8,6 @@
 
 #define TEST(name) { name, #name }
 
-#define TEST_NEW_FAILURES 0
-
 static void skpcheeseandburger_com225(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -368,7 +366,7 @@ static void skpcheeseandburger_com225(skiatest::Reporter* reporter, const char* 
     pathB.lineTo(716.868225f, 365.046783f);
     pathB.cubicTo(716.868225f, 363.740021f, 716.960083f, 363.043213f, 717.597961f, 362);
     pathB.cubicTo(715.331848f, 363.104095f, 714.19873f, 363.657166f, 711.928711f, 364.782227f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpeverytechpro_blogspot_com100(skiatest::Reporter* reporter, const char* filename) {
@@ -402,7 +400,7 @@ static void skpeverytechpro_blogspot_com100(skiatest::Reporter* reporter, const 
     pathB.lineTo(1075, 628);
     pathB.lineTo(1116.5f, 644.5f);
     pathB.lineTo(1134, 627);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpflite_com41(skiatest::Reporter* reporter, const char* filename) {
@@ -425,7 +423,7 @@ static void skpflite_com41(skiatest::Reporter* reporter, const char* filename) {
     pathB.lineTo(304.510101f, 438.724121f);
     pathB.lineTo(295.849854f, 433.724121f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpilkoora_com37(skiatest::Reporter* reporter, const char* filename) {
@@ -457,7 +455,7 @@ static void skpilkoora_com37(skiatest::Reporter* reporter, const char* filename)
     pathB.lineTo(1001.5f, 325.5f);
     pathB.lineTo(1001.5f, 782.5f);
     pathB.lineTo(1185, 966);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpmm4everfriends_com43(skiatest::Reporter* reporter, const char* filename) {
@@ -480,7 +478,7 @@ static void skpmm4everfriends_com43(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(576.435852f, 247.626068f);
     pathB.lineTo(535.280823f, 235.165573f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpmtrk_uz27(skiatest::Reporter* reporter, const char* filename) {
@@ -507,7 +505,7 @@ static void skpmtrk_uz27(skiatest::Reporter* reporter, const char* filename) {
     pathB.quadTo(41.7867432f, 802, 37.3919678f, 797.608032f);
     pathB.quadTo(33, 793.213196f, 33, 787);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpfrauen_magazin_com83(skiatest::Reporter* reporter, const char* filename) {
@@ -531,7 +529,7 @@ static void skpfrauen_magazin_com83(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(803, 891);
     pathB.cubicTo(803, 888.238586f, 805.238586f, 886, 808, 886);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpi_gino_com16(skiatest::Reporter* reporter, const char* filename) {
@@ -556,7 +554,7 @@ static void skpi_gino_com16(skiatest::Reporter* reporter, const char* filename) 
     pathB.cubicTo(61, 789.06897f, 116.068977f, 734, 184, 734);
     pathB.lineTo(185, 734);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skppchappy_com_au102(skiatest::Reporter* reporter, const char* filename) {
@@ -584,7 +582,7 @@ static void skppchappy_com_au102(skiatest::Reporter* reporter, const char* filen
     pathB.lineTo(359, 496);
     pathB.cubicTo(359, 494.895416f, 360.34314f, 494, 362, 494);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpsciality_com161(skiatest::Reporter* reporter, const char* filename) {
@@ -612,7 +610,7 @@ static void skpsciality_com161(skiatest::Reporter* reporter, const char* filenam
     pathB.lineTo(652, 731);
     pathB.cubicTo(652, 729.895447f, 653.34314f, 729, 655, 729);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpsudoestenegocios_com186(skiatest::Reporter* reporter, const char* filename) {
@@ -642,7 +640,7 @@ static void skpsudoestenegocios_com186(skiatest::Reporter* reporter, const char*
     pathB.lineTo(24, 471);
     pathB.lineTo(24, 317);
     pathB.lineTo(48, 293);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpthesuburbanite_com213(skiatest::Reporter* reporter, const char* filename) {
@@ -663,7 +661,7 @@ static void skpthesuburbanite_com213(skiatest::Reporter* reporter, const char* f
     pathB.lineTo(866.016724f, 701.620361f);
     pathB.lineTo(785.84491f, 723.102356f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skphostloco_com11(skiatest::Reporter* reporter, const char* filename) {
@@ -686,7 +684,7 @@ static void skphostloco_com11(skiatest::Reporter* reporter, const char* filename
     pathB.lineTo(30, 648);
     pathB.lineTo(0, 648);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpsergeychunkevich_com8(skiatest::Reporter* reporter, const char* filename) {
@@ -708,7 +706,7 @@ static void skpsergeychunkevich_com8(skiatest::Reporter* reporter, const char* f
     pathB.lineTo(34, 371);
     pathB.cubicTo(35.6568565f, 371, 37, 372.34314f, 37, 374);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skptracksflow_com9(skiatest::Reporter* reporter, const char* filename) {
@@ -742,7 +740,7 @@ static void skptracksflow_com9(skiatest::Reporter* reporter, const char* filenam
     pathB.cubicTo(26.0091248f, 64.2129364f, 24.2174377f, 66.0046234f, 22.0072803f, 66.0046234f);
     pathB.cubicTo(19.7970943f, 66.0045929f, 18.0054054f, 64.2129059f, 18.0054054f, 62.0027809f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpautobutler_dk29(skiatest::Reporter* reporter, const char* filename) {
@@ -761,7 +759,7 @@ static void skpautobutler_dk29(skiatest::Reporter* reporter, const char* filenam
     pathB.lineTo(8.57224448e-15f, 301);
     pathB.lineTo(6.12303177e-17f, 162);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skponlinecollege_org144(skiatest::Reporter* reporter, const char* filename) {
@@ -789,7 +787,7 @@ static void skponlinecollege_org144(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(177, 410);
     pathB.cubicTo(177, 408.895416f, 177.895432f, 408, 179, 408);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpnational_com_au81(skiatest::Reporter* reporter, const char* filename) {
@@ -815,7 +813,7 @@ static void skpnational_com_au81(skiatest::Reporter* reporter, const char* filen
     pathB.lineTo(806, 818);
     pathB.cubicTo(806, 817.447693f, 806.447693f, 817, 807, 817);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skprentacheat_com30(skiatest::Reporter* reporter, const char* filename) {
@@ -841,7 +839,7 @@ static void skprentacheat_com30(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(966, 264);
     pathB.cubicTo(966, 263.447723f, 966.447693f, 263, 967, 263);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpbreakmystyle_com10(skiatest::Reporter* reporter, const char* filename) {
@@ -870,7 +868,7 @@ static void skpbreakmystyle_com10(skiatest::Reporter* reporter, const char* file
     pathB.quadTo(231.516815f, -40, 279.258392f, 7.74160004f);
     pathB.quadTo(327, 55.4831848f, 327, 123);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpsd_graphic_net104(skiatest::Reporter* reporter, const char* filename) {
@@ -895,22 +893,9 @@ static void skpsd_graphic_net104(skiatest::Reporter* reporter, const char* filen
     pathB.lineTo(390.578583f, 867.014099f);
     pathB.lineTo(433, 852.000061f);
     pathB.lineTo(490.435486f, 879.40741f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-/* this cubic/quad pair
- c = 430,280 430,278.895416 473.876068,278 528,278
- q = 430,280 430.009796,277.101196 458.703552,275.050262
- only intersect at the shared point (430,280)
- they sort backwards because the tangent from pt[0] to control pt[1]
- c' = (0.00000000000000000, -1.1045837402343750)
- q' = (0.0097961425781250000, -2.8988037109375000)
- suggests that the quad is counterclockwise of the cubic, when the reverse is true
- the angle code is fooled because the control pt[1] of both the quad and cubic
- is far away from cubic cntl [2] and quad pt [2].
- Maybe in angle setup, this instability can be detected to suppress sorting on the initial tangent
- Or the error term can be passed to NearRay that is magnified by the distance from the next ctrl?
- */
 static void skpnaoxrane_ru23(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -940,14 +925,9 @@ static void skpnaoxrane_ru23(skiatest::Reporter* reporter, const char* filename)
     pathB.lineTo(430, 280);
     pathB.cubicTo(430, 278.895416f, 473.876068f, 278, 528, 278);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-/* didn't investigate thoroughly, but looks to be missorting quad and cubic
-    {{468.507751,560.724426}, {467.275146,552.856262}, {465.84668,547.288391}}
-    {{463.779907,542.671143}, {464.829529,542.672974}, {466.946289,550.755676}, {468.507751,560.724426}}
-    decision maker is case 14 leftLessThanRight
- */
 static void skptcmevents_org23(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -973,7 +953,7 @@ static void skptcmevents_org23(skiatest::Reporter* reporter, const char* filenam
     pathB.lineTo(325.968597f, 560.475708f);
     pathB.cubicTo(324.407104f, 550.506958f, 341.01001f, 542.456909f, 363.052246f, 542.495361f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpredbullskatearcade_es16(skiatest::Reporter* reporter, const char* filename) {
@@ -1004,7 +984,7 @@ static void skpredbullskatearcade_es16(skiatest::Reporter* reporter, const char*
     pathB.lineTo(652.258179f, 468.503662f);
     pathB.cubicTo(652.520996f, 463.401611f, 656.829834f, 459.128235f, 661.882263f, 458.958862f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpfinanzasdigital_com9(skiatest::Reporter* reporter, const char* filename) {
@@ -1030,7 +1010,7 @@ static void skpfinanzasdigital_com9(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(153, 130);
     pathB.cubicTo(153, 127.790863f, 154.34314f, 126, 156, 126);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skppartainasdemo250_org56(skiatest::Reporter* reporter, const char* filename) {
@@ -1053,7 +1033,7 @@ static void skppartainasdemo250_org56(skiatest::Reporter* reporter, const char* 
     pathB.lineTo(206.748749f, 634.748718f);
     pathB.lineTo(182.000015f, 610);
     pathB.lineTo(132.502533f, 610);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpmlk_com326(skiatest::Reporter* reporter, const char* filename) {
@@ -1081,7 +1061,7 @@ static void skpmlk_com326(skiatest::Reporter* reporter, const char* filename) {
     pathB.lineTo(149, 675);
     pathB.cubicTo(149, 672.790833f, 151.238571f, 671, 154, 671);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpcyclist_friends_gr52(skiatest::Reporter* reporter, const char* filename) {
@@ -1107,10 +1087,9 @@ static void skpcyclist_friends_gr52(skiatest::Reporter* reporter, const char* fi
     pathB.cubicTo(52.238575f, 207, 50, 204.761429f, 50, 202);
     pathB.lineTo(50, 183);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-/* cubic ends just above opp line */
 static void skpwww_fj_p_com_22(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1127,10 +1106,9 @@ static void skpwww_fj_p_com_22(skiatest::Reporter* reporter, const char* filenam
     pathB.lineTo(161, 199);
     pathB.lineTo(223, 199.000015f);
     pathB.lineTo(223, 202);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// pair of lines are not quite coincident, so sorting line/cubic fails (i think)
 static void skpwww_lavoixdunord_fr_11(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1160,12 +1138,9 @@ static void skpwww_lavoixdunord_fr_11(skiatest::Reporter* reporter, const char* 
     pathB.lineTo(808, 56);
     pathB.lineTo(935.02002f, 56.0200005f);
     pathB.lineTo(933, 54);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// pair of curves have nearly the same initial tangent but are sorting by
-// that alone sorts them incorrectly. Need to detect that tangents are nearly
-// identical and not reliable by themselves
 static void skppptv_com_62(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1189,10 +1164,9 @@ static void skppptv_com_62(skiatest::Reporter* reporter, const char* filename) {
     pathB.lineTo(169, 5346);
     pathB.cubicTo(169, 5343.79102f, 170.790863f, 5342, 173, 5342);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// nearly identical to lavoixdunord -- to not-quite-coincident lines
 static void skpwww_booking_com_68(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1222,10 +1196,9 @@ static void skpwww_booking_com_68(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(92, 186);
     pathB.lineTo(593.02002f, 186.020004f);
     pathB.lineTo(591, 184);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// visually looks like lavoixdunord and www_booking_com
 static void skpwww_despegar_com_mx_272(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1255,7 +1228,7 @@ static void skpwww_despegar_com_mx_272(skiatest::Reporter* reporter, const char*
     pathB.lineTo(833, 1787);
     pathB.lineTo(832.97998f, 1817.02002f);
     pathB.lineTo(835, 1815);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_joomla_org_23(skiatest::Reporter* reporter, const char* filename) {
@@ -1283,7 +1256,7 @@ static void skpwww_joomla_org_23(skiatest::Reporter* reporter, const char* filen
     pathB.lineTo(320, 378);
     pathB.lineTo(421, 378.000031f);
     pathB.lineTo(421, 383);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_macrumors_com_131(skiatest::Reporter* reporter, const char* filename) {
@@ -1309,7 +1282,7 @@ static void skpwww_macrumors_com_131(skiatest::Reporter* reporter, const char* f
     pathB.cubicTo(137.790863f, 14093, 136, 14091.209f, 136, 14089);
     pathB.lineTo(136, 14057);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_leadpages_net_84(skiatest::Reporter* reporter, const char* filename) {
@@ -1330,7 +1303,7 @@ static void skpwww_leadpages_net_84(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(378.481873f, 5909);
     pathB.lineTo(379.999878f, 5976);
     pathB.lineTo(376, 5976);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_briian_com_34(skiatest::Reporter* reporter, const char* filename) {
@@ -1362,7 +1335,7 @@ static void skpwww_briian_com_34(skiatest::Reporter* reporter, const char* filen
     pathB.lineTo(843, 779);
     pathB.lineTo(1196, 779.000061f);
     pathB.lineTo(1196, 784);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_sciality_com_100(skiatest::Reporter* reporter, const char* filename) {
@@ -1390,7 +1363,7 @@ static void skpwww_sciality_com_100(skiatest::Reporter* reporter, const char* fi
     pathB.cubicTo(158, 469.34314f, 159.34314f, 468, 161, 468);
     pathB.lineTo(275, 468);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_sciality_com_101(skiatest::Reporter* reporter, const char* filename) {
@@ -1418,7 +1391,7 @@ static void skpwww_sciality_com_101(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(158, 471);
     pathB.cubicTo(158, 469.895416f, 159.34314f, 469, 161, 469);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_meb_gov_tr_5(skiatest::Reporter* reporter, const char* filename) {
@@ -1441,7 +1414,7 @@ static void skpwww_meb_gov_tr_5(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(250, 177);
     pathB.lineTo(135, 177);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_meb_gov_tr_6(skiatest::Reporter* reporter, const char* filename) {
@@ -1467,7 +1440,7 @@ static void skpwww_meb_gov_tr_6(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(135, 151);
     pathB.cubicTo(135, 146.581726f, 138.581726f, 143, 143, 143);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpgithub_io_25(skiatest::Reporter* reporter, const char* filename) {
@@ -1499,7 +1472,7 @@ static void skpgithub_io_25(skiatest::Reporter* reporter, const char* filename) 
     pathB.lineTo(1003, 18);
     pathB.cubicTo(1003, 16.8954296f, 1003.89545f, 16, 1005, 16);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpgithub_io_26(skiatest::Reporter* reporter, const char* filename) {
@@ -1535,7 +1508,7 @@ static void skpgithub_io_26(skiatest::Reporter* reporter, const char* filename) 
     pathB.lineTo(1106, 16);
     pathB.lineTo(1105.97998f, 46.0200005f);
     pathB.lineTo(1108, 44);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpskpicture14(skiatest::Reporter* reporter, const char* filename) {
@@ -1558,7 +1531,7 @@ static void skpskpicture14(skiatest::Reporter* reporter, const char* filename) {
     pathB.lineTo(323, 193);
     pathB.lineTo(-317, 193);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpskpicture15(skiatest::Reporter* reporter, const char* filename) {
@@ -1582,14 +1555,9 @@ static void skpskpicture15(skiatest::Reporter* reporter, const char* filename) {
     pathB.lineTo(-317, 168);
     pathB.cubicTo(-317, 166.34314f, -315.65686f, 165, -314, 165);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-/* Three edges are partially coincident. Only one of the three knows about the other two.
-   Subsequently, when the angle loop is created, it misses one of the edges.
-   After coincident edges are processed, probably need a check-and-correct that makes sure the
-   coincidences are all self-consistent.
- */
 static void skpelpais_com_18(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1605,16 +1573,9 @@ static void skpelpais_com_18(skiatest::Reporter* reporter, const char* filename)
     pathB.lineTo(183, 8506.99023f);
     pathB.lineTo(552, 8507);
     pathB.lineTo(552, 8508);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-/* this generates a pair of lines that are essentially coincident; but the next line at a right
-   angle is not treated as if it intersects at the same point.
-   There are several of options:
-     move the intersection of the right angle line to the coincident point (should 'near' do this?
-     construct another coincident pair from the right angle line to the coincident point
-     treat the intersection as simple and not coincident
- */
 static void skpnamecheap_com_405(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1630,10 +1591,9 @@ static void skpnamecheap_com_405(skiatest::Reporter* reporter, const char* filen
     pathB.lineTo(141.008835f, 837.9646f);
     pathB.lineTo(141.235291f, 1109.05884f);
     pathB.lineTo(140, 1114);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// fails on angle insert -- haven't investigated yet
 static void skpwww_alrakoba_net_62(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1656,10 +1616,9 @@ static void skpwww_alrakoba_net_62(skiatest::Reporter* reporter, const char* fil
     pathB.lineTo(135.962357f, 9800);
     pathB.lineTo(140, 9830);
     pathB.lineTo(132, 9830);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-/* asserts in alignSpanState looks like a coincident related bug */
 static void skpwww_cityads_ru_249(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1693,10 +1652,9 @@ static void skpwww_cityads_ru_249(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(1000, 13);
     pathB.lineTo(999.969971f, 37.0299988f);
     pathB.lineTo(1003, 34);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// fails on angle insert
 static void skpwww_dealnews_com_315(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1720,10 +1678,9 @@ static void skpwww_dealnews_com_315(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(967.716675f, 4260);
     pathB.lineTo(970, 4281);
     pathB.lineTo(965, 4281);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// fails in intersections insert
 static void skpwww_inmotionhosting_com_9(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1743,7 +1700,7 @@ static void skpwww_inmotionhosting_com_9(skiatest::Reporter* reporter, const cha
     pathB.lineTo(1018.73242f, 1894.26501f);
     pathB.lineTo(963.734985f, 1893.73242f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_alucinados_net_101(skiatest::Reporter* reporter, const char* filename) {
@@ -1765,10 +1722,9 @@ static void skpwww_alucinados_net_101(skiatest::Reporter* reporter, const char* 
     pathB.lineTo(-43515.8555f, -177415.594f);
     pathB.lineTo(1129.76465f, 1173.05884f);
     pathB.lineTo(1131, 1178);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// /SkOpContour.cpp:278: failed assertion "!approximately_negative(oEndT - oStartT)
 static void skpwww_hairjobsearch_com_31(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1786,10 +1742,9 @@ static void skpwww_hairjobsearch_com_31(skiatest::Reporter* reporter, const char
     pathB.lineTo(144, 0);
     pathB.lineTo(1122, 0);
     pathB.lineTo(1123, 1);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkOpSegment::checkSmallCoincidence; line 1958 SkASSERT(span.fWindValue);
 static void skpwww_heartiste_wordpress_com_86(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1805,7 +1760,7 @@ static void skpwww_heartiste_wordpress_com_86(skiatest::Reporter* reporter, cons
     pathB.lineTo(741, 9431.99023f);
     pathB.lineTo(761, 9432);
     pathB.lineTo(761, 9433);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_argus_presse_fr_41(skiatest::Reporter* reporter, const char* filename) {
@@ -1824,10 +1779,9 @@ static void skpwww_argus_presse_fr_41(skiatest::Reporter* reporter, const char* 
     pathB.lineTo(1000, 364.869904f);
     pathB.lineTo(165, 364.869904f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkOpSegment::checkSmallCoincidence; line 1958 SkASSERT(span.fWindValue);
 static void skpwww_320kbps_net_2231(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1843,10 +1797,9 @@ static void skpwww_320kbps_net_2231(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(838, 9124.99023f);
     pathB.lineTo(862, 9125);
     pathB.lineTo(862, 9126);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// debugValidateLoop loop sum fails
 static void skpwww_exystence_net_61(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1862,10 +1815,9 @@ static void skpwww_exystence_net_61(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(143, 9073.99023f);
     pathB.lineTo(316, 9074);
     pathB.lineTo(316, 9075);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// debugValidateLoop loop sum fails
 static void skpwww_trashness_com_36(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1881,10 +1833,9 @@ static void skpwww_trashness_com_36(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(91.5f, 4835.99512f);
     pathB.lineTo(541.5f, 4836);
     pathB.lineTo(541.5f, 4836.5f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkIntersections::lineVertical fUsed >= fMax
 static void skpwww_getgold_jp_731(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1903,10 +1854,9 @@ static void skpwww_getgold_jp_731(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(286.05957f, 10129.8809f);
     pathB.lineTo(285.399994f, 10216.2002f);
     pathB.lineTo(284, 10219);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkOpContour::calcPartialCoincidentWinding SkASSERT(!approximately_negative(endT - startT));
 static void skpwww_maturesupertube_com_21(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1944,10 +1894,9 @@ static void skpwww_maturesupertube_com_21(skiatest::Reporter* reporter, const ch
     pathB.lineTo(4.5f, 11832.5f);
     pathB.lineTo(1260.5f, 11832.5f);
     pathB.lineTo(1263, 11830);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// can't find winding of remaining vertical edges
 static void skpwww_hubbyscook_com_22(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -1973,7 +1922,7 @@ static void skpwww_hubbyscook_com_22(skiatest::Reporter* reporter, const char* f
     pathB.quadTo(1005.02942f, 920, 1001.51471f, 917.071045f);
     pathB.quadTo(998, 914.142151f, 998, 910);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
 static void skpwww_gruposejaumdivulgador_com_br_4(skiatest::Reporter* reporter, const char* filename) {
@@ -1992,10 +1941,9 @@ static void skpwww_gruposejaumdivulgador_com_br_4(skiatest::Reporter* reporter, 
     pathB.lineTo(1084, 469);
     pathB.lineTo(611, 469);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// asserts in bridgeOp simple->isClosed()
 static void skpwww_phototransferapp_com_24(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2018,7 +1966,7 @@ static void skpwww_phototransferapp_com_24(skiatest::Reporter* reporter, const c
     pathB.lineTo(1219.10657f, 13);
     pathB.lineTo(80.1065979f, 13);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_phototransferapp_com_24x(skiatest::Reporter* reporter, const char* filename) {
@@ -2043,7 +1991,7 @@ static void skpwww_phototransferapp_com_24x(skiatest::Reporter* reporter, const 
     pathB.lineTo(119.10657f, 13);
     pathB.lineTo(80.1065979f, 13);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_helha_be_109(skiatest::Reporter* reporter, const char* filename) {
@@ -2065,7 +2013,7 @@ static void skpwww_helha_be_109(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(117.686981f, 3339.08423f);
     pathB.lineTo(98.4669647f, 3351.56104f);
     pathB.lineTo(104.291214f, 3359.87891f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_cooksnaps_com_32(skiatest::Reporter* reporter, const char* filename) {
@@ -2117,7 +2065,7 @@ static void skpwww_cooksnaps_com_32(skiatest::Reporter* reporter, const char* fi
     pathB.quadTo(509.696686f, 241.450104f, 497.29361f, 238.126709f);
     pathB.quadTo(484.890533f, 234.803314f, 478.470215f, 223.683014f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_cooksnaps_com_32a(skiatest::Reporter* reporter, const char* filename) {
@@ -2133,10 +2081,9 @@ static void skpwww_cooksnaps_com_32a(skiatest::Reporter* reporter, const char* f
     pathB.quadTo(478.196686f, 186.890503f, 489.316986f, 180.4702f);
     pathB.lineTo(490.183014f, 179.9702f);
     pathB.quadTo(501.303345f, 173.549896f, 513.706421f, 176.873276f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// !simple->isClosed()
 static void skpwww_contextualnewsfeeds_com_346(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2157,10 +2104,9 @@ static void skpwww_contextualnewsfeeds_com_346(skiatest::Reporter* reporter, con
     pathB.lineTo(458.828979f, 1203.67822f);
     pathB.lineTo(465.914215f, 1196.62122f);
     pathB.lineTo(467.32843f, 1198.03552f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// line quad intersection SkIntersections::assert
 static void skpwww_pindosiya_com_99(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2179,10 +2125,9 @@ static void skpwww_pindosiya_com_99(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(901.086914f, 547);
     pathB.lineTo(899, 556);
     pathB.lineTo(898, 556);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkOpAngle::setSector SkASSERT(fSectorStart >= 0);
 static void skpwww_karnivool_com_au_11(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2199,7 +2144,7 @@ static void skpwww_karnivool_com_au_11(skiatest::Reporter* reporter, const char*
     pathB.lineTo(427, 1081);
     pathB.lineTo(-3.81469727e-06f, 1081);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_tunero_de_24(skiatest::Reporter* reporter, const char* filename) {
@@ -2238,7 +2183,7 @@ static void skpwww_tunero_de_24(skiatest::Reporter* reporter, const char* filena
     pathB.quadTo(1013.13599f, 2273, 1012.06104f, 2271.53564f);
     pathB.quadTo(1010.98615f, 2270.07104f, 1011.53705f, 2268);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_docgelo_com_66(skiatest::Reporter* reporter, const char* filename) {
@@ -2256,7 +2201,7 @@ static void skpwww_docgelo_com_66(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(22.5f, 24174.498f);
     pathB.lineTo(185.5f, 24174.5f);
     pathB.lineTo(185.5f, 24174.75f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_kpopexplorer_net_22(skiatest::Reporter* reporter, const char* filename) {
@@ -2284,7 +2229,7 @@ static void skpwww_kpopexplorer_net_22(skiatest::Reporter* reporter, const char*
     pathB.quadTo(1005.02942f, 884, 1001.51471f, 881.071045f);
     pathB.quadTo(998, 878.142151f, 998, 874);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
 static void skpwww_artblart_com_8(skiatest::Reporter* reporter, const char* filename) {
@@ -2302,10 +2247,9 @@ static void skpwww_artblart_com_8(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(22.5f, 24527.248f);
     pathB.lineTo(45, 24527.25f);
     pathB.lineTo(45, 24527.5f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// joinCoincidence / findT / assert
 static void skpwww_jessicaslens_wordpress_com_222(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2331,10 +2275,9 @@ static void skpwww_jessicaslens_wordpress_com_222(skiatest::Reporter* reporter, 
     pathB.quadTo(1005.02942f, 862, 1001.51471f, 859.071045f);
     pathB.quadTo(998, 856.142151f, 998, 852);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-// joinCoincidence / findT / assert
 static void skpwww_simplysaru_com_40(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2360,10 +2303,9 @@ static void skpwww_simplysaru_com_40(skiatest::Reporter* reporter, const char* f
     pathB.quadTo(1005.02942f, 884, 1001.51471f, 881.071045f);
     pathB.quadTo(998, 878.142151f, 998, 874);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-// cubic-cubic intersection reduce checkLinear assert
 static void skpwww_partsdata_de_53(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2659,10 +2601,9 @@ static void skpwww_partsdata_de_53(skiatest::Reporter* reporter, const char* fil
     pathB.cubicTo(631.989807f, 46.6754761f, 632.04364f, 47.0436478f, 632.04364f, 47.4595947f);
     pathB.cubicTo(632.042847f, 47.949852f, 631.916565f, 48.3282623f, 631.656494f, 48.6171875f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkOpAngle::setSector SkASSERT(fSectorStart >= 0);
 static void skpwww_seopack_blogspot_com_2153(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2683,10 +2624,9 @@ static void skpwww_seopack_blogspot_com_2153(skiatest::Reporter* reporter, const
     pathB.lineTo(924, 245.472672f);
     pathB.lineTo(1143, 247);
     pathB.lineTo(1143, 248);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// joinCoincidence / findT / assert
 static void skpwww_lokado_de_173(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2720,10 +2660,9 @@ static void skpwww_lokado_de_173(skiatest::Reporter* reporter, const char* filen
     pathB.quadTo(951.857849f, 916, 948.928955f, 913.071045f);
     pathB.quadTo(946, 910.142151f, 946, 906);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-// !simple->isClosed()
 static void skpwww_wartepop_blogspot_com_br_6(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2753,7 +2692,7 @@ static void skpwww_wartepop_blogspot_com_br_6(skiatest::Reporter* reporter, cons
     pathB.lineTo(90, 163.666672f);
     pathB.lineTo(90, 163.666672f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
 static void skpwww_wartepop_blogspot_com_br_6a(skiatest::Reporter* reporter, const char* filename) {
@@ -2785,10 +2724,9 @@ static void skpwww_wartepop_blogspot_com_br_6a(skiatest::Reporter* reporter, con
     pathB.lineTo(90, 163.666672f);
     pathB.lineTo(90, 163.666672f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-// !simple->isClosed()
 static void skpwww_odia_com_br_26(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2833,7 +2771,7 @@ static void skpwww_odia_com_br_26(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(364.345337f, 754.288269f);
     pathB.lineTo(352.711792f, 751.345337f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_evolvehq_com_210(skiatest::Reporter* reporter, const char* filename) {
@@ -2869,10 +2807,9 @@ static void skpwww_evolvehq_com_210(skiatest::Reporter* reporter, const char* fi
     pathB.quadTo(171.17157f, 1174, 170.585785f, 1173.12134f);
     pathB.quadTo(170, 1172.24268f, 170, 1171);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
-// hangs
 static void skpwww_catingueiraonline_com_352(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2888,10 +2825,9 @@ static void skpwww_catingueiraonline_com_352(skiatest::Reporter* reporter, const
     pathB.lineTo(444.01001f, 8140);
     pathB.lineTo(444, 8292);
     pathB.lineTo(443, 8292);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// hangs
 static void skpwww_galaxystwo_com_4(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -2907,7 +2843,7 @@ static void skpwww_galaxystwo_com_4(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(10105, 2509.98999f);
     pathB.lineTo(10123, 2510);
     pathB.lineTo(10123, 2511);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_thaienews_blogspot_com_36(skiatest::Reporter* reporter, const char* filename) {
@@ -2925,7 +2861,7 @@ static void skpwww_thaienews_blogspot_com_36(skiatest::Reporter* reporter, const
     pathB.lineTo(429.994995f, 2187);
     pathB.lineTo(430, 6268);
     pathB.lineTo(430.5f, 6268);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_fashionscandal_com_94(skiatest::Reporter* reporter, const char* filename) {
@@ -2961,7 +2897,7 @@ static void skpwww_fashionscandal_com_94(skiatest::Reporter* reporter, const cha
     pathB.quadTo(26.2238579f, 418, 26.0285969f, 417.75592f);
     pathB.quadTo(25.833334f, 417.511841f, 25.833334f, 417.166656f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kDifference_PathOp, filename);
+    testPathOp(reporter, path, pathB, kDifference_SkPathOp, filename);
 }
 
 static void skpwww_kenlevine_blogspot_com_28(skiatest::Reporter* reporter, const char* filename) {
@@ -2979,7 +2915,7 @@ static void skpwww_kenlevine_blogspot_com_28(skiatest::Reporter* reporter, const
     pathB.lineTo(277.01001f, 7531);
     pathB.lineTo(277, 9506);
     pathB.lineTo(276, 9506);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_defense_studies_blogspot_com_64(skiatest::Reporter* reporter, const char* filename) {
@@ -2997,7 +2933,7 @@ static void skpwww_defense_studies_blogspot_com_64(skiatest::Reporter* reporter,
     pathB.lineTo(277.01001f, 7703);
     pathB.lineTo(277, 9600);
     pathB.lineTo(276, 9600);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_uniquefx_net_442(skiatest::Reporter* reporter, const char* filename) {
@@ -3015,7 +2951,7 @@ static void skpwww_uniquefx_net_442(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(958.997253f, 306.002747f);
     pathB.lineTo(1017, 307);
     pathB.lineTo(1019, 305);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_kitcheninspirations_wordpress_com_32(skiatest::Reporter* reporter, const char* filename) {
@@ -3033,7 +2969,7 @@ static void skpwww_kitcheninspirations_wordpress_com_32(skiatest::Reporter* repo
     pathB.lineTo(47.1666679f, 19651.332f);
     pathB.lineTo(65.8333359f, 19651.334f);
     pathB.lineTo(65.8333359f, 19651.5f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_educationalcraft_com_4(skiatest::Reporter* reporter, const char* filename) {
@@ -3211,7 +3147,7 @@ static void skpwww_educationalcraft_com_4(skiatest::Reporter* reporter, const ch
     pathB.cubicTo(980.968994f, 1478.18005f, 979.718018f, 1475.66199f, 983.632019f, 1473.87805f);
     pathB.cubicTo(983.632019f, 1473.87805f, 984.229004f, 1477.80103f, 980.968994f, 1478.18005f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_narayana_publishers_com_194(skiatest::Reporter* reporter, const char* filename) {
@@ -3239,7 +3175,7 @@ static void skpwww_narayana_publishers_com_194(skiatest::Reporter* reporter, con
     pathB.lineTo(1082, 440);
     pathB.lineTo(1090.01001f, 448);
     pathB.lineTo(1081, 448);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_cooksnaps_com_17(skiatest::Reporter* reporter, const char* filename) {
@@ -3288,7 +3224,7 @@ static void skpwww_cooksnaps_com_17(skiatest::Reporter* reporter, const char* fi
     pathB.quadTo(170.696686f, 241.450104f, 158.293594f, 238.126709f);
     pathB.quadTo(145.890503f, 234.803314f, 139.4702f, 223.683014f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_swapspacesystems_com_5(skiatest::Reporter* reporter, const char* filename) {
@@ -3315,7 +3251,7 @@ static void skpwww_swapspacesystems_com_5(skiatest::Reporter* reporter, const ch
     pathB.lineTo(1186.5199f, 5809.85059f);
     pathB.lineTo(811.648376f, 5800.03418f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_kitcheninspirations_wordpress_com_66(skiatest::Reporter* reporter, const char* filename) {
@@ -3333,7 +3269,7 @@ static void skpwww_kitcheninspirations_wordpress_com_66(skiatest::Reporter* repo
     pathB.lineTo(47.1666679f, 27820.498f);
     pathB.lineTo(60.8333359f, 27820.5f);
     pathB.lineTo(60.8333359f, 27820.668f);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_etiqadd_com_2464(skiatest::Reporter* reporter, const char* filename) {
@@ -3360,7 +3296,7 @@ static void skpwww_etiqadd_com_2464(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(632.5f, 1309.69238f);
     pathB.lineTo(623.307617f, 1300.5f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_narayana_verlag_de_194(skiatest::Reporter* reporter, const char* filename) {
@@ -3388,7 +3324,7 @@ static void skpwww_narayana_verlag_de_194(skiatest::Reporter* reporter, const ch
     pathB.lineTo(1082, 508);
     pathB.lineTo(1090.01001f, 516);
     pathB.lineTo(1081, 516);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_americascup_com_108(skiatest::Reporter* reporter, const char* filename) {
@@ -3411,7 +3347,7 @@ static void skpwww_americascup_com_108(skiatest::Reporter* reporter, const char*
     pathB.lineTo(1002.17114f, 713);
     pathB.lineTo(987.171143f, 713);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_vantageproduction_com_109(skiatest::Reporter* reporter, const char* filename) {
@@ -3439,7 +3375,7 @@ static void skpwww_vantageproduction_com_109(skiatest::Reporter* reporter, const
     pathB.lineTo(792, 751);
     pathB.lineTo(804.01001f, 763);
     pathB.lineTo(791, 763);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_aceinfographics_com_106(skiatest::Reporter* reporter, const char* filename) {
@@ -3463,7 +3399,7 @@ static void skpwww_aceinfographics_com_106(skiatest::Reporter* reporter, const c
     pathB.lineTo(168.020004f, 7635.97998f);
     pathB.lineTo(168, 11578);
     pathB.lineTo(166, 11580);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_tcmevents_org_13(skiatest::Reporter* reporter, const char* filename) {
@@ -3490,7 +3426,7 @@ static void skpwww_tcmevents_org_13(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(468.507751f, 560.724426f);
     pathB.lineTo(325.968597f, 560.475708f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_paseoitaigara_com_br_56(skiatest::Reporter* reporter, const char* filename) {
@@ -3518,7 +3454,7 @@ static void skpwww_paseoitaigara_com_br_56(skiatest::Reporter* reporter, const c
     pathB.quadTo(634.389832f, 1248.24268f, 634.389832f, 1247);
     pathB.quadTo(634.389832f, 1245.75732f, 635.268494f, 1244.87866f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_mortgagemarketguide_com_109(skiatest::Reporter* reporter, const char* filename) {
@@ -3546,7 +3482,7 @@ static void skpwww_mortgagemarketguide_com_109(skiatest::Reporter* reporter, con
     pathB.lineTo(814, 773);
     pathB.lineTo(826.01001f, 785);
     pathB.lineTo(813, 785);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_9to5mac_com_64(skiatest::Reporter* reporter, const char* filename) {
@@ -3568,7 +3504,7 @@ static void skpwww_9to5mac_com_64(skiatest::Reporter* reporter, const char* file
     pathB.lineTo(365.848175f, 5081.15186f);
     pathB.lineTo(368, 5103);
     pathB.lineTo(365, 5106);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
 static void skpwww_googleventures_com_32(skiatest::Reporter* reporter, const char* filename) {
@@ -3587,10 +3523,9 @@ static void skpwww_googleventures_com_32(skiatest::Reporter* reporter, const cha
     pathB.lineTo(738.767395f, 914.088379f);
     pathB.lineTo(713.055908f, 883.446594f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-#if TEST_NEW_FAILURES
 static void skpwww_devbridge_com_22(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3616,10 +3551,9 @@ static void skpwww_devbridge_com_22(skiatest::Reporter* reporter, const char* fi
     pathB.quadTo(4942.75146f, 1523, 4962.375f, 1542.6239f);
     pathB.quadTo(4981.99902f, 1562.24768f, 4981.99902f, 1590);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// cubic/quad intersection
 static void skpwww_alamdi_com_3(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3649,10 +3583,9 @@ static void skpwww_alamdi_com_3(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(10210, 5318);
     pathB.cubicTo(10210, 5316.34326f, 10211.3428f, 5315, 10213, 5315);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// bumpSpan failed assertion "span->fOppValue >= 0"
 static void skpwww_familysurvivalprotocol_wordpress_com_61(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3668,9 +3601,8 @@ static void skpwww_familysurvivalprotocol_wordpress_com_61(skiatest::Reporter* r
     pathB.lineTo(143, 14555.9902f);
     pathB.lineTo(165, 14556);
     pathB.lineTo(165, 14557);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
-#endif
 
 static void skpwww_firstunitedbank_com_19(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
@@ -3705,10 +3637,9 @@ static void skpwww_firstunitedbank_com_19(skiatest::Reporter* reporter, const ch
     pathB.lineTo(809.5f, 11701.5f);
     pathB.lineTo(1062.91907f, 11687.0811f);
     pathB.lineTo(1047, 11703);
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// addSimpleAngle: failed assertion "index == count() - 2"
 static void skpwww_shinydemos_com_5(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3725,10 +3656,9 @@ static void skpwww_shinydemos_com_5(skiatest::Reporter* reporter, const char* fi
     pathB.lineTo(545.296204f, 987.615051f);
     pathB.lineTo(205.884949f, 648.203796f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// addTCoincident oPeek = &other->fTs[++oPeekIndex];
 static void skpwww_lptemp_com_3(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3758,11 +3688,9 @@ static void skpwww_lptemp_com_3(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(77.6666718f, 1396.66675f);
     pathB.cubicTo(77.6666718f, 1394.82568f, 79.15905f, 1393.33337f, 81, 1393.33337f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-#if TEST_NEW_FAILURES
-// SkOpSegment.cpp:3915: failed assertion "otherEnd >= 0"
 static void skpwww_shinydemos_com_15(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3781,10 +3709,9 @@ static void skpwww_shinydemos_com_15(skiatest::Reporter* reporter, const char* f
     pathB.lineTo(545.296204f, 987.615051f);
     pathB.lineTo(205.884949f, 648.203796f);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
 
-// SkOpSegment.cpp:4398: failed assertion "!span->fDone"
 static void skpwww_lptemp_com_5(skiatest::Reporter* reporter, const char* filename) {
     SkPath path;
     path.setFillType(SkPath::kEvenOdd_FillType);
@@ -3814,22 +3741,917 @@ static void skpwww_lptemp_com_5(skiatest::Reporter* reporter, const char* filena
     pathB.lineTo(77.6666718f, 3153.3335f);
     pathB.cubicTo(77.6666718f, 3151.49268f, 79.15905f, 3150, 81, 3150);
     pathB.close();
-    testPathOp(reporter, path, pathB, kIntersect_PathOp, filename);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
 }
-#endif
 
+static void skpwww_educationalcraft_com_4a(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType(SkPath::kEvenOdd_FillType);
+    path.moveTo(941, 1494);
+    path.lineTo(941, 1464);
+    path.lineTo(985, 1464);
+    path.lineTo(985, 1494);
+    path.lineTo(941, 1494);
+    path.close();
+    SkPath pathB;
+    pathB.setFillType(SkPath::kWinding_FillType);
+
+pathB.moveTo(984.546021f, 1478.31494f);
+pathB.cubicTo(984.546021f, 1478.31494f, 984.543213f, 1478.32239f, 984.537598f, 1478.33655f);
+pathB.cubicTo(984.419006f, 1478.63477f, 983.044373f, 1481.90405f, 980.026001f, 1481.276f);
+pathB.cubicTo(980.026001f, 1481.276f, 980.02594f, 1481.27576f, 980.025879f, 1481.27527f);
+pathB.cubicTo(980.018494f, 1481.22131f, 979.602478f, 1478.38831f, 984.546021f, 1478.31494f);
+    testPathOp(reporter, path, pathB, kIntersect_SkPathOp, filename);
+
+}
+
+static void skpwww_woothemes_com_1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType((SkPath::FillType) 1);
+path.moveTo(SkBits2Float(0x44472795), SkBits2Float(0x455cdb8d));  // 796.618f, 3533.72f
+path.lineTo(SkBits2Float(0x44467c27), SkBits2Float(0x455cdb8d));  // 793.94f, 3533.72f
+path.lineTo(SkBits2Float(0x44467c27), SkBits2Float(0x455d055d));  // 793.94f, 3536.34f
+path.lineTo(SkBits2Float(0x44472795), SkBits2Float(0x455d055d));  // 796.618f, 3536.34f
+path.lineTo(SkBits2Float(0x44472795), SkBits2Float(0x455cdb8d));  // 796.618f, 3533.72f
+    SkPath path1(path);
+    path.reset();
+    path.setFillType((SkPath::FillType) 0);
+path.moveTo(SkBits2Float(0x4446861c), SkBits2Float(0x455cdb8d));  // 794.095f, 3533.72f
+path.cubicTo(SkBits2Float(0x4446a0d8), SkBits2Float(0x455cefbb), SkBits2Float(0x444727a5), SkBits2Float(0x455d055d), SkBits2Float(0x444727a5), SkBits2Float(0x455d055d));  // 794.513f, 3534.98f, 796.619f, 3536.34f, 796.619f, 3536.34f
+path.cubicTo(SkBits2Float(0x4446c5b0), SkBits2Float(0x455cf8a4), SkBits2Float(0x444693af), SkBits2Float(0x455cedad), SkBits2Float(0x44467c1b), SkBits2Float(0x455ce4b8));  // 795.089f, 3535.54f, 794.308f, 3534.85f, 793.939f, 3534.29f
+path.lineTo(SkBits2Float(0x44467d70), SkBits2Float(0x455ce016));  // 793.96f, 3534.01f
+path.cubicTo(SkBits2Float(0x44467fa9), SkBits2Float(0x455cde82), SkBits2Float(0x444682b5), SkBits2Float(0x455cdd03), SkBits2Float(0x4446861c), SkBits2Float(0x455cdb8d));  // 793.995f, 3533.91f, 794.042f, 3533.81f, 794.095f, 3533.72f
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, (SkPathOp) 1, filename);
+}
+
+static void skpwww_gorcraft_ru_1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType((SkPath::FillType) 1);
+path.moveTo(SkBits2Float(0x44924000), SkBits2Float(0x458e7800));  // 1170, 4559
+path.conicTo(SkBits2Float(0x44930000), SkBits2Float(0x458e7800), SkBits2Float(0x44930000), SkBits2Float(0x458ea800), SkBits2Float(0x3f3504f3));  // 1176, 4559, 1176, 4565, 0.707107f
+path.lineTo(SkBits2Float(0x44930000), SkBits2Float(0x458f7000));  // 1176, 4590
+path.conicTo(SkBits2Float(0x44930000), SkBits2Float(0x458f9800), SkBits2Float(0x44926000), SkBits2Float(0x458f9800), SkBits2Float(0x3f3504f3));  // 1176, 4595, 1171, 4595, 0.707107f
+path.lineTo(SkBits2Float(0x42a60000), SkBits2Float(0x458f9800));  // 83, 4595
+path.conicTo(SkBits2Float(0x429c0471), SkBits2Float(0x458f9800), SkBits2Float(0x429c0000), SkBits2Float(0x458f700c), SkBits2Float(0x3f352d2d));  // 78.0087f, 4595, 78, 4590.01f, 0.707721f
+path.lineTo(SkBits2Float(0x429c0000), SkBits2Float(0x458ea800));  // 78, 4565
+path.conicTo(SkBits2Float(0x429c0000), SkBits2Float(0x458e7800), SkBits2Float(0x42a80000), SkBits2Float(0x458e7800), SkBits2Float(0x3f3504f3));  // 78, 4559, 84, 4559, 0.707107f
+path.lineTo(SkBits2Float(0x44924000), SkBits2Float(0x458e7800));  // 1170, 4559
+path.close();
+    SkPath path1(path);
+    path.reset();
+    path.setFillType((SkPath::FillType) 0);
+path.moveTo(SkBits2Float(0x429c0000), SkBits2Float(0x458f7000));  // 78, 4590
+path.lineTo(SkBits2Float(0x429c0000), SkBits2Float(0x458ea800));  // 78, 4565
+path.conicTo(SkBits2Float(0x429c0000), SkBits2Float(0x458e7800), SkBits2Float(0x42a80000), SkBits2Float(0x458e7800), SkBits2Float(0x3f3504f3));  // 78, 4559, 84, 4559, 0.707107f
+path.lineTo(SkBits2Float(0x431e0000), SkBits2Float(0x458e7800));  // 158, 4559
+path.conicTo(SkBits2Float(0x431e0000), SkBits2Float(0x458e7800), SkBits2Float(0x431e0000), SkBits2Float(0x458e7800), SkBits2Float(0x3f3504f3));  // 158, 4559, 158, 4559, 0.707107f
+path.lineTo(SkBits2Float(0x431e0000), SkBits2Float(0x458fa000));  // 158, 4596
+path.conicTo(SkBits2Float(0x431e0000), SkBits2Float(0x458fa000), SkBits2Float(0x431e0000), SkBits2Float(0x458fa000), SkBits2Float(0x3f3504f3));  // 158, 4596, 158, 4596, 0.707107f
+path.lineTo(SkBits2Float(0x42a80000), SkBits2Float(0x458fa000));  // 84, 4596
+path.conicTo(SkBits2Float(0x429c0000), SkBits2Float(0x458fa000), SkBits2Float(0x429c0000), SkBits2Float(0x458f7000), SkBits2Float(0x3f3504f3));  // 78, 4596, 78, 4590, 0.707107f
+path.close();
+
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, (SkPathOp) 2, filename);
+}
+
+static void skpwww_neda_net_1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType((SkPath::FillType) 1);
+path.moveTo(SkBits2Float(0x447a0000), SkBits2Float(0x00000000));  // 1000, 0
+path.lineTo(SkBits2Float(0x00000000), SkBits2Float(0x00000000));  // 0, 0
+path.lineTo(SkBits2Float(0x00000000), SkBits2Float(0x44b6e000));  // 0, 1463
+path.lineTo(SkBits2Float(0x447a0000), SkBits2Float(0x44b6e000));  // 1000, 1463
+path.lineTo(SkBits2Float(0x447a0000), SkBits2Float(0x00000000));  // 1000, 0
+path.close();
+    SkPath path1(path);
+    path.reset();
+    path.setFillType((SkPath::FillType) 0);
+path.moveTo(SkBits2Float(0x366a410f), SkBits2Float(0x43a38000));  // 3.49066e-06f, 327
+path.lineTo(SkBits2Float(0x447a0000), SkBits2Float(0x43a38001));  // 1000, 327
+path.lineTo(SkBits2Float(0x447a0000), SkBits2Float(0x4435c000));  // 1000, 727
+path.lineTo(SkBits2Float(0xb66a410d), SkBits2Float(0x4435c000));  // -3.49066e-06f, 727
+path.lineTo(SkBits2Float(0x366a410f), SkBits2Float(0x43a38000));  // 3.49066e-06f, 327
+path.close();
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, (SkPathOp) 1, filename);
+}
+
+// "http___www_neda_net.skp" dir=87
+static void skpwww_neda_net_2(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType((SkPath::FillType) 1);
+path.moveTo(SkBits2Float(0x442fc000), SkBits2Float(0x4546a000));  // 703, 3178
+path.lineTo(SkBits2Float(0x441f4000), SkBits2Float(0x4546a000));  // 637, 3178
+path.lineTo(SkBits2Float(0x441f4000), SkBits2Float(0x454ab000));  // 637, 3243
+path.lineTo(SkBits2Float(0x442fc000), SkBits2Float(0x454ab000));  // 703, 3243
+path.lineTo(SkBits2Float(0x442fc000), SkBits2Float(0x4546a000));  // 703, 3178
+path.close();
+    SkPath path1(path);
+    path.reset();
+    path.setFillType((SkPath::FillType) 0);
+path.moveTo(SkBits2Float(0x44220e6e), SkBits2Float(0x45469c4c));  // 648.225f, 3177.77f
+path.lineTo(SkBits2Float(0x442fc01c), SkBits2Float(0x45475696));  // 703.002f, 3189.41f
+path.lineTo(SkBits2Float(0x442cf191), SkBits2Float(0x454aa3b5));  // 691.774f, 3242.23f
+path.lineTo(SkBits2Float(0x441f3fe3), SkBits2Float(0x4549e96b));  // 636.998f, 3230.59f
+path.lineTo(SkBits2Float(0x44220e6e), SkBits2Float(0x45469c4c));  // 648.225f, 3177.77f
+path.close();
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, (SkPathOp) 1, filename);
+}
+
+static void skpwww_mybuilder_com_1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPath::kEvenOdd_FillType);
+path.moveTo(1000, 659);
+path.lineTo(1000, 377);
+path.lineTo(455, 377);
+path.lineTo(455, 659);
+path.lineTo(1000, 659);
+path.close();
+    SkPath path1(path);
+    path.reset();
+    path.setFillType(SkPath::kEvenOdd_FillType);
+path.moveTo(921.472f, 414.086f);
+path.lineTo(968.815f, 386.754f);
+path.lineTo(993.069f, 428.761f);
+path.lineTo(945.726f, 456.096f);
+path.lineTo(921.471f, 414.086f);
+path.lineTo(921.472f, 414.086f);
+path.close();
+path.moveTo(971.151f, 422.889f);
+path.cubicTo(966.509f, 414.848f, 957.649f, 411.727f, 950.181f, 416.038f);
+path.lineTo(947.224f, 417.746f);
+path.lineTo(946.979f, 417.887f);
+path.lineTo(947.838f, 419.371f);
+path.lineTo(947.844f, 419.367f);
+path.lineTo(947.868f, 419.353f);
+path.lineTo(947.945f, 419.309f);
+path.cubicTo(947.988f, 419.285f, 947.988f, 419.285f, 948.023f, 419.263f);
+path.cubicTo(948.039f, 419.255f, 948.039f, 419.255f, 948.047f, 419.25f);
+path.lineTo(948.052f, 419.247f);
+path.lineTo(947.196f, 417.762f);
+path.lineTo(947.195f, 417.762f);
+path.lineTo(946.888f, 417.939f);
+path.lineTo(943.39f, 419.959f);
+path.lineTo(944.249f, 421.443f);
+path.lineTo(947.745f, 419.424f);
+path.lineTo(948.05f, 419.247f);
+path.lineTo(948.052f, 419.247f);
+path.lineTo(947.195f, 417.763f);
+path.cubicTo(947.193f, 417.763f, 947.193f, 417.763f, 947.19f, 417.766f);
+path.lineTo(947.166f, 417.779f);
+path.lineTo(947.087f, 417.825f);
+path.lineTo(947.011f, 417.868f);
+path.lineTo(946.987f, 417.883f);
+path.lineTo(946.982f, 417.886f);
+path.lineTo(946.98f, 417.886f);
+path.lineTo(947.839f, 419.37f);
+path.lineTo(948.083f, 419.229f);
+path.lineTo(951.039f, 417.522f);
+path.cubicTo(957.631f, 413.716f, 965.471f, 416.477f, 969.669f, 423.746f);
+path.lineTo(971.153f, 422.889f);
+path.lineTo(971.151f, 422.889f);
+path.close();
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, kIntersect_SkPathOp, filename);
+}
+
+static void skpwww_nimble_com_au_1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPath::kEvenOdd_FillType);
+path.moveTo(188.6f, 1988.8f);
+path.lineTo(188.6f, 2041.6f);
+path.cubicTo(188.6f, 2065.4f, 208, 2084.8f, 231.8f, 2084.8f);
+path.cubicTo(255.6f, 2084.8f, 275, 2065.4f, 275, 2041.6f);
+path.lineTo(275.2f, 2041.6f);
+path.lineTo(275.2f, 1988.8f);
+path.lineTo(188.6f, 1988.8f);
+path.close();
+    SkPath path1(path);
+    path.reset();
+path.setFillType(SkPath::kWinding_FillType);
+path.moveTo(275, 2041.6f);
+path.conicTo(275, 2084.8f, 231.8f, 2084.8f, 0.707107f);
+path.conicTo(188.6f, 2084.8f, 188.6f, 2041.6f, 0.707107f);
+path.conicTo(188.6f, 1998.4f, 231.8f, 1998.4f, 0.707107f);
+path.conicTo(275, 1998.4f, 275, 2041.6f, 0.707107f);
+path.close();
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, kIntersect_SkPathOp, filename);
+}
+
+static void skpwww_tinytots_com_1(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+path.setFillType(SkPath::kEvenOdd_FillType);
+path.moveTo(75.96f, 26.318f);
+path.lineTo(70.337f, 26.318f);
+path.lineTo(70.337f, 32.376f);
+path.lineTo(75.96f, 32.376f);
+path.lineTo(75.96f, 26.318f);
+path.close();
+    SkPath path1(path);
+    path.reset();
+path.setFillType(SkPath::kWinding_FillType);
+path.moveTo(75.88f, 27.873f);
+path.cubicTo(75.929f, 28.138f, 75.956f, 29.196f, 75.96f, 31.046f);
+path.lineTo(72.766f, 32.376f);
+path.cubicTo(72.763f, 30.525f, 72.735f, 29.468f, 72.686f, 29.203f);
+path.cubicTo(72.636f, 28.94f, 72.519f, 28.722f, 72.335f, 28.552f);
+path.cubicTo(72.248f, 28.472f, 72.058f, 28.364f, 71.763f, 28.228f);
+path.cubicTo(72.425f, 27.933f, 72.425f, 27.933f, 73.395f, 27.498f);
+path.cubicTo(72.425f, 27.933f, 72.425f, 27.933f, 71.763f, 28.228f);
+path.cubicTo(71.425f, 28.072f, 70.95f, 27.878f, 70.337f, 27.647f);
+path.lineTo(73.531f, 26.317f);
+path.cubicTo(74.144f, 26.547f, 74.619f, 26.741f, 74.957f, 26.898f);
+path.cubicTo(74.475f, 27.113f, 73.993f, 27.329f, 73.511f, 27.544f);
+path.cubicTo(73.993f, 27.329f, 74.475f, 27.114f, 74.957f, 26.898f);
+path.cubicTo(75.252f, 27.034f, 75.442f, 27.142f, 75.529f, 27.222f);
+path.cubicTo(75.713f, 27.393f, 75.83f, 27.61f, 75.88f, 27.873f);
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, kIntersect_SkPathOp, filename);
+}
+
+static void http___www_emuleteca_cl_26(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType((SkPath::FillType) 1);
+path.moveTo(SkBits2Float(0x3f800000), SkBits2Float(0x44370000));  // 1, 732
+path.conicTo(SkBits2Float(0x3f800000), SkBits2Float(0x4428c000), SkBits2Float(0x42680000), SkBits2Float(0x4428c000), SkBits2Float(0x3f3504f3));  // 1, 675, 58, 675, 0.707107f
+path.conicTo(SkBits2Float(0x40400000), SkBits2Float(0x4428c000), SkBits2Float(0x40400000), SkBits2Float(0x44370000), SkBits2Float(0x3f3504f3));  // 3, 675, 3, 732, 0.707107f
+path.conicTo(SkBits2Float(0x40400000), SkBits2Float(0x44444000), SkBits2Float(0x42680000), SkBits2Float(0x44444000), SkBits2Float(0x3f3504f3));  // 3, 785, 58, 785, 0.707107f
+path.lineTo(SkBits2Float(0x446d0000), SkBits2Float(0x44444000));  // 948, 785
+path.conicTo(SkBits2Float(0x447ac000), SkBits2Float(0x44444000), SkBits2Float(0x447ac000), SkBits2Float(0x44370000), SkBits2Float(0x3f3504f3));  // 1003, 785, 1003, 732, 0.707107f
+path.conicTo(SkBits2Float(0x447ac000), SkBits2Float(0x4428c000), SkBits2Float(0x446d0000), SkBits2Float(0x4428c000), SkBits2Float(0x3f3504f3));  // 1003, 675, 948, 675, 0.707107f
+path.conicTo(SkBits2Float(0x447b4000), SkBits2Float(0x4428c000), SkBits2Float(0x447b4000), SkBits2Float(0x44370000), SkBits2Float(0x3f3504f3));  // 1005, 675, 1005, 732, 0.707107f
+path.conicTo(SkBits2Float(0x447b4000), SkBits2Float(0x44454000), SkBits2Float(0x446d0000), SkBits2Float(0x44454000), SkBits2Float(0x3f3504f3));  // 1005, 789, 948, 789, 0.707107f
+path.lineTo(SkBits2Float(0x42680000), SkBits2Float(0x44454000));  // 58, 789
+path.conicTo(SkBits2Float(0x3f800000), SkBits2Float(0x44454000), SkBits2Float(0x3f800000), SkBits2Float(0x44370000), SkBits2Float(0x3f3504f3));  // 1, 789, 1, 732, 0.707107f
+path.close();
+
+    SkPath path1(path);
+    path.reset();
+    path.setFillType((SkPath::FillType) 0);
+path.moveTo(SkBits2Float(0x3f800000), SkBits2Float(0x4428c000));  // 1, 675
+path.lineTo(SkBits2Float(0x42680000), SkBits2Float(0x4428c000));  // 58, 675
+path.lineTo(SkBits2Float(0x3fc8f676), SkBits2Float(0x44454000));  // 1.57002f, 789
+path.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x44454000));  // 1, 789
+
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, (SkPathOp) 1, filename);
+}
+
+static void http___www_emuleteca_cl_27(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType((SkPath::FillType) 1);
+path.moveTo(SkBits2Float(0x42680000), SkBits2Float(0x4428c000));  // 58, 675
+path.conicTo(SkBits2Float(0x3f800000), SkBits2Float(0x4428c000), SkBits2Float(0x3f800000), SkBits2Float(0x44370000), SkBits2Float(0x3f3504f3));  // 1, 675, 1, 732, 0.707107f
+path.conicTo(SkBits2Float(0x3f800000), SkBits2Float(0x443bd045), SkBits2Float(0x414acf56), SkBits2Float(0x443fa420), SkBits2Float(0x3f778612));  // 1, 751.254f, 12.6756f, 766.564f, 0.96689f
+path.lineTo(SkBits2Float(0x41606e3d), SkBits2Float(0x443ef569));  // 14.0269f, 763.835f
+path.conicTo(SkBits2Float(0x40400000), SkBits2Float(0x443b6c34), SkBits2Float(0x40400000), SkBits2Float(0x44370000), SkBits2Float(0x3f77ac46));  // 3, 749.691f, 3, 732, 0.967472f
+path.conicTo(SkBits2Float(0x40400000), SkBits2Float(0x4428c000), SkBits2Float(0x42680000), SkBits2Float(0x4428c000), SkBits2Float(0x3f3504f3));  // 3, 675, 58, 675, 0.707107f
+path.close();
+
+    SkPath path1(path);
+    path.reset();
+    path.setFillType((SkPath::FillType) 0);
+path.moveTo(SkBits2Float(0x3f800000), SkBits2Float(0x4428c000));  // 1, 675
+path.lineTo(SkBits2Float(0x4c4a3de6), SkBits2Float(0xccca3d89));  // 5.30165e+07f, -1.06032e+08f
+path.lineTo(SkBits2Float(0x41a71147), SkBits2Float(0x443b4eec));  // 20.8834f, 749.233f
+path.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x44454000));  // 1, 789
+
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, (SkPathOp) 1, filename);
+}
+
+static void http___www_emuleteca_cl_28(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType(SkPath::kEvenOdd_FillType);
+
+    SkPath path1(path);
+    path.reset();
+    path.setFillType(SkPath::kWinding_FillType);
+path.moveTo(SkBits2Float(0x3f800000), SkBits2Float(0x4428c000));  // 1, 675
+path.lineTo(SkBits2Float(0x4c4a3de6), SkBits2Float(0xccca3d89));  // 5.30165e+07f, -1.06032e+08f
+path.lineTo(SkBits2Float(0x41a71147), SkBits2Float(0x443b4eec));  // 20.8834f, 749.233f
+path.lineTo(SkBits2Float(0x3f800000), SkBits2Float(0x44454000));  // 1, 789
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, kIntersect_SkPathOp, filename);
+}
+
+static void http___www_project2061_org(skiatest::Reporter* reporter, const char* filename) {
+    SkPath path;
+    path.setFillType(SkPath::kEvenOdd_FillType);
+path.moveTo(751, 62);
+path.lineTo(497, 62);
+path.lineTo(497, 138);
+path.lineTo(751, 138);
+path.lineTo(751, 62);
+path.close();
+    SkPath path1(path);
+    path.reset();
+    path.setFillType(SkPath::kWinding_FillType);
+path.moveTo(699.889f, 115.29f);
+path.cubicTo(699.889f, 114.913f, 699.627f, 114.723f, 699.111f, 114.723f);
+path.cubicTo(698.604f, 114.723f, 697.843f, 114.671f, 697.096f, 114.423f);
+path.cubicTo(695.94f, 114.094f, 694.53f, 113.168f, 692.746f, 108.775f);
+path.cubicTo(690.469f, 103.12f, 685.644f, 90.563f, 682.761f, 83.061f);
+path.lineTo(680.541f, 77.301f);
+path.cubicTo(679.927f, 75.721f, 679.67f, 75.261f, 679.151f, 75.261f);
+path.cubicTo(678.636f, 75.261f, 678.392f, 75.73f, 677.759f, 77.464f);
+path.lineTo(665.868f, 109.881f);
+path.cubicTo(664.861f, 112.669f, 663.852f, 114.339f, 661.675f, 114.622f);
+path.cubicTo(661.675f, 114.622f, 661.551f, 114.631f, 661.378f, 114.642f);
+path.cubicTo(661.072f, 114.597f, 660.75f, 114.531f, 660.427f, 114.424f);
+path.cubicTo(659.272f, 114.095f, 657.861f, 113.169f, 656.078f, 108.776f);
+path.cubicTo(653.797f, 103.112f, 648.967f, 90.541f, 646.08f, 83.029f);
+path.lineTo(643.873f, 77.302f);
+path.cubicTo(643.259f, 75.722f, 643.002f, 75.262f, 642.484f, 75.262f);
+path.cubicTo(641.968f, 75.262f, 641.724f, 75.731f, 641.092f, 77.465f);
+path.lineTo(629.2f, 109.879f);
+path.cubicTo(628.193f, 112.667f, 627.184f, 114.337f, 625.007f, 114.62f);
+path.cubicTo(625.007f, 114.62f, 624.884f, 114.629f, 624.71f, 114.64f);
+path.cubicTo(624.404f, 114.595f, 624.081f, 114.529f, 623.759f, 114.422f);
+path.cubicTo(622.603f, 114.093f, 621.193f, 113.167f, 619.409f, 108.774f);
+path.cubicTo(617.132f, 103.119f, 612.307f, 90.562f, 609.424f, 83.06f);
+path.lineTo(607.204f, 77.3f);
+path.cubicTo(606.59f, 75.72f, 606.333f, 75.26f, 605.815f, 75.26f);
+path.cubicTo(605.3f, 75.26f, 605.055f, 75.729f, 604.423f, 77.463f);
+path.lineTo(592.531f, 109.879f);
+path.cubicTo(591.524f, 112.667f, 590.514f, 114.337f, 588.338f, 114.62f);
+path.cubicTo(588.337f, 114.62f, 586.852f, 114.722f, 586.852f, 114.722f);
+path.cubicTo(586.418f, 114.722f, 586.126f, 114.95f, 586.126f, 115.289f);
+path.cubicTo(586.126f, 115.96f, 586.97f, 115.96f, 587.376f, 115.96f);
+path.lineTo(592.101f, 115.843f);
+path.lineTo(593.295f, 115.804f);
+path.lineTo(594.624f, 115.86f);
+path.lineTo(597.381f, 115.961f);
+path.cubicTo(598.241f, 115.961f, 598.422f, 115.596f, 598.422f, 115.29f);
+path.cubicTo(598.422f, 115.078f, 598.321f, 114.723f, 597.643f, 114.723f);
+path.lineTo(597.119f, 114.723f);
+path.cubicTo(596.448f, 114.723f, 595.383f, 114.381f, 595.383f, 113.463f);
+path.cubicTo(595.383f, 112.545f, 595.638f, 111.334f, 596.101f, 110.052f);
+path.cubicTo(596.103f, 110.048f, 599.246f, 100.809f, 599.246f, 100.809f);
+path.cubicTo(599.337f, 100.583f, 599.435f, 100.564f, 599.528f, 100.564f);
+path.lineTo(610.791f, 100.564f);
+path.cubicTo(610.929f, 100.564f, 610.958f, 100.585f, 611.035f, 100.737f);
+path.cubicTo(611.035f, 100.741f, 615.896f, 113.554f, 615.896f, 113.554f);
+path.cubicTo(615.972f, 113.754f, 616.01f, 113.942f, 616.01f, 114.105f);
+path.cubicTo(616.01f, 114.228f, 615.988f, 114.338f, 615.945f, 114.429f);
+path.cubicTo(615.876f, 114.573f, 615.779f, 114.619f, 615.741f, 114.631f);
+path.cubicTo(615.272f, 114.748f, 615.2f, 115.061f, 615.2f, 115.237f);
+path.cubicTo(615.2f, 115.766f, 615.792f, 115.796f, 616.772f, 115.844f);
+path.lineTo(617.012f, 115.857f);
+path.cubicTo(618.978f, 115.913f, 621.359f, 115.948f, 623.835f, 115.958f);
+path.cubicTo(623.912f, 115.961f, 623.984f, 115.961f, 624.045f, 115.961f);
+path.lineTo(624.118f, 115.959f);
+path.cubicTo(624.494f, 115.961f, 624.871f, 115.961f, 625.25f, 115.961f);
+path.cubicTo(625.47f, 115.961f, 625.662f, 115.946f, 625.827f, 115.917f);
+path.lineTo(628.77f, 115.844f);
+path.lineTo(629.965f, 115.805f);
+path.lineTo(631.293f, 115.861f);
+path.lineTo(634.051f, 115.962f);
+path.cubicTo(634.911f, 115.962f, 635.092f, 115.597f, 635.092f, 115.291f);
+path.cubicTo(635.092f, 115.079f, 634.991f, 114.724f, 634.313f, 114.724f);
+path.lineTo(633.789f, 114.724f);
+path.cubicTo(633.118f, 114.724f, 632.053f, 114.382f, 632.053f, 113.464f);
+path.cubicTo(632.053f, 112.546f, 632.308f, 111.335f, 632.771f, 110.053f);
+path.cubicTo(632.773f, 110.049f, 635.916f, 100.81f, 635.916f, 100.81f);
+path.cubicTo(636.007f, 100.584f, 636.105f, 100.565f, 636.198f, 100.565f);
+path.lineTo(647.46f, 100.565f);
+path.cubicTo(647.598f, 100.565f, 647.627f, 100.586f, 647.704f, 100.737f);
+path.cubicTo(647.704f, 100.741f, 652.565f, 113.554f, 652.565f, 113.554f);
+path.cubicTo(652.641f, 113.754f, 652.679f, 113.942f, 652.679f, 114.105f);
+path.cubicTo(652.679f, 114.228f, 652.657f, 114.338f, 652.613f, 114.43f);
+path.cubicTo(652.544f, 114.574f, 652.447f, 114.619f, 652.409f, 114.632f);
+path.cubicTo(651.94f, 114.749f, 651.868f, 115.062f, 651.868f, 115.238f);
+path.cubicTo(651.868f, 115.767f, 652.46f, 115.797f, 653.44f, 115.845f);
+path.lineTo(653.681f, 115.858f);
+path.cubicTo(655.647f, 115.914f, 658.028f, 115.949f, 660.503f, 115.959f);
+path.cubicTo(660.58f, 115.962f, 660.652f, 115.962f, 660.713f, 115.962f);
+path.lineTo(660.787f, 115.96f);
+path.cubicTo(661.162f, 115.962f, 661.54f, 115.962f, 661.918f, 115.962f);
+path.cubicTo(662.139f, 115.962f, 662.33f, 115.947f, 662.496f, 115.918f);
+path.lineTo(665.439f, 115.845f);
+path.lineTo(666.633f, 115.806f);
+path.lineTo(667.962f, 115.862f);
+path.lineTo(670.719f, 115.963f);
+path.cubicTo(671.579f, 115.963f, 671.76f, 115.598f, 671.76f, 115.292f);
+path.cubicTo(671.76f, 115.08f, 671.659f, 114.725f, 670.981f, 114.725f);
+path.lineTo(670.457f, 114.725f);
+path.cubicTo(669.786f, 114.725f, 668.721f, 114.383f, 668.721f, 113.465f);
+path.cubicTo(668.721f, 112.547f, 668.976f, 111.336f, 669.439f, 110.054f);
+path.cubicTo(669.441f, 110.05f, 672.584f, 100.811f, 672.584f, 100.811f);
+path.cubicTo(672.675f, 100.585f, 672.773f, 100.566f, 672.866f, 100.566f);
+path.lineTo(684.128f, 100.566f);
+path.cubicTo(684.266f, 100.566f, 684.295f, 100.587f, 684.372f, 100.739f);
+path.cubicTo(684.372f, 100.743f, 689.233f, 113.556f, 689.233f, 113.556f);
+path.cubicTo(689.309f, 113.756f, 689.347f, 113.944f, 689.347f, 114.107f);
+path.cubicTo(689.347f, 114.23f, 689.325f, 114.34f, 689.281f, 114.431f);
+path.cubicTo(689.212f, 114.575f, 689.115f, 114.621f, 689.077f, 114.633f);
+path.cubicTo(688.608f, 114.75f, 688.536f, 115.063f, 688.536f, 115.239f);
+path.cubicTo(688.536f, 115.768f, 689.128f, 115.798f, 690.108f, 115.846f);
+path.lineTo(690.348f, 115.859f);
+path.cubicTo(692.687f, 115.926f, 695.611f, 115.963f, 698.586f, 115.963f);
+path.cubicTo(699.451f, 115.961f, 699.889f, 115.735f, 699.889f, 115.29f);
+path.close();
+path.moveTo(600.18f, 98.176f);
+path.cubicTo(600.181f, 98.171f, 600.185f, 98.158f, 600.185f, 98.158f);
+path.cubicTo(600.191f, 98.142f, 604.801f, 84.049f, 604.801f, 84.049f);
+path.cubicTo(604.865f, 83.857f, 604.915f, 83.756f, 604.951f, 83.697f);
+path.cubicTo(604.987f, 83.756f, 605.037f, 83.858f, 605.102f, 84.051f);
+path.cubicTo(605.103f, 84.054f, 610.08f, 98.149f, 610.08f, 98.149f);
+path.cubicTo(610.079f, 98.145f, 610.079f, 98.145f, 610.079f, 98.147f);
+path.cubicTo(610.079f, 98.149f, 610.081f, 98.164f, 610.083f, 98.176f);
+path.lineTo(600.18f, 98.176f);
+path.close();
+path.moveTo(636.849f, 98.176f);
+path.cubicTo(636.851f, 98.171f, 636.854f, 98.158f, 636.854f, 98.158f);
+path.cubicTo(636.859f, 98.142f, 641.469f, 84.049f, 641.469f, 84.049f);
+path.cubicTo(641.533f, 83.857f, 641.584f, 83.756f, 641.62f, 83.697f);
+path.cubicTo(641.656f, 83.756f, 641.706f, 83.857f, 641.771f, 84.051f);
+path.cubicTo(641.773f, 84.054f, 646.749f, 98.149f, 646.749f, 98.149f);
+path.cubicTo(646.749f, 98.145f, 646.748f, 98.145f, 646.748f, 98.147f);
+path.cubicTo(646.748f, 98.15f, 646.75f, 98.165f, 646.751f, 98.176f);
+path.lineTo(636.849f, 98.176f);
+path.close();
+path.moveTo(673.517f, 98.176f);
+path.cubicTo(673.519f, 98.171f, 673.522f, 98.158f, 673.522f, 98.158f);
+path.cubicTo(673.528f, 98.142f, 678.138f, 84.049f, 678.138f, 84.049f);
+path.cubicTo(678.202f, 83.857f, 678.252f, 83.756f, 678.288f, 83.697f);
+path.cubicTo(678.324f, 83.756f, 678.375f, 83.858f, 678.439f, 84.051f);
+path.cubicTo(678.44f, 84.054f, 683.417f, 98.149f, 683.417f, 98.149f);
+path.cubicTo(683.416f, 98.145f, 683.416f, 98.145f, 683.416f, 98.147f);
+path.cubicTo(683.416f, 98.149f, 683.418f, 98.164f, 683.42f, 98.176f);
+path.lineTo(673.517f, 98.176f);
+path.close();
+path.moveTo(702.086f, 115.256f);
+path.lineTo(702.089f, 115.257f);
+path.cubicTo(704.075f, 116.223f, 706.408f, 116.692f, 709.22f, 116.692f);
+path.cubicTo(712.384f, 116.692f, 715.17f, 115.918f, 717.275f, 114.454f);
+path.cubicTo(720.639f, 112.074f, 721.837f, 108.31f, 721.837f, 105.581f);
+path.cubicTo(721.837f, 101.538f, 720.57f, 98.203f, 714.092f, 93.115f);
+path.lineTo(712.625f, 91.966f);
+path.cubicTo(707.567f, 87.838f, 706.331f, 86.155f, 706.331f, 83.396f);
+path.cubicTo(706.331f, 79.927f, 708.819f, 77.595f, 712.519f, 77.595f);
+path.cubicTo(716.925f, 77.595f, 718.41f, 79.437f, 718.843f, 80.229f);
+path.cubicTo(719.131f, 80.754f, 719.442f, 82.122f, 719.494f, 82.739f);
+path.cubicTo(719.543f, 83.13f, 719.608f, 83.65f, 720.167f, 83.65f);
+path.cubicTo(720.789f, 83.65f, 720.789f, 82.704f, 720.789f, 82.195f);
+path.cubicTo(720.789f, 79.413f, 720.918f, 77.758f, 720.973f, 77.052f);
+path.lineTo(720.998f, 76.662f);
+path.cubicTo(720.998f, 76.113f, 720.581f, 76.043f, 720.219f, 76.043f);
+path.cubicTo(719.847f, 76.043f, 719.469f, 76.003f, 718.438f, 75.788f);
+path.cubicTo(716.936f, 75.428f, 715.369f, 75.26f, 713.514f, 75.26f);
+path.cubicTo(706.771f, 75.26f, 702.415f, 79.048f, 702.415f, 84.91f);
+path.cubicTo(702.415f, 88.438f, 703.589f, 91.748f, 709.319f, 96.434f);
+path.lineTo(711.676f, 98.365f);
+path.cubicTo(716.332f, 102.196f, 717.607f, 104.172f, 717.607f, 107.564f);
+path.cubicTo(717.607f, 110.888f, 715.121f, 114.253f, 710.371f, 114.253f);
+path.cubicTo(708.428f, 114.253f, 703.808f, 113.754f, 702.868f, 109.132f);
+path.cubicTo(702.716f, 108.424f, 702.716f, 107.718f, 702.716f, 107.25f);
+path.cubicTo(702.716f, 106.94f, 702.716f, 106.422f, 702.094f, 106.422f);
+path.cubicTo(701.519f, 106.422f, 701.455f, 107.116f, 701.421f, 107.488f);
+path.cubicTo(701.421f, 107.495f, 701.375f, 108.117f, 701.375f, 108.117f);
+path.cubicTo(701.293f, 109.171f, 701.158f, 110.933f, 701.158f, 113.044f);
+path.cubicTo(701.16f, 114.432f, 701.197f, 114.813f, 702.086f, 115.256f);
+path.close();
+path.moveTo(501.274f, 129.973f);
+path.lineTo(498.058f, 136.963f);
+path.lineTo(498.62f, 136.963f);
+path.lineTo(499.723f, 134.561f);
+path.lineTo(503.124f, 134.561f);
+path.lineTo(504.227f, 136.963f);
+path.lineTo(504.788f, 136.963f);
+path.lineTo(501.571f, 129.973f);
+path.lineTo(501.274f, 129.973f);
+path.close();
+path.moveTo(499.926f, 134.114f);
+path.lineTo(501.417f, 130.848f);
+path.lineTo(502.918f, 134.114f);
+path.lineTo(499.926f, 134.114f);
+path.close();
+path.moveTo(510.117f, 130.023f);
+path.lineTo(507.677f, 130.023f);
+path.lineTo(507.677f, 136.963f);
+path.lineTo(510.209f, 136.963f);
+path.cubicTo(512.966f, 136.963f, 513.916f, 135.101f, 513.916f, 133.493f);
+path.cubicTo(513.916f, 131.967f, 513.078f, 130.023f, 510.117f, 130.023f);
+path.close();
+path.moveTo(510.178f, 136.515f);
+path.lineTo(508.217f, 136.515f);
+path.lineTo(508.217f, 130.471f);
+path.lineTo(510.147f, 130.471f);
+path.cubicTo(512.036f, 130.471f, 513.333f, 131.712f, 513.333f, 133.493f);
+path.cubicTo(513.333f, 135.447f, 511.853f, 136.515f, 510.178f, 136.515f);
+path.close();
+path.moveTo(519.105f, 135.894f);
+path.lineTo(516.634f, 130.023f);
+path.lineTo(516.093f, 130.023f);
+path.lineTo(519.024f, 137.034f);
+path.lineTo(519.177f, 137.034f);
+path.lineTo(522.098f, 130.023f);
+path.lineTo(521.557f, 130.023f);
+path.lineTo(519.105f, 135.894f);
+path.close();
+path.moveTo(526.817f, 129.973f);
+path.lineTo(523.601f, 136.963f);
+path.lineTo(524.162f, 136.963f);
+path.lineTo(525.265f, 134.561f);
+path.lineTo(528.665f, 134.561f);
+path.lineTo(529.768f, 136.963f);
+path.lineTo(530.33f, 136.963f);
+path.lineTo(527.113f, 129.973f);
+path.lineTo(526.817f, 129.973f);
+path.close();
+path.moveTo(525.469f, 134.114f);
+path.lineTo(526.96f, 130.848f);
+path.lineTo(528.461f, 134.114f);
+path.lineTo(525.469f, 134.114f);
+path.close();
+path.moveTo(538.947f, 136.088f);
+path.lineTo(533.668f, 130.024f);
+path.lineTo(533.208f, 130.024f);
+path.lineTo(533.208f, 136.964f);
+path.lineTo(533.749f, 136.964f);
+path.lineTo(533.749f, 130.899f);
+path.lineTo(539.038f, 136.964f);
+path.lineTo(539.487f, 136.964f);
+path.lineTo(539.487f, 130.024f);
+path.lineTo(538.946f, 130.024f);
+path.lineTo(538.946f, 136.088f);
+path.lineTo(538.947f, 136.088f);
+path.close();
+path.moveTo(543.41f, 133.503f);
+path.cubicTo(543.41f, 131.743f, 544.717f, 130.43f, 546.453f, 130.43f);
+path.cubicTo(547.28f, 130.43f, 548.067f, 130.644f, 548.934f, 131.102f);
+path.lineTo(548.934f, 130.512f);
+path.cubicTo(548.087f, 130.125f, 547.26f, 129.932f, 546.483f, 129.932f);
+path.cubicTo(544.574f, 129.932f, 542.828f, 131.377f, 542.828f, 133.503f);
+path.cubicTo(542.828f, 135.538f, 544.411f, 137.054f, 546.534f, 137.054f);
+path.cubicTo(547.341f, 137.054f, 548.198f, 136.83f, 549.005f, 136.402f);
+path.lineTo(549.005f, 135.843f);
+path.cubicTo(548.055f, 136.341f, 547.31f, 136.555f, 546.523f, 136.555f);
+path.cubicTo(544.707f, 136.556f, 543.41f, 135.294f, 543.41f, 133.503f);
+path.close();
+path.moveTo(552.079f, 136.963f);
+path.lineTo(552.62f, 136.963f);
+path.lineTo(552.62f, 130.023f);
+path.lineTo(552.079f, 130.023f);
+path.lineTo(552.079f, 136.963f);
+path.close();
+path.moveTo(561.984f, 136.088f);
+path.lineTo(556.705f, 130.024f);
+path.lineTo(556.245f, 130.024f);
+path.lineTo(556.245f, 136.964f);
+path.lineTo(556.786f, 136.964f);
+path.lineTo(556.786f, 130.899f);
+path.lineTo(562.075f, 136.964f);
+path.lineTo(562.524f, 136.964f);
+path.lineTo(562.524f, 130.024f);
+path.lineTo(561.983f, 130.024f);
+path.lineTo(561.983f, 136.088f);
+path.lineTo(561.984f, 136.088f);
+path.close();
+path.moveTo(570.122f, 134.257f);
+path.lineTo(571.592f, 134.257f);
+path.lineTo(571.592f, 136.129f);
+path.cubicTo(571.041f, 136.403f, 570.489f, 136.556f, 569.683f, 136.556f);
+path.cubicTo(567.488f, 136.556f, 566.456f, 135.05f, 566.456f, 133.493f);
+path.cubicTo(566.456f, 131.733f, 567.763f, 130.43f, 569.529f, 130.43f);
+path.cubicTo(570.366f, 130.43f, 571.153f, 130.654f, 572, 131.132f);
+path.lineTo(572, 130.522f);
+path.cubicTo(571.02f, 130.084f, 570.397f, 129.932f, 569.61f, 129.932f);
+path.cubicTo(567.455f, 129.932f, 565.873f, 131.438f, 565.873f, 133.473f);
+path.cubicTo(565.873f, 135.529f, 567.496f, 137.055f, 569.661f, 137.055f);
+path.cubicTo(570.468f, 137.055f, 571.305f, 136.862f, 572.132f, 136.465f);
+path.lineTo(572.132f, 133.809f);
+path.lineTo(570.121f, 133.809f);
+path.lineTo(570.121f, 134.257f);
+path.lineTo(570.122f, 134.257f);
+path.close();
+path.moveTo(580.681f, 131.753f);
+path.cubicTo(580.681f, 131.001f, 581.314f, 130.43f, 582.151f, 130.43f);
+path.cubicTo(582.631f, 130.43f, 582.998f, 130.552f, 583.713f, 130.959f);
+path.lineTo(583.713f, 130.37f);
+path.cubicTo(583.172f, 130.075f, 582.641f, 129.933f, 582.099f, 129.933f);
+path.cubicTo(580.996f, 129.933f, 580.098f, 130.747f, 580.098f, 131.775f);
+path.cubicTo(580.098f, 134.065f, 583.417f, 133.2f, 583.417f, 135.173f);
+path.cubicTo(583.417f, 135.956f, 582.774f, 136.557f, 581.947f, 136.557f);
+path.cubicTo(581.406f, 136.557f, 580.966f, 136.374f, 580.191f, 135.814f);
+path.lineTo(580.191f, 136.445f);
+path.cubicTo(580.804f, 136.852f, 581.406f, 137.055f, 581.978f, 137.055f);
+path.cubicTo(583.111f, 137.055f, 584, 136.221f, 584, 135.152f);
+path.cubicTo(584, 132.72f, 580.681f, 133.605f, 580.681f, 131.753f);
+path.close();
+path.moveTo(587.543f, 133.503f);
+path.cubicTo(587.543f, 131.743f, 588.85f, 130.43f, 590.586f, 130.43f);
+path.cubicTo(591.413f, 130.43f, 592.199f, 130.644f, 593.067f, 131.102f);
+path.lineTo(593.067f, 130.512f);
+path.cubicTo(592.22f, 130.125f, 591.393f, 129.932f, 590.616f, 129.932f);
+path.cubicTo(588.707f, 129.932f, 586.96f, 131.377f, 586.96f, 133.503f);
+path.cubicTo(586.96f, 135.538f, 588.543f, 137.054f, 590.667f, 137.054f);
+path.cubicTo(591.473f, 137.054f, 592.331f, 136.83f, 593.138f, 136.402f);
+path.lineTo(593.138f, 135.843f);
+path.cubicTo(592.188f, 136.341f, 591.443f, 136.555f, 590.657f, 136.555f);
+path.cubicTo(588.84f, 136.556f, 587.543f, 135.294f, 587.543f, 133.503f);
+path.close();
+path.moveTo(596.212f, 136.963f);
+path.lineTo(596.753f, 136.963f);
+path.lineTo(596.753f, 130.023f);
+path.lineTo(596.212f, 130.023f);
+path.lineTo(596.212f, 136.963f);
+path.close();
+path.moveTo(600.94f, 133.697f);
+path.lineTo(604.116f, 133.697f);
+path.lineTo(604.116f, 133.25f);
+path.lineTo(600.94f, 133.25f);
+path.lineTo(600.94f, 130.472f);
+path.lineTo(604.198f, 130.472f);
+path.lineTo(604.198f, 130.024f);
+path.lineTo(600.399f, 130.024f);
+path.lineTo(600.399f, 136.964f);
+path.lineTo(604.279f, 136.964f);
+path.lineTo(604.279f, 136.516f);
+path.lineTo(600.94f, 136.516f);
+path.lineTo(600.94f, 133.697f);
+path.close();
+path.moveTo(613.163f, 136.088f);
+path.lineTo(607.884f, 130.024f);
+path.lineTo(607.424f, 130.024f);
+path.lineTo(607.424f, 136.964f);
+path.lineTo(607.965f, 136.964f);
+path.lineTo(607.965f, 130.899f);
+path.lineTo(613.254f, 136.964f);
+path.lineTo(613.703f, 136.964f);
+path.lineTo(613.703f, 130.024f);
+path.lineTo(613.162f, 130.024f);
+path.lineTo(613.162f, 136.088f);
+path.lineTo(613.163f, 136.088f);
+path.close();
+path.moveTo(617.625f, 133.503f);
+path.cubicTo(617.625f, 131.743f, 618.932f, 130.43f, 620.668f, 130.43f);
+path.cubicTo(621.495f, 130.43f, 622.281f, 130.644f, 623.149f, 131.102f);
+path.lineTo(623.149f, 130.512f);
+path.cubicTo(622.301f, 130.125f, 621.474f, 129.932f, 620.698f, 129.932f);
+path.cubicTo(618.789f, 129.932f, 617.042f, 131.377f, 617.042f, 133.503f);
+path.cubicTo(617.042f, 135.538f, 618.625f, 137.054f, 620.749f, 137.054f);
+path.cubicTo(621.556f, 137.054f, 622.413f, 136.83f, 623.22f, 136.402f);
+path.lineTo(623.22f, 135.843f);
+path.cubicTo(622.27f, 136.341f, 621.525f, 136.555f, 620.739f, 136.555f);
+path.cubicTo(618.922f, 136.556f, 617.625f, 135.294f, 617.625f, 133.503f);
+path.close();
+path.moveTo(626.856f, 133.697f);
+path.lineTo(630.032f, 133.697f);
+path.lineTo(630.032f, 133.25f);
+path.lineTo(626.856f, 133.25f);
+path.lineTo(626.856f, 130.472f);
+path.lineTo(630.114f, 130.472f);
+path.lineTo(630.114f, 130.024f);
+path.lineTo(626.316f, 130.024f);
+path.lineTo(626.316f, 136.964f);
+path.lineTo(630.196f, 136.964f);
+path.lineTo(630.196f, 136.516f);
+path.lineTo(626.857f, 136.516f);
+path.lineTo(626.857f, 133.697f);
+path.lineTo(626.856f, 133.697f);
+path.close();
+path.moveTo(633.115f, 136.963f);
+path.lineTo(633.33f, 136.963f);
+path.cubicTo(633.33f, 137.309f, 633.299f, 137.523f, 633.115f, 137.797f);
+path.lineTo(633.115f, 138.154f);
+path.cubicTo(633.565f, 137.828f, 633.779f, 137.269f, 633.779f, 136.75f);
+path.lineTo(633.779f, 135.976f);
+path.lineTo(633.115f, 135.976f);
+path.lineTo(633.115f, 136.963f);
+path.close();
+path.moveTo(641.511f, 131.753f);
+path.cubicTo(641.511f, 131.001f, 642.144f, 130.43f, 642.981f, 130.43f);
+path.cubicTo(643.461f, 130.43f, 643.828f, 130.552f, 644.544f, 130.959f);
+path.lineTo(644.544f, 130.37f);
+path.cubicTo(644.003f, 130.075f, 643.472f, 129.933f, 642.931f, 129.933f);
+path.cubicTo(641.828f, 129.933f, 640.929f, 130.747f, 640.929f, 131.775f);
+path.cubicTo(640.929f, 134.065f, 644.247f, 133.2f, 644.247f, 135.173f);
+path.cubicTo(644.247f, 135.956f, 643.604f, 136.557f, 642.777f, 136.557f);
+path.cubicTo(642.236f, 136.557f, 641.797f, 136.374f, 641.02f, 135.814f);
+path.lineTo(641.02f, 136.445f);
+path.cubicTo(641.633f, 136.852f, 642.235f, 137.055f, 642.807f, 137.055f);
+path.cubicTo(643.941f, 137.055f, 644.829f, 136.221f, 644.829f, 135.152f);
+path.cubicTo(644.829f, 132.72f, 641.511f, 133.605f, 641.511f, 131.753f);
+path.close();
+path.moveTo(648.649f, 133.697f);
+path.lineTo(651.824f, 133.697f);
+path.lineTo(651.824f, 133.25f);
+path.lineTo(648.649f, 133.25f);
+path.lineTo(648.649f, 130.472f);
+path.lineTo(651.906f, 130.472f);
+path.lineTo(651.906f, 130.024f);
+path.lineTo(648.107f, 130.024f);
+path.lineTo(648.107f, 136.964f);
+path.lineTo(651.988f, 136.964f);
+path.lineTo(651.988f, 136.516f);
+path.lineTo(648.649f, 136.516f);
+path.lineTo(648.649f, 133.697f);
+path.close();
+path.moveTo(657.91f, 133.503f);
+path.cubicTo(658.799f, 133.177f, 659.237f, 132.618f, 659.237f, 131.814f);
+path.cubicTo(659.237f, 130.888f, 658.635f, 130.023f, 656.929f, 130.023f);
+path.lineTo(655.142f, 130.023f);
+path.lineTo(655.142f, 136.963f);
+path.lineTo(655.683f, 136.963f);
+path.lineTo(655.683f, 133.635f);
+path.lineTo(656.623f, 133.635f);
+path.cubicTo(657.46f, 133.635f, 657.726f, 133.747f, 658.563f, 135.06f);
+path.lineTo(659.778f, 136.963f);
+path.lineTo(660.411f, 136.963f);
+path.lineTo(658.838f, 134.561f);
+path.cubicTo(658.513f, 134.073f, 658.237f, 133.676f, 657.91f, 133.503f);
+path.close();
+path.moveTo(656.838f, 133.188f);
+path.lineTo(655.684f, 133.188f);
+path.lineTo(655.684f, 130.472f);
+path.lineTo(656.817f, 130.472f);
+path.cubicTo(658.094f, 130.472f, 658.655f, 131.041f, 658.655f, 131.825f);
+path.cubicTo(658.655f, 132.659f, 658.063f, 133.188f, 656.838f, 133.188f);
+path.close();
+path.moveTo(664.968f, 135.894f);
+path.lineTo(662.497f, 130.023f);
+path.lineTo(661.956f, 130.023f);
+path.lineTo(664.887f, 137.034f);
+path.lineTo(665.04f, 137.034f);
+path.lineTo(667.961f, 130.023f);
+path.lineTo(667.42f, 130.023f);
+path.lineTo(664.968f, 135.894f);
+path.close();
+path.moveTo(670.829f, 136.963f);
+path.lineTo(671.37f, 136.963f);
+path.lineTo(671.37f, 130.023f);
+path.lineTo(670.829f, 130.023f);
+path.lineTo(670.829f, 136.963f);
+path.close();
+path.moveTo(680.734f, 136.088f);
+path.lineTo(675.455f, 130.024f);
+path.lineTo(674.995f, 130.024f);
+path.lineTo(674.995f, 136.964f);
+path.lineTo(675.536f, 136.964f);
+path.lineTo(675.536f, 130.899f);
+path.lineTo(680.826f, 136.964f);
+path.lineTo(681.275f, 136.964f);
+path.lineTo(681.275f, 130.024f);
+path.lineTo(680.733f, 130.024f);
+path.lineTo(680.733f, 136.088f);
+path.lineTo(680.734f, 136.088f);
+path.close();
+path.moveTo(688.873f, 134.257f);
+path.lineTo(690.343f, 134.257f);
+path.lineTo(690.343f, 136.129f);
+path.cubicTo(689.791f, 136.403f, 689.24f, 136.556f, 688.433f, 136.556f);
+path.cubicTo(686.238f, 136.556f, 685.206f, 135.05f, 685.206f, 133.493f);
+path.cubicTo(685.206f, 131.733f, 686.514f, 130.43f, 688.28f, 130.43f);
+path.cubicTo(689.117f, 130.43f, 689.903f, 130.654f, 690.751f, 131.132f);
+path.lineTo(690.751f, 130.522f);
+path.cubicTo(689.771f, 130.084f, 689.148f, 129.932f, 688.362f, 129.932f);
+path.cubicTo(686.207f, 129.932f, 684.624f, 131.438f, 684.624f, 133.473f);
+path.cubicTo(684.624f, 135.529f, 686.247f, 137.055f, 688.413f, 137.055f);
+path.cubicTo(689.219f, 137.055f, 690.057f, 136.862f, 690.884f, 136.465f);
+path.lineTo(690.884f, 133.809f);
+path.lineTo(688.873f, 133.809f);
+path.lineTo(688.873f, 134.257f);
+path.close();
+path.moveTo(699.432f, 131.753f);
+path.cubicTo(699.432f, 131.001f, 700.065f, 130.43f, 700.902f, 130.43f);
+path.cubicTo(701.381f, 130.43f, 701.749f, 130.552f, 702.464f, 130.959f);
+path.lineTo(702.464f, 130.37f);
+path.cubicTo(701.923f, 130.075f, 701.391f, 129.933f, 700.85f, 129.933f);
+path.cubicTo(699.747f, 129.933f, 698.849f, 130.747f, 698.849f, 131.775f);
+path.cubicTo(698.849f, 134.065f, 702.168f, 133.2f, 702.168f, 135.173f);
+path.cubicTo(702.168f, 135.956f, 701.525f, 136.557f, 700.698f, 136.557f);
+path.cubicTo(700.156f, 136.557f, 699.718f, 136.374f, 698.941f, 135.814f);
+path.lineTo(698.941f, 136.445f);
+path.cubicTo(699.553f, 136.852f, 700.156f, 137.055f, 700.728f, 137.055f);
+path.cubicTo(701.862f, 137.055f, 702.75f, 136.221f, 702.75f, 135.152f);
+path.cubicTo(702.75f, 132.72f, 699.432f, 133.605f, 699.432f, 131.753f);
+path.close();
+path.moveTo(709.407f, 129.932f);
+path.cubicTo(707.345f, 129.932f, 705.731f, 131.499f, 705.731f, 133.493f);
+path.cubicTo(705.731f, 135.488f, 707.345f, 137.054f, 709.407f, 137.054f);
+path.cubicTo(711.48f, 137.054f, 713.104f, 135.487f, 713.104f, 133.493f);
+path.cubicTo(713.104f, 131.499f, 711.481f, 129.932f, 709.407f, 129.932f);
+path.close();
+path.moveTo(709.428f, 136.556f);
+path.cubicTo(707.683f, 136.556f, 706.314f, 135.223f, 706.314f, 133.493f);
+path.cubicTo(706.314f, 131.763f, 707.682f, 130.43f, 709.428f, 130.43f);
+path.cubicTo(711.175f, 130.43f, 712.523f, 131.763f, 712.523f, 133.493f);
+path.cubicTo(712.522f, 135.223f, 711.175f, 136.556f, 709.428f, 136.556f);
+path.close();
+path.moveTo(716.739f, 133.503f);
+path.cubicTo(716.739f, 131.743f, 718.046f, 130.43f, 719.782f, 130.43f);
+path.cubicTo(720.609f, 130.43f, 721.395f, 130.644f, 722.264f, 131.102f);
+path.lineTo(722.264f, 130.512f);
+path.cubicTo(721.416f, 130.125f, 720.589f, 129.932f, 719.813f, 129.932f);
+path.cubicTo(717.903f, 129.932f, 716.157f, 131.377f, 716.157f, 133.503f);
+path.cubicTo(716.157f, 135.538f, 717.74f, 137.054f, 719.863f, 137.054f);
+path.cubicTo(720.67f, 137.054f, 721.528f, 136.83f, 722.335f, 136.402f);
+path.lineTo(722.335f, 135.843f);
+path.cubicTo(721.385f, 136.341f, 720.64f, 136.555f, 719.854f, 136.555f);
+path.cubicTo(718.037f, 136.556f, 716.739f, 135.294f, 716.739f, 133.503f);
+path.close();
+path.moveTo(725.409f, 136.963f);
+path.lineTo(725.95f, 136.963f);
+path.lineTo(725.95f, 130.023f);
+path.lineTo(725.409f, 130.023f);
+path.lineTo(725.409f, 136.963f);
+path.close();
+path.moveTo(730.136f, 133.697f);
+path.lineTo(733.312f, 133.697f);
+path.lineTo(733.312f, 133.25f);
+path.lineTo(730.136f, 133.25f);
+path.lineTo(730.136f, 130.472f);
+path.lineTo(733.393f, 130.472f);
+path.lineTo(733.393f, 130.024f);
+path.lineTo(729.595f, 130.024f);
+path.lineTo(729.595f, 136.964f);
+path.lineTo(733.475f, 136.964f);
+path.lineTo(733.475f, 136.516f);
+path.lineTo(730.136f, 136.516f);
+path.lineTo(730.136f, 133.697f);
+path.close();
+path.moveTo(735.865f, 130.472f);
+path.lineTo(738.479f, 130.472f);
+path.lineTo(738.479f, 136.964f);
+path.lineTo(739.02f, 136.964f);
+path.lineTo(739.02f, 130.472f);
+path.lineTo(741.634f, 130.472f);
+path.lineTo(741.634f, 130.024f);
+path.lineTo(735.865f, 130.024f);
+path.lineTo(735.865f, 130.472f);
+path.close();
+path.moveTo(749.017f, 130.023f);
+path.lineTo(746.699f, 132.771f);
+path.lineTo(744.371f, 130.023f);
+path.lineTo(743.717f, 130.023f);
+path.lineTo(746.423f, 133.239f);
+path.lineTo(746.423f, 136.963f);
+path.lineTo(746.964f, 136.963f);
+path.lineTo(746.964f, 133.239f);
+path.lineTo(749.67f, 130.023f);
+path.lineTo(749.017f, 130.023f);
+path.close();
+path.moveTo(578.773f, 115.549f);
+path.lineTo(578.773f, 62.773f);
+path.lineTo(557.571f, 62.773f);
+path.cubicTo(562.752f, 67.658f, 575.797f, 106.652f, 578.773f, 115.549f);
+path.close();
+path.moveTo(544.754f, 62.861f);
+path.lineTo(524.496f, 62.861f);
+path.lineTo(524.496f, 115.55f);
+path.lineTo(524.934f, 115.55f);
+path.lineTo(544.544f, 64.169f);
+path.lineTo(528.157f, 115.549f);
+path.lineTo(528.682f, 115.549f);
+path.lineTo(546.557f, 67.658f);
+path.lineTo(531.675f, 115.548f);
+path.lineTo(532.376f, 115.548f);
+path.lineTo(548.57f, 71.846f);
+path.lineTo(535.293f, 115.507f);
+path.lineTo(535.906f, 115.507f);
+path.lineTo(544.281f, 97.58f);
+path.lineTo(542.267f, 97.58f);
+path.lineTo(550.409f, 76.033f);
+path.lineTo(544.281f, 97.578f);
+path.lineTo(546.119f, 97.578f);
+path.lineTo(538.678f, 115.551f);
+path.lineTo(565.029f, 115.551f);
+path.cubicTo(562.052f, 106.477f, 550.759f, 67.92f, 544.754f, 62.861f);
+path.close();
+    SkPath path2(path);
+    testPathOp(reporter, path1, path2, kIntersect_SkPathOp, filename);
+}
+
+static void (*skipTest)(skiatest::Reporter* , const char* filename) = 0;
 static void (*firstTest)(skiatest::Reporter* , const char* filename) = 0;
+static void (*stopTest)(skiatest::Reporter* , const char* filename) = 0;
 
 static struct TestDesc tests[] = {
+    TEST(skpwww_gorcraft_ru_1),
+    TEST(http___www_project2061_org),
+    TEST(http___www_emuleteca_cl_27),
+    TEST(http___www_emuleteca_cl_26),
+    TEST(http___www_emuleteca_cl_28),
+    TEST(skpwww_nimble_com_au_1),
+    TEST(skpwww_mybuilder_com_1),
+    TEST(skpwww_neda_net_2),
+    TEST(skpwww_woothemes_com_1),
+    TEST(skpwww_neda_net_1),
+    TEST(skpwww_tinytots_com_1),
+    TEST(skpwww_educationalcraft_com_4a),
     TEST(skpwww_lptemp_com_3),
     TEST(skpwww_shinydemos_com_5),
-#if TEST_NEW_FAILURES
     TEST(skpwww_lptemp_com_5),
     TEST(skpwww_shinydemos_com_15),
     TEST(skpwww_familysurvivalprotocol_wordpress_com_61),
     TEST(skpwww_alamdi_com_3),
     TEST(skpwww_devbridge_com_22),
-#endif
     TEST(skpwww_firstunitedbank_com_19),
     TEST(skpwww_googleventures_com_32),
     TEST(skpwww_9to5mac_com_64),
@@ -3942,11 +4764,10 @@ static struct TestDesc tests[] = {
 static const size_t testCount = SK_ARRAY_COUNT(tests);
 
 static bool runReverse = false;
-static void (*stopTest)(skiatest::Reporter* , const char* filename) = 0;
 
 DEF_TEST(PathOpsSkp, reporter) {
 #if DEBUG_SHOW_TEST_NAME
     strncpy(DEBUG_FILENAME_STRING, "", DEBUG_FILENAME_STRING_LENGTH);
 #endif
-    RunTestSet(reporter, tests, testCount, firstTest, stopTest, runReverse);
+    RunTestSet(reporter, tests, testCount, firstTest, skipTest, stopTest, runReverse);
 }

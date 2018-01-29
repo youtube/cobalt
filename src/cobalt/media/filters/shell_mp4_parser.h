@@ -72,12 +72,12 @@ class ShellMP4Parser : public ShellAVCParser {
   ShellMP4Parser(scoped_refptr<ShellDataSourceReader> reader,
                  uint32 ftyp_atom_size,
                  const scoped_refptr<MediaLog>& media_log);
-  virtual ~ShellMP4Parser();
+  ~ShellMP4Parser() override;
 
   // === ShellParser implementation
-  virtual bool ParseConfig() OVERRIDE;
-  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) OVERRIDE;
-  virtual bool SeekTo(base::TimeDelta timestamp) OVERRIDE;
+  bool ParseConfig() override;
+  scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) override;
+  bool SeekTo(base::TimeDelta timestamp) override;
 
  private:
   bool ParseNextAtom();

@@ -12,39 +12,21 @@
 /**
  * This test exercises drawPosTextH and drawPosText with every text align.
  */
-static const int kWidth = 480;
-static const int kHeight = 600;
-static const SkScalar kTextHeight = 64.0f;
-static const int kMaxStringLength = 12;
+constexpr int kWidth = 480;
+constexpr int kHeight = 600;
+constexpr SkScalar kTextHeight = 64.0f;
+constexpr int kMaxStringLength = 12;
 
-namespace skiagm {
+static void drawTestCase(SkCanvas*, const char*, SkScalar, const SkPaint&);
 
-class GlyphPosAlignGM : public GM {
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    virtual SkString onShortName() SK_OVERRIDE {
-        return SkString("glyph_pos_align");
-    }
-
-    virtual SkISize onISize() { return SkISize::Make(kWidth, kHeight); }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        canvas->clear(SK_ColorBLACK);
-
+DEF_SIMPLE_GM_BG(glyph_pos_align, canvas, kWidth, kHeight, SK_ColorBLACK) {
         SkPaint paint;
         paint.setTextSize(kTextHeight);
         paint.setFakeBoldText(true);
         const SkColor colors[] = { SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE };
         const SkPoint pts[] = {{0, 0}, {kWidth, kHeight}};
-        SkAutoTUnref<SkShader> grad(SkGradientShader::CreateLinear(pts, colors, NULL,
-                                                                   SK_ARRAY_COUNT(colors),
-                                                                   SkShader::kMirror_TileMode));
-        paint.setShader(grad);
-
-
+        paint.setShader(SkGradientShader::MakeLinear(pts, colors, nullptr, SK_ARRAY_COUNT(colors),
+                                                     SkShader::kMirror_TileMode));
         paint.setTextAlign(SkPaint::kRight_Align);
         drawTestCase(canvas, "Right Align", kTextHeight, paint);
 
@@ -53,13 +35,13 @@ protected:
 
         paint.setTextAlign(SkPaint::kLeft_Align);
         drawTestCase(canvas, "Left Align", 7 * kTextHeight, paint);
-    }
+}
 
-    void drawTestCase(SkCanvas* canvas, const char* text, SkScalar y, const SkPaint& paint) {
+void drawTestCase(SkCanvas* canvas, const char* text, SkScalar y, const SkPaint& paint) {
         SkScalar widths[kMaxStringLength];
         SkScalar posX[kMaxStringLength];
         SkPoint pos[kMaxStringLength];
-        int length = strlen(text);
+        int length = SkToInt(strlen(text));
         SkASSERT(length <= kMaxStringLength);
 
         paint.getTextWidths(text, length, widths);
@@ -81,19 +63,4 @@ protected:
 
         canvas->drawPosTextH(text, length, posX, y, paint);
         canvas->drawPosText(text, length, pos, paint);
-    }
-
-private:
-
-    typedef GM INHERITED;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-static GM* GlyphPosAlignFactory(void*) {
-    return new GlyphPosAlignGM();
-}
-
-static GMRegistry reg(GlyphPosAlignFactory);
-
 }

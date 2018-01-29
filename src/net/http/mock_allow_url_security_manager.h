@@ -16,8 +16,8 @@ class MockAllowURLSecurityManager : public URLSecurityManager {
   MockAllowURLSecurityManager();
   virtual ~MockAllowURLSecurityManager();
 
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const OVERRIDE;
-  virtual bool CanDelegate(const GURL& auth_origin) const OVERRIDE;
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const override;
+  virtual bool CanDelegate(const GURL& auth_origin) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockAllowURLSecurityManager);

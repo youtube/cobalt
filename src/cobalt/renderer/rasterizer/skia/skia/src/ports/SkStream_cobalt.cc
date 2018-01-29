@@ -14,13 +14,15 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 
+#include <stdio.h>
+
 #include <algorithm>
 #include <limits>
 #include <vector>
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "SkOSFile.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkOSFile_cobalt.h"
 
 SkFileMemoryChunkStreamManager::SkFileMemoryChunkStreamManager(
     const std::string& name, int cache_capacity_in_bytes)
@@ -97,8 +99,8 @@ SkFileMemoryChunkStreamProvider::SkFileMemoryChunkStreamProvider(
     : file_path_(file_path), manager_(manager) {}
 
 SkFileMemoryChunkStream* SkFileMemoryChunkStreamProvider::OpenStream() const {
-  return SkNEW_ARGS(SkFileMemoryChunkStream,
-                    (const_cast<SkFileMemoryChunkStreamProvider*>(this)));
+  return new SkFileMemoryChunkStream(
+      const_cast<SkFileMemoryChunkStreamProvider*>(this));
 }
 
 scoped_ptr<const SkFileMemoryChunks>
@@ -266,6 +268,10 @@ size_t SkFileMemoryChunkStream::read(void* buffer, size_t size) {
         break;
       }
 
+      // Note that by using |sk_fread| vs. |sk_qread|, additional seeks are
+      // avoided.  This is because |sk_qread|'s implementation does multiple
+      // seeks to ensure that the file cursor is at the same position after the
+      // |sk_qread| operation is done.
       index_actual_read_size = sk_fread(buffer, index_desired_read_size, file_);
       file_position_ = stream_position_ + index_actual_read_size;
     }
@@ -316,9 +322,9 @@ bool SkFileMemoryChunkStream::move(long offset) {
 }
 
 SkFileMemoryChunkStream* SkFileMemoryChunkStream::fork() const {
-  SkAutoTUnref<SkFileMemoryChunkStream> that(duplicate());
+  scoped_ptr<SkFileMemoryChunkStream> that(duplicate());
   that->seek(stream_position_);
-  return that.detach();
+  return that.release();
 }
 
 size_t SkFileMemoryChunkStream::getLength() const { return file_length_; }
@@ -338,6 +344,11 @@ bool SkFileMemoryChunkStream::ReadIndexIntoMemoryChunk(
   const size_t kChunkMaxReadSize = SkFileMemoryChunk::kSizeInBytes;
   size_t desired_read_size =
       std::min(file_length_ - index_position, kChunkMaxReadSize);
+
+  // Note that by using |sk_fread| vs. |sk_qread|, additional seeks are
+  // avoided.  This is because |sk_qread|'s implementation does multiple
+  // seeks to ensure that the file cursor is at the same position after the
+  // |sk_qread| operation is done.
   size_t actual_read_size = sk_fread(chunk->memory, desired_read_size, file_);
   file_position_ = index_position + actual_read_size;
 

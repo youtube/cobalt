@@ -37,16 +37,16 @@ class ClassSelector : public SimpleSelector {
   explicit ClassSelector(const std::string& class_name)
       : SimpleSelector(kClassSelector, base::Tokens::class_selector_prefix(),
                        base::Token(class_name)) {}
-  ~ClassSelector() OVERRIDE {}
+  ~ClassSelector() override {}
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(0, 1, 0); }
+  void Accept(SelectorVisitor* visitor) override;
+  Specificity GetSpecificity() const override { return Specificity(0, 1, 0); }
 
   // From SimpleSelector.
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
-                             CombinatorType combinator) OVERRIDE;
+                             CombinatorType combinator) override;
 
   // Rest of public methods.
   base::Token class_name() const { return text(); }

@@ -8,31 +8,51 @@
 #ifndef SkWindow_DEFINED
 #define SkWindow_DEFINED
 
+#include "../private/SkTDArray.h"
 #include "SkView.h"
 #include "SkBitmap.h"
 #include "SkMatrix.h"
 #include "SkRegion.h"
 #include "SkEvent.h"
 #include "SkKey.h"
-#include "SkTDArray.h"
-
-#ifdef SK_BUILD_FOR_WINCEx
-    #define SHOW_FPS
-#endif
-//#define USE_GX_SCREEN
+#include "SkSurfaceProps.h"
 
 class SkSurface;
 class SkOSMenu;
+
+#if SK_SUPPORT_GPU
+struct GrGLInterface;
+class GrContext;
+class GrRenderTarget;
+#endif
 
 class SkWindow : public SkView {
 public:
             SkWindow();
     virtual ~SkWindow();
 
+    struct AttachmentInfo {
+        AttachmentInfo()
+            : fSampleCount(0)
+            , fStencilBits(0)
+            , fColorBits(0) {}
+
+        int fSampleCount;
+        int fStencilBits;
+        int fColorBits;
+    };
+
+    SkSurfaceProps getSurfaceProps() const { return fSurfaceProps; }
+    void setSurfaceProps(const SkSurfaceProps& props) {
+        fSurfaceProps = props;
+    }
+
+    SkImageInfo info() const { return fBitmap.info(); }
     const SkBitmap& getBitmap() const { return fBitmap; }
 
-    void    setColorType(SkColorType);
-    void    resize(int width, int height, SkColorType = kUnknown_SkColorType);
+    void    resize(int width, int height);
+    void    resize(const SkImageInfo&);
+    void    setColorType(SkColorType, sk_sp<SkColorSpace>);
 
     bool    isDirty() const { return !fDirtyRgn.isEmpty(); }
     bool    update(SkIRect* updateArea);
@@ -58,10 +78,13 @@ public:
     void    preConcat(const SkMatrix&);
     void    postConcat(const SkMatrix&);
 
-    virtual SkSurface* createSurface();
+    virtual sk_sp<SkSurface> makeSurface();
 
-    virtual void onPDFSaved(const char title[], const char desc[],
-        const char path[]) {}
+#if SK_SUPPORT_GPU
+    sk_sp<SkSurface> makeGpuBackedSurface(const AttachmentInfo& attachmentInfo,
+                                          const GrGLInterface* , GrContext* grContext);
+#endif
+
 protected:
     virtual bool onEvent(const SkEvent&);
     virtual bool onDispatchClick(int x, int y, Click::State, void* owner, unsigned modi);
@@ -70,8 +93,8 @@ protected:
     virtual bool onHandleChar(SkUnichar);
     virtual bool onHandleKey(SkKey);
     virtual bool onHandleKeyUp(SkKey);
-    virtual void onAddMenu(const SkOSMenu*) {};
-    virtual void onUpdateMenu(const SkOSMenu*) {};
+    virtual void onAddMenu(const SkOSMenu*) {}
+    virtual void onUpdateMenu(const SkOSMenu*) {}
     virtual void onSetTitle(const char title[]) {}
 
     // overrides from SkView
@@ -80,7 +103,7 @@ protected:
     virtual bool onSetFocusView(SkView* focus);
 
 private:
-    SkColorType fColorType;
+    SkSurfaceProps  fSurfaceProps;
     SkBitmap    fBitmap;
     SkRegion    fDirtyRgn;
 
@@ -99,18 +122,14 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(SK_BUILD_FOR_NACL)
-    #include "SkOSWindow_NaCl.h"
-#elif defined(SK_BUILD_FOR_MAC)
+#if defined(SK_BUILD_FOR_MAC)
     #include "SkOSWindow_Mac.h"
 #elif defined(SK_BUILD_FOR_WIN)
     #include "SkOSWindow_Win.h"
 #elif defined(SK_BUILD_FOR_ANDROID)
-    #include "SkOSWindow_Android.h"
+    #error Android does not support SkOSWindow and SampleApp. Please use Viewer instead.
 #elif defined(SK_BUILD_FOR_UNIX)
-  #include "SkOSWindow_Unix.h"
-#elif defined(SK_BUILD_FOR_SDL)
-    #include "SkOSWindow_SDL.h"
+    #include "SkOSWindow_Unix.h"
 #elif defined(SK_BUILD_FOR_IOS)
     #include "SkOSWindow_iOS.h"
 #endif

@@ -17,6 +17,7 @@
 #include "cobalt/bindings/testing/derived_interface.h"
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
+#include "cobalt/bindings/testing/utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -80,7 +81,9 @@ TEST_F(PlatformObjectBindingsTest, Prototype) {
   std::string result;
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.arbitraryObject);", &result));
-  EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
+
+  EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
+      << result;
 }
 
 #if defined(ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT)
@@ -179,7 +182,9 @@ TEST_F(PlatformObjectBindingsTest, ReturnDerivedClassWrapper) {
   EXPECT_CALL(test_mock(), base_interface());
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.baseInterface);", &result));
-  EXPECT_STREQ("[object DerivedInterfacePrototype]", result.c_str());
+
+  EXPECT_TRUE(IsAcceptablePrototypeString("DerivedInterface", result))
+      << result;
 
   EXPECT_CALL(test_mock(), base_interface());
   EXPECT_CALL(*derived_interface_, DerivedOperation());

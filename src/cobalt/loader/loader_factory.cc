@@ -41,10 +41,10 @@ LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
 }
 
 scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
-    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    const GURL& url, const Origin& origin,
+    const csp::SecurityCallback& url_security_callback,
     const image::ImageDecoder::SuccessCallback& success_callback,
-    const image::ImageDecoder::ErrorCallback& error_callback,
-    const Origin& origin) {
+    const image::ImageDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
@@ -60,10 +60,10 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
 }
 
 scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
-    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    const GURL& url, const Origin& origin,
+    const csp::SecurityCallback& url_security_callback,
     const font::TypefaceDecoder::SuccessCallback& success_callback,
-    const font::TypefaceDecoder::ErrorCallback& error_callback,
-    const Origin& origin) {
+    const font::TypefaceDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
@@ -80,10 +80,10 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 
 // Creates a loader that fetches and decodes a Mesh.
 scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
-    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    const GURL& url, const Origin& origin,
+    const csp::SecurityCallback& url_security_callback,
     const mesh::MeshDecoder::SuccessCallback& success_callback,
-    const mesh::MeshDecoder::ErrorCallback& error_callback,
-    const Origin& origin) {
+    const mesh::MeshDecoder::ErrorCallback& error_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(

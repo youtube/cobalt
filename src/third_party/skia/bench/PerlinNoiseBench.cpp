@@ -7,6 +7,7 @@
 #include "Benchmark.h"
 #include "SkCanvas.h"
 #include "SkPerlinNoiseShader.h"
+#include "SkShader.h"
 
 class PerlinNoiseBench : public Benchmark {
     SkISize fSize;
@@ -17,13 +18,12 @@ public:
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return "perlinnoise";
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
-        this->test(loops, canvas, 0, 0, SkPerlinNoiseShader::kFractalNoise_Type,
-                   0.1f, 0.1f, 3, 0, false);
+    void onDraw(int loops, SkCanvas* canvas) override {
+        this->test(loops, canvas, 0, 0, 0.1f, 0.1f, 3, 0, false);
     }
 
 private:
@@ -38,17 +38,13 @@ private:
         canvas->restore();
     }
 
-    void test(const int loops, SkCanvas* canvas, int x, int y, SkPerlinNoiseShader::Type type,
+    void test(int loops, SkCanvas* canvas, int x, int y,
               float baseFrequencyX, float baseFrequencyY, int numOctaves, float seed,
               bool stitchTiles) {
-        SkShader* shader = (type == SkPerlinNoiseShader::kFractalNoise_Type) ?
-            SkPerlinNoiseShader::CreateFractalNoise(baseFrequencyX, baseFrequencyY, numOctaves,
-                                                    seed, stitchTiles ? &fSize : NULL) :
-            SkPerlinNoiseShader::CreateTurbulence(baseFrequencyX, baseFrequencyY, numOctaves,
-                                                 seed, stitchTiles ? &fSize : NULL);
         SkPaint paint;
-        paint.setShader(shader)->unref();
-
+        paint.setShader(SkPerlinNoiseShader::MakeFractalNoise(baseFrequencyX, baseFrequencyY,
+                                                              numOctaves, seed,
+                                                              stitchTiles ? &fSize : nullptr));
         for (int i = 0; i < loops; i++) {
             this->drawClippedRect(canvas, x, y, paint);
         }

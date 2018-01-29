@@ -7,7 +7,7 @@
 
 #include "PathOpsQuadIntersectionTestData.h"
 
-const SkDQuad quadraticPoints[] = {
+const QuadPts quadraticPoints[] = {
     {{{0, 0}, {1, 0}, {0, 0}}},
     {{{0, 0}, {0, 1}, {0, 0}}},
     {{{0, 0}, {1, 1}, {0, 0}}},
@@ -16,7 +16,7 @@ const SkDQuad quadraticPoints[] = {
 
 const size_t quadraticPoints_count = SK_ARRAY_COUNT(quadraticPoints);
 
-const SkDQuad quadraticLines[] = {
+const QuadPts quadraticLines[] = {
     {{{0, 0}, {0, 0}, {1, 0}}},
     {{{1, 0}, {0, 0}, {0, 0}}},
     {{{1, 0}, {2, 0}, {3, 0}}},
@@ -44,12 +44,12 @@ const SkDQuad quadraticLines[] = {
 
 const size_t quadraticLines_count = SK_ARRAY_COUNT(quadraticLines);
 
-static const double F = FLT_EPSILON * 3;
-static const double H = FLT_EPSILON * 4;
-static const double J = FLT_EPSILON * 5;
-static const double K = FLT_EPSILON * 8;  // INVESTIGATE: why are larger multiples necessary?
+static const double F = FLT_EPSILON * 32;
+static const double H = FLT_EPSILON * 32;
+static const double J = FLT_EPSILON * 32;
+static const double K = FLT_EPSILON * 32;  // INVESTIGATE: why are larger multiples necessary?
 
-const SkDQuad quadraticModEpsilonLines[] = {
+const QuadPts quadraticModEpsilonLines[] = {
     {{{0, F}, {0, 0}, {1, 0}}},
     {{{0, 0}, {1, 0}, {0, F}}},
     {{{1, 0}, {0, F}, {0, 0}}},
@@ -64,7 +64,7 @@ const SkDQuad quadraticModEpsilonLines[] = {
     {{{1, 1+J}, {2, 2}, {3, 3}}},
     {{{1, 1}, {3, 3}, {3+F, 3}}},
     {{{1, 1}, {1+F, 1}, {2, 2}}},
-    {{{1, 1}, {2, 2}, {1, 1+F}}},
+    {{{1, 1}, {2, 2}, {1, 1+K}}},
     {{{1, 1}, {1, 1+F}, {3, 3}}},
     {{{1+H, 1}, {2, 2}, {4, 4}}},  // no coincident
     {{{1, 1+K}, {3, 3}, {4, 4}}},
@@ -82,7 +82,7 @@ const SkDQuad quadraticModEpsilonLines[] = {
 const size_t quadraticModEpsilonLines_count =
         SK_ARRAY_COUNT(quadraticModEpsilonLines);
 
-const SkDQuad quadraticTests[][2] = {
+const QuadPts quadraticTests[][2] = {
     {  // one intersection
      {{{0, 0},
       {0, 1},

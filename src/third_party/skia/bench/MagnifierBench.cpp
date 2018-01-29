@@ -6,6 +6,7 @@
  */
 
 #include "Benchmark.h"
+#include "SkBitmap.h"
 #include "SkCanvas.h"
 #include "SkMagnifierImageFilter.h"
 #include "SkRandom.h"
@@ -22,27 +23,27 @@ public:
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fIsSmall ? "magnifier_small" : "magnifier_large";
     }
 
-    virtual void onPreDraw() SK_OVERRIDE {
+    void onDelayedSetup() override {
         if (!fInitialized) {
             make_checkerboard();
             fInitialized = true;
         }
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         const int w = fIsSmall ? FILTER_WIDTH_SMALL : FILTER_WIDTH_LARGE;
         const int h = fIsSmall ? FILTER_HEIGHT_SMALL : FILTER_HEIGHT_LARGE;
         SkPaint paint;
         paint.setImageFilter(
-            SkMagnifierImageFilter::Create(
+            SkMagnifierImageFilter::Make(
                 SkRect::MakeXYWH(SkIntToScalar(w / 4),
                                  SkIntToScalar(h / 4),
                                  SkIntToScalar(w / 2),
-                                 SkIntToScalar(h / 2)), 100))->unref();
+                                 SkIntToScalar(h / 2)), 100, nullptr));
 
         for (int i = 0; i < loops; i++) {
             canvas->drawBitmap(fCheckerboard, 0, 0, &paint);

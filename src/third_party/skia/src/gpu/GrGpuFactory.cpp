@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -7,37 +6,27 @@
  */
 
 
-#include "GrTypes.h"
-
-#include "gl/GrGLConfig.h"
-
-#include "GrGpu.h"
-#include "gl/GrGpuGL.h"
-
-GrGpu* GrGpu::Create(GrBackend backend, GrBackendContext backendContext, GrContext* context) {
-
-    const GrGLInterface* glInterface = NULL;
-    SkAutoTUnref<const GrGLInterface> glInterfaceUnref;
-
-    if (kOpenGL_GrBackend == backend) {
-        glInterface = reinterpret_cast<const GrGLInterface*>(backendContext);
-        if (NULL == glInterface) {
-            glInterface = GrGLDefaultInterface();
-            // By calling GrGLDefaultInterface we've taken a ref on the
-            // returned object. We only want to hold that ref until after
-            // the GrGpu is constructed and has taken ownership.
-            glInterfaceUnref.reset(glInterface);
-        }
-        if (NULL == glInterface) {
-#ifdef SK_DEBUG
-            GrPrintf("No GL interface provided!\n");
+#include "GrGpuFactory.h"
+#include "gl/GrGLGpu.h"
+#include "mock/GrMockGpu.h"
+#ifdef SK_VULKAN
+#include "vk/GrVkGpu.h"
 #endif
-            return NULL;
-        }
-        GrGLContext ctx(glInterface);
-        if (ctx.isInitialized()) {
-            return SkNEW_ARGS(GrGpuGL, (ctx, context));
-        }
+
+GrGpu* GrGpu::Create(GrBackend backend,
+                     GrBackendContext backendContext,
+                     const GrContextOptions& options,
+                     GrContext* context) {
+    switch (backend) {
+        case kOpenGL_GrBackend:
+            return GrGLGpu::Create(backendContext, options, context);
+#ifdef SK_VULKAN
+        case kVulkan_GrBackend:
+            return GrVkGpu::Create(backendContext, options, context);
+#endif
+        case kMock_GrBackend:
+            return GrMockGpu::Create(backendContext, options, context);
+        default:
+            return nullptr;
     }
-    return NULL;
 }

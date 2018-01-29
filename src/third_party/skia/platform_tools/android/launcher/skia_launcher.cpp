@@ -67,11 +67,9 @@ int main(int argc, const char** argv) {
         return -1;
     }
 
-    void* skiaLibrary;
-
 #if defined(SKIA_DLL)
     // load the local skia shared library
-    skiaLibrary = load_library(appLocation, "skia_android");
+    void* skiaLibrary = load_library(appLocation, "skia_android");
     if (NULL == skiaLibrary)
     {
         return -1;
@@ -84,10 +82,6 @@ int main(int argc, const char** argv) {
         return -1;
     }
 
-#if !defined(SKIA_DLL)
-    skiaLibrary = appLibrary;
-#endif
-
     // find the address of the main function
     int (*app_main)(int, const char**);
     *(void **) (&app_main) = dlsym(appLibrary, "main");
@@ -96,17 +90,6 @@ int main(int argc, const char** argv) {
         printf("ERROR: Unable to load the main function of the selected program.\n");
         printf("ERROR: %s\n", dlerror());
         return -1;
-    }
-
-    // find the address of the SkPrintToConsole function
-    void (*app_SkDebugToStdOut)(bool);
-    *(void **) (&app_SkDebugToStdOut) = dlsym(skiaLibrary, "AndroidSkDebugToStdOut");
-
-    if (app_SkDebugToStdOut) {
-        (*app_SkDebugToStdOut)(true);
-    } else {
-        printf("WARNING: Unable to redirect output to the console.\n");
-        printf("WARNING: %s\n", dlerror());
     }
 
     // pass all additional arguments to the main function

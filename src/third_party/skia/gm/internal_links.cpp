@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -6,6 +5,7 @@
  * found in the LICENSE file.
  */
 #include "gm.h"
+#include "sk_tool_utils.h"
 
 #include "SkAnnotation.h"
 #include "SkData.h"
@@ -20,7 +20,7 @@ namespace skiagm {
 class InternalLinksGM : public GM {
 public:
     InternalLinksGM() {
-        this->setBGColor(0xFFDDDDDD);
+        this->setBGColor(sk_tool_utils::color_to_565(0xFFDDDDDD));
     }
 
 protected:
@@ -33,7 +33,7 @@ protected:
     }
 
     virtual void onDraw(SkCanvas* canvas) {
-        SkAutoTUnref<SkData> name(SkData::NewWithCString("target-a"));
+        sk_sp<SkData> name(SkData::MakeWithCString("target-a"));
 
         canvas->save();
         canvas->translate(SkIntToScalar(100), SkIntToScalar(100));
@@ -64,7 +64,7 @@ private:
         sk_tool_utils::set_portable_typeface(&paint);
         paint.setTextSize(SkIntToScalar(25));
         paint.setColor(SK_ColorBLACK);
-        canvas->drawText(text, strlen(text), x, y, paint);
+        canvas->drawString(text, x, y, paint);
     }
 
     typedef GM INHERITED;
@@ -72,7 +72,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-static GM* MyFactory(void*) { return SkNEW(InternalLinksGM); }
+static GM* MyFactory(void*) { return new InternalLinksGM; }
 static GMRegistry reg(MyFactory);
 
 }

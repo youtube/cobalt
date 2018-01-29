@@ -9,6 +9,8 @@
 #define GrRectanizer_pow2_DEFINED
 
 #include "GrRectanizer.h"
+#include "SkMathPriv.h"
+#include "SkMalloc.h"
 #include "SkPoint.h"
 
 // This Rectanizer quantizes the incoming rects to powers of 2. Each power
@@ -22,17 +24,17 @@ public:
         this->reset();
     }
 
-    virtual ~GrRectanizerPow2() { }
+    ~GrRectanizerPow2() override {}
 
-    virtual void reset() SK_OVERRIDE {
+    void reset() override {
         fNextStripY = 0;
         fAreaSoFar = 0;
         sk_bzero(fRows, sizeof(fRows));
     }
 
-    virtual bool addRect(int w, int h, SkIPoint16* loc) SK_OVERRIDE;
+    bool addRect(int w, int h, SkIPoint16* loc) override;
 
-    virtual float percentFull() const SK_OVERRIDE {
+    float percentFull() const override {
         return fAreaSoFar / ((float)this->width() * this->height());
     }
 

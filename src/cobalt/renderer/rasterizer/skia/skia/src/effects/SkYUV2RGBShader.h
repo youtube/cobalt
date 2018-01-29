@@ -15,35 +15,34 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_EFFECTS_SKYUV2RGBSHADER_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_EFFECTS_SKYUV2RGBSHADER_H_
 
-#include "SkShader.h"
+#include "third_party/skia/src/shaders/SkShaderBase.h"
 
-class SkYUV2RGBShader : public SkShader {
+#include "third_party/skia/src/shaders/SkImageShader.h"
+
+class SkYUV2RGBShader : public SkShaderBase {
  public:
-  SkYUV2RGBShader(SkYUVColorSpace color_space,
-                  const SkBitmap& y_bitmap, const SkMatrix& y_matrix,
-                  const SkBitmap& u_bitmap, const SkMatrix& u_matrix,
-                  const SkBitmap& v_bitmap, const SkMatrix& v_matrix);
-  virtual ~SkYUV2RGBShader();
+  SkYUV2RGBShader(SkYUVColorSpace color_space, const sk_sp<SkImage>& y_image,
+                  const SkMatrix& y_matrix, const sk_sp<SkImage>& u_image,
+                  const SkMatrix& u_matrix, const sk_sp<SkImage>& v_image,
+                  const SkMatrix& v_matrix);
+  virtual ~SkYUV2RGBShader() = default;
 
-  virtual size_t contextSize() const SK_OVERRIDE;
-
-  class YUV2RGBShaderContext : public SkShader::Context {
+  class YUV2RGBShaderContext : public SkShaderBase::Context {
    public:
     // Takes ownership of shaderContext and calls its destructor.
     YUV2RGBShaderContext(SkYUVColorSpace color_space,
                          const SkYUV2RGBShader& yuv2rgb_shader,
-                         SkShader::Context* y_shader_context,
-                         SkShader::Context* u_shader_context,
-                         SkShader::Context* v_shader_context,
+                         SkShaderBase::Context* y_shader_context,
+                         SkShaderBase::Context* u_shader_context,
+                         SkShaderBase::Context* v_shader_context,
                          const ContextRec& rec);
     virtual ~YUV2RGBShaderContext();
 
-    virtual uint32_t getFlags() const SK_OVERRIDE;
+    uint32_t getFlags() const override;
 
-    virtual void shadeSpan(int x, int y, SkPMColor[], int count) SK_OVERRIDE;
-    virtual void shadeSpan16(int x, int y, uint16_t[], int count) SK_OVERRIDE;
+    void shadeSpan(int x, int y, SkPMColor[], int count) override;
 
-    virtual void set3DMask(const SkMask* mask) SK_OVERRIDE {
+    void set3DMask(const SkMask* mask) override {
         // forward to our proxy
         y_shader_context_->set3DMask(mask);
         u_shader_context_->set3DMask(mask);
@@ -53,48 +52,44 @@ class SkYUV2RGBShader : public SkShader {
    private:
     SkYUVColorSpace color_space_;
 
-    SkShader::Context* y_shader_context_;
-    SkShader::Context* u_shader_context_;
-    SkShader::Context* v_shader_context_;
+    SkShaderBase::Context* y_shader_context_;
+    SkShaderBase::Context* u_shader_context_;
+    SkShaderBase::Context* v_shader_context_;
 
-    typedef SkShader::Context INHERITED;
+    typedef SkShaderBase::Context INHERITED;
   };
 
 #if SK_SUPPORT_GPU
-  bool asFragmentProcessor(
-      GrContext*, const SkPaint&, const SkMatrix*, GrColor*,
-      GrFragmentProcessor**) const SK_OVERRIDE;
+  sk_sp<GrFragmentProcessor> asFragmentProcessor(const AsFPArgs&) const
+      override;
 #endif
 
   SK_TO_STRING_OVERRIDE()
   SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkYUV2RGBShader)
 
  protected:
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-  explicit SkYUV2RGBShader(SkReadBuffer&);
-#endif
-  virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
-  virtual Context* onCreateContext(
-      const ContextRec&, void* storage) const SK_OVERRIDE;
+  void flatten(SkWriteBuffer&) const override;
+  SkShaderBase::Context* onMakeContext(const ContextRec& rec,
+                                       SkArenaAlloc* storage) const override;
 
  private:
   void InitializeShaders();
 
   SkYUVColorSpace color_space_;
 
-  SkBitmap y_bitmap_;
+  sk_sp<SkImage> y_image_;
   SkMatrix y_matrix_;
-  SkShader* y_shader_;
+  sk_sp<SkImageShader> y_shader_;
 
-  SkBitmap u_bitmap_;
+  sk_sp<SkImage> u_image_;
   SkMatrix u_matrix_;
-  SkShader* u_shader_;
+  sk_sp<SkImageShader> u_shader_;
 
-  SkBitmap v_bitmap_;
+  sk_sp<SkImage> v_image_;
   SkMatrix v_matrix_;
-  SkShader* v_shader_;
+  sk_sp<SkImageShader> v_shader_;
 
-  typedef SkShader INHERITED;
+  typedef SkShaderBase INHERITED;
 };
 
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_EFFECTS_SKYUV2RGBSHADER_H_

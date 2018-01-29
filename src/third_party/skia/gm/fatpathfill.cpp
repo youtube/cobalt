@@ -6,6 +6,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkCanvas.h"
 #include "SkPath.h"
 #include "SkSurface.h"
@@ -15,13 +16,13 @@
 #define SMALL_H 3
 #define REPEAT_LOOP 5
 
-static SkSurface* new_surface(int width, int height) {
-    return SkSurface::NewRasterPMColor(width, height);
+static sk_sp<SkSurface> new_surface(int width, int height) {
+    return SkSurface::MakeRasterN32Premul(width, height);
 }
 
 static void draw_pixel_centers(SkCanvas* canvas) {
     SkPaint paint;
-    paint.setColor(0xFF0088FF);
+    paint.setColor(sk_tool_utils::color_to_565(0xFF0088FF));
     paint.setAntiAlias(true);
 
     for (int y = 0; y < SMALL_H; ++y) {
@@ -31,45 +32,25 @@ static void draw_pixel_centers(SkCanvas* canvas) {
     }
 }
 
-static void draw_fatpath(SkCanvas* canvas, SkSurface* surface,
-                         const SkPath paths[], int count) {
+static void draw_fatpath(SkCanvas* canvas, SkSurface* surface, const SkPath& path) {
     SkPaint paint;
 
     surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    for (int i = 0; i < count; ++i) {
-        surface->getCanvas()->drawPath(paths[i], paint);
-    }
-    surface->draw(canvas, 0, 0, NULL);
+    surface->getCanvas()->drawPath(path, paint);
+    surface->draw(canvas, 0, 0, nullptr);
 
     paint.setAntiAlias(true);
     paint.setColor(SK_ColorRED);
     paint.setStyle(SkPaint::kStroke_Style);
-    for (int j = 0; j < count; ++j) {
-        canvas->drawPath(paths[j], paint);
-    }
+    canvas->drawPath(path, paint);
 
     draw_pixel_centers(canvas);
 }
 
-class FatPathFillGM : public skiagm::GM {
-public:
-    FatPathFillGM() {}
-
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    virtual SkString onShortName() {
-        return SkString("fatpathfill");
-    }
-
-    virtual SkISize onISize() {
-        return SkISize::Make(SMALL_W * ZOOM, SMALL_H * ZOOM * REPEAT_LOOP);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) {
-        SkAutoTUnref<SkSurface> surface(new_surface(SMALL_W, SMALL_H));
+DEF_SIMPLE_GM(fatpathfill, canvas,
+              SMALL_W * ZOOM,
+              SMALL_H * ZOOM * REPEAT_LOOP) {
+        auto surface(new_surface(SMALL_W, SMALL_H));
 
         canvas->scale(ZOOM, ZOOM);
 
@@ -79,19 +60,11 @@ protected:
 
         for (int i = 0; i < REPEAT_LOOP; ++i) {
             SkPath line, path;
-            line.moveTo(SkIntToScalar(1), SkIntToScalar(2));
-            line.lineTo(SkIntToScalar(4 + i), SkIntToScalar(1));
+            line.moveTo(1, 2);
+            line.lineTo(SkIntToScalar(4 + i), 1);
             paint.getFillPath(line, &path);
-            draw_fatpath(canvas, surface, &path, 1);
+            draw_fatpath(canvas, surface.get(), path);
 
             canvas->translate(0, SMALL_H);
         }
-    }
-
-private:
-    typedef skiagm::GM INHERITED;
-};
-
-///////////////////////////////////////////////////////////////////////////////
-
-DEF_GM(return new FatPathFillGM;)
+}

@@ -30,14 +30,14 @@ class TextureDataStub : public TextureData {
   explicit TextureDataStub(const SurfaceInfo& surface_info) :
       pixel_data_(new PixelDataStub(surface_info)) {}
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE {
+  const SurfaceInfo& GetSurfaceInfo() const override {
     return pixel_data_->surface_info();
   }
-  int GetPitchInBytes() const OVERRIDE {
+  int GetPitchInBytes() const override {
     return pixel_data_->surface_info().size.width() *
            SurfaceInfo::BytesPerPixel(pixel_data_->surface_info().format);
   }
-  uint8_t* GetMemory() OVERRIDE { return pixel_data_->memory(); }
+  uint8_t* GetMemory() override { return pixel_data_->memory(); }
 
   const scoped_refptr<PixelDataStub>& pixel_data() const { return pixel_data_; }
 
@@ -54,15 +54,15 @@ class RawTextureMemoryStub : public RawTextureMemory {
   }
 
   // Returns the allocated size of the texture memory.
-  size_t GetSizeInBytes() const OVERRIDE { return size_in_bytes_; }
+  size_t GetSizeInBytes() const override { return size_in_bytes_; }
 
   // Returns a CPU-accessible pointer to the allocated memory.
-  uint8_t* GetMemory() OVERRIDE { return memory_.get(); }
+  uint8_t* GetMemory() override { return memory_.get(); }
 
   const uint8_t* GetMemory() const { return memory_.get(); }
 
  protected:
-  void MakeConst() OVERRIDE {}
+  void MakeConst() override {}
 
  private:
   size_t size_in_bytes_;
@@ -89,7 +89,7 @@ class TextureStub : public Texture {
             &(raw_texture_memory->raw_texture_memory()));
   }
 
-  const SurfaceInfo& GetSurfaceInfo() const OVERRIDE {
+  const SurfaceInfo& GetSurfaceInfo() const override {
     return pixel_data_->surface_info();
   }
 
@@ -97,9 +97,9 @@ class TextureStub : public Texture {
     return pixel_data_;
   }
 
-  Origin GetOrigin() const OVERRIDE { return kBottomLeft; }
+  Origin GetOrigin() const override { return kBottomLeft; }
 
-  intptr_t GetPlatformHandle() OVERRIDE { return 0; }
+  intptr_t GetPlatformHandle() override { return 0; }
 
  private:
   scoped_refptr<PixelDataStub> pixel_data_;

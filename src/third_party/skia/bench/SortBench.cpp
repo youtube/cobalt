@@ -10,6 +10,8 @@
 #include "SkString.h"
 #include "SkTSort.h"
 
+#include <stdlib.h>
+
 static const int N = 1000;
 
 static void rand_proc(int array[N]) {
@@ -107,22 +109,22 @@ public:
         fName.printf("sort_%s_%s", gSorts[s].fName, gRec[t].fName);
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
     // Delayed initialization only done if onDraw will be called.
-    virtual void onPreDraw() SK_OVERRIDE {
+    void onDelayedSetup() override {
         fUnsorted.reset(N);
         gRec[fType].fProc(fUnsorted.get());
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas*) override {
         SkAutoTMalloc<int> sorted(N);
         for (int i = 0; i < loops; i++) {
             memcpy(sorted.get(), fUnsorted.get(), N*sizeof(int));

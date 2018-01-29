@@ -45,6 +45,10 @@
 
 #if SB_HAS(MICROPHONE)
 
+#if SB_API_VERSION >= 9
+#define kSbMicrophoneLabelSize 256
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -93,6 +97,13 @@ typedef struct SbMicrophoneInfo {
 
   // The minimum read size required for each read from microphone.
   int min_read_size;
+
+#if SB_API_VERSION >= 9
+  // Name of the microphone. Can be empty. This should indicate the
+  // friendly name of the microphone type. For example, "Headset Microphone".
+  // The string must be null terminated.
+  char label[kSbMicrophoneLabelSize];
+#endif
 } SbMicrophoneInfo;
 
 // An opaque handle to an implementation-private structure that represents a

@@ -28,12 +28,12 @@ class FileUtilProxyTest : public testing::Test {
         bytes_written_(-1),
         weak_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     ASSERT_TRUE(dir_.CreateUniqueTempDir());
     ASSERT_TRUE(file_thread_.Start());
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     if (file_ != kInvalidPlatformFileValue)
       ClosePlatformFile(file_);
   }
@@ -125,9 +125,10 @@ class FileUtilProxyTest : public testing::Test {
 };
 
 TEST_F(FileUtilProxyTest, CreateOrOpen_Create) {
+  FilePath file_path = test_path();
   FileUtilProxy::CreateOrOpen(
       file_task_runner(),
-      test_path(),
+      file_path,
       PLATFORM_FILE_CREATE | PLATFORM_FILE_READ,
       Bind(&FileUtilProxyTest::DidCreateOrOpen, weak_factory_.GetWeakPtr()));
   MessageLoop::current()->Run();

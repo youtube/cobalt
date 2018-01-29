@@ -17,6 +17,7 @@
 #include <windows.h>
 
 #include "starboard/log.h"
+#include "starboard/shared/starboard/memory_reporter_internal.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
   SB_UNREFERENCED_PARAMETER(name);
@@ -38,5 +39,9 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
     default:
       SB_NOTREACHED();
   }
-  return VirtualAllocFromApp(NULL, size_bytes, MEM_COMMIT, protect);
+  void* memory = VirtualAllocFromApp(NULL, size_bytes, MEM_COMMIT, protect);
+  if (PAGE_READONLY != protect) {
+    SbMemoryReporterReportMappedMemory(memory, size_bytes);
+  }
+  return memory;
 }

@@ -48,13 +48,14 @@ static inline bool SkPixelGeometryIsV(SkPixelGeometry geo) {
  *  during drawing, and can sometimes optimize its performance (e.g. disabling an expensive
  *  feature).
  */
-class SkSurfaceProps {
+class SK_API SkSurfaceProps {
 public:
     enum Flags {
-        kDisallowAntiAlias_Flag     = 1 << 0,
-        kDisallowDither_Flag        = 1 << 1,
-        kUseDistanceFieldFonts_Flag = 1 << 2,
+        kUseDeviceIndependentFonts_Flag = 1 << 0,
     };
+    /** Deprecated alias used by Chromium. Will be removed. */
+    static const Flags kUseDistanceFieldFonts_Flag = kUseDeviceIndependentFonts_Flag;
+
     SkSurfaceProps(uint32_t flags, SkPixelGeometry);
 
     enum InitType {
@@ -62,13 +63,14 @@ public:
     };
     SkSurfaceProps(InitType);
     SkSurfaceProps(uint32_t flags, InitType);
+    SkSurfaceProps(const SkSurfaceProps& other);
 
     uint32_t flags() const { return fFlags; }
     SkPixelGeometry pixelGeometry() const { return fPixelGeometry; }
 
-    bool isDisallowAA() const { return SkToBool(fFlags & kDisallowAntiAlias_Flag); }
-    bool isDisallowDither() const { return SkToBool(fFlags & kDisallowDither_Flag); }
-    bool isUseDistanceFieldFonts() const { return SkToBool(fFlags & kUseDistanceFieldFonts_Flag); }
+    bool isUseDeviceIndependentFonts() const {
+        return SkToBool(fFlags & kUseDeviceIndependentFonts_Flag);
+    }
 
 private:
     SkSurfaceProps();

@@ -19,6 +19,7 @@ import signal
 import socket
 import subprocess
 import sys
+import traceback
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
@@ -52,8 +53,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
         [self.executable] + self.target_command_line_params,
         stdout=self.output_file,
         stderr=self.output_file,
-        env=self.full_env)
-    self._CloseOutputFile()
+        env=self.full_env,
+        close_fds=True)
     self.pid = self.proc.pid
     self.proc.wait()
     return self.proc.returncode
@@ -62,9 +63,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
     sys.stderr.write("\n***Killing Launcher***\n")
     if self.pid:
       try:
-        os.kill(self.pid, signal.SIGTERM)
+        self.proc.kill()
       except OSError:
-        sys.stderr.write("Cannot kill launcher.  Process already closed.\n")
+        sys.stderr.write("Error killing launcher with SIGKILL:\n")
+        traceback.print_exc(file=sys.stderr)
+    else:
+      sys.stderr.write("Kill() called before Run(), cannot kill.\n")
+
+  def SupportsSuspendResume(self):
+    return True
 
   def SendResume(self):
     """Sends continue to the launcher's executable."""
@@ -73,3 +80,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.proc.send_signal(signal.SIGCONT)
     else:
       sys.stderr.write("Cannot send continue to executable; it is closed.\n")
+
+  def SendSuspend(self):
+    """Sends suspend to the launcher's executable."""
+    sys.stderr.write("\n***Sending suspend signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGUSR1)
+    else:
+      sys.stderr.write("Cannot send suspend to executable; it is closed.\n")

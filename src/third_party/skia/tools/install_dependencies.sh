@@ -10,27 +10,42 @@
 
 set -e
 
+# Return 0 iff all package name arguments are installed.
+dpkg_all_installed() {
+    for arg; do
+        if !(dpkg-query -W -f'${Status}' "$arg" 2>/dev/null | \
+            grep -q "ok installed"); then
+            return 1
+        fi
+    done
+    return 0
+}
+
 if command -v lsb_release > /dev/null ; then
     case $(lsb_release -i -s) in
         Ubuntu)
-            sudo apt-get install \
-                build-essential \
-		libpoppler-cpp-dev \
-		libfreetype6-dev \
-		libfontconfig-dev \
-		libpng12-dev \
-		libgif-dev \
-		libqt4-dev \
-		clang
-	    if [ $(lsb_release -r -s) = '14.04' ] ; then
-		sudo apt-get install \
-		    ninja-build
-	    fi
-            exit
-            ;;
+            PACKAGES=$(cat<<-EOF
+		build-essential
+		freeglut3-dev
+		libfontconfig-dev
+		libfreetype6-dev
+		libgif-dev
+		libglu1-mesa-dev
+		libosmesa6-dev
+		libpng12-dev
+		libqt4-dev
+		EOF
+            )
+           if [ $(lsb_release -r -s) = '14.04' ] ; then
+               PACKAGES="${PACKAGES} ninja-build"
+           fi
+           if ! dpkg_all_installed $PACKAGES; then
+               sudo apt-get install $PACKAGES
+           fi
+           exit
+           ;;
     esac
 fi
 
 echo 'unknown system'
 exit 1
-

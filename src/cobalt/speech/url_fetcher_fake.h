@@ -39,98 +39,98 @@ class URLFetcherFake : public net::URLFetcher {
 
   // URLFetcher implementation:
   void SetUploadData(const std::string& /*upload_content_type*/,
-                     const std::string& /*upload_content*/) OVERRIDE {
+                     const std::string& /*upload_content*/) override {
     NOTREACHED();
   }
-  void SetChunkedUpload(const std::string& /*upload_content_type*/) OVERRIDE;
+  void SetChunkedUpload(const std::string& /*upload_content_type*/) override;
   void AppendChunkToUpload(const std::string& data,
-                           bool is_last_chunk) OVERRIDE;
-  void SetLoadFlags(int /*load_flags*/) OVERRIDE { NOTREACHED(); }
-  int GetLoadFlags() const OVERRIDE {
+                           bool is_last_chunk) override;
+  void SetLoadFlags(int /*load_flags*/) override { NOTREACHED(); }
+  int GetLoadFlags() const override {
     NOTREACHED();
     return 0;
   }
-  void SetReferrer(const std::string& /*referrer*/) OVERRIDE { NOTREACHED(); }
+  void SetReferrer(const std::string& /*referrer*/) override { NOTREACHED(); }
   void SetExtraRequestHeaders(
-      const std::string& /*extra_request_headers*/) OVERRIDE {
+      const std::string& /*extra_request_headers*/) override {
     NOTREACHED();
   }
-  void AddExtraRequestHeader(const std::string& /*header_line*/) OVERRIDE {
+  void AddExtraRequestHeader(const std::string& /*header_line*/) override {
     NOTREACHED();
   }
   void GetExtraRequestHeaders(
-      net::HttpRequestHeaders* /*headers*/) const OVERRIDE {
+      net::HttpRequestHeaders* /*headers*/) const override {
     NOTREACHED();
   }
   void SetRequestContext(
-      net::URLRequestContextGetter* request_context_getter) OVERRIDE;
+      net::URLRequestContextGetter* request_context_getter) override;
   void SetFirstPartyForCookies(
-      const GURL& /*first_party_for_cookies*/) OVERRIDE {
+      const GURL& /*first_party_for_cookies*/) override {
     NOTREACHED();
   }
   void SetURLRequestUserData(
       const void* /*key*/,
-      const CreateDataCallback& /*create_data_callback*/) OVERRIDE {
+      const CreateDataCallback& /*create_data_callback*/) override {
     NOTREACHED();
   }
-  void SetStopOnRedirect(bool /*stop_on_redirect*/) OVERRIDE { NOTREACHED(); }
-  void SetAutomaticallyRetryOn5xx(bool /*retry*/) OVERRIDE { NOTREACHED(); }
-  void SetMaxRetriesOn5xx(int /*max_retries*/) OVERRIDE { NOTREACHED(); }
-  int GetMaxRetriesOn5xx() const OVERRIDE {
+  void SetStopOnRedirect(bool /*stop_on_redirect*/) override { NOTREACHED(); }
+  void SetAutomaticallyRetryOn5xx(bool /*retry*/) override { NOTREACHED(); }
+  void SetMaxRetriesOn5xx(int /*max_retries*/) override { NOTREACHED(); }
+  int GetMaxRetriesOn5xx() const override {
     NOTREACHED();
     return 0;
   }
-  base::TimeDelta GetBackoffDelay() const OVERRIDE {
+  base::TimeDelta GetBackoffDelay() const override {
     NOTREACHED();
     return base::TimeDelta();
   }
-  void SetAutomaticallyRetryOnNetworkChanges(int /*max_retries*/) OVERRIDE {
+  void SetAutomaticallyRetryOnNetworkChanges(int /*max_retries*/) override {
     NOTREACHED();
   }
   void SaveResponseToFileAtPath(
       const FilePath& /*file_path*/,
-      scoped_refptr<base::TaskRunner> /*file_task_runner*/) OVERRIDE {
+      scoped_refptr<base::TaskRunner> /*file_task_runner*/) override {
     NOTREACHED();
   }
   void SaveResponseToTemporaryFile(
-      scoped_refptr<base::TaskRunner> /*file_task_runner*/) OVERRIDE {
+      scoped_refptr<base::TaskRunner> /*file_task_runner*/) override {
     NOTREACHED();
   }
-  void DiscardResponse() OVERRIDE { NOTREACHED(); }
-  net::HttpResponseHeaders* GetResponseHeaders() const OVERRIDE {
+  void DiscardResponse() override { NOTREACHED(); }
+  net::HttpResponseHeaders* GetResponseHeaders() const override {
     NOTREACHED();
     return NULL;
   }
-  net::HostPortPair GetSocketAddress() const OVERRIDE {
+  net::HostPortPair GetSocketAddress() const override {
     NOTREACHED();
     return net::HostPortPair();
   }
-  bool WasFetchedViaProxy() const OVERRIDE {
+  bool WasFetchedViaProxy() const override {
     NOTREACHED();
     return false;
   }
-  void Start() OVERRIDE;
-  const GURL& GetOriginalURL() const OVERRIDE { return original_url_; }
-  const GURL& GetURL() const OVERRIDE { return original_url_; }
-  const net::URLRequestStatus& GetStatus() const OVERRIDE;
-  int GetResponseCode() const OVERRIDE;
-  const net::ResponseCookies& GetCookies() const OVERRIDE {
+  void Start() override;
+  const GURL& GetOriginalURL() const override { return original_url_; }
+  const GURL& GetURL() const override { return original_url_; }
+  const net::URLRequestStatus& GetStatus() const override;
+  int GetResponseCode() const override;
+  const net::ResponseCookies& GetCookies() const override {
     NOTREACHED();
     return fake_cookies_;
   }
   bool FileErrorOccurred(
-      base::PlatformFileError* /*out_error_code*/) const OVERRIDE {
+      base::PlatformFileError* /*out_error_code*/) const override {
     NOTREACHED();
     return false;
   }
-  void ReceivedContentWasMalformed() OVERRIDE { NOTREACHED(); }
+  void ReceivedContentWasMalformed() override { NOTREACHED(); }
   bool GetResponseAsString(
-      std::string* /*out_response_string*/) const OVERRIDE {
+      std::string* /*out_response_string*/) const override {
     NOTREACHED();
     return false;
   }
   bool GetResponseAsFilePath(bool /*take_ownership*/,
-                             FilePath* /*out_response_path*/) const OVERRIDE {
+                             FilePath* /*out_response_path*/) const override {
     NOTREACHED();
     return false;
   }

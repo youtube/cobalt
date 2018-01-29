@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -8,88 +7,96 @@
 #ifndef skiatest_Test_DEFINED
 #define skiatest_Test_DEFINED
 
-#include "SkRefCnt.h"
 #include "SkString.h"
-#include "SkTRegistry.h"
-#include "SkThread.h"
+#include "../tools/Registry.h"
 #include "SkTypes.h"
+#include "SkClipOpPriv.h"
 
+#if SK_SUPPORT_GPU
+#include "GrContextFactory.h"
+#else
+namespace sk_gpu_test {
 class GrContextFactory;
+class ContextInfo;
+class GLTestContext;
+}  // namespace sk_gpu_test
+class GrContext;
+#endif
 
 namespace skiatest {
 
-    class Test;
+SkString GetTmpDir();
 
-    class Reporter : public SkRefCnt {
-    public:
-        SK_DECLARE_INST_COUNT(Reporter)
-        Reporter();
+struct Failure {
+    Failure(const char* f, int l, const char* c, const SkString& m)
+        : fileName(f), lineNo(l), condition(c), message(m) {}
+    const char* fileName;
+    int lineNo;
+    const char* condition;
+    SkString message;
+    SkString toString() const;
+};
 
-        int countTests() const { return fTestCount; }
+class Reporter : SkNoncopyable {
+public:
+    virtual ~Reporter() {}
+    virtual void bumpTestCount();
+    virtual void reportFailed(const skiatest::Failure&) = 0;
+    virtual bool allowExtendedTest() const;
+    virtual bool verbose() const;
+    virtual void* stats() const { return nullptr; }
 
-        void startTest(Test*);
-        void reportFailed(const SkString& desc);
-        void endTest(Test*);
-
-        virtual bool allowExtendedTest() const { return false; }
-        virtual bool verbose() const { return false; }
-        virtual void bumpTestCount() { sk_atomic_inc(&fTestCount); }
-
-    protected:
-        virtual void onStart(Test*) {}
-        virtual void onReportFailed(const SkString& desc) {}
-        virtual void onEnd(Test*) {}
-
-    private:
-        int32_t fTestCount;
-
-        typedef SkRefCnt INHERITED;
-    };
-
-    class Test {
-    public:
-        Test();
-        virtual ~Test();
-
-        Reporter* getReporter() const { return fReporter; }
-        void setReporter(Reporter*);
-
-        const char* getName();
-        void run();
-        bool passed() const { return fPassed; }
-        SkMSec elapsedMs() const { return fElapsed; }
-
-        static SkString GetTmpDir();
-
-        virtual bool isGPUTest() const { return false; }
-        virtual void setGrContextFactory(GrContextFactory* factory) {}
-
-    protected:
-        virtual void onGetName(SkString*) = 0;
-        virtual void onRun(Reporter*) = 0;
-
-    private:
-        Reporter*   fReporter;
-        SkString    fName;
-        bool        fPassed;
-        SkMSec      fElapsed;
-    };
-
-    class GpuTest : public Test{
-    public:
-        GpuTest() : Test(), fGrContextFactory(NULL) {}
-
-        virtual bool isGPUTest() const { return true; }
-        virtual void setGrContextFactory(GrContextFactory* factory) {
-            fGrContextFactory = factory;
+    void reportFailedWithContext(const skiatest::Failure& f) {
+        SkString fullMessage = f.message;
+        if (!fContextStack.empty()) {
+            fullMessage.append(" [");
+            for (int i = 0; i < fContextStack.count(); ++i) {
+                if (i > 0) {
+                    fullMessage.append(", ");
+                }
+                fullMessage.append(fContextStack[i]);
+            }
+            fullMessage.append("]");
         }
+        this->reportFailed(skiatest::Failure(f.fileName, f.lineNo, f.condition, fullMessage));
+    }
+    void push(const SkString& message) {
+        fContextStack.push_back(message);
+    }
+    void pop() {
+        fContextStack.pop_back();
+    }
 
-    protected:
-        GrContextFactory* fGrContextFactory;  // Unowned.
-    };
+private:
+    SkTArray<SkString> fContextStack;
+};
 
-    typedef SkTRegistry<Test*(*)(void*)> TestRegistry;
-}  // namespace skiatest
+#define REPORT_FAILURE(reporter, cond, message) \
+    reporter->reportFailedWithContext(skiatest::Failure(__FILE__, __LINE__, cond, message))
+
+class ReporterContext : SkNoncopyable {
+public:
+    ReporterContext(Reporter* reporter, const SkString& message) : fReporter(reporter) {
+        fReporter->push(message);
+    }
+    ~ReporterContext() {
+        fReporter->pop();
+    }
+
+private:
+    Reporter* fReporter;
+};
+
+typedef void (*TestProc)(skiatest::Reporter*, sk_gpu_test::GrContextFactory*);
+
+struct Test {
+    Test(const char* n, bool g, TestProc p) : name(n), needsGpu(g), proc(p) {}
+    const char* name;
+    bool needsGpu;
+    TestProc proc;
+};
+
+typedef sk_tools::Registry<Test> TestRegistry;
 
 /*
     Use the following macros to make use of the skiatest classes, e.g.
@@ -110,65 +117,117 @@ namespace skiatest {
     }
 */
 
-#define REPORTER_ASSERT(r, cond)                                 \
-    do {                                                         \
-        if (!(cond)) {                                           \
-            SkString desc;                                       \
-            desc.printf("%s:%d\t%s", __FILE__, __LINE__, #cond); \
-            r->reportFailed(desc);                               \
-        }                                                        \
-    } while(0)
+#if SK_SUPPORT_GPU
+using GrContextFactoryContextType = sk_gpu_test::GrContextFactory::ContextType;
+#else
+using GrContextFactoryContextType = int;
+#endif
 
-#define REPORTER_ASSERT_MESSAGE(r, cond, message)            \
-    do {                                                     \
-        if (!(cond)) {                                       \
-            SkString desc;                                   \
-            desc.printf("%s:%d\t%s: %s", __FILE__, __LINE__, \
-                        message, #cond);                     \
-            r->reportFailed(desc);                           \
-        }                                                    \
-    } while(0)
+typedef void GrContextTestFn(Reporter*, const sk_gpu_test::ContextInfo&);
+typedef bool GrContextTypeFilterFn(GrContextFactoryContextType);
 
-#define ERRORF(reporter, ...)                       \
-    do {                                            \
-        SkString desc;                              \
-        desc.printf("%s:%d\t", __FILE__, __LINE__); \
-        desc.appendf(__VA_ARGS__) ;                 \
-        (reporter)->reportFailed(desc);             \
-    } while(0)
+extern bool IsGLContextType(GrContextFactoryContextType);
+extern bool IsVulkanContextType(GrContextFactoryContextType);
+extern bool IsRenderingGLContextType(GrContextFactoryContextType);
+extern bool IsNullGLContextType(GrContextFactoryContextType);
+void RunWithGPUTestContexts(GrContextTestFn*, GrContextTypeFilterFn*,
+                            Reporter*, sk_gpu_test::GrContextFactory*);
 
-#define DEF_TEST(name, reporter)                                        \
-    static void test_##name(skiatest::Reporter*);                       \
-    namespace skiatest {                                                \
-    class name##Class : public Test {                                   \
-    public:                                                             \
-        static Test* Factory(void*) { return SkNEW(name##Class); }      \
-    protected:                                                          \
-        virtual void onGetName(SkString* name) SK_OVERRIDE {            \
-            name->set(#name);                                           \
-        }                                                               \
-        virtual void onRun(Reporter* r) SK_OVERRIDE { test_##name(r); } \
-    };                                                                  \
-    static TestRegistry gReg_##name##Class(name##Class::Factory);       \
-    }                                                                   \
-    static void test_##name(skiatest::Reporter* reporter)
+/** Timer provides wall-clock duration since its creation. */
+class Timer {
+public:
+    /** Starts the timer. */
+    Timer();
 
-#define DEF_GPUTEST(name, reporter, factory)                          \
-    static void test_##name(skiatest::Reporter*, GrContextFactory*);  \
-    namespace skiatest {                                              \
-    class name##Class : public GpuTest {                              \
-    public:                                                           \
-        static Test* Factory(void*) { return SkNEW(name##Class); }    \
-    protected:                                                        \
-        virtual void onGetName(SkString* name) SK_OVERRIDE {          \
-            name->set(#name);                                         \
-        }                                                             \
-        virtual void onRun(Reporter* r) SK_OVERRIDE {                 \
-            test_##name(r, fGrContextFactory);                        \
-        }                                                             \
-    };                                                                \
-    static TestRegistry gReg_##name##Class(name##Class::Factory);     \
-    }                                                                 \
-    static void test_##name(skiatest::Reporter* reporter, GrContextFactory* factory)
+    /** Nanoseconds since creation. */
+    double elapsedNs() const;
+
+    /** Milliseconds since creation. */
+    double elapsedMs() const;
+
+    /** Milliseconds since creation as an integer.
+        Behavior is undefined for durations longer than SK_MSecMax.
+    */
+    SkMSec elapsedMsInt() const;
+private:
+    double fStartNanos;
+};
+
+}  // namespace skiatest
+
+#define REPORTER_ASSERT(r, cond)                  \
+    do {                                          \
+        if (!(cond)) {                            \
+            REPORT_FAILURE(r, #cond, SkString()); \
+        }                                         \
+    } while (0)
+
+#define REPORTER_ASSERT_MESSAGE(r, cond, message)        \
+    do {                                                 \
+        if (!(cond)) {                                   \
+            REPORT_FAILURE(r, #cond, SkString(message)); \
+        }                                                \
+    } while (0)
+
+#define ERRORF(r, ...)                                      \
+    do {                                                    \
+        REPORT_FAILURE(r, "", SkStringPrintf(__VA_ARGS__)); \
+    } while (0)
+
+#define INFOF(REPORTER, ...)         \
+    do {                             \
+        if ((REPORTER)->verbose()) { \
+            SkDebugf(__VA_ARGS__);   \
+        }                            \
+    } while (0)
+
+#define DEF_TEST(name, reporter)                                                  \
+    static void test_##name(skiatest::Reporter*, sk_gpu_test::GrContextFactory*); \
+    skiatest::TestRegistry name##TestRegistry(                                    \
+            skiatest::Test(#name, false, test_##name));                           \
+    void test_##name(skiatest::Reporter* reporter, sk_gpu_test::GrContextFactory*)
+
+
+#define DEF_GPUTEST(name, reporter, factory)                                                 \
+    static void test_##name(skiatest::Reporter*, sk_gpu_test::GrContextFactory*);            \
+    skiatest::TestRegistry name##TestRegistry(                                               \
+            skiatest::Test(#name, true, test_##name));                                       \
+    void test_##name(skiatest::Reporter* reporter, sk_gpu_test::GrContextFactory* factory)
+
+#define DEF_GPUTEST_FOR_CONTEXTS(name, context_filter, reporter, context_info)            \
+    static void test_##name(skiatest::Reporter*,                                          \
+                            const sk_gpu_test::ContextInfo& context_info);                \
+    static void test_gpu_contexts_##name(skiatest::Reporter* reporter,                    \
+                                         sk_gpu_test::GrContextFactory* factory) {        \
+        skiatest::RunWithGPUTestContexts(test_##name, context_filter, reporter, factory); \
+    }                                                                                     \
+    skiatest::TestRegistry name##TestRegistry(                                            \
+            skiatest::Test(#name, true, test_gpu_contexts_##name));                       \
+    void test_##name(skiatest::Reporter* reporter,                                        \
+                     const sk_gpu_test::ContextInfo& context_info)
+
+#define DEF_GPUTEST_FOR_ALL_CONTEXTS(name, reporter, context_info)                          \
+        DEF_GPUTEST_FOR_CONTEXTS(name, nullptr, reporter, context_info)
+#define DEF_GPUTEST_FOR_RENDERING_CONTEXTS(name, reporter, context_info)                    \
+        DEF_GPUTEST_FOR_CONTEXTS(name, sk_gpu_test::GrContextFactory::IsRenderingContext,   \
+                                 reporter, context_info)
+#define DEF_GPUTEST_FOR_ALL_GL_CONTEXTS(name, reporter, context_info)                       \
+        DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsGLContextType, reporter, context_info)
+#define DEF_GPUTEST_FOR_GL_RENDERING_CONTEXTS(name, reporter, context_info)                 \
+        DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsRenderingGLContextType, reporter, context_info)
+#define DEF_GPUTEST_FOR_NULLGL_CONTEXT(name, reporter, context_info)                        \
+        DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsNullGLContextType, reporter, context_info)
+#define DEF_GPUTEST_FOR_VULKAN_CONTEXT(name, reporter, context_info)                        \
+        DEF_GPUTEST_FOR_CONTEXTS(name, &skiatest::IsVulkanContextType, reporter, context_info)
+
+#define REQUIRE_PDF_DOCUMENT(TEST_NAME, REPORTER)                          \
+    do {                                                                   \
+        SkDynamicMemoryWStream testStream;                                 \
+        sk_sp<SkDocument> testDoc(SkDocument::MakePDF(&testStream));       \
+        if (!testDoc) {                                                    \
+            INFOF(REPORTER, "PDF disabled; %s test skipped.", #TEST_NAME); \
+            return;                                                        \
+        }                                                                  \
+    } while (false)
 
 #endif

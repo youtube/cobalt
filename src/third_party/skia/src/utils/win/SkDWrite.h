@@ -8,6 +8,7 @@
 #ifndef SkDWrite_DEFINED
 #define SkDWrite_DEFINED
 
+#include "SkFontStyle.h"
 #include "SkTemplates.h"
 
 #include <dwrite.h>
@@ -17,10 +18,6 @@ class SkString;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Factory
-
-#ifndef SK_HAS_DWRITE_1_H
-#define SK_HAS_DWRITE_1_H (WINVER_MAXVER >= 0x0602)
-#endif
 
 IDWriteFactory* sk_get_dwrite_factory();
 
@@ -52,7 +49,7 @@ HRESULT SkGetGetUserDefaultLocaleNameProc(SkGetUserDefaultLocaleNameProc* proc);
 
 class AutoDWriteTable {
 public:
-    AutoDWriteTable(IDWriteFontFace* fontFace, UINT32 beTag) : fFontFace(fontFace), fExists(FALSE) {
+    AutoDWriteTable(IDWriteFontFace* fontFace, UINT32 beTag) : fExists(FALSE), fFontFace(fontFace) {
         // Any errors are ignored, user must check fExists anyway.
         fontFace->TryGetFontTable(beTag,
             reinterpret_cast<const void **>(&fData), &fSize, &fLock, &fExists);
@@ -78,6 +75,25 @@ public:
 
     const T* get() const { return reinterpret_cast<const T*>(fData); }
     const T* operator->() const { return reinterpret_cast<const T*>(fData); }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Style conversion
+
+struct DWriteStyle {
+    explicit DWriteStyle(const SkFontStyle& pattern) {
+        fWeight = (DWRITE_FONT_WEIGHT)pattern.weight();
+        fWidth = (DWRITE_FONT_STRETCH)pattern.width();
+        switch (pattern.slant()) {
+            case SkFontStyle::kUpright_Slant: fSlant = DWRITE_FONT_STYLE_NORMAL ; break;
+            case SkFontStyle::kItalic_Slant:  fSlant = DWRITE_FONT_STYLE_ITALIC ; break;
+            case SkFontStyle::kOblique_Slant: fSlant = DWRITE_FONT_STYLE_OBLIQUE; break;
+            default: SkASSERT(false); break;
+        }
+    }
+    DWRITE_FONT_WEIGHT fWeight;
+    DWRITE_FONT_STRETCH fWidth;
+    DWRITE_FONT_STYLE fSlant;
 };
 
 #endif

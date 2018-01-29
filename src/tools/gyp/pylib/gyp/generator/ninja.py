@@ -79,7 +79,7 @@ is_windows = platform.system() == 'Windows'
 
 microsoft_flavors = ['win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future',
     'xb1-youtubetv']
-sony_flavors = ['ps3', 'ps4']
+sony_flavors = ['ps3', 'ps4', 'ps4-vr']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
 
@@ -103,6 +103,12 @@ def FindFirstInstanceOf(type, instances):
     return None
 
 
+def GetShell(flavor):
+  shell = FindFirstInstanceOf(abstract.Shell, GetHostToolchain(flavor))
+  assert shell, 'The host toolchain must provide a shell.'
+  return shell
+
+
 def GetNinjaRuleName(tool, toolset):
   if tool.IsPlatformAgnostic() or toolset == 'target':
     return tool.GetRuleName()
@@ -114,10 +120,6 @@ def GetConfigFlags(config, toolset, keyword):
   if toolset == 'host':
     flags = config.get('{0}_host'.format(keyword), flags)
   return flags
-
-
-def JoinShellArguments(shell, arguments):
-  return ' '.join(shell.MaybeQuoteArgument(argument) for argument in arguments)
 
 
 def StripPrefix(arg, prefix):
@@ -894,8 +896,7 @@ class NinjaWriter:
     """Write build rules to compile all of |sources|."""
 
     try:
-      shell = FindFirstInstanceOf(abstract.Shell, GetHostToolchain(self.flavor))
-      assert shell, 'Host toolchain must provide shell.'
+      shell = GetShell(self.flavor)
 
       if self.toolset == 'target':
         toolchain = GetTargetToolchain(self.flavor)
@@ -922,7 +923,7 @@ class NinjaWriter:
                                                cflags + cflags_c)
         self.ninja.variable(
             '{0}_flags'.format(GetNinjaRuleName(c_compiler, self.toolset)),
-            JoinShellArguments(shell, c_compiler_flags))
+            shell.Join(c_compiler_flags))
 
       cxx_compiler = FindFirstInstanceOf(abstract.CxxCompiler, toolchain)
       if cxx_compiler:
@@ -930,7 +931,7 @@ class NinjaWriter:
                                                    cflags + cflags_cc)
         self.ninja.variable(
             '{0}_flags'.format(GetNinjaRuleName(cxx_compiler, self.toolset)),
-            JoinShellArguments(shell, cxx_compiler_flags))
+            shell.Join(cxx_compiler_flags))
 
       objcxx_compiler = FindFirstInstanceOf(abstract.ObjectiveCxxCompiler,
                                             toolchain)
@@ -940,7 +941,7 @@ class NinjaWriter:
                                                          cflags_mm)
         self.ninja.variable(
             '{0}_flags'.format(GetNinjaRuleName(objcxx_compiler, self.toolset)),
-            JoinShellArguments(shell, objcxx_compiler_flags))
+            shell.Join(objcxx_compiler_flags))
 
       assembler = FindFirstInstanceOf(abstract.AssemblerWithCPreprocessor,
                                       toolchain)
@@ -949,7 +950,7 @@ class NinjaWriter:
                                              cflags + cflags_c)
         self.ninja.variable(
             '{0}_flags'.format(GetNinjaRuleName(assembler, self.toolset)),
-            JoinShellArguments(shell, assembler_flags))
+            shell.Join(assembler_flags))
 
       self.ninja.newline()
 
@@ -1182,8 +1183,7 @@ class NinjaWriter:
       else:
         toolchain = GetHostToolchain(self.flavor)
 
-      shell = FindFirstInstanceOf(abstract.Shell, GetHostToolchain(self.flavor))
-      assert shell, 'Host toolchain must provide shell.'
+      shell = GetShell(self.flavor)
 
       target_type = spec['type']
       if target_type == 'executable':
@@ -1207,7 +1207,7 @@ class NinjaWriter:
 
         executable_linker_flags = executable_linker.GetFlags(ldflags)
         self.ninja.variable('{0}_flags'.format(rule_name),
-                            JoinShellArguments(shell, executable_linker_flags))
+                            shell.Join(executable_linker_flags))
       else:
         raise Exception('Target type {0} is not supported for target {1}.'
             .format(target_type, spec['target_name']))
@@ -1821,7 +1821,7 @@ def CalculateVariables(default_variables, params):
     default_variables['SHARED_LIB_SUFFIX'] = '.sprx'
     generator_flags = params.get('generator_flags', {})
 
-  elif flavor == 'ps4':
+  elif flavor in ['ps4', 'ps4-vr']:
     if is_windows:
       # This is required for BuildCygwinBashCommandLine() to work.
       import gyp.generator.msvs as msvs_generator
@@ -1954,7 +1954,7 @@ def MaybeWriteExtraFlagsVariable(ninja, tool, toolset, shell):
   if tool.GetExtraFlags():
     ninja.variable(
         '{0}_extra_flags'.format(GetNinjaRuleName(tool, toolset)),
-        JoinShellArguments(shell, tool.GetExtraFlags()))
+        shell.Join(tool.GetExtraFlags()))
 
 
 def MaybeWritePool(ninja, tool, toolset):
@@ -1964,7 +1964,7 @@ def MaybeWritePool(ninja, tool, toolset):
         depth=tool.GetMaxConcurrentProcesses())
 
 
-def MaybeWriteRule(ninja, tool, toolset):
+def MaybeWriteRule(ninja, tool, toolset, shell):
   if tool.GetRuleName():
     name = GetNinjaRuleName(tool, toolset)
 
@@ -1975,7 +1975,7 @@ def MaybeWriteRule(ninja, tool, toolset):
 
     ninja.rule(
         name,
-        tool.GetCommand(path, extra_flags, flags),
+        tool.GetCommand(path, extra_flags, flags, shell),
         description=tool.GetDescription(),
         depfile=tool.GetHeaderDependenciesFilePath(),
         deps=tool.GetHeaderDependenciesFormat(),
@@ -2014,8 +2014,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     ]
     host_toolchain = GetHostToolchain(flavor)
 
-    shell = FindFirstInstanceOf(abstract.Shell, host_toolchain)
-    assert shell, 'Host toolchain must provide shell.'
+    shell = GetShell(flavor)
 
     for target_tool in target_toolchain:
       MaybeWritePathVariable(master_ninja, target_tool, 'target')
@@ -2036,9 +2035,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.newline()
 
     for target_tool in target_toolchain:
-      MaybeWriteRule(master_ninja, target_tool, 'target')
+      MaybeWriteRule(master_ninja, target_tool, 'target', shell)
     for host_tool in host_toolchain:
-      MaybeWriteRule(master_ninja, host_tool, 'host')
+      MaybeWriteRule(master_ninja, host_tool, 'host', shell)
     master_ninja.newline()
   except NotImplementedError:
     # Fall back to the legacy toolchain.

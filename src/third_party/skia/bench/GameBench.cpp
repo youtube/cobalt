@@ -11,6 +11,7 @@
 #include "SkRandom.h"
 #include "SkShader.h"
 #include "SkString.h"
+#include "SkVertices.h"
 
 // This bench simulates the calls Skia sees from various HTML5 canvas
 // game bench marks
@@ -74,11 +75,11 @@ public:
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onPreDraw() SK_OVERRIDE {
+    void onDelayedSetup() override {
         if (!fInitialized) {
             this->makeCheckerboard();
             this->makeAtlas();
@@ -86,7 +87,7 @@ protected:
         }
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkRandom scaleRand;
         SkRandom transRand;
         SkRandom rotRand;
@@ -104,7 +105,7 @@ protected:
         clearPaint.setColor(0xFF000000);
         clearPaint.setAntiAlias(true);
 
-        SkISize size = canvas->getDeviceSize();
+        SkISize size = canvas->getBaseLayerSize();
 
         SkScalar maxTransX, maxTransY;
 
@@ -134,14 +135,14 @@ protected:
 
         SkPaint p;
         p.setColor(0xFF000000);
-        p.setFilterLevel(SkPaint::kLow_FilterLevel);
+        p.setFilterQuality(kLow_SkFilterQuality);
 
         SkPaint p2;         // for drawVertices path
         p2.setColor(0xFF000000);
-        p2.setFilterLevel(SkPaint::kLow_FilterLevel);
-        p2.setShader(SkShader::CreateBitmapShader(fAtlas,
-                                                  SkShader::kClamp_TileMode,
-                                                  SkShader::kClamp_TileMode))->unref();
+        p2.setFilterQuality(kLow_SkFilterQuality);
+        p2.setShader(SkShader::MakeBitmapShader(fAtlas,
+                                                SkShader::kClamp_TileMode,
+                                                SkShader::kClamp_TileMode));
 
         for (int i = 0; i < loops; ++i, ++fNumSaved) {
             if (0 == i % kNumBeforeClear) {
@@ -200,15 +201,15 @@ protected:
                         { SkIntToScalar(src.fRight), SkIntToScalar(src.fTop) },
                         { SkIntToScalar(src.fRight), SkIntToScalar(src.fBottom) },
                     };
-                    canvas->drawVertices(SkCanvas::kTriangles_VertexMode,
-                                         4, verts, uvs, NULL, NULL,
-                                         indices, 6, p2);
+                    canvas->drawVertices(SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
+                                                              4, verts, uvs, nullptr, 6, indices),
+                                         SkBlendMode::kModulate, p2);
                 } else {
-                    canvas->drawBitmapRect(fAtlas, &src, dst, &p,
-                                           SkCanvas::kBleed_DrawBitmapRectFlag);
+                    canvas->drawBitmapRect(fAtlas, src, dst, &p,
+                                           SkCanvas::kFast_SrcRectConstraint);
                 }
             } else {
-                canvas->drawBitmapRect(fCheckerboard, NULL, dst, &p);
+                canvas->drawBitmapRect(fCheckerboard, dst, &p);
             }
         }
     }
@@ -249,7 +250,6 @@ private:
         static int kCheckSize = 16;
 
         fCheckerboard.allocN32Pixels(kCheckerboardWidth, kCheckerboardHeight);
-        SkAutoLockPixels lock(fCheckerboard);
         for (int y = 0; y < kCheckerboardHeight; ++y) {
             int even = (y / kCheckSize) % 2;
 
@@ -282,7 +282,6 @@ private:
         }
 
         fAtlas.allocN32Pixels(kTotAtlasWidth, kTotAtlasHeight);
-        SkAutoLockPixels lock(fAtlas);
 
         for (int y = 0; y < kTotAtlasHeight; ++y) {
             int colorY = y / (kAtlasCellHeight + kAtlasSpacer);
@@ -308,27 +307,18 @@ private:
 };
 
 // Partial clear
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kScale_Type,
-                                            GameBench::kPartial_Clear)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kTranslate_Type,
-                                            GameBench::kPartial_Clear)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kTranslate_Type,
-                                            GameBench::kPartial_Clear, true)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kRotate_Type,
-                                            GameBench::kPartial_Clear)); )
+DEF_BENCH(return new GameBench(GameBench::kScale_Type, GameBench::kPartial_Clear);)
+DEF_BENCH(return new GameBench(GameBench::kTranslate_Type, GameBench::kPartial_Clear);)
+DEF_BENCH(return new GameBench(GameBench::kTranslate_Type, GameBench::kPartial_Clear, true);)
+DEF_BENCH(return new GameBench(GameBench::kRotate_Type, GameBench::kPartial_Clear);)
 
 // Full clear
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kScale_Type,
-                                            GameBench::kFull_Clear)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kTranslate_Type,
-                                            GameBench::kFull_Clear)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kTranslate_Type,
-                                            GameBench::kFull_Clear, true)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kRotate_Type,
-                                            GameBench::kFull_Clear)); )
+DEF_BENCH(return new GameBench(GameBench::kScale_Type, GameBench::kFull_Clear);)
+DEF_BENCH(return new GameBench(GameBench::kTranslate_Type, GameBench::kFull_Clear);)
+DEF_BENCH(return new GameBench(GameBench::kTranslate_Type, GameBench::kFull_Clear, true);)
+DEF_BENCH(return new GameBench(GameBench::kRotate_Type, GameBench::kFull_Clear);)
 
 // Atlased
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kTranslate_Type,
-                                            GameBench::kFull_Clear, false, true)); )
-DEF_BENCH( return SkNEW_ARGS(GameBench, (GameBench::kTranslate_Type,
-                                            GameBench::kFull_Clear, false, true, true)); )
+DEF_BENCH(return new GameBench(GameBench::kTranslate_Type, GameBench::kFull_Clear, false, true);)
+DEF_BENCH(return new GameBench(
+                         GameBench::kTranslate_Type, GameBench::kFull_Clear, false, true, true);)

@@ -167,14 +167,14 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   static void set_verbose(bool verbose) { verbose_ = verbose; }
   static bool verbose() { return verbose_; }
   // net::URLFetcherDelegate interface
-  void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
+  void OnURLFetchResponseStarted(const net::URLFetcher* source) override;
   void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) OVERRIDE;
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
-  bool ShouldSendDownloadData() OVERRIDE { return true; }
+                              scoped_ptr<std::string> download_data) override;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
+  bool ShouldSendDownloadData() override { return true; }
 
   void OnURLFetchUploadProgress(const net::URLFetcher* source, int64 current,
-                                int64 total) OVERRIDE;
+                                int64 total) override;
   void OnRedirect(const net::HttpResponseHeaders& headers);
 
   // Called from bindings layer to tie objects' lifetimes to this XHR instance.
@@ -183,13 +183,12 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     return response_array_buffer_.get();
   }
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
-
   friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
-  ~XMLHttpRequest() OVERRIDE;
+  ~XMLHttpRequest() override;
 
   // Return the CSP delegate from the Settings object.
   // virtual for use by tests.

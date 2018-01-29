@@ -61,7 +61,7 @@ class JSONScriptExecutorResult : public ScriptExecutorResult::ResultHandler {
 
 class ScriptExecutorTest : public ::testing::Test {
  protected:
-  void SetUp() OVERRIDE {
+  void SetUp() override {
     stub_window_.reset(new dom::testing::StubWindow());
     script_executor_ =
         ScriptExecutor::Create(&element_mapping_, global_environment());

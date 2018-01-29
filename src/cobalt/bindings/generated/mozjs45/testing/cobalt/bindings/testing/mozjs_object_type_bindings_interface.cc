@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,6 +55,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::ObjectTypeBindingsInterface;
 using cobalt::bindings::testing::MozjsObjectTypeBindingsInterface;
@@ -99,7 +102,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsObjectTypeBindingsInterfaceHandler : public ProxyHandler {
  public:
@@ -119,6 +129,7 @@ MozjsObjectTypeBindingsInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsObjectTypeBindingsInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -130,6 +141,14 @@ MozjsObjectTypeBindingsInterfaceHandler::indexed_property_hooks = {
 
 static base::LazyInstance<MozjsObjectTypeBindingsInterfaceHandler>
     proxy_handler;
+
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "ObjectTypeBindingsInterface is not constructible.");
+  return false;
+}
+
 
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
@@ -540,6 +559,7 @@ bool set_objectProperty(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "arbitraryObject",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -572,6 +592,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -612,17 +633,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "ObjectTypeBindingsInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "ObjectTypeBindingsInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -649,7 +678,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 38;
+  const int kInterfaceUniqueId = 39;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
@@ -728,8 +757,9 @@ JSObject* MozjsObjectTypeBindingsInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

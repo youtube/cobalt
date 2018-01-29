@@ -37,11 +37,12 @@ class DrawRectColorTexture : public DrawObject {
                        const math::Matrix3F& texcoord_transform,
                        bool clamp_texcoords);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteUpdateVertexBuffer(
+      GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) override;
   void ExecuteRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
-  base::TypeId GetTypeId() const OVERRIDE;
+                        ShaderProgramManager* program_manager) override;
+  base::TypeId GetTypeId() const override;
 
  private:
   math::Matrix3F texcoord_transform_;

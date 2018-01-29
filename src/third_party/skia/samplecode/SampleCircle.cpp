@@ -1,15 +1,15 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+
 #include "SampleCode.h"
-#include "SkView.h"
 #include "SkCanvas.h"
-#include "SkDevice.h"
 #include "SkPaint.h"
+#include "SkPath.h"
+#include "SkView.h"
 
 // ensure that we don't accidentally screw up the bounds when the oval is
 // fractional, and the impl computes the center and radii, and uses them to
@@ -87,17 +87,10 @@ protected:
         path->close();
     }
 
-    static void rotate(SkCanvas* canvas, SkScalar angle, SkScalar px, SkScalar py) {
-        canvas->translate(-px, -py);
-        canvas->rotate(angle);
-        canvas->translate(px, py);
-    }
-
     virtual void onDrawContent(SkCanvas* canvas) {
         SkPaint paint;
         paint.setAntiAlias(true);
         paint.setStyle(SkPaint::kStroke_Style);
-//        canvas->drawCircle(250, 250, 220, paint);
         SkMatrix matrix;
         matrix.setScale(SkIntToScalar(100), SkIntToScalar(100));
         matrix.postTranslate(SkIntToScalar(200), SkIntToScalar(200));

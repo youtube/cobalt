@@ -19,14 +19,15 @@
 #include <stack>
 #include <string>
 
+#include "SkData.h"
+#include "SkOSFile.h"
+#include "SkOSPath.h"
+#include "SkStream.h"
+#include "SkTSearch.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
-#include "SkData.h"
-#include "SkOSFile.h"
-#include "SkStream.h"
-#include "SkTSearch.h"
 
 namespace {
 
@@ -48,7 +49,7 @@ std::string StringPrintVAndTrim(const char* message, va_list arguments) {
 // https://www.w3.org/TR/html-markup/datatypes.html#common.data.integer.non-negative-def
 template <typename T>
 bool ParseNonNegativeInteger(const char* s, T* value) {
-  SK_COMPILE_ASSERT(std::numeric_limits<T>::is_integer, T_must_be_integer);
+  static_assert(std::numeric_limits<T>::is_integer, "T must be integer");
   const T n_max = std::numeric_limits<T>::max() / 10;
   const T d_max = std::numeric_limits<T>::max() - (n_max * 10);
   T n = 0;
@@ -71,7 +72,7 @@ bool ParseNonNegativeInteger(const char* s, T* value) {
 
 template <typename T>
 bool ParseInteger(const char* s, T* value) {
-  SK_COMPILE_ASSERT(std::numeric_limits<T>::is_signed, T_must_be_signed);
+  static_assert(std::numeric_limits<T>::is_signed, "T must be signed");
   T multiplier = 1;
   if (*s && *s == '-') {
     multiplier = -1;
@@ -536,23 +537,26 @@ void ParseConfigFile(const char* directory,
                      SkTDArray<FontFamilyInfo*>* families) {
   SkString file_path = SkOSPath::Join(directory, kConfigFile);
 
-  SkAutoTUnref<SkStream> file_stream(SkStream::NewFromFile(file_path.c_str()));
+  std::unique_ptr<SkStream> file_stream(
+      SkStream::MakeFromFile(file_path.c_str()));
   if (file_stream == NULL) {
     LOG(ERROR) << "---- Failed to open %s", file_path.c_str();
     return;
   }
 
-  SkAutoDataUnref file_data(
-      SkData::NewFromStream(file_stream, file_stream->getLength()));
+  sk_sp<SkData> file_data(
+      SkData::MakeFromStream(file_stream.get(), file_stream->getLength()));
   if (file_data == NULL) {
     LOG(ERROR) << "---- Failed to read %s", file_path.c_str();
     return;
   }
 
   ParserContext parser_context(families);
-  xmlSAXUserParseMemory(&xml_sax_handler, &parser_context,
-                        static_cast<const char*>(file_data->data()),
-                        static_cast<int>(file_data->size()));
+  int return_value =
+      xmlSAXUserParseMemory(&xml_sax_handler, &parser_context,
+                            static_cast<const char*>(file_data->data()),
+                            static_cast<int>(file_data->size()));
+  DCHECK_EQ(return_value, 0);
 }
 
 }  // namespace

@@ -12,7 +12,6 @@
 #include "SkWriteBuffer.h"
 #include "SkGradientShader.h"
 #include "SkGraphics.h"
-#include "SkImageDecoder.h"
 #include "SkPath.h"
 #include "SkRandom.h"
 #include "SkRegion.h"
@@ -22,46 +21,7 @@
 #include "SkColorFilter.h"
 #include "SkTime.h"
 #include "SkTypeface.h"
-#include "SkXfermode.h"
-
 #include "SkStream.h"
-#include "SkXMLParser.h"
-
-static void test_breakText() {
-    SkPaint paint;
-    const char* text = "sdfkljAKLDFJKEWkldfjlk#$%&sdfs.dsj";
-    size_t length = strlen(text);
-    SkScalar width = paint.measureText(text, length);
-
-    SkScalar mm = 0;
-    SkScalar nn = 0;
-    for (SkScalar w = 0; w <= width; w += SK_Scalar1) {
-        SkScalar m;
-        size_t n = paint.breakText(text, length, w, &m,
-                                    SkPaint::kBackward_TextBufferDirection);
-
-        SkASSERT(n <= length);
-        SkASSERT(m <= width);
-
-        if (n == 0) {
-            SkASSERT(m == 0);
-        } else {
-            // now assert that we're monotonic
-            if (n == nn) {
-                SkASSERT(m == mm);
-            } else {
-                SkASSERT(n > nn);
-                SkASSERT(m > mm);
-            }
-        }
-        nn = SkIntToScalar((unsigned int)n);
-        mm = m;
-    }
-
-    SkDEBUGCODE(size_t length2 =) paint.breakText(text, length, width, &mm);
-    SkASSERT(length2 == length);
-    SkASSERT(mm == width);
-}
 
 static const struct {
     const char* fName;
@@ -85,7 +45,8 @@ static void DrawTheText(SkCanvas* canvas, const char text[], size_t length, SkSc
         SkScalar xpos = x;
         SkASSERT(length <= SK_ARRAY_COUNT(pts));
         for (size_t i = 0; i < length; i++) {
-            pts[i].set(xpos, y), xpos += paint.getTextSize();
+            pts[i].set(xpos, y);
+            xpos += paint.getTextSize();
         }
         canvas->drawPosText(text, length, pts, paint);
     }
@@ -110,13 +71,11 @@ public:
     TextSpeedView() {
         fHints = 0;
         fClickX = 0;
-
-        test_breakText();
     }
 
 protected:
     // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) {
+    bool onQuery(SkEvent* evt) override {
         if (SampleCode::TitleQ(*evt)) {
             SampleCode::TitleR(evt, "Text");
             return true;
@@ -136,7 +95,7 @@ protected:
         paint.setFlags(paint.getFlags() | SkPaint::kAntiAlias_Flag
                                         | SkPaint::kDevKernText_Flag);
         paint.setTextSize(SkIntToScalar(14));
-        canvas.drawText(s, strlen(s), SkIntToScalar(8), SkIntToScalar(14), paint);
+        canvas.drawString(s, SkIntToScalar(8), SkIntToScalar(14), paint);
     }
 
     static void fill_pts(SkPoint pts[], size_t n, SkRandom* rand) {
@@ -144,12 +103,12 @@ protected:
             pts[i].set(rand->nextUScalar1() * 640, rand->nextUScalar1() * 480);
     }
 
-    virtual void onDrawContent(SkCanvas* canvas) {
+    void onDrawContent(SkCanvas* canvas) override {
         SkAutoCanvasRestore restore(canvas, false);
         {
             SkRect r;
             r.set(0, 0, SkIntToScalar(1000), SkIntToScalar(20));
-       //     canvas->saveLayer(&r, NULL, SkCanvas::kHasAlphaLayer_SaveFlag);
+       //     canvas->saveLayer(&r, nullptr, SkCanvas::kHasAlphaLayer_SaveFlag);
         }
 
         SkPaint paint;
@@ -160,9 +119,9 @@ protected:
 
 //        canvas->translate(0, SkIntToScalar(50));
 
-  //      canvas->drawText(style, strlen(style), SkIntToScalar(20), SkIntToScalar(20), paint);
+  //      canvas->drawString(style, SkIntToScalar(20), SkIntToScalar(20), paint);
 
-        SkSafeUnref(paint.setTypeface(SkTypeface::CreateFromFile("/skimages/samplefont.ttf")));
+        paint.setTypeface(SkTypeface::MakeFromFile("/skimages/samplefont.ttf"));
         paint.setAntiAlias(true);
         paint.setFlags(paint.getFlags() | gHints[index].fFlags);
 
@@ -187,13 +146,13 @@ protected:
     }
 
     virtual SkView::Click* onFindClickHandler(SkScalar x, SkScalar y,
-                                              unsigned modi) SK_OVERRIDE {
+                                              unsigned modi) override {
         fClickX = x;
-        this->inval(NULL);
+        this->inval(nullptr);
         return this->INHERITED::onFindClickHandler(x, y, modi);
     }
 
-    virtual bool onClick(Click* click) {
+    bool onClick(Click* click) override {
         return this->INHERITED::onClick(click);
     }
 

@@ -18,6 +18,7 @@
 
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
+#include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetThreadSubsystemSingleton;
@@ -30,7 +31,17 @@ namespace win32 {
 SbThreadLocalKey SbThreadCreateLocalKeyInternal(
     SbThreadLocalDestructor destructor,
     ThreadSubsystemSingleton* singleton) {
-  DWORD index = TlsAlloc();
+  // Note that destructor used here to allow destruction of objects created by
+  // TLS access by non-starboard threads.
+  // Note that FlsAlloc's destructor mechanism is insufficient to pass
+  // base_unittests, which expects that multiple destructor passes for
+  // objects which insert destructable TLS pointers as side effects. For
+  // starboard threads, the TLS destructors will run first and set the
+  // TLS pointers to null, then the destructors will run a second time
+  // but this is okay since the pointers will now be nullptrs, which is
+  // a no-op. For non starboard threads, only the secondary destructor
+  // will run.
+  DWORD index = TlsInternalAlloc(destructor);
 
   if (index == TLS_OUT_OF_INDEXES) {
     return kSbThreadLocalKeyInvalid;

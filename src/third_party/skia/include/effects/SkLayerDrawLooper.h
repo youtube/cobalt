@@ -11,13 +11,11 @@
 #include "SkDrawLooper.h"
 #include "SkPaint.h"
 #include "SkPoint.h"
-#include "SkXfermode.h"
+#include "SkBlendMode.h"
 
 class SK_API SkLayerDrawLooper : public SkDrawLooper {
 public:
-    SK_DECLARE_INST_COUNT(SkLayerDrawLooper)
-
-    virtual ~SkLayerDrawLooper();
+    ~SkLayerDrawLooper() override;
 
     /**
      *  Bits specifies which aspects of the layer's paint should replace the
@@ -53,15 +51,15 @@ public:
      *      The layer's paint's color is treated as the SRC
      *      The draw's paint's color is treated as the DST
      *      final-color = Mode(layers-color, draws-color);
-     *  Any SkXfermode::Mode will work. Two common choices are:
-     *      kSrc_Mode: to use the layer's color, ignoring the draw's
-     *      kDst_Mode: to just keep the draw's color, ignoring the layer's
+     *  Any SkBlendMode will work. Two common choices are:
+     *      kSrc: to use the layer's color, ignoring the draw's
+     *      kDst: to just keep the draw's color, ignoring the layer's
      */
     struct SK_API LayerInfo {
-        BitFlags            fPaintBits;
-        SkXfermode::Mode    fColorMode;
-        SkVector            fOffset;
-        bool                fPostTranslate; //!< applies to fOffset
+        BitFlags    fPaintBits;
+        SkBlendMode fColorMode;
+        SkVector    fOffset;
+        bool        fPostTranslate; //!< applies to fOffset
 
         /**
          *  Initial the LayerInfo. Defaults to settings that will draw the
@@ -73,28 +71,21 @@ public:
         LayerInfo();
     };
 
-    virtual SkDrawLooper::Context* createContext(SkCanvas*, void* storage) const SK_OVERRIDE;
+    SkDrawLooper::Context* makeContext(SkCanvas*, SkArenaAlloc*) const override;
 
-    virtual size_t contextSize() const SK_OVERRIDE { return sizeof(LayerDrawLooperContext); }
-
-    virtual bool asABlurShadow(BlurShadowRec* rec) const SK_OVERRIDE;
+    bool asABlurShadow(BlurShadowRec* rec) const override;
 
     SK_TO_STRING_OVERRIDE()
 
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-    static SkFlattenable* DeepCreateProc(SkReadBuffer& buffer) {
-        return CreateProc(buffer);
-    }
-    virtual Factory getFactory() const SK_OVERRIDE { return DeepCreateProc; }
-#else
-    virtual Factory getFactory() const SK_OVERRIDE { return CreateProc; }
-#endif
-    static SkFlattenable* CreateProc(SkReadBuffer& buffer);
+    Factory getFactory() const override { return CreateProc; }
+    static sk_sp<SkFlattenable> CreateProc(SkReadBuffer& buffer);
 
 protected:
+    sk_sp<SkDrawLooper> onMakeColorSpace(SkColorSpaceXformer*) const override;
+
     SkLayerDrawLooper();
 
-    virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
+    void flatten(SkWriteBuffer&) const override;
 
 private:
     struct Rec {
@@ -103,7 +94,6 @@ private:
         LayerInfo fInfo;
     };
     Rec*    fRecs;
-    Rec*    fTopRec;
     int     fCount;
 
     // state-machine during the init/next cycle
@@ -112,17 +102,12 @@ private:
         explicit LayerDrawLooperContext(const SkLayerDrawLooper* looper);
 
     protected:
-        virtual bool next(SkCanvas*, SkPaint* paint) SK_OVERRIDE;
+        bool next(SkCanvas*, SkPaint* paint) override;
 
     private:
         Rec* fCurrRec;
 
         static void ApplyInfo(SkPaint* dst, const SkPaint& src, const LayerInfo&);
-    };
-
-    class MyRegistrar : public SkFlattenable::Registrar {
-    public:
-        MyRegistrar();
     };
 
     typedef SkDrawLooper INHERITED;
@@ -157,7 +142,7 @@ public:
           * Pass list of layers on to newly built looper and return it. This will
           * also reset the builder, so it can be used to build another looper.
           */
-        SkLayerDrawLooper* detachLooper();
+        sk_sp<SkDrawLooper> detach();
 
     private:
         Rec* fRecs;

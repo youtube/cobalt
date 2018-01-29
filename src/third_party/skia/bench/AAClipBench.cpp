@@ -12,6 +12,7 @@
 #include "SkRandom.h"
 #include "SkRegion.h"
 #include "SkString.h"
+#include "SkClipOpPriv.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // This bench tests out AA/BW clipping via canvas' clipPath and clipRect calls
@@ -43,7 +44,7 @@ public:
 
 protected:
     virtual const char* onGetName() { return fName.c_str(); }
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    virtual void onDraw(int loops, SkCanvas* canvas) {
 
         SkPaint paint;
         this->setupPaint(&paint);
@@ -59,9 +60,9 @@ protected:
             canvas->save();
 #if 1
             if (fDoPath) {
-                canvas->clipPath(fClipPath, SkRegion::kReplace_Op, fDoAA);
+                canvas->clipPath(fClipPath, kReplace_SkClipOp, fDoAA);
             } else {
-                canvas->clipRect(fClipRect, SkRegion::kReplace_Op, fDoAA);
+                canvas->clipRect(fClipRect, kReplace_SkClipOp, fDoAA);
             }
 
             canvas->drawRect(fDrawRect, paint);
@@ -130,8 +131,7 @@ protected:
             SkASSERT(path.isConvex());
 
             canvas->clipPath(path,
-                             0 == depth ? SkRegion::kReplace_Op :
-                                          SkRegion::kIntersect_Op,
+                             0 == depth ? kReplace_SkClipOp : kIntersect_SkClipOp,
                              fDoAA);
 
             if (kNestingDepth == depth) {
@@ -158,7 +158,7 @@ protected:
             canvas->restore();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    virtual void onDraw(int loops, SkCanvas* canvas) {
 
         for (int i = 0; i < loops; ++i) {
             SkPoint offset = SkPoint::Make(0, 0);
@@ -195,7 +195,7 @@ public:
 
 protected:
     virtual const char* onGetName() { return fName.c_str(); }
-    virtual void onDraw(const int loops, SkCanvas*) {
+    virtual void onDraw(int loops, SkCanvas*) {
         SkPaint paint;
         this->setupPaint(&paint);
 
@@ -230,7 +230,7 @@ public:
 
 protected:
     virtual const char* onGetName() { return "aaclip_setregion"; }
-    virtual void onDraw(const int loops, SkCanvas*) {
+    virtual void onDraw(int loops, SkCanvas*) {
         for (int i = 0; i < loops; ++i) {
             SkAAClip clip;
             clip.setRegion(fRegion);
@@ -244,14 +244,14 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-DEF_BENCH( return SkNEW_ARGS(AAClipBuilderBench, (false, false)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBuilderBench, (false, true)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBuilderBench, (true, false)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBuilderBench, (true, true)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipRegionBench, ()); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBench, (false, false)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBench, (false, true)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBench, (true, false)); )
-DEF_BENCH( return SkNEW_ARGS(AAClipBench, (true, true)); )
-DEF_BENCH( return SkNEW_ARGS(NestedAAClipBench, (false)); )
-DEF_BENCH( return SkNEW_ARGS(NestedAAClipBench, (true)); )
+DEF_BENCH(return new AAClipBuilderBench(false, false);)
+DEF_BENCH(return new AAClipBuilderBench(false, true);)
+DEF_BENCH(return new AAClipBuilderBench(true, false);)
+DEF_BENCH(return new AAClipBuilderBench(true, true);)
+DEF_BENCH(return new AAClipRegionBench();)
+DEF_BENCH(return new AAClipBench(false, false);)
+DEF_BENCH(return new AAClipBench(false, true);)
+DEF_BENCH(return new AAClipBench(true, false);)
+DEF_BENCH(return new AAClipBench(true, true);)
+DEF_BENCH(return new NestedAAClipBench(false);)
+DEF_BENCH(return new NestedAAClipBench(true);)

@@ -129,6 +129,7 @@ class FrameProcessorTest : public testing::TestWithParam<bool> {
           reinterpret_cast<uint8_t*>(&time_in_ms);
       scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
           timestamp_as_data, sizeof(time_in_ms), is_keyframe, type, track_id);
+      ASSERT_TRUE(buffer);
       base::TimeDelta timestamp = base::TimeDelta::FromSecondsD(
           time_in_ms / base::Time::kMillisecondsPerSecond);
       buffer->set_timestamp(timestamp);

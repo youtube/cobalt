@@ -10,11 +10,7 @@
 
 #include "SkPathEffect.h"
 
-/** \class SkDashPathEffect
-
-    SkDashPathEffect is a subclass of SkPathEffect that implements dashing
-*/
-class SK_API SkDashPathEffect : public SkPathEffect {
+class SK_API SkDashPathEffect {
 public:
     /** intervals: array containing an even number of entries (>=2), with
          the even indices specifying the length of "on" intervals, and the odd
@@ -36,40 +32,7 @@ public:
 
         Note: only affects stroked paths.
     */
-    static SkDashPathEffect* Create(const SkScalar intervals[], int count,
-                                    SkScalar phase) {
-        return SkNEW_ARGS(SkDashPathEffect, (intervals, count, phase));
-    }
-    virtual ~SkDashPathEffect();
-
-    virtual bool filterPath(SkPath* dst, const SkPath& src,
-                            SkStrokeRec*, const SkRect*) const SK_OVERRIDE;
-
-    virtual bool asPoints(PointData* results, const SkPath& src,
-                          const SkStrokeRec&, const SkMatrix&,
-                          const SkRect*) const SK_OVERRIDE;
-
-    virtual DashType asADash(DashInfo* info) const SK_OVERRIDE;
-
-    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkDashPathEffect)
-
-protected:
-    SkDashPathEffect(const SkScalar intervals[], int count, SkScalar phase);
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-    explicit SkDashPathEffect(SkReadBuffer&);
-#endif
-    virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
-
-private:
-    SkScalar*   fIntervals;
-    int32_t     fCount;
-    SkScalar    fPhase;
-    // computed from phase
-    SkScalar    fInitialDashLength;
-    int32_t     fInitialDashIndex;
-    SkScalar    fIntervalLength;
-
-    typedef SkPathEffect INHERITED;
+    static sk_sp<SkPathEffect> Make(const SkScalar intervals[], int count, SkScalar phase);
 };
 
 #endif

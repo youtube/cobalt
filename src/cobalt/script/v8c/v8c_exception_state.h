@@ -17,34 +17,38 @@
 
 #include <string>
 
+#include "base/stringprintf.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/v8c/v8c_global_environment.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
 namespace v8c {
 
+v8::Local<v8::Value> CreateErrorObject(v8::Isolate* isolate,
+                                       SimpleExceptionType type);
+
 class V8cExceptionState : public ExceptionState {
  public:
-  V8cExceptionState() : is_exception_set_(false) { NOTIMPLEMENTED(); }
+  explicit V8cExceptionState(v8::Isolate* isolate)
+      : isolate_(isolate), is_exception_set_(false) {}
 
-  // ExceptionState interface
-  void SetException(const scoped_refptr<ScriptException>& exception) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
-    NOTIMPLEMENTED();
-  }
+  // ExceptionState interface:
+  void SetException(const scoped_refptr<ScriptException>& exception) override;
   void SetSimpleExceptionVA(SimpleExceptionType type, const char* format,
-                            va_list arguments) override {
-    DCHECK(thread_checker_.CalledOnValidThread());
-    NOTIMPLEMENTED();
-  }
+                            va_list arguments) override;
 
   bool is_exception_set() const { return is_exception_set_; }
 
+  void ReThrow(v8::TryCatch* try_catch);
+
  private:
-  bool is_exception_set_;
   base::ThreadChecker thread_checker_;
+
+  v8::Isolate* isolate_;
+  bool is_exception_set_;
 };
 
 }  // namespace v8c

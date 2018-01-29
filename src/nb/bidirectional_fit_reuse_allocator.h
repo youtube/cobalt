@@ -36,13 +36,14 @@ class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
   BidirectionalFitReuseAllocator(Allocator* fallback_allocator,
                                  std::size_t initial_capacity,
                                  std::size_t small_allocation_threshold,
-                                 std::size_t allocation_increment = 0);
+                                 std::size_t allocation_increment = 0,
+                                 std::size_t max_capacity = 0);
 
   FreeBlockSet::iterator FindFreeBlock(std::size_t size,
                                        std::size_t alignment,
                                        FreeBlockSet::iterator begin,
                                        FreeBlockSet::iterator end,
-                                       bool* allocate_from_front) SB_OVERRIDE;
+                                       bool* allocate_from_front) override;
 
  private:
   std::size_t small_allocation_threshold_;

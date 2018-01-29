@@ -42,45 +42,45 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
                     const CompletionCallback& callback,
-                    const BoundNetLog& net_log) OVERRIDE;
+                    const BoundNetLog& net_log) override;
   virtual int RestartIgnoringLastError(
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
   virtual int RestartWithCertificate(
       X509Certificate* client_cert,
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
   virtual int RestartWithAuth(const AuthCredentials& credentials,
-                              const CompletionCallback& callback) OVERRIDE;
-  virtual bool IsReadyToRestartForAuth() OVERRIDE;
+                              const CompletionCallback& callback) override;
+  virtual bool IsReadyToRestartForAuth() override;
 
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
-  virtual void StopCaching() OVERRIDE {}
-  virtual void DoneReading() OVERRIDE {}
-  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
-  virtual LoadState GetLoadState() const OVERRIDE;
-  virtual UploadProgress GetUploadProgress() const OVERRIDE;
+                   const CompletionCallback& callback) override;
+  virtual void StopCaching() override {}
+  virtual void DoneReading() override {}
+  virtual const HttpResponseInfo* GetResponseInfo() const override;
+  virtual LoadState GetLoadState() const override;
+  virtual UploadProgress GetUploadProgress() const override;
 
   // HttpStreamRequest::Delegate methods:
   virtual void OnStreamReady(const SSLConfig& used_ssl_config,
                              const ProxyInfo& used_proxy_info,
-                             HttpStreamBase* stream) OVERRIDE;
+                             HttpStreamBase* stream) override;
   virtual void OnStreamFailed(int status,
-                              const SSLConfig& used_ssl_config) OVERRIDE;
+                              const SSLConfig& used_ssl_config) override;
   virtual void OnCertificateError(int status,
                                   const SSLConfig& used_ssl_config,
-                                  const SSLInfo& ssl_info) OVERRIDE;
+                                  const SSLInfo& ssl_info) override;
   virtual void OnNeedsProxyAuth(
       const HttpResponseInfo& response_info,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
-      HttpAuthController* auth_controller) OVERRIDE;
+      HttpAuthController* auth_controller) override;
   virtual void OnNeedsClientAuth(const SSLConfig& used_ssl_config,
-                                 SSLCertRequestInfo* cert_info) OVERRIDE;
+                                 SSLCertRequestInfo* cert_info) override;
   virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
                                           const SSLConfig& used_ssl_config,
                                           const ProxyInfo& used_proxy_info,
-                                          HttpStreamBase* stream) OVERRIDE;
+                                          HttpStreamBase* stream) override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,

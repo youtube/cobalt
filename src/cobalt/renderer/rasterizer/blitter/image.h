@@ -49,13 +49,13 @@ class ImageData : public render_tree::ImageData {
   ImageData(SbBlitterDevice device, const math::Size& size,
             render_tree::PixelFormat pixel_format,
             render_tree::AlphaFormat alpha_format);
-  ~ImageData() OVERRIDE;
+  ~ImageData() override;
 
-  const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE {
+  const render_tree::ImageDataDescriptor& GetDescriptor() const override {
     return *descriptor_;
   }
 
-  uint8* GetMemory() OVERRIDE;
+  uint8* GetMemory() override;
 
   SbBlitterPixelData TakePixelData();
   SbBlitterDevice device() { return device_; }
@@ -84,22 +84,22 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
                    SubmitOffscreenCallback submit_offscreen_callback,
                    SbBlitterDevice device);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
   SbBlitterSurface surface() const { return surface_; }
 
   // Overrides from skia::SinglePlaneImage.
-  bool EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() override;
 
-  // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
+  // When GetImage() is called on a blitter::SinglePlaneImage for the first
   // time, we do a one-time download of the pixel data from the Blitter API
-  // surface into a SkBitmap.
-  const SkBitmap* GetBitmap() const OVERRIDE;
+  // surface into a SkImage.
+  const sk_sp<SkImage>& GetImage() const override;
 
-  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+  bool IsOpaque() const override { return is_opaque_; }
 
  private:
-  ~SinglePlaneImage() OVERRIDE;
+  ~SinglePlaneImage() override;
 
   void InitializeImageFromRenderTree(
       const scoped_refptr<render_tree::Node>& root,
@@ -113,7 +113,7 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
 
   // This field is populated when GetBitmap() is called for the first time, and
   // after that is never modified.
-  mutable base::optional<SkBitmap> bitmap_;
+  mutable sk_sp<SkImage> image_;
 
   // If |delete_function| is provided, it will be called in the destructor
   // instead of manually calling SbBlitterDestroySurface(surface_).

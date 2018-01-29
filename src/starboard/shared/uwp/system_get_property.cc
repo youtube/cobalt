@@ -39,6 +39,15 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
+bool StartsWith(const std::string& str, const char* prefix) {
+  size_t len = SbStringGetLength(prefix);
+  if (str.size() < len) {
+    return false;
+  }
+
+  return 0 == str.compare(0, len, prefix);
+}
+
 const std::size_t kOsVersionSize = 128;
 
 struct WindowsVersion {
@@ -69,6 +78,8 @@ bool GetWindowsVersion(WindowsVersion* version) {
   return true;
 }
 
+const char kXboxOneSkuPrefix[] = "XBOX_ONE_";
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -82,14 +93,13 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   using starboard::shared::uwp::SpeechApiKey;
 
   switch (property_id) {
-    case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
+    case kSbSystemPropertyUserAgentAuxField:
+      return false;
     case kSbSystemPropertySpeechApiKey:
       CopyStringAndTestIfSuccess(out_value, value_length, SpeechApiKey());
       return true;
-    case kSbSystemPropertyUserAgentAuxField:
-      return false;
     case kSbSystemPropertyBrandName: {
       EasClientDeviceInformation^ current_device_info =
           ref new EasClientDeviceInformation();
@@ -111,22 +121,36 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
           version.minor_version, version.build_version, version.revision);
       return ((return_value > 0) && (return_value < value_length));
     }
+    case kSbSystemPropertyChipsetModelNumber: {
+      std::string sku = platformStringToString(
+          (ref new EasClientDeviceInformation())->SystemSku);
+
+      std::string result;
+      if (StartsWith(sku, kXboxOneSkuPrefix)) {
+        result = "XboxOne";
+      } else {
+        result = sku;
+      }
+
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        result.c_str());
+    }
     case kSbSystemPropertyModelName: {
-      EasClientDeviceInformation^ current_device_info =
-          ref new EasClientDeviceInformation();
-      std::string sku = platformStringToString(current_device_info->SystemSku);
+      std::string sku = platformStringToString(
+          (ref new EasClientDeviceInformation())->SystemSku);
 
       std::string friendly_name;
 
-      // TODO: Move this logic into xb1 specific directory.
       if (sku == "XBOX_ONE_DU") {
         friendly_name = "XboxOne";
       } else if (sku == "XBOX_ONE_ED") {
         friendly_name = "XboxOne S";
       } else if (sku == "XBOX_ONE_CH" || sku == "XBOX_ONE_SC") {
         friendly_name = "XboxOne X";
-      } else {
+      } else if (StartsWith(sku, kXboxOneSkuPrefix)) {
         friendly_name = "XboxOne " + sku;
+      } else {
+        friendly_name = sku;
       }
 
       return CopyStringAndTestIfSuccess(out_value, value_length,

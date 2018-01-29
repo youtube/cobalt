@@ -44,7 +44,8 @@ MediaTransform::MediaTransform(CLSID clsid)
     : thread_checker_(ThreadChecker::kSetThreadIdOnFirstCheck),
       state_(kCanAcceptInput),
       stream_begun_(false),
-      discontinuity_(true) {
+      discontinuity_(true),
+      throttle_inputs_(false) {
   HRESULT hr = CreateDecoderTransform(clsid, &transform_);
   CheckResult(hr);
 }
@@ -55,7 +56,8 @@ MediaTransform::MediaTransform(
       thread_checker_(ThreadChecker::kSetThreadIdOnFirstCheck),
       state_(kCanAcceptInput),
       stream_begun_(false),
-      discontinuity_(true) {
+      discontinuity_(true),
+      throttle_inputs_(false) {
   SB_DCHECK(transform_);
 }
 
@@ -75,12 +77,15 @@ bool MediaTransform::TryWrite(const ComPtr<IMFSample>& input) {
   HRESULT hr = transform_->ProcessInput(kStreamId, input.Get(), 0);
 
   if (SUCCEEDED(hr)) {
+    // Some transforms do not return MF_E_NOTACCEPTING. To avoid flooding
+    // these transforms, input is only allowed when ProcessOutput returns
+    // MF_E_TRANSFORM_NEED_MORE_INPUT.
+    if (throttle_inputs_) {
+      state_ = kCanProvideOutput;
+    }
     return true;
   }
   if (hr == MF_E_NOTACCEPTING) {
-    // NOTE: Some transforms may never return MF_E_NOTACCEPTING, so TryRead
-    // should be allowed to try retrieving an output sample while |state_| is
-    // kCanAcceptInput.
     state_ = kCanProvideOutput;
     return false;
   }
@@ -151,7 +156,11 @@ void MediaTransform::Drain() {
     return;
   }
 
-  SendMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM);
+  // The VP9 codec may crash when MFT_MESSAGE_NOTIFY_END_OF_STREAM is processed
+  // at the same time an IMFSample is released. Per documentation, the client
+  // is not required to send this message for IMFTransforms. Avoid the possible
+  // race condition by not sending this message.
+  // SendMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM);
   SendMessage(MFT_MESSAGE_COMMAND_DRAIN);
   state_ = kDraining;
 }

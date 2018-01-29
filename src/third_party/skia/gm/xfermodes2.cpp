@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -6,9 +5,10 @@
  * found in the LICENSE file.
  */
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkBitmap.h"
 #include "SkShader.h"
-#include "SkXfermode.h"
+#include "SkBlendModePriv.h"
 #include "SkColorPriv.h"
 
 namespace skiagm {
@@ -18,15 +18,15 @@ public:
     Xfermodes2GM() {}
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("xfermodes2");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(455, 475);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         canvas->translate(SkIntToScalar(10), SkIntToScalar(20));
 
         const SkScalar w = SkIntToScalar(kSize);
@@ -40,10 +40,8 @@ protected:
         const int W = 6;
 
         SkScalar x = 0, y = 0;
-        for (size_t m = 0; m <= SkXfermode::kLastMode; m++) {
-            SkXfermode::Mode mode = static_cast<SkXfermode::Mode>(m);
-            SkXfermode* xm = SkXfermode::Create(mode);
-            SkAutoUnref aur(xm);
+        for (size_t m = 0; m <= (size_t)SkBlendMode::kLastMode; m++) {
+            SkBlendMode mode = static_cast<SkBlendMode>(m);
 
             canvas->save();
 
@@ -55,27 +53,27 @@ protected:
             SkRect r = SkRect::MakeWH(w, h);
             canvas->drawRect(r, p);
 
-            canvas->saveLayer(&r, NULL);
+            canvas->saveLayer(&r, nullptr);
 
             p.setShader(fDst);
             canvas->drawRect(r, p);
             p.setShader(fSrc);
-            p.setXfermode(xm);
+            p.setBlendMode(mode);
             canvas->drawRect(r, p);
 
             canvas->restore();
 
             r.inset(-SK_ScalarHalf, -SK_ScalarHalf);
             p.setStyle(SkPaint::kStroke_Style);
-            p.setShader(NULL);
-            p.setXfermode(NULL);
+            p.setShader(nullptr);
+            p.setBlendMode(SkBlendMode::kSrcOver);
             canvas->drawRect(r, p);
 
             canvas->restore();
 
 #if 1
-            canvas->drawText(SkXfermode::ModeName(mode), strlen(SkXfermode::ModeName(mode)),
-                             x + w/2, y - labelP.getTextSize()/2, labelP);
+            canvas->drawString(SkBlendMode_Name(mode),
+                               x + w/2, y - labelP.getTextSize()/2, labelP);
 #endif
             x += w + SkIntToScalar(10);
             if ((m % W) == W - 1) {
@@ -86,12 +84,12 @@ protected:
     }
 
 private:
-    virtual void onOnceBeforeDraw() SK_OVERRIDE {
-        static const uint32_t kCheckData[] = {
-            SkPackARGB32(0xFF, 0x40, 0x40, 0x40),
-            SkPackARGB32(0xFF, 0xD0, 0xD0, 0xD0),
-            SkPackARGB32(0xFF, 0xD0, 0xD0, 0xD0),
-            SkPackARGB32(0xFF, 0x40, 0x40, 0x40)
+    void onOnceBeforeDraw() override {
+        const uint32_t kCheckData[] = {
+            SkPackARGB32(0xFF, 0x42, 0x41, 0x42),
+            SkPackARGB32(0xFF, 0xD6, 0xD3, 0xD6),
+            SkPackARGB32(0xFF, 0xD6, 0xD3, 0xD6),
+            SkPackARGB32(0xFF, 0x42, 0x41, 0x42)
         };
         SkBitmap bg;
         bg.allocN32Pixels(2, 2, true);
@@ -99,14 +97,12 @@ private:
 
         SkMatrix lm;
         lm.setScale(SkIntToScalar(16), SkIntToScalar(16));
-        fBG.reset(SkShader::CreateBitmapShader(bg,
-                                               SkShader::kRepeat_TileMode,
-                                               SkShader::kRepeat_TileMode,
-                                               &lm));
+        fBG = SkShader::MakeBitmapShader(bg, SkShader::kRepeat_TileMode, SkShader::kRepeat_TileMode,
+                                         &lm);
 
-        SkBitmap dstBmp;
-        dstBmp.allocN32Pixels(kSize, kSize);
-        SkPMColor* pixels = reinterpret_cast<SkPMColor*>(dstBmp.getPixels());
+        SkBitmap srcBmp;
+        srcBmp.allocN32Pixels(kSize, kSize);
+        SkPMColor* pixels = reinterpret_cast<SkPMColor*>(srcBmp.getPixels());
 
         for (int y = 0; y < kSize; ++y) {
             int c = y * (1 << kShift);
@@ -115,12 +111,11 @@ private:
                 pixels[kSize * y + x] = rowColor;
             }
         }
-        fSrc.reset(SkShader::CreateBitmapShader(dstBmp,
-                                                SkShader::kClamp_TileMode,
-                                                SkShader::kClamp_TileMode));
-        SkBitmap srcBmp;
-        srcBmp.allocN32Pixels(kSize, kSize);
-        pixels = reinterpret_cast<SkPMColor*>(srcBmp.getPixels());
+        fSrc = SkShader::MakeBitmapShader(srcBmp, SkShader::kClamp_TileMode,
+                                          SkShader::kClamp_TileMode);
+        SkBitmap dstBmp;
+        dstBmp.allocN32Pixels(kSize, kSize);
+        pixels = reinterpret_cast<SkPMColor*>(dstBmp.getPixels());
 
         for (int x = 0; x < kSize; ++x) {
             int c = x * (1 << kShift);
@@ -129,9 +124,8 @@ private:
                 pixels[kSize * y + x] = colColor;
             }
         }
-        fDst.reset(SkShader::CreateBitmapShader(srcBmp,
-                                                SkShader::kClamp_TileMode,
-                                                SkShader::kClamp_TileMode));
+        fDst = SkShader::MakeBitmapShader(dstBmp, SkShader::kClamp_TileMode,
+                                          SkShader::kClamp_TileMode);
     }
 
     enum {
@@ -139,9 +133,9 @@ private:
         kSize = 256 >> kShift,
     };
 
-    SkAutoTUnref<SkShader> fBG;
-    SkAutoTUnref<SkShader> fSrc;
-    SkAutoTUnref<SkShader> fDst;
+    sk_sp<SkShader> fBG;
+    sk_sp<SkShader> fSrc;
+    sk_sp<SkShader> fDst;
 
     typedef GM INHERITED;
 };

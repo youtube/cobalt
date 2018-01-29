@@ -6,6 +6,8 @@
  */
 
 #include "SkTypes.h"
+#if defined(SK_BUILD_FOR_WIN32)
+
 // SkTypes will include Windows.h, which will pull in all of the GDI defines.
 // GDI #defines GetGlyphIndices to GetGlyphIndicesA or GetGlyphIndicesW, but
 // IDWriteFontFace has a method called GetGlyphIndices. Since this file does
@@ -16,10 +18,12 @@
 #include "SkDWriteFontFileStream.h"
 #include "SkFontDescriptor.h"
 #include "SkFontStream.h"
+#include "SkOTTable_fvar.h"
 #include "SkOTTable_head.h"
 #include "SkOTTable_hhea.h"
 #include "SkOTTable_OS_2.h"
 #include "SkOTTable_post.h"
+#include "SkOTUtils.h"
 #include "SkScalerContext.h"
 #include "SkScalerContext_win_dw.h"
 #include "SkTypeface_win_dw.h"
@@ -29,7 +33,7 @@ void DWriteFontTypeface::onGetFamilyName(SkString* familyName) const {
     SkTScopedComPtr<IDWriteLocalizedStrings> familyNames;
     HRV(fDWriteFontFamily->GetFamilyNames(&familyNames));
 
-    sk_get_locale_string(familyNames.get(), NULL/*fMgr->fLocaleName.get()*/, familyName);
+    sk_get_locale_string(familyNames.get(), nullptr/*fMgr->fLocaleName.get()*/, familyName);
 }
 
 void DWriteFontTypeface::onGetFontDescriptor(SkFontDescriptor* desc,
@@ -39,10 +43,10 @@ void DWriteFontTypeface::onGetFontDescriptor(SkFontDescriptor* desc,
     HRV(fDWriteFontFamily->GetFamilyNames(&familyNames));
 
     SkString utf8FamilyName;
-    sk_get_locale_string(familyNames.get(), NULL/*fMgr->fLocaleName.get()*/, &utf8FamilyName);
+    sk_get_locale_string(familyNames.get(), nullptr/*fMgr->fLocaleName.get()*/, &utf8FamilyName);
 
     desc->setFamilyName(utf8FamilyName.c_str());
-    desc->setFontIndex(fDWriteFontFace->GetIndex());
+    desc->setStyle(this->fontStyle());
     *isLocalStream = SkToBool(fDWriteFontFileLoader.get());
 }
 
@@ -74,7 +78,7 @@ static EncodingProc find_encoding_proc(SkTypeface::Encoding enc) {
 int DWriteFontTypeface::onCharsToGlyphs(const void* chars, Encoding encoding,
                                         uint16_t glyphs[], int glyphCount) const
 {
-    if (NULL == glyphs) {
+    if (nullptr == glyphs) {
         EncodingProc next_ucs4_proc = find_encoding_proc(encoding);
         for (int i = 0; i < glyphCount; ++i) {
             const SkUnichar c = next_ucs4_proc(&chars);
@@ -109,7 +113,7 @@ int DWriteFontTypeface::onCharsToGlyphs(const void* chars, Encoding encoding,
         break;
     }
     default:
-        SK_CRASH();
+        SK_ABORT("Invalid Text Encoding");
     }
 
     for (int i = 0; i < glyphCount; ++i) {
@@ -137,7 +141,7 @@ public:
         : fIndex(0), fStrings(strings)
     { }
 
-    virtual bool next(SkTypeface::LocalizedString* localizedString) SK_OVERRIDE {
+    bool next(SkTypeface::LocalizedString* localizedString) override {
         if (fIndex >= fStrings->GetCount()) {
             return false;
         }
@@ -170,10 +174,14 @@ private:
 };
 
 SkTypeface::LocalizedStrings* DWriteFontTypeface::onCreateFamilyNameIterator() const {
-    SkTScopedComPtr<IDWriteLocalizedStrings> familyNames;
-    HRNM(fDWriteFontFamily->GetFamilyNames(&familyNames), "Could not obtain family names.");
-
-    return new LocalizedStrings_IDWriteLocalizedStrings(familyNames.release());
+    SkTypeface::LocalizedStrings* nameIter =
+        SkOTUtils::LocalizedStrings_NameTable::CreateForFamilyNames(*this);
+    if (nullptr == nameIter) {
+        SkTScopedComPtr<IDWriteLocalizedStrings> familyNames;
+        HRNM(fDWriteFontFamily->GetFamilyNames(&familyNames), "Could not obtain family names.");
+        nameIter = new LocalizedStrings_IDWriteLocalizedStrings(familyNames.release());
+    }
+    return nameIter;
 }
 
 int DWriteFontTypeface::onGetTableTags(SkFontTableTag tags[]) const {
@@ -186,8 +194,8 @@ int DWriteFontTypeface::onGetTableTags(SkFontTableTag tags[]) const {
     }
 
     int ttcIndex;
-    SkAutoTUnref<SkStream> stream(this->openStream(&ttcIndex));
-    return stream.get() ? SkFontStream::GetTableTags(stream, ttcIndex, tags) : 0;
+    std::unique_ptr<SkStream> stream(this->openStream(&ttcIndex));
+    return stream.get() ? SkFontStream::GetTableTags(stream.get(), ttcIndex, tags) : 0;
 }
 
 size_t DWriteFontTypeface::onGetTableData(SkFontTableTag tag, size_t offset,
@@ -213,10 +221,10 @@ SkStreamAsset* DWriteFontTypeface::onOpenStream(int* ttcIndex) const {
     *ttcIndex = fDWriteFontFace->GetIndex();
 
     UINT32 numFiles;
-    HRNM(fDWriteFontFace->GetFiles(&numFiles, NULL),
+    HRNM(fDWriteFontFace->GetFiles(&numFiles, nullptr),
          "Could not get number of font files.");
     if (numFiles != 1) {
-        return NULL;
+        return nullptr;
     }
 
     SkTScopedComPtr<IDWriteFontFile> fontFile;
@@ -235,36 +243,37 @@ SkStreamAsset* DWriteFontTypeface::onOpenStream(int* ttcIndex) const {
                                              &fontFileStream),
          "Could not create font file stream.");
 
-    return SkNEW_ARGS(SkDWriteFontFileStream, (fontFileStream.get()));
+    return new SkDWriteFontFileStream(fontFileStream.get());
 }
 
-SkScalerContext* DWriteFontTypeface::onCreateScalerContext(const SkDescriptor* desc) const {
-    return SkNEW_ARGS(SkScalerContext_DW, (const_cast<DWriteFontTypeface*>(this), desc));
+SkScalerContext* DWriteFontTypeface::onCreateScalerContext(const SkScalerContextEffects& effects,
+                                                           const SkDescriptor* desc) const {
+    return new SkScalerContext_DW(sk_ref_sp(const_cast<DWriteFontTypeface*>(this)), effects, desc);
 }
 
 void DWriteFontTypeface::onFilterRec(SkScalerContext::Rec* rec) const {
-    if (rec->fFlags & SkScalerContext::kLCD_BGROrder_Flag ||
-        rec->fFlags & SkScalerContext::kLCD_Vertical_Flag)
-    {
+    if (rec->fFlags & SkScalerContext::kLCD_Vertical_Flag) {
         rec->fMaskFormat = SkMask::kA8_Format;
+        rec->fFlags |= SkScalerContext::kGenA8FromLCD_Flag;
     }
 
     unsigned flagsWeDontSupport = SkScalerContext::kVertical_Flag |
                                   SkScalerContext::kDevKernText_Flag |
                                   SkScalerContext::kForceAutohinting_Flag |
                                   SkScalerContext::kEmbolden_Flag |
-                                  SkScalerContext::kLCD_BGROrder_Flag |
                                   SkScalerContext::kLCD_Vertical_Flag;
     rec->fFlags &= ~flagsWeDontSupport;
 
     SkPaint::Hinting h = rec->getHinting();
-    // DirectWrite does not provide for hinting hints.
-    h = SkPaint::kSlight_Hinting;
+    // DirectWrite2 allows for hinting to be turned off. Force everything else to normal.
+    if (h != SkPaint::kNo_Hinting || !fFactory2 || !fDWriteFontFace2) {
+        h = SkPaint::kNormal_Hinting;
+    }
     rec->setHinting(h);
 
-#if SK_FONT_HOST_USE_SYSTEM_SETTINGS
-    IDWriteFactory* factory = get_dwrite_factory();
-    if (factory != NULL) {
+#if defined(SK_FONT_HOST_USE_SYSTEM_SETTINGS)
+    IDWriteFactory* factory = sk_get_dwrite_factory();
+    if (factory != nullptr) {
         SkTScopedComPtr<IDWriteRenderingParams> defaultRenderingParams;
         if (SUCCEEDED(factory->CreateRenderingParams(&defaultRenderingParams))) {
             float gamma = defaultRenderingParams->GetGamma();
@@ -280,8 +289,6 @@ void DWriteFontTypeface::onFilterRec(SkScalerContext::Rec* rec) const {
 ///////////////////////////////////////////////////////////////////////////////
 //PDF Support
 
-using namespace skia_advanced_typeface_metrics_utils;
-
 // Construct Glyph to Unicode table.
 // Unicode code points that require conjugate pairs in utf16 are not
 // supported.
@@ -290,46 +297,31 @@ using namespace skia_advanced_typeface_metrics_utils;
 static void populate_glyph_to_unicode(IDWriteFontFace* fontFace,
                                       const unsigned glyphCount,
                                       SkTDArray<SkUnichar>* glyphToUnicode) {
-    HRESULT hr = S_OK;
-
     //Do this like free type instead
-    SkAutoTMalloc<SkUnichar> glyphToUni(glyphCount);
+    SkAutoTMalloc<SkUnichar> glyphToUni(
+            (SkUnichar*)sk_calloc_throw(sizeof(SkUnichar) * glyphCount));
     int maxGlyph = -1;
-    for (UINT32 c = 0; c < 0x10FFFF; ++c) {
-        UINT16 glyph;
-        hr = fontFace->GetGlyphIndices(&c, 1, &glyph);
-        SkASSERT(glyph < glyphCount);
-        if (0 < glyph) {
+    unsigned remainingGlyphCount = glyphCount;
+    for (UINT32 c = 0; c < 0x10FFFF && remainingGlyphCount != 0; ++c) {
+        UINT16 glyph = 0;
+        HRVM(fontFace->GetGlyphIndices(&c, 1, &glyph),
+             "Failed to get glyph index.");
+        // Intermittent DW bug on Windows 10. See crbug.com/470146.
+        if (glyph >= glyphCount) {
+          return;
+        }
+        if (0 < glyph && glyphToUni[glyph] == 0) {
             maxGlyph = SkTMax(static_cast<int>(glyph), maxGlyph);
-            glyphToUni[glyph] = c;
+            glyphToUni[glyph] = c;  // Always use lowest-index unichar.
+            --remainingGlyphCount;
         }
     }
-
     SkTDArray<SkUnichar>(glyphToUni, maxGlyph + 1).swap(*glyphToUnicode);
 }
 
-static bool getWidthAdvance(IDWriteFontFace* fontFace, int gId, int16_t* advance) {
-    SkASSERT(advance);
+std::unique_ptr<SkAdvancedTypefaceMetrics> DWriteFontTypeface::onGetAdvancedMetrics() const {
 
-    UINT16 glyphId = gId;
-    DWRITE_GLYPH_METRICS gm;
-    HRESULT hr = fontFace->GetDesignGlyphMetrics(&glyphId, 1, &gm);
-
-    if (FAILED(hr)) {
-        *advance = 0;
-        return false;
-    }
-
-    *advance = gm.advanceWidth;
-    return true;
-}
-
-SkAdvancedTypefaceMetrics* DWriteFontTypeface::onGetAdvancedTypefaceMetrics(
-        SkAdvancedTypefaceMetrics::PerGlyphInfo perGlyphInfo,
-        const uint32_t* glyphIDs,
-        uint32_t glyphIDsCount) const {
-
-    SkAdvancedTypefaceMetrics* info = NULL;
+    std::unique_ptr<SkAdvancedTypefaceMetrics> info(nullptr);
 
     HRESULT hr = S_OK;
 
@@ -338,11 +330,11 @@ SkAdvancedTypefaceMetrics* DWriteFontTypeface::onGetAdvancedTypefaceMetrics(
     DWRITE_FONT_METRICS dwfm;
     fDWriteFontFace->GetMetrics(&dwfm);
 
-    info = new SkAdvancedTypefaceMetrics;
-    info->fEmSize = dwfm.designUnitsPerEm;
-    info->fLastGlyphID = SkToU16(glyphCount - 1);
-    info->fStyle = 0;
-    info->fFlags = SkAdvancedTypefaceMetrics::kEmpty_FontFlag;
+    info.reset(new SkAdvancedTypefaceMetrics);
+
+    info->fAscent = SkToS16(dwfm.ascent);
+    info->fDescent = SkToS16(dwfm.descent);
+    info->fCapHeight = SkToS16(dwfm.capHeight);
 
     // SkAdvancedTypefaceMetrics::fFontName is in theory supposed to be
     // the PostScript name of the font. However, due to the way it is currently
@@ -358,23 +350,18 @@ SkAdvancedTypefaceMetrics* DWriteFontTypeface::onGetAdvancedTypefaceMetrics(
 
     hr = sk_wchar_to_skstring(familyName.get(), familyNameLen, &info->fFontName);
 
-    if (perGlyphInfo & SkAdvancedTypefaceMetrics::kToUnicode_PerGlyphInfo) {
-        populate_glyph_to_unicode(fDWriteFontFace.get(), glyphCount, &(info->fGlyphToUnicode));
-    }
+    populate_glyph_to_unicode(fDWriteFontFace.get(), glyphCount, &(info->fGlyphToUnicode));
 
     DWRITE_FONT_FACE_TYPE fontType = fDWriteFontFace->GetType();
-    if (fontType == DWRITE_FONT_FACE_TYPE_TRUETYPE ||
-        fontType == DWRITE_FONT_FACE_TYPE_TRUETYPE_COLLECTION) {
-        info->fType = SkAdvancedTypefaceMetrics::kTrueType_Font;
-    } else {
-        info->fType = SkAdvancedTypefaceMetrics::kOther_Font;
-        info->fItalicAngle = 0;
-        info->fAscent = dwfm.ascent;;
-        info->fDescent = dwfm.descent;
-        info->fStemV = 0;
-        info->fCapHeight = dwfm.capHeight;
-        info->fBBox = SkIRect::MakeEmpty();
+    if (fontType != DWRITE_FONT_FACE_TYPE_TRUETYPE &&
+        fontType != DWRITE_FONT_FACE_TYPE_TRUETYPE_COLLECTION)
+    {
         return info;
+    }
+
+    // Simulated fonts aren't really TrueType fonts.
+    if (fDWriteFontFace->GetSimulations() == DWRITE_FONT_SIMULATIONS_NONE) {
+        info->fType = SkAdvancedTypefaceMetrics::kTrueType_Font;
     }
 
     AutoTDWriteTable<SkOTTableHead> headTable(fDWriteFontFace.get());
@@ -382,13 +369,14 @@ SkAdvancedTypefaceMetrics* DWriteFontTypeface::onGetAdvancedTypefaceMetrics(
     AutoTDWriteTable<SkOTTableHorizontalHeader> hheaTable(fDWriteFontFace.get());
     AutoTDWriteTable<SkOTTableOS2> os2Table(fDWriteFontFace.get());
     if (!headTable.fExists || !postTable.fExists || !hheaTable.fExists || !os2Table.fExists) {
-        info->fItalicAngle = 0;
-        info->fAscent = dwfm.ascent;;
-        info->fDescent = dwfm.descent;
-        info->fStemV = 0;
-        info->fCapHeight = dwfm.capHeight;
-        info->fBBox = SkIRect::MakeEmpty();
         return info;
+    }
+
+    // There are versions of DirectWrite which support named instances for system variation fonts,
+    // but no means to indicate that such a typeface is a variation.
+    AutoTDWriteTable<SkOTTableFontVariations> fvarTable(fDWriteFontFace.get());
+    if (fvarTable.fExists) {
+        info->fFlags |= SkAdvancedTypefaceMetrics::kMultiMaster_FontFlag;
     }
 
     //There exist CJK fonts which set the IsFixedPitch and Monospace bits,
@@ -403,65 +391,33 @@ SkAdvancedTypefaceMetrics* DWriteFontTypeface::onGetAdvancedTypefaceMetrics(
     if (os2Table->version.v0.fsSelection.field.Italic) {
         info->fStyle |= SkAdvancedTypefaceMetrics::kItalic_Style;
     }
-    //Script
-    if (SkPanose::FamilyType::Script == os2Table->version.v0.panose.bFamilyType.value) {
-        info->fStyle |= SkAdvancedTypefaceMetrics::kScript_Style;
     //Serif
-    } else if (SkPanose::FamilyType::TextAndDisplay == os2Table->version.v0.panose.bFamilyType.value &&
-               SkPanose::Data::TextAndDisplay::SerifStyle::Triangle <= os2Table->version.v0.panose.data.textAndDisplay.bSerifStyle.value &&
-               SkPanose::Data::TextAndDisplay::SerifStyle::NoFit != os2Table->version.v0.panose.data.textAndDisplay.bSerifStyle.value) {
-        info->fStyle |= SkAdvancedTypefaceMetrics::kSerif_Style;
+    using SerifStyle = SkPanose::Data::TextAndDisplay::SerifStyle;
+    SerifStyle serifStyle = os2Table->version.v0.panose.data.textAndDisplay.bSerifStyle;
+    if (SkPanose::FamilyType::TextAndDisplay == os2Table->version.v0.panose.bFamilyType) {
+        if (SerifStyle::Cove == serifStyle ||
+            SerifStyle::ObtuseCove == serifStyle ||
+            SerifStyle::SquareCove == serifStyle ||
+            SerifStyle::ObtuseSquareCove == serifStyle ||
+            SerifStyle::Square == serifStyle ||
+            SerifStyle::Thin == serifStyle ||
+            SerifStyle::Bone == serifStyle ||
+            SerifStyle::Exaggerated == serifStyle ||
+            SerifStyle::Triangle == serifStyle)
+        {
+            info->fStyle |= SkAdvancedTypefaceMetrics::kSerif_Style;
+        }
+    //Script
+    } else if (SkPanose::FamilyType::Script == os2Table->version.v0.panose.bFamilyType) {
+        info->fStyle |= SkAdvancedTypefaceMetrics::kScript_Style;
     }
 
     info->fItalicAngle = SkEndian_SwapBE32(postTable->italicAngle) >> 16;
-
-    info->fAscent = SkToS16(dwfm.ascent);
-    info->fDescent = SkToS16(dwfm.descent);
-    info->fCapHeight = SkToS16(dwfm.capHeight);
 
     info->fBBox = SkIRect::MakeLTRB((int32_t)SkEndian_SwapBE16((uint16_t)headTable->xMin),
                                     (int32_t)SkEndian_SwapBE16((uint16_t)headTable->yMax),
                                     (int32_t)SkEndian_SwapBE16((uint16_t)headTable->xMax),
                                     (int32_t)SkEndian_SwapBE16((uint16_t)headTable->yMin));
-
-    //TODO: is this even desired? It seems PDF only wants this value for Type1
-    //fonts, and we only get here for TrueType fonts.
-    info->fStemV = 0;
-    /*
-    // Figure out a good guess for StemV - Min width of i, I, !, 1.
-    // This probably isn't very good with an italic font.
-    int16_t min_width = SHRT_MAX;
-    info->fStemV = 0;
-    char stem_chars[] = {'i', 'I', '!', '1'};
-    for (size_t i = 0; i < SK_ARRAY_COUNT(stem_chars); i++) {
-        ABC abcWidths;
-        if (GetCharABCWidths(hdc, stem_chars[i], stem_chars[i], &abcWidths)) {
-            int16_t width = abcWidths.abcB;
-            if (width > 0 && width < min_width) {
-                min_width = width;
-                info->fStemV = min_width;
-            }
-        }
-    }
-    */
-
-    if (perGlyphInfo & SkAdvancedTypefaceMetrics::kHAdvance_PerGlyphInfo) {
-        if (fixedWidth) {
-            appendRange(&info->fGlyphWidths, 0);
-            int16_t advance;
-            getWidthAdvance(fDWriteFontFace.get(), 1, &advance);
-            info->fGlyphWidths->fAdvance.append(1, &advance);
-            finishRange(info->fGlyphWidths.get(), 0,
-                        SkAdvancedTypefaceMetrics::WidthRange::kDefault);
-        } else {
-            info->fGlyphWidths.reset(
-                getAdvanceData(fDWriteFontFace.get(),
-                               glyphCount,
-                               glyphIDs,
-                               glyphIDsCount,
-                               getWidthAdvance));
-        }
-    }
-
     return info;
 }
+#endif//defined(SK_BUILD_FOR_WIN32)

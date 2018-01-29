@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,20 +5,20 @@
  * found in the LICENSE file.
  */
 
-
 #include "SkSpriteBlitter.h"
+#include "SkArenaAlloc.h"
 #include "SkBlitRow.h"
 #include "SkColorFilter.h"
 #include "SkColorPriv.h"
 #include "SkTemplates.h"
 #include "SkUtils.h"
-#include "SkXfermode.h"
+#include "SkXfermodePriv.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
 class Sprite_D32_S32 : public SkSpriteBlitter {
 public:
-    Sprite_D32_S32(const SkBitmap& src, U8CPU alpha)  : INHERITED(src) {
+    Sprite_D32_S32(const SkPixmap& src, U8CPU alpha)  : INHERITED(src) {
         SkASSERT(src.colorType() == kN32_SkColorType);
 
         unsigned flags32 = 0;
@@ -34,13 +33,12 @@ public:
         fAlpha = alpha;
     }
 
-    virtual void blitRect(int x, int y, int width, int height) {
+    void blitRect(int x, int y, int width, int height) override {
         SkASSERT(width > 0 && height > 0);
-        uint32_t* SK_RESTRICT dst = fDevice->getAddr32(x, y);
-        const uint32_t* SK_RESTRICT src = fSource->getAddr32(x - fLeft,
-                                                             y - fTop);
-        size_t dstRB = fDevice->rowBytes();
-        size_t srcRB = fSource->rowBytes();
+        uint32_t* SK_RESTRICT dst = fDst.writable_addr32(x, y);
+        const uint32_t* SK_RESTRICT src = fSource.addr32(x - fLeft, y - fTop);
+        size_t dstRB = fDst.rowBytes();
+        size_t srcRB = fSource.rowBytes();
         SkBlitRow::Proc32 proc = fProc32;
         U8CPU             alpha = fAlpha;
 
@@ -60,56 +58,31 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class Sprite_D32_XferFilter : public SkSpriteBlitter {
+class Sprite_D32_S32A_Xfer: public SkSpriteBlitter {
 public:
-    Sprite_D32_XferFilter(const SkBitmap& source, const SkPaint& paint)
-        : SkSpriteBlitter(source) {
-        fColorFilter = paint.getColorFilter();
-        SkSafeRef(fColorFilter);
-
-        fXfermode = paint.getXfermode();
-        SkSafeRef(fXfermode);
-
-        fBufferSize = 0;
-        fBuffer = NULL;
-
-        unsigned flags32 = 0;
-        if (255 != paint.getAlpha()) {
-            flags32 |= SkBlitRow::kGlobalAlpha_Flag32;
-        }
-        if (!source.isOpaque()) {
-            flags32 |= SkBlitRow::kSrcPixelAlpha_Flag32;
-        }
-
-        fProc32 = SkBlitRow::Factory32(flags32);
-        fAlpha = paint.getAlpha();
+    Sprite_D32_S32A_Xfer(const SkPixmap& source, const SkPaint& paint) : SkSpriteBlitter(source) {
+        fXfermode = SkXfermode::Peek(paint.getBlendMode());
+        SkASSERT(fXfermode);
     }
 
-    virtual ~Sprite_D32_XferFilter() {
-        delete[] fBuffer;
-        SkSafeUnref(fXfermode);
-        SkSafeUnref(fColorFilter);
-    }
+    void blitRect(int x, int y, int width, int height) override {
+        SkASSERT(width > 0 && height > 0);
+        uint32_t* SK_RESTRICT dst = fDst.writable_addr32(x, y);
+        const uint32_t* SK_RESTRICT src = fSource.addr32(x - fLeft, y - fTop);
+        size_t dstRB = fDst.rowBytes();
+        size_t srcRB = fSource.rowBytes();
+        SkXfermode* xfermode = fXfermode;
 
-    virtual void setup(const SkBitmap& device, int left, int top,
-                       const SkPaint& paint) {
-        this->INHERITED::setup(device, left, top, paint);
+        do {
+            xfermode->xfer32(dst, src, width, nullptr);
 
-        int width = device.width();
-        if (width > fBufferSize) {
-            fBufferSize = width;
-            delete[] fBuffer;
-            fBuffer = new SkPMColor[width];
-        }
+            dst = (uint32_t* SK_RESTRICT)((char*)dst + dstRB);
+            src = (const uint32_t* SK_RESTRICT)((const char*)src + srcRB);
+        } while (--height != 0);
     }
 
 protected:
-    SkColorFilter*      fColorFilter;
-    SkXfermode*         fXfermode;
-    int                 fBufferSize;
-    SkPMColor*          fBuffer;
-    SkBlitRow::Proc32   fProc32;
-    U8CPU               fAlpha;
+    SkXfermode* fXfermode;
 
 private:
     typedef SkSpriteBlitter INHERITED;
@@ -117,191 +90,28 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class Sprite_D32_S32A_XferFilter : public Sprite_D32_XferFilter {
-public:
-    Sprite_D32_S32A_XferFilter(const SkBitmap& source, const SkPaint& paint)
-        : Sprite_D32_XferFilter(source, paint) {}
+SkSpriteBlitter* SkSpriteBlitter::ChooseL32(const SkPixmap& source, const SkPaint& paint,
+                                            SkArenaAlloc* allocator) {
+    SkASSERT(allocator != nullptr);
 
-    virtual void blitRect(int x, int y, int width, int height) {
-        SkASSERT(width > 0 && height > 0);
-        uint32_t* SK_RESTRICT dst = fDevice->getAddr32(x, y);
-        const uint32_t* SK_RESTRICT src = fSource->getAddr32(x - fLeft,
-                                                             y - fTop);
-        size_t dstRB = fDevice->rowBytes();
-        size_t srcRB = fSource->rowBytes();
-        SkColorFilter* colorFilter = fColorFilter;
-        SkXfermode* xfermode = fXfermode;
-
-        do {
-            const SkPMColor* tmp = src;
-
-            if (colorFilter) {
-                colorFilter->filterSpan(src, width, fBuffer);
-                tmp = fBuffer;
-            }
-
-            if (xfermode) {
-                xfermode->xfer32(dst, tmp, width, NULL);
-            } else {
-                fProc32(dst, tmp, width, fAlpha);
-            }
-
-            dst = (uint32_t* SK_RESTRICT)((char*)dst + dstRB);
-            src = (const uint32_t* SK_RESTRICT)((const char*)src + srcRB);
-        } while (--height != 0);
+    if (paint.getColorFilter() != nullptr) {
+        return nullptr;
+    }
+    if (paint.getMaskFilter() != nullptr) {
+        return nullptr;
     }
 
-private:
-    typedef Sprite_D32_XferFilter INHERITED;
-};
+    U8CPU alpha = paint.getAlpha();
 
-static void fillbuffer(SkPMColor* SK_RESTRICT dst,
-                       const SkPMColor16* SK_RESTRICT src, int count) {
-    SkASSERT(count > 0);
-
-    do {
-        *dst++ = SkPixel4444ToPixel32(*src++);
-    } while (--count != 0);
-}
-
-class Sprite_D32_S4444_XferFilter : public Sprite_D32_XferFilter {
-public:
-    Sprite_D32_S4444_XferFilter(const SkBitmap& source, const SkPaint& paint)
-        : Sprite_D32_XferFilter(source, paint) {}
-
-    virtual void blitRect(int x, int y, int width, int height) {
-        SkASSERT(width > 0 && height > 0);
-        SkPMColor* SK_RESTRICT dst = fDevice->getAddr32(x, y);
-        const SkPMColor16* SK_RESTRICT src = fSource->getAddr16(x - fLeft,
-                                                                y - fTop);
-        size_t dstRB = fDevice->rowBytes();
-        size_t srcRB = fSource->rowBytes();
-        SkPMColor* SK_RESTRICT buffer = fBuffer;
-        SkColorFilter* colorFilter = fColorFilter;
-        SkXfermode* xfermode = fXfermode;
-
-        do {
-            fillbuffer(buffer, src, width);
-
-            if (colorFilter) {
-                colorFilter->filterSpan(buffer, width, buffer);
-            }
-            if (xfermode) {
-                xfermode->xfer32(dst, buffer, width, NULL);
-            } else {
-                fProc32(dst, buffer, width, fAlpha);
-            }
-
-            dst = (SkPMColor* SK_RESTRICT)((char*)dst + dstRB);
-            src = (const SkPMColor16* SK_RESTRICT)((const char*)src + srcRB);
-        } while (--height != 0);
+    if (source.colorType() == kN32_SkColorType) {
+        if (paint.isSrcOver()) {
+            // this can handle alpha, but not xfermode
+            return allocator->make<Sprite_D32_S32>(source, alpha);
+        }
+        if (255 == alpha) {
+            // this can handle an xfermode, but not alpha
+            return allocator->make<Sprite_D32_S32A_Xfer>(source, paint);
+        }
     }
-
-private:
-    typedef Sprite_D32_XferFilter INHERITED;
-};
-
-///////////////////////////////////////////////////////////////////////////////
-
-static void src_row(SkPMColor* SK_RESTRICT dst,
-                    const SkPMColor16* SK_RESTRICT src, int count) {
-    do {
-        *dst = SkPixel4444ToPixel32(*src);
-        src += 1;
-        dst += 1;
-    } while (--count != 0);
-}
-
-class Sprite_D32_S4444_Opaque : public SkSpriteBlitter {
-public:
-    Sprite_D32_S4444_Opaque(const SkBitmap& source) : SkSpriteBlitter(source) {}
-
-    virtual void blitRect(int x, int y, int width, int height) {
-        SkASSERT(width > 0 && height > 0);
-        SkPMColor* SK_RESTRICT dst = fDevice->getAddr32(x, y);
-        const SkPMColor16* SK_RESTRICT src = fSource->getAddr16(x - fLeft,
-                                                                y - fTop);
-        size_t dstRB = fDevice->rowBytes();
-        size_t srcRB = fSource->rowBytes();
-
-        do {
-            src_row(dst, src, width);
-            dst = (SkPMColor* SK_RESTRICT)((char*)dst + dstRB);
-            src = (const SkPMColor16* SK_RESTRICT)((const char*)src + srcRB);
-        } while (--height != 0);
-    }
-};
-
-static void srcover_row(SkPMColor* SK_RESTRICT dst,
-                        const SkPMColor16* SK_RESTRICT src, int count) {
-    do {
-        *dst = SkPMSrcOver(SkPixel4444ToPixel32(*src), *dst);
-        src += 1;
-        dst += 1;
-    } while (--count != 0);
-}
-
-class Sprite_D32_S4444 : public SkSpriteBlitter {
-public:
-    Sprite_D32_S4444(const SkBitmap& source) : SkSpriteBlitter(source) {}
-
-    virtual void blitRect(int x, int y, int width, int height) {
-        SkASSERT(width > 0 && height > 0);
-        SkPMColor* SK_RESTRICT dst = fDevice->getAddr32(x, y);
-        const SkPMColor16* SK_RESTRICT src = fSource->getAddr16(x - fLeft,
-                                                                y - fTop);
-        size_t dstRB = fDevice->rowBytes();
-        size_t srcRB = fSource->rowBytes();
-
-        do {
-            srcover_row(dst, src, width);
-            dst = (SkPMColor* SK_RESTRICT)((char*)dst + dstRB);
-            src = (const SkPMColor16* SK_RESTRICT)((const char*)src + srcRB);
-        } while (--height != 0);
-    }
-};
-
-///////////////////////////////////////////////////////////////////////////////
-
-SkSpriteBlitter* SkSpriteBlitter::ChooseD32(const SkBitmap& source, const SkPaint& paint,
-        SkTBlitterAllocator* allocator) {
-    SkASSERT(allocator != NULL);
-
-    if (paint.getMaskFilter() != NULL) {
-        return NULL;
-    }
-
-    U8CPU       alpha = paint.getAlpha();
-    SkXfermode* xfermode = paint.getXfermode();
-    SkColorFilter* filter = paint.getColorFilter();
-    SkSpriteBlitter* blitter = NULL;
-
-    switch (source.colorType()) {
-        case kARGB_4444_SkColorType:
-            if (alpha != 0xFF) {
-                return NULL;    // we only have opaque sprites
-            }
-            if (xfermode || filter) {
-                blitter = allocator->createT<Sprite_D32_S4444_XferFilter>(source, paint);
-            } else if (source.isOpaque()) {
-                blitter = allocator->createT<Sprite_D32_S4444_Opaque>(source);
-            } else {
-                blitter = allocator->createT<Sprite_D32_S4444>(source);
-            }
-            break;
-        case kN32_SkColorType:
-            if (xfermode || filter) {
-                if (255 == alpha) {
-                    // this can handle xfermode or filter, but not alpha
-                    blitter = allocator->createT<Sprite_D32_S32A_XferFilter>(source, paint);
-                }
-            } else {
-                // this can handle alpha, but not xfermode or filter
-                blitter = allocator->createT<Sprite_D32_S32>(source, alpha);
-            }
-            break;
-        default:
-            break;
-    }
-    return blitter;
+    return nullptr;
 }

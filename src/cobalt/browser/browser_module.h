@@ -27,6 +27,10 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
+#include "cobalt/base/on_screen_keyboard_blurred_event.h"
+#include "cobalt/base/on_screen_keyboard_focused_event.h"
+#include "cobalt/base/on_screen_keyboard_hidden_event.h"
+#include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
@@ -41,6 +45,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/input_device_manager.h"
@@ -162,14 +167,18 @@ class BrowserModule {
   void CheckMemory(const int64_t& used_cpu_memory,
                    const base::optional<int64_t>& used_gpu_memory);
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
   void OnWindowSizeChanged(const SbWindowSize& size);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-  void OnOnScreenKeyboardShown();
-  void OnOnScreenKeyboardHidden();
+  void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
+  void OnOnScreenKeyboardHidden(const base::OnScreenKeyboardHiddenEvent* event);
+  void OnOnScreenKeyboardFocused(
+      const base::OnScreenKeyboardFocusedEvent* event);
+  void OnOnScreenKeyboardBlurred(
+      const base::OnScreenKeyboardBlurredEvent* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
  private:
@@ -328,9 +337,8 @@ class BrowserModule {
   // Destroys the renderer module and dependent objects.
   void DestroyRendererModule();
 
-  // Updates all components that have already been created with information
-  // resulting from the creation of the system window.
-  void UpdateFromSystemWindow();
+  // Update web modules with the current viewport size.
+  void UpdateScreenSize();
 
   // Does all the steps for either a Suspend or the first half of a Start.
   void SuspendInternal(bool is_start);
@@ -453,6 +461,9 @@ class BrowserModule {
   // that may be producing render trees.
   base::MessageQueue render_tree_submission_queue_;
 
+  // The splash screen cache.
+  scoped_ptr<SplashScreenCache> splash_screen_cache_;
+
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
@@ -506,6 +517,8 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
+
+  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
@@ -563,9 +576,6 @@ class BrowserModule {
   // The fallback URL to the splash screen. If empty (the default), no splash
   // screen will be displayed.
   base::optional<GURL> fallback_splash_screen_url_;
-
-  // The splash screen cache.
-  scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
   // Number of main web modules that have take place so far, helpful for
   // ditinguishing lingering events produced by older web modules as we switch

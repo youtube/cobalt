@@ -79,19 +79,19 @@ TEST(UserAgentStringFactoryTest, WithArchitectureTokens) {
             user_agent_string.find("(GLaDOS 3.11; Wheatley)"));
 }
 
-class UserAgentStringFactoryWithYouTubeTVInfo : public UserAgentStringFactory {
+class UserAgentStringFactoryWithPlatformInfo : public UserAgentStringFactory {
  public:
-  UserAgentStringFactoryWithYouTubeTVInfo() {
+  UserAgentStringFactoryWithPlatformInfo() {
     // There are deliberately a variety of underscores, commas, slashes, and
     // parentheses in the strings below to ensure they get sanitized.
     os_name_and_version_ = "GLaDOS 3.11";
-    youtube_tv_info_ = YouTubeTVInfo();
-    youtube_tv_info_->network_operator = "Aperture_Science_Innovators";
-    youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
-    youtube_tv_info_->chipset_model_number = "P-body/Orange_Atlas/Blue";
-    youtube_tv_info_->firmware_version = "0,01";
-    youtube_tv_info_->brand = "Aperture Science (Labs)";
-    youtube_tv_info_->model = "GLaDOS";
+    platform_info_ = PlatformInfo();
+    platform_info_->network_operator = "Aperture_Science_Innovators";
+    platform_info_->device_type = PlatformInfo::kOverTheTopBox;
+    platform_info_->chipset_model_number = "P-body/Orange_Atlas/Blue";
+    platform_info_->firmware_version = "0,01";
+    platform_info_->brand = "Aperture Science (Labs)";
+    platform_info_->model = "GLaDOS";
   }
 };
 
@@ -102,9 +102,9 @@ class UserAgentStringFactoryWithYouTubeTVInfo : public UserAgentStringFactory {
 #define LPAREN u8"\uFF08"  // fullwidth left paren
 #define RPAREN u8"\uFF09"  // fullwidth right paren
 
-TEST(UserAgentStringFactoryTest, WithYouTubeTVInfo) {
+TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
   std::string user_agent_string =
-      UserAgentStringFactoryWithYouTubeTVInfo().CreateUserAgentString();
+      UserAgentStringFactoryWithPlatformInfo().CreateUserAgentString();
   const char* tv_info_str =
       "Aperture" UNDER "Science" UNDER "Innovators"
       "_OTT_"
@@ -118,9 +118,9 @@ class UserAgentStringFactoryWithWiredConnection
  public:
   UserAgentStringFactoryWithWiredConnection() {
     os_name_and_version_ = "GLaDOS 3.11";
-    youtube_tv_info_ = YouTubeTVInfo();
-    youtube_tv_info_->connection_type = YouTubeTVInfo::kWiredConnection;
-    youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
+    platform_info_ = PlatformInfo();
+    platform_info_->connection_type = PlatformInfo::kWiredConnection;
+    platform_info_->device_type = PlatformInfo::kOverTheTopBox;
   }
 };
 
@@ -135,9 +135,9 @@ class UserAgentStringFactoryWithWirelessConnection
  public:
   UserAgentStringFactoryWithWirelessConnection() {
     os_name_and_version_ = "GLaDOS 3.11";
-    youtube_tv_info_ = YouTubeTVInfo();
-    youtube_tv_info_->connection_type = YouTubeTVInfo::kWirelessConnection;
-    youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
+    platform_info_ = PlatformInfo();
+    platform_info_->connection_type = PlatformInfo::kWirelessConnection;
+    platform_info_->device_type = PlatformInfo::kOverTheTopBox;
   }
 };
 

@@ -5,23 +5,23 @@
  * found in the LICENSE file.
  */
 
-#include "gl/builders/GrGLProgramBuilder.h"
 #include "GrRRectEffect.h"
 
-#include "gl/GrGLProcessor.h"
-#include "gl/GrGLSL.h"
 #include "GrConvexPolyEffect.h"
+#include "GrFragmentProcessor.h"
 #include "GrOvalEffect.h"
-#include "GrTBackendProcessorFactory.h"
-
+#include "GrShaderCaps.h"
 #include "SkRRect.h"
+#include "SkTLazy.h"
+#include "glsl/GrGLSLFragmentProcessor.h"
+#include "glsl/GrGLSLFragmentShaderBuilder.h"
+#include "glsl/GrGLSLProgramDataManager.h"
+#include "glsl/GrGLSLUniformHandler.h"
 
 // The effects defined here only handle rrect radii >= kRadiusMin.
 static const SkScalar kRadiusMin = SK_ScalarHalf;
 
 //////////////////////////////////////////////////////////////////////////////
-
-class GLCircularRRectEffect;
 
 class CircularRRectEffect : public GrFragmentProcessor {
 public:
@@ -45,11 +45,12 @@ public:
 
     // The flags are used to indicate which corners are circluar (unflagged corners are assumed to
     // be square).
-    static GrFragmentProcessor* Create(GrPrimitiveEdgeType, uint32_t circularCornerFlags,
-                                       const SkRRect&);
+    static sk_sp<GrFragmentProcessor> Make(GrPrimitiveEdgeType, uint32_t circularCornerFlags,
+                                           const SkRRect&);
 
-    virtual ~CircularRRectEffect() {};
-    static const char* Name() { return "CircularRRect"; }
+    ~CircularRRectEffect() override {}
+
+    const char* name() const override { return "CircularRRect"; }
 
     const SkRRect& getRRect() const { return fRRect; }
 
@@ -57,52 +58,44 @@ public:
 
     GrPrimitiveEdgeType getEdgeType() const { return fEdgeType; }
 
-    typedef GLCircularRRectEffect GLProcessor;
-
-    virtual void getConstantColorComponents(GrColor* color, uint32_t* validFlags) const SK_OVERRIDE;
-
-    virtual const GrBackendFragmentProcessorFactory& getFactory() const SK_OVERRIDE;
-
 private:
     CircularRRectEffect(GrPrimitiveEdgeType, uint32_t circularCornerFlags, const SkRRect&);
 
-    virtual bool onIsEqual(const GrProcessor& other) const SK_OVERRIDE;
+    GrGLSLFragmentProcessor* onCreateGLSLInstance() const override;
+
+    void onGetGLSLProcessorKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+
+    bool onIsEqual(const GrFragmentProcessor& other) const override;
 
     SkRRect                fRRect;
     GrPrimitiveEdgeType    fEdgeType;
     uint32_t               fCircularCornerFlags;
 
-    GR_DECLARE_FRAGMENT_PROCESSOR_TEST;
+    GR_DECLARE_FRAGMENT_PROCESSOR_TEST
 
     typedef GrFragmentProcessor INHERITED;
 };
 
-GrFragmentProcessor* CircularRRectEffect::Create(GrPrimitiveEdgeType edgeType,
-                                                 uint32_t circularCornerFlags,
-                                                 const SkRRect& rrect) {
+sk_sp<GrFragmentProcessor> CircularRRectEffect::Make(GrPrimitiveEdgeType edgeType,
+                                                     uint32_t circularCornerFlags,
+                                                     const SkRRect& rrect) {
     if (kFillAA_GrProcessorEdgeType != edgeType && kInverseFillAA_GrProcessorEdgeType != edgeType) {
-        return NULL;
+        return nullptr;
     }
-    return SkNEW_ARGS(CircularRRectEffect, (edgeType, circularCornerFlags, rrect));
-}
-
-void CircularRRectEffect::getConstantColorComponents(GrColor* color, uint32_t* validFlags) const {
-    *validFlags = 0;
-}
-
-const GrBackendFragmentProcessorFactory& CircularRRectEffect::getFactory() const {
-    return GrTBackendFragmentProcessorFactory<CircularRRectEffect>::getInstance();
+    return sk_sp<GrFragmentProcessor>(
+        new CircularRRectEffect(edgeType, circularCornerFlags, rrect));
 }
 
 CircularRRectEffect::CircularRRectEffect(GrPrimitiveEdgeType edgeType, uint32_t circularCornerFlags,
                                          const SkRRect& rrect)
-    : fRRect(rrect)
-    , fEdgeType(edgeType)
-    , fCircularCornerFlags(circularCornerFlags) {
-    this->setWillReadFragmentPosition();
+        : INHERITED(kCompatibleWithCoverageAsAlpha_OptimizationFlag)
+        , fRRect(rrect)
+        , fEdgeType(edgeType)
+        , fCircularCornerFlags(circularCornerFlags) {
+    this->initClassID<CircularRRectEffect>();
 }
 
-bool CircularRRectEffect::onIsEqual(const GrProcessor& other) const {
+bool CircularRRectEffect::onIsEqual(const GrFragmentProcessor& other) const {
     const CircularRRectEffect& crre = other.cast<CircularRRectEffect>();
     // The corner flags are derived from fRRect, so no need to check them.
     return fEdgeType == crre.fEdgeType && fRRect == crre.fRRect;
@@ -112,80 +105,74 @@ bool CircularRRectEffect::onIsEqual(const GrProcessor& other) const {
 
 GR_DEFINE_FRAGMENT_PROCESSOR_TEST(CircularRRectEffect);
 
-GrFragmentProcessor* CircularRRectEffect::TestCreate(SkRandom* random,
-                                                     GrContext*,
-                                                     const GrDrawTargetCaps& caps,
-                                                     GrTexture*[]) {
-    SkScalar w = random->nextRangeScalar(20.f, 1000.f);
-    SkScalar h = random->nextRangeScalar(20.f, 1000.f);
-    SkScalar r = random->nextRangeF(kRadiusMin, 9.f);
+#if GR_TEST_UTILS
+sk_sp<GrFragmentProcessor> CircularRRectEffect::TestCreate(GrProcessorTestData* d) {
+    SkScalar w = d->fRandom->nextRangeScalar(20.f, 1000.f);
+    SkScalar h = d->fRandom->nextRangeScalar(20.f, 1000.f);
+    SkScalar r = d->fRandom->nextRangeF(kRadiusMin, 9.f);
     SkRRect rrect;
     rrect.setRectXY(SkRect::MakeWH(w, h), r, r);
-    GrFragmentProcessor* fp;
+    sk_sp<GrFragmentProcessor> fp;
     do {
         GrPrimitiveEdgeType et =
-                (GrPrimitiveEdgeType)random->nextULessThan(kGrProcessorEdgeTypeCnt);
-        fp = GrRRectEffect::Create(et, rrect);
-    } while (NULL == fp);
+                (GrPrimitiveEdgeType)d->fRandom->nextULessThan(kGrProcessorEdgeTypeCnt);
+        fp = GrRRectEffect::Make(et, rrect);
+    } while (nullptr == fp);
     return fp;
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 
-class GLCircularRRectEffect : public GrGLFragmentProcessor {
+class GLCircularRRectEffect : public GrGLSLFragmentProcessor {
 public:
-    GLCircularRRectEffect(const GrBackendProcessorFactory&, const GrProcessor&);
+    GLCircularRRectEffect() {
+        fPrevRRect.setEmpty();
+    }
 
-    virtual void emitCode(GrGLProgramBuilder* builder,
-                          const GrFragmentProcessor& fp,
-                          const GrProcessorKey& key,
-                          const char* outputColor,
-                          const char* inputColor,
-                          const TransformedCoordsArray&,
-                          const TextureSamplerArray&) SK_OVERRIDE;
+    virtual void emitCode(EmitArgs&) override;
 
-    static inline void GenKey(const GrProcessor&, const GrGLCaps&, GrProcessorKeyBuilder*);
+    static inline void GenKey(const GrProcessor&, const GrShaderCaps&, GrProcessorKeyBuilder*);
 
-    virtual void setData(const GrGLProgramDataManager&, const GrProcessor&) SK_OVERRIDE;
+protected:
+    void onSetData(const GrGLSLProgramDataManager&, const GrFragmentProcessor&) override;
 
 private:
-    GrGLProgramDataManager::UniformHandle fInnerRectUniform;
-    GrGLProgramDataManager::UniformHandle fRadiusPlusHalfUniform;
-    SkRRect                               fPrevRRect;
-    typedef GrGLFragmentProcessor INHERITED;
+    GrGLSLProgramDataManager::UniformHandle fInnerRectUniform;
+    GrGLSLProgramDataManager::UniformHandle fRadiusPlusHalfUniform;
+    SkRRect                                 fPrevRRect;
+    typedef GrGLSLFragmentProcessor INHERITED;
 };
 
-GLCircularRRectEffect::GLCircularRRectEffect(const GrBackendProcessorFactory& factory,
-                                             const GrProcessor& )
-    : INHERITED (factory) {
-    fPrevRRect.setEmpty();
-}
-
-void GLCircularRRectEffect::emitCode(GrGLProgramBuilder* builder,
-                             const GrFragmentProcessor& fp,
-                             const GrProcessorKey& key,
-                             const char* outputColor,
-                             const char* inputColor,
-                             const TransformedCoordsArray&,
-                             const TextureSamplerArray& samplers) {
-    const CircularRRectEffect& crre = fp.cast<CircularRRectEffect>();
+void GLCircularRRectEffect::emitCode(EmitArgs& args) {
+    const CircularRRectEffect& crre = args.fFp.cast<CircularRRectEffect>();
+    GrGLSLUniformHandler* uniformHandler = args.fUniformHandler;
     const char *rectName;
     const char *radiusPlusHalfName;
     // The inner rect is the rrect bounds inset by the radius. Its left, top, right, and bottom
     // edges correspond to components x, y, z, and w, respectively. When a side of the rrect has
     // only rectangular corners, that side's value corresponds to the rect edge's value outset by
     // half a pixel.
-    fInnerRectUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
-                                            kVec4f_GrSLType,
-                                            "innerRect",
-                                            &rectName);
-    fRadiusPlusHalfUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
-                                                 kFloat_GrSLType,
-                                                 "radiusPlusHalf",
-                                                 &radiusPlusHalfName);
+    fInnerRectUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                   kVec4f_GrSLType, kDefault_GrSLPrecision,
+                                                   "innerRect",
+                                                   &rectName);
+    // x is (r + .5) and y is 1/(r + .5)
+    fRadiusPlusHalfUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                        kVec2f_GrSLType, kDefault_GrSLPrecision,
+                                                        "radiusPlusHalf",
+                                                        &radiusPlusHalfName);
 
-    GrGLFragmentShaderBuilder* fsBuilder = builder->getFragmentShaderBuilder();
-    const char* fragmentPos = fsBuilder->fragmentPosition();
+    // If we're on a device with a "real" mediump then the length calculation could overflow.
+    SkString clampedCircleDistance;
+    if (args.fShaderCaps->floatPrecisionVaries()) {
+        clampedCircleDistance.printf("clamp(%s.x * (1.0 - length(dxy * %s.y)), 0.0, 1.0);",
+                                     radiusPlusHalfName, radiusPlusHalfName);
+    } else {
+        clampedCircleDistance.printf("clamp(%s.x - length(dxy), 0.0, 1.0);", radiusPlusHalfName);
+    }
+
+    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
     // At each quarter-circle corner we compute a vector that is the offset of the fragment position
     // from the circle center. The vector is pinned in x and y to be in the quarter-plane relevant
     // to that corner. This means that points near the interior near the rrect top edge will have
@@ -203,107 +190,107 @@ void GLCircularRRectEffect::emitCode(GrGLProgramBuilder* builder,
     // alphas together.
     switch (crre.getCircularCornerFlags()) {
         case CircularRRectEffect::kAll_CornerFlags:
-            fsBuilder->codeAppendf("\t\tvec2 dxy0 = %s.xy - %s.xy;\n", rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tvec2 dxy1 = %s.xy - %s.zw;\n", fragmentPos, rectName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(max(dxy0, dxy1), 0.0);\n");
-            fsBuilder->codeAppendf("\t\tfloat alpha = clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy0 = %s.xy - sk_FragCoord.xy;", rectName);
+            fragBuilder->codeAppendf("vec2 dxy1 = sk_FragCoord.xy - %s.zw;", rectName);
+            fragBuilder->codeAppend("vec2 dxy = max(max(dxy0, dxy1), 0.0);");
+            fragBuilder->codeAppendf("float alpha = %s;", clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kTopLeft_CornerFlag:
-            fsBuilder->codeAppendf("\t\tvec2 dxy = max(%s.xy - %s.xy, 0.0);\n",
-                                   rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat rightAlpha = clamp(%s.z - %s.x, 0.0, 1.0);\n",
-                                    rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat bottomAlpha = clamp(%s.w - %s.y, 0.0, 1.0);\n",
-                                    rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat alpha = bottomAlpha * rightAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy = max(%s.xy - sk_FragCoord.xy, 0.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float rightAlpha = clamp(%s.z - sk_FragCoord.x, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float bottomAlpha = clamp(%s.w - sk_FragCoord.y, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = bottomAlpha * rightAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kTopRight_CornerFlag:
-            fsBuilder->codeAppendf("\t\tvec2 dxy = max(vec2(%s.x - %s.z, %s.y - %s.y), 0.0);\n",
-                                   fragmentPos, rectName, rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat leftAlpha = clamp(%s.x - %s.x, 0.0, 1.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat bottomAlpha = clamp(%s.w - %s.y, 0.0, 1.0);\n",
-                                    rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat alpha = bottomAlpha * leftAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy = max(vec2(sk_FragCoord.x - %s.z, "
+                                                         "%s.y - sk_FragCoord.y), 0.0);",
+                                     rectName, rectName);
+            fragBuilder->codeAppendf("float leftAlpha = clamp(sk_FragCoord.x - %s.x, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float bottomAlpha = clamp(%s.w - sk_FragCoord.y, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = bottomAlpha * leftAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kBottomRight_CornerFlag:
-            fsBuilder->codeAppendf("\t\tvec2 dxy = max(%s.xy - %s.zw, 0.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat leftAlpha = clamp(%s.x - %s.x, 0.0, 1.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat topAlpha = clamp(%s.y - %s.y, 0.0, 1.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat alpha = topAlpha * leftAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy = max(sk_FragCoord.xy - %s.zw, 0.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float leftAlpha = clamp(sk_FragCoord.x - %s.x, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float topAlpha = clamp(sk_FragCoord.y - %s.y, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = topAlpha * leftAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kBottomLeft_CornerFlag:
-            fsBuilder->codeAppendf("\t\tvec2 dxy = max(vec2(%s.x - %s.x, %s.y - %s.w), 0.0);\n",
-                                   rectName, fragmentPos, fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat rightAlpha = clamp(%s.z - %s.x, 0.0, 1.0);\n",
-                                    rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat topAlpha = clamp(%s.y - %s.y, 0.0, 1.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat alpha = topAlpha * rightAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy = max(vec2(%s.x - sk_FragCoord.x, sk_FragCoord.y - "
+                                     "%s.w), 0.0);",
+                                     rectName, rectName);
+            fragBuilder->codeAppendf("float rightAlpha = clamp(%s.z - sk_FragCoord.x, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float topAlpha = clamp(sk_FragCoord.y - %s.y, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = topAlpha * rightAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kLeft_CornerFlags:
-            fsBuilder->codeAppendf("\t\tvec2 dxy0 = %s.xy - %s.xy;\n", rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat dy1 = %s.y - %s.w;\n", fragmentPos, rectName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(vec2(dxy0.x, max(dxy0.y, dy1)), 0.0);\n");
-            fsBuilder->codeAppendf("\t\tfloat rightAlpha = clamp(%s.z - %s.x, 0.0, 1.0);\n",
-                                    rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat alpha = rightAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy0 = %s.xy - sk_FragCoord.xy;", rectName);
+            fragBuilder->codeAppendf("float dy1 = sk_FragCoord.y - %s.w;", rectName);
+            fragBuilder->codeAppend("vec2 dxy = max(vec2(dxy0.x, max(dxy0.y, dy1)), 0.0);");
+            fragBuilder->codeAppendf("float rightAlpha = clamp(%s.z - sk_FragCoord.x, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = rightAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kTop_CornerFlags:
-            fsBuilder->codeAppendf("\t\tvec2 dxy0 = %s.xy - %s.xy;\n", rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat dx1 = %s.x - %s.z;\n", fragmentPos, rectName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(vec2(max(dxy0.x, dx1), dxy0.y), 0.0);\n");
-            fsBuilder->codeAppendf("\t\tfloat bottomAlpha = clamp(%s.w - %s.y, 0.0, 1.0);\n",
-                                   rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tfloat alpha = bottomAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("vec2 dxy0 = %s.xy - sk_FragCoord.xy;", rectName);
+            fragBuilder->codeAppendf("float dx1 = sk_FragCoord.x - %s.z;", rectName);
+            fragBuilder->codeAppend("vec2 dxy = max(vec2(max(dxy0.x, dx1), dxy0.y), 0.0);");
+            fragBuilder->codeAppendf("float bottomAlpha = clamp(%s.w - sk_FragCoord.y, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = bottomAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kRight_CornerFlags:
-            fsBuilder->codeAppendf("\t\tfloat dy0 = %s.y - %s.y;\n", rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tvec2 dxy1 = %s.xy - %s.zw;\n", fragmentPos, rectName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(vec2(dxy1.x, max(dy0, dxy1.y)), 0.0);\n");
-            fsBuilder->codeAppendf("\t\tfloat leftAlpha = clamp(%s.x - %s.x, 0.0, 1.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat alpha = leftAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("float dy0 = %s.y - sk_FragCoord.y;", rectName);
+            fragBuilder->codeAppendf("vec2 dxy1 = sk_FragCoord.xy - %s.zw;", rectName);
+            fragBuilder->codeAppend("vec2 dxy = max(vec2(dxy1.x, max(dy0, dxy1.y)), 0.0);");
+            fragBuilder->codeAppendf("float leftAlpha = clamp(sk_FragCoord.x - %s.x, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = leftAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
         case CircularRRectEffect::kBottom_CornerFlags:
-            fsBuilder->codeAppendf("\t\tfloat dx0 = %s.x - %s.x;\n", rectName, fragmentPos);
-            fsBuilder->codeAppendf("\t\tvec2 dxy1 = %s.xy - %s.zw;\n", fragmentPos, rectName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(vec2(max(dx0, dxy1.x), dxy1.y), 0.0);\n");
-            fsBuilder->codeAppendf("\t\tfloat topAlpha = clamp(%s.y - %s.y, 0.0, 1.0);\n",
-                                   fragmentPos, rectName);
-            fsBuilder->codeAppendf("\t\tfloat alpha = topAlpha * clamp(%s - length(dxy), 0.0, 1.0);\n",
-                                   radiusPlusHalfName);
+            fragBuilder->codeAppendf("float dx0 = %s.x - sk_FragCoord.x;", rectName);
+            fragBuilder->codeAppendf("vec2 dxy1 = sk_FragCoord.xy - %s.zw;", rectName);
+            fragBuilder->codeAppend("vec2 dxy = max(vec2(max(dx0, dxy1.x), dxy1.y), 0.0);");
+            fragBuilder->codeAppendf("float topAlpha = clamp(sk_FragCoord.y - %s.y, 0.0, 1.0);",
+                                     rectName);
+            fragBuilder->codeAppendf("float alpha = topAlpha * %s;",
+                                     clampedCircleDistance.c_str());
             break;
     }
 
     if (kInverseFillAA_GrProcessorEdgeType == crre.getEdgeType()) {
-        fsBuilder->codeAppend("\t\talpha = 1.0 - alpha;\n");
+        fragBuilder->codeAppend("alpha = 1.0 - alpha;");
     }
 
-    fsBuilder->codeAppendf("\t\t%s = %s;\n", outputColor,
-                           (GrGLSLExpr4(inputColor) * GrGLSLExpr1("alpha")).c_str());
+    fragBuilder->codeAppendf("%s = %s * alpha;", args.fOutputColor, args.fInputColor);
 }
 
-void GLCircularRRectEffect::GenKey(const GrProcessor& processor, const GrGLCaps&,
+void GLCircularRRectEffect::GenKey(const GrProcessor& processor, const GrShaderCaps&,
                                    GrProcessorKeyBuilder* b) {
     const CircularRRectEffect& crre = processor.cast<CircularRRectEffect>();
     GR_STATIC_ASSERT(kGrProcessorEdgeTypeCnt <= 8);
     b->add32((crre.getCircularCornerFlags() << 3) | crre.getEdgeType());
 }
 
-void GLCircularRRectEffect::setData(const GrGLProgramDataManager& pdman,
-                                    const GrProcessor& processor) {
+void GLCircularRRectEffect::onSetData(const GrGLSLProgramDataManager& pdman,
+                                      const GrFragmentProcessor& processor) {
     const CircularRRectEffect& crre = processor.cast<CircularRRectEffect>();
     const SkRRect& rrect = crre.getRRect();
     if (rrect != fPrevRRect) {
@@ -376,69 +363,70 @@ void GLCircularRRectEffect::setData(const GrGLProgramDataManager& pdman,
                 SkFAIL("Should have been one of the above cases.");
         }
         pdman.set4f(fInnerRectUniform, rect.fLeft, rect.fTop, rect.fRight, rect.fBottom);
-        pdman.set1f(fRadiusPlusHalfUniform, radius + 0.5f);
+        radius += 0.5f;
+        pdman.set2f(fRadiusPlusHalfUniform, radius, 1.f / radius);
         fPrevRRect = rrect;
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class GLEllipticalRRectEffect;
+void CircularRRectEffect::onGetGLSLProcessorKey(const GrShaderCaps& caps,
+                                                GrProcessorKeyBuilder* b) const {
+    GLCircularRRectEffect::GenKey(*this, caps, b);
+}
+
+GrGLSLFragmentProcessor* CircularRRectEffect::onCreateGLSLInstance() const  {
+    return new GLCircularRRectEffect;
+}
+
+//////////////////////////////////////////////////////////////////////////////
 
 class EllipticalRRectEffect : public GrFragmentProcessor {
 public:
-    static GrFragmentProcessor* Create(GrPrimitiveEdgeType, const SkRRect&);
+    static sk_sp<GrFragmentProcessor> Make(GrPrimitiveEdgeType, const SkRRect&);
 
-    virtual ~EllipticalRRectEffect() {};
-    static const char* Name() { return "EllipticalRRect"; }
+    ~EllipticalRRectEffect() override {}
+
+    const char* name() const override { return "EllipticalRRect"; }
 
     const SkRRect& getRRect() const { return fRRect; }
 
-
     GrPrimitiveEdgeType getEdgeType() const { return fEdgeType; }
-
-    typedef GLEllipticalRRectEffect GLProcessor;
-
-    virtual void getConstantColorComponents(GrColor* color, uint32_t* validFlags) const SK_OVERRIDE;
-
-    virtual const GrBackendFragmentProcessorFactory& getFactory() const SK_OVERRIDE;
 
 private:
     EllipticalRRectEffect(GrPrimitiveEdgeType, const SkRRect&);
 
-    virtual bool onIsEqual(const GrProcessor& other) const SK_OVERRIDE;
+    GrGLSLFragmentProcessor* onCreateGLSLInstance() const override;
 
-    SkRRect             fRRect;
-    GrPrimitiveEdgeType    fEdgeType;
+    void onGetGLSLProcessorKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
 
-    GR_DECLARE_FRAGMENT_PROCESSOR_TEST;
+    bool onIsEqual(const GrFragmentProcessor& other) const override;
+
+    SkRRect fRRect;
+    GrPrimitiveEdgeType fEdgeType;
+
+    GR_DECLARE_FRAGMENT_PROCESSOR_TEST
 
     typedef GrFragmentProcessor INHERITED;
 };
 
-GrFragmentProcessor*
-EllipticalRRectEffect::Create(GrPrimitiveEdgeType edgeType, const SkRRect& rrect) {
+sk_sp<GrFragmentProcessor>
+EllipticalRRectEffect::Make(GrPrimitiveEdgeType edgeType, const SkRRect& rrect) {
     if (kFillAA_GrProcessorEdgeType != edgeType && kInverseFillAA_GrProcessorEdgeType != edgeType) {
-        return NULL;
+        return nullptr;
     }
-    return SkNEW_ARGS(EllipticalRRectEffect, (edgeType, rrect));
-}
-
-void EllipticalRRectEffect::getConstantColorComponents(GrColor* color, uint32_t* validFlags) const {
-    *validFlags = 0;
-}
-
-const GrBackendFragmentProcessorFactory& EllipticalRRectEffect::getFactory() const {
-    return GrTBackendFragmentProcessorFactory<EllipticalRRectEffect>::getInstance();
+    return sk_sp<GrFragmentProcessor>(new EllipticalRRectEffect(edgeType, rrect));
 }
 
 EllipticalRRectEffect::EllipticalRRectEffect(GrPrimitiveEdgeType edgeType, const SkRRect& rrect)
-    : fRRect(rrect)
-    , fEdgeType(edgeType){
-    this->setWillReadFragmentPosition();
+        : INHERITED(kCompatibleWithCoverageAsAlpha_OptimizationFlag)
+        , fRRect(rrect)
+        , fEdgeType(edgeType) {
+    this->initClassID<EllipticalRRectEffect>();
 }
 
-bool EllipticalRRectEffect::onIsEqual(const GrProcessor& other) const {
+bool EllipticalRRectEffect::onIsEqual(const GrFragmentProcessor& other) const {
     const EllipticalRRectEffect& erre = other.cast<EllipticalRRectEffect>();
     return fEdgeType == erre.fEdgeType && fRRect == erre.fRRect;
 }
@@ -447,24 +435,22 @@ bool EllipticalRRectEffect::onIsEqual(const GrProcessor& other) const {
 
 GR_DEFINE_FRAGMENT_PROCESSOR_TEST(EllipticalRRectEffect);
 
-GrFragmentProcessor* EllipticalRRectEffect::TestCreate(SkRandom* random,
-                                                       GrContext*,
-                                                       const GrDrawTargetCaps& caps,
-                                                       GrTexture*[]) {
-    SkScalar w = random->nextRangeScalar(20.f, 1000.f);
-    SkScalar h = random->nextRangeScalar(20.f, 1000.f);
+#if GR_TEST_UTILS
+sk_sp<GrFragmentProcessor> EllipticalRRectEffect::TestCreate(GrProcessorTestData* d) {
+    SkScalar w = d->fRandom->nextRangeScalar(20.f, 1000.f);
+    SkScalar h = d->fRandom->nextRangeScalar(20.f, 1000.f);
     SkVector r[4];
-    r[SkRRect::kUpperLeft_Corner].fX = random->nextRangeF(kRadiusMin, 9.f);
+    r[SkRRect::kUpperLeft_Corner].fX = d->fRandom->nextRangeF(kRadiusMin, 9.f);
     // ensure at least one corner really is elliptical
     do {
-        r[SkRRect::kUpperLeft_Corner].fY = random->nextRangeF(kRadiusMin, 9.f);
+        r[SkRRect::kUpperLeft_Corner].fY = d->fRandom->nextRangeF(kRadiusMin, 9.f);
     } while (r[SkRRect::kUpperLeft_Corner].fY == r[SkRRect::kUpperLeft_Corner].fX);
 
     SkRRect rrect;
-    if (random->nextBool()) {
+    if (d->fRandom->nextBool()) {
         // half the time create a four-radii rrect.
-        r[SkRRect::kLowerRight_Corner].fX = random->nextRangeF(kRadiusMin, 9.f);
-        r[SkRRect::kLowerRight_Corner].fY = random->nextRangeF(kRadiusMin, 9.f);
+        r[SkRRect::kLowerRight_Corner].fX = d->fRandom->nextRangeF(kRadiusMin, 9.f);
+        r[SkRRect::kLowerRight_Corner].fY = d->fRandom->nextRangeF(kRadiusMin, 9.f);
 
         r[SkRRect::kUpperRight_Corner].fX = r[SkRRect::kLowerRight_Corner].fX;
         r[SkRRect::kUpperRight_Corner].fY = r[SkRRect::kUpperLeft_Corner].fY;
@@ -477,63 +463,50 @@ GrFragmentProcessor* EllipticalRRectEffect::TestCreate(SkRandom* random,
         rrect.setRectXY(SkRect::MakeWH(w, h), r[SkRRect::kUpperLeft_Corner].fX,
                                               r[SkRRect::kUpperLeft_Corner].fY);
     }
-    GrFragmentProcessor* fp;
+    sk_sp<GrFragmentProcessor> fp;
     do {
-        GrPrimitiveEdgeType et = (GrPrimitiveEdgeType)random->nextULessThan(kGrProcessorEdgeTypeCnt);
-        fp = GrRRectEffect::Create(et, rrect);
-    } while (NULL == fp);
+        GrPrimitiveEdgeType et =
+                (GrPrimitiveEdgeType)d->fRandom->nextULessThan(kGrProcessorEdgeTypeCnt);
+        fp = GrRRectEffect::Make(et, rrect);
+    } while (nullptr == fp);
     return fp;
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 
-class GLEllipticalRRectEffect : public GrGLFragmentProcessor {
+class GLEllipticalRRectEffect : public GrGLSLFragmentProcessor {
 public:
-    GLEllipticalRRectEffect(const GrBackendProcessorFactory&, const GrProcessor&);
+    GLEllipticalRRectEffect() {
+        fPrevRRect.setEmpty();
+    }
 
-    virtual void emitCode(GrGLProgramBuilder* builder,
-                          const GrFragmentProcessor& effect,
-                          const GrProcessorKey& key,
-                          const char* outputColor,
-                          const char* inputColor,
-                          const TransformedCoordsArray&,
-                          const TextureSamplerArray&) SK_OVERRIDE;
+    void emitCode(EmitArgs&) override;
 
-    static inline void GenKey(const GrProcessor&, const GrGLCaps&, GrProcessorKeyBuilder*);
+    static inline void GenKey(const GrProcessor&, const GrShaderCaps&, GrProcessorKeyBuilder*);
 
-    virtual void setData(const GrGLProgramDataManager&, const GrProcessor&) SK_OVERRIDE;
+protected:
+    void onSetData(const GrGLSLProgramDataManager&, const GrFragmentProcessor&) override;
 
 private:
-    GrGLProgramDataManager::UniformHandle fInnerRectUniform;
-    GrGLProgramDataManager::UniformHandle fInvRadiiSqdUniform;
-    GrGLProgramDataManager::UniformHandle fScaleUniform;
-    SkRRect                               fPrevRRect;
-    typedef GrGLFragmentProcessor INHERITED;
+    GrGLSLProgramDataManager::UniformHandle fInnerRectUniform;
+    GrGLSLProgramDataManager::UniformHandle fInvRadiiSqdUniform;
+    GrGLSLProgramDataManager::UniformHandle fScaleUniform;
+    SkRRect                                 fPrevRRect;
+    typedef GrGLSLFragmentProcessor INHERITED;
 };
 
-GLEllipticalRRectEffect::GLEllipticalRRectEffect(const GrBackendProcessorFactory& factory,
-                             const GrProcessor& effect)
-    : INHERITED (factory) {
-    fPrevRRect.setEmpty();
-}
-
-void GLEllipticalRRectEffect::emitCode(GrGLProgramBuilder* builder,
-                                       const GrFragmentProcessor& effect,
-                                       const GrProcessorKey& key,
-                                       const char* outputColor,
-                                       const char* inputColor,
-                                       const TransformedCoordsArray&,
-                                       const TextureSamplerArray& samplers) {
-    const EllipticalRRectEffect& erre = effect.cast<EllipticalRRectEffect>();
+void GLEllipticalRRectEffect::emitCode(EmitArgs& args) {
+    const EllipticalRRectEffect& erre = args.fFp.cast<EllipticalRRectEffect>();
+    GrGLSLUniformHandler* uniformHandler = args.fUniformHandler;
     const char *rectName;
     // The inner rect is the rrect bounds inset by the x/y radii
-    fInnerRectUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
-                                            kVec4f_GrSLType,
-                                            "innerRect",
-                                            &rectName);
+    fInnerRectUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                   kVec4f_GrSLType, kDefault_GrSLPrecision,
+                                                   "innerRect",
+                                                   &rectName);
 
-    GrGLFragmentShaderBuilder* fsBuilder = builder->getFragmentShaderBuilder();
-    const char* fragmentPos = fsBuilder->fragmentPosition();
+    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
     // At each quarter-ellipse corner we compute a vector that is the offset of the fragment pos
     // to the ellipse center. The vector is pinned in x and y to be in the quarter-plane relevant
     // to that corner. This means that points near the interior near the rrect top edge will have
@@ -542,85 +515,96 @@ void GLEllipticalRRectEffect::emitCode(GrGLProgramBuilder* builder,
     // fragments near the other three edges will get the correct AA. Fragments in the interior of
     // the rrect will have a (0,0) vector at all four corners. So long as the radii > 0.5 they will
     // correctly produce an alpha value of 1 at all four corners. We take the min of all the alphas.
+    //
     // The code below is a simplified version of the above that performs maxs on the vector
     // components before computing distances and alpha values so that only one distance computation
     // need be computed to determine the min alpha.
-    fsBuilder->codeAppendf("\t\tvec2 dxy0 = %s.xy - %s.xy;\n", rectName, fragmentPos);
-    fsBuilder->codeAppendf("\t\tvec2 dxy1 = %s.xy - %s.zw;\n", fragmentPos, rectName);
+    fragBuilder->codeAppendf("vec2 dxy0 = %s.xy - sk_FragCoord.xy;", rectName);
+    fragBuilder->codeAppendf("vec2 dxy1 = sk_FragCoord.xy - %s.zw;", rectName);
 
     // If we're on a device with a "real" mediump then we'll do the distance computation in a space
     // that is normalized by the largest radius. The scale uniform will be scale, 1/scale. The
     // radii uniform values are already in this normalized space.
-    const char* scaleName = NULL;
-    fScaleUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
-                                        kVec2f_GrSLType, "scale", &scaleName);
+    const char* scaleName = nullptr;
+    if (args.fShaderCaps->floatPrecisionVaries()) {
+        fScaleUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                   kVec2f_GrSLType, kDefault_GrSLPrecision,
+                                                   "scale", &scaleName);
+    }
 
+    // The uniforms with the inv squared radii are highp to prevent underflow.
     switch (erre.getRRect().getType()) {
         case SkRRect::kSimple_Type: {
             const char *invRadiiXYSqdName;
-            fInvRadiiSqdUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
-                                                      kVec2f_GrSLType,
-                                                      "invRadiiXY",
-                                                      &invRadiiXYSqdName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(max(dxy0, dxy1), 0.0);\n");
+            fInvRadiiSqdUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                             kVec2f_GrSLType,
+                                                             kDefault_GrSLPrecision,
+                                                             "invRadiiXY",
+                                                             &invRadiiXYSqdName);
+            fragBuilder->codeAppend("vec2 dxy = max(max(dxy0, dxy1), 0.0);");
             if (scaleName) {
-                fsBuilder->codeAppendf("dxy *= %s.y;", scaleName);
-            }            // Z is the x/y offsets divided by squared radii.
-            fsBuilder->codeAppendf("\t\tvec2 Z = dxy * %s;\n", invRadiiXYSqdName);
+                fragBuilder->codeAppendf("dxy *= %s.y;", scaleName);
+            }
+            // Z is the x/y offsets divided by squared radii.
+            fragBuilder->codeAppendf("vec2 Z = dxy * %s.xy;", invRadiiXYSqdName);
             break;
         }
         case SkRRect::kNinePatch_Type: {
             const char *invRadiiLTRBSqdName;
-            fInvRadiiSqdUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
-                                                      kVec4f_GrSLType,
-                                                      "invRadiiLTRB",
-                                                      &invRadiiLTRBSqdName);
-            fsBuilder->codeAppend("\t\tvec2 dxy = max(max(dxy0, dxy1), 0.0);\n");
+            fInvRadiiSqdUniform = uniformHandler->addUniform(kFragment_GrShaderFlag,
+                                                             kVec4f_GrSLType,
+                                                             kDefault_GrSLPrecision,
+                                                             "invRadiiLTRB",
+                                                             &invRadiiLTRBSqdName);
             if (scaleName) {
-                fsBuilder->codeAppendf("dxy0 *= %s.y;", scaleName);
-                fsBuilder->codeAppendf("dxy1 *= %s.y;", scaleName);
-            }            // Z is the x/y offsets divided by squared radii. We only care about the (at most) one
+                fragBuilder->codeAppendf("dxy0 *= %s.y;", scaleName);
+                fragBuilder->codeAppendf("dxy1 *= %s.y;", scaleName);
+            }
+            fragBuilder->codeAppend("vec2 dxy = max(max(dxy0, dxy1), 0.0);");
+            // Z is the x/y offsets divided by squared radii. We only care about the (at most) one
             // corner where both the x and y offsets are positive, hence the maxes. (The inverse
             // squared radii will always be positive.)
-            fsBuilder->codeAppendf("\t\tvec2 Z = max(max(dxy0 * %s.xy, dxy1 * %s.zw), 0.0);\n",
-                                   invRadiiLTRBSqdName, invRadiiLTRBSqdName);
+            fragBuilder->codeAppendf("vec2 Z = max(max(dxy0 * %s.xy, dxy1 * %s.zw), 0.0);",
+                                     invRadiiLTRBSqdName, invRadiiLTRBSqdName);
+
             break;
         }
         default:
             SkFAIL("RRect should always be simple or nine-patch.");
     }
     // implicit is the evaluation of (x/a)^2 + (y/b)^2 - 1.
-    fsBuilder->codeAppend("\t\tfloat implicit = dot(Z, dxy) - 1.0;\n");
+    fragBuilder->codeAppend("float implicit = dot(Z, dxy) - 1.0;");
     // grad_dot is the squared length of the gradient of the implicit.
-    fsBuilder->codeAppendf("\t\tfloat grad_dot = 4.0 * dot(Z, Z);\n");
+    fragBuilder->codeAppend("float grad_dot = 4.0 * dot(Z, Z);");
     // avoid calling inversesqrt on zero.
-    fsBuilder->codeAppend("\t\tgrad_dot = max(grad_dot, 1.0e-4);\n");
-    fsBuilder->codeAppendf("\t\tfloat approx_dist = implicit * inversesqrt(grad_dot);\n");
+    fragBuilder->codeAppend("grad_dot = max(grad_dot, 1.0e-4);");
+    fragBuilder->codeAppend("float approx_dist = implicit * inversesqrt(grad_dot);");
     if (scaleName) {
-        fsBuilder->codeAppendf("approx_dist *= %s.x;", scaleName);
+        fragBuilder->codeAppendf("approx_dist *= %s.x;", scaleName);
     }
 
     if (kFillAA_GrProcessorEdgeType == erre.getEdgeType()) {
-        fsBuilder->codeAppend("\t\tfloat alpha = clamp(0.5 - approx_dist, 0.0, 1.0);\n");
+        fragBuilder->codeAppend("float alpha = clamp(0.5 - approx_dist, 0.0, 1.0);");
     } else {
-        fsBuilder->codeAppend("\t\tfloat alpha = clamp(0.5 + approx_dist, 0.0, 1.0);\n");
+        fragBuilder->codeAppend("float alpha = clamp(0.5 + approx_dist, 0.0, 1.0);");
     }
 
-    fsBuilder->codeAppendf("\t\t%s = %s;\n", outputColor,
-                           (GrGLSLExpr4(inputColor) * GrGLSLExpr1("alpha")).c_str());
+    fragBuilder->codeAppendf("%s = %s * alpha;", args.fOutputColor, args.fInputColor);
 }
 
-void GLEllipticalRRectEffect::GenKey(const GrProcessor& effect, const GrGLCaps&,
+void GLEllipticalRRectEffect::GenKey(const GrProcessor& effect, const GrShaderCaps&,
                                      GrProcessorKeyBuilder* b) {
     const EllipticalRRectEffect& erre = effect.cast<EllipticalRRectEffect>();
     GR_STATIC_ASSERT(kLast_GrProcessorEdgeType < (1 << 3));
     b->add32(erre.getRRect().getType() | erre.getEdgeType() << 3);
 }
 
-void GLEllipticalRRectEffect::setData(const GrGLProgramDataManager& pdman,
-                                      const GrProcessor& effect) {
+void GLEllipticalRRectEffect::onSetData(const GrGLSLProgramDataManager& pdman,
+                                        const GrFragmentProcessor& effect) {
     const EllipticalRRectEffect& erre = effect.cast<EllipticalRRectEffect>();
     const SkRRect& rrect = erre.getRRect();
+    // If we're using a scale factor to work around precision issues, choose the largest radius
+    // as the scale factor. The inv radii need to be pre-adjusted by the scale factor.
     if (rrect != fPrevRRect) {
         SkRect rect = rrect.getBounds();
         const SkVector& r0 = rrect.radii(SkRRect::kUpperLeft_Corner);
@@ -674,28 +658,39 @@ void GLEllipticalRRectEffect::setData(const GrGLProgramDataManager& pdman,
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void EllipticalRRectEffect::onGetGLSLProcessorKey(const GrShaderCaps& caps,
+                                                  GrProcessorKeyBuilder* b) const {
+    GLEllipticalRRectEffect::GenKey(*this, caps, b);
+}
+
+GrGLSLFragmentProcessor* EllipticalRRectEffect::onCreateGLSLInstance() const  {
+    return new GLEllipticalRRectEffect;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
-GrFragmentProcessor* GrRRectEffect::Create(GrPrimitiveEdgeType edgeType, const SkRRect& rrect) {
+sk_sp<GrFragmentProcessor> GrRRectEffect::Make(GrPrimitiveEdgeType edgeType, const SkRRect& rrect) {
     if (rrect.isRect()) {
-        return GrConvexPolyEffect::Create(edgeType, rrect.getBounds());
+        return GrConvexPolyEffect::Make(edgeType, rrect.getBounds());
     }
 
     if (rrect.isOval()) {
-        return GrOvalEffect::Create(edgeType, rrect.getBounds());
+        return GrOvalEffect::Make(edgeType, rrect.getBounds());
     }
 
     if (rrect.isSimple()) {
         if (rrect.getSimpleRadii().fX < kRadiusMin || rrect.getSimpleRadii().fY < kRadiusMin) {
             // In this case the corners are extremely close to rectangular and we collapse the
             // clip to a rectangular clip.
-            return GrConvexPolyEffect::Create(edgeType, rrect.getBounds());
+            return GrConvexPolyEffect::Make(edgeType, rrect.getBounds());
         }
         if (rrect.getSimpleRadii().fX == rrect.getSimpleRadii().fY) {
-            return CircularRRectEffect::Create(edgeType, CircularRRectEffect::kAll_CornerFlags,
+            return CircularRRectEffect::Make(edgeType, CircularRRectEffect::kAll_CornerFlags,
                                                rrect);
         } else {
-            return EllipticalRRectEffect::Create(edgeType, rrect);
+            return EllipticalRRectEffect::Make(edgeType, rrect);
         }
     }
 
@@ -751,24 +746,24 @@ GrFragmentProcessor* GrRRectEffect::Create(GrPrimitiveEdgeType edgeType, const S
                 if (squashedRadii) {
                     rr.writable()->setRectRadii(rrect.getBounds(), radii);
                 }
-                return CircularRRectEffect::Create(edgeType, cornerFlags, *rr);
+                return CircularRRectEffect::Make(edgeType, cornerFlags, *rr);
             }
             case CircularRRectEffect::kNone_CornerFlags:
-                return GrConvexPolyEffect::Create(edgeType, rrect.getBounds());
+                return GrConvexPolyEffect::Make(edgeType, rrect.getBounds());
             default: {
                 if (squashedRadii) {
                     // If we got here then we squashed some but not all the radii to zero. (If all
                     // had been squashed cornerFlags would be 0.) The elliptical effect doesn't
                     // support some rounded and some square corners.
-                    return NULL;
+                    return nullptr;
                 }
                 if (rrect.isNinePatch()) {
-                    return EllipticalRRectEffect::Create(edgeType, rrect);
+                    return EllipticalRRectEffect::Make(edgeType, rrect);
                 }
-                return NULL;
+                return nullptr;
             }
         }
     }
 
-    return NULL;
+    return nullptr;
 }

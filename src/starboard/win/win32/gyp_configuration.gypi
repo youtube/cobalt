@@ -17,6 +17,7 @@
     'angle_build_winrt': 0,
     'winrt': 0,
     'enable_d3d11_feature_level_11': 1,
+    'angle_platform_windows': 1,
   },
   'includes': [
     '../shared/gyp_configuration.gypi',

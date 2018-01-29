@@ -123,7 +123,7 @@ class FieldConverter : public FieldConverterBase<StructType> {
   }
 
   virtual bool ConvertField(
-      const base::Value& value, StructType* dst) const OVERRIDE {
+      const base::Value& value, StructType* dst) const override {
     return value_converter_->Convert(value, &(dst->*field_pointer_));
   }
 
@@ -141,7 +141,7 @@ class BasicValueConverter<int> : public ValueConverter<int> {
  public:
   BasicValueConverter() {}
 
-  virtual bool Convert(const base::Value& value, int* field) const OVERRIDE {
+  virtual bool Convert(const base::Value& value, int* field) const override {
     return value.GetAsInteger(field);
   }
 
@@ -155,7 +155,7 @@ class BasicValueConverter<std::string> : public ValueConverter<std::string> {
   BasicValueConverter() {}
 
   virtual bool Convert(
-      const base::Value& value, std::string* field) const OVERRIDE {
+      const base::Value& value, std::string* field) const override {
     return value.GetAsString(field);
   }
 
@@ -169,7 +169,7 @@ class BasicValueConverter<string16> : public ValueConverter<string16> {
   BasicValueConverter() {}
 
   virtual bool Convert(
-      const base::Value& value, string16* field) const OVERRIDE {
+      const base::Value& value, string16* field) const override {
     return value.GetAsString(field);
   }
 
@@ -182,7 +182,7 @@ class BasicValueConverter<double> : public ValueConverter<double> {
  public:
   BasicValueConverter() {}
 
-  virtual bool Convert(const base::Value& value, double* field) const OVERRIDE {
+  virtual bool Convert(const base::Value& value, double* field) const override {
     return value.GetAsDouble(field);
   }
 
@@ -195,7 +195,7 @@ class BasicValueConverter<bool> : public ValueConverter<bool> {
  public:
   BasicValueConverter() {}
 
-  virtual bool Convert(const base::Value& value, bool* field) const OVERRIDE {
+  virtual bool Convert(const base::Value& value, bool* field) const override {
     return value.GetAsBoolean(field);
   }
 
@@ -212,7 +212,7 @@ class ValueFieldConverter : public ValueConverter<FieldType> {
       : convert_func_(convert_func) {}
 
   virtual bool Convert(const base::Value& value,
-                       FieldType* field) const OVERRIDE {
+                       FieldType* field) const override {
     return convert_func_(&value, field);
   }
 
@@ -231,7 +231,7 @@ class CustomFieldConverter : public ValueConverter<FieldType> {
       : convert_func_(convert_func) {}
 
   virtual bool Convert(const base::Value& value,
-                       FieldType* field) const OVERRIDE {
+                       FieldType* field) const override {
     std::string string_value;
     return value.GetAsString(&string_value) &&
         convert_func_(string_value, field);
@@ -249,7 +249,7 @@ class NestedValueConverter : public ValueConverter<NestedType> {
   NestedValueConverter() {}
 
   virtual bool Convert(
-      const base::Value& value, NestedType* field) const OVERRIDE {
+      const base::Value& value, NestedType* field) const override {
     return converter_.Convert(value, field);
   }
 
@@ -264,7 +264,7 @@ class RepeatedValueConverter : public ValueConverter<ScopedVector<Element> > {
   RepeatedValueConverter() {}
 
   virtual bool Convert(
-      const base::Value& value, ScopedVector<Element>* field) const OVERRIDE {
+      const base::Value& value, ScopedVector<Element>* field) const override {
     const base::ListValue* list = NULL;
     if (!value.GetAsList(&list)) {
       // The field is not a list.
@@ -300,7 +300,7 @@ class RepeatedMessageConverter
   RepeatedMessageConverter() {}
 
   virtual bool Convert(const base::Value& value,
-                       ScopedVector<NestedType>* field) const OVERRIDE {
+                       ScopedVector<NestedType>* field) const override {
     const base::ListValue* list = NULL;
     if (!value.GetAsList(&list))
       return false;
@@ -337,7 +337,7 @@ class RepeatedCustomValueConverter
       : convert_func_(convert_func) {}
 
   virtual bool Convert(const base::Value& value,
-                       ScopedVector<NestedType>* field) const OVERRIDE {
+                       ScopedVector<NestedType>* field) const override {
     const base::ListValue* list = NULL;
     if (!value.GetAsList(&list))
       return false;

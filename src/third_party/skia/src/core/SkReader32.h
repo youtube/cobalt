@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2008 The Android Open Source Project
  *
@@ -10,6 +9,7 @@
 #ifndef SkReader32_DEFINED
 #define SkReader32_DEFINED
 
+#include "SkData.h"
 #include "SkMatrix.h"
 #include "SkPath.h"
 #include "SkRegion.h"
@@ -20,7 +20,7 @@ class SkString;
 
 class SkReader32 : SkNoncopyable {
 public:
-    SkReader32() : fCurr(NULL), fStop(NULL), fBase(NULL) {}
+    SkReader32() : fCurr(nullptr), fStop(nullptr), fBase(nullptr) {}
     SkReader32(const void* data, size_t size)  {
         this->setMemory(data, size);
     }
@@ -94,9 +94,9 @@ public:
     }
 
     void read(void* dst, size_t size) {
-        SkASSERT(0 == size || dst != NULL);
+        SkASSERT(0 == size || dst != nullptr);
         SkASSERT(ptr_align_4(fCurr));
-        memcpy(dst, fCurr, size);
+        sk_careful_memcpy(dst, fCurr, size);
         fCurr += SkAlign4(size);
         SkASSERT(fCurr <= fStop);
     }
@@ -124,16 +124,24 @@ public:
 
     /**
      *  Read the length of a string (written by SkWriter32::writeString) into
-     *  len (if len is not NULL) and return the null-ternimated address of the
+     *  len (if len is not nullptr) and return the null-ternimated address of the
      *  string within the reader's buffer.
      */
-    const char* readString(size_t* len = NULL);
+    const char* readString(size_t* len = nullptr);
 
     /**
      *  Read the string (written by SkWriter32::writeString) and return it in
      *  copy (if copy is not null). Return the length of the string.
      */
     size_t readIntoString(SkString* copy);
+
+    sk_sp<SkData> readData() {
+        uint32_t byteLength = this->readU32();
+        if (0 == byteLength) {
+            return SkData::MakeEmpty();
+        }
+        return SkData::MakeWithCopy(this->skip(byteLength), byteLength);
+    }
 
 private:
     template <typename T> bool readObjectFromMemory(T* obj) {
@@ -152,7 +160,7 @@ private:
 
 #ifdef SK_DEBUG
     static bool ptr_align_4(const void* ptr) {
-        return (((const char*)ptr - (const char*)NULL) & 3) == 0;
+        return (((const char*)ptr - (const char*)nullptr) & 3) == 0;
     }
 #endif
 };

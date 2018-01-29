@@ -72,16 +72,16 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   void Close();
 
   // SpdyStream::Delegate
-  virtual bool OnSendHeadersComplete(int status) OVERRIDE;
-  virtual int OnSendBody() OVERRIDE;
-  virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
+  virtual bool OnSendHeadersComplete(int status) override;
+  virtual int OnSendBody() override;
+  virtual int OnSendBodyComplete(int status, bool* eof) override;
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status) OVERRIDE;
-  virtual void OnHeadersSent() OVERRIDE;
-  virtual int OnDataReceived(const char* data, int length) OVERRIDE;
-  virtual void OnDataSent(int length) OVERRIDE;
-  virtual void OnClose(int status) OVERRIDE;
+                                 int status) override;
+  virtual void OnHeadersSent() override;
+  virtual int OnDataReceived(const char* data, int length) override;
+  virtual void OnDataSent(int length) override;
+  virtual void OnClose(int status) override;
 
  private:
   friend class SpdyWebSocketStreamSpdy2Test;

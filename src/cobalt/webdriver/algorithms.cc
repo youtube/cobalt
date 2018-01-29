@@ -50,7 +50,7 @@ const char* kWhitespaceCharsExcludingNonBreakingSpace = kWhitespaceChars + 1;
 const char kHorizontalWhitespaceChars[] = u8" \f\t\v\u2028\u2029";
 
 // Defined in step 2.1 of the getElementText() algorithm in
-// https://www.w3.org/TR/webdriver/#getelementtext
+// https://www.w3.org/TR/webdriver/#get-element-text
 const char kZeroWidthSpacesAndFeeds[] = u8"\f\v\u200b\u200e\u200f";
 
 const char kNonBreakingSpace = '\xa0';
@@ -104,7 +104,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
   // below, and erase the end of the string at the end.
   std::string::iterator end = text->end();
 
-  // https://www.w3.org/TR/webdriver/#getelementtext
+  // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.1 Remove any zero-width spaces (\u200b, \u200e, \u200f), form feeds (\f)
   // or vertical tab feeds (\v) from text.
   end = std::remove_if(text->begin(), end, IsZeroWidthSpaceOrFeed);
@@ -116,7 +116,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
   MatchConsecutiveCharactersPredicate consecutive_newline_predicate('\n');
   end = std::remove_if(text->begin(), end, consecutive_newline_predicate);
 
-  // https://www.w3.org/TR/webdriver/#getelementtext
+  // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.3
   if (whitespace_style) {
     // If the parent's effective CSS whitespace style is 'normal' or 'nowrap'
@@ -148,7 +148,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
   // Trim the original string, since several characters may have been removed.
   text->erase(end, text->end());
 
-  // https://www.w3.org/TR/webdriver/#getelementtext
+  // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.4 Apply the parent's effective CSS text-transform style as per the
   // CSS 2.1 specification ([CSS21])
   if (text_transform) {
@@ -232,7 +232,7 @@ void GetElementTextInternal(dom::Element* element,
   bool is_displayed = IsDisplayed(element);
 
   scoped_refptr<dom::NodeList> children = element->child_nodes();
-  // https://www.w3.org/TR/webdriver/#getelementtext
+  // https://www.w3.org/TR/webdriver/#get-element-text
   // 2. For each descendent of node, at time of execution, in order:
   for (uint32 i = 0; i < children->length(); ++i) {
     scoped_refptr<dom::Node> child = children->Item(i);
@@ -248,8 +248,8 @@ void GetElementTextInternal(dom::Element* element,
       if (lines->empty()) {
         lines->push_back(text);
       } else {
-        if (*(lines->back().rbegin()) == ' ' && !text.empty() &&
-            *(text.begin()) == ' ') {
+        if (!lines->back().empty() && *(lines->back().rbegin()) == ' ' &&
+            !text.empty() && *(text.begin()) == ' ') {
           text.erase(0);
         }
         lines->back().append(text);
@@ -322,8 +322,9 @@ bool HasPositiveSizeDimensions(dom::Element* element) {
 
 math::Rect GetRect(dom::Element* element) {
   scoped_refptr<dom::DOMRect> element_rect = element->GetBoundingClientRect();
-  return math::Rect(element_rect->x(), element_rect->y(), element_rect->width(),
-                    element_rect->height());
+  math::RectF rect(element_rect->x(), element_rect->y(), element_rect->width(),
+                   element_rect->height());
+  return math::Rect::RoundFromRectF(rect);
 }
 
 // Returns true if this element is completely hidden by overflow.
@@ -382,7 +383,7 @@ bool AreElementAndChildElementsHiddenByOverflow(dom::Element* element) {
 std::string GetElementText(dom::Element* element) {
   DCHECK(element);
 
-  // https://www.w3.org/TR/webdriver/#getelementtext
+  // https://www.w3.org/TR/webdriver/#get-element-text
   // 1. If the element is in the head element of the document, return an empty
   // string.
   if (IsInHeadElement(element)) {

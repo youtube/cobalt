@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -11,10 +10,16 @@
 #define SkRegionPriv_DEFINED
 
 #include "SkRegion.h"
-#include "SkThread.h"
+
+#include "SkAtomics.h"
+#include "SkMalloc.h"
+
+inline bool SkRegionValueIsSentinel(int32_t value) {
+    return value == (int32_t)SkRegion::kRunTypeSentinel;
+}
 
 #define assert_sentinel(value, isSentinel) \
-    SkASSERT(((value) == SkRegion::kRunTypeSentinel) == isSentinel)
+    SkASSERT(SkRegionValueIsSentinel(value) == isSentinel)
 
 //SkDEBUGCODE(extern int32_t gRgnAllocCounter;)
 
@@ -63,10 +68,12 @@ public:
         //SkDEBUGCODE(sk_atomic_inc(&gRgnAllocCounter);)
         //SkDEBUGF(("************** gRgnAllocCounter::alloc %d\n", gRgnAllocCounter));
 
-        SkASSERT(count >= SkRegion::kRectRegionRuns);
+        if (count < SkRegion::kRectRegionRuns) {
+            return nullptr;
+        }
 
         const int64_t size = sk_64_mul(count, sizeof(RunType)) + sizeof(RunHead);
-        if (count < 0 || !sk_64_isS32(size)) { SK_CRASH(); }
+        if (count < 0 || !sk_64_isS32(size)) { SK_ABORT("Invalid Size"); }
 
         RunHead* head = (RunHead*)sk_malloc_throw(size);
         head->fRefCnt = 1;
@@ -78,10 +85,14 @@ public:
     }
 
     static RunHead* Alloc(int count, int yspancount, int intervalCount) {
-        SkASSERT(yspancount > 0);
-        SkASSERT(intervalCount > 1);
+        if (yspancount <= 0 || intervalCount <= 1) {
+            return nullptr;
+        }
 
         RunHead* head = Alloc(count);
+        if (!head) {
+            return nullptr;
+        }
         head->fYSpanCount = yspancount;
         head->fIntervalCount = intervalCount;
         return head;
@@ -142,7 +153,7 @@ public:
     /**
      *  Return the scanline that contains the Y value. This requires that the Y
      *  value is already known to be contained within the bounds of the region,
-     *  and so this routine never returns NULL.
+     *  and so this routine never returns nullptr.
      *
      *  It returns the beginning of the scanline, starting with its Bottom value.
      */

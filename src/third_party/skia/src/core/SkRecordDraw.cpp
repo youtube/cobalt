@@ -6,65 +6,68 @@
  */
 
 #include "SkRecordDraw.h"
+#include "SkImage.h"
 #include "SkPatchUtils.h"
 
 void SkRecordDraw(const SkRecord& record,
                   SkCanvas* canvas,
+                  SkPicture const* const drawablePicts[],
+                  SkDrawable* const drawables[],
+                  int drawableCount,
                   const SkBBoxHierarchy* bbh,
-                  SkDrawPictureCallback* callback) {
+                  SkPicture::AbortCallback* callback) {
     SkAutoCanvasRestore saveRestore(canvas, true /*save now, restore at exit*/);
 
     if (bbh) {
         // Draw only ops that affect pixels in the canvas's current clip.
         // The SkRecord and BBH were recorded in identity space.  This canvas
-        // is not necessarily in that same space.  getClipBounds() returns us
+        // is not necessarily in that same space.  getLocalClipBounds() returns us
         // this canvas' clip bounds transformed back into identity space, which
         // lets us query the BBH.
-        SkRect query = { 0, 0, 0, 0 };
-        (void)canvas->getClipBounds(&query);
+        SkRect query = canvas->getLocalClipBounds();
 
-        SkTDArray<void*> ops;
+        SkTDArray<int> ops;
         bbh->search(query, &ops);
 
-        SkRecords::Draw draw(canvas);
+        SkRecords::Draw draw(canvas, drawablePicts, drawables, drawableCount);
         for (int i = 0; i < ops.count(); i++) {
-            if (callback && callback->abortDrawing()) {
+            if (callback && callback->abort()) {
                 return;
             }
-            record.visit<void>((uintptr_t)ops[i], draw);  // See FillBounds below.
+            // This visit call uses the SkRecords::Draw::operator() to call
+            // methods on the |canvas|, wrapped by methods defined with the
+            // DRAW() macro.
+            record.visit(ops[i], draw);
         }
     } else {
         // Draw all ops.
-        SkRecords::Draw draw(canvas);
-        for (unsigned i = 0; i < record.count(); i++) {
-            if (callback && callback->abortDrawing()) {
+        SkRecords::Draw draw(canvas, drawablePicts, drawables, drawableCount);
+        for (int i = 0; i < record.count(); i++) {
+            if (callback && callback->abort()) {
                 return;
             }
-            record.visit<void>(i, draw);
+            // This visit call uses the SkRecords::Draw::operator() to call
+            // methods on the |canvas|, wrapped by methods defined with the
+            // DRAW() macro.
+            record.visit(i, draw);
         }
     }
 }
 
-void SkRecordPartialDraw(const SkRecord& record,
-                         SkCanvas* canvas,
-                         const SkRect& clearRect,
-                         unsigned start, unsigned stop,
+void SkRecordPartialDraw(const SkRecord& record, SkCanvas* canvas,
+                         SkPicture const* const drawablePicts[], int drawableCount,
+                         int start, int stop,
                          const SkMatrix& initialCTM) {
     SkAutoCanvasRestore saveRestore(canvas, true /*save now, restore at exit*/);
 
     stop = SkTMin(stop, record.count());
-    SkRecords::PartialDraw draw(canvas, clearRect, initialCTM);
-    for (unsigned i = start; i < stop; i++) {
-        record.visit<void>(i, draw);
+    SkRecords::Draw draw(canvas, drawablePicts, nullptr, drawableCount, &initialCTM);
+    for (int i = start; i < stop; i++) {
+        record.visit(i, draw);
     }
 }
 
 namespace SkRecords {
-
-// FIXME: SkBitmaps are stateful, so we need to copy them to play back in multiple threads.
-static SkBitmap shallow_copy(const SkBitmap& bitmap) {
-    return bitmap;
-}
 
 // NoOps draw nothing.
 template <> void Draw::draw(const NoOp&) {}
@@ -72,46 +75,70 @@ template <> void Draw::draw(const NoOp&) {}
 #define DRAW(T, call) template <> void Draw::draw(const T& r) { fCanvas->call; }
 DRAW(Restore, restore());
 DRAW(Save, save());
-DRAW(SaveLayer, saveLayer(r.bounds, r.paint, r.flags));
-DRAW(PopCull, popCull());
-DRAW(PushCull, pushCull(r.rect));
-DRAW(Clear, clear(r.color));
+DRAW(SaveLayer, saveLayer(SkCanvas::SaveLayerRec(r.bounds,
+                                                 r.paint,
+                                                 r.backdrop.get(),
+                                                 r.clipMask.get(),
+                                                 r.clipMatrix,
+                                                 r.saveLayerFlags)));
 DRAW(SetMatrix, setMatrix(SkMatrix::Concat(fInitialCTM, r.matrix)));
+DRAW(Concat, concat(r.matrix));
+DRAW(Translate, translate(r.dx, r.dy));
 
-DRAW(ClipPath, clipPath(r.path, r.op, r.doAA));
-DRAW(ClipRRect, clipRRect(r.rrect, r.op, r.doAA));
-DRAW(ClipRect, clipRect(r.rect, r.op, r.doAA));
+DRAW(ClipPath, clipPath(r.path, r.opAA.op(), r.opAA.aa()));
+DRAW(ClipRRect, clipRRect(r.rrect, r.opAA.op(), r.opAA.aa()));
+DRAW(ClipRect, clipRect(r.rect, r.opAA.op(), r.opAA.aa()));
 DRAW(ClipRegion, clipRegion(r.region, r.op));
 
-DRAW(BeginCommentGroup, beginCommentGroup(r.description));
-DRAW(AddComment, addComment(r.key, r.value));
-DRAW(EndCommentGroup, endCommentGroup());
-
-DRAW(DrawBitmap, drawBitmap(shallow_copy(r.bitmap), r.left, r.top, r.paint));
-DRAW(DrawBitmapMatrix, drawBitmapMatrix(shallow_copy(r.bitmap), r.matrix, r.paint));
-DRAW(DrawBitmapNine, drawBitmapNine(shallow_copy(r.bitmap), r.center, r.dst, r.paint));
-DRAW(DrawBitmapRectToRect,
-        drawBitmapRectToRect(shallow_copy(r.bitmap), r.src, r.dst, r.paint, r.flags));
+DRAW(DrawArc, drawArc(r.oval, r.startAngle, r.sweepAngle, r.useCenter, r.paint));
 DRAW(DrawDRRect, drawDRRect(r.outer, r.inner, r.paint));
+DRAW(DrawImage, drawImage(r.image.get(), r.left, r.top, r.paint));
+
+template <> void Draw::draw(const DrawImageLattice& r) {
+    SkCanvas::Lattice lattice;
+    lattice.fXCount = r.xCount;
+    lattice.fXDivs = r.xDivs;
+    lattice.fYCount = r.yCount;
+    lattice.fYDivs = r.yDivs;
+    lattice.fFlags = (0 == r.flagCount) ? nullptr : r.flags;
+    lattice.fBounds = &r.src;
+    fCanvas->drawImageLattice(r.image.get(), lattice, r.dst, r.paint);
+}
+
+DRAW(DrawImageRect, legacy_drawImageRect(r.image.get(), r.src, r.dst, r.paint, r.constraint));
+DRAW(DrawImageNine, drawImageNine(r.image.get(), r.center, r.dst, r.paint));
 DRAW(DrawOval, drawOval(r.oval, r.paint));
 DRAW(DrawPaint, drawPaint(r.paint));
 DRAW(DrawPath, drawPath(r.path, r.paint));
-DRAW(DrawPatch, drawPatch(r.cubics, r.colors, r.texCoords, r.xmode, r.paint));
-DRAW(DrawPicture, drawPicture(r.picture, r.matrix, r.paint));
+DRAW(DrawPatch, drawPatch(r.cubics, r.colors, r.texCoords, r.bmode, r.paint));
+DRAW(DrawPicture, drawPicture(r.picture.get(), &r.matrix, r.paint));
 DRAW(DrawPoints, drawPoints(r.mode, r.count, r.pts, r.paint));
 DRAW(DrawPosText, drawPosText(r.text, r.byteLength, r.pos, r.paint));
 DRAW(DrawPosTextH, drawPosTextH(r.text, r.byteLength, r.xpos, r.y, r.paint));
 DRAW(DrawRRect, drawRRect(r.rrect, r.paint));
 DRAW(DrawRect, drawRect(r.rect, r.paint));
-DRAW(DrawSprite, drawSprite(shallow_copy(r.bitmap), r.left, r.top, r.paint));
+DRAW(DrawRegion, drawRegion(r.region, r.paint));
 DRAW(DrawText, drawText(r.text, r.byteLength, r.x, r.y, r.paint));
-DRAW(DrawTextBlob, drawTextBlob(r.blob, r.x, r.y, r.paint));
-DRAW(DrawTextOnPath, drawTextOnPath(r.text, r.byteLength, r.path, r.matrix, r.paint));
-DRAW(DrawVertices, drawVertices(r.vmode, r.vertexCount, r.vertices, r.texs, r.colors,
-                                r.xmode.get(), r.indices, r.indexCount, r.paint));
-DRAW(DrawData, drawData(r.data, r.length));
+DRAW(DrawTextBlob, drawTextBlob(r.blob.get(), r.x, r.y, r.paint));
+DRAW(DrawTextOnPath, drawTextOnPath(r.text, r.byteLength, r.path, &r.matrix, r.paint));
+DRAW(DrawTextRSXform, drawTextRSXform(r.text, r.byteLength, r.xforms, r.cull, r.paint));
+DRAW(DrawAtlas, drawAtlas(r.atlas.get(),
+                          r.xforms, r.texs, r.colors, r.count, r.mode, r.cull, r.paint));
+DRAW(DrawVertices, drawVertices(r.vertices, r.bmode, r.paint));
+DRAW(DrawShadowRec, private_draw_shadow_rec(r.path, r.rec));
+DRAW(DrawAnnotation, drawAnnotation(r.rect, r.key.c_str(), r.value.get()));
 #undef DRAW
 
+template <> void Draw::draw(const DrawDrawable& r) {
+    SkASSERT(r.index >= 0);
+    SkASSERT(r.index < fDrawableCount);
+    if (fDrawables) {
+        SkASSERT(nullptr == fDrawablePicts);
+        fCanvas->drawDrawable(fDrawables[r.index], r.matrix);
+    } else {
+        fCanvas->drawPicture(fDrawablePicts[r.index], r.matrix, nullptr);
+    }
+}
 
 // This is an SkRecord visitor that fills an SkBBoxHierarchy.
 //
@@ -133,16 +160,15 @@ DRAW(DrawData, drawData(r.data, r.length));
 // in for all the control ops we stashed away.
 class FillBounds : SkNoncopyable {
 public:
-    FillBounds(const SkRecord& record, SkBBoxHierarchy* bbh) : fBounds(record.count()) {
-        // Calculate bounds for all ops.  This won't go quite in order, so we'll need
-        // to store the bounds separately then feed them in to the BBH later in order.
-        const Bounds largest = Bounds::MakeLargest();
-        fCTM = &SkMatrix::I();
-        fCurrentClipBounds = largest;
-        for (fCurrentOp = 0; fCurrentOp < record.count(); fCurrentOp++) {
-            record.visit<void>(fCurrentOp, *this);
-        }
+    FillBounds(const SkRect& cullRect, const SkRecord& record, SkRect bounds[])
+        : fNumRecords(record.count())
+        , fCullRect(cullRect)
+        , fBounds(bounds) {
+        fCTM = SkMatrix::I();
+        fCurrentClipBounds = fCullRect;
+    }
 
+    void cleanUp() {
         // If we have any lingering unpaired Saves, simulate restores to make
         // sure all ops in those Save blocks have their bounds calculated.
         while (!fSaveStack.isEmpty()) {
@@ -151,18 +177,12 @@ public:
 
         // Any control ops not part of any Save/Restore block draw everywhere.
         while (!fControlIndices.isEmpty()) {
-            this->popControl(largest);
+            this->popControl(fCullRect);
         }
-
-        // Finally feed all stored bounds into the BBH.  They'll be returned in this order.
-        SkASSERT(bbh);
-        for (uintptr_t i = 0; i < record.count(); i++) {
-            if (!fBounds[i].isEmpty()) {
-                bbh->insert((void*)i, fBounds[i], true/*ok to defer*/);
-            }
-        }
-        bbh->flushDeferredInserts();
     }
+
+    void setCurrentOp(int currentOp) { fCurrentOp = currentOp; }
+
 
     template <typename T> void operator()(const T& op) {
         this->updateCTM(op);
@@ -170,20 +190,55 @@ public:
         this->trackBounds(op);
     }
 
-private:
     // In this file, SkRect are in local coordinates, Bounds are translated back to identity space.
     typedef SkRect Bounds;
 
+    int currentOp() const { return fCurrentOp; }
+    const SkMatrix& ctm() const { return fCTM; }
+    const Bounds& getBounds(int index) const { return fBounds[index]; }
+
+    // Adjust rect for all paints that may affect its geometry, then map it to identity space.
+    Bounds adjustAndMap(SkRect rect, const SkPaint* paint) const {
+        // Inverted rectangles really confuse our BBHs.
+        rect.sort();
+
+        // Adjust the rect for its own paint.
+        if (!AdjustForPaint(paint, &rect)) {
+            // The paint could do anything to our bounds.  The only safe answer is the current clip.
+            return fCurrentClipBounds;
+        }
+
+        // Adjust rect for all the paints from the SaveLayers we're inside.
+        if (!this->adjustForSaveLayerPaints(&rect)) {
+            // Same deal as above.
+            return fCurrentClipBounds;
+        }
+
+        // Map the rect back to identity space.
+        fCTM.mapRect(&rect);
+
+        // Nothing can draw outside the current clip.
+        if (!rect.intersect(fCurrentClipBounds)) {
+            return Bounds::MakeEmpty();
+        }
+
+        return rect;
+    }
+
+private:
     struct SaveBounds {
         int controlOps;        // Number of control ops in this Save block, including the Save.
         Bounds bounds;         // Bounds of everything in the block.
         const SkPaint* paint;  // Unowned.  If set, adjusts the bounds of all ops in this block.
+        SkMatrix ctm;
     };
 
-    // Only Restore and SetMatrix change the CTM.
+    // Only Restore, SetMatrix, Concat, and Translate change the CTM.
     template <typename T> void updateCTM(const T&) {}
-    void updateCTM(const Restore& op)   { fCTM = &op.matrix; }
-    void updateCTM(const SetMatrix& op) { fCTM = &op.matrix; }
+    void updateCTM(const Restore& op)   { fCTM = op.matrix; }
+    void updateCTM(const SetMatrix& op) { fCTM = op.matrix; }
+    void updateCTM(const Concat& op)    { fCTM.preConcat(op.matrix); }
+    void updateCTM(const Translate& op) { fCTM.preTranslate(op.dx, op.dy); }
 
     // Most ops don't change the clip.
     template <typename T> void updateClipBounds(const T&) {}
@@ -199,7 +254,11 @@ private:
         Bounds clip = SkRect::Make(devBounds);
         // We don't call adjustAndMap() because as its last step it would intersect the adjusted
         // clip bounds with the previous clip, exactly what we can't do when the clip grows.
-        fCurrentClipBounds = this->adjustForSaveLayerPaints(&clip) ? clip : Bounds::MakeLargest();
+        if (this->adjustForSaveLayerPaints(&clip)) {
+            fCurrentClipBounds = clip.intersect(fCullRect) ? clip : Bounds::MakeEmpty();
+        } else {
+            fCurrentClipBounds = fCullRect;
+        }
     }
 
     // Restore holds the devBounds for the clip after the {save,saveLayer}/restore block completes.
@@ -210,8 +269,11 @@ private:
         // so they are not affected by the saveLayer's paint.
         const int kSavesToIgnore = 1;
         Bounds clip = SkRect::Make(op.devBounds);
-        fCurrentClipBounds =
-            this->adjustForSaveLayerPaints(&clip, kSavesToIgnore) ? clip : Bounds::MakeLargest();
+        if (this->adjustForSaveLayerPaints(&clip, kSavesToIgnore)) {
+            fCurrentClipBounds = clip.intersect(fCullRect) ? clip : Bounds::MakeEmpty();
+        } else {
+            fCurrentClipBounds = fCullRect;
+        }
     }
 
     // We also take advantage of SaveLayer bounds when present to further cut the clip down.
@@ -224,21 +286,18 @@ private:
 
     // The bounds of these ops must be calculated when we hit the Restore
     // from the bounds of the ops in the same Save block.
-    void trackBounds(const Save&)          { this->pushSaveBlock(NULL); }
+    void trackBounds(const Save&)          { this->pushSaveBlock(nullptr); }
     void trackBounds(const SaveLayer& op)  { this->pushSaveBlock(op.paint); }
     void trackBounds(const Restore&) { fBounds[fCurrentOp] = this->popSaveBlock(); }
 
     void trackBounds(const SetMatrix&)         { this->pushControl(); }
+    void trackBounds(const Concat&)            { this->pushControl(); }
+    void trackBounds(const Translate&)         { this->pushControl(); }
     void trackBounds(const ClipRect&)          { this->pushControl(); }
     void trackBounds(const ClipRRect&)         { this->pushControl(); }
     void trackBounds(const ClipPath&)          { this->pushControl(); }
     void trackBounds(const ClipRegion&)        { this->pushControl(); }
-    void trackBounds(const PushCull&)          { this->pushControl(); }
-    void trackBounds(const PopCull&)           { this->pushControl(); }
-    void trackBounds(const BeginCommentGroup&) { this->pushControl(); }
-    void trackBounds(const AddComment&)        { this->pushControl(); }
-    void trackBounds(const EndCommentGroup&)   { this->pushControl(); }
-    void trackBounds(const DrawData&)          { this->pushControl(); }
+
 
     // For all other ops, we can calculate and store the bounds directly now.
     template <typename T> void trackBounds(const T& op) {
@@ -248,7 +307,15 @@ private:
 
     void pushSaveBlock(const SkPaint* paint) {
         // Starting a new Save block.  Push a new entry to represent that.
-        SaveBounds sb = { 0, Bounds::MakeEmpty(), paint };
+        SaveBounds sb;
+        sb.controlOps = 0;
+        // If the paint affects transparent black, the bound shouldn't be smaller
+        // than the current clip bounds.
+        sb.bounds =
+            PaintMayAffectTransparentBlack(paint) ? fCurrentClipBounds : Bounds::MakeEmpty();
+        sb.paint = paint;
+        sb.ctm = this->fCTM;
+
         fSaveStack.push(sb);
         this->pushControl();
     }
@@ -260,34 +327,27 @@ private:
                 return true;
             }
 
-            // Unusual Xfermodes require us to process a saved layer
+            // Unusual blendmodes require us to process a saved layer
             // even with operations outisde the clip.
             // For example, DstIn is used by masking layers.
             // https://code.google.com/p/skia/issues/detail?id=1291
             // https://crbug.com/401593
-            SkXfermode* xfermode = paint->getXfermode();
-            SkXfermode::Mode mode;
-            // SrcOver is ok, and is also the common case with a NULL xfermode.
-            // So we should make that the fast path and bypass the mode extraction
-            // and test.
-            if (xfermode && xfermode->asMode(&mode)) {
-                switch (mode) {
-                    // For each of the following transfer modes, if the source
-                    // alpha is zero (our transparent black), the resulting
-                    // blended alpha is not necessarily equal to the original
-                    // destination alpha.
-                    case SkXfermode::kClear_Mode:
-                    case SkXfermode::kSrc_Mode:
-                    case SkXfermode::kSrcIn_Mode:
-                    case SkXfermode::kDstIn_Mode:
-                    case SkXfermode::kSrcOut_Mode:
-                    case SkXfermode::kDstATop_Mode:
-                    case SkXfermode::kModulate_Mode:
-                        return true;
-                        break;
-                    default:
-                        break;
-                }
+            switch (paint->getBlendMode()) {
+                // For each of the following transfer modes, if the source
+                // alpha is zero (our transparent black), the resulting
+                // blended alpha is not necessarily equal to the original
+                // destination alpha.
+                case SkBlendMode::kClear:
+                case SkBlendMode::kSrc:
+                case SkBlendMode::kSrcIn:
+                case SkBlendMode::kDstIn:
+                case SkBlendMode::kSrcOut:
+                case SkBlendMode::kDstATop:
+                case SkBlendMode::kModulate:
+                    return true;
+                    break;
+                default:
+                    break;
             }
         }
         return false;
@@ -298,19 +358,15 @@ private:
         SaveBounds sb;
         fSaveStack.pop(&sb);
 
-        // If the paint affects transparent black, we can't trust any of our calculated bounds.
-        const Bounds& bounds =
-            PaintMayAffectTransparentBlack(sb.paint) ? fCurrentClipBounds : sb.bounds;
-
         while (sb.controlOps --> 0) {
-            this->popControl(bounds);
+            this->popControl(sb.bounds);
         }
 
         // This whole Save block may be part another Save block.
-        this->updateSaveBounds(bounds);
+        this->updateSaveBounds(sb.bounds);
 
         // If called from a real Restore (not a phony one for balance), it'll need the bounds.
-        return bounds;
+        return sb.bounds;
     }
 
     void pushControl() {
@@ -335,42 +391,38 @@ private:
     // FIXME: this method could use better bounds
     Bounds bounds(const DrawText&) const { return fCurrentClipBounds; }
 
-    Bounds bounds(const Clear&) const { return Bounds::MakeLargest(); }  // Ignores the clip.
     Bounds bounds(const DrawPaint&) const { return fCurrentClipBounds; }
     Bounds bounds(const NoOp&)  const { return Bounds::MakeEmpty(); }    // NoOps don't draw.
 
-    Bounds bounds(const DrawSprite& op) const {
-        const SkBitmap& bm = op.bitmap;
-        return Bounds::MakeXYWH(op.left, op.top, bm.width(), bm.height());  // Ignores the matrix.
-    }
-
     Bounds bounds(const DrawRect& op) const { return this->adjustAndMap(op.rect, &op.paint); }
+    Bounds bounds(const DrawRegion& op) const {
+        SkRect rect = SkRect::Make(op.region.getBounds());
+        return this->adjustAndMap(rect, &op.paint);
+    }
     Bounds bounds(const DrawOval& op) const { return this->adjustAndMap(op.oval, &op.paint); }
+    // Tighter arc bounds?
+    Bounds bounds(const DrawArc& op) const { return this->adjustAndMap(op.oval, &op.paint); }
     Bounds bounds(const DrawRRect& op) const {
         return this->adjustAndMap(op.rrect.rect(), &op.paint);
     }
     Bounds bounds(const DrawDRRect& op) const {
         return this->adjustAndMap(op.outer.rect(), &op.paint);
     }
+    Bounds bounds(const DrawImage& op) const {
+        const SkImage* image = op.image.get();
+        SkRect rect = SkRect::MakeXYWH(op.left, op.top, image->width(), image->height());
 
-    Bounds bounds(const DrawBitmapRectToRect& op) const {
+        return this->adjustAndMap(rect, op.paint);
+    }
+    Bounds bounds(const DrawImageLattice& op) const {
         return this->adjustAndMap(op.dst, op.paint);
     }
-    Bounds bounds(const DrawBitmapNine& op) const {
+    Bounds bounds(const DrawImageRect& op) const {
         return this->adjustAndMap(op.dst, op.paint);
     }
-    Bounds bounds(const DrawBitmap& op) const {
-        const SkBitmap& bm = op.bitmap;
-        return this->adjustAndMap(SkRect::MakeXYWH(op.left, op.top, bm.width(), bm.height()),
-                                  op.paint);
+    Bounds bounds(const DrawImageNine& op) const {
+        return this->adjustAndMap(op.dst, op.paint);
     }
-    Bounds bounds(const DrawBitmapMatrix& op) const {
-        const SkBitmap& bm = op.bitmap;
-        SkRect dst = SkRect::MakeWH(bm.width(), bm.height());
-        op.matrix.mapRect(&dst);
-        return this->adjustAndMap(dst, op.paint);
-    }
-
     Bounds bounds(const DrawPath& op) const {
         return op.path.isInverseFillType() ? fCurrentClipBounds
                                            : this->adjustAndMap(op.path.getBounds(), &op.paint);
@@ -391,16 +443,26 @@ private:
         return this->adjustAndMap(dst, &op.paint);
     }
     Bounds bounds(const DrawVertices& op) const {
-        SkRect dst;
-        dst.set(op.vertices, op.vertexCount);
-        return this->adjustAndMap(dst, &op.paint);
+        return this->adjustAndMap(op.vertices->bounds(), &op.paint);
+    }
+
+    Bounds bounds(const DrawAtlas& op) const {
+        if (op.cull) {
+            // TODO: <reed> can we pass nullptr for the paint? Isn't cull already "correct"
+            // for the paint (by the caller)?
+            return this->adjustAndMap(*op.cull, op.paint);
+        } else {
+            return fCurrentClipBounds;
+        }
+    }
+
+    Bounds bounds(const DrawShadowRec& op) const {
+        return this->adjustAndMap(op.path.getBounds(), nullptr);
     }
 
     Bounds bounds(const DrawPicture& op) const {
         SkRect dst = op.picture->cullRect();
-        if (op.matrix) {
-            op.matrix->mapRect(&dst);
-        }
+        op.matrix.mapRect(&dst);
         return this->adjustAndMap(dst, op.paint);
     }
 
@@ -446,22 +508,36 @@ private:
         return this->adjustAndMap(dst, &op.paint);
     }
 
+    Bounds bounds(const DrawTextRSXform& op) const {
+        if (op.cull) {
+            return this->adjustAndMap(*op.cull, nullptr);
+        } else {
+            return fCurrentClipBounds;
+        }
+    }
+
     Bounds bounds(const DrawTextBlob& op) const {
         SkRect dst = op.blob->bounds();
         dst.offset(op.x, op.y);
-        // TODO: remove when implicit bounds are plumbed through
-        if (dst.isEmpty()) {
-            return fCurrentClipBounds;
-        }
         return this->adjustAndMap(dst, &op.paint);
+    }
+
+    Bounds bounds(const DrawDrawable& op) const {
+        return this->adjustAndMap(op.worstCaseBounds, nullptr);
+    }
+
+    Bounds bounds(const DrawAnnotation& op) const {
+        return this->adjustAndMap(op.rect, nullptr);
     }
 
     static void AdjustTextForFontMetrics(SkRect* rect, const SkPaint& paint) {
 #ifdef SK_DEBUG
         SkRect correct = *rect;
 #endif
-        const SkScalar yPad = 2.0f * paint.getTextSize(),  // In practice, this seems to be enough.
-                       xPad = 4.0f * yPad;                 // Hack for very wide Github logo font.
+        // crbug.com/373785 ~~> xPad = 4x yPad
+        // crbug.com/424824 ~~> bump yPad from 2x text size to 2.5x
+        const SkScalar yPad = 2.5f * paint.getTextSize(),
+                       xPad = 4.0f * yPad;
         rect->outset(xPad, yPad);
 #ifdef SK_DEBUG
         SkPaint::FontMetrics metrics;
@@ -493,56 +569,47 @@ private:
 
     bool adjustForSaveLayerPaints(SkRect* rect, int savesToIgnore = 0) const {
         for (int i = fSaveStack.count() - 1 - savesToIgnore; i >= 0; i--) {
+            SkMatrix inverse;
+            if (!fSaveStack[i].ctm.invert(&inverse)) {
+                return false;
+            }
+            inverse.mapRect(rect);
             if (!AdjustForPaint(fSaveStack[i].paint, rect)) {
                 return false;
             }
+            fSaveStack[i].ctm.mapRect(rect);
         }
         return true;
     }
 
-    // Adjust rect for all paints that may affect its geometry, then map it to identity space.
-    Bounds adjustAndMap(SkRect rect, const SkPaint* paint) const {
-        // Inverted rectangles really confuse our BBHs.
-        rect.sort();
+    const int fNumRecords;
 
-        // Adjust the rect for its own paint.
-        if (!AdjustForPaint(paint, &rect)) {
-            // The paint could do anything to our bounds.  The only safe answer is the current clip.
-            return fCurrentClipBounds;
-        }
-
-        // Adjust rect for all the paints from the SaveLayers we're inside.
-        if (!this->adjustForSaveLayerPaints(&rect)) {
-            // Same deal as above.
-            return fCurrentClipBounds;
-        }
-
-        // Map the rect back to identity space.
-        fCTM->mapRect(&rect);
-
-        // Nothing can draw outside the current clip.
-        // (Only bounded ops call into this method, so oddballs like Clear don't matter here.)
-        rect.intersect(fCurrentClipBounds);
-        return rect;
-    }
+    // We do not guarantee anything for operations outside of the cull rect
+    const SkRect fCullRect;
 
     // Conservative identity-space bounds for each op in the SkRecord.
-    SkAutoTMalloc<Bounds> fBounds;
+    Bounds* fBounds;
 
     // We walk fCurrentOp through the SkRecord, as we go using updateCTM()
     // and updateClipBounds() to maintain the exact CTM (fCTM) and conservative
     // identity-space bounds of the current clip (fCurrentClipBounds).
-    unsigned fCurrentOp;
-    const SkMatrix* fCTM;
+    int fCurrentOp;
+    SkMatrix fCTM;
     Bounds fCurrentClipBounds;
 
     // Used to track the bounds of Save/Restore blocks and the control ops inside them.
     SkTDArray<SaveBounds> fSaveStack;
-    SkTDArray<unsigned>   fControlIndices;
+    SkTDArray<int>   fControlIndices;
 };
 
 }  // namespace SkRecords
 
-void SkRecordFillBounds(const SkRecord& record, SkBBoxHierarchy* bbh) {
-    SkRecords::FillBounds(record, bbh);
+void SkRecordFillBounds(const SkRect& cullRect, const SkRecord& record, SkRect bounds[]) {
+    SkRecords::FillBounds visitor(cullRect, record, bounds);
+    for (int curOp = 0; curOp < record.count(); curOp++) {
+        visitor.setCurrentOp(curOp);
+        record.visit(curOp, visitor);
+    }
+    visitor.cleanUp();
 }
+

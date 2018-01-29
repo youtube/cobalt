@@ -74,6 +74,11 @@ inline RectF operator-(const RectF& lhs, const Vector2dF& rhs) {
   return RectF(lhs.x() - rhs.x(), lhs.y() - rhs.y(), lhs.width(), lhs.height());
 }
 
+inline std::ostream& operator<<(std::ostream& os, const RectF& rect) {
+  os << rect.ToString();
+  return os;
+}
+
 inline RectF operator+(const Vector2dF& lhs, const RectF& rhs) {
   return rhs + lhs;
 }

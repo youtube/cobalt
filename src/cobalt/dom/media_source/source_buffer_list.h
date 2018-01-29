@@ -66,7 +66,7 @@ class SourceBufferList : public EventTarget {
   // Custom, not in any spec.
   //
   explicit SourceBufferList(EventQueue* event_queue);
-  ~SourceBufferList() OVERRIDE;
+  ~SourceBufferList() override;
 
   // Web API: SourceBuffer
   //
@@ -83,13 +83,12 @@ class SourceBufferList : public EventTarget {
   bool Contains(const scoped_refptr<SourceBuffer>& source_buffer) const;
   void Clear();
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
-
   DEFINE_WRAPPABLE_TYPE(SourceBufferList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "SourceBufferList"; }
+  std::string GetDebugName() override { return "SourceBufferList"; }
   void ScheduleEvent(base::Token event_name);
 
   // Use vector so we can reserve memory in ctor.

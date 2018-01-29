@@ -40,7 +40,7 @@ class SpeechSynthesisErrorEvent : public SpeechSynthesisEvent {
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisErrorEvent);
 
  private:
-  ~SpeechSynthesisErrorEvent() OVERRIDE {}
+  ~SpeechSynthesisErrorEvent() override {}
 
   const SpeechSynthesisErrorCode error_code_;
 

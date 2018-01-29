@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2008 The Android Open Source Project
  *
@@ -43,16 +42,6 @@ void SkPoint::setIRectFan(int l, int t, int r, int b, size_t stride) {
                                                    SkIntToScalar(t));
 }
 
-void SkPoint::setRectFan(SkScalar l, SkScalar t, SkScalar r, SkScalar b,
-                         size_t stride) {
-    SkASSERT(stride >= sizeof(SkPoint));
-
-    ((SkPoint*)((intptr_t)this + 0 * stride))->set(l, t);
-    ((SkPoint*)((intptr_t)this + 1 * stride))->set(l, b);
-    ((SkPoint*)((intptr_t)this + 2 * stride))->set(r, b);
-    ((SkPoint*)((intptr_t)this + 3 * stride))->set(r, t);
-}
-
 void SkPoint::rotateCW(SkPoint* dst) const {
     SkASSERT(dst);
 
@@ -73,7 +62,7 @@ void SkPoint::rotateCCW(SkPoint* dst) const {
 
 void SkPoint::scale(SkScalar scale, SkPoint* dst) const {
     SkASSERT(dst);
-    dst->set(SkScalarMul(fX, scale), SkScalarMul(fY, scale));
+    dst->set(fX * scale, fY * scale);
 }
 
 bool SkPoint::normalize() {
@@ -99,8 +88,8 @@ static inline float getLengthSquared(float dx, float dy) {
 // This logic is encapsulated in a helper method to make it explicit that we
 // always perform this check in the same manner, to avoid inconsistencies
 // (see http://code.google.com/p/skia/issues/detail?id=560 ).
-static inline bool isLengthNearlyZero(float dx, float dy,
-                                      float *lengthSquared) {
+static inline bool is_length_nearly_zero(float dx, float dy,
+                                         float *lengthSquared) {
     *lengthSquared = getLengthSquared(dx, dy);
     return *lengthSquared <= (SK_ScalarNearlyZero * SK_ScalarNearlyZero);
 }
@@ -109,7 +98,8 @@ SkScalar SkPoint::Normalize(SkPoint* pt) {
     float x = pt->fX;
     float y = pt->fY;
     float mag2;
-    if (isLengthNearlyZero(x, y, &mag2)) {
+    if (is_length_nearly_zero(x, y, &mag2)) {
+        pt->set(0, 0);
         return 0;
     }
 
@@ -156,7 +146,8 @@ SkScalar SkPoint::Length(SkScalar dx, SkScalar dy) {
  */
 bool SkPoint::setLength(float x, float y, float length) {
     float mag2;
-    if (isLengthNearlyZero(x, y, &mag2)) {
+    if (is_length_nearly_zero(x, y, &mag2)) {
+        this->set(0, 0);
         return false;
     }
 
@@ -169,7 +160,7 @@ bool SkPoint::setLength(float x, float y, float length) {
         // divide by inf. and return (0,0) vector.
         double xx = x;
         double yy = y;
-    #ifdef SK_DISCARD_DENORMALIZED_FOR_SPEED
+    #ifdef SK_CPU_FLUSH_TO_ZERO
         // The iOS ARM processor discards small denormalized numbers to go faster.
         // Casting this to a float would cause the scale to go to zero. Keeping it
         // as a double for the multiply keeps the scale non-zero.
@@ -192,7 +183,8 @@ bool SkPoint::setLengthFast(float length) {
 
 bool SkPoint::setLengthFast(float x, float y, float length) {
     float mag2;
-    if (isLengthNearlyZero(x, y, &mag2)) {
+    if (is_length_nearly_zero(x, y, &mag2)) {
+        this->set(0, 0);
         return false;
     }
 
@@ -230,7 +222,9 @@ SkScalar SkPoint::distanceToLineBetweenSqd(const SkPoint& a,
                   1 == kRight_Side);
         *side = (Side) SkScalarSignAsInt(det);
     }
-    return SkScalarMulDiv(det, det, uLengthSqd);
+    SkScalar temp = det / uLengthSqd;
+    temp *= det;
+    return temp;
 }
 
 SkScalar SkPoint::distanceToLineSegmentBetweenSqd(const SkPoint& a,
@@ -263,6 +257,8 @@ SkScalar SkPoint::distanceToLineSegmentBetweenSqd(const SkPoint& a,
         return b.distanceToSqd(*this);
     } else {
         SkScalar det = u.cross(v);
-        return SkScalarMulDiv(det, det, uLengthSqd);
+        SkScalar temp = det / uLengthSqd;
+        temp *= det;
+        return temp;
     }
 }

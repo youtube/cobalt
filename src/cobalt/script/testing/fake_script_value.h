@@ -29,18 +29,16 @@ class FakeScriptValue : public cobalt::script::ScriptValue<T> {
   explicit FakeScriptValue(const T* listener)
       : value_(listener) {}
 
-  void RegisterOwner(script::Wrappable*) OVERRIDE {}
-  void DeregisterOwner(script::Wrappable*) OVERRIDE {}
-  void PreventGarbageCollection() OVERRIDE {}
-  void AllowGarbageCollection() OVERRIDE {}
-  const T* GetScriptValue(void) const OVERRIDE {
-    return value_;
-  }
-  scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
+  void RegisterOwner(script::Wrappable*) override {}
+  void DeregisterOwner(script::Wrappable*) override {}
+  void PreventGarbageCollection() override {}
+  void AllowGarbageCollection() override {}
+  const T* GetScriptValue(void) const override { return value_; }
+  scoped_ptr<BaseClass> MakeCopy() const override {
     return make_scoped_ptr<BaseClass>(new FakeScriptValue(value_));
   }
 
-  bool EqualTo(const BaseClass& other) const OVERRIDE {
+  bool EqualTo(const BaseClass& other) const override {
     const FakeScriptValue* other_script_object =
         base::polymorphic_downcast<const FakeScriptValue*>(&other);
     return value_ == other_script_object->value_;

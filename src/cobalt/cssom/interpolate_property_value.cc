@@ -66,41 +66,41 @@ class InterpolateVisitor : public PropertyValueVisitor {
     return interpolated_value_;
   }
 
-  void VisitAbsoluteURL(AbsoluteURLValue* start_absolute_url_value) OVERRIDE;
-  void VisitCalc(CalcValue* start_calc_value) OVERRIDE;
+  void VisitAbsoluteURL(AbsoluteURLValue* start_absolute_url_value) override;
+  void VisitCalc(CalcValue* start_calc_value) override;
   void VisitFilterFunctionList(
-      FilterFunctionListValue* start_filter_function_list_value) OVERRIDE;
-  void VisitFontStyle(FontStyleValue* start_font_style_value) OVERRIDE;
-  void VisitFontWeight(FontWeightValue* start_font_weight_value) OVERRIDE;
-  void VisitInteger(IntegerValue* integer_value) OVERRIDE;
-  void VisitKeyword(KeywordValue* start_keyword_value) OVERRIDE;
-  void VisitLength(LengthValue* start_length_value) OVERRIDE;
+      FilterFunctionListValue* start_filter_function_list_value) override;
+  void VisitFontStyle(FontStyleValue* start_font_style_value) override;
+  void VisitFontWeight(FontWeightValue* start_font_weight_value) override;
+  void VisitInteger(IntegerValue* integer_value) override;
+  void VisitKeyword(KeywordValue* start_keyword_value) override;
+  void VisitLength(LengthValue* start_length_value) override;
   void VisitLinearGradient(
-      LinearGradientValue* start_linear_gradient_value) OVERRIDE;
-  void VisitLocalSrc(LocalSrcValue* local_src_value) OVERRIDE;
+      LinearGradientValue* start_linear_gradient_value) override;
+  void VisitLocalSrc(LocalSrcValue* local_src_value) override;
   void VisitMediaFeatureKeywordValue(
-      MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
-  void VisitNumber(NumberValue* start_number_value) OVERRIDE;
-  void VisitPercentage(PercentageValue* start_percentage_value) OVERRIDE;
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+      MediaFeatureKeywordValue* media_feature_keyword_value) override;
+  void VisitNumber(NumberValue* start_number_value) override;
+  void VisitPercentage(PercentageValue* start_percentage_value) override;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
   void VisitPropertyKeyList(
-      PropertyKeyListValue* property_key_list_value) OVERRIDE;
-  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) OVERRIDE;
-  void VisitRatio(RatioValue* start_ratio_value) OVERRIDE;
-  void VisitResolution(ResolutionValue* start_resolution_value) OVERRIDE;
-  void VisitRGBAColor(RGBAColorValue* start_color_value) OVERRIDE;
-  void VisitShadow(ShadowValue* shadow_value) OVERRIDE;
-  void VisitString(StringValue* start_string_value) OVERRIDE;
+      PropertyKeyListValue* property_key_list_value) override;
+  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) override;
+  void VisitRatio(RatioValue* start_ratio_value) override;
+  void VisitResolution(ResolutionValue* start_resolution_value) override;
+  void VisitRGBAColor(RGBAColorValue* start_color_value) override;
+  void VisitShadow(ShadowValue* shadow_value) override;
+  void VisitString(StringValue* start_string_value) override;
   void VisitTransformFunctionList(
-      TransformFunctionListValue* start_transform_list_value) OVERRIDE;
+      TransformFunctionListValue* start_transform_list_value) override;
   void VisitTransformMatrixFunction(
-      TransformMatrixFunctionValue* transform_matrix_function_value) OVERRIDE;
-  void VisitTimeList(TimeListValue* start_time_list_value) OVERRIDE;
+      TransformMatrixFunctionValue* transform_matrix_function_value) override;
+  void VisitTimeList(TimeListValue* start_time_list_value) override;
   void VisitTimingFunctionList(
-      TimingFunctionListValue* start_timing_function_list_value) OVERRIDE;
-  void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) OVERRIDE;
-  void VisitURL(URLValue* url_value) OVERRIDE;
-  void VisitUrlSrc(UrlSrcValue* url_src_value) OVERRIDE;
+      TimingFunctionListValue* start_timing_function_list_value) override;
+  void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) override;
+  void VisitURL(URLValue* url_value) override;
+  void VisitUrlSrc(UrlSrcValue* url_src_value) override;
 
  private:
   scoped_refptr<PropertyValue> end_value_;
@@ -152,10 +152,10 @@ class AnimateTransformFunction : public TransformFunctionVisitor {
   }
 
  private:
-  void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE;
-  void VisitRotate(const RotateFunction* rotate_function) OVERRIDE;
-  void VisitScale(const ScaleFunction* scale_function) OVERRIDE;
-  void VisitTranslate(const TranslateFunction* translate_function) OVERRIDE;
+  void VisitMatrix(const MatrixFunction* matrix_function) override;
+  void VisitRotate(const RotateFunction* rotate_function) override;
+  void VisitScale(const ScaleFunction* scale_function) override;
+  void VisitTranslate(const TranslateFunction* translate_function) override;
 
   AnimateTransformFunction(const TransformFunction* end, float progress)
       : end_(end), progress_(progress) {}

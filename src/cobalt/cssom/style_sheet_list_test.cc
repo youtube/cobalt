@@ -14,6 +14,7 @@
 
 #include "cobalt/cssom/style_sheet_list.h"
 
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -37,6 +38,31 @@ TEST(StyleSheetListTest, ItemAccess) {
 
   style_sheet_list = NULL;
   ASSERT_FALSE(style_sheet->ParentStyleSheetList());
+}
+
+TEST(StyleSheetListTest, Index) {
+  scoped_refptr<CSSStyleSheet> style_sheet_0 = new CSSStyleSheet();
+  style_sheet_0->SetOriginClean(true);
+  scoped_refptr<CSSStyleSheet> style_sheet_1 = new CSSStyleSheet();
+  style_sheet_1->SetOriginClean(true);
+
+  ASSERT_EQ(-1, style_sheet_0->index());
+  ASSERT_EQ(-1, style_sheet_1->index());
+
+  StyleSheetVector style_sheet_vector;
+  style_sheet_vector.push_back(style_sheet_0);
+  style_sheet_vector.push_back(style_sheet_1);
+
+  scoped_refptr<StyleSheetList> style_sheet_list =
+      new StyleSheetList(style_sheet_vector, NULL);
+
+  ASSERT_EQ(0, style_sheet_0->index());
+  ASSERT_EQ(1, style_sheet_1->index());
+
+  style_sheet_list = NULL;
+
+  ASSERT_EQ(-1, style_sheet_0->index());
+  ASSERT_EQ(-1, style_sheet_1->index());
 }
 
 }  // namespace cssom

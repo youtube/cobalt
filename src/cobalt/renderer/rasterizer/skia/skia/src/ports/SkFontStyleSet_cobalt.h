@@ -58,8 +58,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
           disable_synthetic_bolding(disable_synthetic_bolding),
           is_face_info_generated(false),
           face_style(SkTypeface::kNormal),
-          face_is_fixed_pitch(false),
-          typeface(NULL) {}
+          face_is_fixed_pitch(false) {}
 
     const SkString font_file_path;
     const int face_index;
@@ -74,7 +73,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     SkTypeface::Style face_style;
     bool face_is_fixed_pitch;
 
-    SkAutoTUnref<SkTypeface> typeface;
+    sk_sp<SkTypeface> typeface;
   };
 
   SkFontStyleSet_Cobalt(
@@ -83,16 +82,16 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
       SkMutex* const manager_owned_mutex);
 
   // From SkFontStyleSet
-  virtual int count() SK_OVERRIDE;
+  int count() override;
   // NOTE: SkFontStyleSet_Cobalt does not support getStyle(), as publicly
   // accessing styles by index is unsafe.
-  virtual void getStyle(int index, SkFontStyle* style,
-                        SkString* name) SK_OVERRIDE;
+  void getStyle(int index, SkFontStyle* style,
+                        SkString* name) override;
   // NOTE: SkFontStyleSet_Cobalt does not support createTypeface(), as
   // publicly accessing styles by index is unsafe.
-  virtual SkTypeface* createTypeface(int index) SK_OVERRIDE;
+  SkTypeface* createTypeface(int index) override;
 
-  virtual SkTypeface* matchStyle(const SkFontStyle& pattern) SK_OVERRIDE;
+  SkTypeface* matchStyle(const SkFontStyle& pattern) override;
 
   const SkString& get_family_name() const { return family_name_; }
 
@@ -133,7 +132,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   bool is_character_map_generated_;
   font_character_map::CharacterMap character_map_;
 
-  SkTArray<SkAutoTUnref<SkFontStyleSetEntry_Cobalt>, true> styles_;
+  SkTArray<sk_sp<SkFontStyleSetEntry_Cobalt>, true> styles_;
 
   friend class SkFontMgr_Cobalt;
 };

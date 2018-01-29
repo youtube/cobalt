@@ -6,10 +6,10 @@
  */
 
 #include "gm.h"
-#include "SkColorFilter.h"
+#include "sk_tool_utils.h"
 #include "SkBlurMaskFilter.h"
-
-namespace skiagm {
+#include "SkColorFilter.h"
+#include "SkPath.h"
 
 /**
  * This test exercises bug 1719. An anti-aliased blurred path is rendered through a soft clip. On
@@ -19,26 +19,8 @@ namespace skiagm {
  *
  * The correct image should look like a thin stroked round rect.
  */
-class SkBug1719GM : public GM {
-public:
-    SkBug1719GM() {}
-
-protected:
-    virtual SkString onShortName() SK_OVERRIDE {
-        return SkString("skbug1719");
-    }
-
-    virtual SkISize onISize() SK_OVERRIDE {
-        return SkISize::Make(300, 100);
-    }
-
-    virtual void onDrawBackground(SkCanvas* canvas) SK_OVERRIDE {
-        SkPaint bgPaint;
-        bgPaint.setColor(0xFF303030);
-        canvas->drawPaint(bgPaint);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+DEF_SIMPLE_GM_BG(skbug1719, canvas, 300, 100,
+                 sk_tool_utils::color_to_565(0xFF303030)) {
         canvas->translate(SkIntToScalar(-800), SkIntToScalar(-650));
 
         // The data is lifted from an SKP that exhibited the bug.
@@ -80,23 +62,10 @@ protected:
         paint.setAntiAlias(true);
         paint.setColor(0xFF000000);
         paint.setMaskFilter(
-            SkBlurMaskFilter::Create(kNormal_SkBlurStyle,
-                                     0.78867501f,
-                                     SkBlurMaskFilter::kHighQuality_BlurFlag))->unref();
-        paint.setColorFilter(
-            SkColorFilter::CreateModeFilter(0xBFFFFFFF, SkXfermode::kSrcIn_Mode))->unref();
+            SkBlurMaskFilter::Make(kNormal_SkBlurStyle, 0.78867501f,
+                                   SkBlurMaskFilter::kHighQuality_BlurFlag));
+        paint.setColorFilter(SkColorFilter::MakeModeFilter(0xBFFFFFFF, SkBlendMode::kSrcIn));
 
-        canvas->clipPath(clipPath, SkRegion::kIntersect_Op, true);
+        canvas->clipPath(clipPath, true);
         canvas->drawPath(drawPath, paint);
-    }
-
-private:
-
-    typedef GM INHERITED;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-DEF_GM(return new SkBug1719GM;)
-
 }

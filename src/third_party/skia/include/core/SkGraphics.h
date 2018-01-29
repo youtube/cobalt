@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,25 +5,26 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkGraphics_DEFINED
 #define SkGraphics_DEFINED
 
-#include "SkTypes.h"
+#include "SkRefCnt.h"
+
+class SkData;
+class SkImageGenerator;
+class SkTraceMemoryDump;
 
 class SK_API SkGraphics {
 public:
     /**
      *  Call this at process initialization time if your environment does not
-     *  permit static global initializers that execute code. Note that
-     *  Init() is not thread-safe.
+     *  permit static global initializers that execute code.
+     *  Init() is thread-safe and idempotent.
      */
     static void Init();
 
-    /**
-     *  Call this to release any memory held privately, such as the font cache.
-     */
-    static void Term();
+    // We're in the middle of cleaning this up.
+    static void Term() {}
 
     /**
      *  Return the version numbers for the library. If the parameter is not
@@ -72,6 +72,30 @@ public:
      */
     static int SetFontCacheCountLimit(int count);
 
+    /*
+     *  Returns the maximum point size for text that may be cached.
+     *
+     *  Sizes above this will be drawn directly from the font's outline.
+     *  Setting this to a large value may speed up drawing larger text (repeatedly),
+     *  but could cause the cache to purge other sizes more often.
+     *
+     *  This value is a hint to the font engine, and the actual limit may be different due to
+     *  implementation specific details.
+     */
+    static int GetFontCachePointSizeLimit();
+
+    /*
+     *  Set the maximum point size for text that may be cached, returning the previous value.
+     *
+     *  Sizes above this will be drawn directly from the font's outline.
+     *  Setting this to a large value may speed up drawing larger text (repeatedly),
+     *  but could cause the cache to purge other sizes more often.
+     *
+     *  This value is a hint to the font engine, and the actual limit may be different due to
+     *  implementation specific details.
+     */
+    static int SetFontCachePointSizeLimit(int maxPointSize);
+
     /**
      *  For debugging purposes, this will attempt to purge the font cache. It
      *  does not change the limit, but will cause subsequent font measures and
@@ -80,7 +104,7 @@ public:
     static void PurgeFontCache();
 
     /**
-     *  Scaling bitmaps with the SkPaint::kHigh_FilterLevel setting is
+     *  Scaling bitmaps with the kHigh_SkFilterQuality setting is
      *  expensive, so the result is saved in the global Scaled Image
      *  Cache.
      *
@@ -113,32 +137,19 @@ public:
     static size_t GetResourceCacheSingleAllocationByteLimit();
     static size_t SetResourceCacheSingleAllocationByteLimit(size_t newLimit);
 
-#ifdef SK_SUPPORT_LEGACY_IMAGECACHE_NAME
-    static size_t GetImageCacheBytesUsed() {
-        return GetImageCacheTotalBytesUsed();
-    }
-    static size_t GetImageCacheByteLimit() {
-        return GetImageCacheTotalByteLimit();
-    }
-    static size_t SetImageCacheByteLimit(size_t newLimit) {
-        return SetImageCacheTotalByteLimit(newLimit);
-    }
-    static size_t GetImageCacheTotalBytesUsed() {
-        return GetResourceCacheTotalBytesUsed();
-    }
-    static size_t GetImageCacheTotalByteLimit() {
-        return GetResourceCacheTotalByteLimit();
-    }
-    static size_t SetImageCacheTotalByteLimit(size_t newLimit) {
-        return SetResourceCacheTotalByteLimit(newLimit);
-    }
-    static size_t GetImageCacheSingleAllocationByteLimit() {
-        return GetResourceCacheSingleAllocationByteLimit();
-    }
-    static size_t SetImageCacheSingleAllocationByteLimit(size_t newLimit) {
-        return SetResourceCacheSingleAllocationByteLimit(newLimit);
-    }
-#endif
+    /**
+     *  Dumps memory usage of caches using the SkTraceMemoryDump interface. See SkTraceMemoryDump
+     *  for usage of this method.
+     */
+    static void DumpMemoryStatistics(SkTraceMemoryDump* dump);
+
+    /**
+     *  Free as much globally cached memory as possible. This will purge all private caches in Skia,
+     *  including font and image caches.
+     *
+     *  If there are caches associated with GPU context, those will not be affected by this call.
+     */
+    static void PurgeAllCaches();
 
     /**
      *  Applications with command line options may pass optional state, such
@@ -170,21 +181,24 @@ public:
      */
     static void SetTLSFontCacheLimit(size_t bytes);
 
-private:
-    /** This is automatically called by SkGraphics::Init(), and must be
-        implemented by the host OS. This allows the host OS to register a callback
-        with the C++ runtime to call SkGraphics::FreeCaches()
-    */
-    static void InstallNewHandler();
+    typedef std::unique_ptr<SkImageGenerator>
+                                            (*ImageGeneratorFromEncodedDataFactory)(sk_sp<SkData>);
+
+    /**
+     *  To instantiate images from encoded data, first looks at this runtime function-ptr. If it
+     *  exists, it is called to create an SkImageGenerator from SkData. If there is no function-ptr
+     *  or there is, but it returns NULL, then skia will call its internal default implementation.
+     *
+     *  Returns the previous factory (which could be NULL).
+     */
+    static ImageGeneratorFromEncodedDataFactory
+                    SetImageGeneratorFromEncodedDataFactory(ImageGeneratorFromEncodedDataFactory);
 };
 
 class SkAutoGraphics {
 public:
     SkAutoGraphics() {
         SkGraphics::Init();
-    }
-    ~SkAutoGraphics() {
-        SkGraphics::Term();
     }
 };
 

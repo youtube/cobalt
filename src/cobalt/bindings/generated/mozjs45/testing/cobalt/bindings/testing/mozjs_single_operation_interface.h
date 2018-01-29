@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ class MozjsSingleOperationInterface : public SingleOperationInterface {
   base::optional<int32_t > HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
-      bool* had_exception) const OVERRIDE;
+      bool* had_exception) const override;
   JSObject* handle() const { return implementing_object_.GetObject(); }
   const JS::Value& value() const { return implementing_object_.GetValue(); }
   bool WasCollected() const { return implementing_object_.WasCollected(); }

@@ -14,6 +14,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
+#include "cobalt/bindings/testing/utils.h"
 #include "cobalt/bindings/testing/window_mock.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -74,7 +75,7 @@ TEST_F(GlobalInterfaceBindingsTest, GlobalInterfaceConstructorIsSet) {
 //   2. Interface members from the interface (or consequential interfaces) will
 //      correspond to properties on the object itself rather than on interface
 //      prototype objects.
-TEST_F(GlobalInterfaceBindingsTest, PropertiesAndOperationsAreOwnProperties) {
+TEST_F(GlobalInterfaceBindingsTest, DISABLED_PropertiesAndOperationsAreOwnProperties) {
   std::string result;
   EXPECT_TRUE(
       EvaluateScript("this.hasOwnProperty(\"windowProperty\");", &result));
@@ -100,7 +101,8 @@ TEST_F(GlobalInterfaceBindingsTest, ConstructorExists) {
 TEST_F(GlobalInterfaceBindingsTest, ConstructorPrototype) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("ArbitraryInterface.prototype", &result));
-  EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
+  EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
+      << result;
 }
 
 TEST_F(GlobalInterfaceBindingsTest,

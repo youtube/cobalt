@@ -1,23 +1,17 @@
-/*
- * SkRasterWidget.h
- *
- *  Created on: Jul 28, 2012
- *      Author: chudy
- */
 
+/*
+ * Copyright 2016 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
 
 #ifndef SKRASTERWIDGET_H_
 #define SKRASTERWIDGET_H_
 
-#if SK_SUPPORT_GPU
-#include "SkGpuDevice.h"
-#endif
+#include "SkSurface.h"
+class SkDebugger;
 
-#include "SkBitmapDevice.h"
-#include "SkDebugger.h"
-
-#include <QApplication>
-#include <QtGui>
 #include <QWidget>
 
 class  SkRasterWidget : public QWidget {
@@ -26,13 +20,9 @@ class  SkRasterWidget : public QWidget {
 public:
     SkRasterWidget(SkDebugger* debugger);
 
-    ~SkRasterWidget();
+    void updateImage();
 
-    void draw() {
-        this->update();
-    }
-
-signals:
+Q_SIGNALS:
     void drawComplete();
 
 protected:
@@ -41,10 +31,9 @@ protected:
     void resizeEvent(QResizeEvent* event);
 
 private:
-    SkBitmap fBitmap;
     SkDebugger* fDebugger;
-    SkCanvas* fCanvas;
-    SkBaseDevice* fDevice;
+    sk_sp<SkSurface> fSurface;
+    bool fNeedImageUpdate;
 };
 
 #endif /* SKRASTERWIDGET_H_ */

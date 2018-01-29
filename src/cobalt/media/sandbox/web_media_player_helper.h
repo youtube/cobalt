@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module.h"
@@ -34,6 +35,7 @@ namespace media {
 namespace sandbox {
 
 #if !defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ChunkDemuxer ChunkDemuxer;
 typedef ::media::VideoFrame VideoFrame;
 typedef ::media::WebMediaPlayer WebMediaPlayer;
 #endif  // !defined(WebMediaPlayerDelegate)
@@ -43,13 +45,20 @@ typedef ::media::WebMediaPlayer WebMediaPlayer;
 // simplify the using of WebMediaPlayer.
 class WebMediaPlayerHelper {
  public:
-  explicit WebMediaPlayerHelper(MediaModule* media_module);
+  typedef base::Callback<void(ChunkDemuxer*)> ChunkDemuxerOpenCB;
+
+  // Ctor to create an adaptive pipeline.  |open_cb| will be called when the
+  // ChunkDemuxer is ready to add source buffers.
+  WebMediaPlayerHelper(MediaModule* media_module,
+                       const ChunkDemuxerOpenCB& chunk_demuxer_open_cb);
+  // Ctor to create a progressive pipeline.
   WebMediaPlayerHelper(MediaModule* media_module,
                        loader::FetcherFactory* fetcher_factory,
                        const GURL& video_url);
   ~WebMediaPlayerHelper();
 
   scoped_refptr<VideoFrame> GetCurrentFrame() const;
+  SbDecodeTarget GetCurrentDecodeTarget() const;
   bool IsPlaybackFinished() const;
 
   WebMediaPlayer* player() { return player_.get(); }

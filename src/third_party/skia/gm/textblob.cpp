@@ -6,6 +6,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 
 #include "SkCanvas.h"
 #include "SkPoint.h"
@@ -67,28 +68,32 @@ const SkScalar kFontSize = 16;
 class TextBlobGM : public skiagm::GM {
 public:
     TextBlobGM(const char* txt)
-        : fTypeface(sk_tool_utils::create_portable_typeface("Times", SkTypeface::kNormal)) {
-        SkPaint p;
-        p.setTypeface(fTypeface);
-        size_t txtLen = strlen(txt);
-        int glyphCount = p.textToGlyphs(txt, txtLen, NULL);
-
-        fGlyphs.append(glyphCount);
-        p.textToGlyphs(txt, txtLen, fGlyphs.begin());
+        : fText(txt) {
     }
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    void onOnceBeforeDraw() override {
+        fTypeface = sk_tool_utils::create_portable_typeface("serif", SkFontStyle());
+        SkPaint p;
+        p.setTypeface(fTypeface);
+        size_t txtLen = strlen(fText);
+        int glyphCount = p.textToGlyphs(fText, txtLen, nullptr);
+
+        fGlyphs.append(glyphCount);
+        p.textToGlyphs(fText, txtLen, fGlyphs.begin());
+    }
+
+    SkString onShortName() override {
         return SkString("textblob");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(640, 480);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         for (unsigned b = 0; b < SK_ARRAY_COUNT(blobConfigs); ++b) {
-            SkAutoTUnref<const SkTextBlob> blob(this->makeBlob(b));
+            sk_sp<SkTextBlob> blob(this->makeBlob(b));
 
             SkPaint p;
             SkPoint offset = SkPoint::Make(SkIntToScalar(10 + 300 * (b % 2)),
@@ -106,7 +111,7 @@ protected:
     }
 
 private:
-    const SkTextBlob* makeBlob(unsigned blobIndex) {
+    sk_sp<SkTextBlob> makeBlob(unsigned blobIndex) {
         SkTextBlobBuilder builder;
 
         SkPaint font;
@@ -166,20 +171,20 @@ private:
                     memcpy(buf.pos, pos.begin(), count * sizeof(SkScalar) * 2);
                 } break;
                 default:
-                    SkFAIL("unhandled pos value");
+                    SK_ABORT("unhandled pos value");
                 }
 
                 currentGlyph += count;
             }
         }
 
-        return builder.build();
+        return builder.make();
     }
 
-    SkTDArray<uint16_t>      fGlyphs;
-    SkAutoTUnref<SkTypeface> fTypeface;
-
+    SkTDArray<uint16_t> fGlyphs;
+    sk_sp<SkTypeface>   fTypeface;
+    const char*         fText;
     typedef skiagm::GM INHERITED;
 };
 
-DEF_GM( return SkNEW_ARGS(TextBlobGM, ("hamburgefons")); )
+DEF_GM(return new TextBlobGM("hamburgefons");)

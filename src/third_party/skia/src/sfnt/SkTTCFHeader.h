@@ -9,6 +9,7 @@
 #define SkTTCFHeader_DEFINED
 
 #include "SkOTTableTypes.h"
+#include "SkSFNTHeader.h"
 
 #pragma pack(push, 1)
 
@@ -51,6 +52,6 @@ struct SkTTCFHeader {
 #pragma pack(pop)
 
 
-SK_COMPILE_ASSERT(sizeof(SkTTCFHeader) == 12, sizeof_SkTTCFHeader_not_12);
+static_assert(sizeof(SkTTCFHeader) == 12, "sizeof_SkTTCFHeader_not_12");
 
 #endif

@@ -17,15 +17,15 @@ public:
     }
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("thinrects");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(240, 320);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
 
         SkPaint white;
         white.setColor(SK_ColorWHITE);
@@ -65,7 +65,7 @@ protected:
 
 private:
     static void DrawVertRects(SkCanvas* canvas, const SkPaint& p) {
-        static const SkRect vertRects[] = {
+        constexpr SkRect vertRects[] = {
             { 1,  1,    5.0f, 21 }, // 4 pix wide
             { 8,  1,   10.0f, 21 }, // 2 pix wide
             { 13, 1,   14.0f, 21 }, // 1 pix wide
@@ -81,7 +81,7 @@ private:
     }
 
     static void DrawHorizRects(SkCanvas* canvas, const SkPaint& p) {
-        static const SkRect horizRects[] = {
+        constexpr SkRect horizRects[] = {
             { 1, 1,  21,    5.0f }, // 4 pix high
             { 1, 8,  21,   10.0f }, // 2 pix high
             { 1, 13, 21,   14.0f }, // 1 pix high
@@ -97,7 +97,7 @@ private:
     }
 
     static void DrawSquares(SkCanvas* canvas, const SkPaint& p) {
-        static const SkRect squares[] = {
+        constexpr SkRect squares[] = {
             { 1,  1,     5.0f,    5.0f }, // 4 pix
             { 8,  8,    10.0f,   10.0f }, // 2 pix
             { 13, 13,   14.0f,   14.0f }, // 1 pix

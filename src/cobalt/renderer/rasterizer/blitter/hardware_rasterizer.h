@@ -39,7 +39,6 @@ class HardwareRasterizer : public Rasterizer {
   explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
                               int skia_atlas_width, int skia_atlas_height,
                               int scratch_surface_size_in_bytes,
-                              int surface_cache_size_in_bytes,
                               int software_surface_cache_size_in_bytes,
                               bool purge_skia_font_caches_on_destruction);
   virtual ~HardwareRasterizer();
@@ -48,11 +47,11 @@ class HardwareRasterizer : public Rasterizer {
   // into the constructor.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              const Options& options) OVERRIDE;
+              const Options& options) override;
 
-  render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+  render_tree::ResourceProvider* GetResourceProvider() override;
 
-  void MakeCurrent() OVERRIDE {}
+  void MakeCurrent() override {}
 
  private:
   class Impl;

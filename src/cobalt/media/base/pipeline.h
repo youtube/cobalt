@@ -26,32 +26,23 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/ranges.h"
-#include "cobalt/media/base/video_dumper.h"
 #include "starboard/drm.h"
+#include "starboard/window.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
-
-#include "starboard/window.h"
-typedef SbWindow PipelineWindow;
 
 namespace cobalt {
 namespace media {
 
 class MediaLog;
 
+typedef SbWindow PipelineWindow;
+
 // Callback to notify that a DRM system is ready.
 typedef base::Callback<void(SbDrmSystem)> DrmSystemReadyCB;
 
 // Callback to set an DrmSystemReadyCB.
 typedef base::Callback<void(const DrmSystemReadyCB&)> SetDrmSystemReadyCB;
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-// Callback to notify that EME init data is ready.
-typedef base::Callback<void(const std::vector<uint8_t>&)> EMEInitDataReadyCB;
-
-// Callback to set an EMEInitDataReadyCB.
-typedef base::Callback<void(const EMEInitDataReadyCB&)> SetEMEInitDataReadyCB;
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
@@ -112,9 +103,6 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // It is an error to call this method after the pipeline has already started.
   virtual void Start(Demuxer* demuxer,
                      const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-                     const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 #if SB_HAS(PLAYER_WITH_URL)
                      const OnEncryptedMediaInitDataEncounteredCB&
                          encrypted_media_init_data_encountered_cb,
@@ -173,14 +161,22 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Returns the current media playback time, which progresses from 0 until
   // GetMediaDuration().
-  virtual base::TimeDelta GetMediaTime() const = 0;
+  virtual base::TimeDelta GetMediaTime() = 0;
 
   // Get approximate time ranges of buffered media.
   virtual Ranges<base::TimeDelta> GetBufferedTimeRanges() = 0;
 
   // Get the duration of the media in microseconds.  If the duration has not
-  // been determined yet, then returns 0.
+  // been determined yet, then return 0.
   virtual base::TimeDelta GetMediaDuration() const = 0;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  // Get the start date of the media in microseconds since 1601. If the start
+  // date has not been determined yet, then return 0.
+  // TODO: Make GetMediaStartDate return a base::Time instead of
+  // base::TimeDelta.
+  virtual base::TimeDelta GetMediaStartDate() const = 0;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   // Gets the natural size of the video output in pixel units.  If there is no
   // video or the video has not been rendered yet, the width and height will

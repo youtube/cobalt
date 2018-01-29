@@ -37,12 +37,12 @@ class PercentageValue : public PropertyValue {
   // A |value| is a normalized factor, where 1 means 100%.
   explicit PercentageValue(float value) : value_(value) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   // Returns a normalized factor, where 1 means 100%.
   float value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
+  std::string ToString() const override {
     return base::StringPrintf("%.7g%%", value_ * 100);
   }
 
@@ -53,7 +53,7 @@ class PercentageValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(PercentageValue);
 
  private:
-  ~PercentageValue() OVERRIDE {}
+  ~PercentageValue() override {}
 
   const float value_;
 

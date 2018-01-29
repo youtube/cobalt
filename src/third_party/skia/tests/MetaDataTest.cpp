@@ -7,10 +7,11 @@
 
 #include "SkMetaData.h"
 #include "Test.h"
+#include "SkRefCnt.h"
 
 static void test_ptrs(skiatest::Reporter* reporter) {
     SkRefCnt ref;
-    REPORTER_ASSERT(reporter, 1 == ref.getRefCnt());
+    REPORTER_ASSERT(reporter, ref.unique());
 
     {
         SkMetaData md0, md1;
@@ -19,19 +20,19 @@ static void test_ptrs(skiatest::Reporter* reporter) {
         md0.setRefCnt(name, &ref);
         REPORTER_ASSERT(reporter, md0.findRefCnt(name));
         REPORTER_ASSERT(reporter, md0.hasRefCnt(name, &ref));
-        REPORTER_ASSERT(reporter, 2 == ref.getRefCnt());
+        REPORTER_ASSERT(reporter, !ref.unique());
 
         md1 = md0;
         REPORTER_ASSERT(reporter, md1.findRefCnt(name));
         REPORTER_ASSERT(reporter, md1.hasRefCnt(name, &ref));
-        REPORTER_ASSERT(reporter, 3 == ref.getRefCnt());
+        REPORTER_ASSERT(reporter, !ref.unique());
 
         REPORTER_ASSERT(reporter, md0.removeRefCnt(name));
         REPORTER_ASSERT(reporter, !md0.findRefCnt(name));
         REPORTER_ASSERT(reporter, !md0.hasRefCnt(name, &ref));
-        REPORTER_ASSERT(reporter, 2 == ref.getRefCnt());
+        REPORTER_ASSERT(reporter, !ref.unique());
     }
-    REPORTER_ASSERT(reporter, 1 == ref.getRefCnt());
+    REPORTER_ASSERT(reporter, ref.unique());
 }
 
 DEF_TEST(MetaData, reporter) {
@@ -83,7 +84,7 @@ DEF_TEST(MetaData, reporter) {
     int                 loop = 0;
     int count;
     SkMetaData::Type    t;
-    while ((name = iter.next(&t, &count)) != NULL)
+    while ((name = iter.next(&t, &count)) != nullptr)
     {
         int match = 0;
         for (unsigned i = 0; i < SK_ARRAY_COUNT(gElems); i++)

@@ -16,13 +16,13 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate {
  public:
   virtual bool Watch(const FilePath& path,
                      bool recursive,
-                     FilePathWatcher::Delegate* delegate) OVERRIDE {
+                     FilePathWatcher::Delegate* delegate) override {
     return false;
   }
 
-  virtual void Cancel() OVERRIDE {}
+  virtual void Cancel() override {}
 
-  virtual void CancelOnMessageLoopThread() OVERRIDE {}
+  virtual void CancelOnMessageLoopThread() override {}
 
  protected:
   virtual ~FilePathWatcherImpl() {}

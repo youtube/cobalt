@@ -64,8 +64,8 @@ class LayoutStatTracker : public base::StopWatchOwner {
 
  private:
   // From base::StopWatchOwner
-  bool IsStopWatchEnabled(int id) const OVERRIDE;
-  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
+  bool IsStopWatchEnabled(int id) const override;
+  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) override;
 
   // This function updates the CVals from the periodic values and then clears
   // those values.

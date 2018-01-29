@@ -65,7 +65,7 @@ class CustomEvent : public Event {
   DEFINE_WRAPPABLE_TYPE(CustomEvent);
 
  protected:
-  ~CustomEvent() OVERRIDE {}
+  ~CustomEvent() override {}
 
   scoped_ptr<script::ValueHandleHolder::Reference> detail_;
 };

@@ -30,13 +30,39 @@ $var MAX_ARITY = 7
 #include "base/logging.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
-#include "cobalt/script/v8c/weak_heap_object.h"
+#include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/v8c/scoped_persistent.h"
 #include "nb/memory_scope.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
 namespace v8c {
+
+// Helper template functions for Callback functions' return values before being
+// returned to Cobalt.
+// Converts the return value from JavaScript into the correct Cobalt type, or
+// sets the exception bit if conversion fails.
+template <typename R>
+CallbackResult<R> ConvertCallbackReturnValue(v8::Isolate* isolate,
+                                             v8::Local<v8::Value> value) {
+  // TODO: Pass conversion flags to callback function return value if
+  // appropriate.
+  const int kConversionFlags = 0;
+  CallbackResult<R> callback_result;
+  LoggingExceptionState exception_state;
+  FromJSValue(isolate, value, kConversionFlags, &exception_state,
+              &callback_result.result);
+  callback_result.exception = exception_state.is_exception_set();
+  return callback_result;
+}
+
+template <>
+inline CallbackResult<void> ConvertCallbackReturnValue(v8::Isolate* isolate,
+                                                       v8::Local<v8::Value> value) {
+  // No conversion necessary.
+  return CallbackResult<void>();
+}
 
 // First, we forward declare the Callback class template. This informs the
 // compiler that the template only has 1 type parameter which is the base
@@ -50,40 +76,75 @@ $range ARITY 0..MAX_ARITY
 $for ARITY [[
 $range ARG 1..ARITY
 
-
 $if ARITY == 0 [[
 template <typename R>
 class V8cCallbackFunction<R(void)>
-    : public CallbackFunction<R(void)> {
+    : public ScopedPersistent<v8::Value>,
+      public CallbackFunction<R(void)> {
 ]] $else [[
 template <typename R, $for ARG , [[typename A$(ARG)]]>
 class V8cCallbackFunction<R($for ARG , [[A$(ARG)]])>
-    : public CallbackFunction<R($for ARG , [[A$(ARG)]])> {
+    : public ScopedPersistent<v8::Value>,
+      public CallbackFunction<R($for ARG , [[A$(ARG)]])> {
 ]]
 
  public:
   typedef CallbackFunction<R($for ARG , [[A$(ARG)]])> BaseType;
 
-  V8cCallbackFunction(V8cGlobalEnvironment* env, v8::Local<v8::Value> function)
-    : env_(env), weak_function_(env, function) {
-      DCHECK(env_);
-      DCHECK(function->IsFunction());
-  }
+  V8cCallbackFunction() {}
+  V8cCallbackFunction(v8::Isolate* isolate, v8::Local<v8::Value> handle)
+      : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   CallbackResult<R> Run($for ARG , [[
-
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
-      const OVERRIDE {
-    NOTIMPLEMENTED();
+      const override {
     CallbackResult<R> callback_result;
+    DCHECK(!this->IsEmpty());
+    if (this->IsEmpty()) {
+      DLOG(WARNING) << "Function was garbage collected.";
+      callback_result.exception = true;
+      return callback_result;
+    }
+
+    EntryScope entry_scope(isolate_);
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    v8::Local<v8::Value> this_value = v8::Null(isolate_);
+    v8::Local<v8::Value> function = this->NewLocal(isolate_);
+    v8::MaybeLocal<v8::Object> maybe_function_as_object = function->ToObject(context);
+    v8::Local<v8::Object> function_as_object;
+    if (!maybe_function_as_object.ToLocal(&function_as_object)) {
+      DLOG(WARNING) << "Unexpected failure converting function to object.";
+      callback_result.exception = true;
+      return callback_result;
+    }
+
+    const int argc = $(ARITY);
+
+$if ARITY > 0 [[
+    v8::Local<v8::Value> argv[argc];
+    $for ARG [[ToJSValue(isolate_, a$(ARG), &argv[$(ARG - 1)]);
+    ]]
+]] $else [[
+    v8::Local<v8::Value>* argv = nullptr;
+]]
+
+    v8::MaybeLocal<v8::Value> maybe_return_value = function_as_object->CallAsFunction(context, this_value, argc, argv);
+    v8::Local<v8::Value> return_value;
+    if (!maybe_return_value.ToLocal(&return_value)) {
+      NOTIMPLEMENTED();
+      callback_result.exception = true;
+    } else {
+      callback_result = ConvertCallbackReturnValue<R>(isolate_, return_value);
+    }
+
     return callback_result;
   }
 
-  v8::Local<v8::Value> value() const { return weak_function_.GetValue(); }
-
  private:
-  V8cGlobalEnvironment* env_;
-  WeakHeapObject weak_function_;
+  v8::Isolate* isolate_;
 };
 
 ]]

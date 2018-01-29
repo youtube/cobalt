@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::NullableTypesTestInterface;
 using cobalt::bindings::testing::MozjsNullableTypesTestInterface;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsNullableTypesTestInterfaceHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsNullableTypesTestInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsNullableTypesTestInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -122,6 +133,14 @@ MozjsNullableTypesTestInterfaceHandler::indexed_property_hooks = {
 
 static base::LazyInstance<MozjsNullableTypesTestInterfaceHandler>
     proxy_handler;
+
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "NullableTypesTestInterface is not constructible.");
+  return false;
+}
+
 
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
@@ -581,6 +600,7 @@ bool set_nullableObjectProperty(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableBooleanArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -645,6 +665,7 @@ bool fcn_nullableBooleanArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableBooleanOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -696,6 +717,7 @@ bool fcn_nullableBooleanOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_nullableNumericArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -761,6 +783,7 @@ bool fcn_nullableNumericArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableNumericOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -812,6 +835,7 @@ bool fcn_nullableNumericOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_nullableObjectArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -877,6 +901,7 @@ bool fcn_nullableObjectArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableObjectOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -928,6 +953,7 @@ bool fcn_nullableObjectOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_nullableStringArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -993,6 +1019,7 @@ bool fcn_nullableStringArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableStringOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1048,6 +1075,7 @@ bool fcn_nullableStringOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "nullableBooleanProperty",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -1104,6 +1132,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -1144,17 +1173,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "NullableTypesTestInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "NullableTypesTestInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -1181,7 +1218,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 36;
+  const int kInterfaceUniqueId = 37;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
@@ -1260,8 +1297,9 @@ JSObject* MozjsNullableTypesTestInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

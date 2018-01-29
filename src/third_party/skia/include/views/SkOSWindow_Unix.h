@@ -26,7 +26,7 @@ struct SkUnixWindow {
 class SkOSWindow : public SkWindow {
 public:
     SkOSWindow(void*);
-    ~SkOSWindow();
+    ~SkOSWindow() override;
 
     void* getHWND() const { return (void*)fUnixWindow.fWin; }
     void* getDisplay() const { return (void*)fUnixWindow.fDisplay; }
@@ -36,24 +36,26 @@ public:
     enum SkBackEndTypes {
         kNone_BackEndType,
         kNativeGL_BackEndType,
+#if SK_ANGLE
+        kANGLE_BackEndType,
+#endif // SK_ANGLE
     };
 
-    struct AttachmentInfo {
-        int fSampleCount;
-        int fStencilBits;
-    };
-
-    bool attach(SkBackEndTypes attachType, int msaaSampleCount, AttachmentInfo*);
-    void detach();
+    bool attach(SkBackEndTypes attachType, int msaaSampleCount, bool deepColor, AttachmentInfo*);
+    void release();
     void present();
 
     int getMSAASampleCount() const { return fMSAASampleCount; }
 
     //static bool PostEvent(SkEvent* evt, SkEventSinkID, SkMSec delay);
 
+    bool makeFullscreen();
+    void setVsync(bool);
+    void closeWindow();
+
 protected:
     // Overridden from from SkWindow:
-    virtual void onSetTitle(const char title[]) SK_OVERRIDE;
+    void onSetTitle(const char title[]) override;
 
 private:
     enum NextXEventResult {
@@ -66,7 +68,9 @@ private:
     void doPaint();
     void mapWindowAndWait();
 
-    void closeWindow();
+    // Forcefully closes the window.  If a graceful shutdown is desired then call the public
+    // closeWindow method
+    void internalCloseWindow();
     void initWindow(int newMSAASampleCount, AttachmentInfo* info);
 
     SkUnixWindow fUnixWindow;

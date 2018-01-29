@@ -5,218 +5,108 @@
  * found in the LICENSE file.
  */
 
+#include "SkBitmapCache.h"
+#include "SkMutex.h"
 #include "SkPixelRef.h"
-#include "SkThread.h"
+#include "SkTraceEvent.h"
 
-#ifdef SK_USE_POSIX_THREADS
+//#define SK_TRACE_PIXELREF_LIFETIME
 
-    static SkBaseMutex gPixelRefMutexRing[] = {
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
+#include "SkNextID.h"
 
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
+uint32_t SkNextID::ImageID() {
+    static uint32_t gID = 0;
+    uint32_t id;
+    // Loop in case our global wraps around, as we never want to return a 0.
+    do {
+        id = sk_atomic_fetch_add(&gID, 2u) + 2;  // Never set the low bit.
+    } while (0 == id);
+    return id;
+}
 
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
+///////////////////////////////////////////////////////////////////////////////
 
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-        SK_BASE_MUTEX_INIT, SK_BASE_MUTEX_INIT,
-    };
-
-    // must be a power-of-2. undef to just use 1 mutex
-    #define PIXELREF_MUTEX_RING_COUNT SK_ARRAY_COUNT(gPixelRefMutexRing)
-
-#else // not pthreads
-
-    // must be a power-of-2. undef to just use 1 mutex
-    #define PIXELREF_MUTEX_RING_COUNT       32
-    static SkBaseMutex gPixelRefMutexRing[PIXELREF_MUTEX_RING_COUNT];
-
+#ifdef SK_TRACE_PIXELREF_LIFETIME
+    static int32_t gInstCounter;
 #endif
 
-static SkBaseMutex* get_default_mutex() {
-    static int32_t gPixelRefMutexRingIndex;
+SkPixelRef::SkPixelRef(int width, int height, void* pixels, size_t rowBytes)
+    : fWidth(width)
+    , fHeight(height)
+    , fPixels(pixels)
+    , fRowBytes(rowBytes)
+#ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
+    , fStableID(SkNextID::ImageID())
+#endif
+{
+#ifdef SK_TRACE_PIXELREF_LIFETIME
+    SkDebugf(" pixelref %d\n", sk_atomic_inc(&gInstCounter));
+#endif
 
-    SkASSERT(SkIsPow2(PIXELREF_MUTEX_RING_COUNT));
-
-    // atomic_inc might be overkill here. It may be fine if once in a while
-    // we hit a race-condition and two subsequent calls get the same index...
-    int index = sk_atomic_inc(&gPixelRefMutexRingIndex);
-    return &gPixelRefMutexRing[index & (PIXELREF_MUTEX_RING_COUNT - 1)];
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-int32_t SkNextPixelRefGenerationID();
-
-int32_t SkNextPixelRefGenerationID() {
-    static int32_t  gPixelRefGenerationID;
-    // do a loop in case our global wraps around, as we never want to
-    // return a 0
-    int32_t genID;
-    do {
-        genID = sk_atomic_inc(&gPixelRefGenerationID) + 1;
-    } while (0 == genID);
-    return genID;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-void SkPixelRef::setMutex(SkBaseMutex* mutex) {
-    if (NULL == mutex) {
-        mutex = get_default_mutex();
-    }
-    fMutex = mutex;
-}
-
-// just need a > 0 value, so pick a funny one to aid in debugging
-#define SKPIXELREF_PRELOCKED_LOCKCOUNT     123456789
-
-static SkImageInfo validate_info(const SkImageInfo& info) {
-    SkAlphaType newAlphaType = info.alphaType();
-    SkAssertResult(SkColorTypeValidateAlphaType(info.colorType(), info.alphaType(), &newAlphaType));
-    return info.makeAlphaType(newAlphaType);
-}
-
-SkPixelRef::SkPixelRef(const SkImageInfo& info) : fInfo(validate_info(info)) {
-    this->setMutex(NULL);
-    fRec.zero();
-    fLockCount = 0;
     this->needsNewGenID();
-    fIsImmutable = false;
-    fPreLocked = false;
-}
-
-
-SkPixelRef::SkPixelRef(const SkImageInfo& info, SkBaseMutex* mutex) : fInfo(validate_info(info)) {
-    this->setMutex(mutex);
-    fRec.zero();
-    fLockCount = 0;
-    this->needsNewGenID();
-    fIsImmutable = false;
-    fPreLocked = false;
+    fMutability = kMutable;
+    fAddedToCache.store(false);
 }
 
 SkPixelRef::~SkPixelRef() {
+#ifdef SK_TRACE_PIXELREF_LIFETIME
+    SkDebugf("~pixelref %d\n", sk_atomic_dec(&gInstCounter) - 1);
+#endif
     this->callGenIDChangeListeners();
 }
 
+// This is undefined if there are clients in-flight trying to use us
+void SkPixelRef::android_only_reset(int width, int height, size_t rowBytes) {
+    fWidth = width;
+    fHeight = height;
+    fRowBytes = rowBytes;
+    // note: we do not change fPixels
+
+    // conservative, since its possible the "new" settings are the same as the old.
+    this->notifyPixelsChanged();
+}
+
 void SkPixelRef::needsNewGenID() {
-    fGenerationID = 0;
-    fUniqueGenerationID = false;
-}
-
-void SkPixelRef::cloneGenID(const SkPixelRef& that) {
-    // This is subtle.  We must call that.getGenerationID() to make sure its genID isn't 0.
-    this->fGenerationID = that.getGenerationID();
-    this->fUniqueGenerationID = false;
-    that.fUniqueGenerationID = false;
-}
-
-void SkPixelRef::setPreLocked(void* pixels, size_t rowBytes, SkColorTable* ctable) {
-#ifndef SK_IGNORE_PIXELREF_SETPRELOCKED
-    // only call me in your constructor, otherwise fLockCount tracking can get
-    // out of sync.
-    fRec.fPixels = pixels;
-    fRec.fColorTable = ctable;
-    fRec.fRowBytes = rowBytes;
-    fLockCount = SKPIXELREF_PRELOCKED_LOCKCOUNT;
-    fPreLocked = true;
-#endif
-}
-
-bool SkPixelRef::lockPixels(LockRec* rec) {
-    SkASSERT(!fPreLocked || SKPIXELREF_PRELOCKED_LOCKCOUNT == fLockCount);
-
-    if (!fPreLocked) {
-        SkAutoMutexAcquire  ac(*fMutex);
-
-        if (1 == ++fLockCount) {
-            SkASSERT(fRec.isZero());
-
-            LockRec rec;
-            if (!this->onNewLockPixels(&rec)) {
-                return false;
-            }
-            SkASSERT(!rec.isZero());    // else why did onNewLock return true?
-            fRec = rec;
-        }
-    }
-    *rec = fRec;
-    return true;
-}
-
-bool SkPixelRef::lockPixels() {
-    LockRec rec;
-    return this->lockPixels(&rec);
-}
-
-void SkPixelRef::unlockPixels() {
-    SkASSERT(!fPreLocked || SKPIXELREF_PRELOCKED_LOCKCOUNT == fLockCount);
-
-    if (!fPreLocked) {
-        SkAutoMutexAcquire  ac(*fMutex);
-
-        SkASSERT(fLockCount > 0);
-        if (0 == --fLockCount) {
-            // don't call onUnlockPixels unless onLockPixels succeeded
-            if (fRec.fPixels) {
-                this->onUnlockPixels();
-                fRec.zero();
-            } else {
-                SkASSERT(fRec.isZero());
-            }
-        }
-    }
-}
-
-bool SkPixelRef::lockPixelsAreWritable() const {
-    return this->onLockPixelsAreWritable();
-}
-
-bool SkPixelRef::onLockPixelsAreWritable() const {
-    return true;
-}
-
-bool SkPixelRef::onImplementsDecodeInto() {
-    return false;
-}
-
-bool SkPixelRef::onDecodeInto(int pow2, SkBitmap* bitmap) {
-    return false;
+    fTaggedGenID.store(0);
+    SkASSERT(!this->genIDIsUnique()); // This method isn't threadsafe, so the assert should be fine.
 }
 
 uint32_t SkPixelRef::getGenerationID() const {
-    if (0 == fGenerationID) {
-        fGenerationID = SkNextPixelRefGenerationID();
-        fUniqueGenerationID = true;  // The only time we can be sure of this!
+    uint32_t id = fTaggedGenID.load();
+    if (0 == id) {
+        uint32_t next = SkNextID::ImageID() | 1u;
+        if (fTaggedGenID.compare_exchange(&id, next)) {
+            id = next;  // There was no race or we won the race.  fTaggedGenID is next now.
+        } else {
+            // We lost a race to set fTaggedGenID. compare_exchange() filled id with the winner.
+        }
+        // We can't quite SkASSERT(this->genIDIsUnique()). It could be non-unique
+        // if we got here via the else path (pretty unlikely, but possible).
     }
-    return fGenerationID;
+    return id & ~1u;  // Mask off bottom unique bit.
 }
 
 void SkPixelRef::addGenIDChangeListener(GenIDChangeListener* listener) {
-    if (NULL == listener || !fUniqueGenerationID) {
+    if (nullptr == listener || !this->genIDIsUnique()) {
         // No point in tracking this if we're not going to call it.
-        SkDELETE(listener);
+        delete listener;
         return;
     }
     *fGenIDChangeListeners.append() = listener;
 }
 
+// we need to be called *before* the genID gets changed or zerod
 void SkPixelRef::callGenIDChangeListeners() {
     // We don't invalidate ourselves if we think another SkPixelRef is sharing our genID.
-    if (fUniqueGenerationID) {
+    if (this->genIDIsUnique()) {
         for (int i = 0; i < fGenIDChangeListeners.count(); i++) {
             fGenIDChangeListeners[i]->onChange();
+        }
+
+        // TODO: SkAtomic could add "old_value = atomic.xchg(new_value)" to make this clearer.
+        if (fAddedToCache.load()) {
+            SkNotifyBitmapGenIDIsStale(this->getGenerationID());
+            fAddedToCache.store(false);
         }
     }
     // Listeners get at most one shot, so whether these triggered or not, blow them away.
@@ -225,51 +115,38 @@ void SkPixelRef::callGenIDChangeListeners() {
 
 void SkPixelRef::notifyPixelsChanged() {
 #ifdef SK_DEBUG
-    if (fIsImmutable) {
+    if (this->isImmutable()) {
         SkDebugf("========== notifyPixelsChanged called on immutable pixelref");
     }
 #endif
     this->callGenIDChangeListeners();
     this->needsNewGenID();
-}
-
-void SkPixelRef::changeAlphaType(SkAlphaType at) {
-    *const_cast<SkImageInfo*>(&fInfo) = fInfo.makeAlphaType(at);
+    this->onNotifyPixelsChanged();
 }
 
 void SkPixelRef::setImmutable() {
-    fIsImmutable = true;
+    fMutability = kImmutable;
 }
 
-bool SkPixelRef::readPixels(SkBitmap* dst, const SkIRect* subset) {
-    return this->onReadPixels(dst, subset);
+void SkPixelRef::setImmutableWithID(uint32_t genID) {
+    /*
+     *  We are forcing the genID to match an external value. The caller must ensure that this
+     *  value does not conflict with other content.
+     *
+     *  One use is to force this pixelref's id to match an SkImage's id
+     */
+    fMutability = kImmutable;
+    fTaggedGenID.store(genID);
 }
 
-bool SkPixelRef::onReadPixels(SkBitmap* dst, const SkIRect* subset) {
-    return false;
+void SkPixelRef::setTemporarilyImmutable() {
+    SkASSERT(fMutability != kImmutable);
+    fMutability = kTemporarilyImmutable;
 }
 
-SkData* SkPixelRef::onRefEncodedData() {
-    return NULL;
+void SkPixelRef::restoreMutability() {
+    SkASSERT(fMutability != kImmutable);
+    fMutability = kMutable;
 }
 
-bool SkPixelRef::onGetYUV8Planes(SkISize sizes[3], void* planes[3], size_t rowBytes[3],
-                                 SkYUVColorSpace* colorSpace) {
-    return false;
-}
-
-size_t SkPixelRef::getAllocatedSizeInBytes() const {
-    return 0;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-#ifdef SK_BUILD_FOR_ANDROID
-void SkPixelRef::globalRef(void* data) {
-    this->ref();
-}
-
-void SkPixelRef::globalUnref() {
-    this->unref();
-}
-#endif
+void SkPixelRef::onNotifyPixelsChanged() { }

@@ -39,7 +39,7 @@ class {{binding_class}} : public {{impl_class}} {
     {% for arg in overload.arguments %}
       {{arg.arg_type}} {{arg.name}},
     {% endfor %}
-      bool* had_exception) const OVERRIDE;
+      bool* had_exception) const override;
 {% endfor %}
 {% endfor %}
   JSObject* handle() const { return implementing_object_.GetObject(); }

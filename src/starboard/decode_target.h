@@ -25,7 +25,7 @@
 // copies, and also avoiding pushing data between CPU and GPU memory
 // unnecessarily.
 //
-// #### SbDecodeTargetFormat
+// # SbDecodeTargetFormat
 //
 // SbDecodeTargets support several different formats that can be used to decode
 // into and render from. Some formats may be easier to decode into, and others
@@ -34,7 +34,7 @@
 // an error. Each decoder provides a way to check if a given
 // SbDecodeTargetFormat is supported by that decoder.
 //
-// #### SbDecodeTargetGraphicsContextProvider
+// # SbDecodeTargetGraphicsContextProvider
 //
 // Some components may need to acquire SbDecodeTargets compatible with a certain
 // rendering context, which may need to be created on a particular thread. The
@@ -50,7 +50,7 @@
 // The primary usage is likely to be the the SbPlayer implementation on some
 // platforms.
 //
-// #### SbDecodeTarget Example
+// # SbDecodeTarget Example
 //
 // Let's say that we are an application and we would like to use the interface
 // defined in starboard/image.h to decode an imaginary "image/foo" image type.

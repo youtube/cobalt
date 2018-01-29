@@ -6,11 +6,10 @@
  */
 
 #include "gm.h"
-#include "SkBitmapDevice.h"
-#include "SkBitmapSource.h"
 #include "SkColor.h"
-#include "SkMatrixImageFilter.h"
+#include "SkImageSource.h"
 #include "SkRefCnt.h"
+#include "SkSurface.h"
 
 namespace skiagm {
 
@@ -21,37 +20,30 @@ public:
     }
 
 protected:
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         return SkString("resizeimagefilter");
     }
-
-#ifdef SK_CPU_ARM64
-    // Skip tiled drawing on 64-bit ARM until https://skbug.com/2908 is fixed.
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-#endif
 
     void draw(SkCanvas* canvas,
               const SkRect& rect,
               const SkSize& deviceSize,
-              SkPaint::FilterLevel filterLevel,
-              SkImageFilter* input = NULL) {
+              SkFilterQuality filterQuality,
+              sk_sp<SkImageFilter> input) {
         SkRect dstRect;
         canvas->getTotalMatrix().mapRect(&dstRect, rect);
         canvas->save();
-        SkScalar deviceScaleX = SkScalarDiv(deviceSize.width(), dstRect.width());
-        SkScalar deviceScaleY = SkScalarDiv(deviceSize.height(), dstRect.height());
+        SkScalar deviceScaleX = deviceSize.width() / dstRect.width();
+        SkScalar deviceScaleY = deviceSize.height() / dstRect.height();
         canvas->translate(rect.x(), rect.y());
         canvas->scale(deviceScaleX, deviceScaleY);
         canvas->translate(-rect.x(), -rect.y());
         SkMatrix matrix;
-        matrix.setScale(SkScalarInvert(deviceScaleX),
-                        SkScalarInvert(deviceScaleY));
-        SkAutoTUnref<SkImageFilter> imageFilter(
-            SkMatrixImageFilter::Create(matrix, filterLevel, input));
+        matrix.setScale(SkScalarInvert(deviceScaleX), SkScalarInvert(deviceScaleY));
+        sk_sp<SkImageFilter> filter(SkImageFilter::MakeMatrixFilter(matrix,
+                                                                    filterQuality,
+                                                                    std::move(input)));
         SkPaint filteredPaint;
-        filteredPaint.setImageFilter(imageFilter.get());
+        filteredPaint.setImageFilter(std::move(filter));
         canvas->saveLayer(&rect, &filteredPaint);
         SkPaint paint;
         paint.setColor(0xFF00FF00);
@@ -62,60 +54,64 @@ protected:
         canvas->restore();
     }
 
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(520, 100);
     }
 
-    virtual void onDraw(SkCanvas* canvas) {
-        canvas->clear(0x00000000);
+    void onDraw(SkCanvas* canvas) override {
+        canvas->clear(SK_ColorBLACK);
 
         SkRect srcRect = SkRect::MakeWH(96, 96);
 
         SkSize deviceSize = SkSize::Make(16, 16);
-        draw(canvas,
-             srcRect,
-             deviceSize,
-             SkPaint::kNone_FilterLevel);
+        this->draw(canvas,
+                   srcRect,
+                   deviceSize,
+                   kNone_SkFilterQuality,
+                   nullptr);
 
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        draw(canvas,
-             srcRect,
-             deviceSize,
-             SkPaint::kLow_FilterLevel);
+        this->draw(canvas,
+                   srcRect,
+                   deviceSize,
+                   kLow_SkFilterQuality,
+                   nullptr);
 
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        draw(canvas,
-             srcRect,
-             deviceSize,
-             SkPaint::kMedium_FilterLevel);
+        this->draw(canvas,
+                   srcRect,
+                   deviceSize,
+                   kMedium_SkFilterQuality,
+                   nullptr);
 
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        draw(canvas,
-             srcRect,
-             deviceSize,
-             SkPaint::kHigh_FilterLevel);
+        this->draw(canvas,
+                   srcRect,
+                   deviceSize,
+                   kHigh_SkFilterQuality,
+                   nullptr);
 
-        SkBitmap bitmap;
-        bitmap.allocN32Pixels(16, 16);
-        bitmap.eraseARGB(0x00, 0x00, 0x00, 0x00);
+        sk_sp<SkSurface> surface(SkSurface::MakeRasterN32Premul(16, 16));
+        SkCanvas* surfaceCanvas = surface->getCanvas();
+        surfaceCanvas->clear(0x000000);
         {
-            SkBitmapDevice bitmapDevice(bitmap);
-            SkCanvas bitmapCanvas(&bitmapDevice);
             SkPaint paint;
             paint.setColor(0xFF00FF00);
             SkRect ovalRect = SkRect::MakeWH(16, 16);
-            ovalRect.inset(SkScalarDiv(2.0f, 3.0f), SkScalarDiv(2.0f, 3.0f));
-            bitmapCanvas.drawOval(ovalRect, paint);
+            ovalRect.inset(SkIntToScalar(2)/3, SkIntToScalar(2)/3);
+            surfaceCanvas->drawOval(ovalRect, paint);
         }
+        sk_sp<SkImage> image(surface->makeImageSnapshot());
         SkRect inRect = SkRect::MakeXYWH(-4, -4, 20, 20);
         SkRect outRect = SkRect::MakeXYWH(-24, -24, 120, 120);
-        SkAutoTUnref<SkBitmapSource> source(SkBitmapSource::Create(bitmap, inRect, outRect));
+        sk_sp<SkImageFilter> source(
+            SkImageSource::Make(std::move(image), inRect, outRect, kHigh_SkFilterQuality));
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        draw(canvas,
-             srcRect,
-             deviceSize,
-             SkPaint::kHigh_FilterLevel,
-             source.get());
+        this->draw(canvas,
+                   srcRect,
+                   deviceSize,
+                   kHigh_SkFilterQuality,
+                   std::move(source));
     }
 
 private:
@@ -124,7 +120,6 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-static GM* MyFactory(void*) { return new ResizeGM; }
-static GMRegistry reg(MyFactory);
+DEF_GM(return new ResizeGM; )
 
 }

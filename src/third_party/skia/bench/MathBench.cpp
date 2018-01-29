@@ -1,5 +1,14 @@
+/*
+ * Copyright 2015 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 #include "Benchmark.h"
 #include "SkColorPriv.h"
+#include "SkFixed.h"
+#include "SkMathPriv.h"
 #include "SkMatrix.h"
 #include "SkPaint.h"
 #include "SkRandom.h"
@@ -31,7 +40,7 @@ public:
         }
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
@@ -42,11 +51,11 @@ public:
 protected:
     virtual int mulLoopCount() const { return 1; }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         int n = loops * this->mulLoopCount();
         for (int i = 0; i < n; i++) {
             this->performTest(fDst, fSrc, kBuffer);
@@ -66,9 +75,7 @@ protected:
                               const uint32_t* SK_RESTRICT src,
                               int count) = 0;
 
-    virtual void performTest(float* SK_RESTRICT dst,
-                             const float* SK_RESTRICT src,
-                             int count) SK_OVERRIDE {
+    void performTest(float* SK_RESTRICT dst, const float* SK_RESTRICT src, int count) override {
         uint32_t* d = SkTCast<uint32_t*>(dst);
         const uint32_t* s = SkTCast<const uint32_t*>(src);
         this->performITest(d, s, count);
@@ -83,9 +90,7 @@ class NoOpMathBench : public MathBench {
 public:
     NoOpMathBench() : INHERITED("noOp") {}
 protected:
-    virtual void performTest(float* SK_RESTRICT dst,
-                              const float* SK_RESTRICT src,
-                              int count) {
+    void performTest(float* SK_RESTRICT dst, const float* SK_RESTRICT src, int count) override {
         for (int i = 0; i < count; ++i) {
             dst[i] = src[i] + 1;
         }
@@ -98,9 +103,7 @@ class SkRSqrtMathBench : public MathBench {
 public:
     SkRSqrtMathBench() : INHERITED("sk_float_rsqrt") {}
 protected:
-    virtual void performTest(float* SK_RESTRICT dst,
-                              const float* SK_RESTRICT src,
-                              int count) {
+    void performTest(float* SK_RESTRICT dst, const float* SK_RESTRICT src, int count) override {
         for (int i = 0; i < count; ++i) {
             dst[i] = sk_float_rsqrt(src[i]);
         }
@@ -114,9 +117,7 @@ class SlowISqrtMathBench : public MathBench {
 public:
     SlowISqrtMathBench() : INHERITED("slowIsqrt") {}
 protected:
-    virtual void performTest(float* SK_RESTRICT dst,
-                              const float* SK_RESTRICT src,
-                              int count) {
+    void performTest(float* SK_RESTRICT dst, const float* SK_RESTRICT src, int count) override {
         for (int i = 0; i < count; ++i) {
             dst[i] = 1.0f / sk_float_sqrt(src[i]);
         }
@@ -125,25 +126,13 @@ private:
     typedef MathBench INHERITED;
 };
 
-static inline float SkFastInvSqrt(float x) {
-    float xhalf = 0.5f*x;
-    int i = *SkTCast<int*>(&x);
-    i = 0x5f3759df - (i>>1);
-    x = *SkTCast<float*>(&i);
-    x = x*(1.5f-xhalf*x*x);
-//    x = x*(1.5f-xhalf*x*x); // this line takes err from 10^-3 to 10^-6
-    return x;
-}
-
 class FastISqrtMathBench : public MathBench {
 public:
     FastISqrtMathBench() : INHERITED("fastIsqrt") {}
 protected:
-    virtual void performTest(float* SK_RESTRICT dst,
-                              const float* SK_RESTRICT src,
-                              int count) {
+    void performTest(float* SK_RESTRICT dst, const float* SK_RESTRICT src, int count) override {
         for (int i = 0; i < count; ++i) {
-            dst[i] = SkFastInvSqrt(src[i]);
+            dst[i] = sk_float_rsqrt(src[i]);
         }
     }
 private:
@@ -164,9 +153,9 @@ class QMul64Bench : public MathBenchU32 {
 public:
     QMul64Bench() : INHERITED("qmul64") {}
 protected:
-    virtual void performITest(uint32_t* SK_RESTRICT dst,
-                              const uint32_t* SK_RESTRICT src,
-                              int count) SK_OVERRIDE {
+    void performITest(uint32_t* SK_RESTRICT dst,
+                      const uint32_t* SK_RESTRICT src,
+                      int count) override {
         for (int i = 0; i < count; ++i) {
             dst[i] = QMul64(src[i], (uint8_t)i);
         }
@@ -179,9 +168,9 @@ class QMul32Bench : public MathBenchU32 {
 public:
     QMul32Bench() : INHERITED("qmul32") {}
 protected:
-    virtual void performITest(uint32_t* SK_RESTRICT dst,
-                              const uint32_t* SK_RESTRICT src,
-                              int count) SK_OVERRIDE {
+    void performITest(uint32_t* SK_RESTRICT dst,
+                      const uint32_t* SK_RESTRICT src,
+                      int count) override {
         for (int i = 0; i < count; ++i) {
             dst[i] = SkAlphaMulQ(src[i], (uint8_t)i);
         }
@@ -277,7 +266,7 @@ public:
         }
 
         if (index < 0) {
-            fProc = NULL;
+            fProc = nullptr;
             fName = "isfinite_rect";
         } else {
             fProc = gRec[index].fProc;
@@ -285,12 +274,12 @@ public:
         }
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         IsFiniteProc proc = fProc;
         const float* data = fData;
         // do this so the compiler won't throw away the function call
@@ -320,7 +309,7 @@ protected:
         }
     }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName;
     }
 
@@ -353,14 +342,14 @@ public:
         }
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
     virtual void process(float) {}
 
 protected:
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         SkRandom rand;
         float accum = 0;
         const float* data = fData;
@@ -382,7 +371,7 @@ protected:
         }
     }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName;
     }
 
@@ -414,7 +403,7 @@ public:
         }
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
@@ -422,7 +411,7 @@ public:
     virtual void process(int) {}
 
 protected:
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         int accum = 0;
 
         if (fUsePortable) {
@@ -442,7 +431,7 @@ protected:
         }
     }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName;
     }
 
@@ -470,7 +459,7 @@ public:
         fName = "point_normalize";
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
@@ -478,7 +467,7 @@ public:
     virtual void process(int) {}
 
 protected:
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         int accum = 0;
 
         for (int j = 0; j < loops; ++j) {
@@ -489,7 +478,7 @@ protected:
         }
     }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName;
     }
 
@@ -517,12 +506,12 @@ public:
 
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         for (int j = 0; j < loops; ++j) {
             for (int i = 0; i < N - 4; ++i) {
                 fResult[i] = SkFloatToFixed(fData[i]);
@@ -535,7 +524,7 @@ protected:
         }
     }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return "float_to_fixed";
     }
 
@@ -553,16 +542,16 @@ public:
         fName.printf("divmod_%s", name);
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         volatile T a = 0, b = 0;
         T div = 0, mod = 0;
         for (int i = 0; i < loops; i++) {
@@ -609,3 +598,29 @@ DEF_BENCH( return new CLZBench(true); )
 DEF_BENCH( return new NormalizeBench(); )
 
 DEF_BENCH( return new FixedMathBench(); )
+
+
+struct FloatToIntBench : public Benchmark {
+    enum { N = 1000000 };
+    float fFloats[N];
+    int   fInts  [N];
+
+    const char* onGetName() override { return "float_to_int"; }
+    bool isSuitableFor(Backend backend) override { return backend == kNonRendering_Backend; }
+
+    void onDelayedSetup() override  {
+        const auto f32 = 4294967296.0f;
+        for (int i = 0; i < N; ++i) {
+            fFloats[i] = -f32 + i*(2*f32/N);
+        }
+    }
+
+    void onDraw(int loops, SkCanvas*) override {
+        while (loops --> 0) {
+            for (int i = 0; i < N; i++) {
+                fInts[i] = SkFloatToIntFloor(fFloats[i]);
+            }
+        }
+    }
+};
+DEF_BENCH( return new FloatToIntBench; )

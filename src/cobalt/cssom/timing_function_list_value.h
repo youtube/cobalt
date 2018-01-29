@@ -32,16 +32,16 @@ class TimingFunctionListValue : public ScopedRefListValue<TimingFunction> {
       scoped_ptr<ScopedRefListValue<TimingFunction>::Builder> value)
       : ScopedRefListValue<TimingFunction>(value.Pass()) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE {
+  void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTimingFunctionList(this);
   }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TimingFunctionListValue);
 
  private:
-  virtual ~TimingFunctionListValue() OVERRIDE {}
+  ~TimingFunctionListValue() override {}
 };
 
 }  // namespace cssom

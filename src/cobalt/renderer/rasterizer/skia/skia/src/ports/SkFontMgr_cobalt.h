@@ -67,50 +67,47 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
  protected:
   // From SkFontMgr
-  virtual int onCountFamilies() const SK_OVERRIDE;
+  int onCountFamilies() const override;
 
-  virtual void onGetFamilyName(int index,
-                               SkString* family_name) const SK_OVERRIDE;
+  void onGetFamilyName(int index, SkString* family_name) const override;
 
   // NOTE: This returns NULL if there is no accessible style set at the index.
-  virtual SkFontStyleSet_Cobalt* onCreateStyleSet(int index) const SK_OVERRIDE;
+  SkFontStyleSet_Cobalt* onCreateStyleSet(int index) const override;
 
   // NOTE: This returns NULL if there is no family match.
-  virtual SkFontStyleSet_Cobalt* onMatchFamily(const char family_name[]) const
-      SK_OVERRIDE;
+  SkFontStyleSet_Cobalt* onMatchFamily(const char family_name[]) const override;
 
   // NOTE: This always returns a non-NULL value. If the family name cannot be
   // found, then the best match among the default family is returned.
-  virtual SkTypeface* onMatchFamilyStyle(
-      const char family_name[], const SkFontStyle& style) const SK_OVERRIDE;
+  SkTypeface* onMatchFamilyStyle(const char family_name[],
+                                 const SkFontStyle& style) const override;
 
   // NOTE: This always returns a non-NULL value. If no match can be found, then
   // the best match among the default family is returned.
-  virtual SkTypeface* onMatchFamilyStyleCharacter(
-      const char family_name[], const SkFontStyle& style, const char bcp47[],
-      SkUnichar character) const SK_OVERRIDE;
+  SkTypeface* onMatchFamilyStyleCharacter(const char family_name[],
+                                          const SkFontStyle& style,
+                                          const char* bcp47[], int bcp47_count,
+                                          SkUnichar character) const override;
 
   // NOTE: This returns NULL if a match is not found.
-  virtual SkTypeface* onMatchFaceStyle(const SkTypeface* family_member,
-                                       const SkFontStyle& font_style) const
-      SK_OVERRIDE;
+  SkTypeface* onMatchFaceStyle(const SkTypeface* family_member,
+                               const SkFontStyle& font_style) const override;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  virtual SkTypeface* onCreateFromData(SkData* data,
-                                       int face_index) const SK_OVERRIDE;
+  SkTypeface* onCreateFromData(SkData* data, int face_index) const override;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream,
-                                         int face_index) const SK_OVERRIDE;
+  SkTypeface* onCreateFromStream(SkStreamAsset* stream,
+                                 int face_index) const override;
 
   // NOTE: This returns NULL if the typeface cannot be created.
-  virtual SkTypeface* onCreateFromFile(const char path[],
-                                       int face_index) const SK_OVERRIDE;
+  SkTypeface* onCreateFromFile(const char path[],
+                               int face_index) const override;
 
   // NOTE: This always returns a non-NULL value. If no match can be found, then
   // the best match among the default family is returned.
-  virtual SkTypeface* onLegacyCreateTypeface(
-      const char family_name[], unsigned style_bits) const SK_OVERRIDE;
+  SkTypeface* onLegacyCreateTypeface(const char family_name[],
+                                     SkFontStyle style) const override;
 
  private:
   typedef base::hash_map<std::string, SkFontStyleSet_Cobalt*> NameToStyleSetMap;
@@ -142,7 +139,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   SkFileMemoryChunkStreamManager local_typeface_stream_manager_;
 
-  SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> families_;
+  SkTArray<sk_sp<SkFontStyleSet_Cobalt>, true> families_;
 
   SkTArray<SkString> family_names_;
   // Map names to the back end so that all names for a given family refer to

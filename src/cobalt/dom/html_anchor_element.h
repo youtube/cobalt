@@ -74,18 +74,18 @@ class HTMLAnchorElement : public HTMLElement {
   std::string origin() const { return url_utils_.origin(); }
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement() OVERRIDE {
+  scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement() override {
     return this;
   }
 
   DEFINE_WRAPPABLE_TYPE(HTMLAnchorElement);
 
  private:
-  ~HTMLAnchorElement() OVERRIDE {}
+  ~HTMLAnchorElement() override {}
 
   void OnSetAttribute(const std::string& name,
-                      const std::string& value) OVERRIDE;
-  void OnRemoveAttribute(const std::string& name) OVERRIDE;
+                      const std::string& value) override;
+  void OnRemoveAttribute(const std::string& name) override;
 
   bool ResolveAndSetURL(const std::string& value);
 

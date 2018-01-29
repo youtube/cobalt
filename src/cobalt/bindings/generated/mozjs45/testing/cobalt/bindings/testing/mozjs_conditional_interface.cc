@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::ConditionalInterface;
 using cobalt::bindings::testing::MozjsConditionalInterface;
@@ -89,7 +92,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsConditionalInterfaceHandler : public ProxyHandler {
  public:
@@ -109,6 +119,7 @@ MozjsConditionalInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsConditionalInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -120,6 +131,14 @@ MozjsConditionalInterfaceHandler::indexed_property_hooks = {
 
 static base::LazyInstance<MozjsConditionalInterfaceHandler>
     proxy_handler;
+
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "ConditionalInterface is not constructible.");
+  return false;
+}
+
 
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
@@ -384,6 +403,7 @@ bool set_disabledAttribute(
 
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
 #if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
+
 bool fcn_disabledOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -432,6 +452,7 @@ bool fcn_disabledOperation(
 
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
+
 bool fcn_enabledOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -482,6 +503,7 @@ bool fcn_enabledOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
   {  // Read/Write property
     "enabledAttribute",
@@ -502,16 +524,12 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
-
 #if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
-
   JS_FNSPEC(
       "disabledOperation", fcn_disabledOperation, NULL,
       0, JSPROP_ENUMERATE, NULL),
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
-
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
-
   JS_FNSPEC(
       "enabledOperation", fcn_enabledOperation, NULL,
       0, JSPROP_ENUMERATE, NULL),
@@ -520,6 +538,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -560,17 +579,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "ConditionalInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "ConditionalInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -676,8 +703,9 @@ JSObject* MozjsConditionalInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

@@ -6,6 +6,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkCanvas.h"
 #include "SkTypeface.h"
 
@@ -14,114 +15,82 @@
  * glyph_pos_(h/n)_(s/f/b)
  *   -> test hairline/non-hairline stroke/fill/stroke+fill.
  */
-static const SkScalar kTextHeight = 14.0f;
-static const char kText[] = "Proportional Hamburgefons #% fi";
+constexpr SkScalar kTextHeight = 14.0f;
+constexpr char kText[] = "Proportional Hamburgefons #% fi";
 
-namespace skiagm {
+static void drawTestCase(SkCanvas* canvas,
+                         SkScalar textScale,
+                         SkScalar strokeWidth,
+                         SkPaint::Style strokeStyle);
 
-class GlyphPosGM : public GM {
-public:
-    GlyphPosGM(SkScalar strokeWidth, SkPaint::Style strokeStyle)
-        : fStrokeWidth(strokeWidth)
-        , fStrokeStyle(strokeStyle) {
-        }
-
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    virtual SkString onShortName() SK_OVERRIDE {
-        SkString str("glyph_pos");
-        if (fStrokeWidth == 0.0f) {
-            str.append("_h"); // h == Hairline.
-        } else {
-            str.append("_n"); // n == Normal.
-        }
-        if (fStrokeStyle == SkPaint::kStroke_Style) {
-            str.append("_s");
-        } else if (fStrokeStyle == SkPaint::kFill_Style) {
-            str.append("_f");
-        } else {
-            str.append("_b"); // b == Both.
-        }
-        return str;
-    }
-
-    virtual SkISize onISize() { return SkISize::Make(800, 600); }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        if (!fProp) {
-            fProp.reset(sk_tool_utils::create_portable_typeface("Helvetica", SkTypeface::kNormal));
-        }
-
+static void draw_gm(SkCanvas* canvas,
+                    SkScalar strokeWidth,
+                    SkPaint::Style strokeStyle) {
         // There's a black pixel at 40, 40 for reference.
-        canvas->drawPoint(40.0f, 40.0f, SK_ColorBLACK);
+    canvas->drawPoint(40, 40, SkPaint());
 
-        // Two reference images.
-        canvas->translate(50.0f, 50.0f);
-        drawTestCase(canvas, 1.0f);
+    // Two reference images.
+    canvas->translate(50.0f, 50.0f);
+    drawTestCase(canvas, 1.0f, strokeWidth, strokeStyle);
 
-        canvas->translate(0.0f, 50.0f);
-        drawTestCase(canvas, 3.0f);
+    canvas->translate(0.0f, 50.0f);
+    drawTestCase(canvas, 3.0f, strokeWidth, strokeStyle);
 
-        // Uniform scaling test.
-        canvas->translate(0.0f, 100.0f);
-        canvas->save();
-        canvas->scale(3.0f, 3.0f);
-        drawTestCase(canvas, 1.0f);
-        canvas->restore();
+    // Uniform scaling test.
+    canvas->translate(0.0f, 100.0f);
+    canvas->save();
+    canvas->scale(3.0f, 3.0f);
+    drawTestCase(canvas, 1.0f, strokeWidth, strokeStyle);
+    canvas->restore();
 
-        // Non-uniform scaling test.
-        canvas->translate(0.0f, 100.0f);
-        canvas->save();
-        canvas->scale(3.0f, 6.0f);
-        drawTestCase(canvas, 1.0f);
-        canvas->restore();
+    // Non-uniform scaling test.
+    canvas->translate(0.0f, 100.0f);
+    canvas->save();
+    canvas->scale(3.0f, 6.0f);
+    drawTestCase(canvas, 1.0f, strokeWidth, strokeStyle);
+    canvas->restore();
 
-        // Skew test.
-        canvas->translate(0.0f, 80.0f);
-        canvas->save();
-        canvas->scale(3.0f, 3.0f);
-        SkMatrix skew;
-        skew.setIdentity();
-        skew.setSkewX(SkScalarDiv(8.0f,
-                                  25.0f));
-        skew.setSkewY(SkScalarDiv(2.0f,
-                                  25.0f));
-        canvas->concat(skew);
-        drawTestCase(canvas, 1.0f);
-        canvas->restore();
+    // Skew test.
+    canvas->translate(0.0f, 80.0f);
+    canvas->save();
+    canvas->scale(3.0f, 3.0f);
+    SkMatrix skew;
+    skew.setIdentity();
+    skew.setSkewX(8.0f / 25.0f);
+    skew.setSkewY(2.0f / 25.0f);
+    canvas->concat(skew);
+    drawTestCase(canvas, 1.0f, strokeWidth, strokeStyle);
+    canvas->restore();
 
-        // Perspective test.
-        canvas->translate(0.0f, 80.0f);
-        canvas->save();
-        SkMatrix perspective;
-        perspective.setIdentity();
-        perspective.setPerspX(-SkScalarDiv(SK_Scalar1, 340.0f));
-        perspective.setSkewX(SkScalarDiv(8.0f,
-                                         25.0f));
-        perspective.setSkewY(SkScalarDiv(2.0f,
-                                         25.0f));
+    // Perspective test.
+    canvas->translate(0.0f, 80.0f);
+    canvas->save();
+    SkMatrix perspective;
+    perspective.setIdentity();
+    perspective.setPerspX(-SkScalarInvert(340));
+    perspective.setSkewX(8.0f / 25.0f);
+    perspective.setSkewY(2.0f / 25.0f);
 
+    canvas->concat(perspective);
+    drawTestCase(canvas, 1.0f, strokeWidth, strokeStyle);
+    canvas->restore();
+}
 
-        canvas->concat(perspective);
-        drawTestCase(canvas, 1.0f);
-        canvas->restore();
-    }
-
-    void drawTestCase(SkCanvas* canvas, SkScalar textScale) {
+static void drawTestCase(SkCanvas* canvas,
+                         SkScalar textScale,
+                         SkScalar strokeWidth,
+                         SkPaint::Style strokeStyle) {
         SkPaint paint;
         paint.setColor(SK_ColorBLACK);
         paint.setAntiAlias(true);
         paint.setTextSize(kTextHeight * textScale);
-        paint.setTypeface(fProp);
-        paint.setDevKernText(true);
-        paint.setStrokeWidth(fStrokeWidth);
-        paint.setStyle(fStrokeStyle);
+        sk_tool_utils::set_portable_typeface(&paint);
+        paint.setStrokeWidth(strokeWidth);
+        paint.setStyle(strokeStyle);
 
-        // This demonstrates that we can not measure the text if there's a device transform. The
-        // canvas total matrix will end up being a device transform.
+        // This demonstrates that we can not measure the text if
+        // there's a device transform. The canvas total matrix will
+        // end up being a device transform.
         bool drawRef = !(canvas->getTotalMatrix().getType() &
                          ~(SkMatrix::kIdentity_Mask | SkMatrix::kTranslate_Mask));
 
@@ -143,13 +112,13 @@ protected:
 
         // Black text is the testcase, eg. the text.
         paint.setColor(SK_ColorBLACK);
-        paint.setStrokeWidth(fStrokeWidth);
-        paint.setStyle(fStrokeStyle);
+        paint.setStrokeWidth(strokeWidth);
+        paint.setStyle(strokeStyle);
         canvas->drawText(kText, sizeof(kText) - 1, 0.0f, 0.0f, paint);
 
         if (drawRef) {
             SkScalar widths[sizeof(kText) - 1];
-            paint.getTextWidths(kText, sizeof(kText) - 1, widths, NULL);
+            paint.getTextWidths(kText, sizeof(kText) - 1, widths, nullptr);
 
             paint.setStrokeWidth(0.0f);
             paint.setStyle(SkPaint::kStroke_Style);
@@ -162,43 +131,23 @@ protected:
                 w += widths[i];
             }
         }
-    }
-
-private:
-    SkAutoTUnref<SkTypeface> fProp;
-    SkScalar fStrokeWidth;
-    SkPaint::Style fStrokeStyle;
-
-    typedef GM INHERITED;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-static GM* GlyphPosHairlineStrokeAndFillFactory(void*) {
-    return new GlyphPosGM(0.0f, SkPaint::kStrokeAndFill_Style);
-}
-static GM* GlyphPosStrokeAndFillFactory(void*) {
-    return new GlyphPosGM(1.2f, SkPaint::kStrokeAndFill_Style);
-}
-static GM* GlyphPosHairlineStrokeFactory(void*) {
-    return new GlyphPosGM(0.0f, SkPaint::kStroke_Style);
-}
-static GM* GlyphPosStrokeFactory(void*) {
-    return new GlyphPosGM(1.2f, SkPaint::kStroke_Style);
-}
-static GM* GlyphPosHairlineFillFactory(void*) {
-    return new GlyphPosGM(0.0f, SkPaint::kFill_Style);
-}
-static GM* GlyphPosFillFactory(void*) {
-    return new GlyphPosGM(1.2f, SkPaint::kFill_Style);
 }
 
-static GMRegistry reg1(GlyphPosHairlineStrokeAndFillFactory);
-static GMRegistry reg2(GlyphPosStrokeAndFillFactory);
-static GMRegistry reg3(GlyphPosHairlineStrokeFactory);
-static GMRegistry reg4(GlyphPosStrokeFactory);
-static GMRegistry reg5(GlyphPosHairlineFillFactory);
-static GMRegistry reg6(GlyphPosFillFactory);
-
-
+DEF_SIMPLE_GM(glyph_pos_h_b, c, 800, 600) {
+    draw_gm(c, 0.0f, SkPaint::kStrokeAndFill_Style);
+}
+DEF_SIMPLE_GM(glyph_pos_n_b, c, 800, 600) {
+    draw_gm(c, 1.2f, SkPaint::kStrokeAndFill_Style);
+}
+DEF_SIMPLE_GM(glyph_pos_h_s, c, 800, 600) {
+    draw_gm(c, 0.0f, SkPaint::kStroke_Style);
+}
+DEF_SIMPLE_GM(glyph_pos_n_s, c, 800, 600) {
+    draw_gm(c, 1.2f, SkPaint::kStroke_Style);
+}
+DEF_SIMPLE_GM(glyph_pos_h_f, c, 800, 600) {
+    draw_gm(c, 0.0f, SkPaint::kFill_Style);
+}
+DEF_SIMPLE_GM(glyph_pos_n_f, c, 800, 600) {
+    draw_gm(c, 1.2f, SkPaint::kFill_Style);
 }

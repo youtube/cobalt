@@ -150,6 +150,7 @@ class GraphicsState {
   GLuint array_buffer_handle_;
   GLuint index_buffer_handle_;
   GLenum texture_unit_;
+  GLint max_vertex_attribs_;
   uint32_t enabled_vertex_attrib_array_mask_;
   uint32_t disable_vertex_attrib_array_mask_;
   float clip_adjustment_[4];

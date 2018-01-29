@@ -6,35 +6,21 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkCanvas.h"
 #include "SkPaint.h"
+#include "SkPath.h"
 #include "SkRandom.h"
 #include "SkTemplates.h"
 
-class GetPosTextPathGM : public skiagm::GM {
-public:
-    GetPosTextPathGM() {}
-
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    SkString onShortName() {
-        return SkString("getpostextpath");
-    }
-
-    SkISize onISize() { return SkISize::Make(480, 780); }
-
-    static void strokePath(SkCanvas* canvas, const SkPath& path) {
+static void strokePath(SkCanvas* canvas, const SkPath& path) {
         SkPaint paint;
         paint.setAntiAlias(true);
         paint.setColor(SK_ColorRED);
         paint.setStyle(SkPaint::kStroke_Style);
         canvas->drawPath(path, paint);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) {
+}
+DEF_SIMPLE_GM(getpostextpath, canvas, 480, 780) {
         // explicitly add spaces, to test a prev. bug
         const char* text = "Ham bur ge fons";
         int len = SkToInt(strlen(text));
@@ -56,7 +42,7 @@ protected:
         SkAutoTArray<SkScalar> widths(len);
         paint.getTextWidths(text, len, &widths[0]);
 
-        SkLCGRandom rand;
+        SkRandom rand;
         SkScalar x = SkIntToScalar(20);
         SkScalar y = SkIntToScalar(100);
         for (int i = 0; i < len; ++i) {
@@ -69,10 +55,4 @@ protected:
         canvas->drawPosText(text, len, &pos[0], paint);
         paint.getPosTextPath(text, len, &pos[0], &path);
         strokePath(canvas, path);
-    }
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-static skiagm::GM* F(void*) { return new GetPosTextPathGM; }
-static skiagm::GMRegistry gR(F);
+}

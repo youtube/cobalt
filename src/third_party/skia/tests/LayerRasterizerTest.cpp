@@ -26,14 +26,14 @@ public:
         gCount++;
     }
 
-    ~DummyRasterizer() {
+    ~DummyRasterizer() override {
         // Not threadsafe. Only used in one thread.
         gCount--;
     }
 
     static int GetCount() { return gCount; }
 
-    SK_DECLARE_NOT_FLATTENABLE_PROCS(DummyRasterizer)
+    SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(DummyRasterizer)
 
 private:
     static int gCount;
@@ -43,11 +43,15 @@ private:
 
 int DummyRasterizer::gCount;
 
+sk_sp<SkFlattenable> DummyRasterizer::CreateProc(SkReadBuffer&) {
+    return sk_make_sp<DummyRasterizer>();
+}
+
 // Check to make sure that the SkPaint in the layer has its destructor called.
 DEF_TEST(LayerRasterizer_destructor, reporter) {
     {
         SkPaint paint;
-        paint.setRasterizer(SkNEW(DummyRasterizer))->unref();
+        paint.setRasterizer(sk_make_sp<DummyRasterizer>());
         REPORTER_ASSERT(reporter, DummyRasterizer::GetCount() == 1);
 
         SkLayerRasterizer::Builder builder;
@@ -79,7 +83,7 @@ static bool equals(const SkLayerRasterizer_Rec& rec1, const SkLayerRasterizer_Re
 
 DEF_TEST(LayerRasterizer_copy, reporter) {
     SkLayerRasterizer::Builder builder;
-    REPORTER_ASSERT(reporter, NULL == builder.snapshotRasterizer());
+    REPORTER_ASSERT(reporter, nullptr == builder.snapshot());
     SkPaint paint;
     // Create a bunch of paints with different flags.
     for (uint32_t flags = 0x01; flags < SkPaint::kAllFlags; flags <<= 1) {
@@ -88,14 +92,14 @@ DEF_TEST(LayerRasterizer_copy, reporter) {
     }
 
     // Create a layer rasterizer with all the existing layers.
-    SkAutoTUnref<SkLayerRasterizer> firstCopy(builder.snapshotRasterizer());
+    sk_sp<SkLayerRasterizer> firstCopy(builder.snapshot());
 
     // Add one more layer.
     paint.setFlags(SkPaint::kAllFlags);
     builder.addLayer(paint);
 
-    SkAutoTUnref<SkLayerRasterizer> oneLarger(builder.snapshotRasterizer());
-    SkAutoTUnref<SkLayerRasterizer> detached(builder.detachRasterizer());
+    sk_sp<SkLayerRasterizer> oneLarger(builder.snapshot());
+    sk_sp<SkLayerRasterizer> detached(builder.detach());
 
     // Check the counts for consistency.
     const int largerCount = LayerRasterizerTester::CountLayers(*oneLarger.get());
@@ -103,9 +107,9 @@ DEF_TEST(LayerRasterizer_copy, reporter) {
     REPORTER_ASSERT(reporter, largerCount == LayerRasterizerTester::CountLayers(*detached.get()));
     REPORTER_ASSERT(reporter, smallerCount == largerCount - 1);
 
-    const SkLayerRasterizer_Rec* recFirstCopy = NULL;
-    const SkLayerRasterizer_Rec* recOneLarger = NULL;
-    const SkLayerRasterizer_Rec* recDetached = NULL;
+    const SkLayerRasterizer_Rec* recFirstCopy = nullptr;
+    const SkLayerRasterizer_Rec* recOneLarger = nullptr;
+    const SkLayerRasterizer_Rec* recDetached = nullptr;
 
     const SkDeque& layersFirstCopy = LayerRasterizerTester::GetLayers(*firstCopy.get());
     const SkDeque& layersOneLarger = LayerRasterizerTester::GetLayers(*oneLarger.get());
@@ -129,7 +133,7 @@ DEF_TEST(LayerRasterizer_copy, reporter) {
 
         REPORTER_ASSERT(reporter, equals(*recOneLarger, *recDetached));
         if (smallerCount == i) {
-            REPORTER_ASSERT(reporter, recFirstCopy == NULL);
+            REPORTER_ASSERT(reporter, recFirstCopy == nullptr);
         } else {
             REPORTER_ASSERT(reporter, equals(*recFirstCopy, *recOneLarger));
         }
@@ -138,5 +142,5 @@ DEF_TEST(LayerRasterizer_copy, reporter) {
 
 DEF_TEST(LayerRasterizer_detachEmpty, reporter) {
     SkLayerRasterizer::Builder builder;
-    REPORTER_ASSERT(reporter, NULL == builder.detachRasterizer());
+    REPORTER_ASSERT(reporter, nullptr == builder.detach());
 }

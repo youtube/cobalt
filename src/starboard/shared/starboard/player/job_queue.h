@@ -15,15 +15,12 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <functional>
 #include <map>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
-#include "starboard/log.h"
 #include "starboard/mutex.h"
-#include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/time.h"
 
 #ifndef __cplusplus
@@ -35,11 +32,29 @@ namespace shared {
 namespace starboard {
 namespace player {
 
-// This class implements a job queue where closures can be posted to it on any
+// This class implements a job queue where jobs can be posted to it on any
 // thread and will be processed on one thread that this job queue is linked to.
 // A thread can only have one job queue.
 class JobQueue {
  public:
+  typedef std::function<void()> Job;
+
+  class JobToken {
+   public:
+    static const int64_t kInvalidToken = -1;
+
+    explicit JobToken(int64_t token = kInvalidToken) : token_(token) {}
+
+    void ResetToInvalid() { token_ = kInvalidToken; }
+    bool is_valid() const { return token_ != kInvalidToken; }
+    bool operator==(const JobToken& that) const {
+      return token_ == that.token_;
+    }
+
+   private:
+    int64_t token_;
+  };
+
   class JobOwner {
    protected:
     explicit JobOwner(JobQueue* job_queue = JobQueue::current())
@@ -47,14 +62,19 @@ class JobQueue {
       SB_DCHECK(job_queue);
     }
     ~JobOwner() { CancelPendingJobs(); }
+
     bool BelongsToCurrentThread() const {
       return job_queue_->BelongsToCurrentThread();
     }
-    void Schedule(Closure closure, SbTimeMonotonic delay = 0) {
-      job_queue_->Schedule(closure, this, delay);
+
+    JobToken Schedule(Job job, SbTimeMonotonic delay = 0) {
+      return job_queue_->Schedule(job, this, delay);
     }
-    void Remove(Closure closure) { job_queue_->Remove(closure); }
-    void CancelPendingJobs() { job_queue_->RemoveJobsByToken(this); }
+
+    void RemoveJobByToken(JobToken job_token) {
+      return job_queue_->RemoveJobByToken(job_token);
+    }
+    void CancelPendingJobs() { job_queue_->RemoveJobsByOwner(this); }
 
    private:
     JobQueue* job_queue_;
@@ -63,8 +83,8 @@ class JobQueue {
   JobQueue();
   ~JobQueue();
 
-  void Schedule(Closure closure, SbTimeMonotonic delay = 0);
-  void Remove(Closure closure);
+  JobToken Schedule(Job job, SbTimeMonotonic delay = 0);
+  void RemoveJobByToken(JobToken job_token);
 
   // The processing of jobs may not be stopped when this function returns, but
   // it is guaranteed that the processing will be stopped very soon.  So it is
@@ -78,14 +98,15 @@ class JobQueue {
   static JobQueue* current();
 
  private:
-  struct Job {
-    Closure closure;
+  struct JobRecord {
+    JobToken job_token;
+    Job job;
     JobOwner* owner;
   };
-  typedef std::multimap<SbTimeMonotonic, Job> TimeToJobMap;
+  typedef std::multimap<SbTimeMonotonic, JobRecord> TimeToJobMap;
 
-  void Schedule(Closure closure, JobOwner* owner, SbTimeMonotonic delay);
-  void RemoveJobsByToken(JobOwner* owner);
+  JobToken Schedule(Job job, JobOwner* owner, SbTimeMonotonic delay);
+  void RemoveJobsByOwner(JobOwner* owner);
   // Return true if a job is run, otherwise return false.  When there is no job
   // ready to run currently and |wait_for_next_job| is true, the function will
   // wait to until a job is available or if the |queue_| is woken up.  Note that
@@ -96,6 +117,7 @@ class JobQueue {
   SbThreadId thread_id_;
   Mutex mutex_;
   ConditionVariable condition_;
+  int64_t current_job_token_;
   TimeToJobMap time_to_job_map_;
   bool stopped_;
 };

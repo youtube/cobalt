@@ -21,15 +21,15 @@ class BASE_EXPORT MessageLoopProxyImpl : public MessageLoopProxy {
   // MessageLoopProxy implementation
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const base::Closure& task,
-                               base::TimeDelta delay) OVERRIDE;
+                               base::TimeDelta delay) override;
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task,
-      base::TimeDelta delay) OVERRIDE;
-  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+      base::TimeDelta delay) override;
+  virtual bool RunsTasksOnCurrentThread() const override;
 #if defined(COBALT)
   virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
-                                const Closure& task) OVERRIDE;
+                                const Closure& task) override;
 #endif
 
  protected:
@@ -37,7 +37,7 @@ class BASE_EXPORT MessageLoopProxyImpl : public MessageLoopProxy {
 
   // Override OnDestruct so that we can delete the object on the target message
   // loop if it still exists.
-  virtual void OnDestruct() const OVERRIDE;
+  virtual void OnDestruct() const override;
 
  private:
   // Allow the MessageLoop to create a MessageLoopProxyImpl.

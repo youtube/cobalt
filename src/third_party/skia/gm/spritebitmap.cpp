@@ -8,6 +8,8 @@
 #include "gm.h"
 #include "SkCanvas.h"
 #include "SkBlurImageFilter.h"
+#include "SkRSXform.h"
+#include "SkSurface.h"
 
 static void make_bm(SkBitmap* bm) {
     bm->allocN32Pixels(100, 100);
@@ -20,8 +22,8 @@ static void make_bm(SkBitmap* bm) {
     canvas.drawCircle(50, 50, 50, paint);
 }
 
-static void draw_2_bitmaps(SkCanvas* canvas, const SkBitmap& bm, bool doClip,
-                           int dx, int dy, SkImageFilter* filter = NULL) {
+static void draw_1_bitmap(SkCanvas* canvas, const SkBitmap& bm, bool doClip,
+                         int dx, int dy, sk_sp<SkImageFilter> filter) {
     SkAutoCanvasRestore acr(canvas, true);
     SkPaint paint;
 
@@ -30,17 +32,8 @@ static void draw_2_bitmaps(SkCanvas* canvas, const SkBitmap& bm, bool doClip,
                                     SkIntToScalar(bm.width()),
                                     SkIntToScalar(bm.height()));
 
-    paint.setImageFilter(filter);
+    paint.setImageFilter(std::move(filter));
     clipR.inset(5, 5);
-
-    if (doClip) {
-        canvas->save();
-        canvas->clipRect(clipR);
-    }
-    canvas->drawSprite(bm, dx, dy, &paint);
-    if (doClip) {
-        canvas->restore();
-    }
 
     canvas->translate(SkIntToScalar(bm.width() + 20), 0);
 
@@ -62,19 +55,16 @@ public:
     SpriteBitmapGM() {}
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         return SkString("spritebitmap");
     }
 
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(640, 480);
     }
 
-    virtual void onDraw(SkCanvas* canvas) {
+    void onDraw(SkCanvas* canvas) override {
         SkBitmap bm;
         make_bm(&bm);
 
@@ -82,21 +72,18 @@ protected:
         int dy = 10;
 
         SkScalar sigma = 8;
-        SkAutoTUnref<SkImageFilter> filter(SkBlurImageFilter::Create(sigma, sigma));
+        sk_sp<SkImageFilter> filter(SkBlurImageFilter::Make(sigma, sigma, nullptr));
 
-        draw_2_bitmaps(canvas, bm, false, dx, dy);
+        draw_1_bitmap(canvas, bm, false, dx, dy, nullptr);
         dy += bm.height() + 20;
-        draw_2_bitmaps(canvas, bm, false, dx, dy, filter);
+        draw_1_bitmap(canvas, bm, false, dx, dy, filter);
         dy += bm.height() + 20;
-        draw_2_bitmaps(canvas, bm, true, dx, dy);
+        draw_1_bitmap(canvas, bm, true, dx, dy, nullptr);
         dy += bm.height() + 20;
-        draw_2_bitmaps(canvas, bm, true, dx, dy, filter);
+        draw_1_bitmap(canvas, bm, true, dx, dy, filter);
     }
 
 private:
     typedef GM INHERITED;
 };
-
-//////////////////////////////////////////////////////////////////////////////
-
 DEF_GM( return new SpriteBitmapGM; )

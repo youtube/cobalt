@@ -71,6 +71,11 @@
      SK_B32_SHIFT == SK_BGRA_B32_SHIFT)
 
 
+#define SK_A_INDEX  (SK_A32_SHIFT/8)
+#define SK_R_INDEX  (SK_R32_SHIFT/8)
+#define SK_G_INDEX  (SK_G32_SHIFT/8)
+#define SK_B_INDEX  (SK_B32_SHIFT/8)
+
 #if defined(SK_PMCOLOR_IS_RGBA) && !LOCAL_PMCOLOR_SHIFTS_EQUIVALENT_TO_RGBA
     #error "SK_PMCOLOR_IS_RGBA does not match SK_*32_SHIFT values"
 #endif
@@ -193,7 +198,15 @@ static inline unsigned Sk255To256(U8CPU value) {
 /** Multiplify value by 0..256, and shift the result down 8
     (i.e. return (value * alpha256) >> 8)
  */
-#define SkAlphaMul(value, alpha256)     (SkMulS16(value, alpha256) >> 8)
+#define SkAlphaMul(value, alpha256)     (((value) * (alpha256)) >> 8)
+
+/** Calculates 256 - (value * alpha256) / 255 in range [0,256],
+ *  for [0,255] value and [0,256] alpha256.
+ */
+static inline U16CPU SkAlphaMulInv256(U16CPU value, U16CPU alpha256) {
+    unsigned prod = 0xFFFF - value * alpha256;
+    return (prod + (prod >> 8)) >> 8;
+}
 
 //  The caller may want negative values, so keep all params signed (int)
 //  so we don't accidentally slip into unsigned math and lose the sign
@@ -213,9 +226,13 @@ static inline int SkAlphaBlend255(S16CPU src, S16CPU dst, U8CPU alpha) {
     SkASSERT((int16_t)dst == dst);
     SkASSERT((uint8_t)alpha == alpha);
 
-    int prod = SkMulS16(src - dst, alpha) + 128;
+    int prod = (src - dst) * alpha + 128;
     prod = (prod + (prod >> 8)) >> 8;
     return dst + prod;
+}
+
+static inline U8CPU SkUnitScalarClampToByte(SkScalar x) {
+    return static_cast<U8CPU>(SkScalarPin(x, 0, 1) * 255 + 0.5);
 }
 
 #define SK_R16_BITS     5
@@ -280,6 +297,16 @@ static inline U16CPU SkAlphaMulRGB16(U16CPU c, unsigned scale) {
 
 // this helper explicitly returns a clean 16bit value (but slower)
 #define SkAlphaMulRGB16_ToU16(c, s)  (uint16_t)SkAlphaMulRGB16(c, s)
+
+/** Blend pre-expanded RGB32 with 16bit color value by the 0..32 scale parameter.
+    The computation yields only 16bits of valid data, but we claim to return
+    32bits, so that the compiler won't generate extra instructions to "clean"
+    the top 16bits.
+*/
+static inline U16CPU SkBlend32_RGB16(uint32_t src_expand, uint16_t dst, unsigned scale) {
+    uint32_t dst_expand = SkExpand_rgb_16(dst) * scale;
+    return SkCompact_rgb_16((src_expand + dst_expand) >> 5);
+}
 
 /** Blend src and dst 16bit colors by the 0..256 scale parameter.
     The computation yields only 16bits of valid data, but we claim
@@ -358,6 +385,18 @@ static inline void SkBlendRGB16(const uint16_t src[], uint16_t dst[],
 #else
     #define SkPMColorAssert(c)
 #endif
+
+static inline bool SkPMColorValid(SkPMColor c) {
+    auto a = SkGetPackedA32(c);
+    bool valid = a <= SK_A32_MASK
+              && SkGetPackedR32(c) <= a
+              && SkGetPackedG32(c) <= a
+              && SkGetPackedB32(c) <= a;
+    if (valid) {
+        SkPMColorAssert(c);  // Make sure we're consistent when it counts.
+    }
+    return valid;
+}
 
 /**
  *  Pack the components into a SkPMColor, checking (in the debug version) that
@@ -537,13 +576,28 @@ static inline SkPMColor SkPMSrcOver(SkPMColor src, SkPMColor dst) {
     return src + SkAlphaMulQ(dst, SkAlpha255To256(255 - SkGetPackedA32(src)));
 }
 
+/**
+ * Interpolates between colors src and dst using [0,256] scale.
+ */
+static inline SkPMColor SkPMLerp(SkPMColor src, SkPMColor dst, unsigned scale) {
+    return SkFastFourByteInterp256(src, dst, scale);
+}
+
 static inline SkPMColor SkBlendARGB32(SkPMColor src, SkPMColor dst, U8CPU aa) {
     SkASSERT((unsigned)aa <= 255);
 
     unsigned src_scale = SkAlpha255To256(aa);
-    unsigned dst_scale = SkAlpha255To256(255 - SkAlphaMul(SkGetPackedA32(src), src_scale));
+    unsigned dst_scale = SkAlphaMulInv256(SkGetPackedA32(src), src_scale);
 
-    return SkAlphaMulQ(src, src_scale) + SkAlphaMulQ(dst, dst_scale);
+    const uint32_t mask = 0xFF00FF;
+
+    uint32_t src_rb = (src & mask) * src_scale;
+    uint32_t src_ag = ((src >> 8) & mask) * src_scale;
+
+    uint32_t dst_rb = (dst & mask) * dst_scale;
+    uint32_t dst_ag = ((dst >> 8) & mask) * dst_scale;
+
+    return (((src_rb + dst_rb) >> 8) & mask) | ((src_ag + dst_ag) & ~mask);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

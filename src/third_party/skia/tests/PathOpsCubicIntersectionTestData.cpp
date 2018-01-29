@@ -14,7 +14,7 @@ static const double G = FLT_EPSILON / 3;
 static const double N = -FLT_EPSILON / 2;
 static const double M = -FLT_EPSILON / 3;
 
-const SkDCubic pointDegenerates[] = {
+const CubicPts pointDegenerates[] = {
     {{{0, 0}, {0, 0}, {0, 0}, {0, 0}}},
     {{{1, 1}, {1, 1}, {1, 1}, {1, 1}}},
     {{{1 + FLT_EPSILON_HALF, 1}, {1, 1 + FLT_EPSILON_HALF}, {1, 1}, {1, 1}}},
@@ -45,16 +45,16 @@ const SkDCubic pointDegenerates[] = {
 
 const size_t pointDegenerates_count = SK_ARRAY_COUNT(pointDegenerates);
 
-const SkDCubic notPointDegenerates[] = {
-    {{{1 + FLT_EPSILON * 2, 1}, {1, FLT_EPSILON * 2}, {1, 1}, {1, 1}}},
-    {{{1 + FLT_EPSILON * 2, 1}, {1 - FLT_EPSILON * 2, 1}, {1, 1}, {1, 1}}}
+const CubicPts notPointDegenerates[] = {
+    {{{1 + FLT_EPSILON * 8, 1}, {1, FLT_EPSILON * 8}, {1, 1}, {1, 1}}},
+    {{{1 + FLT_EPSILON * 8, 1}, {1 - FLT_EPSILON * 8, 1}, {1, 1}, {1, 1}}}
 };
 
 const size_t notPointDegenerates_count =
         SK_ARRAY_COUNT(notPointDegenerates);
 
 // from http://www.truetex.com/bezint.htm
-const SkDCubic tests[][2] = {
+const CubicPts tests[][2] = {
     {  // intersects in one place (data gives bezier clip fits
      {{{0, 45},
       {6.0094158284751593, 51.610357411322688},
@@ -109,7 +109,7 @@ const SkDCubic tests[][2] = {
 
 const size_t tests_count = SK_ARRAY_COUNT(tests);
 
-const SkDCubic lines[] = {
+const CubicPts lines[] = {
     {{{0, 0}, {0, 0}, {0, 0}, {1, 0}}},  // 0: horizontal
     {{{1, 0}, {0, 0}, {0, 0}, {0, 0}}},
     {{{1, 0}, {2, 0}, {3, 0}, {4, 0}}},
@@ -145,7 +145,7 @@ const SkDCubic lines[] = {
 const size_t lines_count = SK_ARRAY_COUNT(lines);
 
 // 'not a line' tries to fool the line detection code
-const SkDCubic notLines[] = {
+const CubicPts notLines[] = {
     {{{0, 0}, {0, 0}, {0, 1}, {1, 0}}},
     {{{0, 0}, {0, 1}, {0, 0}, {1, 0}}},
     {{{0, 0}, {0, 1}, {1, 0}, {0, 0}}},
@@ -156,10 +156,10 @@ const SkDCubic notLines[] = {
 
 const size_t notLines_count = SK_ARRAY_COUNT(notLines);
 
-static const double E = FLT_EPSILON * 2;
-static const double F = FLT_EPSILON * 3;
+static const double E = FLT_EPSILON * 8;
+static const double F = FLT_EPSILON * 8;
 
-const SkDCubic modEpsilonLines[] = {
+const CubicPts modEpsilonLines[] = {
     {{{0, E}, {0, 0}, {0, 0}, {1, 0}}},  // horizontal
     {{{0, 0}, {0, E}, {1, 0}, {0, 0}}},
     {{{0, 0}, {1, 0}, {0, E}, {0, 0}}},
@@ -187,8 +187,8 @@ const SkDCubic modEpsilonLines[] = {
     {{{1, 1}, {2, 2}, {2, 2+E}, {1, 1}}},
     {{{1, 1}, {1, 1+E}, {3, 3}, {3, 3}}},  // first-middle middle-last coincident
     {{{1, 1}, {2+E, 2}, {3, 3}, {4, 4}}},  // no coincident
-    {{{1, 1}, {3, 3}, {2, 2}, {4, 4+F}}},  // INVESTIGATE: why the epsilon is bigger
-    {{{1, 1+F}, {2, 2}, {4, 4}, {3, 3}}},  // INVESTIGATE: why the epsilon is bigger
+    {{{1, 1}, {3, 3}, {2, 2}, {4, 4+F+F}}},  // INVESTIGATE: why the epsilon is bigger
+    {{{1, 1+F+F}, {2, 2}, {4, 4}, {3, 3}}},  // INVESTIGATE: why the epsilon is bigger
     {{{1, 1}, {3, 3}, {4, 4+E}, {2, 2}}},
     {{{1, 1}, {4, 4}, {2, 2}, {3, 3+E}}},
     {{{1, 1}, {4, 4}, {3, 3}, {2+E, 2}}},
@@ -202,7 +202,7 @@ const SkDCubic modEpsilonLines[] = {
 
 const size_t modEpsilonLines_count = SK_ARRAY_COUNT(modEpsilonLines);
 
-const SkDCubic lessEpsilonLines[] = {
+const CubicPts lessEpsilonLines[] = {
     {{{0, D}, {0, 0}, {0, 0}, {1, 0}}},  // horizontal
     {{{1, 0}, {0, 0}, {0, 0}, {0, D}}},
     {{{1, D}, {2, 0}, {3, 0}, {4, 0}}},
@@ -238,7 +238,7 @@ const SkDCubic lessEpsilonLines[] = {
 
 const size_t lessEpsilonLines_count = SK_ARRAY_COUNT(lessEpsilonLines);
 
-const SkDCubic negEpsilonLines[] = {
+const CubicPts negEpsilonLines[] = {
     {{{0, N}, {0, 0}, {0, 0}, {1, 0}}},  // horizontal
     {{{1, 0}, {0, 0}, {0, 0}, {0, N}}},
     {{{1, N}, {2, 0}, {3, 0}, {4, 0}}},

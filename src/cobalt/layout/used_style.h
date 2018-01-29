@@ -155,11 +155,11 @@ class UsedBackgroundNodeProvider
       const scoped_refptr<cssom::PropertyValue>& background_repeat,
       UsedStyleProvider* used_style_provider);
 
-  void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) OVERRIDE;
+  void VisitAbsoluteURL(cssom::AbsoluteURLValue* url_value) override;
   void VisitLinearGradient(
-      cssom::LinearGradientValue* linear_gradient_value) OVERRIDE;
+      cssom::LinearGradientValue* linear_gradient_value) override;
   void VisitRadialGradient(
-      cssom::RadialGradientValue* radial_gradient_value) OVERRIDE;
+      cssom::RadialGradientValue* radial_gradient_value) override;
 
   scoped_refptr<render_tree::Node> background_node() {
     return background_node_;
@@ -188,7 +188,7 @@ class UsedBackgroundPositionProvider
                                  const math::SizeF& image_actual_size);
 
   void VisitPropertyList(
-      cssom::PropertyListValue* property_list_value) OVERRIDE;
+      cssom::PropertyListValue* property_list_value) override;
 
   float translate_x() { return translate_x_; }
   float translate_y() { return translate_y_; }
@@ -218,7 +218,7 @@ class UsedBackgroundRepeatProvider
   UsedBackgroundRepeatProvider();
 
   void VisitPropertyList(
-      cssom::PropertyListValue* property_list_value) OVERRIDE;
+      cssom::PropertyListValue* property_list_value) override;
 
   bool repeat_x() { return repeat_x_; }
   bool repeat_y() { return repeat_y_; }
@@ -237,8 +237,8 @@ class UsedBackgroundSizeProvider
                              const math::Size& image_size);
 
   void VisitPropertyList(
-      cssom::PropertyListValue* property_list_value) OVERRIDE;
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+      cssom::PropertyListValue* property_list_value) override;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
 
   float width_scale_relative_to_frame() const {
     return frame_size_.width() == 0.0f ? 0.0f : width_ / frame_size_.width();
@@ -266,8 +266,8 @@ class UsedBorderRadiusProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit UsedBorderRadiusProvider(const math::SizeF& frame_size);
 
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+  void VisitLength(cssom::LengthValue* length) override;
+  void VisitPercentage(cssom::PercentageValue* percentage) override;
 
   const base::optional<render_tree::RoundedCorner>& rounded_corner() const {
     return rounded_corner_;
@@ -287,9 +287,9 @@ class UsedLineHeightProvider : public cssom::NotReachedPropertyValueVisitor {
       const render_tree::FontMetrics& font_metrics,
       const scoped_refptr<cssom::PropertyValue>& font_size);
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitNumber(cssom::NumberValue* length) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
+  void VisitLength(cssom::LengthValue* length) override;
+  void VisitNumber(cssom::NumberValue* length) override;
 
   LayoutUnit used_line_height() const { return used_line_height_; }
   LayoutUnit half_leading() const { return half_leading_; }

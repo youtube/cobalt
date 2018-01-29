@@ -19,6 +19,9 @@
 // so as to avoid including application_uwp.h
 
 #include <agile.h>
+#include <ppltasks.h>
+
+#include <string>
 
 namespace starboard {
 namespace shared {
@@ -43,9 +46,14 @@ void DisplayRequestRelease();
 template<typename T>
 void RunInMainThreadAsync(const T& lambda) {
   GetDispatcher()->RunAsync(
-    CoreDispatcherPriority::Normal,
-    ref new DispatchedHandler(lambda));
+    Windows::UI::Core::CoreDispatcherPriority::Normal,
+    ref new Windows::UI::Core::DispatchedHandler(lambda));
 }
+
+// Tries to fetch an SSO token, returning nullptr or exception on failure
+concurrency::task<
+    Windows::Security::Authentication::Web::Core::WebTokenRequestResult^>
+    TryToFetchSsoToken(const std::string& url);
 
 }  // namespace uwp
 }  // namespace shared

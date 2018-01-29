@@ -27,11 +27,11 @@ namespace nb {
 class SimpleProfilerTest : public ::testing::Test {
  public:
   SimpleProfilerTest() {}
-  virtual void SetUp() SB_OVERRIDE {
+  void SetUp() override {
     s_log_buffer_.clear();
     SimpleProfiler::SetLoggingFunction(TestLogFunction);
   }
-  virtual void TearDown() SB_OVERRIDE {
+  void TearDown() override {
     SimpleProfiler::SetLoggingFunction(nullptr);
     SimpleProfiler::SetClockFunction(nullptr);
     s_log_buffer_.clear();

@@ -51,15 +51,15 @@ class MockTransaction : public DnsTransaction,
     }
   }
 
-  virtual const std::string& GetHostname() const OVERRIDE {
+  virtual const std::string& GetHostname() const override {
     return hostname_;
   }
 
-  virtual uint16 GetType() const OVERRIDE {
+  virtual uint16 GetType() const override {
     return qtype_;
   }
 
-  virtual int Start() OVERRIDE {
+  virtual int Start() override {
     EXPECT_FALSE(started_);
     started_ = true;
     if (MockDnsClientRule::FAIL_SYNC == result_)
@@ -154,7 +154,7 @@ class MockTransactionFactory : public DnsTransactionFactory {
       const std::string& hostname,
       uint16 qtype,
       const DnsTransactionFactory::CallbackType& callback,
-      const BoundNetLog&) OVERRIDE {
+      const BoundNetLog&) override {
     return scoped_ptr<DnsTransaction>(
         new MockTransaction(rules_, hostname, qtype, callback));
   }
@@ -167,7 +167,7 @@ class MockAddressSorter : public AddressSorter {
  public:
   virtual ~MockAddressSorter() {}
   virtual void Sort(const AddressList& list,
-                    const CallbackType& callback) const OVERRIDE {
+                    const CallbackType& callback) const override {
     // Do nothing.
     callback.Run(true, list);
   }
@@ -181,19 +181,19 @@ class MockDnsClient : public DnsClient {
       : config_(config), factory_(rules) {}
   virtual ~MockDnsClient() {}
 
-  virtual void SetConfig(const DnsConfig& config) OVERRIDE {
+  virtual void SetConfig(const DnsConfig& config) override {
     config_ = config;
   }
 
-  virtual const DnsConfig* GetConfig() const OVERRIDE {
+  virtual const DnsConfig* GetConfig() const override {
     return config_.IsValid() ? &config_ : NULL;
   }
 
-  virtual DnsTransactionFactory* GetTransactionFactory() OVERRIDE {
+  virtual DnsTransactionFactory* GetTransactionFactory() override {
     return config_.IsValid() ? &factory_ : NULL;
   }
 
-  virtual AddressSorter* GetAddressSorter() OVERRIDE {
+  virtual AddressSorter* GetAddressSorter() override {
     return &address_sorter_;
   }
 

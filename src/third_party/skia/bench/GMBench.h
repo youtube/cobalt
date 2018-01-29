@@ -18,13 +18,13 @@ class GMBench : public Benchmark {
 public:
     // Constructor takes ownership of the GM param.
     GMBench(skiagm::GM* gm);
-    virtual ~GMBench();
+    ~GMBench() override;
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE;
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE;
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE;
-    virtual SkIPoint onGetSize() SK_OVERRIDE;
+    const char* onGetName() override;
+    bool isSuitableFor(Backend backend) override;
+    void onDraw(int loops, SkCanvas* canvas) override;
+    SkIPoint onGetSize() override;
 
 private:
     skiagm::GM* fGM;

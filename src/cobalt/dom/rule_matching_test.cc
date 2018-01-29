@@ -56,7 +56,7 @@ class RuleMatchingTest : public ::testing::Test {
     document_->AppendChild(root_);
   }
 
-  ~RuleMatchingTest() OVERRIDE {}
+  ~RuleMatchingTest() override {}
 
   void UpdateAllMatchingRules();
 
@@ -295,6 +295,68 @@ TEST_F(RuleMatchingTest, NotPseudoClassNoMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   EXPECT_EQ(0, matching_rules->size());
+}
+
+// Neither :not(.my-class) and div:not(.my-class) should match
+// <div class=\"my-class\"/>.
+TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementNeitherMatch) {
+  head_->set_inner_html(
+      "<style>:not(.my-class) {} div:not(.my-class) {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/>");
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// div:not(.other-class) should match <div class=\"my-class\"/>.
+TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementFirstMatch) {
+  head_->set_inner_html(
+      "<style>div:not(.other-class) {} div:not(.my-class) {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/>");
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// div:not(.other-class) should match <div class=\"my-class\"/>.
+TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementSecondMatch) {
+  head_->set_inner_html(
+      "<style>div:not(.my-class) {} div:not(.other-class) {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/>");
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(1),
+            (*matching_rules)[0].first);
+}
+
+// div:not(.my-class) and div:not(.other-class) should both match
+// <div class=\"neither-class\"/>.
+TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementBothMatch) {
+  head_->set_inner_html(
+      "<style>div:not(.my-class) {} div:not(.other-class) {}</style>");
+  body_->set_inner_html("<div class=\"neither-class\"/>");
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(2, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(1),
+            (*matching_rules)[1].first);
 }
 
 // *:after should create and match the after pseudo element of all elements.

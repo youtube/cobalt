@@ -16,6 +16,7 @@
 
 #include <limits>
 
+#include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/style_sheet.h"
 
 namespace cobalt {
@@ -26,11 +27,12 @@ StyleSheetList::StyleSheetList() : mutation_observer_(NULL) {}
 StyleSheetList::StyleSheetList(const StyleSheetVector& style_sheets,
                                MutationObserver* observer)
     : style_sheets_(style_sheets), mutation_observer_(observer) {
+  int index = 0;
   for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
        iter != style_sheets_.end(); ++iter) {
     StyleSheet* style_sheet = *iter;
     style_sheet->AttachToStyleSheetList(this);
-    style_sheet->set_index(static_cast<int>(style_sheets_.size()));
+    style_sheet->set_index(index++);
   }
 }
 
@@ -49,11 +51,16 @@ void StyleSheetList::OnCSSMutation() {
   }
 }
 
+void StyleSheetList::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(style_sheets_);
+}
+
 StyleSheetList::~StyleSheetList() {
   for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
        iter != style_sheets_.end(); ++iter) {
     StyleSheet* style_sheet = *iter;
     if (style_sheet->ParentStyleSheetList() == this) {
+      style_sheet->set_index(Appearance::kUnattached);
       style_sheet->DetachFromStyleSheetList();
     }
   }

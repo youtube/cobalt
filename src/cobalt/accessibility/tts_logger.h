@@ -25,12 +25,8 @@ namespace accessibility {
 // TTSEngine implementation that just logs the text.
 class TTSLogger : public TTSEngine {
  public:
-  void SpeakNow(const std::string& text) OVERRIDE {
-    LogText(text);
-  }
-  void Speak(const std::string& text) OVERRIDE {
-    LogText(text);
-  }
+  void SpeakNow(const std::string& text) override { LogText(text); }
+  void Speak(const std::string& text) override { LogText(text); }
 
  private:
   void LogText(const std::string& text) {

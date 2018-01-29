@@ -1,14 +1,16 @@
 # Configuration used by
-# https://skia.googlesource.com/buildbot/+/master/slave/skia_slave_scripts/generate_doxygen.py
+# https://chromium.googlesource.com/chromium/tools/build/+/0f611b202b0e/scripts/slave/recipe_modules/skia/resources/generate_and_upload_doxygen.py
 # to generate our Doxygen docs, which are then uploaded to
-# http://chromium-skia-gm.commondatastorage.googleapis.com/doxygen/doxygen/html/index.html
+# http://skia-doc.commondatastorage.googleapis.com/doxygen/doxygen/html/index.html
 
 
-PROJECT_NAME = skia
+PROJECT_NAME = Skia
 PROJECT_BRIEF = 2D Graphics Library
 
+PROJECT_LOGO = https://skia.org/res/img/logo.png
+
 # These lines are overridden by
-# https://skia.googlesource.com/buildbot/+/master/slave/skia_slave_scripts/generate_doxygen.py ,
+# https://chromium.googlesource.com/chromium/tools/build/+/0f611b202b0e/scripts/slave/recipe_modules/skia/resources/generate_and_upload_doxygen.py
 # but they are needed in case someone wants to generate the doxygen manually
 # for some reason.
 OUTPUT_DIRECTORY = ../docs
@@ -39,9 +41,9 @@ CLASS_DIAGRAMS = YES
 # CLASS_GRAPH = YES
 # COLLABORATION_GRAPH = YES
 # UML_LOOK = YES
-# GRAPHICAL_HIERARCHY = YES 
+# GRAPHICAL_HIERARCHY = YES
 
-# Make SkDEBUGCODE disappear, but not SK_OVERRIDE.
+# Make SkDEBUGCODE disappear.
 ENABLE_PREPROCESSING = YES
 MACRO_EXPANSION = YES
 EXPAND_ONLY_PREDEF = YES

@@ -35,10 +35,10 @@ class InputPollerImpl : public InputPoller {
   InputPollerImpl();
   virtual ~InputPollerImpl() {}
 
-  bool IsPressed(SbKey keycode) OVERRIDE;
+  bool IsPressed(SbKey keycode) override;
   // Returns analog position. The value is normalized to a range from
   // -1.0 to 1.0
-  float AnalogInput(SbKey analog_input_id) OVERRIDE;
+  float AnalogInput(SbKey analog_input_id) override;
   void UpdateInputEvent(const system_window::InputEvent* input_event);
 
  private:

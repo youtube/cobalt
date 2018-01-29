@@ -42,10 +42,10 @@ void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
     base::TimeDelta media_time) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  ClearSegmentsBeforeMediaTime(media_time, &audio_buffers_,
-                               &audio_key_frame_timestamps_);
-  ClearSegmentsBeforeMediaTime(media_time, &video_buffers_,
-                               &video_key_frame_timestamps_);
+  audio_buffer_index_ -= ClearSegmentsBeforeMediaTime(
+      media_time, &audio_buffers_, &audio_key_frame_timestamps_);
+  video_buffer_index_ -= ClearSegmentsBeforeMediaTime(
+      media_time, &video_buffers_, &video_key_frame_timestamps_);
 }
 
 void DecoderBufferCache::ClearAll() {
@@ -55,6 +55,8 @@ void DecoderBufferCache::ClearAll() {
   audio_key_frame_timestamps_.clear();
   video_buffers_.clear();
   video_key_frame_timestamps_.clear();
+  audio_buffer_index_ = 0;
+  video_buffer_index_ = 0;
 }
 
 void DecoderBufferCache::StartResuming() {
@@ -94,7 +96,7 @@ void DecoderBufferCache::AdvanceToNextBuffer(DemuxerStream::Type type) {
 }
 
 // static
-void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
+size_t DecoderBufferCache::ClearSegmentsBeforeMediaTime(
     base::TimeDelta media_time, Buffers* buffers,
     KeyFrameTimestamps* key_frame_timestamps) {
   // Use K to denote a key frame and N for non-key frame.  If the cache contains
@@ -112,15 +114,20 @@ void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
     key_frame_timestamps->erase(key_frame_timestamps->begin());
   }
   if (key_frame_timestamps->empty()) {
-    return;
+    return 0;
   }
+
+  size_t buffers_removed = 0;
   while (scoped_refptr<DecoderBuffer> buffer = buffers->front()) {
     if (buffer->is_key_frame() &&
         buffer->timestamp() == key_frame_timestamps->front()) {
       break;
     }
     buffers->pop_front();
+    ++buffers_removed;
   }
+
+  return buffers_removed;
 }
 
 }  // namespace media

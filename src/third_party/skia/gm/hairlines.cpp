@@ -7,24 +7,22 @@
 
 #include "gm.h"
 #include "SkCanvas.h"
+#include "SkPath.h"
 #include "SkTArray.h"
 
 namespace skiagm {
 
 class HairlinesGM : public GM {
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("hairlines");
     }
 
-    virtual SkISize onISize() { return SkISize::Make(800, 600); }
+    SkISize onISize() override { return SkISize::Make(1250, 1250); }
 
-    virtual void onOnceBeforeDraw() SK_OVERRIDE {
+    void onOnceBeforeDraw() override {
         {
             SkPath* lineAnglesPath = &fPaths.push_back();
             enum {
@@ -140,9 +138,9 @@ protected:
 
         {
             // Arc example to test imperfect truncation bug (crbug.com/295626)
-            static const SkScalar kRad = SkIntToScalar(2000);
-            static const SkScalar kStartAngle = 262.59717f;
-            static const SkScalar kSweepAngle = SkScalarHalf(17.188717f);
+            constexpr SkScalar kRad = SkIntToScalar(2000);
+            constexpr SkScalar kStartAngle = 262.59717f;
+            constexpr SkScalar kSweepAngle = SkScalarHalf(17.188717f);
 
             SkPath* bug = &fPaths.push_back();
 
@@ -164,13 +162,14 @@ protected:
         }
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        static const SkAlpha kAlphaValue[] = { 0xFF, 0x40 };
+    void onDraw(SkCanvas* canvas) override {
+        constexpr SkAlpha kAlphaValue[] = { 0xFF, 0x40 };
+        constexpr SkScalar kWidths[] = { 0, 0.5f, 1.5f };
 
         enum {
             kMargin = 5,
         };
-        int wrapX = canvas->getDeviceSize().fWidth - kMargin;
+        int wrapX = 1250 - kMargin;
 
         SkScalar maxH = 0;
         canvas->translate(SkIntToScalar(kMargin), SkIntToScalar(kMargin));
@@ -180,32 +179,34 @@ protected:
         for (int p = 0; p < fPaths.count(); ++p) {
             for (size_t a = 0; a < SK_ARRAY_COUNT(kAlphaValue); ++a) {
                 for (int aa = 0; aa < 2; ++aa) {
-                    const SkRect& bounds = fPaths[p].getBounds();
+                    for (size_t w = 0; w < SK_ARRAY_COUNT(kWidths); w++) {
+                        const SkRect& bounds = fPaths[p].getBounds();
 
-                    if (x + bounds.width() > wrapX) {
-                        canvas->restore();
-                        canvas->translate(0, maxH + SkIntToScalar(kMargin));
+                        if (x + bounds.width() > wrapX) {
+                            canvas->restore();
+                            canvas->translate(0, maxH + SkIntToScalar(kMargin));
+                            canvas->save();
+                            maxH = 0;
+                            x = SkIntToScalar(kMargin);
+                        }
+
+                        SkPaint paint;
+                        paint.setARGB(kAlphaValue[a], 0, 0, 0);
+                        paint.setAntiAlias(SkToBool(aa));
+                        paint.setStyle(SkPaint::kStroke_Style);
+                        paint.setStrokeWidth(kWidths[w]);
+
                         canvas->save();
-                        maxH = 0;
-                        x = SkIntToScalar(kMargin);
+                        canvas->translate(-bounds.fLeft, -bounds.fTop);
+                        canvas->drawPath(fPaths[p], paint);
+                        canvas->restore();
+
+                        maxH = SkMaxScalar(maxH, bounds.height());
+
+                        SkScalar dx = bounds.width() + SkIntToScalar(kMargin);
+                        x += dx;
+                        canvas->translate(dx, 0);
                     }
-
-                    SkPaint paint;
-                    paint.setARGB(kAlphaValue[a], 0, 0, 0);
-                    paint.setAntiAlias(SkToBool(aa));
-                    paint.setStyle(SkPaint::kStroke_Style);
-                    paint.setStrokeWidth(0);
-
-                    canvas->save();
-                    canvas->translate(-bounds.fLeft, -bounds.fTop);
-                    canvas->drawPath(fPaths[p], paint);
-                    canvas->restore();
-
-                    maxH = SkMaxScalar(maxH, bounds.height());
-
-                    SkScalar dx = bounds.width() + SkIntToScalar(kMargin);
-                    x += dx;
-                    canvas->translate(dx, 0);
                 }
             }
         }
@@ -216,6 +217,44 @@ private:
     SkTArray<SkPath> fPaths;
     typedef GM INHERITED;
 };
+
+static void draw_squarehair_tests(SkCanvas* canvas, SkScalar width, SkPaint::Cap cap, bool aa) {
+    SkPaint paint;
+    paint.setStrokeCap(cap);
+    paint.setStrokeWidth(width);
+    paint.setAntiAlias(aa);
+    paint.setStyle(SkPaint::kStroke_Style);
+    canvas->drawLine(10, 10, 20, 10, paint);
+    canvas->drawLine(30, 10, 30, 20, paint);
+    canvas->drawLine(40, 10, 50, 20, paint);
+    SkPath path;
+    path.moveTo(60, 10);
+    path.quadTo(60, 20, 70, 20);
+    path.conicTo(70, 10, 80, 10, 0.707f);
+    canvas->drawPath(path, paint);
+    path.reset();
+    path.moveTo(90, 10);
+    path.cubicTo(90, 20, 100, 20, 100, 10);
+    path.lineTo(110, 10);
+    canvas->drawPath(path, paint);
+    canvas->translate(0, 30);
+}
+
+DEF_SIMPLE_GM(squarehair, canvas, 240, 360) {
+    const bool aliases[] = { false, true };
+    const SkScalar widths[] = { 0, 0.999f, 1, 1.001f };
+    const SkPaint::Cap caps[] = { SkPaint::kButt_Cap, SkPaint::kSquare_Cap, SkPaint::kRound_Cap };
+    for (auto alias : aliases) {
+        canvas->save();
+        for (auto width : widths) {
+            for (auto cap : caps) {
+                draw_squarehair_tests(canvas, width, cap, alias);
+            }
+        }
+        canvas->restore();
+        canvas->translate(120, 0);
+    }
+}
 
 //////////////////////////////////////////////////////////////////////////////
 

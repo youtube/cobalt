@@ -39,12 +39,14 @@ class CompoundSelector : public Selector {
   typedef ScopedVector<SimpleSelector> SimpleSelectors;
 
   CompoundSelector();
-  ~CompoundSelector() OVERRIDE;
+  ~CompoundSelector() override;
+
+  bool operator<(const CompoundSelector& that) const;
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
-  CompoundSelector* AsCompoundSelector() OVERRIDE { return this; }
-  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
+  void Accept(SelectorVisitor* visitor) override;
+  CompoundSelector* AsCompoundSelector() override { return this; }
+  Specificity GetSpecificity() const override { return specificity_; }
 
   // Rest of public methods.
 
@@ -72,40 +74,6 @@ class CompoundSelector : public Selector {
 
   bool requires_rule_matching_verification_visit() const {
     return requires_rule_matching_verification_visit_;
-  }
-
-  bool operator<(const CompoundSelector& that) const {
-    if (simple_selectors_.size() < that.simple_selectors_.size()) {
-      return true;
-    }
-    if (simple_selectors_.size() > that.simple_selectors_.size()) {
-      return false;
-    }
-
-    for (size_t i = 0; i < simple_selectors_.size(); ++i) {
-      if (simple_selectors_[i]->type() < that.simple_selectors_[i]->type()) {
-        return true;
-      }
-      if (simple_selectors_[i]->type() > that.simple_selectors_[i]->type()) {
-        return false;
-      }
-      if (simple_selectors_[i]->prefix() <
-          that.simple_selectors_[i]->prefix()) {
-        return true;
-      }
-      if (simple_selectors_[i]->prefix() >
-          that.simple_selectors_[i]->prefix()) {
-        return false;
-      }
-      if (simple_selectors_[i]->text() < that.simple_selectors_[i]->text()) {
-        return true;
-      }
-      if (simple_selectors_[i]->text() > that.simple_selectors_[i]->text()) {
-        return false;
-      }
-    }
-
-    return false;
   }
 
  private:

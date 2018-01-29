@@ -15,13 +15,14 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
+#include <functional>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
@@ -95,6 +96,7 @@ class PlayerWorker {
   };
 
   PlayerWorker(Host* host,
+               SbMediaAudioCodec audio_codec,
                scoped_ptr<Handler> handler,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
@@ -104,25 +106,25 @@ class PlayerWorker {
 
   void Seek(SbMediaTime seek_to_pts, int ticket) {
     job_queue_->Schedule(
-        Bind(&PlayerWorker::DoSeek, this, seek_to_pts, ticket));
+        std::bind(&PlayerWorker::DoSeek, this, seek_to_pts, ticket));
   }
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {
     job_queue_->Schedule(
-        Bind(&PlayerWorker::DoWriteSample, this, input_buffer));
+        std::bind(&PlayerWorker::DoWriteSample, this, input_buffer));
   }
 
   void WriteEndOfStream(SbMediaType sample_type) {
     job_queue_->Schedule(
-        Bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
+        std::bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
   }
 
   void SetBounds(Bounds bounds) {
-    job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
+    job_queue_->Schedule(std::bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
 
   void SetPause(bool pause) {
-    job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
+    job_queue_->Schedule(std::bind(&PlayerWorker::DoSetPause, this, pause));
   }
 
   void SetPlaybackRate(double playback_rate) {
@@ -139,11 +141,11 @@ class PlayerWorker {
       playback_rate = kMaximumPlaybackRate;
     }
     job_queue_->Schedule(
-        Bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
+        std::bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
   }
 
   void SetVolume(double volume) {
-    job_queue_->Schedule(Bind(&PlayerWorker::DoSetVolume, this, volume));
+    job_queue_->Schedule(std::bind(&PlayerWorker::DoSetVolume, this, volume));
   }
 
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
@@ -179,6 +181,7 @@ class PlayerWorker {
   scoped_ptr<JobQueue> job_queue_;
 
   Host* host_;
+  SbMediaAudioCodec audio_codec_;
   scoped_ptr<Handler> handler_;
 
   SbPlayerDecoderStatusFunc decoder_status_func_;
@@ -190,7 +193,7 @@ class PlayerWorker {
   SbPlayerState player_state_;
   scoped_refptr<InputBuffer> pending_audio_buffer_;
   scoped_refptr<InputBuffer> pending_video_buffer_;
-  Closure write_pending_sample_closure_;
+  JobQueue::JobToken write_pending_sample_job_token_;
 };
 
 }  // namespace player

@@ -42,7 +42,7 @@ class DocumentTimeline : public web_animations::AnimationTimeline {
   DEFINE_WRAPPABLE_TYPE(DocumentTimeline);
 
  private:
-  ~DocumentTimeline() OVERRIDE;
+  ~DocumentTimeline() override;
 
   base::WeakPtr<Document> document_;
 

@@ -56,29 +56,31 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
       SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
-  ~SbDrmSystemPlayready() SB_OVERRIDE;
+  ~SbDrmSystemPlayready() override;
 
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,
                                     const void* initialization_data,
-                                    int initialization_data_size) SB_OVERRIDE;
+                                    int initialization_data_size) override;
 
   void UpdateSession(int ticket,
                      const void* key,
                      int key_size,
                      const void* session_id,
-                     int session_id_size) SB_OVERRIDE;
+                     int session_id_size) override;
 
-  void CloseSession(const void* session_id, int session_id_size) SB_OVERRIDE;
+  void CloseSession(const void* session_id, int session_id_size) override;
 
-  DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
+  DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   // Used by audio and video decoders to retrieve the decryptors.
   scoped_refptr<License> GetLicense(const uint8_t* key_id, int key_id_size);
 
  private:
   std::string GenerateAndAdvanceSessionId();
+  // Note: requires mutex_ to be held
+  void ReportKeyStatusChanged_Locked(const std::string& session_id);
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
@@ -93,7 +95,17 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
   // |successful_requests_| can be accessed from more than one thread.  Guard
   // it by a mutex.
   Mutex mutex_;
-  std::map<std::string, scoped_refptr<License> > successful_requests_;
+
+  struct LicenseInfo {
+    LicenseInfo(SbDrmKeyStatus status, const scoped_refptr<License>& license)
+        : status_(status), license_(license) {}
+    LicenseInfo() : status_(kSbDrmKeyStatusError) {}
+
+    SbDrmKeyStatus status_;
+    scoped_refptr<License> license_;
+  };
+
+  std::map<std::string, LicenseInfo> successful_requests_;
 };
 
 }  // namespace win32

@@ -1,12 +1,23 @@
+/*
+ * Copyright 2014 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 #include "CrashHandler.h"
 
-#include "SkTypes.h"
+#include "../private/SkLeanWindows.h"
 
 #include <stdlib.h>
 
 // Disable SetupCrashHandler() unless SK_CRASH_HANDLER is defined.
 #ifndef SK_CRASH_HANDLER
     void SetupCrashHandler() { }
+
+#elif defined(GOOGLE3)
+    #include "base/process_state.h"
+    void SetupCrashHandler() { InstallSignalHandlers(); }
 
 #else
 
@@ -43,7 +54,7 @@
             _Exit(sig);
         }
 
-    #elif defined(SK_BUILD_FOR_UNIX) && !defined(SK_BUILD_FOR_NACL)  // NACL doesn't have backtrace.
+    #elif defined(SK_BUILD_FOR_UNIX)
 
         // We'd use libunwind here too, but it's a pain to get installed for
         // both 32 and 64 bit on bots.  Doesn't matter much: catchsegv is best anyway.
@@ -63,7 +74,7 @@
 
     #endif
 
-    #if (defined(SK_BUILD_FOR_MAC) || (defined(SK_BUILD_FOR_UNIX) && !defined(SK_BUILD_FOR_NACL)))
+    #if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_UNIX)
         #include <signal.h>
 
         void SetupCrashHandler() {
@@ -90,7 +101,7 @@
 
         static const struct {
             const char* name;
-            int code;
+            const DWORD code;
         } kExceptions[] = {
         #define _(E) {#E, E}
             _(EXCEPTION_ACCESS_VIOLATION),
@@ -139,10 +150,10 @@
                                GetCurrentThread(),
                                &frame,
                                c,
-                               NULL,
+                               nullptr,
                                SymFunctionTableAccess64,
                                SymGetModuleBase64,
-                               NULL)) {
+                               nullptr)) {
                 // Buffer to store symbol name in.
                 static const int kMaxNameLength = 1024;
                 uint8_t buffer[sizeof(IMAGEHLP_SYMBOL64) + kMaxNameLength];

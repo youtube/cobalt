@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -8,31 +7,33 @@
 
 
 #include "SkDOM.h"
-
-/////////////////////////////////////////////////////////////////////////
-
+#include "SkStream.h"
 #include "SkXMLParser.h"
+#include "SkXMLWriter.h"
 
-bool SkXMLParser::parse(const SkDOM& dom, const SkDOMNode* node)
-{
+bool SkXMLParser::parse(const SkDOM& dom, const SkDOMNode* node) {
     const char* elemName = dom.getName(node);
 
-    if (this->startElement(elemName))
+    if (this->startElement(elemName)) {
         return false;
+    }
 
     SkDOM::AttrIter iter(dom, node);
     const char*     name, *value;
 
-    while ((name = iter.next(&value)) != NULL)
-        if (this->addAttribute(name, value))
+    while ((name = iter.next(&value)) != nullptr) {
+        if (this->addAttribute(name, value)) {
             return false;
+        }
+    }
 
-    if ((node = dom.getFirstChild(node)) != NULL)
+    if ((node = dom.getFirstChild(node)) != nullptr) {
         do {
-            if (!this->parse(dom, node))
+            if (!this->parse(dom, node)) {
                 return false;
-        } while ((node = dom.getNextSibling(node)) != NULL);
-
+            }
+        } while ((node = dom.getNextSibling(node)) != nullptr);
+    }
     return !this->endElement(elemName);
 }
 
@@ -47,115 +48,104 @@ struct SkDOMNode {
     const char* fName;
     SkDOMNode*  fFirstChild;
     SkDOMNode*  fNextSibling;
+    SkDOMAttr*  fAttrs;
     uint16_t    fAttrCount;
     uint8_t     fType;
     uint8_t     fPad;
 
-    const SkDOMAttr* attrs() const
-    {
-        return (const SkDOMAttr*)(this + 1);
+    const SkDOMAttr* attrs() const {
+        return fAttrs;
     }
-    SkDOMAttr* attrs()
-    {
-        return (SkDOMAttr*)(this + 1);
+
+    SkDOMAttr* attrs() {
+        return fAttrs;
     }
 };
 
 /////////////////////////////////////////////////////////////////////////
 
-#define kMinChunkSize   512
+#define kMinChunkSize   4096
 
-SkDOM::SkDOM() : fAlloc(kMinChunkSize), fRoot(NULL)
-{
-}
+SkDOM::SkDOM() : fAlloc(kMinChunkSize), fRoot(nullptr) {}
 
-SkDOM::~SkDOM()
-{
-}
+SkDOM::~SkDOM() {}
 
-const SkDOM::Node* SkDOM::getRootNode() const
-{
+const SkDOM::Node* SkDOM::getRootNode() const {
     return fRoot;
 }
 
-const SkDOM::Node* SkDOM::getFirstChild(const Node* node, const char name[]) const
-{
+const SkDOM::Node* SkDOM::getFirstChild(const Node* node, const char name[]) const {
     SkASSERT(node);
     const Node* child = node->fFirstChild;
 
-    if (name)
-    {
-        for (; child != NULL; child = child->fNextSibling)
-            if (!strcmp(name, child->fName))
+    if (name) {
+        for (; child != nullptr; child = child->fNextSibling) {
+            if (!strcmp(name, child->fName)) {
                 break;
+            }
+        }
     }
     return child;
 }
 
-const SkDOM::Node* SkDOM::getNextSibling(const Node* node, const char name[]) const
-{
+const SkDOM::Node* SkDOM::getNextSibling(const Node* node, const char name[]) const {
     SkASSERT(node);
     const Node* sibling = node->fNextSibling;
-    if (name)
-    {
-        for (; sibling != NULL; sibling = sibling->fNextSibling)
-            if (!strcmp(name, sibling->fName))
+    if (name) {
+        for (; sibling != nullptr; sibling = sibling->fNextSibling) {
+            if (!strcmp(name, sibling->fName)) {
                 break;
+            }
+        }
     }
     return sibling;
 }
 
-SkDOM::Type SkDOM::getType(const Node* node) const
-{
+SkDOM::Type SkDOM::getType(const Node* node) const {
     SkASSERT(node);
     return (Type)node->fType;
 }
 
-const char* SkDOM::getName(const Node* node) const
-{
+const char* SkDOM::getName(const Node* node) const {
     SkASSERT(node);
     return node->fName;
 }
 
-const char* SkDOM::findAttr(const Node* node, const char name[]) const
-{
+const char* SkDOM::findAttr(const Node* node, const char name[]) const {
     SkASSERT(node);
     const Attr* attr = node->attrs();
     const Attr* stop = attr + node->fAttrCount;
 
-    while (attr < stop)
-    {
-        if (!strcmp(attr->fName, name))
+    while (attr < stop) {
+        if (!strcmp(attr->fName, name)) {
             return attr->fValue;
+        }
         attr += 1;
     }
-    return NULL;
+    return nullptr;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-const SkDOM::Attr* SkDOM::getFirstAttr(const Node* node) const
-{
-    return node->fAttrCount ? node->attrs() : NULL;
+const SkDOM::Attr* SkDOM::getFirstAttr(const Node* node) const {
+    return node->fAttrCount ? node->attrs() : nullptr;
 }
 
-const SkDOM::Attr* SkDOM::getNextAttr(const Node* node, const Attr* attr) const
-{
+const SkDOM::Attr* SkDOM::getNextAttr(const Node* node, const Attr* attr) const {
     SkASSERT(node);
-    if (attr == NULL)
-        return NULL;
-    return (attr - node->attrs() + 1) < node->fAttrCount ? attr + 1 : NULL;
+    if (attr == nullptr) {
+        return nullptr;
+    }
+    return (attr - node->attrs() + 1) < node->fAttrCount ? attr + 1 : nullptr;
 }
 
-const char* SkDOM::getAttrName(const Node* node, const Attr* attr) const
-{
+const char* SkDOM::getAttrName(const Node* node, const Attr* attr) const {
     SkASSERT(node);
     SkASSERT(attr);
     return attr->fName;
 }
 
-const char* SkDOM::getAttrValue(const Node* node, const Attr* attr) const
-{
+const char* SkDOM::getAttrValue(const Node* node, const Attr* attr) const {
     SkASSERT(node);
     SkASSERT(attr);
     return attr->fValue;
@@ -163,19 +153,16 @@ const char* SkDOM::getAttrValue(const Node* node, const Attr* attr) const
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-SkDOM::AttrIter::AttrIter(const SkDOM&, const SkDOM::Node* node)
-{
+SkDOM::AttrIter::AttrIter(const SkDOM&, const SkDOM::Node* node) {
     SkASSERT(node);
     fAttr = node->attrs();
     fStop = fAttr + node->fAttrCount;
 }
 
-const char* SkDOM::AttrIter::next(const char** value)
-{
-    const char* name = NULL;
+const char* SkDOM::AttrIter::next(const char** value) {
+    const char* name = nullptr;
 
-    if (fAttr < fStop)
-    {
+    if (fAttr < fStop) {
         name = fAttr->fName;
         if (value)
             *value = fAttr->fValue;
@@ -189,46 +176,44 @@ const char* SkDOM::AttrIter::next(const char** value)
 #include "SkXMLParser.h"
 #include "SkTDArray.h"
 
-static char* dupstr(SkChunkAlloc* chunk, const char src[])
-{
+static char* dupstr(SkArenaAlloc* chunk, const char src[]) {
     SkASSERT(chunk && src);
     size_t  len = strlen(src);
-    char*   dst = (char*)chunk->alloc(len + 1, SkChunkAlloc::kThrow_AllocFailType);
+    char*   dst = chunk->makeArrayDefault<char>(len + 1);
     memcpy(dst, src, len + 1);
     return dst;
 }
 
 class SkDOMParser : public SkXMLParser {
-    bool fNeedToFlush;
 public:
-    SkDOMParser(SkChunkAlloc* chunk) : SkXMLParser(&fParserError), fAlloc(chunk)
-    {
-        fRoot = NULL;
+    SkDOMParser(SkArenaAlloc* chunk) : SkXMLParser(&fParserError), fAlloc(chunk) {
+        fAlloc->reset();
+        fRoot = nullptr;
         fLevel = 0;
         fNeedToFlush = true;
     }
     SkDOM::Node* getRoot() const { return fRoot; }
     SkXMLParserError fParserError;
+
 protected:
-    void flushAttributes()
-    {
+    void flushAttributes() {
+        SkASSERT(fLevel > 0);
+
         int attrCount = fAttrs.count();
 
-        SkDOM::Node* node = (SkDOM::Node*)fAlloc->alloc(sizeof(SkDOM::Node) + attrCount * sizeof(SkDOM::Attr),
-                                                        SkChunkAlloc::kThrow_AllocFailType);
+        SkDOMAttr* attrs = fAlloc->makeArrayDefault<SkDOMAttr>(attrCount);
+        SkDOM::Node* node = fAlloc->make<SkDOM::Node>();
 
         node->fName = fElemName;
-        node->fFirstChild = NULL;
+        node->fFirstChild = nullptr;
         node->fAttrCount = SkToU16(attrCount);
-        node->fType = SkDOM::kElement_Type;
+        node->fAttrs = attrs;
+        node->fType = fElemType;
 
-        if (fRoot == NULL)
-        {
-            node->fNextSibling = NULL;
+        if (fRoot == nullptr) {
+            node->fNextSibling = nullptr;
             fRoot = node;
-        }
-        else    // this adds siblings in reverse order. gets corrected in onEndElement()
-        {
+        } else { // this adds siblings in reverse order. gets corrected in onEndElement()
             SkDOM::Node* parent = fParentStack.top();
             SkASSERT(fRoot && parent);
             node->fNextSibling = parent->fFirstChild;
@@ -236,28 +221,24 @@ protected:
         }
         *fParentStack.push() = node;
 
-        memcpy(node->attrs(), fAttrs.begin(), attrCount * sizeof(SkDOM::Attr));
+        sk_careful_memcpy(node->attrs(), fAttrs.begin(), attrCount * sizeof(SkDOM::Attr));
         fAttrs.reset();
 
     }
-    virtual bool onStartElement(const char elem[])
-    {
-        if (fLevel > 0 && fNeedToFlush)
-            this->flushAttributes();
-        fNeedToFlush = true;
-        fElemName = dupstr(fAlloc, elem);
-        ++fLevel;
+
+    bool onStartElement(const char elem[]) override {
+        this->startCommon(elem, SkDOM::kElement_Type);
         return false;
     }
-    virtual bool onAddAttribute(const char name[], const char value[])
-    {
+
+    bool onAddAttribute(const char name[], const char value[]) override {
         SkDOM::Attr* attr = fAttrs.append();
         attr->fName = dupstr(fAlloc, name);
         attr->fValue = dupstr(fAlloc, value);
         return false;
     }
-    virtual bool onEndElement(const char elem[])
-    {
+
+    bool onEndElement(const char elem[]) override {
         --fLevel;
         if (fNeedToFlush)
             this->flushAttributes();
@@ -268,9 +249,8 @@ protected:
         fParentStack.pop(&parent);
 
         SkDOM::Node* child = parent->fFirstChild;
-        SkDOM::Node* prev = NULL;
-        while (child)
-        {
+        SkDOM::Node* prev = nullptr;
+        while (child) {
             SkDOM::Node* next = child->fNextSibling;
             child->fNextSibling = prev;
             prev = child;
@@ -279,27 +259,46 @@ protected:
         parent->fFirstChild = prev;
         return false;
     }
+
+    bool onText(const char text[], int len) override {
+        SkString str(text, len);
+        this->startCommon(str.c_str(), SkDOM::kText_Type);
+        this->SkDOMParser::onEndElement(str.c_str());
+
+        return false;
+    }
+
 private:
+    void startCommon(const char elem[], SkDOM::Type type) {
+        if (fLevel > 0 && fNeedToFlush) {
+            this->flushAttributes();
+        }
+        fNeedToFlush = true;
+        fElemName = dupstr(fAlloc, elem);
+        fElemType = type;
+        ++fLevel;
+    }
+
     SkTDArray<SkDOM::Node*> fParentStack;
-    SkChunkAlloc*   fAlloc;
-    SkDOM::Node*    fRoot;
+    SkArenaAlloc*           fAlloc;
+    SkDOM::Node*            fRoot;
+    bool                    fNeedToFlush;
 
     // state needed for flushAttributes()
     SkTDArray<SkDOM::Attr>  fAttrs;
     char*                   fElemName;
+    SkDOM::Type             fElemType;
     int                     fLevel;
 };
 
-const SkDOM::Node* SkDOM::build(const char doc[], size_t len)
-{
-    fAlloc.reset();
+const SkDOM::Node* SkDOM::build(SkStream& docStream) {
     SkDOMParser parser(&fAlloc);
-    if (!parser.parse(doc, len))
+    if (!parser.parse(docStream))
     {
         SkDEBUGCODE(SkDebugf("xml parse error, line %d\n", parser.fParserError.getLineNumber());)
-        fRoot = NULL;
+        fRoot = nullptr;
         fAlloc.reset();
-        return NULL;
+        return nullptr;
     }
     fRoot = parser.getRoot();
     return fRoot;
@@ -307,31 +306,33 @@ const SkDOM::Node* SkDOM::build(const char doc[], size_t len)
 
 ///////////////////////////////////////////////////////////////////////////
 
-static void walk_dom(const SkDOM& dom, const SkDOM::Node* node, SkXMLParser* parser)
-{
+static void walk_dom(const SkDOM& dom, const SkDOM::Node* node, SkXMLParser* parser) {
     const char* elem = dom.getName(node);
+    if (dom.getType(node) == SkDOM::kText_Type) {
+        SkASSERT(dom.countChildren(node) == 0);
+        parser->text(elem, SkToInt(strlen(elem)));
+        return;
+    }
 
     parser->startElement(elem);
 
     SkDOM::AttrIter iter(dom, node);
     const char*     name;
     const char*     value;
-    while ((name = iter.next(&value)) != NULL)
+    while ((name = iter.next(&value)) != nullptr)
         parser->addAttribute(name, value);
 
-    node = dom.getFirstChild(node, NULL);
+    node = dom.getFirstChild(node, nullptr);
     while (node)
     {
         walk_dom(dom, node, parser);
-        node = dom.getNextSibling(node, NULL);
+        node = dom.getNextSibling(node, nullptr);
     }
 
     parser->endElement(elem);
 }
 
-const SkDOM::Node* SkDOM::copy(const SkDOM& dom, const SkDOM::Node* node)
-{
-    fAlloc.reset();
+const SkDOM::Node* SkDOM::copy(const SkDOM& dom, const SkDOM::Node* node) {
     SkDOMParser parser(&fAlloc);
 
     walk_dom(dom, node, &parser);
@@ -340,15 +341,28 @@ const SkDOM::Node* SkDOM::copy(const SkDOM& dom, const SkDOM::Node* node)
     return fRoot;
 }
 
+SkXMLParser* SkDOM::beginParsing() {
+    SkASSERT(!fParser);
+    fParser.reset(new SkDOMParser(&fAlloc));
+
+    return fParser.get();
+}
+
+const SkDOM::Node* SkDOM::finishParsing() {
+    SkASSERT(fParser);
+    fRoot = fParser->getRoot();
+    fParser.reset();
+
+    return fRoot;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
-int SkDOM::countChildren(const Node* node, const char elem[]) const
-{
+int SkDOM::countChildren(const Node* node, const char elem[]) const {
     int count = 0;
 
     node = this->getFirstChild(node, elem);
-    while (node)
-    {
+    while (node) {
         count += 1;
         node = this->getNextSibling(node, elem);
     }
@@ -359,145 +373,56 @@ int SkDOM::countChildren(const Node* node, const char elem[]) const
 
 #include "SkParse.h"
 
-bool SkDOM::findS32(const Node* node, const char name[], int32_t* value) const
-{
+bool SkDOM::findS32(const Node* node, const char name[], int32_t* value) const {
     const char* vstr = this->findAttr(node, name);
     return vstr && SkParse::FindS32(vstr, value);
 }
 
-bool SkDOM::findScalars(const Node* node, const char name[], SkScalar value[], int count) const
-{
+bool SkDOM::findScalars(const Node* node, const char name[], SkScalar value[], int count) const {
     const char* vstr = this->findAttr(node, name);
     return vstr && SkParse::FindScalars(vstr, value, count);
 }
 
-bool SkDOM::findHex(const Node* node, const char name[], uint32_t* value) const
-{
+bool SkDOM::findHex(const Node* node, const char name[], uint32_t* value) const {
     const char* vstr = this->findAttr(node, name);
     return vstr && SkParse::FindHex(vstr, value);
 }
 
-bool SkDOM::findBool(const Node* node, const char name[], bool* value) const
-{
+bool SkDOM::findBool(const Node* node, const char name[], bool* value) const {
     const char* vstr = this->findAttr(node, name);
     return vstr && SkParse::FindBool(vstr, value);
 }
 
-int SkDOM::findList(const Node* node, const char name[], const char list[]) const
-{
+int SkDOM::findList(const Node* node, const char name[], const char list[]) const {
     const char* vstr = this->findAttr(node, name);
     return vstr ? SkParse::FindList(vstr, list) : -1;
 }
 
-bool SkDOM::hasAttr(const Node* node, const char name[], const char value[]) const
-{
+bool SkDOM::hasAttr(const Node* node, const char name[], const char value[]) const {
     const char* vstr = this->findAttr(node, name);
     return vstr && !strcmp(vstr, value);
 }
 
-bool SkDOM::hasS32(const Node* node, const char name[], int32_t target) const
-{
+bool SkDOM::hasS32(const Node* node, const char name[], int32_t target) const {
     const char* vstr = this->findAttr(node, name);
     int32_t     value;
     return vstr && SkParse::FindS32(vstr, &value) && value == target;
 }
 
-bool SkDOM::hasScalar(const Node* node, const char name[], SkScalar target) const
-{
+bool SkDOM::hasScalar(const Node* node, const char name[], SkScalar target) const {
     const char* vstr = this->findAttr(node, name);
     SkScalar    value;
     return vstr && SkParse::FindScalar(vstr, &value) && value == target;
 }
 
-bool SkDOM::hasHex(const Node* node, const char name[], uint32_t target) const
-{
+bool SkDOM::hasHex(const Node* node, const char name[], uint32_t target) const {
     const char* vstr = this->findAttr(node, name);
     uint32_t    value;
     return vstr && SkParse::FindHex(vstr, &value) && value == target;
 }
 
-bool SkDOM::hasBool(const Node* node, const char name[], bool target) const
-{
+bool SkDOM::hasBool(const Node* node, const char name[], bool target) const {
     const char* vstr = this->findAttr(node, name);
     bool        value;
     return vstr && SkParse::FindBool(vstr, &value) && value == target;
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-#ifdef SK_DEBUG
-
-static void tab(int level)
-{
-    while (--level >= 0)
-        SkDebugf("\t");
-}
-
-void SkDOM::dump(const Node* node, int level) const
-{
-    if (node == NULL)
-        node = this->getRootNode();
-    if (node)
-    {
-        tab(level);
-        SkDebugf("<%s", this->getName(node));
-
-        const Attr* attr = node->attrs();
-        const Attr* stop = attr + node->fAttrCount;
-        for (; attr < stop; attr++)
-            SkDebugf(" %s=\"%s\"", attr->fName, attr->fValue);
-
-        const Node* child = this->getFirstChild(node);
-        if (child)
-        {
-            SkDebugf(">\n");
-            while (child)
-            {
-                this->dump(child, level+1);
-                child = this->getNextSibling(child);
-            }
-            tab(level);
-            SkDebugf("</%s>\n", node->fName);
-        }
-        else
-            SkDebugf("/>\n");
-    }
-}
-
-void SkDOM::UnitTest()
-{
-#ifdef SK_SUPPORT_UNITTEST
-    static const char gDoc[] =
-        "<root a='1' b='2'>"
-            "<elem1 c='3' />"
-            "<elem2 d='4' />"
-            "<elem3 e='5'>"
-                "<subelem1/>"
-                "<subelem2 f='6' g='7'/>"
-            "</elem3>"
-            "<elem4 h='8'/>"
-        "</root>"
-        ;
-
-    SkDOM   dom;
-
-    SkASSERT(dom.getRootNode() == NULL);
-
-    const Node* root = dom.build(gDoc, sizeof(gDoc) - 1);
-    SkASSERT(root && dom.getRootNode() == root);
-
-    const char* v = dom.findAttr(root, "a");
-    SkASSERT(v && !strcmp(v, "1"));
-    v = dom.findAttr(root, "b");
-    SkASSERT(v && !strcmp(v, "2"));
-    v = dom.findAttr(root, "c");
-    SkASSERT(v == NULL);
-
-    SkASSERT(dom.getFirstChild(root, "elem1"));
-    SkASSERT(!dom.getFirstChild(root, "subelem1"));
-
-    dom.dump();
-#endif
-}
-
-#endif

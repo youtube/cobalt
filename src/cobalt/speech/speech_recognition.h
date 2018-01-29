@@ -103,7 +103,7 @@ class SpeechRecognition : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(SpeechRecognition);
 
  private:
-  ~SpeechRecognition() OVERRIDE {}
+  ~SpeechRecognition() override {}
 
   // Callback from recognition manager.
   bool OnEventAvailable(const scoped_refptr<dom::Event>& event);

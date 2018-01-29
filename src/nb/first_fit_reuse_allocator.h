@@ -33,7 +33,7 @@ class FirstFitReuseAllocator : public ReuseAllocatorBase {
                                        std::size_t alignment,
                                        FreeBlockSet::iterator begin,
                                        FreeBlockSet::iterator end,
-                                       bool* allocate_from_front) SB_OVERRIDE;
+                                       bool* allocate_from_front) override;
 };
 
 }  // namespace nb

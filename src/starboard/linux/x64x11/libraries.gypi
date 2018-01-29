@@ -14,12 +14,19 @@
 
 {
   'variables': {
+    'cobalt_platform_dependencies': [
+      # GL Linux makes some GL calls within decode_target_internal.cc.
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+    ],
+
     'platform_libraries': [
-      '-lEGL',
-      '-lGLESv2',
       '-lX11',
       '-lXcomposite',
       '-lXrender',
     ],
   },
+
+  'includes': [
+    'enable_glx_via_angle.gypi',
+  ],
 }

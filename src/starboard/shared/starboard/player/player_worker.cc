@@ -44,6 +44,7 @@ struct ThreadParam {
 }  // namespace
 
 PlayerWorker::PlayerWorker(Host* host,
+                           SbMediaAudioCodec audio_codec,
                            scoped_ptr<Handler> handler,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
@@ -51,6 +52,7 @@ PlayerWorker::PlayerWorker(Host* host,
                            void* context)
     : thread_(kSbThreadInvalid),
       host_(host),
+      audio_codec_(audio_codec),
       handler_(handler.Pass()),
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),
@@ -74,7 +76,7 @@ PlayerWorker::PlayerWorker(Host* host,
 }
 
 PlayerWorker::~PlayerWorker() {
-  job_queue_->Schedule(Bind(&PlayerWorker::DoStop, this));
+  job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
   SbThreadJoin(thread_, NULL);
   thread_ = kSbThreadInvalid;
 
@@ -143,9 +145,9 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
   SB_DLOG(INFO) << "Try to seek to timestamp "
                 << seek_to_pts / kSbMediaTimeSecond;
 
-  if (write_pending_sample_closure_.is_valid()) {
-    job_queue_->Remove(write_pending_sample_closure_);
-    write_pending_sample_closure_.reset();
+  if (write_pending_sample_job_token_.is_valid()) {
+    job_queue_->RemoveJobByToken(write_pending_sample_job_token_);
+    write_pending_sample_job_token_.ResetToInvalid();
   }
   pending_audio_buffer_ = NULL;
   pending_video_buffer_ = NULL;
@@ -158,7 +160,9 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
   ticket_ = ticket;
 
   UpdatePlayerState(kSbPlayerStatePrerolling);
-  UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
+  if (audio_codec_ != kSbMediaAudioCodecNone) {
+    UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
+  }
   UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
 }
 
@@ -177,6 +181,7 @@ void PlayerWorker::DoWriteSample(
   }
 
   if (input_buffer->sample_type() == kSbMediaTypeAudio) {
+    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(!pending_audio_buffer_);
   } else {
     SB_DCHECK(!pending_video_buffer_);
@@ -196,21 +201,21 @@ void PlayerWorker::DoWriteSample(
     } else {
       pending_video_buffer_ = input_buffer;
     }
-    if (!write_pending_sample_closure_.is_valid()) {
-      write_pending_sample_closure_ =
-          Bind(&PlayerWorker::DoWritePendingSamples, this);
-      job_queue_->Schedule(write_pending_sample_closure_,
-                           kWritePendingSampleDelay);
+    if (!write_pending_sample_job_token_.is_valid()) {
+      write_pending_sample_job_token_ = job_queue_->Schedule(
+          std::bind(&PlayerWorker::DoWritePendingSamples, this),
+          kWritePendingSampleDelay);
     }
   }
 }
 
 void PlayerWorker::DoWritePendingSamples() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  SB_DCHECK(write_pending_sample_closure_.is_valid());
-  write_pending_sample_closure_.reset();
+  SB_DCHECK(write_pending_sample_job_token_.is_valid());
+  write_pending_sample_job_token_.ResetToInvalid();
 
   if (pending_audio_buffer_) {
+    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));
   }
   if (pending_video_buffer_) {
@@ -233,6 +238,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 
   if (sample_type == kSbMediaTypeAudio) {
+    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(!pending_audio_buffer_);
   } else {
     SB_DCHECK(!pending_video_buffer_);

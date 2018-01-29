@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -25,8 +24,8 @@ static const struct {
     const char* fName;
     SkTypeface::Style   fStyle;
 } gFaces[] = {
-    { NULL, SkTypeface::kNormal },
-    { NULL, SkTypeface::kBold },
+    { nullptr, SkTypeface::kNormal },
+    { nullptr, SkTypeface::kBold },
     { "serif", SkTypeface::kNormal },
     { "serif", SkTypeface::kBold },
     { "serif", SkTypeface::kItalic },
@@ -37,20 +36,13 @@ static const struct {
 static const int gFaceCount = SK_ARRAY_COUNT(gFaces);
 
 class FontScalerTestView : public SampleView {
-    SkTypeface* fFaces[gFaceCount];
+    sk_sp<SkTypeface> fFaces[gFaceCount];
 
 public:
     FontScalerTestView() {
         for (int i = 0; i < gFaceCount; i++) {
-            fFaces[i] = SkTypeface::CreateFromName(gFaces[i].fName,
-                                                   gFaces[i].fStyle);
-        }
-//        this->setBGColor(0xFFDDDDDD);
-    }
-
-    virtual ~FontScalerTestView() {
-        for (int i = 0; i < gFaceCount; i++) {
-            SkSafeUnref(fFaces[i]);
+            fFaces[i] = SkTypeface::MakeFromName(
+                gFaces[i].fName, SkFontStyle::FromOldStyle(gFaces[i].fStyle));
         }
     }
 
@@ -62,12 +54,6 @@ protected:
             return true;
         }
         return this->INHERITED::onQuery(evt);
-    }
-
-    static void rotate_about(SkCanvas* canvas, SkScalar degrees, SkScalar px, SkScalar py) {
-        canvas->translate(px, py);
-        canvas->rotate(degrees);
-        canvas->translate(-px, -py);
     }
 
     virtual void onDrawContent(SkCanvas* canvas) {
@@ -93,7 +79,7 @@ protected:
 //        paint.setSubpixelText(true);
         paint.setAntiAlias(true);
         paint.setLCDRenderText(true);
-        SkSafeUnref(paint.setTypeface(SkTypeface::CreateFromName("Times Roman", SkTypeface::kNormal)));
+        paint.setTypeface(SkTypeface::MakeFromName("Times Roman", SkFontStyle()));
 
 //        const char* text = "abcdefghijklmnopqrstuvwxyz";
         const char* text = "Hamburgefons ooo mmm";
@@ -107,7 +93,7 @@ protected:
                 SkAutoCanvasRestore acr(canvas, true);
                 canvas->translate(SkIntToScalar(50 + i * 230),
                                   SkIntToScalar(20));
-                rotate_about(canvas, SkIntToScalar(i * 5), x, y * 10);
+                canvas->rotate(SkIntToScalar(i * 5), x, y * 10);
 
                 {
                     SkPaint p;
@@ -121,7 +107,7 @@ protected:
                 for (int ps = 6; ps <= 22; ps++) {
                     paint.setTextSize(SkIntToScalar(ps));
                     canvas->drawText(text, textLen, x, y, paint);
-                    y += paint.getFontMetrics(NULL);
+                    y += paint.getFontMetrics(nullptr);
                     index += 1;
                 }
             }

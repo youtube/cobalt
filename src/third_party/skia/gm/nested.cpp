@@ -6,6 +6,8 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
+#include "SkPath.h"
 #include "SkRandom.h"
 #include "SkRRect.h"
 
@@ -14,17 +16,17 @@ namespace skiagm {
 // Test out various combinations of nested rects, ovals and rrects.
 class NestedGM : public GM {
 public:
-    NestedGM(bool doAA) : fDoAA(doAA) {
-        this->setBGColor(0xFFDDDDDD);
+    NestedGM(bool doAA, bool flipped) : fDoAA(doAA), fFlipped(flipped) {
+        this->setBGColor(sk_tool_utils::color_to_565(0xFFDDDDDD));
     }
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         SkString name("nested");
+        if (fFlipped) {
+            name.append("_flipY");
+        }
         if (fDoAA) {
             name.append("_aa");
         } else {
@@ -33,7 +35,7 @@ protected:
         return name;
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(kImageWidth, kImageHeight);
     }
 
@@ -63,7 +65,7 @@ protected:
         }
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
 
         SkPaint shapePaint;
         shapePaint.setColor(SK_ColorBLACK);
@@ -90,9 +92,8 @@ protected:
             }
         }
 
-        canvas->translate(2, 2);
+        SkScalar xOff = 2, yOff = 2;
         for (int outerShape = 0; outerShape < kShapeCount; ++outerShape) {
-            canvas->save();
             for (int innerShape = 0; innerShape < kShapeCount; ++innerShape) {
                 for (size_t innerRect = 0; innerRect < SK_ARRAY_COUNT(innerRects); ++innerRect) {
                     SkPath path;
@@ -101,29 +102,42 @@ protected:
                     AddShape(&path, innerRects[innerRect], (Shapes) innerShape,
                              SkPath::kCCW_Direction);
 
+                    canvas->save();
+                    if (fFlipped) {
+                        canvas->scale(1.0f, -1.0f);
+                        canvas->translate(xOff, -yOff - 40.0f);
+                    } else {
+                        canvas->translate(xOff, yOff);
+                    }
+
                     canvas->drawPath(path, shapePaint);
-                    canvas->translate(45, 0);
+                    canvas->restore();
+
+                    xOff += 45;
                 }
             }
-            canvas->restore();
-            canvas->translate(0, 45);
+
+            xOff = 2;
+            yOff += 45;
         }
 
     }
 
 private:
-    static const int kImageWidth = 269;
-    static const int kImageHeight = 134;
+    static constexpr int kImageWidth = 269;
+    static constexpr int kImageHeight = 134;
 
     bool fDoAA;
+    bool fFlipped;
 
     typedef GM INHERITED;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 
-DEF_GM( return new NestedGM(true); )
-DEF_GM( return new NestedGM(false); )
-
+DEF_GM( return new NestedGM(/* doAA = */ true,  /* flipped = */ false); )
+DEF_GM( return new NestedGM(/* doAA = */ false, /* flipped = */ false); )
+DEF_GM( return new NestedGM(/* doAA = */ true,  /* flipped = */ true); )
+DEF_GM( return new NestedGM(/* doAA = */ false, /* flipped = */ true); )
 
 }

@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -19,7 +18,6 @@ static void create_gradient(SkBitmap* bm) {
     float deltaB = 255.0f / height;
     float blue = 255.0f;
 
-    SkAutoLockPixels lock(*bm);
     for (int y = 0; y < height; y++) {
         *bm->getAddr32(0, y) = SkColorSetRGB(0, 0, (U8CPU) blue);
         blue -= deltaB;
@@ -53,8 +51,7 @@ public:
 
         create_gradient(&bm);
 
-        SkShader* s = SkShader::CreateBitmapShader(bm, xTile, yTile);
-        fPaint.setShader(s)->unref();
+        fPaint.setShader(SkShader::MakeBitmapShader(bm, xTile, yTile));
 
         fName.printf("constXTile_");
 
@@ -80,11 +77,11 @@ protected:
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    virtual void onDraw(int loops, SkCanvas* canvas) {
         SkPaint paint(fPaint);
         this->setupPaint(&paint);
-        paint.setFilterLevel(fDoFilter ? SkPaint::kLow_FilterLevel
-                                       : SkPaint::kNone_FilterLevel);
+        paint.setFilterQuality(fDoFilter ? kLow_SkFilterQuality
+                                         : kNone_SkFilterQuality);
         if (fDoTrans) {
             paint.setColor(SkColorSetARGBMacro(0x80, 0xFF, 0xFF, 0xFF));
         }

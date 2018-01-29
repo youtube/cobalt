@@ -7,34 +7,41 @@
 
 #include "effects/GrSingleTextureEffect.h"
 
-GrSingleTextureEffect::GrSingleTextureEffect(GrTexture* texture,
-                                             const SkMatrix& m,
-                                             GrCoordSet coordSet)
-    : fCoordTransform(coordSet, m, texture)
-    , fTextureAccess(texture) {
+#include "GrTextureProxy.h"
+
+GrSingleTextureEffect::GrSingleTextureEffect(OptimizationFlags optFlags,
+                                             sk_sp<GrTextureProxy> proxy,
+                                             sk_sp<GrColorSpaceXform> colorSpaceXform,
+                                             const SkMatrix& m)
+        : INHERITED(optFlags)
+        , fCoordTransform(m, proxy.get())
+        , fTextureSampler(std::move(proxy))
+        , fColorSpaceXform(std::move(colorSpaceXform)) {
     this->addCoordTransform(&fCoordTransform);
-    this->addTextureAccess(&fTextureAccess);
+    this->addTextureSampler(&fTextureSampler);
 }
 
-GrSingleTextureEffect::GrSingleTextureEffect(GrTexture* texture,
+GrSingleTextureEffect::GrSingleTextureEffect(OptimizationFlags optFlags,
+                                             sk_sp<GrTextureProxy> proxy,
+                                             sk_sp<GrColorSpaceXform> colorSpaceXform,
                                              const SkMatrix& m,
-                                             GrTextureParams::FilterMode filterMode,
-                                             GrCoordSet coordSet)
-    : fCoordTransform(coordSet, m, texture)
-    , fTextureAccess(texture, filterMode) {
+                                             GrSamplerParams::FilterMode filterMode)
+        : INHERITED(optFlags)
+        , fCoordTransform(m, proxy.get())
+        , fTextureSampler(std::move(proxy), filterMode)
+        , fColorSpaceXform(std::move(colorSpaceXform)) {
     this->addCoordTransform(&fCoordTransform);
-    this->addTextureAccess(&fTextureAccess);
+    this->addTextureSampler(&fTextureSampler);
 }
 
-GrSingleTextureEffect::GrSingleTextureEffect(GrTexture* texture,
-                                             const SkMatrix& m,
-                                             const GrTextureParams& params,
-                                             GrCoordSet coordSet)
-    : fCoordTransform(coordSet, m, texture)
-    , fTextureAccess(texture, params) {
+GrSingleTextureEffect::GrSingleTextureEffect(OptimizationFlags optFlags,
+                                             sk_sp<GrTextureProxy> proxy,
+                                             sk_sp<GrColorSpaceXform> colorSpaceXform,
+                                             const SkMatrix& m, const GrSamplerParams& params)
+        : INHERITED(optFlags)
+        , fCoordTransform(m, proxy.get())
+        , fTextureSampler(std::move(proxy), params)
+        , fColorSpaceXform(std::move(colorSpaceXform)) {
     this->addCoordTransform(&fCoordTransform);
-    this->addTextureAccess(&fTextureAccess);
-}
-
-GrSingleTextureEffect::~GrSingleTextureEffect() {
+    this->addTextureSampler(&fTextureSampler);
 }

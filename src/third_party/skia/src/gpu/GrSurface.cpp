@@ -6,49 +6,118 @@
  */
 
 #include "GrSurface.h"
+#include "GrContext.h"
+#include "GrOpList.h"
+#include "GrRenderTarget.h"
+#include "GrSurfacePriv.h"
+#include "GrTexture.h"
 
-#include "SkBitmap.h"
 #include "SkGr.h"
-#include "SkImageEncoder.h"
-#if defined(SK_BUILD_FOR_STARBOARD)
-#include "starboard/file.h"
-#define remove SbFileDelete
-#else
-#include <stdio.h>
-#endif
+#include "SkMathPriv.h"
 
-SkImageInfo GrSurface::info() const {
-    SkColorType colorType;
-    if (!GrPixelConfig2ColorType(this->config(), &colorType)) {
-        sk_throw();
+size_t GrSurface::WorstCaseSize(const GrSurfaceDesc& desc, bool useNextPow2) {
+    size_t size;
+
+    int width = useNextPow2 ? GrNextPow2(desc.fWidth) : desc.fWidth;
+    int height = useNextPow2 ? GrNextPow2(desc.fHeight) : desc.fHeight;
+
+    bool isRenderTarget = SkToBool(desc.fFlags & kRenderTarget_GrSurfaceFlag);
+    if (isRenderTarget) {
+        // We own one color value for each MSAA sample.
+        int colorValuesPerPixel = SkTMax(1, desc.fSampleCnt);
+        if (desc.fSampleCnt) {
+            // Worse case, we own the resolve buffer so that is one more sample per pixel.
+            colorValuesPerPixel += 1;
+        }
+        SkASSERT(kUnknown_GrPixelConfig != desc.fConfig);
+        size_t colorBytes = (size_t) width * height * GrBytesPerPixel(desc.fConfig);
+
+        // This would be a nice assert to have (i.e., we aren't creating 0 width/height surfaces).
+        // Unfortunately Chromium seems to want to do this.
+        //SkASSERT(colorBytes > 0);
+
+        size = colorValuesPerPixel * colorBytes;
+        size += colorBytes/3; // in case we have to mipmap
+    } else {
+        size = (size_t) width * height * GrBytesPerPixel(desc.fConfig);
+
+        size += size/3;  // in case we have to mipmap
     }
-    return SkImageInfo::Make(this->width(), this->height(), colorType, kPremul_SkAlphaType);
+
+    return size;
 }
 
-bool GrSurface::savePixels(const char* filename) {
-    SkBitmap bm;
-    if (!bm.tryAllocPixels(SkImageInfo::MakeN32Premul(this->width(), this->height()))) {
-        return false;
+size_t GrSurface::ComputeSize(GrPixelConfig config,
+                              int width,
+                              int height,
+                              int colorSamplesPerPixel,
+                              bool hasMIPMaps,
+                              bool useNextPow2) {
+    width = useNextPow2 ? GrNextPow2(width) : width;
+    height = useNextPow2 ? GrNextPow2(height) : height;
+
+    SkASSERT(kUnknown_GrPixelConfig != config);
+    size_t colorSize = (size_t)width * height * GrBytesPerPixel(config);
+    SkASSERT(colorSize > 0);
+
+    size_t finalSize = colorSamplesPerPixel * colorSize;
+
+    if (hasMIPMaps) {
+        // We don't have to worry about the mipmaps being a different size than
+        // we'd expect because we never change fDesc.fWidth/fHeight.
+        finalSize += colorSize/3;
+    }
+    return finalSize;
+}
+
+template<typename T> static bool adjust_params(int surfaceWidth,
+                                               int surfaceHeight,
+                                               size_t bpp,
+                                               int* left, int* top, int* width, int* height,
+                                               T** data,
+                                               size_t* rowBytes) {
+    if (!*rowBytes) {
+        *rowBytes = *width * bpp;
     }
 
-    bool result = readPixels(0, 0, this->width(), this->height(), kSkia8888_GrPixelConfig,
-                             bm.getPixels());
-    if (!result) {
-        SkDebugf("------ failed to read pixels for %s\n", filename);
+    SkIRect subRect = SkIRect::MakeXYWH(*left, *top, *width, *height);
+    SkIRect bounds = SkIRect::MakeWH(surfaceWidth, surfaceHeight);
+
+    if (!subRect.intersect(bounds)) {
         return false;
     }
+    *data = reinterpret_cast<void*>(reinterpret_cast<intptr_t>(*data) +
+            (subRect.fTop - *top) * *rowBytes + (subRect.fLeft - *left) * bpp);
 
-    // remove any previous version of this file
-    remove(filename);
-
-    if (!SkImageEncoder::EncodeFile(filename, bm, SkImageEncoder::kPNG_Type, 100)) {
-        SkDebugf("------ failed to encode %s\n", filename);
-        remove(filename);   // remove any partial file
-        return false;
-    }
-
+    *left = subRect.fLeft;
+    *top = subRect.fTop;
+    *width = subRect.width();
+    *height = subRect.height();
     return true;
 }
+
+bool GrSurfacePriv::AdjustReadPixelParams(int surfaceWidth,
+                                          int surfaceHeight,
+                                          size_t bpp,
+                                          int* left, int* top, int* width, int* height,
+                                          void** data,
+                                          size_t* rowBytes) {
+    return adjust_params<void>(surfaceWidth, surfaceHeight, bpp, left, top, width, height, data,
+                               rowBytes);
+}
+
+bool GrSurfacePriv::AdjustWritePixelParams(int surfaceWidth,
+                                           int surfaceHeight,
+                                           size_t bpp,
+                                           int* left, int* top, int* width, int* height,
+                                           const void** data,
+                                           size_t* rowBytes) {
+    return adjust_params<const void>(surfaceWidth, surfaceHeight, bpp, left, top, width, height,
+                                     data, rowBytes);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
 
 bool GrSurface::hasPendingRead() const {
     const GrTexture* thisTex = this->asTexture();
@@ -84,4 +153,12 @@ bool GrSurface::hasPendingIO() const {
         return true;
     }
     return false;
+}
+
+void GrSurface::onRelease() {
+    this->INHERITED::onRelease();
+}
+
+void GrSurface::onAbandon() {
+    this->INHERITED::onAbandon();
 }

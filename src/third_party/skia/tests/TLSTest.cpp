@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include "SkAtomics.h"
 #include "SkGraphics.h"
 #include "SkPaint.h"
 #include "SkTLS.h"
@@ -56,7 +57,7 @@ static int32_t gCounter;
 
 static void* FakeCreateTLS() {
     sk_atomic_inc(&gCounter);
-    return NULL;
+    return nullptr;
 }
 
 static void FakeDeleteTLS(void*) {

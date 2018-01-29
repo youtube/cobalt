@@ -7,6 +7,7 @@
 
 #include "Benchmark.h"
 
+#include "SkCanvas.h"
 #include "SkPaint.h"
 #include "SkParse.h"
 
@@ -32,18 +33,35 @@ SkIPoint Benchmark::getSize() {
     return this->onGetSize();
 }
 
-void Benchmark::preDraw() {
-    this->onPreDraw();
+void Benchmark::delayedSetup() {
+    this->onDelayedSetup();
 }
 
-void Benchmark::draw(const int loops, SkCanvas* canvas) {
+void Benchmark::perCanvasPreDraw(SkCanvas* canvas) {
+    this->onPerCanvasPreDraw(canvas);
+}
+
+void Benchmark::preDraw(SkCanvas* canvas) {
+    this->onPreDraw(canvas);
+}
+
+void Benchmark::postDraw(SkCanvas* canvas) {
+    this->onPostDraw(canvas);
+}
+
+void Benchmark::perCanvasPostDraw(SkCanvas* canvas) {
+    this->onPerCanvasPostDraw(canvas);
+}
+
+void Benchmark::draw(int loops, SkCanvas* canvas) {
+    SkAutoCanvasRestore ar(canvas, true/*save now*/);
     this->onDraw(loops, canvas);
 }
 
 void Benchmark::setupPaint(SkPaint* paint) {
     paint->setAlpha(fForceAlpha);
     paint->setAntiAlias(true);
-    paint->setFilterLevel(SkPaint::kNone_FilterLevel);
+    paint->setFilterQuality(kNone_SkFilterQuality);
 
     paint->setFlags((paint->getFlags() & ~fClearMask) | fOrMask);
 

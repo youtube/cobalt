@@ -35,25 +35,29 @@ class NotPseudoClass : public PseudoClass {
  public:
   NotPseudoClass()
       : PseudoClass(base::Tokens::pseudo_class_selector_prefix()) {}
-  ~NotPseudoClass() OVERRIDE {}
+  ~NotPseudoClass() override {}
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
+  void Accept(SelectorVisitor* visitor) override;
 
   // From SimpleSelector.
-  bool AlwaysRequiresRuleMatchingVerificationVisit() const OVERRIDE {
+  bool AlwaysRequiresRuleMatchingVerificationVisit() const override {
     return true;
+  }
+
+  CompoundSelector* GetContainedCompoundSelector() const override {
+    return selector();
   }
 
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
-                             CombinatorType combinator) OVERRIDE;
+                             CombinatorType combinator) override;
 
   // From PseudoClass.
-  NotPseudoClass* AsNotPseudoClass() OVERRIDE { return this; }
+  NotPseudoClass* AsNotPseudoClass() override { return this; }
 
   // The compound selector within the pseudo class.
-  CompoundSelector* selector();
+  CompoundSelector* selector() const;
   void set_selector(scoped_ptr<CompoundSelector> compound_selector);
 
  private:

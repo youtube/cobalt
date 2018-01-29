@@ -33,8 +33,6 @@ namespace open_max {
 // manages the disposition of Dispmanx resource.
 class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
  public:
-  typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
-
   using OpenMaxComponent::Start;
   using OpenMaxComponent::Flush;
   using OpenMaxComponent::WriteData;
@@ -46,7 +44,7 @@ class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
   void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
  private:
-  bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) SB_OVERRIDE;
+  bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) override;
 
   OMXParamPortDefinition output_port_definition_;
 };

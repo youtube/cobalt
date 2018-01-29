@@ -1,13 +1,17 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+
 #include "gm.h"
-#include "SkBlurMask.h"
+#include "sk_tool_utils.h"
 #include "SkBlurDrawLooper.h"
+#include "SkBlurMask.h"
+#include "SkColorFilter.h"
+#include "SkMaskFilter.h"
+#include "SkPath.h"
 
 namespace skiagm {
 
@@ -27,93 +31,94 @@ class ShadowsGM : public GM {
 public:
     SkPath fCirclePath;
     SkRect fRect;
+    SkBitmap fBitmap;
 
-    ShadowsGM() {
-        this->setBGColor(0xFFDDDDDD);
+protected:
+    void onOnceBeforeDraw() override {
+        this->setBGColor(sk_tool_utils::color_to_565(0xFFDDDDDD));
         fCirclePath.addCircle(SkIntToScalar(20), SkIntToScalar(20), SkIntToScalar(10) );
         fRect.set(SkIntToScalar(10), SkIntToScalar(10),
                   SkIntToScalar(30), SkIntToScalar(30));
+        fBitmap.allocPixels(SkImageInfo::Make(20, 20, SkColorType::kAlpha_8_SkColorType,
+                            kPremul_SkAlphaType));
+        SkCanvas canvas(fBitmap);
+        canvas.clear(0x0);
+        SkPaint p;
+        canvas.drawRect(SkRect::MakeXYWH(10, 0, 10, 10), p);
+        canvas.drawRect(SkRect::MakeXYWH(0, 10, 10, 10), p);
     }
 
-protected:
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         return SkString("shadows");
     }
 
-    virtual SkISize onISize() {
-        return SkISize::Make(200, 120);
+    SkISize onISize() override {
+        return SkISize::Make(200, 200);
     }
 
-    virtual void onDraw(SkCanvas* canvas) {
-    SkBlurDrawLooper* shadowLoopers[5];
-    shadowLoopers[0] =
-        SkBlurDrawLooper::Create(SK_ColorBLUE,
-                                 SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(10)),
-                                 SkIntToScalar(5), SkIntToScalar(10),
-                                 SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                 SkBlurDrawLooper::kOverrideColor_BlurFlag |
-                                 SkBlurDrawLooper::kHighQuality_BlurFlag);
-    SkAutoUnref aurL0(shadowLoopers[0]);
-    shadowLoopers[1] =
-        SkBlurDrawLooper::Create(SK_ColorBLUE,
-                                 SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(10)),
-                                 SkIntToScalar(5), SkIntToScalar(10),
-                                 SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                 SkBlurDrawLooper::kOverrideColor_BlurFlag);
-    SkAutoUnref aurL1(shadowLoopers[1]);
-    shadowLoopers[2] =
-        SkBlurDrawLooper::Create(SK_ColorBLACK,
-                                 SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
-                                 SkIntToScalar(5),
-                                 SkIntToScalar(10),
-                                 SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                 SkBlurDrawLooper::kHighQuality_BlurFlag);
-    SkAutoUnref aurL2(shadowLoopers[2]);
-    shadowLoopers[3] =
-        SkBlurDrawLooper::Create(0x7FFF0000,
-                                 SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
-                                 SkIntToScalar(-5), SkIntToScalar(-10),
-                                 SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                 SkBlurDrawLooper::kOverrideColor_BlurFlag |
-                                 SkBlurDrawLooper::kHighQuality_BlurFlag);
-    SkAutoUnref aurL3(shadowLoopers[3]);
-    shadowLoopers[4] =
-        SkBlurDrawLooper::Create(SK_ColorBLACK, SkIntToScalar(0),
-                                 SkIntToScalar(5), SkIntToScalar(5),
-                                 SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                 SkBlurDrawLooper::kOverrideColor_BlurFlag |
-                                 SkBlurDrawLooper::kHighQuality_BlurFlag);
-    SkAutoUnref aurL4(shadowLoopers[4]);
+    void onDraw(SkCanvas* canvas) override {
+        sk_sp<SkDrawLooper> shadowLoopers[] = {
+              SkBlurDrawLooper::Make(SK_ColorBLUE,
+                                     SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(10)),
+                                     SkIntToScalar(5), SkIntToScalar(10)),
+              SkBlurDrawLooper::Make(SK_ColorBLUE,
+                                     SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(10)),
+                                     SkIntToScalar(5), SkIntToScalar(10)),
+              SkBlurDrawLooper::Make(SK_ColorBLACK,
+                                     SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
+                                     SkIntToScalar(5),
+                                     SkIntToScalar(10)),
+              SkBlurDrawLooper::Make(0x7FFF0000,
+                                     SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
+                                     SkIntToScalar(-5), SkIntToScalar(-10)),
+            SkBlurDrawLooper::Make(SK_ColorBLACK, SkIntToScalar(0),
+                                     SkIntToScalar(5), SkIntToScalar(5)),
+        };
 
-    static const struct {
-        SkColor fColor;
-        SkScalar fStrokeWidth;
-    } gRec[] = {
-        { SK_ColorRED,      -SK_Scalar1 },
-        { SK_ColorGREEN,    SkIntToScalar(4) },
-        { SK_ColorBLUE,     SkIntToScalar(0)},
-    };
+        constexpr struct {
+            SkColor fColor;
+            SkScalar fStrokeWidth;
+        } gRec[] = {
+            { SK_ColorRED,      -SK_Scalar1 },
+            { SK_ColorGREEN,    SkIntToScalar(4) },
+            { SK_ColorBLUE,     SkIntToScalar(0)},
+        };
 
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    for (size_t i = 0; i < SK_ARRAY_COUNT(shadowLoopers); ++i) {
-        SkAutoCanvasRestore acr(canvas, true);
+        SkPaint paint;
+        paint.setAntiAlias(true);
+        for (size_t i = 0; i < SK_ARRAY_COUNT(shadowLoopers); ++i) {
+            SkAutoCanvasRestore acr(canvas, true);
 
-        paint.setLooper(shadowLoopers[i]);
+            paint.setLooper(shadowLoopers[i]);
 
-        canvas->translate(SkIntToScalar((unsigned int)i*40), SkIntToScalar(0));
-        setup(&paint, gRec[0].fColor, gRec[0].fStrokeWidth);
-        canvas->drawRect(fRect, paint);
+            canvas->translate(SkIntToScalar((unsigned int)i*40), SkIntToScalar(0));
+            setup(&paint, gRec[0].fColor, gRec[0].fStrokeWidth);
+            canvas->drawRect(fRect, paint);
 
-        canvas->translate(SkIntToScalar(0), SkIntToScalar(40));
-        setup(&paint, gRec[1].fColor, gRec[1].fStrokeWidth);
-        canvas->drawPath(fCirclePath, paint);
+            canvas->translate(SkIntToScalar(0), SkIntToScalar(40));
+            setup(&paint, gRec[1].fColor, gRec[1].fStrokeWidth);
+            canvas->drawPath(fCirclePath, paint);
 
-        canvas->translate(SkIntToScalar(0), SkIntToScalar(40));
-        setup(&paint, gRec[2].fColor, gRec[2].fStrokeWidth);
-        canvas->drawPath(fCirclePath, paint);
+            canvas->translate(SkIntToScalar(0), SkIntToScalar(40));
+            setup(&paint, gRec[2].fColor, gRec[2].fStrokeWidth);
+            canvas->drawPath(fCirclePath, paint);
+
+            // see bug.skia.org/562 (reference, draws correct)
+            canvas->translate(0, 40);
+            paint.setColor(SK_ColorBLACK);
+            canvas->drawBitmap(fBitmap, 10, 10, &paint);
+
+            canvas->translate(0, 40);
+            paint.setShader(SkShader::MakeBitmapShader(
+                                          fBitmap, SkShader::kRepeat_TileMode,
+                                          SkShader::kRepeat_TileMode));
+
+            // see bug.skia.org/562 (shows bug as reported)
+            paint.setStyle(SkPaint::kFill_Style);
+            canvas->drawRect(SkRect::MakeXYWH(10, 10, 20, 20), paint);
+            paint.setShader(nullptr);
+        }
     }
-}
 
 private:
     typedef GM INHERITED;

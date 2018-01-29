@@ -17,6 +17,8 @@
 
 #include <string>
 
+#include "SkMutex.h"
+#include "SkStream.h"
 #include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/containers/small_map.h"
@@ -25,7 +27,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/base/c_val.h"
-#include "SkStream.h"
 
 // The SkFileMemoryChunkStream classes provide a stream type that mixes features
 // of both file streams and memory streams. While the stream initially reads
@@ -166,21 +167,21 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
   ~SkFileMemoryChunkStream();
 
   // Required by SkStream
-  virtual size_t read(void* buffer, size_t size) SK_OVERRIDE;
-  virtual bool isAtEnd() const SK_OVERRIDE;
+  size_t read(void* buffer, size_t size) override;
+  bool isAtEnd() const override;
 
   // Required by SkStreamRewindable
-  virtual bool rewind() SK_OVERRIDE;
-  virtual SkFileMemoryChunkStream* duplicate() const SK_OVERRIDE;
+  bool rewind() override;
+  SkFileMemoryChunkStream* duplicate() const override;
 
   // Required by SkStreamSeekable
-  virtual size_t getPosition() const SK_OVERRIDE;
-  virtual bool seek(size_t position) SK_OVERRIDE;
-  virtual bool move(long offset) SK_OVERRIDE;
-  virtual SkFileMemoryChunkStream* fork() const SK_OVERRIDE;
+  size_t getPosition() const override;
+  bool seek(size_t position) override;
+  bool move(long offset) override;
+  SkFileMemoryChunkStream* fork() const override;
 
   // Required by SkStreamAsset
-  virtual size_t getLength() const SK_OVERRIDE;
+  size_t getLength() const override;
 
  private:
   friend SkFileMemoryChunkStreamProvider;
@@ -194,7 +195,7 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
 
   SkFileMemoryChunkStreamProvider* const stream_provider_;
 
-  SkFILE* const file_;
+  SkFile* const file_;
   size_t file_length_;
   size_t file_position_;
 

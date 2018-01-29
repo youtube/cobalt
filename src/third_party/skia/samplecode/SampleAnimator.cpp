@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -12,6 +11,8 @@
 #include "SkAnimator.h"
 #include "SkStream.h"
 #include "SkDOM.h"
+
+#include <memory>
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -40,7 +41,7 @@ private:
     typedef SkView INHERITED;
 };
 
-SkAnimatorView::SkAnimatorView() : fAnimator(NULL) {}
+SkAnimatorView::SkAnimatorView() : fAnimator(nullptr) {}
 
 SkAnimatorView::~SkAnimatorView() {
     delete fAnimator;
@@ -51,20 +52,18 @@ void SkAnimatorView::setURIBase(const char dir[]) {
 }
 
 bool SkAnimatorView::decodeFile(const char path[]) {
-    SkFILEStream* is = new SkFILEStream(path);
-    SkAutoUnref aur(is);
-    return is->isValid() && this->decodeStream(is);
+    std::unique_ptr<SkStream> is = SkStream::MakeFromFile(path);
+    return is && this->decodeStream(is.get());
 }
 
 bool SkAnimatorView::decodeMemory(const void* buffer, size_t size) {
-    SkMemoryStream* is = new SkMemoryStream(buffer, size);
-    SkAutoUnref aur(is);
-    return this->decodeStream(is);
+    SkMemoryStream is(buffer, size);
+    return this->decodeStream(&is);
 }
 
 static const SkDOMNode* find_nodeID(const SkDOM& dom,
                         const SkDOMNode* node, const char name[]) {
-    if (NULL == node) {
+    if (nullptr == node) {
         node = dom.getRootNode();
     }
     do {
@@ -79,8 +78,8 @@ static const SkDOMNode* find_nodeID(const SkDOM& dom,
                 return found;
             }
         }
-    } while ((node = dom.getNextSibling(node)) != NULL);
-    return NULL;
+    } while ((node = dom.getNextSibling(node)) != nullptr);
+    return nullptr;
 }
 
 bool SkAnimatorView::decodeStream(SkStream* stream) {
@@ -90,7 +89,7 @@ bool SkAnimatorView::decodeStream(SkStream* stream) {
 #if 0
     if (!fAnimator->decodeStream(stream)) {
         delete fAnimator;
-        fAnimator = NULL;
+        fAnimator = nullptr;
         return false;
     }
 #else
@@ -99,18 +98,18 @@ bool SkAnimatorView::decodeStream(SkStream* stream) {
     stream->read(text, len);
     SkDOM dom;
     const SkDOM::Node* root = dom.build(text, len);
-    if (NULL == root) {
+    if (nullptr == root) {
         return false;
     }
     if (!fAnimator->decodeDOM(dom, root)) {
         delete fAnimator;
-        fAnimator = NULL;
+        fAnimator = nullptr;
         return false;
     }
     for (int i = 0; i <= 10; i++) {
         SkString name("glyph");
         name.appendS32(i);
-        const SkDOM::Node* node = find_nodeID(dom, NULL, name.c_str());
+        const SkDOM::Node* node = find_nodeID(dom, nullptr, name.c_str());
         SkASSERT(node);
         SkRect r;
         dom.findScalar(node, "left", &r.fLeft);
@@ -143,7 +142,7 @@ void SkAnimatorView::onDraw(SkCanvas* canvas) {
         fAnimator->draw(canvas, 0);
         canvas->restore();
 
-        this->inval(NULL);
+        this->inval(nullptr);
 #endif
     }
 }

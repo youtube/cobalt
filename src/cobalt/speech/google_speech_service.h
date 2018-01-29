@@ -59,7 +59,7 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   GoogleSpeechService(network::NetworkModule* network_module,
                       const EventCallback& event_callback,
                       const URLFetcherCreator& fetcher_creator);
-  ~GoogleSpeechService() OVERRIDE;
+  ~GoogleSpeechService() override;
 
   // Multiple calls to Start/Stop are allowed, the implementation should take
   // care of multiple calls.
@@ -72,11 +72,11 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
 
   // net::URLFetcherDelegate interface
   void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) OVERRIDE;
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
-  bool ShouldSendDownloadData() OVERRIDE { return true; }
+                              scoped_ptr<std::string> download_data) override;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
+  bool ShouldSendDownloadData() override { return true; }
   void OnURLFetchUploadProgress(const net::URLFetcher* /*source*/,
-                                int64 /*current*/, int64 /*total*/) OVERRIDE {}
+                                int64 /*current*/, int64 /*total*/) override {}
 
  private:
   void StartInternal(const SpeechRecognitionConfig& config, int sample_rate);

@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -15,19 +14,16 @@ public:
     PointsGM() {}
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         return SkString("points");
     }
 
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(640, 490);
     }
 
-    static void fill_pts(SkPoint pts[], size_t n, SkLCGRandom* rand) {
+    static void fill_pts(SkPoint pts[], size_t n, SkRandom* rand) {
         for (size_t i = 0; i < n; i++) {
             // Compute these independently and store in variables, rather
             // than in the parameter-passing expression, to get consistent
@@ -38,10 +34,10 @@ protected:
         }
     }
 
-    virtual void onDraw(SkCanvas* canvas) {
+    void onDraw(SkCanvas* canvas) override {
         canvas->translate(SK_Scalar1, SK_Scalar1);
 
-        SkLCGRandom rand;
+        SkRandom rand;
         SkPaint  p0, p1, p2, p3;
         const size_t n = 99;
 

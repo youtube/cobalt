@@ -52,11 +52,12 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
   // Custom, not in any spec.
   //
   // From MutationObserver.
-  void OnCSSMutation() OVERRIDE;
+  void OnCSSMutation() override;
 
   MutationObserver* mutation_observer() const { return mutation_observer_; }
 
   DEFINE_WRAPPABLE_TYPE(StyleSheetList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~StyleSheetList();

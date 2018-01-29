@@ -65,7 +65,7 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
                                      require_csp, policy_changed_callback);
   }
 
-  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE {
+  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) override {
     csp_->OnReceiveHeaders(headers);
     if (!policy_changed_callback_.is_null()) {
       policy_changed_callback_.Run();
@@ -182,7 +182,6 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
-      base::Callback<SbWindow()>() /* get_sb_window */,
       can_play_type_handler.get(), media_module.get(), &network_module,
       kDefaultViewportSize, 1.f, &resource_provider, 60.0f, web_module_options);
   run_loop.Run();

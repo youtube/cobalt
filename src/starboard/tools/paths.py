@@ -1,4 +1,3 @@
-#
 # Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +14,24 @@
 #
 """Constants for commonly referenced paths."""
 
-from __future__ import print_function
+from os import path
 
-import os
+# The absolute path to the Starboard repository.
+STARBOARD_ROOT = path.abspath(path.join(path.dirname(__file__), path.pardir))
 
-STARBOARD_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), os.path.pardir))
+# The absolute path to the root of the project.
+REPOSITORY_ROOT = path.abspath(path.join(STARBOARD_ROOT, path.pardir))
 
-if __name__ == '__main__':
-  # All functionality stored in TestRunPaths() to avoid py-lint from warning'
-  # about shadowing global variables in local functions.
-  def TestRunPaths():
-    print('STARBOARD_ROOT: ' + STARBOARD_ROOT)
-    assert(os.path.isdir(STARBOARD_ROOT))
+# The absolute path to the directory where GYP base configs live.
+BUILD_ROOT = path.join(REPOSITORY_ROOT, 'starboard', 'build')
 
-  TestRunPaths()
+# The absolute path to the third_party directory.
+THIRD_PARTY_ROOT = path.join(REPOSITORY_ROOT, 'third_party')
+
+# The absolute path to the build output directory.
+BUILD_OUTPUT_ROOT = path.join(REPOSITORY_ROOT, 'out')
+
+
+def BuildOutputDirectory(platform, config):
+  """Gets the build output directory for the given platform and config."""
+  return path.join(BUILD_OUTPUT_ROOT, '%s_%s' % (platform, config))

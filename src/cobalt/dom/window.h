@@ -35,6 +35,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/on_screen_keyboard.h"
+#include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
@@ -148,7 +149,7 @@ class Window : public EventTarget,
       const base::Closure& ran_animation_frame_callbacks_callback,
       const CloseCallback& window_close_callback,
       const base::Closure& window_minimize_callback,
-      const base::Callback<SbWindow()>& get_sb_window_callback,
+      OnScreenKeyboardBridge* on_screen_keyboard_bridge,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
@@ -327,15 +328,13 @@ class Window : public EventTarget,
   bool ReportScriptError(const script::ErrorReport& error_report);
 
   // page_visibility::PageVisibilityState::Observer implementation.
-  void OnWindowFocusChanged(bool has_focus) OVERRIDE;
+  void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(
-      page_visibility::VisibilityState visibility_state) OVERRIDE;
+      page_visibility::VisibilityState visibility_state) override;
 
   // Called when the document's root element has its offset dimensions requested
   // and is unable to provide them.
   void OnDocumentRootElementUnableToProvideOffsetDimensions();
-
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content);
@@ -348,6 +347,7 @@ class Window : public EventTarget,
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
 
   DEFINE_WRAPPABLE_TYPE(Window);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void StartDocumentLoad(
@@ -356,10 +356,10 @@ class Window : public EventTarget,
       const base::Callback<void(const std::string&)>& error_callback);
   class RelayLoadEvent;
 
-  ~Window() OVERRIDE;
+  ~Window() override;
 
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "Window"; }
+  std::string GetDebugName() override { return "Window"; }
 
   void FireHashChangeEvent();
 

@@ -68,14 +68,14 @@ class MockClientSocket : public StreamSocket {
   // Socket implementation.
   virtual int Read(
       IOBuffer* /* buf */, int len,
-      const CompletionCallback& /* callback */) OVERRIDE {
+      const CompletionCallback& /* callback */) override {
     num_bytes_read_ += len;
     return len;
   }
 
   virtual int Write(
       IOBuffer* /* buf */, int len,
-      const CompletionCallback& /* callback */) OVERRIDE {
+      const CompletionCallback& /* callback */) override {
     was_used_to_convey_data_ = true;
     return len;
   }
@@ -83,7 +83,7 @@ class MockClientSocket : public StreamSocket {
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) OVERRIDE {
+  virtual int Connect(const CompletionCallback& callback) override {
     connected_ = true;
     return OK;
   }
@@ -446,7 +446,7 @@ class TestClientSocketPool : public ClientSocketPool {
       net::RequestPriority priority,
       ClientSocketHandle* handle,
       const CompletionCallback& callback,
-      const BoundNetLog& net_log) OVERRIDE {
+      const BoundNetLog& net_log) override {
     const scoped_refptr<TestSocketParams>* casted_socket_params =
         static_cast<const scoped_refptr<TestSocketParams>*>(params);
     return base_.RequestSocket(group_name, *casted_socket_params, priority,
@@ -456,7 +456,7 @@ class TestClientSocketPool : public ClientSocketPool {
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
-                              const BoundNetLog& net_log) OVERRIDE {
+                              const BoundNetLog& net_log) override {
     const scoped_refptr<TestSocketParams>* casted_params =
         static_cast<const scoped_refptr<TestSocketParams>*>(params);
 
@@ -465,64 +465,64 @@ class TestClientSocketPool : public ClientSocketPool {
 
   virtual void CancelRequest(
       const std::string& group_name,
-      ClientSocketHandle* handle) OVERRIDE {
+      ClientSocketHandle* handle) override {
     base_.CancelRequest(group_name, handle);
   }
 
   virtual void ReleaseSocket(
       const std::string& group_name,
       StreamSocket* socket,
-      int id) OVERRIDE {
+      int id) override {
     base_.ReleaseSocket(group_name, socket, id);
   }
 
-  virtual void FlushWithError(int error) OVERRIDE {
+  virtual void FlushWithError(int error) override {
     base_.FlushWithError(error);
   }
 
-  virtual bool IsStalled() const OVERRIDE {
+  virtual bool IsStalled() const override {
     return base_.IsStalled();
   }
 
-  virtual void CloseIdleSockets() OVERRIDE {
+  virtual void CloseIdleSockets() override {
     base_.CloseIdleSockets();
   }
 
-  virtual int IdleSocketCount() const OVERRIDE {
+  virtual int IdleSocketCount() const override {
     return base_.idle_socket_count();
   }
 
   virtual int IdleSocketCountInGroup(
-      const std::string& group_name) const OVERRIDE {
+      const std::string& group_name) const override {
     return base_.IdleSocketCountInGroup(group_name);
   }
 
   virtual LoadState GetLoadState(
       const std::string& group_name,
-      const ClientSocketHandle* handle) const OVERRIDE {
+      const ClientSocketHandle* handle) const override {
     return base_.GetLoadState(group_name, handle);
   }
 
-  virtual void AddLayeredPool(LayeredPool* pool) OVERRIDE {
+  virtual void AddLayeredPool(LayeredPool* pool) override {
     base_.AddLayeredPool(pool);
   }
 
-  virtual void RemoveLayeredPool(LayeredPool* pool) OVERRIDE {
+  virtual void RemoveLayeredPool(LayeredPool* pool) override {
     base_.RemoveLayeredPool(pool);
   }
 
   virtual DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
-      bool include_nested_pools) const OVERRIDE {
+      bool include_nested_pools) const override {
     return base_.GetInfoAsValue(name, type);
   }
 
-  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
+  virtual base::TimeDelta ConnectionTimeout() const override {
     return base_.ConnectionTimeout();
   }
 
-  virtual ClientSocketPoolHistograms* histograms() const OVERRIDE {
+  virtual ClientSocketPoolHistograms* histograms() const override {
     return base_.histograms();
   }
 

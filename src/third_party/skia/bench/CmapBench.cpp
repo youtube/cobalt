@@ -58,7 +58,7 @@ static void charsToGlyphsNull_proc(int loops, const SkPaint& paint, const void* 
 
     SkTypeface* face = paint.getTypeface();
     for (int i = 0; i < loops; ++i) {
-        face->charsToGlyphs(text, encoding, NULL, glyphCount);
+        face->charsToGlyphs(text, encoding, nullptr, glyphCount);
     }
 }
 
@@ -77,15 +77,15 @@ public:
             // we're jamming values into utf8, so we must keep it legal utf8
             fText[i] = 'A' + (i & 31);
         }
-        fPaint.setTypeface(SkTypeface::RefDefault())->unref();
+        fPaint.setTypeface(SkTypeface::MakeDefault());
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         fProc(loops, fPaint, fText, sizeof(fText), NGLYPHS);
     }
 

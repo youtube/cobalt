@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,11 +5,12 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkColor_DEFINED
 #define SkColor_DEFINED
 
 #include "SkScalar.h"
+#include "SkPoint3.h"
+#include "SkTypes.h"
 
 /** \file SkColor.h
 
@@ -67,29 +67,43 @@ static inline SkColor SkColorSetARGBInline(U8CPU a, U8CPU r, U8CPU g, U8CPU b)
 /** return the blue byte from a SkColor value */
 #define SkColorGetB(color)      (((color) >>  0) & 0xFF)
 
-static inline SkColor SkColorSetA(SkColor c, U8CPU a) {
+static constexpr inline SkColor SkColorSetA(SkColor c, U8CPU a) {
     return (c & 0x00FFFFFF) | (a << 24);
 }
 
 // common colors
 
-#define SK_AlphaTRANSPARENT 0x00        //!< transparent SkAlpha value
-#define SK_AlphaOPAQUE      0xFF        //!< opaque SkAlpha value
+/** transparent SkAlpha value */
+#define SK_AlphaTRANSPARENT static_cast<SkAlpha>(0x00)
+/** opaque SkAlpha value */
+#define SK_AlphaOPAQUE      static_cast<SkAlpha>(0xFF)
 
-#define SK_ColorTRANSPARENT 0x00000000  //!< transparent SkColor value
+/** transparent SkColor value */
+#define SK_ColorTRANSPARENT static_cast<SkColor>(0x00000000)
 
-#define SK_ColorBLACK       0xFF000000  //!< black SkColor value
-#define SK_ColorDKGRAY      0xFF444444  //!< dark gray SkColor value
-#define SK_ColorGRAY        0xFF888888  //!< gray SkColor value
-#define SK_ColorLTGRAY      0xFFCCCCCC  //!< light gray SkColor value
-#define SK_ColorWHITE       0xFFFFFFFF  //!< white SkColor value
+/** black SkColor value */
+#define SK_ColorBLACK       static_cast<SkColor>(0xFF000000)
+/** dark gray SkColor value */
+#define SK_ColorDKGRAY      static_cast<SkColor>(0xFF444444)
+/** gray SkColor value */
+#define SK_ColorGRAY        static_cast<SkColor>(0xFF888888)
+/** light gray SkColor value */
+#define SK_ColorLTGRAY      static_cast<SkColor>(0xFFCCCCCC)
+/** white SkColor value */
+#define SK_ColorWHITE       static_cast<SkColor>(0xFFFFFFFF)
 
-#define SK_ColorRED         0xFFFF0000  //!< red SkColor value
-#define SK_ColorGREEN       0xFF00FF00  //!< green SkColor value
-#define SK_ColorBLUE        0xFF0000FF  //!< blue SkColor value
-#define SK_ColorYELLOW      0xFFFFFF00  //!< yellow SkColor value
-#define SK_ColorCYAN        0xFF00FFFF  //!< cyan SkColor value
-#define SK_ColorMAGENTA     0xFFFF00FF  //!< magenta SkColor value
+/** red SkColor value */
+#define SK_ColorRED         static_cast<SkColor>(0xFFFF0000)
+/** green SkColor value */
+#define SK_ColorGREEN       static_cast<SkColor>(0xFF00FF00)
+/** blue SkColor value */
+#define SK_ColorBLUE        static_cast<SkColor>(0xFF0000FF)
+/** yellow SkColor value */
+#define SK_ColorYELLOW      static_cast<SkColor>(0xFFFFFF00)
+/** cyan SkColor value */
+#define SK_ColorCYAN        static_cast<SkColor>(0xFF00FFFF)
+/** magenta SkColor value */
+#define SK_ColorMAGENTA     static_cast<SkColor>(0xFFFF00FF)
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -111,8 +125,7 @@ SK_API void SkRGBToHSV(U8CPU red, U8CPU green, U8CPU blue, SkScalar hsv[3]);
     @param color the argb color to convert. Note: the alpha component is ignored.
     @param hsv  3 element array which holds the resulting HSV components.
 */
-static inline void SkColorToHSV(SkColor color, SkScalar hsv[3])
-{
+static inline void SkColorToHSV(SkColor color, SkScalar hsv[3]) {
     SkRGBToHSV(SkColorGetR(color), SkColorGetG(color), SkColorGetB(color), hsv);
 }
 
@@ -135,8 +148,7 @@ SK_API SkColor SkHSVToColor(U8CPU alpha, const SkScalar hsv[3]);
     @param hsv  3 element array which holds the input HSV components.
     @return the resulting argb color
 */
-static inline SkColor SkHSVToColor(const SkScalar hsv[3])
-{
+static inline SkColor SkHSVToColor(const SkScalar hsv[3]) {
     return SkHSVToColor(0xFF, hsv);
 }
 
@@ -157,13 +169,41 @@ SK_API SkPMColor SkPreMultiplyARGB(U8CPU a, U8CPU r, U8CPU g, U8CPU b);
 */
 SK_API SkPMColor SkPreMultiplyColor(SkColor c);
 
-/** Define a function pointer type for combining two premultiplied colors
-*/
-typedef SkPMColor (*SkXfermodeProc)(SkPMColor src, SkPMColor dst);
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Define a function pointer type for combining a premultiplied src color
-    and a 16bit device color.
-*/
-typedef uint16_t (*SkXfermodeProc16)(SkPMColor src, uint16_t dst);
+struct SkPM4f;
+
+/*
+ *  The float values are 0...1 unpremultiplied
+ */
+struct SkColor4f {
+    float fR;
+    float fG;
+    float fB;
+    float fA;
+
+    bool operator==(const SkColor4f& other) const {
+        return fA == other.fA && fR == other.fR && fG == other.fG && fB == other.fB;
+    }
+    bool operator!=(const SkColor4f& other) const {
+        return !(*this == other);
+    }
+
+    const float* vec() const { return &fR; }
+    float* vec() { return &fR; }
+
+    static SkColor4f Pin(float r, float g, float b, float a);
+    /** Convert to SkColor4f, assuming SkColor is sRGB */
+    static SkColor4f FromColor(SkColor);
+    static SkColor4f FromColor3f(SkColor3f, float a);
+
+    SkColor toSkColor() const;
+
+    SkColor4f pin() const {
+        return Pin(fR, fG, fB, fA);
+    }
+
+    SkPM4f premul() const;
+};
 
 #endif

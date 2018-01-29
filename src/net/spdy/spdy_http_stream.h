@@ -42,42 +42,42 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // HttpStream implementation.
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               const CompletionCallback& callback) OVERRIDE;
+                               const CompletionCallback& callback) override;
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           HttpResponseInfo* response,
-                          const CompletionCallback& callback) OVERRIDE;
-  virtual UploadProgress GetUploadProgress() const OVERRIDE;
-  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
-  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+                          const CompletionCallback& callback) override;
+  virtual UploadProgress GetUploadProgress() const override;
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) override;
+  virtual const HttpResponseInfo* GetResponseInfo() const override;
   virtual int ReadResponseBody(IOBuffer* buf,
                                int buf_len,
-                               const CompletionCallback& callback) OVERRIDE;
-  virtual void Close(bool not_reusable) OVERRIDE;
-  virtual HttpStream* RenewStreamForAuth() OVERRIDE;
-  virtual bool IsResponseBodyComplete() const OVERRIDE;
-  virtual bool CanFindEndOfResponse() const OVERRIDE;
-  virtual bool IsMoreDataBuffered() const OVERRIDE;
-  virtual bool IsConnectionReused() const OVERRIDE;
-  virtual void SetConnectionReused() OVERRIDE;
-  virtual bool IsConnectionReusable() const OVERRIDE;
-  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+                               const CompletionCallback& callback) override;
+  virtual void Close(bool not_reusable) override;
+  virtual HttpStream* RenewStreamForAuth() override;
+  virtual bool IsResponseBodyComplete() const override;
+  virtual bool CanFindEndOfResponse() const override;
+  virtual bool IsMoreDataBuffered() const override;
+  virtual bool IsConnectionReused() const override;
+  virtual void SetConnectionReused() override;
+  virtual bool IsConnectionReusable() const override;
+  virtual void GetSSLInfo(SSLInfo* ssl_info) override;
   virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) OVERRIDE;
-  virtual bool IsSpdyHttpStream() const OVERRIDE;
-  virtual void LogNumRttVsBytesMetrics() const OVERRIDE {}
-  virtual void Drain(HttpNetworkSession* session) OVERRIDE;
+      SSLCertRequestInfo* cert_request_info) override;
+  virtual bool IsSpdyHttpStream() const override;
+  virtual void LogNumRttVsBytesMetrics() const override {}
+  virtual void Drain(HttpNetworkSession* session) override;
 
   // SpdyStream::Delegate implementation.
-  virtual bool OnSendHeadersComplete(int status) OVERRIDE;
-  virtual int OnSendBody() OVERRIDE;
-  virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
+  virtual bool OnSendHeadersComplete(int status) override;
+  virtual int OnSendBody() override;
+  virtual int OnSendBodyComplete(int status, bool* eof) override;
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status) OVERRIDE;
-  virtual void OnHeadersSent() OVERRIDE;
-  virtual int OnDataReceived(const char* buffer, int bytes) OVERRIDE;
-  virtual void OnDataSent(int length) OVERRIDE;
-  virtual void OnClose(int status) OVERRIDE;
+                                 int status) override;
+  virtual void OnHeadersSent() override;
+  virtual int OnDataReceived(const char* buffer, int bytes) override;
+  virtual void OnDataSent(int length) override;
+  virtual void OnClose(int status) override;
 
  private:
   // Reads the data (whether chunked or not) from the request body stream and

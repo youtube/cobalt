@@ -87,9 +87,16 @@ class StarboardPlayer {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
+#if SB_HAS(PLAYER_WITH_URL)
+  void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
+               base::TimeDelta* media_time, base::TimeDelta* buffer_start_time,
+               base::TimeDelta* buffer_length_time, int* frame_width,
+               int* frame_height);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if SB_HAS(PLAYER_WITH_URL)
   base::TimeDelta GetDuration();
+  base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -140,6 +147,8 @@ class StarboardPlayer {
   void CreatePlayerWithUrl(const std::string& url);
 #else   // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
+
+  void WriteNextBufferFromCache(DemuxerStream::Type type);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   void ClearDecoderBufferCache();
@@ -178,7 +187,7 @@ class StarboardPlayer {
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   const SbWindow window_;
-  const SbDrmSystem drm_system_;
+  SbDrmSystem drm_system_;
   Host* const host_;
   // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;

@@ -435,6 +435,7 @@ class SourceBufferStreamTest : public testing::Test {
       // Buffer type and track ID are meaningless to these tests.
       scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
           data, size, is_keyframe, DemuxerStream::AUDIO, 0);
+      ASSERT_TRUE(buffer);
       base::TimeDelta timestamp = frame_duration_ * position;
 
       if (i == 0) timestamp += first_buffer_offset;
@@ -595,6 +596,7 @@ class SourceBufferStreamTest : public testing::Test {
       // Create buffer. Buffer type and track ID are meaningless to these tests.
       scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
           &kDataA, kDataSize, is_keyframe, DemuxerStream::AUDIO, 0);
+      ASSERT_TRUE(buffer);
       buffer->set_timestamp(base::TimeDelta::FromMilliseconds(pts_in_ms));
       buffer->set_is_duration_estimated(is_duration_estimated);
 
@@ -612,6 +614,7 @@ class SourceBufferStreamTest : public testing::Test {
         scoped_refptr<StreamParserBuffer> preroll_buffer =
             StreamParserBuffer::CopyFrom(&kDataA, kDataSize, is_keyframe,
                                          DemuxerStream::AUDIO, 0);
+        ASSERT_TRUE(preroll_buffer);
         preroll_buffer->set_duration(frame_duration_);
         buffer->SetPrerollBuffer(preroll_buffer);
       }

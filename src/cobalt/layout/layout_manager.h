@@ -34,9 +34,11 @@ class LayoutManager {
  public:
   struct LayoutResults {
     LayoutResults(const scoped_refptr<render_tree::Node>& render_tree,
-                  const base::TimeDelta& layout_time)
+                  const base::TimeDelta& layout_time,
+                  const base::Closure& on_rasterized_callback = base::Closure())
         : render_tree(render_tree),
-          layout_time(layout_time) {}
+          layout_time(layout_time),
+          on_rasterized_callback(on_rasterized_callback) {}
 
     // The render tree produced by a layout.
     scoped_refptr<render_tree::Node> render_tree;
@@ -44,6 +46,9 @@ class LayoutManager {
     // The time that the render tree was created, which will be used as a
     // reference point for updating the animations in the above render tree.
     base::TimeDelta layout_time;
+
+    // Callback to run whenever the render tree is rasterized.
+    base::Closure on_rasterized_callback;
   };
 
   typedef base::Callback<void(const LayoutResults&)>
@@ -73,6 +78,7 @@ class LayoutManager {
 
   void Suspend();
   void Resume();
+  void Purge();
 
   bool IsRenderTreePending() const;
 

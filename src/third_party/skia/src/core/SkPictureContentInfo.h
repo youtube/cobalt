@@ -8,6 +8,9 @@
 #ifndef SkPictureContentInfo_DEFINED
 #define SkPictureContentInfo_DEFINED
 
+#include "SkPaint.h"
+#include "SkTDArray.h"
+
 class GrContext;
 
 class SkPictureContentInfo {
@@ -60,6 +63,9 @@ private:
     // This field is incremented every time a drawPath call is
     // issued for a hairline stroked concave path.
     int fNumAAHairlineConcavePaths;
+    // This field is incremented every time a drawPath call is
+    // issued for a concave path that can be rendered with distance fields
+    int fNumAADFEligibleConcavePaths;
     // These fields track the different layer flavors. fNumLayers is just
     // a count of all saveLayers, fNumInteriorLayers is the number of layers
     // with a layer inside them, fNumLeafLayers is the number of layers with

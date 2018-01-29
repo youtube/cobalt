@@ -5,31 +5,63 @@
  * found in the LICENSE file.
  */
 #include "Benchmark.h"
-#include "SkThread.h"
+#include "SkMutex.h"
+#include "SkSharedMutex.h"
+#include "SkSpinlock.h"
+#include "SkString.h"
 
+template <typename Mutex>
 class MutexBench : public Benchmark {
 public:
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    MutexBench(SkString benchPrefix) : fBenchName(benchPrefix += "UncontendedBenchmark") { }
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual const char* onGetName() {
-        return "mutex";
+    const char* onGetName() override {
+        return fBenchName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
-        SkMutex mu;
+    void onDraw(int loops, SkCanvas*) override {
         for (int i = 0; i < loops; i++) {
-            mu.acquire();
-            mu.release();
+            fMu.acquire();
+            fMu.release();
         }
     }
 
 private:
     typedef Benchmark INHERITED;
+    SkString fBenchName;
+    Mutex fMu;
+};
+
+class SharedBench : public Benchmark {
+public:
+    bool isSuitableFor(Backend backend) override {
+        return backend == kNonRendering_Backend;
+    }
+
+protected:
+    const char* onGetName() override {
+        return "SkSharedMutexSharedUncontendedBenchmark";
+    }
+
+    void onDraw(int loops, SkCanvas*) override {
+        for (int i = 0; i < loops; i++) {
+            fMu.acquireShared();
+            fMu.releaseShared();
+        }
+    }
+
+private:
+    typedef Benchmark INHERITED;
+    SkSharedMutex fMu;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 
-DEF_BENCH( return new MutexBench(); )
+DEF_BENCH( return new MutexBench<SkSharedMutex>(SkString("SkSharedMutex")); )
+DEF_BENCH( return new MutexBench<SkMutex>(SkString("SkMutex")); )
+DEF_BENCH( return new MutexBench<SkSpinlock>(SkString("SkSpinlock")); )
+DEF_BENCH( return new SharedBench; )

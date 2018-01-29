@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::OperationsTestInterface;
 using cobalt::bindings::testing::MozjsOperationsTestInterface;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsOperationsTestInterfaceHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsOperationsTestInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsOperationsTestInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -122,6 +133,14 @@ MozjsOperationsTestInterfaceHandler::indexed_property_hooks = {
 
 static base::LazyInstance<MozjsOperationsTestInterfaceHandler>
     proxy_handler;
+
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "OperationsTestInterface is not constructible.");
+  return false;
+}
+
 
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
@@ -181,6 +200,7 @@ const JSClass interface_object_class_definition = {
     NULL,
 };
 
+
 bool fcn_longFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -233,6 +253,7 @@ bool fcn_longFunctionNoArgs(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_objectFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -284,6 +305,7 @@ bool fcn_objectFunctionNoArgs(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_optionalArgumentWithDefault(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -346,6 +368,7 @@ bool fcn_optionalArgumentWithDefault(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_optionalArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -462,6 +485,7 @@ bool fcn_optionalArguments(
       return false;
   }
 }
+
 
 bool fcn_optionalNullableArgumentsWithDefaults(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -584,7 +608,6 @@ bool fcn_overloadedFunction1(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool fcn_overloadedFunction2(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -648,7 +671,6 @@ bool fcn_overloadedFunction2(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool fcn_overloadedFunction3(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -712,7 +734,6 @@ bool fcn_overloadedFunction3(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool fcn_overloadedFunction4(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -800,7 +821,6 @@ bool fcn_overloadedFunction4(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool fcn_overloadedFunction5(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1022,7 +1042,6 @@ bool fcn_overloadedNullable1(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool fcn_overloadedNullable2(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1121,6 +1140,7 @@ bool fcn_overloadedNullable(
   return false;
 }
 
+
 bool fcn_stringFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1172,6 +1192,7 @@ bool fcn_stringFunctionNoArgs(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_variadicPrimitiveArguments(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1238,6 +1259,7 @@ bool fcn_variadicPrimitiveArguments(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_variadicStringArgumentsAfterOptionalArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1343,6 +1365,7 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
   }
 }
 
+
 bool fcn_voidFunctionLongArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1407,6 +1430,7 @@ bool fcn_voidFunctionLongArg(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_voidFunctionNoArgs(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1452,6 +1476,7 @@ bool fcn_voidFunctionNoArgs(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_voidFunctionObjectArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1516,6 +1541,7 @@ bool fcn_voidFunctionObjectArg(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_voidFunctionStringArg(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -1610,7 +1636,6 @@ bool staticfcn_overloadedFunction1(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
-
 bool staticfcn_overloadedFunction2(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1687,6 +1712,7 @@ bool staticfcn_overloadedFunction(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   JS_PS_END
 };
 
@@ -1737,6 +1763,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -1780,17 +1807,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "OperationsTestInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "OperationsTestInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -1817,7 +1852,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 39;
+  const int kInterfaceUniqueId = 40;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
@@ -1896,8 +1931,9 @@ JSObject* MozjsOperationsTestInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

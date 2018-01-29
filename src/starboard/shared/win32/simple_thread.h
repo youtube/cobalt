@@ -42,8 +42,9 @@ class SimpleThread {
   // Called by the main thread, this will cause Run() to be invoked
   // on another thread.
   void Start();
-  // Destroys the threads resources.
-  void Join();
+  // Destroys the threads resources. If overriding, then please call
+  // this function as well.
+  virtual void Join();
 
   bool join_called() const { return join_called_.load(); }
 

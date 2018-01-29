@@ -30,9 +30,9 @@ class MozjsExceptionState : public ExceptionState {
   explicit MozjsExceptionState(JSContext* context)
       : is_exception_set_(false), context_(context) {}
   // ExceptionState interface
-  void SetException(const scoped_refptr<ScriptException>& exception) OVERRIDE;
+  void SetException(const scoped_refptr<ScriptException>& exception) override;
   void SetSimpleExceptionVA(SimpleExceptionType type, const char* format,
-                            va_list arguments) OVERRIDE;
+                            va_list arguments) override;
 
   bool is_exception_set() const { return is_exception_set_; }
 

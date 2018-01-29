@@ -50,7 +50,7 @@ const void* kNull = NULL;
 TEST_P(SbSocketBindTest, RainyDayNullSocket) {
   SbSocketAddress address =
       GetUnspecifiedAddress(GetAddressType(), GetPortNumberForTests());
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(kSbSocketInvalid, &address));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketBind(kSbSocketInvalid, &address));
 }
 
 TEST_P(SbSocketBindTest, RainyDayNullAddress) {
@@ -58,7 +58,7 @@ TEST_P(SbSocketBindTest, RainyDayNullAddress) {
   ASSERT_TRUE(SbSocketIsValid(server_socket));
 
   // Binding with a NULL address should fail.
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(server_socket, NULL));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketBind(server_socket, NULL));
 
   // Even though that failed, binding the same socket now with 0.0.0.0:2048
   // should work.
@@ -70,7 +70,7 @@ TEST_P(SbSocketBindTest, RainyDayNullAddress) {
 }
 
 TEST_F(SbSocketBindTest, RainyDayNullNull) {
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(kSbSocketInvalid, NULL));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketBind(kSbSocketInvalid, NULL));
 }
 
 #if SB_HAS(IPV6)
@@ -81,7 +81,7 @@ TEST_P(PairSbSocketBindTest, RainyDayWrongAddressType) {
   // Binding with the wrong address type should fail.
   SbSocketAddress address =
       GetUnspecifiedAddress(GetClientAddressType(), GetPortNumberForTests());
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketBind(server_socket, &address));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketBind(server_socket, &address));
 
   // Even though that failed, binding the same socket now with the server
   // address type should work.
@@ -105,8 +105,8 @@ TEST_P(SbSocketBindTest, RainyDayBadInterface) {
       SbSocketResolve(kTestHostName, GetFilterType());
   ASSERT_NE(kNull, resolution);
   EXPECT_LT(0, resolution->address_count);
-  EXPECT_EQ(kSbSocketErrorFailed,
-            SbSocketBind(server_socket, &resolution->addresses[0]));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(
+      SbSocketBind(server_socket, &resolution->addresses[0]));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
   SbSocketFreeResolution(resolution);

@@ -19,9 +19,9 @@ public:
         this->reset();
     }
 
-    virtual ~GrRectanizerSkyline() { }
+    ~GrRectanizerSkyline() override { }
 
-    virtual void reset() SK_OVERRIDE{
+    void reset() override {
         fAreaSoFar = 0;
         fSkyline.reset();
         SkylineSegment* seg = fSkyline.append(1);
@@ -30,9 +30,9 @@ public:
         seg->fWidth = this->width();
     }
 
-    virtual bool addRect(int w, int h, SkIPoint16* loc) SK_OVERRIDE;
+    bool addRect(int w, int h, SkIPoint16* loc) override;
 
-    virtual float percentFull() const SK_OVERRIDE {
+    float percentFull() const override {
         return fAreaSoFar / ((float)this->width() * this->height());
     }
 
@@ -49,7 +49,7 @@ private:
 
     // Can a width x height rectangle fit in the free space represented by
     // the skyline segments >= 'skylineIndex'? If so, return true and fill in
-    // 'y' with the y-location at which it fits (the x location is pulled from 
+    // 'y' with the y-location at which it fits (the x location is pulled from
     // 'skylineIndex's segment.
     bool rectangleFits(int skylineIndex, int width, int height, int* y) const;
     // Update the skyline structure to include a width x height rect located

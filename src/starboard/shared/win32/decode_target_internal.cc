@@ -126,8 +126,10 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(
   info.height = video_area.bottom;
 
   d3d_texture = AllocateTexture(d3d_device, info.width, info.height);
-  UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
-      video_processor, video_sample, video_area);
+  if (video_sample) {
+    UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+        video_processor, video_sample, video_area);
+  }
 
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
@@ -277,7 +279,9 @@ bool SbDecodeTargetPrivate::Update(
     return false;
   }
 
-  // The decode target info must be compatible.
+  // The decode target info must be compatible. The resolution should match
+  // exactly, otherwise the shader may sample invalid texels along the
+  // texture border.
   if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
       info.is_opaque != true ||
       info.width != video_area.right ||

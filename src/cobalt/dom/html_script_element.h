@@ -71,23 +71,23 @@ class HTMLScriptElement : public HTMLElement {
   // Custom, not in any spec.
   //
   // From Node.
-  void OnInsertedIntoDocument() OVERRIDE;
+  void OnInsertedIntoDocument() override;
 
   // From Element.
   void OnParserStartTag(
-      const base::SourceLocation& opening_tag_location) OVERRIDE;
-  void OnParserEndTag() OVERRIDE;
+      const base::SourceLocation& opening_tag_location) override;
+  void OnParserEndTag() override;
 
   // From HTMLElement.
-  scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() OVERRIDE;
+  scoped_refptr<HTMLScriptElement> AsHTMLScriptElement() override;
 
   DEFINE_WRAPPABLE_TYPE(HTMLScriptElement);
 
  protected:
-  scoped_refptr<Node> Duplicate() const OVERRIDE;
+  scoped_refptr<Node> Duplicate() const override;
 
  private:
-  ~HTMLScriptElement() OVERRIDE;
+  ~HTMLScriptElement() override;
 
   // From the spec: HTMLScriptElement.
   //

@@ -16,8 +16,10 @@
 #define COBALT_SCRIPT_V8C_V8C_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/hash_tables.h"
 #include "base/logging.h"
 #include "base/optional.h"
@@ -26,7 +28,7 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/v8c/interface_data.h"
-#include "cobalt/script/v8c/weak_heap_object_manager.h"
+#include "cobalt/script/v8c/v8c_heap_tracer.h"
 #include "cobalt/script/v8c/wrapper_factory.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8.h"
@@ -39,11 +41,17 @@ class V8cScriptValueFactory;
 class ReferencedObjectMap;
 class WeakHandle;
 
-// Manages a handle to a JavaScript engine's global object. The lifetime of
-// the global object is not necessarily tied to the lifetime of the proxy.
+// A wrapper of |v8::Context|, which holds the global object.
 class V8cGlobalEnvironment : public GlobalEnvironment,
                              public Wrappable::CachedWrapperAccessor {
  public:
+  // Helper function to allow others to retrieve us (a |V8cGlobalEnvironment|)
+  // from our |v8::Isolate|.
+  static V8cGlobalEnvironment* GetFromIsolate(v8::Isolate* isolate) {
+    return static_cast<V8cGlobalEnvironment*>(
+        isolate->GetData(kIsolateDataIndex));
+  }
+
   explicit V8cGlobalEnvironment(v8::Isolate* isolate);
   ~V8cGlobalEnvironment() override;
 
@@ -104,9 +112,41 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
-  WeakHeapObjectManager* weak_object_manager() { return &weak_object_manager_; }
+  EnvironmentSettings* GetEnvironmentSettings() const {
+    return environment_settings_;
+  }
+
+  void AddReferencedObject(Wrappable* owner, v8::Local<v8::Value> value) {
+    auto it = referenced_object_map_.insert({owner, {isolate_, value}});
+    // TODO: Make this weak.
+  }
+
+  void RemoveReferencedObject(Wrappable* owner, v8::Local<v8::Value> value) {
+    auto pair_range = referenced_object_map_.equal_range(owner);
+    auto it = std::find_if(pair_range.first, pair_range.second,
+                           [this, &value](decltype(*pair_range.first) handle) {
+                             return handle.second.Get(isolate_) == value;
+                           });
+    if (it != pair_range.second) {
+      referenced_object_map_.erase(it);
+    } else {
+      DLOG(WARNING) << "No reference to the specified object found.";
+    }
+  }
 
  private:
+  // Helper struct to store a V8 persistent handle as well as a count.  We
+  // need to make it the less common copyable variant because we plan on
+  // storing it in an STL container.
+  struct CountedHandle {
+    v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> handle;
+    int count;
+  };
+
+  // Where we store ourselves as embedder private data in our corresponding
+  // |v8::Isolate|.
+  static const int kIsolateDataIndex = 1;
+
   base::ThreadChecker thread_checker_;
   v8::Isolate* isolate_;
   v8::Global<v8::Context> context_;
@@ -115,11 +155,21 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   v8::Global<v8::Object> global_object_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
 
-  WeakHeapObjectManager weak_object_manager_;
-
   std::vector<InterfaceData> cached_interface_data_;
 
+  // TODO: Should be scoped_ptr, fix headers/sources template mess.
+  V8cScriptValueFactory* script_value_factory_;
+
   EnvironmentSettings* environment_settings_;
+
+  std::unordered_map<Wrappable*, CountedHandle> kept_alive_objects_;
+
+  // TODO: We might need to make all of these weak, and only visit them when
+  // we get asked to trace them.
+  std::unordered_multimap<
+      Wrappable*,
+      v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>>>
+      referenced_object_map_;
 
   // If non-NULL, the error message from the ReportErrorHandler will get
   // assigned to this instead of being printed.

@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2014 Google Inc.
  *
@@ -8,30 +7,32 @@
 
 #include "gm.h"
 #include "SkGradientShader.h"
+#include "SkImage.h"
 #include "SkPatchUtils.h"
+#include "SkPath.h"
 
-static SkShader* make_shader() {
+static sk_sp<SkShader> make_shader() {
     const SkColor colors[] = {
         SK_ColorRED, SK_ColorCYAN, SK_ColorGREEN, SK_ColorWHITE, SK_ColorMAGENTA, SK_ColorBLUE,
         SK_ColorYELLOW,
     };
     const SkPoint pts[] = { { 100.f / 4.f, 0.f }, { 3.f * 100.f / 4.f, 100.f } };
-    
-    return SkGradientShader::CreateLinear(pts, colors, NULL, SK_ARRAY_COUNT(colors),
-                                          SkShader::kMirror_TileMode);
+
+    return SkGradientShader::MakeLinear(pts, colors, nullptr, SK_ARRAY_COUNT(colors),
+                                        SkShader::kMirror_TileMode);
 }
 
 static void draw_control_points(SkCanvas* canvas, const SkPoint cubics[12]) {
     //draw control points
     SkPaint paint;
     SkPoint bottom[SkPatchUtils::kNumPtsCubic];
-    SkPatchUtils::getBottomCubic(cubics, bottom);
+    SkPatchUtils::GetBottomCubic(cubics, bottom);
     SkPoint top[SkPatchUtils::kNumPtsCubic];
-    SkPatchUtils::getTopCubic(cubics, top);
+    SkPatchUtils::GetTopCubic(cubics, top);
     SkPoint left[SkPatchUtils::kNumPtsCubic];
-    SkPatchUtils::getLeftCubic(cubics, left);
+    SkPatchUtils::GetLeftCubic(cubics, left);
     SkPoint right[SkPatchUtils::kNumPtsCubic];
-    SkPatchUtils::getRightCubic(cubics, right);
+    SkPatchUtils::GetRightCubic(cubics, right);
 
     paint.setColor(SK_ColorBLACK);
     paint.setStrokeWidth(0.5f);
@@ -64,100 +65,121 @@ static void draw_control_points(SkCanvas* canvas, const SkPoint cubics[12]) {
     canvas->drawPoints(SkCanvas::kPoints_PointMode, 2, right + 1, paint);
 }
 
-namespace skiagm {
-/**
- * This GM draws a cubics coons patch using the specialized call SkCanvas::drawPatch.
- */
-class SkPatchGM : public GM {
-    
-public:
-    SkPatchGM() {
-        this->setBGColor(0xFFFFFFFF);
-    }
-
-protected:
-    virtual SkString onShortName() SK_OVERRIDE {
-        return SkString("patch_primitive");
-    }
-
-    virtual SkISize onISize() SK_OVERRIDE {
-        return SkISize::Make(800, 800);
-    }
-
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-
-        SkPaint paint;
-        
-        // The order of the colors and points is clockwise starting at upper-left corner.
-        const SkPoint cubics[SkPatchUtils::kNumCtrlPts] = {
-            //top points
-            {100,100},{150,50},{250,150}, {300,100},
-            //right points
-            {250, 150},{350,250},
-            //bottom points
-            {300,300},{250,250},{150,350},{100,300},
-            //left points
-            {50,250},{150,150}
-        };
-        
-        const SkColor colors[SkPatchUtils::kNumCorners] = {
-            SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE, SK_ColorCYAN
-        };
-        const SkPoint texCoords[SkPatchUtils::kNumCorners] = {
-            {0.0f, 0.0f}, {100.0f, 0.0f}, {100.0f,100.0f}, {0.0f, 100.0f}}
-        ;
-        
-        const SkXfermode::Mode modes[] = {
-            SkXfermode::kSrc_Mode,
-            SkXfermode::kDst_Mode,
-            SkXfermode::kModulate_Mode,
-        };
-        
-        SkAutoTUnref<SkShader> shader(make_shader());
-        
-        canvas->save();
-        for (int y = 0; y < 3; y++) {
-            SkAutoTUnref<SkXfermode> xfer(SkXfermode::Create(modes[y]));
-
-            for (int x = 0; x < 4; x++) {
-                canvas->save();
-                canvas->translate(x * 350.0f, y * 350.0f);
-                switch (x) {
-                    case 0:
-                        canvas->drawPatch(cubics, NULL, NULL, xfer, paint);
-                        break;
-                    case 1:
-                        canvas->drawPatch(cubics, colors, NULL, xfer, paint);
-                        break;
-                    case 2:
-                        paint.setShader(shader);
-                        canvas->drawPatch(cubics, NULL, texCoords, xfer, paint);
-                        paint.setShader(NULL);
-                        break;
-                    case 3:
-                        paint.setShader(shader);
-                        canvas->drawPatch(cubics, colors, texCoords, xfer, paint);
-                        paint.setShader(NULL);
-                        break;
-                    default:
-                        break;
-                }
-                
-                draw_control_points(canvas, cubics);
-                canvas->restore();
-            }
-        }
-        canvas->restore();
-    }
-
-private:
-    typedef GM INHERITED;
+// The order of the colors and points is clockwise starting at upper-left corner.
+const SkPoint gCubics[SkPatchUtils::kNumCtrlPts] = {
+    //top points
+    {100,100},{150,50},{250,150}, {300,100},
+    //right points
+    {250, 150},{350,250},
+    //bottom points
+    {300,300},{250,250},{150,350},{100,300},
+    //left points
+    {50,250},{150,150}
 };
 
-DEF_GM(return SkNEW(SkPatchGM); )
+const SkPoint gTexCoords[SkPatchUtils::kNumCorners] = {
+    {0.0f, 0.0f}, {100.0f, 0.0f}, {100.0f,100.0f}, {0.0f, 100.0f}
+};
 
+
+static void dopatch(SkCanvas* canvas, const SkColor colors[], sk_sp<SkImage> img = nullptr) {
+    SkPaint paint;
+
+    const SkBlendMode modes[] = {
+        SkBlendMode::kSrc,
+        SkBlendMode::kDst,
+        SkBlendMode::kModulate,
+    };
+
+    SkPoint texStorage[4];
+    const SkPoint* tex = gTexCoords;
+
+    sk_sp<SkShader> shader;
+    if (img) {
+        SkScalar w = img->width();
+        SkScalar h = img->height();
+        shader = img->makeShader(SkShader::kClamp_TileMode, SkShader::kClamp_TileMode);
+        texStorage[0].set(0, 0);
+        texStorage[1].set(w, 0);
+        texStorage[2].set(w, h);
+        texStorage[3].set(0, h);
+        tex = texStorage;
+    } else {
+        shader = make_shader();
+    }
+
+    canvas->save();
+    for (int y = 0; y < 3; y++) {
+        for (int x = 0; x < 4; x++) {
+            canvas->save();
+            canvas->translate(x * 350.0f, y * 350.0f);
+            switch (x) {
+                case 0:
+                    canvas->drawPatch(gCubics, nullptr, nullptr, modes[y], paint);
+                    break;
+                case 1:
+                    canvas->drawPatch(gCubics, colors, nullptr, modes[y], paint);
+                    break;
+                case 2:
+                    paint.setShader(shader);
+                    canvas->drawPatch(gCubics, nullptr, tex, modes[y], paint);
+                    paint.setShader(nullptr);
+                    break;
+                case 3:
+                    paint.setShader(shader);
+                    canvas->drawPatch(gCubics, colors, tex, modes[y], paint);
+                    paint.setShader(nullptr);
+                    break;
+                default:
+                    break;
+            }
+
+            draw_control_points(canvas, gCubics);
+            canvas->restore();
+        }
+    }
+    canvas->restore();
 }
+
+DEF_SIMPLE_GM(patch_primitive, canvas, 1500, 1100) {
+    const SkColor colors[SkPatchUtils::kNumCorners] = {
+        SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE, SK_ColorCYAN
+    };
+    dopatch(canvas, colors);
+}
+#include "Resources.h"
+DEF_SIMPLE_GM(patch_image, canvas, 1500, 1100) {
+    const SkColor colors[SkPatchUtils::kNumCorners] = {
+        SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE, SK_ColorCYAN
+    };
+    dopatch(canvas, colors, GetResourceAsImage("mandrill_128.png"));
+}
+DEF_SIMPLE_GM(patch_alpha, canvas, 1500, 1100) {
+    const SkColor colors[SkPatchUtils::kNumCorners] = {
+        SK_ColorRED, 0x0000FF00, SK_ColorBLUE, 0x00FF00FF,
+    };
+    dopatch(canvas, colors);
+}
+
+// These two should look the same (one patch, one simple path)
+DEF_SIMPLE_GM(patch_alpha_test, canvas, 550, 250) {
+    canvas->translate(-75, -75);
+
+    const SkColor colors[SkPatchUtils::kNumCorners] = {
+        0x80FF0000, 0x80FF0000, 0x80FF0000, 0x80FF0000,
+    };
+    SkPaint paint;
+    canvas->drawPatch(gCubics, colors, nullptr, SkBlendMode::kModulate, paint);
+
+    canvas->translate(300, 0);
+
+    SkPath path;
+    path.moveTo(gCubics[0]);
+    path.cubicTo(gCubics[ 1], gCubics[ 2], gCubics[ 3]);
+    path.cubicTo(gCubics[ 4], gCubics[ 5], gCubics[ 6]);
+    path.cubicTo(gCubics[ 7], gCubics[ 8], gCubics[ 9]);
+    path.cubicTo(gCubics[10], gCubics[11], gCubics[ 0]);
+    paint.setColor(colors[0]);
+    canvas->drawPath(path, paint);
+}
+

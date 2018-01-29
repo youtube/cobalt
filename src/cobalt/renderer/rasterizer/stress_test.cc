@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "cobalt/render_tree/brush.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
+#include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -32,6 +35,9 @@ using cobalt::render_tree::Brush;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
+using cobalt::render_tree::Image;
+using cobalt::render_tree::ImageData;
+using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::OpacityFilter;
 using cobalt::render_tree::RectNode;
@@ -53,11 +59,15 @@ class StressTest : public testing::Test {
   StressTest();
 
   void TestTree(const Size& output_size, scoped_refptr<Node> tree);
+  render_tree::ResourceProvider* GetResourceProvider() const {
+    return rasterizer_->GetResourceProvider();
+  }
 
  protected:
   scoped_ptr<backend::GraphicsSystem> graphics_system_;
   scoped_ptr<backend::GraphicsContext> graphics_context_;
   scoped_ptr<rasterizer::Rasterizer> rasterizer_;
+  scoped_refptr<backend::RenderTarget> render_target_;
 };
 
 StressTest::StressTest() {
@@ -70,16 +80,20 @@ StressTest::StressTest() {
 }
 
 void StressTest::TestTree(const Size& output_size, scoped_refptr<Node> tree) {
-  scoped_refptr<cobalt::renderer::backend::RenderTarget> test_surface =
-      graphics_context_->CreateDownloadableOffscreenRenderTarget(output_size);
+  // Reuse render targets to avoid some rasterizers from thrashing their
+  // render target cache.
+  if (!render_target_ || render_target_->GetSize() != output_size) {
+    render_target_ = graphics_context_->CreateDownloadableOffscreenRenderTarget(
+        output_size);
+  }
 
-  if (!test_surface) {
+  if (!render_target_) {
     LOG(WARNING)
         << "Failed to create render target, no rasterization will take place.";
   } else {
     rasterizer::Rasterizer::Options rasterizer_options;
     rasterizer_options.flags = rasterizer::Rasterizer::kSubmitFlags_Clear;
-    rasterizer_->Submit(tree, test_surface, rasterizer_options);
+    rasterizer_->Submit(tree, render_target_, rasterizer_options);
   }
 }
 
@@ -155,6 +169,39 @@ TEST_F(StressTest, FewLargeOpacityLayers) {
 TEST_F(StressTest, FewVeryLargeOpacityLayers) {
   Size kFramebufferSize(1920, 1080);
   TestTree(kFramebufferSize, CreateOpacityLayers(50, Size(9000, 9000)));
+}
+
+TEST_F(StressTest, TooManyTextures) {
+  // Try to use all the available texture memory in order to test failure to
+  // allocate a texture.
+  const int kTextureMemoryMb = 2 * 1024;
+
+  const Size kFramebufferSize(1920, 1080);
+  const Size kTextureSize(2048, 2048);
+  const int kTextureSizeMb = kTextureSize.GetArea() * 4 / (1024 * 1024);
+  const int kNumTextures = kTextureMemoryMb / kTextureSizeMb + 1;
+
+  render_tree::PixelFormat pixel_format = render_tree::kPixelFormatRGBA8;
+  if (!GetResourceProvider()->PixelFormatSupported(pixel_format)) {
+    pixel_format = render_tree::kPixelFormatBGRA8;
+  }
+
+  std::vector<scoped_refptr<Image>> images;
+  for (int i = 0; i < kNumTextures; ++i) {
+    // On most platforms, AllocateImageData allocates CPU memory and
+    // CreateImage will allocate GPU memory (and release the CPU memory) when
+    // the image is needed. To exercise running out of GPU memory, try
+    // rendering each new image so the CPU allocation can be released before
+    // the next image is allocated.
+    scoped_ptr<ImageData> image_data = GetResourceProvider()->AllocateImageData(
+        kTextureSize, pixel_format, render_tree::kAlphaFormatOpaque);
+    if (!image_data) {
+      break;
+    }
+    images.emplace_back(GetResourceProvider()->CreateImage(
+        image_data.Pass()));
+    TestTree(kFramebufferSize, new ImageNode(images.back()));
+  }
 }
 
 }  // namespace rasterizer

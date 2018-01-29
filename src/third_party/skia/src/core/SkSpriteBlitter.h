@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,44 +5,43 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkSpriteBlitter_DEFINED
 #define SkSpriteBlitter_DEFINED
 
-#include "SkBitmap.h"
-#include "SkBitmapProcShader.h"
 #include "SkBlitter.h"
+#include "SkPixmap.h"
 #include "SkShader.h"
-#include "SkSmallAllocator.h"
 
 class SkPaint;
 
+// SkSpriteBlitter specializes SkBlitter in a way to move large rectangles of pixels around.
+// Because of this use, the main primitive shifts from blitH style things to the more efficient
+// blitRect.
 class SkSpriteBlitter : public SkBlitter {
 public:
-            SkSpriteBlitter(const SkBitmap& source);
-    virtual ~SkSpriteBlitter();
+    SkSpriteBlitter(const SkPixmap& source);
 
-    virtual void setup(const SkBitmap& device, int left, int top,
-                       const SkPaint& paint);
+    virtual void setup(const SkPixmap& dst, int left, int top, const SkPaint&);
 
-    // overrides
-#ifdef SK_DEBUG
-    virtual void    blitH(int x, int y, int width);
-    virtual void    blitAntiH(int x, int y, const SkAlpha antialias[], const int16_t runs[]);
-    virtual void    blitV(int x, int y, int height, SkAlpha alpha);
-    virtual void    blitMask(const SkMask&, const SkIRect& clip);
-#endif
+    // blitH, blitAntiH, blitV and blitMask should not be called on an SkSpriteBlitter.
+    void blitH(int x, int y, int width) override;
+    void blitAntiH(int x, int y, const SkAlpha antialias[], const int16_t runs[]) override;
+    void blitV(int x, int y, int height, SkAlpha alpha) override;
+    void blitMask(const SkMask&, const SkIRect& clip) override;
 
-    static SkSpriteBlitter* ChooseD16(const SkBitmap& source, const SkPaint&,
-                                      SkTBlitterAllocator*);
-    static SkSpriteBlitter* ChooseD32(const SkBitmap& source, const SkPaint&,
-                                      SkTBlitterAllocator*);
+    // A SkSpriteBlitter must implement blitRect.
+    void blitRect(int x, int y, int width, int height) override = 0;
+
+    static SkSpriteBlitter* ChooseL32(const SkPixmap& source, const SkPaint&, SkArenaAlloc*);
 
 protected:
-    const SkBitmap* fDevice;
-    const SkBitmap* fSource;
+    SkPixmap        fDst;
+    const SkPixmap  fSource;
     int             fLeft, fTop;
     const SkPaint*  fPaint;
+
+private:
+    typedef SkBlitter INHERITED;
 };
 
 #endif

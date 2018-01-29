@@ -14,11 +14,11 @@ public:
     AlphaGradientsGM() {}
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("alphagradients");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(640, 480);
     }
 
@@ -28,18 +28,17 @@ protected:
         SkPoint pts[] = { { r.fLeft, r.fTop }, { r.fRight, r.fBottom } };
         SkPaint paint;
         uint32_t flags = doPreMul ? SkGradientShader::kInterpolateColorsInPremul_Flag : 0;
-        SkShader* s = SkGradientShader::CreateLinear(pts, colors, NULL, 2,
-                                                     SkShader::kClamp_TileMode, flags, NULL);
-        paint.setShader(s)->unref();
+        paint.setShader(SkGradientShader::MakeLinear(pts, colors, nullptr, 2,
+                                                     SkShader::kClamp_TileMode, flags, nullptr));
         canvas->drawRect(r, paint);
 
-        paint.setShader(NULL);
+        paint.setShader(nullptr);
         paint.setStyle(SkPaint::kStroke_Style);
         canvas->drawRect(r, paint);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        static const struct {
+    void onDraw(SkCanvas* canvas) override {
+        constexpr struct {
             SkColor fColor0;
             SkColor fColor1;
         } gRec[] = {
@@ -72,10 +71,8 @@ protected:
         }
     }
 
-    virtual uint32_t onGetFlags() const { return kSkipPipe_Flag | kSkipTiled_Flag; }
-
 private:
     typedef skiagm::GM INHERITED;
 };
 
-DEF_GM( return SkNEW(AlphaGradientsGM); )
+DEF_GM(return new AlphaGradientsGM;)

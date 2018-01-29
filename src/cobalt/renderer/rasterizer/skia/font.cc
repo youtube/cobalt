@@ -52,7 +52,7 @@ Font::Font(SkiaTypeface* typeface, SkScalar size)
   glyph_bounds_thread_checker_.DetachFromThread();
 }
 
-SkTypeface_Cobalt* Font::GetSkTypeface() const {
+const sk_sp<SkTypeface_Cobalt>& Font::GetSkTypeface() const {
   return typeface_->GetSkTypeface();
 }
 
@@ -137,7 +137,7 @@ float Font::GetGlyphWidth(render_tree::GlyphIndex glyph) {
 
 SkPaint Font::GetSkPaint() const {
   SkPaint paint(GetDefaultSkPaint());
-  SkAutoTUnref<SkTypeface> typeface(typeface_->GetSkTypeface());
+  const sk_sp<SkTypeface>& typeface(typeface_->GetSkTypeface());
   paint.setTypeface(typeface);
   paint.setTextSize(size_);
   return paint;

@@ -23,6 +23,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "base/time.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
@@ -249,7 +250,6 @@ inline void FromJSValue(
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
                                  std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
-  using namespace ::cobalt::script::mozjs::internal;
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
 
@@ -261,14 +261,15 @@ inline void FromJSValue(
 
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
-  typename IntegralTypeToJsOutType<T>::type out;
+  using OutType = typename internal::IntegralTypeToJsOutType<T>::type;
+  OutType out;
   bool success;
   if (UNLIKELY(conversion_flags & kConversionFlagClamped)) {
-    JS::RootedValue value_to_convert(context);
-    ClampedValue<T>(context, value, &value_to_convert);
-    success = JSToIntegral(context, value_to_convert, &out);
+    JS::RootedValue clamped_value(context);
+    ClampedValue<T>(context, value, &clamped_value);
+    success = internal::JSToIntegral(context, clamped_value, &out);
   } else {
-    success = JSToIntegral(context, value, &out);
+    success = internal::JSToIntegral(context, value, &out);
   }
 
   // It is possible for |JS::To{Uint,Int}{32,64}| to fail in certain edge
@@ -429,6 +430,15 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
                JS::MutableHandleValue out_value);
 
+// base::Time -> JSValue
+void ToJSValue(JSContext* context, const base::Time& time,
+               JS::MutableHandleValue out_value);
+
+// JSValue -> base::Time
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 base::Time* out_time);
+
 // JSValue -> ValueHandle
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
@@ -570,6 +580,7 @@ inline void FromJSValue(
   *out_callback_interface = MozjsCallbackInterfaceHolder<T>(context, value);
 }
 
+// Sequence -> JSValue
 template <typename T>
 void ToJSValue(JSContext* context, const script::Sequence<T>& sequence,
                JS::MutableHandleValue out_value) {
@@ -603,6 +614,7 @@ void ToJSValue(JSContext* context, const script::Sequence<T>& sequence,
   out_value.setObject(*array);
 }
 
+// JSValue -> Sequence
 template <typename T>
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,

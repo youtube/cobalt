@@ -6,6 +6,10 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
+#include "Resources.h"
+#include "SkPath.h"
+#include "SkTypeface.h"
 
 class SkJSCanvas {
 public:
@@ -69,8 +73,7 @@ void SkJSCanvas::stroke() {
 }
 
 void SkJSCanvas::fillText(const char text[], double x, double y) {
-    fTarget->drawText(text, strlen(text),
-                      SkDoubleToScalar(x), SkDoubleToScalar(y), fFillPaint);
+    fTarget->drawString(text, SkDoubleToScalar(x), SkDoubleToScalar(y), fFillPaint);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -179,15 +182,12 @@ public:
     Poly2PolyGM() {}
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("poly2poly");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(835, 840);
     }
 
@@ -205,10 +205,10 @@ protected:
         matrix.setPolyToPoly(src, dst, count);
         canvas->concat(matrix);
 
-        paint->setColor(SK_ColorGRAY);
+        paint->setColor(sk_tool_utils::color_to_565(SK_ColorGRAY));
         paint->setStyle(SkPaint::kStroke_Style);
-        const SkScalar D = SkIntToScalar(64);
-        canvas->drawRectCoords(0, 0, D, D, *paint);
+        const SkScalar D = 64;
+        canvas->drawRect(SkRect::MakeWH(D, D), *paint);
         canvas->drawLine(0, 0, D, D, *paint);
         canvas->drawLine(0, D, D, 0, *paint);
 
@@ -218,19 +218,22 @@ protected:
         paint->setStyle(SkPaint::kFill_Style);
         SkScalar x = D/2;
         SkScalar y = D/2 - (fm.fAscent + fm.fDescent)/2;
-        SkString str;
-        str.appendS32(count);
-        canvas->drawText(str.c_str(), str.size(), x, y, *paint);
-
+        uint16_t glyphID = 3; // X
+        canvas->drawText((void*) &glyphID, sizeof(glyphID), x, y, *paint);
         canvas->restore();
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onOnceBeforeDraw() override {
+        fEmFace = MakeResourceAsTypeface("/fonts/Em.ttf");
+    }
+
+    void onDraw(SkCanvas* canvas) override {
         if (false) { test_stroke(canvas); return; }
 
         SkPaint paint;
         paint.setAntiAlias(true);
-        sk_tool_utils::set_portable_typeface(&paint);
+        paint.setTypeface(fEmFace);
+        paint.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
         paint.setStrokeWidth(SkIntToScalar(4));
         paint.setTextSize(SkIntToScalar(40));
         paint.setTextAlign(SkPaint::kCenter_Align);
@@ -270,6 +273,7 @@ protected:
 
 private:
     typedef skiagm::GM INHERITED;
+    sk_sp<SkTypeface> fEmFace;
 };
 
 //////////////////////////////////////////////////////////////////////////////

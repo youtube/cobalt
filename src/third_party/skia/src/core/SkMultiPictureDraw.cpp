@@ -6,57 +6,104 @@
  */
 
 #include "SkCanvas.h"
+#include "SkCanvasPriv.h"
 #include "SkMultiPictureDraw.h"
 #include "SkPicture.h"
+#include "SkTaskGroup.h"
+
+void SkMultiPictureDraw::DrawData::draw() {
+    fCanvas->drawPicture(fPicture, &fMatrix, fPaint);
+}
+
+void SkMultiPictureDraw::DrawData::init(SkCanvas* canvas, const SkPicture* picture,
+                                        const SkMatrix* matrix, const SkPaint* paint) {
+    fPicture = SkRef(picture);
+    fCanvas = canvas;
+    if (matrix) {
+        fMatrix = *matrix;
+    } else {
+        fMatrix.setIdentity();
+    }
+    if (paint) {
+        fPaint = new SkPaint(*paint);
+    } else {
+        fPaint = nullptr;
+    }
+}
+
+void SkMultiPictureDraw::DrawData::Reset(SkTDArray<DrawData>& data) {
+    for (int i = 0; i < data.count(); ++i) {
+        data[i].fPicture->unref();
+        delete data[i].fPaint;
+    }
+    data.rewind();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
 
 SkMultiPictureDraw::SkMultiPictureDraw(int reserve) {
     if (reserve > 0) {
-        fDrawData.setReserve(reserve);
+        fGPUDrawData.setReserve(reserve);
+        fThreadSafeDrawData.setReserve(reserve);
     }
 }
 
 void SkMultiPictureDraw::reset() {
-    for (int i = 0; i < fDrawData.count(); ++i) {
-        fDrawData[i].picture->unref();
-        fDrawData[i].canvas->unref();
-        SkDELETE(fDrawData[i].paint);
-    }
-
-    fDrawData.rewind();
+    DrawData::Reset(fGPUDrawData);
+    DrawData::Reset(fThreadSafeDrawData);
 }
 
-void SkMultiPictureDraw::add(SkCanvas* canvas, 
+void SkMultiPictureDraw::add(SkCanvas* canvas,
                              const SkPicture* picture,
-                             const SkMatrix* matrix, 
+                             const SkMatrix* matrix,
                              const SkPaint* paint) {
-    if (NULL == canvas || NULL == picture) {
-        SkDEBUGFAIL("parameters to SkMultiPictureDraw::add should be non-NULL");
+    if (nullptr == canvas || nullptr == picture) {
+        SkDEBUGFAIL("parameters to SkMultiPictureDraw::add should be non-nullptr");
         return;
     }
 
-    DrawData* data = fDrawData.append();
-
-    data->picture = SkRef(picture);
-    data->canvas = SkRef(canvas);
-    if (matrix) {
-        data->matrix = *matrix;
-    } else {
-        data->matrix.setIdentity();
-    }
-    if (paint) {
-        data->paint = SkNEW_ARGS(SkPaint, (*paint));
-    } else {
-        data->paint = NULL;
-    }
+    SkTDArray<DrawData>& array = canvas->getGrContext() ? fGPUDrawData : fThreadSafeDrawData;
+    array.append()->init(canvas, picture, matrix, paint);
 }
 
-void SkMultiPictureDraw::draw() {
-    for (int i = 0; i < fDrawData.count(); ++i) {
-        fDrawData[i].canvas->drawPicture(fDrawData[i].picture, 
-                                         &fDrawData[i].matrix, 
-                                         fDrawData[i].paint);
+class AutoMPDReset : SkNoncopyable {
+    SkMultiPictureDraw* fMPD;
+public:
+    AutoMPDReset(SkMultiPictureDraw* mpd) : fMPD(mpd) {}
+    ~AutoMPDReset() { fMPD->reset(); }
+};
+
+//#define FORCE_SINGLE_THREAD_DRAWING_FOR_TESTING
+
+void SkMultiPictureDraw::draw(bool flush) {
+    AutoMPDReset mpdreset(this);
+
+#ifdef FORCE_SINGLE_THREAD_DRAWING_FOR_TESTING
+    for (int i = 0; i < fThreadSafeDrawData.count(); ++i) {
+        fThreadSafeDrawData[i].draw();
+    }
+#else
+    SkTaskGroup().batch(fThreadSafeDrawData.count(), [&](int i) {
+        fThreadSafeDrawData[i].draw();
+    });
+#endif
+
+    // N.B. we could get going on any GPU work from this main thread while the CPU work runs.
+    // But in practice, we've either got GPU work or CPU work, not both.
+
+    const int count = fGPUDrawData.count();
+    if (0 == count) {
+        return;
     }
 
-    this->reset();
-}
+    for (int i = 0; i < count; ++i) {
+        const DrawData& data = fGPUDrawData[i];
+        SkCanvas* canvas = data.fCanvas;
+        const SkPicture* picture = data.fPicture;
 
+        canvas->drawPicture(picture, &data.fMatrix, data.fPaint);
+        if (flush) {
+            canvas->flush();
+        }
+    }
+}

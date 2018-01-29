@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2012 Google Inc.
  *
@@ -11,8 +10,7 @@
 
 #include "GrPathRenderer.h"
 
-class GrContext;
-class GrAutoScratchTexture;
+class GrResourceProvider;
 
 /**
  * This class uses the software side to render a path to an SkBitmap and
@@ -20,26 +18,36 @@ class GrAutoScratchTexture;
  */
 class GrSoftwarePathRenderer : public GrPathRenderer {
 public:
-    GrSoftwarePathRenderer(GrContext* context)
-        : fContext(context) {
+    GrSoftwarePathRenderer(GrResourceProvider* resourceProvider, bool allowCaching)
+            : fResourceProvider(resourceProvider)
+            , fAllowCaching(allowCaching) {}
+private:
+    static void DrawNonAARect(GrRenderTargetContext* renderTargetContext,
+                              GrPaint&& paint,
+                              const GrUserStencilSettings& userStencilSettings,
+                              const GrClip& clip,
+                              const SkMatrix& viewMatrix,
+                              const SkRect& rect,
+                              const SkMatrix& localMatrix);
+    static void DrawAroundInvPath(GrRenderTargetContext* renderTargetContext,
+                                  GrPaint&& paint,
+                                  const GrUserStencilSettings& userStencilSettings,
+                                  const GrClip& clip,
+                                  const SkMatrix& viewMatrix,
+                                  const SkIRect& devClipBounds,
+                                  const SkIRect& devPathBounds);
+
+    StencilSupport onGetStencilSupport(const GrShape&) const override {
+        return GrPathRenderer::kNoSupport_StencilSupport;
     }
 
-    virtual bool canDrawPath(const SkPath&,
-                             const SkStrokeRec&,
-                             const GrDrawTarget*,
-                             bool antiAlias) const SK_OVERRIDE;
-protected:
-    virtual StencilSupport onGetStencilSupport(const SkPath&,
-                                               const SkStrokeRec&,
-                                               const GrDrawTarget*) const SK_OVERRIDE;
+    bool onCanDrawPath(const CanDrawPathArgs&) const override;
 
-    virtual bool onDrawPath(const SkPath&,
-                            const SkStrokeRec&,
-                            GrDrawTarget*,
-                            bool antiAlias) SK_OVERRIDE;
+    bool onDrawPath(const DrawPathArgs&) override;
 
 private:
-    GrContext*     fContext;
+    GrResourceProvider*    fResourceProvider;
+    bool                   fAllowCaching;
 
     typedef GrPathRenderer INHERITED;
 };

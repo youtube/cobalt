@@ -54,6 +54,41 @@ TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
   }
 }
 
+#if SB_API_VERSION >= 9
+
+template<std::size_t N>
+bool IsNullTerminated(const char(&str)[N]) {
+  for (size_t i = 0; i < N; ++i) {
+    if (str[i] == '\0') {
+      return true;
+    }
+  }
+  return false;
+}
+
+TEST(SbMicrophoneGetAvailable, LabelIsNullTerminated) {
+  const int kInfoSize = 10;
+  SbMicrophoneInfo infos[kInfoSize];
+  int count = SbMicrophoneGetAvailable(infos, kInfoSize);
+  for (int i = 0; i < std::min(count, kInfoSize); ++i) {
+    EXPECT_TRUE(IsNullTerminated(infos[i].label));
+  }
+}
+
+TEST(SbMicrophoneGetAvailable, LabelIsValid) {
+  const char* kPoisonLabel = "BadLabel";
+  SbMicrophoneInfo info;
+  SbStringCopy(info.label, kPoisonLabel, SB_ARRAY_SIZE(info.label));
+
+  if (SbMicrophoneGetAvailable(&info, 1) > 0) {
+    ASSERT_TRUE(IsNullTerminated(info.label));
+    size_t count = static_cast<size_t>(SbStringGetLength(kPoisonLabel));
+    EXPECT_NE(0, SbStringCompare(info.label, kPoisonLabel, count));
+  }
+}
+
+#endif  //  SB_API_VERSION >= 9
+
 #endif  // SB_HAS(MICROPHONE)
 
 }  // namespace

@@ -25,8 +25,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
-    : host_(NULL),
-      current_frame_width_(0),
+    : current_frame_width_(0),
       current_frame_height_(0),
       stream_ended_(false),
       error_occured_(false),
@@ -43,17 +42,22 @@ VideoDecoder::~VideoDecoder() {
   TeardownCodec();
 }
 
-void VideoDecoder::SetHost(Host* host) {
-  SB_DCHECK(host != NULL);
-  SB_DCHECK(host_ == NULL);
-  host_ = host;
+void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                              const ErrorCB& error_cb) {
+  SB_DCHECK(decoder_status_cb);
+  SB_DCHECK(!decoder_status_cb_);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
+
+  decoder_status_cb_ = decoder_status_cb;
+  error_cb_ = error_cb;
 }
 
 void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
   SB_DCHECK(queue_.Poll().type == kInvalid);
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
@@ -71,11 +75,19 @@ void VideoDecoder::WriteInputBuffer(
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
+
+  if (!SbThreadIsValid(decoder_thread_)) {
+    // In case there is no WriteInputBuffer() call before WriteEndOfStream(),
+    // don't create the decoder thread and send the EOS frame directly.
+    decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    return;
+  }
+
   queue_.Put(Event(kWriteEndOfStream));
 }
 
@@ -116,12 +128,13 @@ void VideoDecoder::DecoderThreadFunc() {
       SB_DCHECK(event.type == kWriteEndOfStream);
       // TODO: Flush the frames inside the decoder, though this is not required
       //       for vp9 in most cases.
-      host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+      decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
     }
   }
 }
 
-bool VideoDecoder::UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame) {
+bool VideoDecoder::UpdateDecodeTarget(
+    const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
 
@@ -139,7 +152,7 @@ bool VideoDecoder::UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame) {
 
 void VideoDecoder::ReportError() {
   error_occured_ = true;
-  host_->OnDecoderStatusUpdate(kFatalError, NULL);
+  error_cb_();
 }
 
 void VideoDecoder::InitializeCodec() {
@@ -241,15 +254,15 @@ void VideoDecoder::DecodeOneBuffer(
   // Create a VideoFrame from decoded frame data. The data is in YV12 format.
   // Each component of a pixel takes one byte and they are in their own planes.
   // UV planes have half resolution both vertically and horizontally.
-  scoped_refptr<VideoFrame> frame = VideoFrame::CreateYV12Frame(
+  scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
       current_frame_width_, current_frame_height_,
       vpx_image->stride[VPX_PLANE_Y], pts, vpx_image->planes[VPX_PLANE_Y],
       vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
-  host_->OnDecoderStatusUpdate(kNeedMoreInput, frame);
-
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     UpdateDecodeTarget(frame);
   }
+
+  decoder_status_cb_(kNeedMoreInput, frame);
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.

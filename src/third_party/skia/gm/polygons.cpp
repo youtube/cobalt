@@ -22,22 +22,19 @@ public:
     PolygonsGM() {}
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("polygons");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         int width = kNumPolygons * kCellSize + 40;
         int height = (kNumJoins * kNumStrokeWidths + kNumExtraStyles) * kCellSize + 40;
         return SkISize::Make(width, height);
     }
 
     // Construct all polygons
-    virtual void onOnceBeforeDraw() SK_OVERRIDE {
+    void onOnceBeforeDraw() override {
         SkPoint p0[] = {{0, 0}, {60, 0}, {90, 40}};  // triangle
         SkPoint p1[] = {{0, 0}, {0, 40}, {60, 40}, {40, 0}};  // trapezoid
         SkPoint p2[] = {{0, 0}, {40, 40}, {80, 40}, {40, 0}};  // diamond
@@ -88,7 +85,7 @@ protected:
         canvas->translate(x, y);
     }
 
-    static void SetColorAndAlpha(SkPaint* paint, SkLCGRandom* rand) {
+    static void SetColorAndAlpha(SkPaint* paint, SkRandom* rand) {
         SkColor color = rand->nextU();
         color |= 0xff000000;
         paint->setColor(color);
@@ -97,14 +94,14 @@ protected:
         }
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         // Stroke widths are:
         // 0(may use hairline rendering), 10(common case for stroke-style)
         // 40(>= geometry width/height, make the contour filled in fact)
-        static const int kStrokeWidths[] = {0, 10, 40};
+        constexpr int kStrokeWidths[] = {0, 10, 40};
         SkASSERT(kNumStrokeWidths == SK_ARRAY_COUNT(kStrokeWidths));
 
-        static const SkPaint::Join kJoins[] = {
+        constexpr SkPaint::Join kJoins[] = {
             SkPaint::kMiter_Join, SkPaint::kRound_Join, SkPaint::kBevel_Join
         };
         SkASSERT(kNumJoins == SK_ARRAY_COUNT(kJoins));
@@ -113,7 +110,7 @@ protected:
         SkPaint paint;
         paint.setAntiAlias(true);
 
-        SkLCGRandom rand;
+        SkRandom rand;
         // For stroke style painter
         paint.setStyle(SkPaint::kStroke_Style);
         for (int join = 0; join < kNumJoins; ++join) {
@@ -134,7 +131,7 @@ protected:
         }
 
         // For stroke-and-fill style painter and fill style painter
-        static const SkPaint::Style kStyles[] = {
+        constexpr SkPaint::Style kStyles[] = {
             SkPaint::kStrokeAndFill_Style, SkPaint::kFill_Style
         };
         SkASSERT(kNumExtraStyles == SK_ARRAY_COUNT(kStyles));
@@ -155,11 +152,11 @@ protected:
     }
 
 private:
-    static const int kNumPolygons = 8;
-    static const int kCellSize = 100;
-    static const int kNumExtraStyles = 2;
-    static const int kNumStrokeWidths = 3;
-    static const int kNumJoins = 3;
+    static constexpr int kNumPolygons = 8;
+    static constexpr int kCellSize = 100;
+    static constexpr int kNumExtraStyles = 2;
+    static constexpr int kNumStrokeWidths = 3;
+    static constexpr int kNumJoins = 3;
 
     SkTArray<SkPath> fPolygons;
     typedef GM INHERITED;

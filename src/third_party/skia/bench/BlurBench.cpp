@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -53,7 +52,7 @@ protected:
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) {
+    virtual void onDraw(int loops, SkCanvas* canvas) {
         SkPaint paint;
         this->setupPaint(&paint);
 
@@ -66,10 +65,9 @@ protected:
             r.offset(fRadius, fRadius);
 
             if (fRadius > 0) {
-                SkMaskFilter* mf = SkBlurMaskFilter::Create(fStyle,
-                                            SkBlurMask::ConvertRadiusToSigma(fRadius),
-                                            fFlags);
-                paint.setMaskFilter(mf)->unref();
+                paint.setMaskFilter(SkBlurMaskFilter::Make(fStyle,
+                                                          SkBlurMask::ConvertRadiusToSigma(fRadius),
+                                                          fFlags));
             }
             canvas->drawOval(r, paint);
         }

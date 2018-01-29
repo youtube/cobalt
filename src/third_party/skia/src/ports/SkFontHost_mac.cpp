@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,7 +5,9 @@
  * found in the LICENSE file.
  */
 
-#include <vector>
+#include "SkTypes.h"  // Keep this before any #ifdef ...
+#if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+
 #ifdef SK_BUILD_FOR_MAC
 #import <ApplicationServices/ApplicationServices.h>
 #endif
@@ -18,103 +19,68 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
-#include "SkFontHost.h"
+#include "SkAdvancedTypefaceMetrics.h"
+#include "SkAutoMalloc.h"
 #include "SkCGUtils.h"
 #include "SkColorPriv.h"
 #include "SkDescriptor.h"
 #include "SkEndian.h"
-#include "SkFontDescriptor.h"
 #include "SkFloatingPoint.h"
+#include "SkFontDescriptor.h"
+#include "SkFontMgr.h"
 #include "SkGlyph.h"
+#include "SkMakeUnique.h"
 #include "SkMaskGamma.h"
-#include "SkSFNTHeader.h"
-#include "SkOTTable_glyf.h"
-#include "SkOTTable_head.h"
-#include "SkOTTable_hhea.h"
-#include "SkOTTable_loca.h"
+#include "SkMathPriv.h"
+#include "SkMutex.h"
+#include "SkOTTable_OS_2.h"
 #include "SkOTUtils.h"
+#include "SkOnce.h"
 #include "SkPaint.h"
 #include "SkPath.h"
-#include "SkString.h"
+#include "SkSFNTHeader.h"
 #include "SkStream.h"
-#include "SkThread.h"
+#include "SkString.h"
+#include "SkTemplates.h"
+#include "SkTypefaceCache.h"
 #include "SkTypeface_mac.h"
 #include "SkUtils.h"
-#include "SkTypefaceCache.h"
-#include "SkFontMgr.h"
-#include "SkUtils.h"
 
-//#define HACK_COLORGLYPHS
+#include <dlfcn.h>
+
+// Experimental code to use a global lock whenever we access CG, to see if this reduces
+// crashes in Chrome
+#define USE_GLOBAL_MUTEX_FOR_CG_ACCESS
+
+#ifdef USE_GLOBAL_MUTEX_FOR_CG_ACCESS
+    SK_DECLARE_STATIC_MUTEX(gCGMutex);
+    #define AUTO_CG_LOCK()  SkAutoMutexAcquire amc(gCGMutex)
+#else
+    #define AUTO_CG_LOCK()
+#endif
+
+// Set to make glyph bounding boxes visible.
+#define SK_SHOW_TEXT_BLIT_COVERAGE 0
+
+CTFontRef SkTypeface_GetCTFontRef(const SkTypeface* face) {
+    return face ? (CTFontRef)face->internal_private_getCTFontRef() : nullptr;
+}
 
 class SkScalerContext_Mac;
 
-// CTFontManagerCopyAvailableFontFamilyNames() is not always available, so we
-// provide a wrapper here that will return an empty array if need be.
-static CFArrayRef SkCTFontManagerCopyAvailableFontFamilyNames() {
-#ifdef SK_BUILD_FOR_IOS
-    return CFArrayCreate(NULL, NULL, 0, NULL);
-#else
-    return CTFontManagerCopyAvailableFontFamilyNames();
-#endif
-}
-
-
-// Being templated and taking const T* prevents calling
-// CFSafeRelease(autoCFRelease) through implicit conversion.
-template <typename T> static void CFSafeRelease(/*CFTypeRef*/const T* cfTypeRef) {
-    if (cfTypeRef) {
-        CFRelease(cfTypeRef);
+struct CFSafeRelease {
+    void operator()(CFTypeRef cfTypeRef) {
+      if (cfTypeRef) {
+          CFRelease(cfTypeRef);
+      }
     }
-}
-
-// Being templated and taking const T* prevents calling
-// CFSafeRetain(autoCFRelease) through implicit conversion.
-template <typename T> static void CFSafeRetain(/*CFTypeRef*/const T* cfTypeRef) {
-    if (cfTypeRef) {
-        CFRetain(cfTypeRef);
-    }
-}
-
-/** Acts like a CFRef, but calls CFSafeRelease when it goes out of scope. */
-template<typename CFRef> class AutoCFRelease : private SkNoncopyable {
-public:
-    explicit AutoCFRelease(CFRef cfRef = NULL) : fCFRef(cfRef) { }
-    ~AutoCFRelease() { CFSafeRelease(fCFRef); }
-
-    void reset(CFRef that = NULL) {
-        if (that != fCFRef) {
-            CFSafeRelease(fCFRef);
-            fCFRef = that;
-        }
-    }
-
-    operator CFRef() const { return fCFRef; }
-    CFRef get() const { return fCFRef; }
-
-    CFRef* operator&() { SkASSERT(fCFRef == NULL); return &fCFRef; }
-private:
-    CFRef fCFRef;
 };
+template <typename CFRef> using UniqueCFRef =
+        std::unique_ptr<skstd::remove_pointer_t<CFRef>, CFSafeRelease>;
 
-static CFStringRef make_CFString(const char str[]) {
-    return CFStringCreateWithCString(NULL, str, kCFStringEncodingUTF8);
+static UniqueCFRef<CFStringRef> make_CFString(const char str[]) {
+    return UniqueCFRef<CFStringRef>(CFStringCreateWithCString(nullptr, str, kCFStringEncodingUTF8));
 }
-
-template<typename T> class AutoCGTable : SkNoncopyable {
-public:
-    AutoCGTable(CGFontRef font)
-    //Undocumented: the tag parameter in this call is expected in machine order and not BE order.
-    : fCFData(CGFontCopyTableForTag(font, SkSetFourByteTag(T::TAG0, T::TAG1, T::TAG2, T::TAG3)))
-    , fData(fCFData ? reinterpret_cast<const T*>(CFDataGetBytePtr(fCFData)) : NULL)
-    { }
-
-    const T* operator->() const { return fData; }
-
-private:
-    AutoCFRelease<CFDataRef> fCFData;
-public:
-    const T* fData;
-};
 
 // inline versions of these rect helpers
 
@@ -188,74 +154,10 @@ static void sk_memset_rect32(uint32_t* ptr, uint32_t value,
     }
 }
 
-#include <sys/utsname.h>
-
 typedef uint32_t CGRGBPixel;
 
 static unsigned CGRGBPixel_getAlpha(CGRGBPixel pixel) {
     return pixel & 0xFF;
-}
-
-// The calls to support subpixel are present in 10.5, but are not included in
-// the 10.5 SDK. The needed calls have been extracted from the 10.6 SDK and are
-// included below. To verify that CGContextSetShouldSubpixelQuantizeFonts, for
-// instance, is present in the 10.5 CoreGraphics libary, use:
-//   cd /Developer/SDKs/MacOSX10.5.sdk/System/Library/Frameworks/
-//   cd ApplicationServices.framework/Frameworks/CoreGraphics.framework/
-//   nm CoreGraphics | grep CGContextSetShouldSubpixelQuantizeFonts
-
-#if !defined(MAC_OS_X_VERSION_10_6) || (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6)
-CG_EXTERN void CGContextSetAllowsFontSmoothing(CGContextRef context, bool value);
-CG_EXTERN void CGContextSetAllowsFontSubpixelPositioning(CGContextRef context, bool value);
-CG_EXTERN void CGContextSetShouldSubpixelPositionFonts(CGContextRef context, bool value);
-CG_EXTERN void CGContextSetAllowsFontSubpixelQuantization(CGContextRef context, bool value);
-CG_EXTERN void CGContextSetShouldSubpixelQuantizeFonts(CGContextRef context, bool value);
-#endif
-
-static const char FONT_DEFAULT_NAME[] = "Lucida Sans";
-
-// See Source/WebKit/chromium/base/mac/mac_util.mm DarwinMajorVersionInternal for original source.
-static int readVersion() {
-    struct utsname info;
-    if (uname(&info) != 0) {
-        SkDebugf("uname failed\n");
-        return 0;
-    }
-    if (strcmp(info.sysname, "Darwin") != 0) {
-        SkDebugf("unexpected uname sysname %s\n", info.sysname);
-        return 0;
-    }
-    char* dot = strchr(info.release, '.');
-    if (!dot) {
-        SkDebugf("expected dot in uname release %s\n", info.release);
-        return 0;
-    }
-    int version = atoi(info.release);
-    if (version == 0) {
-        SkDebugf("could not parse uname release %s\n", info.release);
-    }
-    return version;
-}
-
-static int darwinVersion() {
-    static int darwin_version = readVersion();
-    return darwin_version;
-}
-
-static bool isSnowLeopard() {
-    return darwinVersion() == 10;
-}
-
-static bool isLion() {
-    return darwinVersion() == 11;
-}
-
-static bool isMountainLion() {
-    return darwinVersion() == 12;
-}
-
-static bool isLCDFormat(unsigned format) {
-    return SkMask::kLCD16_Format == format || SkMask::kLCD32_Format == format;
 }
 
 static CGFloat ScalarToCG(SkScalar scalar) {
@@ -269,28 +171,34 @@ static CGFloat ScalarToCG(SkScalar scalar) {
 
 static SkScalar CGToScalar(CGFloat cgFloat) {
     if (sizeof(CGFloat) == sizeof(float)) {
-        return cgFloat;
+        return SkFloatToScalar(cgFloat);
     } else {
         SkASSERT(sizeof(CGFloat) == sizeof(double));
         return SkDoubleToScalar(cgFloat);
     }
 }
 
-static CGAffineTransform MatrixToCGAffineTransform(const SkMatrix& matrix,
-                                                   SkScalar sx = SK_Scalar1,
-                                                   SkScalar sy = SK_Scalar1) {
-    return CGAffineTransformMake( ScalarToCG(matrix[SkMatrix::kMScaleX] * sx),
-                                 -ScalarToCG(matrix[SkMatrix::kMSkewY]  * sy),
-                                 -ScalarToCG(matrix[SkMatrix::kMSkewX]  * sx),
-                                  ScalarToCG(matrix[SkMatrix::kMScaleY] * sy),
-                                  ScalarToCG(matrix[SkMatrix::kMTransX] * sx),
-                                  ScalarToCG(matrix[SkMatrix::kMTransY] * sy));
+static float CGToFloat(CGFloat cgFloat) {
+    if (sizeof(CGFloat) == sizeof(float)) {
+        return cgFloat;
+    } else {
+        SkASSERT(sizeof(CGFloat) == sizeof(double));
+        return static_cast<float>(cgFloat);
+    }
+}
+
+static CGAffineTransform MatrixToCGAffineTransform(const SkMatrix& matrix) {
+    return CGAffineTransformMake( ScalarToCG(matrix[SkMatrix::kMScaleX]),
+                                 -ScalarToCG(matrix[SkMatrix::kMSkewY] ),
+                                 -ScalarToCG(matrix[SkMatrix::kMSkewX] ),
+                                  ScalarToCG(matrix[SkMatrix::kMScaleY]),
+                                  ScalarToCG(matrix[SkMatrix::kMTransX]),
+                                  ScalarToCG(matrix[SkMatrix::kMTransY]));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 #define BITMAP_INFO_RGB (kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Host)
-#define BITMAP_INFO_GRAY (kCGImageAlphaNone)
 
 /**
  * There does not appear to be a publicly accessable API for determining if lcd
@@ -303,15 +211,20 @@ static bool supports_LCD() {
         return (bool) gSupportsLCD;
     }
     uint32_t rgb = 0;
-    AutoCFRelease<CGColorSpaceRef> colorspace(CGColorSpaceCreateDeviceRGB());
-    AutoCFRelease<CGContextRef> cgContext(CGBitmapContextCreate(&rgb, 1, 1, 8, 4,
-                                                                colorspace, BITMAP_INFO_RGB));
-    CGContextSelectFont(cgContext, "Helvetica", 16, kCGEncodingMacRoman);
-    CGContextSetShouldSmoothFonts(cgContext, true);
-    CGContextSetShouldAntialias(cgContext, true);
-    CGContextSetTextDrawingMode(cgContext, kCGTextFill);
-    CGContextSetGrayFillColor(cgContext, 1, 1);
-    CGContextShowTextAtPoint(cgContext, -1, 0, "|", 1);
+    UniqueCFRef<CGColorSpaceRef> colorspace(CGColorSpaceCreateDeviceRGB());
+    UniqueCFRef<CGContextRef> cgContext(
+            CGBitmapContextCreate(&rgb, 1, 1, 8, 4, colorspace.get(), BITMAP_INFO_RGB));
+    UniqueCFRef<CTFontRef> ctFont(CTFontCreateWithName(CFSTR("Helvetica"), 16, nullptr));
+    CGContextSetShouldSmoothFonts(cgContext.get(), true);
+    CGContextSetShouldAntialias(cgContext.get(), true);
+    CGContextSetTextDrawingMode(cgContext.get(), kCGTextFill);
+    CGContextSetGrayFillColor(cgContext.get(), 1, 1);
+    CGPoint point = CGPointMake(-1, 0);
+    static const UniChar pipeChar = '|';
+    CGGlyph pipeGlyph;
+    CTFontGetGlyphsForCharacters(ctFont.get(), &pipeChar, &pipeGlyph, 1);
+    CTFontDrawGlyphs(ctFont.get(), &pipeGlyph, &point, 1, cgContext.get());
+
     uint32_t r = (rgb >> 16) & 0xFF;
     uint32_t g = (rgb >>  8) & 0xFF;
     uint32_t b = (rgb >>  0) & 0xFF;
@@ -321,21 +234,27 @@ static bool supports_LCD() {
 
 class Offscreen {
 public:
-    Offscreen();
+    Offscreen()
+        : fRGBSpace(nullptr)
+        , fCG(nullptr)
+        , fDoAA(false)
+        , fDoLCD(false)
+    {
+        fSize.set(0, 0);
+    }
 
     CGRGBPixel* getCG(const SkScalerContext_Mac& context, const SkGlyph& glyph,
-                      CGGlyph glyphID, size_t* rowBytesPtr,
-                      bool generateA8FromLCD);
+                      CGGlyph glyphID, size_t* rowBytesPtr, bool generateA8FromLCD);
 
 private:
     enum {
         kSize = 32 * 32 * sizeof(CGRGBPixel)
     };
     SkAutoSMalloc<kSize> fImageStorage;
-    AutoCFRelease<CGColorSpaceRef> fRGBSpace;
+    UniqueCFRef<CGColorSpaceRef> fRGBSpace;
 
     // cached state
-    AutoCFRelease<CGContextRef> fCG;
+    UniqueCFRef<CGContextRef> fCG;
     SkISize fSize;
     bool fDoAA;
     bool fDoLCD;
@@ -345,127 +264,274 @@ private:
     }
 };
 
-Offscreen::Offscreen() : fRGBSpace(NULL), fCG(NULL),
-                         fDoAA(false), fDoLCD(false) {
-    fSize.set(0, 0);
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 
-static SkTypeface::Style computeStyleBits(CTFontRef font, bool* isFixedPitch) {
-    unsigned style = SkTypeface::kNormal;
-    CTFontSymbolicTraits traits = CTFontGetSymbolicTraits(font);
-
-    if (traits & kCTFontBoldTrait) {
-        style |= SkTypeface::kBold;
-    }
-    if (traits & kCTFontItalicTrait) {
-        style |= SkTypeface::kItalic;
-    }
-    if (isFixedPitch) {
-        *isFixedPitch = (traits & kCTFontMonoSpaceTrait) != 0;
-    }
-    return (SkTypeface::Style)style;
+static bool find_dict_CGFloat(CFDictionaryRef dict, CFStringRef name, CGFloat* value) {
+    CFNumberRef num;
+    return CFDictionaryGetValueIfPresent(dict, name, (const void**)&num)
+        && CFNumberIsFloatType(num)
+        && CFNumberGetValue(num, kCFNumberCGFloatType, value);
 }
 
-static SkFontID CTFontRef_to_SkFontID(CTFontRef fontRef) {
-    SkFontID id = 0;
-// CTFontGetPlatformFont and ATSFontRef are not supported on iOS, so we have to
-// bracket this to be Mac only.
+template <typename S, typename D, typename C> struct LinearInterpolater {
+    struct Mapping {
+        S src_val;
+        D dst_val;
+    };
+    constexpr LinearInterpolater(Mapping const mapping[], int mappingCount)
+        : fMapping(mapping), fMappingCount(mappingCount) {}
+
+    static D map(S value, S src_min, S src_max, D dst_min, D dst_max) {
+        SkASSERT(src_min < src_max);
+        SkASSERT(dst_min <= dst_max);
+        return C()(dst_min + (((value - src_min) * (dst_max - dst_min)) / (src_max - src_min)));
+    }
+
+    D map(S val) const {
+        // -Inf to [0]
+        if (val < fMapping[0].src_val) {
+            return fMapping[0].dst_val;
+        }
+
+        // Linear from [i] to [i+1]
+        for (int i = 0; i < fMappingCount - 1; ++i) {
+            if (val < fMapping[i+1].src_val) {
+                return map(val, fMapping[i].src_val, fMapping[i+1].src_val,
+                                fMapping[i].dst_val, fMapping[i+1].dst_val);
+            }
+        }
+
+        // From [n] to +Inf
+        // if (fcweight < Inf)
+        return fMapping[fMappingCount - 1].dst_val;
+    }
+
+    Mapping const * fMapping;
+    int fMappingCount;
+};
+
+struct RoundCGFloatToInt {
+    int operator()(CGFloat s) { return s + 0.5; }
+};
+struct CGFloatIdentity {
+    CGFloat operator()(CGFloat s) { return s; }
+};
+
+/** Returns the [-1, 1] CTFontDescriptor weights for the
+ *  <0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000> CSS weights.
+ *
+ *  It is assumed that the values will be interpolated linearly between these points.
+ *  NSFontWeightXXX were added in 10.11, appear in 10.10, but do not appear in 10.9.
+ *  The actual values appear to be stable, but they may change in the future without notice.
+ */
+static CGFloat(&get_NSFontWeight_mapping())[11] {
+
+    // Declarations in <AppKit/AppKit.h> on macOS, <UIKit/UIKit.h> on iOS
 #ifdef SK_BUILD_FOR_MAC
-    ATSFontRef ats = CTFontGetPlatformFont(fontRef, NULL);
-    id = (SkFontID)ats;
-    if (id != 0) {
-        id &= 0x3FFFFFFF; // make top two bits 00
-        return id;
-    }
+#  define SK_KIT_FONT_WEIGHT_PREFIX "NS"
 #endif
-    // CTFontGetPlatformFont returns NULL if the font is local
-    // (e.g., was created by a CSS3 @font-face rule).
-    AutoCFRelease<CGFontRef> cgFont(CTFontCopyGraphicsFont(fontRef, NULL));
-    AutoCGTable<SkOTTableHead> headTable(cgFont);
-    if (headTable.fData) {
-        id = (SkFontID) headTable->checksumAdjustment;
-        id = (id & 0x3FFFFFFF) | 0x40000000; // make top two bits 01
-    }
-    // well-formed fonts have checksums, but as a last resort, use the pointer.
-    if (id == 0) {
-        id = (SkFontID) (uintptr_t) fontRef;
-        id = (id & 0x3FFFFFFF) | 0x80000000; // make top two bits 10
-    }
-    return id;
+#ifdef SK_BUILD_FOR_IOS
+#  define SK_KIT_FONT_WEIGHT_PREFIX "UI"
+#endif
+    static constexpr struct {
+        CGFloat defaultValue;
+        const char* name;
+    } nsFontWeightLoaderInfos[] = {
+        { -0.80f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightUltraLight" },
+        { -0.60f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightThin" },
+        { -0.40f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightLight" },
+        {  0.00f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightRegular" },
+        {  0.23f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightMedium" },
+        {  0.30f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightSemibold" },
+        {  0.40f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightBold" },
+        {  0.56f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightHeavy" },
+        {  0.62f, SK_KIT_FONT_WEIGHT_PREFIX "FontWeightBlack" },
+    };
+
+    static_assert(SK_ARRAY_COUNT(nsFontWeightLoaderInfos) == 9, "");
+    static CGFloat nsFontWeights[11];
+    static SkOnce once;
+    once([&] {
+        size_t i = 0;
+        nsFontWeights[i++] = -1.00;
+        for (const auto& nsFontWeightLoaderInfo : nsFontWeightLoaderInfos) {
+            void* nsFontWeightValuePtr = dlsym(RTLD_DEFAULT, nsFontWeightLoaderInfo.name);
+            if (nsFontWeightValuePtr) {
+                nsFontWeights[i++] = *(static_cast<CGFloat*>(nsFontWeightValuePtr));
+            } else {
+                nsFontWeights[i++] = nsFontWeightLoaderInfo.defaultValue;
+            }
+        }
+        nsFontWeights[i++] = 1.00;
+    });
+    return nsFontWeights;
 }
 
-static SkFontStyle stylebits2fontstyle(SkTypeface::Style styleBits) {
-    return SkFontStyle((styleBits & SkTypeface::kBold)
-                           ? SkFontStyle::kBold_Weight
-                           : SkFontStyle::kNormal_Weight,
-                       SkFontStyle::kNormal_Width,
-                       (styleBits & SkTypeface::kItalic)
-                           ? SkFontStyle::kItalic_Slant
-                           : SkFontStyle::kUpright_Slant);
+/** Convert the [0, 1000] CSS weight to [-1, 1] CTFontDescriptor weight (for system fonts).
+ *
+ *  The -1 to 1 weights reported by CTFontDescriptors have different mappings depending on if the
+ *  CTFont is native or created from a CGDataProvider.
+ */
+static CGFloat fontstyle_to_ct_weight(int fontstyleWeight) {
+    using Interpolator = LinearInterpolater<int, CGFloat, CGFloatIdentity>;
+
+    // Note that Mac supports the old OS2 version A so 0 through 10 are as if multiplied by 100.
+    // However, on this end we can't tell, so this is ignored.
+
+    static Interpolator::Mapping nativeWeightMappings[11];
+    static SkOnce once;
+    once([&] {
+        CGFloat(&nsFontWeights)[11] = get_NSFontWeight_mapping();
+        for (int i = 0; i < 11; ++i) {
+            nativeWeightMappings[i].src_val = i * 100;
+            nativeWeightMappings[i].dst_val = nsFontWeights[i];
+        }
+    });
+    static constexpr Interpolator nativeInterpolator(
+            nativeWeightMappings, SK_ARRAY_COUNT(nativeWeightMappings));
+
+    return nativeInterpolator.map(fontstyleWeight);
 }
 
-#define WEIGHT_THRESHOLD    ((SkFontStyle::kNormal_Weight + SkFontStyle::kBold_Weight)/2)
 
-static SkTypeface::Style fontstyle2stylebits(const SkFontStyle& fs) {
-    unsigned style = 0;
-    if (fs.width() >= WEIGHT_THRESHOLD) {
-        style |= SkTypeface::kBold;
+/** Convert the [-1, 1] CTFontDescriptor weight to [0, 1000] CSS weight.
+ *
+ *  The -1 to 1 weights reported by CTFontDescriptors have different mappings depending on if the
+ *  CTFont is native or created from a CGDataProvider.
+ */
+static int ct_weight_to_fontstyle(CGFloat cgWeight, bool fromDataProvider) {
+    using Interpolator = LinearInterpolater<CGFloat, int, RoundCGFloatToInt>;
+
+    // Note that Mac supports the old OS2 version A so 0 through 10 are as if multiplied by 100.
+    // However, on this end we can't tell, so this is ignored.
+
+    /** This mapping for CGDataProvider created fonts is determined by creating font data with every
+     *  weight, creating a CTFont, and asking the CTFont for its weight. See the TypefaceStyle test
+     *  in tests/TypefaceTest.cpp for the code used to determine these values.
+     */
+    static constexpr Interpolator::Mapping dataProviderWeightMappings[] = {
+        { -1.00,    0 },
+        { -0.70,  100 },
+        { -0.50,  200 },
+        { -0.23,  300 },
+        {  0.00,  400 },
+        {  0.20,  500 },
+        {  0.30,  600 },
+        {  0.40,  700 },
+        {  0.60,  800 },
+        {  0.80,  900 },
+        {  1.00, 1000 },
+    };
+    static constexpr Interpolator dataProviderInterpolator(
+            dataProviderWeightMappings, SK_ARRAY_COUNT(dataProviderWeightMappings));
+
+    static Interpolator::Mapping nativeWeightMappings[11];
+    static SkOnce once;
+    once([&] {
+        CGFloat(&nsFontWeights)[11] = get_NSFontWeight_mapping();
+        for (int i = 0; i < 11; ++i) {
+            nativeWeightMappings[i].src_val = nsFontWeights[i];
+            nativeWeightMappings[i].dst_val = i * 100;
+        }
+    });
+    static constexpr Interpolator nativeInterpolator(
+            nativeWeightMappings, SK_ARRAY_COUNT(nativeWeightMappings));
+
+    return fromDataProvider ? dataProviderInterpolator.map(cgWeight)
+                            : nativeInterpolator.map(cgWeight);
+}
+
+/** Convert the [0, 10] CSS weight to [-1, 1] CTFontDescriptor width. */
+static int fontstyle_to_ct_width(int fontstyleWidth) {
+    using Interpolator = LinearInterpolater<int, CGFloat, CGFloatIdentity>;
+
+    // Values determined by creating font data with every width, creating a CTFont,
+    // and asking the CTFont for its width. See TypefaceStyle test for basics.
+    static constexpr Interpolator::Mapping widthMappings[] = {
+        {  0, -0.5 },
+        { 10,  0.5 },
+    };
+    static constexpr Interpolator interpolator(widthMappings, SK_ARRAY_COUNT(widthMappings));
+    return interpolator.map(fontstyleWidth);
+}
+
+/** Convert the [-1, 1] CTFontDescriptor width to [0, 10] CSS weight. */
+static int ct_width_to_fontstyle(CGFloat cgWidth) {
+    using Interpolator = LinearInterpolater<CGFloat, int, RoundCGFloatToInt>;
+
+    // Values determined by creating font data with every width, creating a CTFont,
+    // and asking the CTFont for its width. See TypefaceStyle test for basics.
+    static constexpr Interpolator::Mapping widthMappings[] = {
+        { -0.5,  0 },
+        {  0.5, 10 },
+    };
+    static constexpr Interpolator interpolator(widthMappings, SK_ARRAY_COUNT(widthMappings));
+    return interpolator.map(cgWidth);
+}
+
+static SkFontStyle fontstyle_from_descriptor(CTFontDescriptorRef desc, bool fromDataProvider) {
+    UniqueCFRef<CFTypeRef> fontTraits(CTFontDescriptorCopyAttribute(desc, kCTFontTraitsAttribute));
+    if (!fontTraits || CFDictionaryGetTypeID() != CFGetTypeID(fontTraits.get())) {
+        return SkFontStyle();
     }
-    if (fs.isItalic()) {
-        style |= SkTypeface::kItalic;
+    UniqueCFRef<CFDictionaryRef> fontTraitsDict(static_cast<CFDictionaryRef>(fontTraits.release()));
+
+    CGFloat weight, width, slant;
+    if (!find_dict_CGFloat(fontTraitsDict.get(), kCTFontWeightTrait, &weight)) {
+        weight = 0;
     }
-    return (SkTypeface::Style)style;
+    if (!find_dict_CGFloat(fontTraitsDict.get(), kCTFontWidthTrait, &width)) {
+        width = 0;
+    }
+    if (!find_dict_CGFloat(fontTraitsDict.get(), kCTFontSlantTrait, &slant)) {
+        slant = 0;
+    }
+
+    return SkFontStyle(ct_weight_to_fontstyle(weight, fromDataProvider),
+                       ct_width_to_fontstyle(width),
+                       slant ? SkFontStyle::kItalic_Slant
+                             : SkFontStyle::kUpright_Slant);
 }
 
 class SkTypeface_Mac : public SkTypeface {
 public:
-    SkTypeface_Mac(SkTypeface::Style style, SkFontID fontID, bool isFixedPitch,
-                   CTFontRef fontRef, const char name[], bool isLocalStream)
-        : SkTypeface(style, fontID, isFixedPitch)
-        , fName(name)
-        , fFontRef(fontRef) // caller has already called CFRetain for us
-        , fFontStyle(stylebits2fontstyle(style))
+    SkTypeface_Mac(UniqueCFRef<CTFontRef> fontRef, UniqueCFRef<CFTypeRef> resourceRef,
+                   const SkFontStyle& fs, bool isFixedPitch,
+                   bool isLocalStream)
+        : SkTypeface(fs, isFixedPitch)
+        , fFontRef(std::move(fontRef))
+        , fOriginatingCFTypeRef(std::move(resourceRef))
+        , fHasColorGlyphs(
+                SkToBool(CTFontGetSymbolicTraits(fFontRef.get()) & kCTFontColorGlyphsTrait))
         , fIsLocalStream(isLocalStream)
     {
-        SkASSERT(fontRef);
+        SkASSERT(fFontRef);
     }
 
-    SkTypeface_Mac(const SkFontStyle& fs, SkFontID fontID, bool isFixedPitch,
-                   CTFontRef fontRef, const char name[], bool isLocalStream)
-        : SkTypeface(fontstyle2stylebits(fs), fontID, isFixedPitch)
-        , fName(name)
-        , fFontRef(fontRef) // caller has already called CFRetain for us
-        , fFontStyle(fs)
-        , fIsLocalStream(isLocalStream)
-    {
-        SkASSERT(fontRef);
-    }
-
-    SkString fName;
-    AutoCFRelease<CTFontRef> fFontRef;
-    SkFontStyle fFontStyle;
+    UniqueCFRef<CTFontRef> fFontRef;
+    UniqueCFRef<CFTypeRef> fOriginatingCFTypeRef;
+    const bool fHasColorGlyphs;
 
 protected:
-    friend class SkFontHost;    // to access our protected members for deprecated methods
+    int onGetUPEM() const override;
+    SkStreamAsset* onOpenStream(int* ttcIndex) const override;
+    std::unique_ptr<SkFontData> onMakeFontData() const override;
+    int onGetVariationDesignPosition(SkFontArguments::VariationPosition::Coordinate coordinates[],
+                                     int coordinateCount) const override;
+    void onGetFamilyName(SkString* familyName) const override;
+    SkTypeface::LocalizedStrings* onCreateFamilyNameIterator() const override;
+    int onGetTableTags(SkFontTableTag tags[]) const override;
+    size_t onGetTableData(SkFontTableTag, size_t offset, size_t length, void* data) const override;
+    SkScalerContext* onCreateScalerContext(const SkScalerContextEffects&,
+                                           const SkDescriptor*) const override;
+    void onFilterRec(SkScalerContextRec*) const override;
+    void onGetFontDescriptor(SkFontDescriptor*, bool*) const override;
+    std::unique_ptr<SkAdvancedTypefaceMetrics> onGetAdvancedMetrics() const override;
+    int onCharsToGlyphs(const void* chars, Encoding,
+                        uint16_t glyphs[], int glyphCount) const override;
+    int onCountGlyphs() const override;
 
-    virtual int onGetUPEM() const SK_OVERRIDE;
-    virtual SkStreamAsset* onOpenStream(int* ttcIndex) const SK_OVERRIDE;
-    virtual void onGetFamilyName(SkString* familyName) const SK_OVERRIDE;
-    virtual SkTypeface::LocalizedStrings* onCreateFamilyNameIterator() const SK_OVERRIDE;
-    virtual int onGetTableTags(SkFontTableTag tags[]) const SK_OVERRIDE;
-    virtual size_t onGetTableData(SkFontTableTag, size_t offset,
-                                  size_t length, void* data) const SK_OVERRIDE;
-    virtual SkScalerContext* onCreateScalerContext(const SkDescriptor*) const SK_OVERRIDE;
-    virtual void onFilterRec(SkScalerContextRec*) const SK_OVERRIDE;
-    virtual void onGetFontDescriptor(SkFontDescriptor*, bool*) const SK_OVERRIDE;
-    virtual SkAdvancedTypefaceMetrics* onGetAdvancedTypefaceMetrics(
-                                SkAdvancedTypefaceMetrics::PerGlyphInfo,
-                                const uint32_t*, uint32_t) const SK_OVERRIDE;
-    virtual int onCharsToGlyphs(const void* chars, Encoding, uint16_t glyphs[],
-                                int glyphCount) const SK_OVERRIDE;
-    virtual int onCountGlyphs() const SK_OVERRIDE;
+    void* onGetCTFontRef() const override { return (void*)fFontRef.get(); }
 
 private:
     bool fIsLocalStream;
@@ -473,112 +539,136 @@ private:
     typedef SkTypeface INHERITED;
 };
 
-static SkTypeface* NewFromFontRef(CTFontRef fontRef, const char name[], bool isLocalStream) {
-    SkASSERT(fontRef);
-    bool isFixedPitch;
-    SkTypeface::Style style = computeStyleBits(fontRef, &isFixedPitch);
-    SkFontID fontID = CTFontRef_to_SkFontID(fontRef);
+static bool find_by_CTFontRef(SkTypeface* cached, void* context) {
+    CTFontRef self = (CTFontRef)context;
+    CTFontRef other = (CTFontRef)cached->internal_private_getCTFontRef();
 
-    return new SkTypeface_Mac(style, fontID, isFixedPitch, fontRef, name, isLocalStream);
+    return CFEqual(self, other);
 }
 
-static SkTypeface* NewFromName(const char familyName[], SkTypeface::Style theStyle) {
-    CTFontRef ctFont = NULL;
+/** Creates a typeface, searching the cache if isLocalStream is false. */
+static SkTypeface* create_from_CTFontRef(UniqueCFRef<CTFontRef> font,
+                                         UniqueCFRef<CFTypeRef> resource,
+                                         bool isLocalStream) {
+    SkASSERT(font);
 
-    CTFontSymbolicTraits ctFontTraits = 0;
-    if (theStyle & SkTypeface::kBold) {
-        ctFontTraits |= kCTFontBoldTrait;
-    }
-    if (theStyle & SkTypeface::kItalic) {
-        ctFontTraits |= kCTFontItalicTrait;
-    }
-
-    // Create the font info
-    AutoCFRelease<CFStringRef> cfFontName(make_CFString(familyName));
-
-    AutoCFRelease<CFNumberRef> cfFontTraits(
-            CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &ctFontTraits));
-
-    AutoCFRelease<CFMutableDictionaryRef> cfAttributes(
-            CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
-                                      &kCFTypeDictionaryKeyCallBacks,
-                                      &kCFTypeDictionaryValueCallBacks));
-
-    AutoCFRelease<CFMutableDictionaryRef> cfTraits(
-            CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
-                                      &kCFTypeDictionaryKeyCallBacks,
-                                      &kCFTypeDictionaryValueCallBacks));
-
-    // Create the font
-    if (cfFontName != NULL && cfFontTraits != NULL && cfAttributes != NULL && cfTraits != NULL) {
-        CFDictionaryAddValue(cfTraits, kCTFontSymbolicTrait, cfFontTraits);
-
-        CFDictionaryAddValue(cfAttributes, kCTFontFamilyNameAttribute, cfFontName);
-        CFDictionaryAddValue(cfAttributes, kCTFontTraitsAttribute, cfTraits);
-
-        AutoCFRelease<CTFontDescriptorRef> ctFontDesc(
-                CTFontDescriptorCreateWithAttributes(cfAttributes));
-
-        if (ctFontDesc != NULL) {
-            ctFont = CTFontCreateWithFontDescriptor(ctFontDesc, 0, NULL);
+    if (!isLocalStream) {
+        SkTypeface* face = SkTypefaceCache::FindByProcAndRef(find_by_CTFontRef, (void*)font.get());
+        if (face) {
+            return face;
         }
     }
 
-    return ctFont ? NewFromFontRef(ctFont, familyName, false) : NULL;
+    UniqueCFRef<CTFontDescriptorRef> desc(CTFontCopyFontDescriptor(font.get()));
+    SkFontStyle style = fontstyle_from_descriptor(desc.get(), isLocalStream);
+    CTFontSymbolicTraits traits = CTFontGetSymbolicTraits(font.get());
+    bool isFixedPitch = SkToBool(traits & kCTFontMonoSpaceTrait);
+
+    SkTypeface* face = new SkTypeface_Mac(std::move(font), std::move(resource),
+                                          style, isFixedPitch, isLocalStream);
+    if (!isLocalStream) {
+        SkTypefaceCache::Add(face);
+    }
+    return face;
 }
 
-SK_DECLARE_STATIC_MUTEX(gGetDefaultFaceMutex);
-static SkTypeface* GetDefaultFace() {
-    SkAutoMutexAcquire ma(gGetDefaultFaceMutex);
-
-    static SkTypeface* gDefaultFace;
-
-    if (NULL == gDefaultFace) {
-        gDefaultFace = NewFromName(FONT_DEFAULT_NAME, SkTypeface::kNormal);
-        SkTypefaceCache::Add(gDefaultFace, SkTypeface::kNormal);
+/** Creates a typeface from a descriptor, searching the cache. */
+static SkTypeface* create_from_desc(CTFontDescriptorRef desc) {
+    UniqueCFRef<CTFontRef> ctFont(CTFontCreateWithFontDescriptor(desc, 0, nullptr));
+    if (!ctFont) {
+        return nullptr;
     }
-    return gDefaultFace;
+
+    return create_from_CTFontRef(std::move(ctFont), nullptr, false);
+}
+
+static UniqueCFRef<CTFontDescriptorRef> create_descriptor(const char familyName[],
+                                                          const SkFontStyle& style) {
+    UniqueCFRef<CFMutableDictionaryRef> cfAttributes(
+            CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
+                                      &kCFTypeDictionaryKeyCallBacks,
+                                      &kCFTypeDictionaryValueCallBacks));
+
+    UniqueCFRef<CFMutableDictionaryRef> cfTraits(
+            CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
+                                      &kCFTypeDictionaryKeyCallBacks,
+                                      &kCFTypeDictionaryValueCallBacks));
+
+    if (!cfAttributes || !cfTraits) {
+        return nullptr;
+    }
+
+    // CTFontTraits (symbolic)
+    CTFontSymbolicTraits ctFontTraits = 0;
+    if (style.weight() >= SkFontStyle::kBold_Weight) {
+        ctFontTraits |= kCTFontBoldTrait;
+    }
+    if (style.slant() != SkFontStyle::kUpright_Slant) {
+        ctFontTraits |= kCTFontItalicTrait;
+    }
+    UniqueCFRef<CFNumberRef> cfFontTraits(
+            CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, &ctFontTraits));
+    if (cfFontTraits) {
+        CFDictionaryAddValue(cfTraits.get(), kCTFontSymbolicTrait, cfFontTraits.get());
+    }
+    // CTFontTraits (weight)
+    CGFloat ctWeight = fontstyle_to_ct_weight(style.weight());
+    UniqueCFRef<CFNumberRef> cfFontWeight(
+            CFNumberCreate(kCFAllocatorDefault, kCFNumberCGFloatType, &ctWeight));
+    if (cfFontWeight) {
+        CFDictionaryAddValue(cfTraits.get(), kCTFontWeightTrait, cfFontWeight.get());
+    }
+    // CTFontTraits (width)
+    CGFloat ctWidth = fontstyle_to_ct_width(style.weight());
+    UniqueCFRef<CFNumberRef> cfFontWidth(
+            CFNumberCreate(kCFAllocatorDefault, kCFNumberCGFloatType, &ctWidth));
+    if (cfFontWidth) {
+        CFDictionaryAddValue(cfTraits.get(), kCTFontWidthTrait, cfFontWidth.get());
+    }
+    // CTFontTraits (slant)
+    CGFloat ctSlant = style.slant() == SkFontStyle::kUpright_Slant ? 0 : 1;
+    UniqueCFRef<CFNumberRef> cfFontSlant(
+            CFNumberCreate(kCFAllocatorDefault, kCFNumberCGFloatType, &ctSlant));
+    if (cfFontSlant) {
+        CFDictionaryAddValue(cfTraits.get(), kCTFontSlantTrait, cfFontSlant.get());
+    }
+    // CTFontTraits
+    CFDictionaryAddValue(cfAttributes.get(), kCTFontTraitsAttribute, cfTraits.get());
+
+    // CTFontFamilyName
+    if (familyName) {
+        UniqueCFRef<CFStringRef> cfFontName = make_CFString(familyName);
+        if (cfFontName) {
+            CFDictionaryAddValue(cfAttributes.get(), kCTFontFamilyNameAttribute, cfFontName.get());
+        }
+    }
+
+    return UniqueCFRef<CTFontDescriptorRef>(
+            CTFontDescriptorCreateWithAttributes(cfAttributes.get()));
+}
+
+/** Creates a typeface from a name, searching the cache. */
+static SkTypeface* create_from_name(const char familyName[], const SkFontStyle& style) {
+    UniqueCFRef<CTFontDescriptorRef> desc = create_descriptor(familyName, style);
+    if (!desc) {
+        return nullptr;
+    }
+    return create_from_desc(desc.get());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-extern CTFontRef SkTypeface_GetCTFontRef(const SkTypeface* face);
-CTFontRef SkTypeface_GetCTFontRef(const SkTypeface* face) {
-    const SkTypeface_Mac* macface = (const SkTypeface_Mac*)face;
-    return macface ? macface->fFontRef.get() : NULL;
-}
-
 /*  This function is visible on the outside. It first searches the cache, and if
  *  not found, returns a new entry (after adding it to the cache).
  */
-SkTypeface* SkCreateTypefaceFromCTFont(CTFontRef fontRef) {
-    SkFontID fontID = CTFontRef_to_SkFontID(fontRef);
-    SkTypeface* face = SkTypefaceCache::FindByID(fontID);
-    if (face) {
-        face->ref();
-    } else {
-        face = NewFromFontRef(fontRef, NULL, false);
-        SkTypefaceCache::Add(face, face->style());
-        // NewFromFontRef doesn't retain the parameter, but the typeface it
-        // creates does release it in its destructor, so we balance that with
-        // a retain call here.
-        CFRetain(fontRef);
+SkTypeface* SkCreateTypefaceFromCTFont(CTFontRef font, CFTypeRef resource) {
+    CFRetain(font);
+    if (resource) {
+        CFRetain(resource);
     }
-    SkASSERT(face->getRefCnt() > 1);
-    return face;
-}
-
-struct NameStyleRec {
-    const char*         fName;
-    SkTypeface::Style   fStyle;
-};
-
-static bool FindByNameStyle(SkTypeface* face, SkTypeface::Style style,
-                            void* ctx) {
-    const SkTypeface_Mac* mface = reinterpret_cast<SkTypeface_Mac*>(face);
-    const NameStyleRec* rec = reinterpret_cast<const NameStyleRec*>(ctx);
-
-    return rec->fStyle == style && mface->fName.equals(rec->fName);
+    return create_from_CTFontRef(UniqueCFRef<CTFontRef>(font),
+                                 UniqueCFRef<CFTypeRef>(resource),
+                                 false);
 }
 
 static const char* map_css_names(const char* name) {
@@ -599,61 +689,20 @@ static const char* map_css_names(const char* name) {
     return name;    // no change
 }
 
-static SkTypeface* create_typeface(const SkTypeface* familyFace,
-                                   const char familyName[],
-                                   SkTypeface::Style style) {
-    if (familyName) {
-        familyName = map_css_names(familyName);
-    }
-
-    // Clone an existing typeface
-    // TODO: only clone if style matches the familyFace's style...
-    if (familyName == NULL && familyFace != NULL) {
-        familyFace->ref();
-        return const_cast<SkTypeface*>(familyFace);
-    }
-
-    if (!familyName || !*familyName) {
-        familyName = FONT_DEFAULT_NAME;
-    }
-
-    NameStyleRec rec = { familyName, style };
-    SkTypeface* face = SkTypefaceCache::FindByProcAndRef(FindByNameStyle, &rec);
-
-    if (NULL == face) {
-        face = NewFromName(familyName, style);
-        if (face) {
-            SkTypefaceCache::Add(face, style);
-        } else {
-            face = GetDefaultFace();
-            face->ref();
-        }
-    }
-    return face;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
-
-/** GlyphRect is in FUnits (em space, y up). */
-struct GlyphRect {
-    int16_t fMinX;
-    int16_t fMinY;
-    int16_t fMaxX;
-    int16_t fMaxY;
-};
 
 class SkScalerContext_Mac : public SkScalerContext {
 public:
-    SkScalerContext_Mac(SkTypeface_Mac*, const SkDescriptor*);
+    SkScalerContext_Mac(sk_sp<SkTypeface_Mac>, const SkScalerContextEffects&, const SkDescriptor*);
 
 protected:
-    unsigned generateGlyphCount(void) SK_OVERRIDE;
-    uint16_t generateCharToGlyph(SkUnichar uni) SK_OVERRIDE;
-    void generateAdvance(SkGlyph* glyph) SK_OVERRIDE;
-    void generateMetrics(SkGlyph* glyph) SK_OVERRIDE;
-    void generateImage(const SkGlyph& glyph) SK_OVERRIDE;
-    void generatePath(const SkGlyph& glyph, SkPath* path) SK_OVERRIDE;
-    void generateFontMetrics(SkPaint::FontMetrics*) SK_OVERRIDE;
+    unsigned generateGlyphCount(void) override;
+    uint16_t generateCharToGlyph(SkUnichar uni) override;
+    void generateAdvance(SkGlyph* glyph) override;
+    void generateMetrics(SkGlyph* glyph) override;
+    void generateImage(const SkGlyph& glyph) override;
+    void generatePath(SkGlyphID glyph, SkPath* path) override;
+    void generateFontMetrics(SkPaint::FontMetrics*) override;
 
 private:
     static void CTPathElement(void *info, const CGPathElement *element);
@@ -661,54 +710,34 @@ private:
     /** Returns the offset from the horizontal origin to the vertical origin in SkGlyph units. */
     void getVerticalOffset(CGGlyph glyphID, SkPoint* offset) const;
 
-    /** Initializes and returns the value of fFBoundingBoxesGlyphOffset.
-     *
-     *  For use with (and must be called before) generateBBoxes.
-     */
-    uint16_t getFBoundingBoxesGlyphOffset();
-
-    /** Initializes fFBoundingBoxes and returns true on success.
-     *
-     *  On Lion and Mountain Lion, CTFontGetBoundingRectsForGlyphs has a bug which causes it to
-     *  return a bad value in bounds.origin.x for SFNT fonts whose hhea::numberOfHMetrics is
-     *  less than its maxp::numGlyphs. When this is the case we try to read the bounds from the
-     *  font directly.
-     *
-     *  This routine initializes fFBoundingBoxes to an array of
-     *  fGlyphCount - fFBoundingBoxesGlyphOffset GlyphRects which contain the bounds in FUnits
-     *  (em space, y up) of glyphs with ids in the range [fFBoundingBoxesGlyphOffset, fGlyphCount).
-     *
-     *  Returns true if fFBoundingBoxes is properly initialized. The table can only be properly
-     *  initialized for a TrueType font with 'head', 'loca', and 'glyf' tables.
-     *
-     *  TODO: A future optimization will compute fFBoundingBoxes once per fCTFont.
-     */
-    bool generateBBoxes();
-
-    /** Converts from FUnits (em space, y up) to SkGlyph units (pixels, y down).
-     *
-     *  Used on Snow Leopard to correct CTFontGetVerticalTranslationsForGlyphs.
-     *  Used on Lion to correct CTFontGetBoundingRectsForGlyphs.
-     */
-    SkMatrix fFUnitMatrix;
-
     Offscreen fOffscreen;
-    AutoCFRelease<CTFontRef> fCTFont;
 
-    /** Vertical variant of fCTFont.
+    /** Unrotated variant of fCTFont.
+     *
+     *  In 10.10.1 CTFontGetAdvancesForGlyphs applies the font transform to the width of the
+     *  advances, but always sets the height to 0. This font is used to get the advances of the
+     *  unrotated glyph, and then the rotation is applied separately.
      *
      *  CT vertical metrics are pre-rotated (in em space, before transform) 90deg clock-wise.
-     *  This makes kCTFontDefaultOrientation dangerous, because the metrics from
-     *  kCTFontHorizontalOrientation are in a different space from kCTFontVerticalOrientation.
-     *  Use fCTVerticalFont with kCTFontVerticalOrientation to get metrics in the same space.
+     *  This makes kCTFontOrientationDefault dangerous, because the metrics from
+     *  kCTFontOrientationHorizontal are in a different space from kCTFontOrientationVertical.
+     *  With kCTFontOrientationVertical the advances must be unrotated.
+     *
+     *  Sometimes, creating a copy of a CTFont with the same size but different trasform will select
+     *  different underlying font data. As a result, avoid ever creating more than one CTFont per
+     *  SkScalerContext to ensure that only one CTFont is used.
+     *
+     *  As a result of the above (and other constraints) this font contains the size, but not the
+     *  transform. The transform must always be applied separately.
      */
-    AutoCFRelease<CTFontRef> fCTVerticalFont;
+    UniqueCFRef<CTFontRef> fCTFont;
 
-    AutoCFRelease<CGFontRef> fCGFont;
-    SkAutoTMalloc<GlyphRect> fFBoundingBoxes;
-    uint16_t fFBoundingBoxesGlyphOffset;
+    /** The transform without the font size. */
+    CGAffineTransform fTransform;
+    CGAffineTransform fInvTransform;
+
+    UniqueCFRef<CGFontRef> fCGFont;
     uint16_t fGlyphCount;
-    bool fGeneratedFBoundingBoxes;
     const bool fDoSubPosition;
     const bool fVertical;
 
@@ -717,49 +746,63 @@ private:
     typedef SkScalerContext INHERITED;
 };
 
-SkScalerContext_Mac::SkScalerContext_Mac(SkTypeface_Mac* typeface,
+// CTFontCreateCopyWithAttributes or CTFontCreateCopyWithSymbolicTraits cannot be used on 10.10
+// and later, as they will return different underlying fonts depending on the size requested.
+// It is not possible to use descriptors with CTFontCreateWithFontDescriptor, since that does not
+// work with non-system fonts. As a result, create the strike specific CTFonts from the underlying
+// CGFont.
+static UniqueCFRef<CTFontRef> ctfont_create_exact_copy(CTFontRef baseFont, CGFloat textSize,
+                                                       const CGAffineTransform* transform)
+{
+    UniqueCFRef<CGFontRef> baseCGFont(CTFontCopyGraphicsFont(baseFont, nullptr));
+
+    // The last parameter (CTFontDescriptorRef attributes) *must* be nullptr.
+    // If non-nullptr then with fonts with variation axes, the copy will fail in
+    // CGFontVariationFromDictCallback when it assumes kCGFontVariationAxisName is CFNumberRef
+    // which it quite obviously is not.
+
+    // Because we cannot setup the CTFont descriptor to match, the same restriction applies here
+    // as other uses of CTFontCreateWithGraphicsFont which is that such CTFonts should not escape
+    // the scaler context, since they aren't 'normal'.
+    return UniqueCFRef<CTFontRef>(
+            CTFontCreateWithGraphicsFont(baseCGFont.get(), textSize, transform, nullptr));
+}
+
+SkScalerContext_Mac::SkScalerContext_Mac(sk_sp<SkTypeface_Mac> typeface,
+                                         const SkScalerContextEffects& effects,
                                          const SkDescriptor* desc)
-        : INHERITED(typeface, desc)
-        , fFBoundingBoxes()
-        , fFBoundingBoxesGlyphOffset(0)
-        , fGeneratedFBoundingBoxes(false)
+        : INHERITED(std::move(typeface), effects, desc)
         , fDoSubPosition(SkToBool(fRec.fFlags & kSubpixelPositioning_Flag))
         , fVertical(SkToBool(fRec.fFlags & kVertical_Flag))
 
 {
-    CTFontRef ctFont = typeface->fFontRef.get();
+    AUTO_CG_LOCK();
+
+    CTFontRef ctFont = (CTFontRef)this->getTypeface()->internal_private_getCTFontRef();
     CFIndex numGlyphs = CTFontGetGlyphCount(ctFont);
     SkASSERT(numGlyphs >= 1 && numGlyphs <= 0xFFFF);
     fGlyphCount = SkToU16(numGlyphs);
 
-    fRec.getSingleMatrix(&fFUnitMatrix);
-    CGAffineTransform transform = MatrixToCGAffineTransform(fFUnitMatrix);
-
-    AutoCFRelease<CTFontDescriptorRef> ctFontDesc;
-    if (fVertical) {
-        AutoCFRelease<CFMutableDictionaryRef> cfAttributes(CFDictionaryCreateMutable(
-                kCFAllocatorDefault, 0,
-                &kCFTypeDictionaryKeyCallBacks,
-                &kCFTypeDictionaryValueCallBacks));
-        if (cfAttributes) {
-            CTFontOrientation ctOrientation = kCTFontVerticalOrientation;
-            AutoCFRelease<CFNumberRef> cfVertical(CFNumberCreate(
-                    kCFAllocatorDefault, kCFNumberSInt32Type, &ctOrientation));
-            CFDictionaryAddValue(cfAttributes, kCTFontOrientationAttribute, cfVertical);
-            ctFontDesc.reset(CTFontDescriptorCreateWithAttributes(cfAttributes));
-        }
-    }
-    // Since our matrix includes everything, we pass 1 for size.
-    fCTFont.reset(CTFontCreateCopyWithAttributes(ctFont, 1, &transform, ctFontDesc));
-    fCGFont.reset(CTFontCopyGraphicsFont(fCTFont, NULL));
-    if (fVertical) {
-        CGAffineTransform rotateLeft = CGAffineTransformMake(0, -1, 1, 0, 0, 0);
-        transform = CGAffineTransformConcat(rotateLeft, transform);
-        fCTVerticalFont.reset(CTFontCreateCopyWithAttributes(ctFont, 1, &transform, NULL));
+    // CT on (at least) 10.9 will size color glyphs down from the requested size, but not up.
+    // As a result, it is necessary to know the actual device size and request that.
+    SkVector scale;
+    SkMatrix skTransform;
+    bool invertible = fRec.computeMatrices(SkScalerContextRec::kVertical_PreMatrixScale,
+                                           &scale, &skTransform, nullptr, nullptr, nullptr);
+    fTransform = MatrixToCGAffineTransform(skTransform);
+    // CGAffineTransformInvert documents that if the transform is non-invertible it will return the
+    // passed transform unchanged. It does so, but then also prints a message to stdout. Avoid this.
+    if (invertible) {
+        fInvTransform = CGAffineTransformInvert(fTransform);
+    } else {
+        fInvTransform = fTransform;
     }
 
-    SkScalar emPerFUnit = SkScalarInvert(SkIntToScalar(CGFontGetUnitsPerEm(fCGFont)));
-    fFUnitMatrix.preScale(emPerFUnit, -emPerFUnit);
+    // The transform contains everything except the requested text size.
+    // Some properties, like 'trak', are based on the text size (before applying the matrix).
+    CGFloat textSize = ScalarToCG(scale.y());
+    fCTFont = ctfont_create_exact_copy(ctFont, textSize, nullptr);
+    fCGFont.reset(CTFontCopyGraphicsFont(fCTFont.get(), nullptr));
 }
 
 CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& glyph,
@@ -787,6 +830,13 @@ CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& 
         doAA = true;
     }
 
+    // If this font might have color glyphs, disable LCD as there's no way to support it.
+    // CoreText doesn't tell us which format it ended up using, so we can't detect it.
+    // A8 will end up black on transparent, but TODO: we can detect gray and set to A8.
+    if (SkMask::kARGB32_Format == glyph.fMaskFormat) {
+        doLCD = false;
+    }
+
     size_t rowBytes = fSize.fWidth * sizeof(CGRGBPixel);
     if (!fCG || fSize.fWidth < glyph.fWidth || fSize.fHeight < glyph.fHeight) {
         if (fSize.fWidth < glyph.fWidth) {
@@ -798,40 +848,42 @@ CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& 
 
         rowBytes = fSize.fWidth * sizeof(CGRGBPixel);
         void* image = fImageStorage.reset(rowBytes * fSize.fHeight);
+        const CGImageAlphaInfo alpha = (SkMask::kARGB32_Format == glyph.fMaskFormat)
+                                     ? kCGImageAlphaPremultipliedFirst
+                                     : kCGImageAlphaNoneSkipFirst;
+        const CGBitmapInfo bitmapInfo = kCGBitmapByteOrder32Host | alpha;
         fCG.reset(CGBitmapContextCreate(image, fSize.fWidth, fSize.fHeight, 8,
-                                        rowBytes, fRGBSpace, BITMAP_INFO_RGB));
+                                        rowBytes, fRGBSpace.get(), bitmapInfo));
 
-        // skia handles quantization itself, so we disable this for cg to get
-        // full fractional data from them.
-        CGContextSetAllowsFontSubpixelQuantization(fCG, false);
-        CGContextSetShouldSubpixelQuantizeFonts(fCG, false);
-
-        CGContextSetTextDrawingMode(fCG, kCGTextFill);
-        CGContextSetFont(fCG, context.fCGFont);
-        CGContextSetFontSize(fCG, 1 /*CTFontGetSize(context.fCTFont)*/);
-        CGContextSetTextMatrix(fCG, CTFontGetMatrix(context.fCTFont));
+        // Skia handles quantization and subpixel positioning,
+        // so disable quantization and enabe subpixel positioning in CG.
+        CGContextSetAllowsFontSubpixelQuantization(fCG.get(), false);
+        CGContextSetShouldSubpixelQuantizeFonts(fCG.get(), false);
 
         // Because CG always draws from the horizontal baseline,
         // if there is a non-integral translation from the horizontal origin to the vertical origin,
         // then CG cannot draw the glyph in the correct location without subpixel positioning.
-        CGContextSetAllowsFontSubpixelPositioning(fCG, context.fDoSubPosition || context.fVertical);
-        CGContextSetShouldSubpixelPositionFonts(fCG, context.fDoSubPosition || context.fVertical);
+        CGContextSetAllowsFontSubpixelPositioning(fCG.get(), true);
+        CGContextSetShouldSubpixelPositionFonts(fCG.get(), true);
 
-        // Draw white on black to create mask.
-        // TODO: Draw black on white and invert, CG has a special case codepath.
-        CGContextSetGrayFillColor(fCG, 1.0f, 1.0f);
+        CGContextSetTextDrawingMode(fCG.get(), kCGTextFill);
+
+        // Draw black on white to create mask. (Special path exists to speed this up in CG.)
+        CGContextSetGrayFillColor(fCG.get(), 0.0f, 1.0f);
 
         // force our checks below to happen
         fDoAA = !doAA;
         fDoLCD = !doLCD;
+
+        CGContextSetTextMatrix(fCG.get(), context.fTransform);
     }
 
     if (fDoAA != doAA) {
-        CGContextSetShouldAntialias(fCG, doAA);
+        CGContextSetShouldAntialias(fCG.get(), doAA);
         fDoAA = doAA;
     }
     if (fDoLCD != doLCD) {
-        CGContextSetShouldSmoothFonts(fCG, doLCD);
+        CGContextSetShouldSmoothFonts(fCG.get(), doLCD);
         fDoLCD = doLCD;
     }
 
@@ -839,8 +891,9 @@ CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& 
     // skip rows based on the glyph's height
     image += (fSize.fHeight - glyph.fHeight) * fSize.fWidth;
 
-    // erase to black
-    sk_memset_rect32(image, 0, glyph.fWidth, glyph.fHeight, rowBytes);
+    // Erase to white (or transparent black if it's a color glyph, to not composite against white).
+    uint32_t bgColor = (SkMask::kARGB32_Format != glyph.fMaskFormat) ? 0xFFFFFFFF : 0x00000000;
+    sk_memset_rect32(image, bgColor, glyph.fWidth, glyph.fHeight, rowBytes);
 
     float subX = 0;
     float subY = 0;
@@ -849,7 +902,7 @@ CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& 
         subY = SkFixedToFloat(glyph.getSubYFixed());
     }
 
-    // CGContextShowGlyphsAtPoint always draws using the horizontal baseline origin.
+    // CoreText and CoreGraphics always draw using the horizontal baseline origin.
     if (context.fVertical) {
         SkPoint offset;
         context.getVerticalOffset(glyphID, &offset);
@@ -857,9 +910,17 @@ CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& 
         subY += offset.fY;
     }
 
-    CGContextShowGlyphsAtPoint(fCG, -glyph.fLeft + subX,
-                               glyph.fTop + glyph.fHeight - subY,
-                               &glyphID, 1);
+    CGPoint point = CGPointMake(-glyph.fLeft + subX, glyph.fTop + glyph.fHeight - subY);
+    // Prior to 10.10, CTFontDrawGlyphs acted like CGContextShowGlyphsAtPositions and took
+    // 'positions' which are in text space. The glyph location (in device space) must be
+    // mapped into text space, so that CG can convert it back into device space.
+    // In 10.10.1, this is handled directly in CTFontDrawGlyphs.
+    //
+    // However, in 10.10.2 color glyphs no longer rotate based on the font transform.
+    // So always make the font transform identity and place the transform on the context.
+    point = CGPointApplyAffineTransform(point, context.fInvTransform);
+
+    CTFontDrawGlyphs(context.fCTFont.get(), &glyphID, &point, 1, fCG.get());
 
     SkASSERT(rowBytesPtr);
     *rowBytesPtr = rowBytes;
@@ -867,72 +928,14 @@ CGRGBPixel* Offscreen::getCG(const SkScalerContext_Mac& context, const SkGlyph& 
 }
 
 void SkScalerContext_Mac::getVerticalOffset(CGGlyph glyphID, SkPoint* offset) const {
-    // Snow Leopard returns cgVertOffset in completely un-transformed FUnits (em space, y up).
-    // Lion and Leopard return cgVertOffset in CG units (pixels, y up).
+    // CTFontGetVerticalTranslationsForGlyphs produces cgVertOffset in CG units (pixels, y up).
     CGSize cgVertOffset;
-    CTFontGetVerticalTranslationsForGlyphs(fCTFont, &glyphID, &cgVertOffset, 1);
-
+    CTFontGetVerticalTranslationsForGlyphs(fCTFont.get(), &glyphID, &cgVertOffset, 1);
+    cgVertOffset = CGSizeApplyAffineTransform(cgVertOffset, fTransform);
     SkPoint skVertOffset = { CGToScalar(cgVertOffset.width), CGToScalar(cgVertOffset.height) };
-    if (isSnowLeopard()) {
-        // From FUnits (em space, y up) to SkGlyph units (pixels, y down).
-        fFUnitMatrix.mapPoints(&skVertOffset, 1);
-    } else {
-        // From CG units (pixels, y up) to SkGlyph units (pixels, y down).
-        skVertOffset.fY = -skVertOffset.fY;
-    }
-
+    // From CG units (pixels, y up) to SkGlyph units (pixels, y down).
+    skVertOffset.fY = -skVertOffset.fY;
     *offset = skVertOffset;
-}
-
-uint16_t SkScalerContext_Mac::getFBoundingBoxesGlyphOffset() {
-    if (fFBoundingBoxesGlyphOffset) {
-        return fFBoundingBoxesGlyphOffset;
-    }
-    fFBoundingBoxesGlyphOffset = fGlyphCount; // fallback for all fonts
-    AutoCGTable<SkOTTableHorizontalHeader> hheaTable(fCGFont);
-    if (hheaTable.fData) {
-        fFBoundingBoxesGlyphOffset = SkEndian_SwapBE16(hheaTable->numberOfHMetrics);
-    }
-    return fFBoundingBoxesGlyphOffset;
-}
-
-bool SkScalerContext_Mac::generateBBoxes() {
-    if (fGeneratedFBoundingBoxes) {
-        return SkToBool(fFBoundingBoxes.get());
-    }
-    fGeneratedFBoundingBoxes = true;
-
-    AutoCGTable<SkOTTableHead> headTable(fCGFont);
-    if (!headTable.fData) {
-        return false;
-    }
-
-    AutoCGTable<SkOTTableIndexToLocation> locaTable(fCGFont);
-    if (!locaTable.fData) {
-        return false;
-    }
-
-    AutoCGTable<SkOTTableGlyph> glyfTable(fCGFont);
-    if (!glyfTable.fData) {
-        return false;
-    }
-
-    uint16_t entries = fGlyphCount - fFBoundingBoxesGlyphOffset;
-    fFBoundingBoxes.reset(entries);
-
-    SkOTTableHead::IndexToLocFormat locaFormat = headTable->indexToLocFormat;
-    SkOTTableGlyph::Iterator glyphDataIter(*glyfTable.fData, *locaTable.fData, locaFormat);
-    glyphDataIter.advance(fFBoundingBoxesGlyphOffset);
-    for (uint16_t boundingBoxesIndex = 0; boundingBoxesIndex < entries; ++boundingBoxesIndex) {
-        const SkOTTableGlyphData* glyphData = glyphDataIter.next();
-        GlyphRect& rect = fFBoundingBoxes[boundingBoxesIndex];
-        rect.fMinX = SkEndian_SwapBE16(glyphData->xMin);
-        rect.fMinY = SkEndian_SwapBE16(glyphData->yMin);
-        rect.fMaxX = SkEndian_SwapBE16(glyphData->xMax);
-        rect.fMaxY = SkEndian_SwapBE16(glyphData->yMax);
-    }
-
-    return true;
 }
 
 unsigned SkScalerContext_Mac::generateGlyphCount(void) {
@@ -940,6 +943,8 @@ unsigned SkScalerContext_Mac::generateGlyphCount(void) {
 }
 
 uint16_t SkScalerContext_Mac::generateCharToGlyph(SkUnichar uni) {
+    AUTO_CG_LOCK();
+
     CGGlyph cgGlyph[2];
     UniChar theChar[2]; // UniChar is a UTF-16 16-bit code unit.
 
@@ -950,7 +955,7 @@ uint16_t SkScalerContext_Mac::generateCharToGlyph(SkUnichar uni) {
     // Undocumented behavior of CTFontGetGlyphsForCharacters with non-bmp code points:
     // When a surrogate pair is detected, the glyph index used is the index of the high surrogate.
     // It is documented that if a mapping is unavailable, the glyph will be set to 0.
-    CTFontGetGlyphsForCharacters(fCTFont, theChar, cgGlyph, numUniChar);
+    CTFontGetGlyphsForCharacters(fCTFont.get(), theChar, cgGlyph, numUniChar);
     return cgGlyph[0];
 }
 
@@ -959,62 +964,42 @@ void SkScalerContext_Mac::generateAdvance(SkGlyph* glyph) {
 }
 
 void SkScalerContext_Mac::generateMetrics(SkGlyph* glyph) {
+    AUTO_CG_LOCK();
+
     const CGGlyph cgGlyph = (CGGlyph) glyph->getGlyphID();
     glyph->zeroMetrics();
 
     // The following block produces cgAdvance in CG units (pixels, y up).
     CGSize cgAdvance;
     if (fVertical) {
-        CTFontGetAdvancesForGlyphs(fCTVerticalFont, kCTFontVerticalOrientation,
+        CTFontGetAdvancesForGlyphs(fCTFont.get(), kCTFontOrientationVertical,
                                    &cgGlyph, &cgAdvance, 1);
+        // Vertical advances are returned as widths instead of heights.
+        SkTSwap(cgAdvance.height, cgAdvance.width);
+        cgAdvance.height = -cgAdvance.height;
     } else {
-        CTFontGetAdvancesForGlyphs(fCTFont, kCTFontHorizontalOrientation,
+        CTFontGetAdvancesForGlyphs(fCTFont.get(), kCTFontOrientationHorizontal,
                                    &cgGlyph, &cgAdvance, 1);
     }
-    glyph->fAdvanceX =  SkFloatToFixed_Check(cgAdvance.width);
-    glyph->fAdvanceY = -SkFloatToFixed_Check(cgAdvance.height);
+    cgAdvance = CGSizeApplyAffineTransform(cgAdvance, fTransform);
+    glyph->fAdvanceX =  CGToFloat(cgAdvance.width);
+    glyph->fAdvanceY = -CGToFloat(cgAdvance.height);
 
     // The following produces skBounds in SkGlyph units (pixels, y down),
     // or returns early if skBounds would be empty.
     SkRect skBounds;
 
-    // On Mountain Lion, CTFontGetBoundingRectsForGlyphs with kCTFontVerticalOrientation and
-    // CTFontGetVerticalTranslationsForGlyphs do not agree when using OTF CFF fonts.
-    // For TTF fonts these two do agree and we can use CTFontGetBoundingRectsForGlyphs to get
-    // the bounding box and CTFontGetVerticalTranslationsForGlyphs to then draw the glyph
-    // inside that bounding box. However, with OTF CFF fonts this does not work. It appears that
-    // CTFontGetBoundingRectsForGlyphs with kCTFontVerticalOrientation on OTF CFF fonts tries
-    // to center the glyph along the vertical baseline and also perform some mysterious shift
-    // along the baseline. CTFontGetVerticalTranslationsForGlyphs does not appear to perform
-    // these steps.
-    //
-    // It is not known which is correct (or if either is correct). However, we must always draw
-    // from the horizontal origin and must use CTFontGetVerticalTranslationsForGlyphs to draw.
-    // As a result, we do not call CTFontGetBoundingRectsForGlyphs for vertical glyphs.
-
-    // On Snow Leopard, CTFontGetBoundingRectsForGlyphs ignores kCTFontVerticalOrientation and
-    // returns horizontal bounds.
-
-    // On Lion and Mountain Lion, CTFontGetBoundingRectsForGlyphs has a bug which causes it to
-    // return a bad value in cgBounds.origin.x for SFNT fonts whose hhea::numberOfHMetrics is
-    // less than its maxp::numGlyphs. When this is the case we try to read the bounds from the
-    // font directly.
-    if ((isLion() || isMountainLion()) &&
-        (cgGlyph < fGlyphCount && cgGlyph >= getFBoundingBoxesGlyphOffset() && generateBBoxes()))
+    // Glyphs are always drawn from the horizontal origin. The caller must manually use the result
+    // of CTFontGetVerticalTranslationsForGlyphs to calculate where to draw the glyph for vertical
+    // glyphs. As a result, always get the horizontal bounds of a glyph and translate it if the
+    // glyph is vertical. This avoids any diagreement between the various means of retrieving
+    // vertical metrics.
     {
-        const GlyphRect& gRect = fFBoundingBoxes[cgGlyph - fFBoundingBoxesGlyphOffset];
-        if (gRect.fMinX >= gRect.fMaxX || gRect.fMinY >= gRect.fMaxY) {
-            return;
-        }
-        skBounds = SkRect::MakeLTRB(gRect.fMinX, gRect.fMinY, gRect.fMaxX, gRect.fMaxY);
-        // From FUnits (em space, y up) to SkGlyph units (pixels, y down).
-        fFUnitMatrix.mapRect(&skBounds);
-
-    } else {
         // CTFontGetBoundingRectsForGlyphs produces cgBounds in CG units (pixels, y up).
         CGRect cgBounds;
-        CTFontGetBoundingRectsForGlyphs(fCTFont, kCTFontHorizontalOrientation,
+        CTFontGetBoundingRectsForGlyphs(fCTFont.get(), kCTFontOrientationHorizontal,
                                         &cgGlyph, &cgBounds, 1);
+        cgBounds = CGRectApplyAffineTransform(cgBounds, fTransform);
 
         // BUG?
         // 0x200B (zero-advance space) seems to return a huge (garbage) bounds, when
@@ -1022,8 +1007,8 @@ void SkScalerContext_Mac::generateMetrics(SkGlyph* glyph) {
         // empty path or not, and if so, we jam the bounds to 0. Hopefully a zero-advance
         // is rare, so we won't incur a big performance cost for this extra check.
         if (0 == cgAdvance.width && 0 == cgAdvance.height) {
-            AutoCFRelease<CGPathRef> path(CTFontCreatePathForGlyph(fCTFont, cgGlyph, NULL));
-            if (NULL == path || CGPathIsEmpty(path)) {
+            UniqueCFRef<CGPathRef> path(CTFontCreatePathForGlyph(fCTFont.get(), cgGlyph, nullptr));
+            if (!path || CGPathIsEmpty(path.get())) {
                 return;
             }
         }
@@ -1038,10 +1023,10 @@ void SkScalerContext_Mac::generateMetrics(SkGlyph* glyph) {
     }
 
     if (fVertical) {
-        // Due to all of the vertical bounds bugs, skBounds is always the horizontal bounds.
+        // Due to possible vertical bounds bugs and simplicity, skBounds is the horizontal bounds.
         // Convert these horizontal bounds into vertical bounds.
         SkPoint offset;
-        getVerticalOffset(cgGlyph, &offset);
+        this->getVerticalOffset(cgGlyph, &offset);
         skBounds.offset(offset);
     }
 
@@ -1063,19 +1048,14 @@ void SkScalerContext_Mac::generateMetrics(SkGlyph* glyph) {
     glyph->fTop = SkToS16(skIBounds.fTop);
     glyph->fWidth = SkToU16(skIBounds.width());
     glyph->fHeight = SkToU16(skIBounds.height());
-
-#ifdef HACK_COLORGLYPHS
-    glyph->fMaskFormat = SkMask::kARGB32_Format;
-#endif
 }
 
 #include "SkColorPriv.h"
 
-static void build_power_table(uint8_t table[], float ee) {
+static void build_power_table(uint8_t table[]) {
     for (int i = 0; i < 256; i++) {
         float x = i / 255.f;
-        x = sk_float_pow(x, ee);
-        int xx = SkScalarRoundToInt(x * 255);
+        int xx = SkScalarRoundToInt(x * x * 255);
         table[i] = SkToU8(xx);
     }
 }
@@ -1091,7 +1071,7 @@ static const uint8_t* getInverseGammaTableCoreGraphicSmoothing() {
     static bool gInited;
     static uint8_t gTableCoreGraphicsSmoothing[256];
     if (!gInited) {
-        build_power_table(gTableCoreGraphicsSmoothing, 2.0f);
+        build_power_table(gTableCoreGraphicsSmoothing);
         gInited = true;
     }
     return gTableCoreGraphicsSmoothing;
@@ -1101,7 +1081,7 @@ static void cgpixels_to_bits(uint8_t dst[], const CGRGBPixel src[], int count) {
     while (count > 0) {
         uint8_t mask = 0;
         for (int i = 7; i >= 0; --i) {
-            mask |= (CGRGBPixel_getAlpha(*src++) >> 7) << i;
+            mask |= ((CGRGBPixel_getAlpha(*src++) >> 7) ^ 0x1) << i;
             if (0 == --count) {
                 break;
             }
@@ -1112,10 +1092,14 @@ static void cgpixels_to_bits(uint8_t dst[], const CGRGBPixel src[], int count) {
 
 template<bool APPLY_PREBLEND>
 static inline uint8_t rgb_to_a8(CGRGBPixel rgb, const uint8_t* table8) {
-    U8CPU r = (rgb >> 16) & 0xFF;
-    U8CPU g = (rgb >>  8) & 0xFF;
-    U8CPU b = (rgb >>  0) & 0xFF;
-    return sk_apply_lut_if<APPLY_PREBLEND>(SkComputeLuminance(r, g, b), table8);
+    U8CPU r = 0xFF - ((rgb >> 16) & 0xFF);
+    U8CPU g = 0xFF - ((rgb >>  8) & 0xFF);
+    U8CPU b = 0xFF - ((rgb >>  0) & 0xFF);
+    U8CPU lum = sk_apply_lut_if<APPLY_PREBLEND>(SkComputeLuminance(r, g, b), table8);
+#if SK_SHOW_TEXT_BLIT_COVERAGE
+    lum = SkTMax(lum, (U8CPU)0x30);
+#endif
+    return lum;
 }
 template<bool APPLY_PREBLEND>
 static void rgb_to_a8(const CGRGBPixel* SK_RESTRICT cgPixels, size_t cgRowBytes,
@@ -1128,8 +1112,8 @@ static void rgb_to_a8(const CGRGBPixel* SK_RESTRICT cgPixels, size_t cgRowBytes,
         for (int i = 0; i < width; ++i) {
             dst[i] = rgb_to_a8<APPLY_PREBLEND>(cgPixels[i], table8);
         }
-        cgPixels = (CGRGBPixel*)((char*)cgPixels + cgRowBytes);
-        dst += dstRB;
+        cgPixels = SkTAddOffset<const CGRGBPixel>(cgPixels, cgRowBytes);
+        dst = SkTAddOffset<uint8_t>(dst, dstRB);
     }
 }
 
@@ -1137,9 +1121,14 @@ template<bool APPLY_PREBLEND>
 static inline uint16_t rgb_to_lcd16(CGRGBPixel rgb, const uint8_t* tableR,
                                                     const uint8_t* tableG,
                                                     const uint8_t* tableB) {
-    U8CPU r = sk_apply_lut_if<APPLY_PREBLEND>((rgb >> 16) & 0xFF, tableR);
-    U8CPU g = sk_apply_lut_if<APPLY_PREBLEND>((rgb >>  8) & 0xFF, tableG);
-    U8CPU b = sk_apply_lut_if<APPLY_PREBLEND>((rgb >>  0) & 0xFF, tableB);
+    U8CPU r = sk_apply_lut_if<APPLY_PREBLEND>(0xFF - ((rgb >> 16) & 0xFF), tableR);
+    U8CPU g = sk_apply_lut_if<APPLY_PREBLEND>(0xFF - ((rgb >>  8) & 0xFF), tableG);
+    U8CPU b = sk_apply_lut_if<APPLY_PREBLEND>(0xFF - ((rgb >>  0) & 0xFF), tableB);
+#if SK_SHOW_TEXT_BLIT_COVERAGE
+    r = SkTMax(r, (U8CPU)0x30);
+    g = SkTMax(g, (U8CPU)0x30);
+    b = SkTMax(b, (U8CPU)0x30);
+#endif
     return SkPack888ToRGB16(r, g, b);
 }
 template<bool APPLY_PREBLEND>
@@ -1153,58 +1142,24 @@ static void rgb_to_lcd16(const CGRGBPixel* SK_RESTRICT cgPixels, size_t cgRowByt
         for (int i = 0; i < width; i++) {
             dst[i] = rgb_to_lcd16<APPLY_PREBLEND>(cgPixels[i], tableR, tableG, tableB);
         }
-        cgPixels = (CGRGBPixel*)((char*)cgPixels + cgRowBytes);
-        dst = (uint16_t*)((char*)dst + dstRB);
+        cgPixels = SkTAddOffset<const CGRGBPixel>(cgPixels, cgRowBytes);
+        dst = SkTAddOffset<uint16_t>(dst, dstRB);
     }
 }
 
-template<bool APPLY_PREBLEND>
-static inline uint32_t rgb_to_lcd32(CGRGBPixel rgb, const uint8_t* tableR,
-                                                    const uint8_t* tableG,
-                                                    const uint8_t* tableB) {
-    U8CPU r = sk_apply_lut_if<APPLY_PREBLEND>((rgb >> 16) & 0xFF, tableR);
-    U8CPU g = sk_apply_lut_if<APPLY_PREBLEND>((rgb >>  8) & 0xFF, tableG);
-    U8CPU b = sk_apply_lut_if<APPLY_PREBLEND>((rgb >>  0) & 0xFF, tableB);
-    return SkPackARGB32(0xFF, r, g, b);
-}
-template<bool APPLY_PREBLEND>
-static void rgb_to_lcd32(const CGRGBPixel* SK_RESTRICT cgPixels, size_t cgRowBytes, const SkGlyph& glyph,
-                         const uint8_t* tableR, const uint8_t* tableG, const uint8_t* tableB) {
-    const int width = glyph.fWidth;
-    size_t dstRB = glyph.rowBytes();
-    uint32_t* SK_RESTRICT dst = (uint32_t*)glyph.fImage;
-    for (int y = 0; y < glyph.fHeight; y++) {
-        for (int i = 0; i < width; i++) {
-            dst[i] = rgb_to_lcd32<APPLY_PREBLEND>(cgPixels[i], tableR, tableG, tableB);
-        }
-        cgPixels = (CGRGBPixel*)((char*)cgPixels + cgRowBytes);
-        dst = (uint32_t*)((char*)dst + dstRB);
-    }
-}
-
-#ifdef HACK_COLORGLYPHS
-// hack to colorize the output for testing kARGB32_Format
-static SkPMColor cgpixels_to_pmcolor(CGRGBPixel rgb, const SkGlyph& glyph,
-                                     int x, int y) {
+static SkPMColor cgpixels_to_pmcolor(CGRGBPixel rgb) {
+    U8CPU a = (rgb >> 24) & 0xFF;
     U8CPU r = (rgb >> 16) & 0xFF;
     U8CPU g = (rgb >>  8) & 0xFF;
     U8CPU b = (rgb >>  0) & 0xFF;
-    unsigned a = SkComputeLuminance(r, g, b);
-
-    // compute gradient from x,y
-    r = x * 255 / glyph.fWidth;
-    g = 0;
-    b = (glyph.fHeight - y) * 255 / glyph.fHeight;
-    return SkPreMultiplyARGB(a, r, g, b);    // red
-}
+#if SK_SHOW_TEXT_BLIT_COVERAGE
+    a = SkTMax(a, (U8CPU)0x30);
 #endif
-
-template <typename T> T* SkTAddByteOffset(T* ptr, size_t byteOffset) {
-    return (T*)((char*)ptr + byteOffset);
+    return SkPackARGB32(a, r, g, b);
 }
 
 void SkScalerContext_Mac::generateImage(const SkGlyph& glyph) {
-    CGGlyph cgGlyph = (CGGlyph) glyph.getGlyphID();
+    CGGlyph cgGlyph = SkTo<CGGlyph>(glyph.getGlyphID());
 
     // FIXME: lcd smoothed un-hinted rasterization unsupported.
     bool generateA8FromLCD = fRec.getHinting() != SkPaint::kNo_Hinting;
@@ -1212,17 +1167,14 @@ void SkScalerContext_Mac::generateImage(const SkGlyph& glyph) {
     // Draw the glyph
     size_t cgRowBytes;
     CGRGBPixel* cgPixels = fOffscreen.getCG(*this, glyph, cgGlyph, &cgRowBytes, generateA8FromLCD);
-    if (cgPixels == NULL) {
+    if (cgPixels == nullptr) {
         return;
     }
 
-    //TODO: see if drawing black on white and inverting is faster (at least in
-    //lcd case) as core graphics appears to have special case code for drawing
-    //black text.
-
     // Fix the glyph
-    const bool isLCD = isLCDFormat(glyph.fMaskFormat);
-    if (isLCD || (glyph.fMaskFormat == SkMask::kA8_Format && supports_LCD() && generateA8FromLCD)) {
+    if ((glyph.fMaskFormat == SkMask::kLCD16_Format) ||
+        (glyph.fMaskFormat == SkMask::kA8_Format && supports_LCD() && generateA8FromLCD))
+    {
         const uint8_t* table = getInverseGammaTableCoreGraphicSmoothing();
 
         //Note that the following cannot really be integrated into the
@@ -1238,21 +1190,12 @@ void SkScalerContext_Mac::generateImage(const SkGlyph& glyph) {
                 int b = (addr[x] >>  0) & 0xFF;
                 addr[x] = (table[r] << 16) | (table[g] << 8) | table[b];
             }
-            addr = SkTAddByteOffset(addr, cgRowBytes);
+            addr = SkTAddOffset<CGRGBPixel>(addr, cgRowBytes);
         }
     }
 
     // Convert glyph to mask
     switch (glyph.fMaskFormat) {
-        case SkMask::kLCD32_Format: {
-            if (fPreBlend.isApplicable()) {
-                rgb_to_lcd32<true>(cgPixels, cgRowBytes, glyph,
-                                   fPreBlend.fR, fPreBlend.fG, fPreBlend.fB);
-            } else {
-                rgb_to_lcd32<false>(cgPixels, cgRowBytes, glyph,
-                                    fPreBlend.fR, fPreBlend.fG, fPreBlend.fB);
-            }
-        } break;
         case SkMask::kLCD16_Format: {
             if (fPreBlend.isApplicable()) {
                 rgb_to_lcd16<true>(cgPixels, cgRowBytes, glyph,
@@ -1275,24 +1218,22 @@ void SkScalerContext_Mac::generateImage(const SkGlyph& glyph) {
             uint8_t* dst = (uint8_t*)glyph.fImage;
             for (int y = 0; y < glyph.fHeight; y++) {
                 cgpixels_to_bits(dst, cgPixels, width);
-                cgPixels = (CGRGBPixel*)((char*)cgPixels + cgRowBytes);
-                dst += dstRB;
+                cgPixels = SkTAddOffset<CGRGBPixel>(cgPixels, cgRowBytes);
+                dst = SkTAddOffset<uint8_t>(dst, dstRB);
             }
         } break;
-#ifdef HACK_COLORGLYPHS
         case SkMask::kARGB32_Format: {
             const int width = glyph.fWidth;
             size_t dstRB = glyph.rowBytes();
             SkPMColor* dst = (SkPMColor*)glyph.fImage;
             for (int y = 0; y < glyph.fHeight; y++) {
                 for (int x = 0; x < width; ++x) {
-                    dst[x] = cgpixels_to_pmcolor(cgPixels[x], glyph, x, y);
+                    dst[x] = cgpixels_to_pmcolor(cgPixels[x]);
                 }
-                cgPixels = (CGRGBPixel*)((char*)cgPixels + cgRowBytes);
-                dst = (SkPMColor*)((char*)dst + dstRB);
+                cgPixels = SkTAddOffset<CGRGBPixel>(cgPixels, cgRowBytes);
+                dst = SkTAddOffset<SkPMColor>(dst, dstRB);
             }
         } break;
-#endif
         default:
             SkDEBUGFAIL("unexpected mask format");
             break;
@@ -1306,11 +1247,13 @@ void SkScalerContext_Mac::generateImage(const SkGlyph& glyph) {
  */
 #define kScaleForSubPixelPositionHinting (4.0f)
 
-void SkScalerContext_Mac::generatePath(const SkGlyph& glyph, SkPath* path) {
-    CTFontRef font = fCTFont;
+void SkScalerContext_Mac::generatePath(SkGlyphID glyph, SkPath* path) {
+    AUTO_CG_LOCK();
+
     SkScalar scaleX = SK_Scalar1;
     SkScalar scaleY = SK_Scalar1;
 
+    CGAffineTransform xform = fTransform;
     /*
      *  For subpixel positioning, we want to return an unhinted outline, so it
      *  can be positioned nicely at fractional offsets. However, we special-case
@@ -1320,14 +1263,11 @@ void SkScalerContext_Mac::generatePath(const SkGlyph& glyph, SkPath* path) {
      *  The way we remove hinting is to scale the font by some value (4) in that
      *  direction, ask for the path, and then scale the path back down.
      */
-    if (fRec.fFlags & SkScalerContext::kSubpixelPositioning_Flag) {
-        SkMatrix m;
-        fRec.getSingleMatrix(&m);
-
+    if (fDoSubPosition) {
         // start out by assuming that we want no hining in X and Y
         scaleX = scaleY = kScaleForSubPixelPositionHinting;
         // now see if we need to restore hinting for axis-aligned baselines
-        switch (SkComputeAxisAlignmentForHText(m)) {
+        switch (this->computeAxisAlignmentForHText()) {
             case kX_SkAxisAlignment:
                 scaleY = SK_Scalar1; // want hinting in the Y direction
                 break;
@@ -1338,25 +1278,22 @@ void SkScalerContext_Mac::generatePath(const SkGlyph& glyph, SkPath* path) {
                 break;
         }
 
-        CGAffineTransform xform = MatrixToCGAffineTransform(m, scaleX, scaleY);
-        // need to release font when we're done
-        font = CTFontCreateCopyWithAttributes(fCTFont, 1, &xform, NULL);
+        CGAffineTransform scale(CGAffineTransformMakeScale(ScalarToCG(scaleX), ScalarToCG(scaleY)));
+        xform = CGAffineTransformConcat(fTransform, scale);
     }
 
-    CGGlyph cgGlyph = (CGGlyph)glyph.getGlyphID();
-    AutoCFRelease<CGPathRef> cgPath(CTFontCreatePathForGlyph(font, cgGlyph, NULL));
+    CGGlyph cgGlyph = SkTo<CGGlyph>(glyph);
+    UniqueCFRef<CGPathRef> cgPath(CTFontCreatePathForGlyph(fCTFont.get(), cgGlyph, &xform));
 
     path->reset();
-    if (cgPath != NULL) {
-        CGPathApply(cgPath, path, SkScalerContext_Mac::CTPathElement);
+    if (cgPath != nullptr) {
+        CGPathApply(cgPath.get(), path, SkScalerContext_Mac::CTPathElement);
     }
 
     if (fDoSubPosition) {
         SkMatrix m;
         m.setScale(SkScalarInvert(scaleX), SkScalarInvert(scaleY));
         path->transform(m);
-        // balance the call to CTFontCreateCopyWithAttributes
-        CFSafeRelease(font);
     }
     if (fVertical) {
         SkPoint offset;
@@ -1366,26 +1303,57 @@ void SkScalerContext_Mac::generatePath(const SkGlyph& glyph, SkPath* path) {
 }
 
 void SkScalerContext_Mac::generateFontMetrics(SkPaint::FontMetrics* metrics) {
-    if (NULL == metrics) {
+    if (nullptr == metrics) {
         return;
     }
 
-    CGRect theBounds = CTFontGetBoundingBox(fCTFont);
+    AUTO_CG_LOCK();
+
+    CGRect theBounds = CTFontGetBoundingBox(fCTFont.get());
 
     metrics->fTop          = CGToScalar(-CGRectGetMaxY_inline(theBounds));
-    metrics->fAscent       = CGToScalar(-CTFontGetAscent(fCTFont));
-    metrics->fDescent      = CGToScalar( CTFontGetDescent(fCTFont));
+    metrics->fAscent       = CGToScalar(-CTFontGetAscent(fCTFont.get()));
+    metrics->fDescent      = CGToScalar( CTFontGetDescent(fCTFont.get()));
     metrics->fBottom       = CGToScalar(-CGRectGetMinY_inline(theBounds));
-    metrics->fLeading      = CGToScalar( CTFontGetLeading(fCTFont));
+    metrics->fLeading      = CGToScalar( CTFontGetLeading(fCTFont.get()));
     metrics->fAvgCharWidth = CGToScalar( CGRectGetWidth_inline(theBounds));
     metrics->fXMin         = CGToScalar( CGRectGetMinX_inline(theBounds));
     metrics->fXMax         = CGToScalar( CGRectGetMaxX_inline(theBounds));
-    metrics->fXHeight      = CGToScalar( CTFontGetXHeight(fCTFont));
-    metrics->fUnderlineThickness = CGToScalar( CTFontGetUnderlineThickness(fCTFont));
-    metrics->fUnderlinePosition = -CGToScalar( CTFontGetUnderlinePosition(fCTFont));
+    metrics->fMaxCharWidth = metrics->fXMax - metrics->fXMin;
+    metrics->fXHeight      = CGToScalar( CTFontGetXHeight(fCTFont.get()));
+    metrics->fCapHeight    = CGToScalar( CTFontGetCapHeight(fCTFont.get()));
+    metrics->fUnderlineThickness = CGToScalar( CTFontGetUnderlineThickness(fCTFont.get()));
+    metrics->fUnderlinePosition = -CGToScalar( CTFontGetUnderlinePosition(fCTFont.get()));
 
-    metrics->fFlags |= SkPaint::FontMetrics::kUnderlineThinknessIsValid_Flag;
+    metrics->fFlags |= SkPaint::FontMetrics::kUnderlineThicknessIsValid_Flag;
     metrics->fFlags |= SkPaint::FontMetrics::kUnderlinePositionIsValid_Flag;
+
+    // See https://bugs.chromium.org/p/skia/issues/detail?id=6203
+    // At least on 10.12.3 with memory based fonts the x-height is always 0.6666 of the ascent and
+    // the cap-height is always 0.8888 of the ascent. It appears that the values from the 'OS/2'
+    // table are read, but then overwritten if the font is not a system font. As a result, if there
+    // is a valid 'OS/2' table available use the values from the table if they aren't too strange.
+    struct OS2HeightMetrics {
+        SK_OT_SHORT sxHeight;
+        SK_OT_SHORT sCapHeight;
+    } heights;
+    size_t bytesRead = this->getTypeface()->getTableData(
+            SkTEndian_SwapBE32(SkOTTableOS2::TAG), offsetof(SkOTTableOS2, version.v2.sxHeight),
+            sizeof(heights), &heights);
+    if (bytesRead == sizeof(heights)) {
+        // 'fontSize' is correct because the entire resolved size is set by the constructor.
+        CGFloat fontSize = CTFontGetSize(this->fCTFont.get());
+        unsigned upem = CTFontGetUnitsPerEm(this->fCTFont.get());
+        unsigned maxSaneHeight = upem * 2;
+        uint16_t xHeight = SkEndian_SwapBE16(heights.sxHeight);
+        if (xHeight && xHeight < maxSaneHeight) {
+            metrics->fXHeight = CGToScalar(xHeight * fontSize / upem);
+        }
+        uint16_t capHeight = SkEndian_SwapBE16(heights.sCapHeight);
+        if (capHeight && capHeight < maxSaneHeight) {
+            metrics->fCapHeight = CGToScalar(capHeight * fontSize / upem);
+        }
+    }
 }
 
 void SkScalerContext_Mac::CTPathElement(void *info, const CGPathElement *element) {
@@ -1425,18 +1393,24 @@ void SkScalerContext_Mac::CTPathElement(void *info, const CGPathElement *element
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// Returns NULL on failure
+// Returns nullptr on failure
 // Call must still manage its ownership of provider
-static SkTypeface* create_from_dataProvider(CGDataProviderRef provider) {
-    AutoCFRelease<CGFontRef> cg(CGFontCreateWithDataProvider(provider));
-    if (NULL == cg) {
-        return NULL;
+static SkTypeface* create_from_dataProvider(UniqueCFRef<CGDataProviderRef> provider, int ttcIndex) {
+    if (ttcIndex != 0) {
+        return nullptr;
     }
-    CTFontRef ct = CTFontCreateWithGraphicsFont(cg, 0, NULL, NULL);
-    return ct ? NewFromFontRef(ct, NULL, true) : NULL;
+    UniqueCFRef<CGFontRef> cg(CGFontCreateWithDataProvider(provider.get()));
+    if (!cg) {
+        return nullptr;
+    }
+    UniqueCFRef<CTFontRef> ct(CTFontCreateWithGraphicsFont(cg.get(), 0, nullptr, nullptr));
+    if (!ct) {
+        return nullptr;
+    }
+    return create_from_CTFontRef(std::move(ct), nullptr, true);
 }
 
-// Web fonts added to the the CTFont registry do not return their character set.
+// Web fonts added to the CTFont registry do not return their character set.
 // Iterate through the font in this case. The existing caller caches the result,
 // so the performance impact isn't too bad.
 static void populate_glyph_to_unicode_slow(CTFontRef ctFont, CFIndex glyphCount,
@@ -1448,8 +1422,10 @@ static void populate_glyph_to_unicode_slow(CTFontRef ctFont, CFIndex glyphCount,
     while (glyphCount > 0) {
         CGGlyph glyph;
         if (CTFontGetGlyphsForCharacters(ctFont, &unichar, &glyph, 1)) {
-            out[glyph] = unichar;
-            --glyphCount;
+            if (out[glyph] != 0) {
+                out[glyph] = unichar;
+                --glyphCount;
+            }
         }
         if (++unichar == 0) {
             break;
@@ -1462,18 +1438,17 @@ static void populate_glyph_to_unicode_slow(CTFontRef ctFont, CFIndex glyphCount,
 // supported.
 static void populate_glyph_to_unicode(CTFontRef ctFont, CFIndex glyphCount,
                                       SkTDArray<SkUnichar>* glyphToUnicode) {
-    AutoCFRelease<CFCharacterSetRef> charSet(CTFontCopyCharacterSet(ctFont));
+    UniqueCFRef<CFCharacterSetRef> charSet(CTFontCopyCharacterSet(ctFont));
     if (!charSet) {
         populate_glyph_to_unicode_slow(ctFont, glyphCount, glyphToUnicode);
         return;
     }
 
-    AutoCFRelease<CFDataRef> bitmap(CFCharacterSetCreateBitmapRepresentation(kCFAllocatorDefault,
-                                                                             charSet));
+    UniqueCFRef<CFDataRef> bitmap(CFCharacterSetCreateBitmapRepresentation(nullptr, charSet.get()));
     if (!bitmap) {
         return;
     }
-    CFIndex length = CFDataGetLength(bitmap);
+    CFIndex length = CFDataGetLength(bitmap.get());
     if (!length) {
         return;
     }
@@ -1484,7 +1459,7 @@ static void populate_glyph_to_unicode(CTFontRef ctFont, CFIndex glyphCount,
         // See http://developer.apple.com/library/ios/#documentation/CoreFoundation/Reference/CFCharacterSetRef/Reference/reference.html
         length = 8192;
     }
-    const UInt8* bits = CFDataGetBytePtr(bitmap);
+    const UInt8* bits = CFDataGetBytePtr(bitmap.get());
     glyphToUnicode->setCount(SkToInt(glyphCount));
     SkUnichar* out = glyphToUnicode->begin();
     sk_bzero(out, glyphCount * sizeof(SkUnichar));
@@ -1503,16 +1478,7 @@ static void populate_glyph_to_unicode(CTFontRef ctFont, CFIndex glyphCount,
     }
 }
 
-static bool getWidthAdvance(CTFontRef ctFont, int gId, int16_t* data) {
-    CGSize advance;
-    advance.width = 0;
-    CGGlyph glyph = gId;
-    CTFontGetAdvancesForGlyphs(ctFont, kCTFontHorizontalOrientation, &glyph, &advance, 1);
-    *data = sk_float_round2int(advance.width);
-    return true;
-}
-
-/** Assumes src and dst are not NULL. */
+/** Assumes src and dst are not nullptr. */
 static void CFStringToSkString(CFStringRef src, SkString* dst) {
     // Reserve enough room for the worst-case string,
     // plus 1 byte for the trailing null.
@@ -1524,50 +1490,48 @@ static void CFStringToSkString(CFStringRef src, SkString* dst) {
     dst->resize(strlen(dst->c_str()));
 }
 
-SkAdvancedTypefaceMetrics* SkTypeface_Mac::onGetAdvancedTypefaceMetrics(
-        SkAdvancedTypefaceMetrics::PerGlyphInfo perGlyphInfo,
-        const uint32_t* glyphIDs,
-        uint32_t glyphIDsCount) const {
+std::unique_ptr<SkAdvancedTypefaceMetrics> SkTypeface_Mac::onGetAdvancedMetrics() const {
 
-    CTFontRef originalCTFont = fFontRef.get();
-    AutoCFRelease<CTFontRef> ctFont(CTFontCreateCopyWithAttributes(
-            originalCTFont, CTFontGetUnitsPerEm(originalCTFont), NULL, NULL));
-    SkAdvancedTypefaceMetrics* info = new SkAdvancedTypefaceMetrics;
+    AUTO_CG_LOCK();
+
+    UniqueCFRef<CTFontRef> ctFont =
+            ctfont_create_exact_copy(fFontRef.get(), CTFontGetUnitsPerEm(fFontRef.get()), nullptr);
+
+    std::unique_ptr<SkAdvancedTypefaceMetrics> info(new SkAdvancedTypefaceMetrics);
 
     {
-        AutoCFRelease<CFStringRef> fontName(CTFontCopyPostScriptName(ctFont));
+        UniqueCFRef<CFStringRef> fontName(CTFontCopyPostScriptName(ctFont.get()));
         if (fontName.get()) {
-            CFStringToSkString(fontName, &info->fFontName);
+            CFStringToSkString(fontName.get(), &info->fFontName);
         }
     }
 
-    CFIndex glyphCount = CTFontGetGlyphCount(ctFont);
-    info->fLastGlyphID = SkToU16(glyphCount - 1);
-    info->fEmSize = CTFontGetUnitsPerEm(ctFont);
-    info->fFlags = SkAdvancedTypefaceMetrics::kEmpty_FontFlag;
-    info->fStyle = 0;
-
-    if (perGlyphInfo & SkAdvancedTypefaceMetrics::kToUnicode_PerGlyphInfo) {
-        populate_glyph_to_unicode(ctFont, glyphCount, &info->fGlyphToUnicode);
+    // In 10.10 and earlier, CTFontCopyVariationAxes and CTFontCopyVariation do not work when
+    // applied to fonts which started life with CGFontCreateWithDataProvider (they simply always
+    // return nullptr). As a result, we are limited to CGFontCopyVariationAxes and
+    // CGFontCopyVariations here until support for 10.10 and earlier is removed.
+    UniqueCFRef<CGFontRef> cgFont(CTFontCopyGraphicsFont(ctFont.get(), nullptr));
+    if (cgFont) {
+        UniqueCFRef<CFArrayRef> cgAxes(CGFontCopyVariationAxes(cgFont.get()));
+        if (cgAxes && CFArrayGetCount(cgAxes.get()) > 0) {
+            info->fFlags |= SkAdvancedTypefaceMetrics::kMultiMaster_FontFlag;
+        }
     }
+
+    CFIndex glyphCount = CTFontGetGlyphCount(ctFont.get());
+
+    populate_glyph_to_unicode(ctFont.get(), glyphCount, &info->fGlyphToUnicode);
 
     // If it's not a truetype font, mark it as 'other'. Assume that TrueType
     // fonts always have both glyf and loca tables. At the least, this is what
     // sfntly needs to subset the font. CTFontCopyAttribute() does not always
     // succeed in determining this directly.
     if (!this->getTableSize('glyf') || !this->getTableSize('loca')) {
-        info->fType = SkAdvancedTypefaceMetrics::kOther_Font;
-        info->fItalicAngle = 0;
-        info->fAscent = 0;
-        info->fDescent = 0;
-        info->fStemV = 0;
-        info->fCapHeight = 0;
-        info->fBBox = SkIRect::MakeEmpty();
         return info;
     }
 
     info->fType = SkAdvancedTypefaceMetrics::kTrueType_Font;
-    CTFontSymbolicTraits symbolicTraits = CTFontGetSymbolicTraits(ctFont);
+    CTFontSymbolicTraits symbolicTraits = CTFontGetSymbolicTraits(ctFont.get());
     if (symbolicTraits & kCTFontMonoSpaceTrait) {
         info->fStyle |= SkAdvancedTypefaceMetrics::kFixedPitch_Style;
     }
@@ -1580,11 +1544,11 @@ SkAdvancedTypefaceMetrics* SkTypeface_Mac::onGetAdvancedTypefaceMetrics(
     } else if (stylisticClass & kCTFontScriptsClass) {
         info->fStyle |= SkAdvancedTypefaceMetrics::kScript_Style;
     }
-    info->fItalicAngle = (int16_t) CTFontGetSlantAngle(ctFont);
-    info->fAscent = (int16_t) CTFontGetAscent(ctFont);
-    info->fDescent = (int16_t) CTFontGetDescent(ctFont);
-    info->fCapHeight = (int16_t) CTFontGetCapHeight(ctFont);
-    CGRect bbox = CTFontGetBoundingBox(ctFont);
+    info->fItalicAngle = (int16_t) CTFontGetSlantAngle(ctFont.get());
+    info->fAscent = (int16_t) CTFontGetAscent(ctFont.get());
+    info->fDescent = (int16_t) CTFontGetDescent(ctFont.get());
+    info->fCapHeight = (int16_t) CTFontGetCapHeight(ctFont.get());
+    CGRect bbox = CTFontGetBoundingBox(ctFont.get());
 
     SkRect r;
     r.set( CGToScalar(CGRectGetMinX_inline(bbox)),   // Left
@@ -1602,8 +1566,8 @@ SkAdvancedTypefaceMetrics* SkTypeface_Mac::onGetAdvancedTypefaceMetrics(
     const size_t count = sizeof(stem_chars) / sizeof(stem_chars[0]);
     CGGlyph glyphs[count];
     CGRect boundingRects[count];
-    if (CTFontGetGlyphsForCharacters(ctFont, stem_chars, glyphs, count)) {
-        CTFontGetBoundingRectsForGlyphs(ctFont, kCTFontHorizontalOrientation,
+    if (CTFontGetGlyphsForCharacters(ctFont.get(), stem_chars, glyphs, count)) {
+        CTFontGetBoundingRectsForGlyphs(ctFont.get(), kCTFontOrientationHorizontal,
                                         glyphs, boundingRects, count);
         for (size_t i = 0; i < count; i++) {
             int16_t width = (int16_t) boundingRects[i].size.width;
@@ -1613,22 +1577,6 @@ SkAdvancedTypefaceMetrics* SkTypeface_Mac::onGetAdvancedTypefaceMetrics(
             }
         }
     }
-
-    if (perGlyphInfo & SkAdvancedTypefaceMetrics::kHAdvance_PerGlyphInfo) {
-        if (info->fStyle & SkAdvancedTypefaceMetrics::kFixedPitch_Style) {
-            skia_advanced_typeface_metrics_utils::appendRange(&info->fGlyphWidths, 0);
-            info->fGlyphWidths->fAdvance.append(1, &min_width);
-            skia_advanced_typeface_metrics_utils::finishRange(info->fGlyphWidths.get(), 0,
-                        SkAdvancedTypefaceMetrics::WidthRange::kDefault);
-        } else {
-            info->fGlyphWidths.reset(
-                skia_advanced_typeface_metrics_utils::getAdvanceData(ctFont.get(),
-                               SkToInt(glyphCount),
-                               glyphIDs,
-                               glyphIDsCount,
-                               &getWidthAdvance));
-        }
-    }
     return info;
 }
 
@@ -1636,14 +1584,14 @@ SkAdvancedTypefaceMetrics* SkTypeface_Mac::onGetAdvancedTypefaceMetrics(
 
 static SK_SFNT_ULONG get_font_type_tag(const SkTypeface_Mac* typeface) {
     CTFontRef ctFont = typeface->fFontRef.get();
-    AutoCFRelease<CFNumberRef> fontFormatRef(
+    UniqueCFRef<CFNumberRef> fontFormatRef(
             static_cast<CFNumberRef>(CTFontCopyAttribute(ctFont, kCTFontFormatAttribute)));
     if (!fontFormatRef) {
         return 0;
     }
 
     SInt32 fontFormatValue;
-    if (!CFNumberGetValue(fontFormatRef, kCFNumberSInt32Type, &fontFormatValue)) {
+    if (!CFNumberGetValue(fontFormatRef.get(), kCFNumberSInt32Type, &fontFormatValue)) {
         return 0;
     }
 
@@ -1670,7 +1618,7 @@ static SK_SFNT_ULONG get_font_type_tag(const SkTypeface_Mac* typeface) {
 SkStreamAsset* SkTypeface_Mac::onOpenStream(int* ttcIndex) const {
     SK_SFNT_ULONG fontType = get_font_type_tag(this);
     if (0 == fontType) {
-        return NULL;
+        return nullptr;
     }
 
     // get table tags
@@ -1729,33 +1677,272 @@ SkStreamAsset* SkTypeface_Mac::onOpenStream(int* ttcIndex) const {
         ++entry;
     }
 
+    *ttcIndex = 0;
     return stream;
+}
+
+struct NonDefaultAxesContext {
+    SkFixed* axisValue;
+    CFArrayRef cgAxes;
+};
+static void set_non_default_axes(CFTypeRef key, CFTypeRef value, void* context) {
+    NonDefaultAxesContext* self = static_cast<NonDefaultAxesContext*>(context);
+
+    if (CFGetTypeID(key) != CFStringGetTypeID() || CFGetTypeID(value) != CFNumberGetTypeID()) {
+        return;
+    }
+
+    // The key is a CFString which is a string from the 'name' table.
+    // Search the cgAxes for an axis with this name, and use its index to store the value.
+    CFIndex keyIndex = -1;
+    CFStringRef keyString = static_cast<CFStringRef>(key);
+    for (CFIndex i = 0; i < CFArrayGetCount(self->cgAxes); ++i) {
+        CFTypeRef cgAxis = CFArrayGetValueAtIndex(self->cgAxes, i);
+        if (CFGetTypeID(cgAxis) != CFDictionaryGetTypeID()) {
+            continue;
+        }
+
+        CFDictionaryRef cgAxisDict = static_cast<CFDictionaryRef>(cgAxis);
+        CFTypeRef cgAxisName = CFDictionaryGetValue(cgAxisDict, kCGFontVariationAxisName);
+        if (!cgAxisName || CFGetTypeID(cgAxisName) != CFStringGetTypeID()) {
+            continue;
+        }
+        CFStringRef cgAxisNameString = static_cast<CFStringRef>(cgAxisName);
+        if (CFStringCompare(keyString, cgAxisNameString, 0) == kCFCompareEqualTo) {
+            keyIndex = i;
+            break;
+        }
+    }
+    if (keyIndex == -1) {
+        return;
+    }
+
+    CFNumberRef valueNumber = static_cast<CFNumberRef>(value);
+    double valueDouble;
+    if (!CFNumberGetValue(valueNumber, kCFNumberDoubleType, &valueDouble) ||
+        valueDouble < SkFixedToDouble(SK_FixedMin) || SkFixedToDouble(SK_FixedMax) < valueDouble)
+    {
+        return;
+    }
+    self->axisValue[keyIndex] = SkDoubleToFixed(valueDouble);
+}
+static bool get_variations(CTFontRef ctFont, CFIndex* cgAxisCount,
+                           SkAutoSTMalloc<4, SkFixed>* axisValues)
+{
+    // In 10.10 and earlier, CTFontCopyVariationAxes and CTFontCopyVariation do not work when
+    // applied to fonts which started life with CGFontCreateWithDataProvider (they simply always
+    // return nullptr). As a result, we are limited to CGFontCopyVariationAxes and
+    // CGFontCopyVariations here until support for 10.10 and earlier is removed.
+    UniqueCFRef<CGFontRef> cgFont(CTFontCopyGraphicsFont(ctFont, nullptr));
+    if (!cgFont) {
+        return false;
+    }
+
+    UniqueCFRef<CFDictionaryRef> cgVariations(CGFontCopyVariations(cgFont.get()));
+    // If a font has no variations CGFontCopyVariations returns nullptr (instead of an empty dict).
+    if (!cgVariations) {
+        return false;
+    }
+
+    UniqueCFRef<CFArrayRef> cgAxes(CGFontCopyVariationAxes(cgFont.get()));
+    if (!cgAxes) {
+        return false;
+    }
+    *cgAxisCount = CFArrayGetCount(cgAxes.get());
+    axisValues->reset(*cgAxisCount);
+
+    // Set all of the axes to their default values.
+    // Fail if any default value cannot be determined.
+    for (CFIndex i = 0; i < *cgAxisCount; ++i) {
+        CFTypeRef cgAxis = CFArrayGetValueAtIndex(cgAxes.get(), i);
+        if (CFGetTypeID(cgAxis) != CFDictionaryGetTypeID()) {
+            return false;
+        }
+
+        CFDictionaryRef cgAxisDict = static_cast<CFDictionaryRef>(cgAxis);
+        CFTypeRef axisDefaultValue = CFDictionaryGetValue(cgAxisDict,
+                                                          kCGFontVariationAxisDefaultValue);
+        if (!axisDefaultValue || CFGetTypeID(axisDefaultValue) != CFNumberGetTypeID()) {
+            return false;
+        }
+        CFNumberRef axisDefaultValueNumber = static_cast<CFNumberRef>(axisDefaultValue);
+        double axisDefaultValueDouble;
+        if (!CFNumberGetValue(axisDefaultValueNumber, kCFNumberDoubleType, &axisDefaultValueDouble))
+        {
+            return false;
+        }
+        if (axisDefaultValueDouble < SkFixedToDouble(SK_FixedMin) ||
+                                     SkFixedToDouble(SK_FixedMax) < axisDefaultValueDouble)
+        {
+            return false;
+        }
+        (*axisValues)[(int)i] = SkDoubleToFixed(axisDefaultValueDouble);
+    }
+
+    // Override the default values with the given font's stated axis values.
+    NonDefaultAxesContext c = { axisValues->get(), cgAxes.get() };
+    CFDictionaryApplyFunction(cgVariations.get(), set_non_default_axes, &c);
+
+    return true;
+}
+std::unique_ptr<SkFontData> SkTypeface_Mac::onMakeFontData() const {
+    int index;
+    std::unique_ptr<SkStreamAsset> stream(this->onOpenStream(&index));
+
+    CFIndex cgAxisCount;
+    SkAutoSTMalloc<4, SkFixed> axisValues;
+    if (get_variations(fFontRef.get(), &cgAxisCount, &axisValues)) {
+        return skstd::make_unique<SkFontData>(std::move(stream), index,
+                                              axisValues.get(), cgAxisCount);
+    }
+    return skstd::make_unique<SkFontData>(std::move(stream), index, nullptr, 0);
+}
+
+/** Creates a CT variation dictionary {tag, value} from a CG variation dictionary {name, value}. */
+static UniqueCFRef<CFDictionaryRef> ct_variation_from_cg_variation(CFDictionaryRef cgVariations,
+                                                                   CFArrayRef ctAxes) {
+
+    UniqueCFRef<CFMutableDictionaryRef> ctVariations(
+            CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
+                                      &kCFTypeDictionaryKeyCallBacks,
+                                      &kCFTypeDictionaryValueCallBacks));
+
+    CFIndex axisCount = CFArrayGetCount(ctAxes);
+    for (CFIndex i = 0; i < axisCount; ++i) {
+        CFTypeRef axisInfo = CFArrayGetValueAtIndex(ctAxes, i);
+        if (CFDictionaryGetTypeID() != CFGetTypeID(axisInfo)) {
+            return nullptr;
+        }
+        CFDictionaryRef axisInfoDict = static_cast<CFDictionaryRef>(axisInfo);
+
+        // The assumption is that values produced by kCTFontVariationAxisNameKey and
+        // kCGFontVariationAxisName will always be equal.
+        CFTypeRef axisName = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisNameKey);
+        if (!axisName || CFGetTypeID(axisName) != CFStringGetTypeID()) {
+            return nullptr;
+        }
+
+        CFTypeRef axisValue = CFDictionaryGetValue(cgVariations, axisName);
+        if (!axisValue || CFGetTypeID(axisValue) != CFNumberGetTypeID()) {
+            return nullptr;
+        }
+
+        CFTypeRef axisTag = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisIdentifierKey);
+        if (!axisTag || CFGetTypeID(axisTag) != CFNumberGetTypeID()) {
+            return nullptr;
+        }
+
+        CFDictionaryAddValue(ctVariations.get(), axisTag, axisValue);
+    }
+    return std::move(ctVariations);
+}
+
+int SkTypeface_Mac::onGetVariationDesignPosition(
+        SkFontArguments::VariationPosition::Coordinate coordinates[], int coordinateCount) const
+{
+    // The CGFont variation data does not contain the tag.
+
+    // CTFontCopyVariationAxes returns nullptr for CGFontCreateWithDataProvider fonts with
+    // macOS 10.10 and iOS 9 or earlier. When this happens, there is no API to provide the tag.
+    UniqueCFRef<CFArrayRef> ctAxes(CTFontCopyVariationAxes(fFontRef.get()));
+    if (!ctAxes) {
+        return -1;
+    }
+    CFIndex axisCount = CFArrayGetCount(ctAxes.get());
+    if (!coordinates || coordinateCount < axisCount) {
+        return axisCount;
+    }
+
+    // This call always returns nullptr on 10.11 and under for CGFontCreateWithDataProvider fonts.
+    // When this happens, try converting the CG variation to a CT variation.
+    // On 10.12 and later, this only returns non-default variations.
+    UniqueCFRef<CFDictionaryRef> ctVariations(CTFontCopyVariation(fFontRef.get()));
+    if (!ctVariations) {
+        // When 10.11 and earlier are no longer supported, the following code can be replaced with
+        // return -1 and ct_variation_from_cg_variation can be removed.
+        UniqueCFRef<CGFontRef> cgFont(CTFontCopyGraphicsFont(fFontRef.get(), nullptr));
+        if (!cgFont) {
+            return -1;
+        }
+        UniqueCFRef<CFDictionaryRef> cgVariations(CGFontCopyVariations(cgFont.get()));
+        if (!cgVariations) {
+            return -1;
+        }
+        ctVariations = ct_variation_from_cg_variation(cgVariations.get(), ctAxes.get());
+        if (!ctVariations) {
+            return -1;
+        }
+    }
+
+    for (int i = 0; i < axisCount; ++i) {
+        CFTypeRef axisInfo = CFArrayGetValueAtIndex(ctAxes.get(), i);
+        if (CFDictionaryGetTypeID() != CFGetTypeID(axisInfo)) {
+            return -1;
+        }
+        CFDictionaryRef axisInfoDict = static_cast<CFDictionaryRef>(axisInfo);
+
+        CFTypeRef tag = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisIdentifierKey);
+        if (!tag || CFGetTypeID(tag) != CFNumberGetTypeID()) {
+            return -1;
+        }
+        CFNumberRef tagNumber = static_cast<CFNumberRef>(tag);
+        int64_t tagLong;
+        if (!CFNumberGetValue(tagNumber, kCFNumberSInt64Type, &tagLong)) {
+            return -1;
+        }
+        coordinates[i].axis = tagLong;
+
+        CGFloat variationCGFloat;
+        CFTypeRef variationValue = CFDictionaryGetValue(ctVariations.get(), tagNumber);
+        if (variationValue) {
+            if (CFGetTypeID(variationValue) != CFNumberGetTypeID()) {
+                return -1;
+            }
+            CFNumberRef variationNumber = static_cast<CFNumberRef>(variationValue);
+            if (!CFNumberGetValue(variationNumber, kCFNumberCGFloatType, &variationCGFloat)) {
+                return -1;
+            }
+        } else {
+            CFTypeRef def = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisDefaultValueKey);
+            if (!def || CFGetTypeID(def) != CFNumberGetTypeID()) {
+                return -1;
+            }
+            CFNumberRef defNumber = static_cast<CFNumberRef>(def);
+            if (!CFNumberGetValue(defNumber, kCFNumberCGFloatType, &variationCGFloat)) {
+                return -1;
+            }
+        }
+        coordinates[i].value = CGToScalar(variationCGFloat);
+
+    }
+    return axisCount;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
 int SkTypeface_Mac::onGetUPEM() const {
-    AutoCFRelease<CGFontRef> cgFont(CTFontCopyGraphicsFont(fFontRef, NULL));
-    return CGFontGetUnitsPerEm(cgFont);
+    UniqueCFRef<CGFontRef> cgFont(CTFontCopyGraphicsFont(fFontRef.get(), nullptr));
+    return CGFontGetUnitsPerEm(cgFont.get());
 }
 
 SkTypeface::LocalizedStrings* SkTypeface_Mac::onCreateFamilyNameIterator() const {
     SkTypeface::LocalizedStrings* nameIter =
-        SkOTUtils::LocalizedStrings_NameTable::CreateForFamilyNames(*this);
-    if (NULL == nameIter) {
-        AutoCFRelease<CFStringRef> cfLanguage;
-        AutoCFRelease<CFStringRef> cfFamilyName(
-            CTFontCopyLocalizedName(fFontRef, kCTFontFamilyNameKey, &cfLanguage));
+            SkOTUtils::LocalizedStrings_NameTable::CreateForFamilyNames(*this);
+    if (nullptr == nameIter) {
+        CFStringRef cfLanguageRaw;
+        UniqueCFRef<CFStringRef> cfFamilyName(
+                CTFontCopyLocalizedName(fFontRef.get(), kCTFontFamilyNameKey, &cfLanguageRaw));
+        UniqueCFRef<CFStringRef> cfLanguage(cfLanguageRaw);
 
         SkString skLanguage;
         SkString skFamilyName;
-        if (cfLanguage.get()) {
+        if (cfLanguage) {
             CFStringToSkString(cfLanguage.get(), &skLanguage);
         } else {
             skLanguage = "und"; //undetermined
         }
-        if (cfFamilyName.get()) {
+        if (cfFamilyName) {
             CFStringToSkString(cfFamilyName.get(), &skFamilyName);
         }
 
@@ -1764,43 +1951,44 @@ SkTypeface::LocalizedStrings* SkTypeface_Mac::onCreateFamilyNameIterator() const
     return nameIter;
 }
 
-// If, as is the case with web fonts, the CTFont data isn't available,
-// the CGFont data may work. While the CGFont may always provide the
-// right result, leave the CTFont code path to minimize disruption.
-static CFDataRef copyTableFromFont(CTFontRef ctFont, SkFontTableTag tag) {
-    CFDataRef data = CTFontCopyTable(ctFont, (CTFontTableTag) tag,
-                                     kCTFontTableOptionNoOptions);
-    if (NULL == data) {
-        AutoCFRelease<CGFontRef> cgFont(CTFontCopyGraphicsFont(ctFont, NULL));
-        data = CGFontCopyTableForTag(cgFont, tag);
-    }
-    return data;
-}
-
 int SkTypeface_Mac::onGetTableTags(SkFontTableTag tags[]) const {
-    AutoCFRelease<CFArrayRef> cfArray(CTFontCopyAvailableTables(fFontRef,
-                                                kCTFontTableOptionNoOptions));
-    if (NULL == cfArray) {
+    UniqueCFRef<CFArrayRef> cfArray(
+            CTFontCopyAvailableTables(fFontRef.get(), kCTFontTableOptionNoOptions));
+    if (!cfArray) {
         return 0;
     }
-    int count = SkToInt(CFArrayGetCount(cfArray));
+    int count = SkToInt(CFArrayGetCount(cfArray.get()));
     if (tags) {
         for (int i = 0; i < count; ++i) {
-            uintptr_t fontTag = reinterpret_cast<uintptr_t>(CFArrayGetValueAtIndex(cfArray, i));
+            uintptr_t fontTag = reinterpret_cast<uintptr_t>(
+                CFArrayGetValueAtIndex(cfArray.get(), i));
             tags[i] = static_cast<SkFontTableTag>(fontTag);
         }
     }
     return count;
 }
 
+// If, as is the case with web fonts, the CTFont data isn't available,
+// the CGFont data may work. While the CGFont may always provide the
+// right result, leave the CTFont code path to minimize disruption.
+static UniqueCFRef<CFDataRef> copy_table_from_font(CTFontRef ctFont, SkFontTableTag tag) {
+    UniqueCFRef<CFDataRef> data(CTFontCopyTable(ctFont, (CTFontTableTag) tag,
+                                                kCTFontTableOptionNoOptions));
+    if (!data) {
+        UniqueCFRef<CGFontRef> cgFont(CTFontCopyGraphicsFont(ctFont, nullptr));
+        data.reset(CGFontCopyTableForTag(cgFont.get(), tag));
+    }
+    return data;
+}
+
 size_t SkTypeface_Mac::onGetTableData(SkFontTableTag tag, size_t offset,
                                       size_t length, void* dstData) const {
-    AutoCFRelease<CFDataRef> srcData(copyTableFromFont(fFontRef, tag));
-    if (NULL == srcData) {
+    UniqueCFRef<CFDataRef> srcData = copy_table_from_font(fFontRef.get(), tag);
+    if (!srcData) {
         return 0;
     }
 
-    size_t srcSize = CFDataGetLength(srcData);
+    size_t srcSize = CFDataGetLength(srcData.get());
     if (offset >= srcSize) {
         return 0;
     }
@@ -1808,13 +1996,14 @@ size_t SkTypeface_Mac::onGetTableData(SkFontTableTag tag, size_t offset,
         length = srcSize - offset;
     }
     if (dstData) {
-        memcpy(dstData, CFDataGetBytePtr(srcData) + offset, length);
+        memcpy(dstData, CFDataGetBytePtr(srcData.get()) + offset, length);
     }
     return length;
 }
 
-SkScalerContext* SkTypeface_Mac::onCreateScalerContext(const SkDescriptor* desc) const {
-    return new SkScalerContext_Mac(const_cast<SkTypeface_Mac*>(this), desc);
+SkScalerContext* SkTypeface_Mac::onCreateScalerContext(const SkScalerContextEffects& effects,
+                                                       const SkDescriptor* desc) const {
+    return new SkScalerContext_Mac(sk_ref_sp(const_cast<SkTypeface_Mac*>(this)), effects, desc);
 }
 
 void SkTypeface_Mac::onFilterRec(SkScalerContextRec* rec) const {
@@ -1869,7 +2058,7 @@ void SkTypeface_Mac::onFilterRec(SkScalerContextRec* rec) const {
     // Currenly side with LCD, effectively ignoring the hinting setting.
     // [LCD][yes-hint]: generate LCD using CoreGraphic's LCD output.
 
-    if (isLCDFormat(rec->fMaskFormat)) {
+    if (rec->fMaskFormat == SkMask::kLCD16_Format) {
         if (lcdSupport) {
             //CoreGraphics creates 555 masks for smoothed text anyway.
             rec->fMaskFormat = SkMask::kLCD16_Format;
@@ -1879,10 +2068,18 @@ void SkTypeface_Mac::onFilterRec(SkScalerContextRec* rec) const {
         }
     }
 
+    // CoreText provides no information as to whether a glyph will be color or not.
+    // Fonts may mix outlines and bitmaps, so information is needed on a glyph by glyph basis.
+    // If a font contains an 'sbix' table, consider it to be a color font, and disable lcd.
+    if (fHasColorGlyphs) {
+        rec->fMaskFormat = SkMask::kARGB32_Format;
+    }
+
     // Unhinted A8 masks (those not derived from LCD masks) must respect SK_GAMMA_APPLY_TO_A8.
     // All other masks can use regular gamma.
     if (SkMask::kA8_Format == rec->fMaskFormat && SkPaint::kNo_Hinting == hinting) {
 #ifndef SK_GAMMA_APPLY_TO_A8
+        // SRGBTODO: Is this correct? Do we want contrast boost?
         rec->ignorePreBlend();
 #endif
     } else {
@@ -1891,27 +2088,28 @@ void SkTypeface_Mac::onFilterRec(SkScalerContextRec* rec) const {
     }
 }
 
-// we take ownership of the ref
+/** Takes ownership of the CFStringRef. */
 static const char* get_str(CFStringRef ref, SkString* str) {
-    if (NULL == ref) {
-        return NULL;
+    if (nullptr == ref) {
+        return nullptr;
     }
     CFStringToSkString(ref, str);
-    CFSafeRelease(ref);
+    CFRelease(ref);
     return str->c_str();
 }
 
 void SkTypeface_Mac::onGetFamilyName(SkString* familyName) const {
-    get_str(CTFontCopyFamilyName(fFontRef), familyName);
+    get_str(CTFontCopyFamilyName(fFontRef.get()), familyName);
 }
 
 void SkTypeface_Mac::onGetFontDescriptor(SkFontDescriptor* desc,
                                          bool* isLocalStream) const {
     SkString tmpStr;
 
-    desc->setFamilyName(get_str(CTFontCopyFamilyName(fFontRef), &tmpStr));
-    desc->setFullName(get_str(CTFontCopyFullName(fFontRef), &tmpStr));
-    desc->setPostscriptName(get_str(CTFontCopyPostScriptName(fFontRef), &tmpStr));
+    desc->setFamilyName(get_str(CTFontCopyFamilyName(fFontRef.get()), &tmpStr));
+    desc->setFullName(get_str(CTFontCopyFullName(fFontRef.get()), &tmpStr));
+    desc->setPostscriptName(get_str(CTFontCopyPostScriptName(fFontRef.get()), &tmpStr));
+    desc->setStyle(this->fontStyle());
     *isLocalStream = fIsLocalStream;
 }
 
@@ -1960,22 +2158,22 @@ int SkTypeface_Mac::onCharsToGlyphs(const void* chars, Encoding encoding,
         }
     }
 
-    // If glyphs is NULL, CT still needs glyph storage for finding the first failure.
+    // If glyphs is nullptr, CT still needs glyph storage for finding the first failure.
     // Also, if there are any non-bmp code points, the provided 'glyphs' storage will be inadequate.
     SkAutoSTMalloc<1024, uint16_t> glyphStorage;
     uint16_t* macGlyphs = glyphs;
-    if (NULL == macGlyphs || srcCount > glyphCount) {
+    if (nullptr == macGlyphs || srcCount > glyphCount) {
         macGlyphs = glyphStorage.reset(srcCount);
     }
 
-    bool allEncoded = CTFontGetGlyphsForCharacters(fFontRef, src, macGlyphs, srcCount);
+    bool allEncoded = CTFontGetGlyphsForCharacters(fFontRef.get(), src, macGlyphs, srcCount);
 
     // If there were any non-bmp, then copy and compact.
-    // If 'glyphs' is NULL, then compact glyphStorage in-place.
-    // If all are bmp and 'glyphs' is non-NULL, 'glyphs' already contains the compact glyphs.
-    // If some are non-bmp and 'glyphs' is non-NULL, copy and compact into 'glyphs'.
+    // If 'glyphs' is nullptr, then compact glyphStorage in-place.
+    // If all are bmp and 'glyphs' is non-nullptr, 'glyphs' already contains the compact glyphs.
+    // If some are non-bmp and 'glyphs' is non-nullptr, copy and compact into 'glyphs'.
     uint16_t* compactedGlyphs = glyphs;
-    if (NULL == compactedGlyphs) {
+    if (nullptr == compactedGlyphs) {
         compactedGlyphs = macGlyphs;
     }
     if (srcCount > glyphCount) {
@@ -2003,50 +2201,22 @@ int SkTypeface_Mac::onCharsToGlyphs(const void* chars, Encoding encoding,
 }
 
 int SkTypeface_Mac::onCountGlyphs() const {
-    return SkToInt(CTFontGetGlyphCount(fFontRef));
+    return SkToInt(CTFontGetGlyphCount(fFontRef.get()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-#if 1
 
 static bool find_desc_str(CTFontDescriptorRef desc, CFStringRef name, SkString* value) {
-    AutoCFRelease<CFStringRef> ref((CFStringRef)CTFontDescriptorCopyAttribute(desc, name));
-    if (NULL == ref.get()) {
+    UniqueCFRef<CFStringRef> ref((CFStringRef)CTFontDescriptorCopyAttribute(desc, name));
+    if (!ref) {
         return false;
     }
-    CFStringToSkString(ref, value);
+    CFStringToSkString(ref.get(), value);
     return true;
 }
 
-static bool find_dict_float(CFDictionaryRef dict, CFStringRef name, float* value) {
-    CFNumberRef num;
-    return CFDictionaryGetValueIfPresent(dict, name, (const void**)&num)
-    && CFNumberIsFloatType(num)
-    && CFNumberGetValue(num, kCFNumberFloatType, value);
-}
-
 #include "SkFontMgr.h"
-
-static int unit_weight_to_fontstyle(float unit) {
-    float value;
-    if (unit < 0) {
-        value = 100 + (1 + unit) * 300;
-    } else {
-        value = 400 + unit * 500;
-    }
-    return sk_float_round2int(value);
-}
-
-static int unit_width_to_fontstyle(float unit) {
-    float value;
-    if (unit < 0) {
-        value = 1 + (1 + unit) * 4;
-    } else {
-        value = 5 + unit * 4;
-    }
-    return sk_float_round2int(value);
-}
 
 static inline int sqr(int value) {
     SkASSERT(SkAbs32(value) < 0x7FFF);  // check for overflow
@@ -2057,113 +2227,30 @@ static inline int sqr(int value) {
 static int compute_metric(const SkFontStyle& a, const SkFontStyle& b) {
     return sqr(a.weight() - b.weight()) +
            sqr((a.width() - b.width()) * 100) +
-           sqr((a.isItalic() != b.isItalic()) * 900);
-}
-
-static SkFontStyle desc2fontstyle(CTFontDescriptorRef desc) {
-    AutoCFRelease<CFDictionaryRef> dict(
-        (CFDictionaryRef)CTFontDescriptorCopyAttribute(desc,
-                                                       kCTFontTraitsAttribute));
-    if (NULL == dict.get()) {
-        return SkFontStyle();
-    }
-
-    float weight, width, slant;
-    if (!find_dict_float(dict, kCTFontWeightTrait, &weight)) {
-        weight = 0;
-    }
-    if (!find_dict_float(dict, kCTFontWidthTrait, &width)) {
-        width = 0;
-    }
-    if (!find_dict_float(dict, kCTFontSlantTrait, &slant)) {
-        slant = 0;
-    }
-
-    return SkFontStyle(unit_weight_to_fontstyle(weight),
-                       unit_width_to_fontstyle(width),
-                       slant ? SkFontStyle::kItalic_Slant
-                       : SkFontStyle::kUpright_Slant);
-}
-
-struct NameFontStyleRec {
-    SkString    fFamilyName;
-    SkFontStyle fFontStyle;
-};
-
-static bool nameFontStyleProc(SkTypeface* face, SkTypeface::Style,
-                              void* ctx) {
-    SkTypeface_Mac* macFace = (SkTypeface_Mac*)face;
-    const NameFontStyleRec* rec = (const NameFontStyleRec*)ctx;
-
-    return macFace->fFontStyle == rec->fFontStyle &&
-           macFace->fName == rec->fFamilyName;
-}
-
-static SkTypeface* createFromDesc(CFStringRef cfFamilyName,
-                                  CTFontDescriptorRef desc) {
-    NameFontStyleRec rec;
-    CFStringToSkString(cfFamilyName, &rec.fFamilyName);
-    rec.fFontStyle = desc2fontstyle(desc);
-
-    SkTypeface* face = SkTypefaceCache::FindByProcAndRef(nameFontStyleProc,
-                                                         &rec);
-    if (face) {
-        return face;
-    }
-
-    AutoCFRelease<CFDictionaryRef> fontFamilyNameDictionary(
-        CFDictionaryCreate(kCFAllocatorDefault,
-                           (const void**)&kCTFontFamilyNameAttribute, (const void**)&cfFamilyName,
-                           1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
-    AutoCFRelease<CTFontDescriptorRef> fontDescriptor(
-        CTFontDescriptorCreateWithAttributes(fontFamilyNameDictionary));
-    AutoCFRelease<CTFontRef> ctNamed(CTFontCreateWithFontDescriptor(fontDescriptor, 0, NULL));
-    CTFontRef ctFont = CTFontCreateCopyWithAttributes(ctNamed, 1, NULL, desc);
-    if (NULL == ctFont) {
-        return NULL;
-    }
-
-    SkString str;
-    CFStringToSkString(cfFamilyName, &str);
-
-    bool isFixedPitch;
-    (void)computeStyleBits(ctFont, &isFixedPitch);
-    SkFontID fontID = CTFontRef_to_SkFontID(ctFont);
-
-    face = SkNEW_ARGS(SkTypeface_Mac, (rec.fFontStyle, fontID, isFixedPitch,
-                                       ctFont, str.c_str(), false));
-    SkTypefaceCache::Add(face, face->style());
-    return face;
+           sqr((a.slant() != b.slant()) * 900);
 }
 
 class SkFontStyleSet_Mac : public SkFontStyleSet {
 public:
-    SkFontStyleSet_Mac(CFStringRef familyName, CTFontDescriptorRef desc)
-        : fArray(CTFontDescriptorCreateMatchingFontDescriptors(desc, NULL))
-        , fFamilyName(familyName)
-        , fCount(0) {
-        CFRetain(familyName);
-        if (NULL == fArray) {
-            fArray = CFArrayCreate(NULL, NULL, 0, NULL);
+    SkFontStyleSet_Mac(CTFontDescriptorRef desc)
+        : fArray(CTFontDescriptorCreateMatchingFontDescriptors(desc, nullptr))
+        , fCount(0)
+    {
+        if (!fArray) {
+            fArray.reset(CFArrayCreate(nullptr, nullptr, 0, nullptr));
         }
-        fCount = SkToInt(CFArrayGetCount(fArray));
+        fCount = SkToInt(CFArrayGetCount(fArray.get()));
     }
 
-    virtual ~SkFontStyleSet_Mac() {
-        CFRelease(fArray);
-        CFRelease(fFamilyName);
-    }
-
-    virtual int count() SK_OVERRIDE {
+    int count() override {
         return fCount;
     }
 
-    virtual void getStyle(int index, SkFontStyle* style,
-                          SkString* name) SK_OVERRIDE {
+    void getStyle(int index, SkFontStyle* style, SkString* name) override {
         SkASSERT((unsigned)index < (unsigned)fCount);
-        CTFontDescriptorRef desc = (CTFontDescriptorRef)CFArrayGetValueAtIndex(fArray, index);
+        CTFontDescriptorRef desc = (CTFontDescriptorRef)CFArrayGetValueAtIndex(fArray.get(), index);
         if (style) {
-            *style = desc2fontstyle(desc);
+            *style = fontstyle_from_descriptor(desc, false);
         }
         if (name) {
             if (!find_desc_str(desc, kCTFontStyleNameAttribute, name)) {
@@ -2172,32 +2259,31 @@ public:
         }
     }
 
-    virtual SkTypeface* createTypeface(int index) SK_OVERRIDE {
-        SkASSERT((unsigned)index < (unsigned)CFArrayGetCount(fArray));
-        CTFontDescriptorRef desc = (CTFontDescriptorRef)CFArrayGetValueAtIndex(fArray, index);
+    SkTypeface* createTypeface(int index) override {
+        SkASSERT((unsigned)index < (unsigned)CFArrayGetCount(fArray.get()));
+        CTFontDescriptorRef desc = (CTFontDescriptorRef)CFArrayGetValueAtIndex(fArray.get(), index);
 
-        return createFromDesc(fFamilyName, desc);
+        return create_from_desc(desc);
     }
 
-    virtual SkTypeface* matchStyle(const SkFontStyle& pattern) SK_OVERRIDE {
+    SkTypeface* matchStyle(const SkFontStyle& pattern) override {
         if (0 == fCount) {
-            return NULL;
+            return nullptr;
         }
-        return createFromDesc(fFamilyName, findMatchingDesc(pattern));
+        return create_from_desc(findMatchingDesc(pattern));
     }
 
 private:
-    CFArrayRef  fArray;
-    CFStringRef fFamilyName;
-    int         fCount;
+    UniqueCFRef<CFArrayRef> fArray;
+    int fCount;
 
     CTFontDescriptorRef findMatchingDesc(const SkFontStyle& pattern) const {
         int bestMetric = SK_MaxS32;
-        CTFontDescriptorRef bestDesc = NULL;
+        CTFontDescriptorRef bestDesc = nullptr;
 
         for (int i = 0; i < fCount; ++i) {
-            CTFontDescriptorRef desc = (CTFontDescriptorRef)CFArrayGetValueAtIndex(fArray, i);
-            int metric = compute_metric(pattern, desc2fontstyle(desc));
+            CTFontDescriptorRef desc = (CTFontDescriptorRef)CFArrayGetValueAtIndex(fArray.get(), i);
+            int metric = compute_metric(pattern, fontstyle_from_descriptor(desc, false));
             if (0 == metric) {
                 return desc;
             }
@@ -2212,107 +2298,360 @@ private:
 };
 
 class SkFontMgr_Mac : public SkFontMgr {
-    CFArrayRef  fNames;
-    int         fCount;
+    UniqueCFRef<CFArrayRef> fNames;
+    int fCount;
 
-    CFStringRef stringAt(int index) const {
+    CFStringRef getFamilyNameAt(int index) const {
         SkASSERT((unsigned)index < (unsigned)fCount);
-        return (CFStringRef)CFArrayGetValueAtIndex(fNames, index);
+        return (CFStringRef)CFArrayGetValueAtIndex(fNames.get(), index);
     }
 
     static SkFontStyleSet* CreateSet(CFStringRef cfFamilyName) {
-        AutoCFRelease<CFMutableDictionaryRef> cfAttr(
+        UniqueCFRef<CFMutableDictionaryRef> cfAttr(
                  CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
                                            &kCFTypeDictionaryKeyCallBacks,
                                            &kCFTypeDictionaryValueCallBacks));
 
-        CFDictionaryAddValue(cfAttr, kCTFontFamilyNameAttribute, cfFamilyName);
+        CFDictionaryAddValue(cfAttr.get(), kCTFontFamilyNameAttribute, cfFamilyName);
 
-        AutoCFRelease<CTFontDescriptorRef> desc(
-                                CTFontDescriptorCreateWithAttributes(cfAttr));
-        return SkNEW_ARGS(SkFontStyleSet_Mac, (cfFamilyName, desc));
+        UniqueCFRef<CTFontDescriptorRef> desc(
+                CTFontDescriptorCreateWithAttributes(cfAttr.get()));
+        return new SkFontStyleSet_Mac(desc.get());
+    }
+
+    /** CTFontManagerCopyAvailableFontFamilyNames() is not always available, so we
+     *  provide a wrapper here that will return an empty array if need be.
+     */
+    static UniqueCFRef<CFArrayRef> CopyAvailableFontFamilyNames() {
+#ifdef SK_BUILD_FOR_IOS
+        return UniqueCFRef<CFArrayRef>(CFArrayCreate(nullptr, nullptr, 0, nullptr));
+#else
+        return UniqueCFRef<CFArrayRef>(CTFontManagerCopyAvailableFontFamilyNames());
+#endif
     }
 
 public:
     SkFontMgr_Mac()
-        : fNames(SkCTFontManagerCopyAvailableFontFamilyNames())
-        , fCount(fNames ? SkToInt(CFArrayGetCount(fNames)) : 0) {}
-
-    virtual ~SkFontMgr_Mac() {
-        CFSafeRelease(fNames);
-    }
+        : fNames(CopyAvailableFontFamilyNames())
+        , fCount(fNames ? SkToInt(CFArrayGetCount(fNames.get())) : 0) {}
 
 protected:
-    virtual int onCountFamilies() const SK_OVERRIDE {
+    int onCountFamilies() const override {
         return fCount;
     }
 
-    virtual void onGetFamilyName(int index, SkString* familyName) const SK_OVERRIDE {
+    void onGetFamilyName(int index, SkString* familyName) const override {
         if ((unsigned)index < (unsigned)fCount) {
-            CFStringToSkString(this->stringAt(index), familyName);
+            CFStringToSkString(this->getFamilyNameAt(index), familyName);
         } else {
             familyName->reset();
         }
     }
 
-    virtual SkFontStyleSet* onCreateStyleSet(int index) const SK_OVERRIDE {
+    SkFontStyleSet* onCreateStyleSet(int index) const override {
         if ((unsigned)index >= (unsigned)fCount) {
-            return NULL;
+            return nullptr;
         }
-        return CreateSet(this->stringAt(index));
+        return CreateSet(this->getFamilyNameAt(index));
     }
 
-    virtual SkFontStyleSet* onMatchFamily(const char familyName[]) const SK_OVERRIDE {
-        AutoCFRelease<CFStringRef> cfName(make_CFString(familyName));
-        return CreateSet(cfName);
-    }
-
-    virtual SkTypeface* onMatchFamilyStyle(const char familyName[],
-                                           const SkFontStyle&) const SK_OVERRIDE {
-        return NULL;
-    }
-
-    virtual SkTypeface* onMatchFaceStyle(const SkTypeface* familyMember,
-                                         const SkFontStyle&) const SK_OVERRIDE {
-        return NULL;
-    }
-
-    virtual SkTypeface* onCreateFromData(SkData* data,
-                                         int ttcIndex) const SK_OVERRIDE {
-        AutoCFRelease<CGDataProviderRef> pr(SkCreateDataProviderFromData(data));
-        if (NULL == pr) {
-            return NULL;
+    SkFontStyleSet* onMatchFamily(const char familyName[]) const override {
+        if (!familyName) {
+            return nullptr;
         }
-        return create_from_dataProvider(pr);
+        UniqueCFRef<CFStringRef> cfName = make_CFString(familyName);
+        return CreateSet(cfName.get());
     }
 
-    virtual SkTypeface* onCreateFromStream(SkStreamAsset* stream,
-                                           int ttcIndex) const SK_OVERRIDE {
-        AutoCFRelease<CGDataProviderRef> pr(SkCreateDataProviderFromStream(stream));
-        if (NULL == pr) {
-            return NULL;
+    SkTypeface* onMatchFamilyStyle(const char familyName[],
+                                   const SkFontStyle& style) const override {
+        UniqueCFRef<CTFontDescriptorRef> desc = create_descriptor(familyName, style);
+        return create_from_desc(desc.get());
+    }
+
+    SkTypeface* onMatchFamilyStyleCharacter(const char familyName[],
+                                            const SkFontStyle& style,
+                                            const char* bcp47[], int bcp47Count,
+                                            SkUnichar character) const override {
+        UniqueCFRef<CTFontDescriptorRef> desc = create_descriptor(familyName, style);
+        UniqueCFRef<CTFontRef> currentFont(CTFontCreateWithFontDescriptor(desc.get(), 0, nullptr));
+
+        // kCFStringEncodingUTF32 is BE unless there is a BOM.
+        // Since there is no machine endian option, explicitly state machine endian.
+#ifdef SK_CPU_LENDIAN
+        constexpr CFStringEncoding encoding = kCFStringEncodingUTF32LE;
+#else
+        constexpr CFStringEncoding encoding = kCFStringEncodingUTF32BE;
+#endif
+        UniqueCFRef<CFStringRef> string(CFStringCreateWithBytes(
+                kCFAllocatorDefault, reinterpret_cast<const UInt8 *>(&character), sizeof(character),
+                encoding, false));
+        CFRange range = CFRangeMake(0, CFStringGetLength(string.get()));  // in UniChar units.
+        UniqueCFRef<CTFontRef> fallbackFont(
+                CTFontCreateForString(currentFont.get(), string.get(), range));
+        return create_from_CTFontRef(std::move(fallbackFont), nullptr, false);
+    }
+
+    SkTypeface* onMatchFaceStyle(const SkTypeface* familyMember,
+                                 const SkFontStyle&) const override {
+        return nullptr;
+    }
+
+    SkTypeface* onCreateFromData(SkData* data, int ttcIndex) const override {
+        UniqueCFRef<CGDataProviderRef> pr(SkCreateDataProviderFromData(sk_ref_sp(data)));
+        if (!pr) {
+            return nullptr;
         }
-        return create_from_dataProvider(pr);
+        return create_from_dataProvider(std::move(pr), ttcIndex);
     }
 
-    virtual SkTypeface* onCreateFromFile(const char path[],
-                                         int ttcIndex) const SK_OVERRIDE {
-        AutoCFRelease<CGDataProviderRef> pr(CGDataProviderCreateWithFilename(path));
-        if (NULL == pr) {
-            return NULL;
+    SkTypeface* onCreateFromStream(SkStreamAsset* bareStream, int ttcIndex) const override {
+        std::unique_ptr<SkStreamAsset> stream(bareStream);
+        UniqueCFRef<CGDataProviderRef> pr(SkCreateDataProviderFromStream(std::move(stream)));
+        if (!pr) {
+            return nullptr;
         }
-        return create_from_dataProvider(pr);
+        return create_from_dataProvider(std::move(pr), ttcIndex);
     }
 
-    virtual SkTypeface* onLegacyCreateTypeface(const char familyName[],
-                                               unsigned styleBits) const SK_OVERRIDE {
-        return create_typeface(NULL, familyName, (SkTypeface::Style)styleBits);
+    /** Creates a dictionary suitable for setting the axes on a CGFont. */
+    static UniqueCFRef<CFDictionaryRef> copy_axes(CGFontRef cg, const SkFontArguments& args) {
+        // The CGFont variation data is keyed by name, but lacks the tag.
+        // The CTFont variation data is keyed by tag, and also has the name.
+        // We would like to work with CTFont variations, but creating a CTFont font with
+        // CTFont variation dictionary runs into bugs. So use the CTFont variation data
+        // to match names to tags to create the appropriate CGFont.
+        UniqueCFRef<CTFontRef> ct(CTFontCreateWithGraphicsFont(cg, 0, nullptr, nullptr));
+        // CTFontCopyVariationAxes returns nullptr for CGFontCreateWithDataProvider fonts with
+        // macOS 10.10 and iOS 9 or earlier. When this happens, there is no API to provide the tag.
+        UniqueCFRef<CFArrayRef> ctAxes(CTFontCopyVariationAxes(ct.get()));
+        if (!ctAxes) {
+            return nullptr;
+        }
+        CFIndex axisCount = CFArrayGetCount(ctAxes.get());
+
+        const SkFontArguments::VariationPosition position = args.getVariationDesignPosition();
+
+        UniqueCFRef<CFMutableDictionaryRef> dict(
+                CFDictionaryCreateMutable(kCFAllocatorDefault, axisCount,
+                                          &kCFTypeDictionaryKeyCallBacks,
+                                          &kCFTypeDictionaryValueCallBacks));
+
+        for (int i = 0; i < axisCount; ++i) {
+            CFTypeRef axisInfo = CFArrayGetValueAtIndex(ctAxes.get(), i);
+            if (CFDictionaryGetTypeID() != CFGetTypeID(axisInfo)) {
+                return nullptr;
+            }
+            CFDictionaryRef axisInfoDict = static_cast<CFDictionaryRef>(axisInfo);
+
+            // The assumption is that values produced by kCTFontVariationAxisNameKey and
+            // kCGFontVariationAxisName will always be equal.
+            // If they are ever not, seach the project history for "get_tag_for_name".
+            CFTypeRef axisName = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisNameKey);
+            if (!axisName || CFGetTypeID(axisName) != CFStringGetTypeID()) {
+                return nullptr;
+            }
+
+            CFTypeRef tag = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisIdentifierKey);
+            if (!tag || CFGetTypeID(tag) != CFNumberGetTypeID()) {
+                return nullptr;
+            }
+            CFNumberRef tagNumber = static_cast<CFNumberRef>(tag);
+            int64_t tagLong;
+            if (!CFNumberGetValue(tagNumber, kCFNumberSInt64Type, &tagLong)) {
+                return nullptr;
+            }
+
+            // The variation axes can be set to any value, but cg will effectively pin them.
+            // Pin them here to normalize.
+            CFTypeRef min = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisMinimumValueKey);
+            CFTypeRef max = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisMaximumValueKey);
+            CFTypeRef def = CFDictionaryGetValue(axisInfoDict, kCTFontVariationAxisDefaultValueKey);
+            if (!min || CFGetTypeID(min) != CFNumberGetTypeID() ||
+                !max || CFGetTypeID(max) != CFNumberGetTypeID() ||
+                !def || CFGetTypeID(def) != CFNumberGetTypeID())
+            {
+                return nullptr;
+            }
+            CFNumberRef minNumber = static_cast<CFNumberRef>(min);
+            CFNumberRef maxNumber = static_cast<CFNumberRef>(max);
+            CFNumberRef defNumber = static_cast<CFNumberRef>(def);
+            double minDouble;
+            double maxDouble;
+            double defDouble;
+            if (!CFNumberGetValue(minNumber, kCFNumberDoubleType, &minDouble) ||
+                !CFNumberGetValue(maxNumber, kCFNumberDoubleType, &maxDouble) ||
+                !CFNumberGetValue(defNumber, kCFNumberDoubleType, &defDouble))
+            {
+                return nullptr;
+            }
+
+            double value = defDouble;
+            // The position may be over specified. If there are multiple values for a given axis,
+            // use the last one since that's what css-fonts-4 requires.
+            for (int j = position.coordinateCount; j --> 0;) {
+                if (position.coordinates[j].axis == tagLong) {
+                    value = SkTPin(SkScalarToDouble(position.coordinates[j].value),
+                                   minDouble, maxDouble);
+                    break;
+                }
+            }
+            UniqueCFRef<CFNumberRef> valueNumber(
+                CFNumberCreate(kCFAllocatorDefault, kCFNumberDoubleType, &value));
+            CFDictionaryAddValue(dict.get(), axisName, valueNumber.get());
+        }
+        return std::move(dict);
+    }
+    SkTypeface* onCreateFromStream(SkStreamAsset* bs, const SkFontArguments& args) const override {
+        std::unique_ptr<SkStreamAsset> s(bs);
+        if (args.getCollectionIndex() != 0) {
+            return nullptr;
+        }
+        UniqueCFRef<CGDataProviderRef> provider(SkCreateDataProviderFromStream(std::move(s)));
+        if (!provider) {
+            return nullptr;
+        }
+        UniqueCFRef<CGFontRef> cg(CGFontCreateWithDataProvider(provider.get()));
+        if (!cg) {
+            return nullptr;
+        }
+
+        UniqueCFRef<CFDictionaryRef> cgVariations = copy_axes(cg.get(), args);
+        // The CGFontRef returned by CGFontCreateCopyWithVariations when the passed CGFontRef was
+        // created from a data provider does not appear to have any ownership of the underlying
+        // data. The original CGFontRef must be kept alive until the copy will no longer be used.
+        UniqueCFRef<CGFontRef> cgVariant;
+        if (cgVariations) {
+            cgVariant.reset(CGFontCreateCopyWithVariations(cg.get(), cgVariations.get()));
+        } else {
+            cgVariant.reset(cg.release());
+        }
+
+        UniqueCFRef<CTFontRef> ct(
+                CTFontCreateWithGraphicsFont(cgVariant.get(), 0, nullptr, nullptr));
+        if (!ct) {
+            return nullptr;
+        }
+        return create_from_CTFontRef(std::move(ct), std::move(cg), true);
+    }
+
+    /** Creates a dictionary suitable for setting the axes on a CGFont. */
+    static UniqueCFRef<CFDictionaryRef> copy_axes(CGFontRef cg, SkFontData* fontData) {
+        UniqueCFRef<CFArrayRef> cgAxes(CGFontCopyVariationAxes(cg));
+        if (!cgAxes) {
+            return nullptr;
+        }
+
+        CFIndex axisCount = CFArrayGetCount(cgAxes.get());
+        if (0 == axisCount || axisCount != fontData->getAxisCount()) {
+            return nullptr;
+        }
+
+        UniqueCFRef<CFMutableDictionaryRef> dict(
+                CFDictionaryCreateMutable(kCFAllocatorDefault, axisCount,
+                                          &kCFTypeDictionaryKeyCallBacks,
+                                          &kCFTypeDictionaryValueCallBacks));
+
+        for (int i = 0; i < fontData->getAxisCount(); ++i) {
+            CFTypeRef axisInfo = CFArrayGetValueAtIndex(cgAxes.get(), i);
+            if (CFDictionaryGetTypeID() != CFGetTypeID(axisInfo)) {
+                return nullptr;
+            }
+            CFDictionaryRef axisInfoDict = static_cast<CFDictionaryRef>(axisInfo);
+
+            CFTypeRef axisName = CFDictionaryGetValue(axisInfoDict, kCGFontVariationAxisName);
+            if (!axisName || CFGetTypeID(axisName) != CFStringGetTypeID()) {
+                return nullptr;
+            }
+
+            // The variation axes can be set to any value, but cg will effectively pin them.
+            // Pin them here to normalize.
+            CFTypeRef min = CFDictionaryGetValue(axisInfoDict, kCGFontVariationAxisMinValue);
+            CFTypeRef max = CFDictionaryGetValue(axisInfoDict, kCGFontVariationAxisMaxValue);
+            if (!min || CFGetTypeID(min) != CFNumberGetTypeID() ||
+                !max || CFGetTypeID(max) != CFNumberGetTypeID())
+            {
+                return nullptr;
+            }
+            CFNumberRef minNumber = static_cast<CFNumberRef>(min);
+            CFNumberRef maxNumber = static_cast<CFNumberRef>(max);
+            double minDouble;
+            double maxDouble;
+            if (!CFNumberGetValue(minNumber, kCFNumberDoubleType, &minDouble) ||
+                !CFNumberGetValue(maxNumber, kCFNumberDoubleType, &maxDouble))
+            {
+                return nullptr;
+            }
+            double value = SkTPin(SkFixedToDouble(fontData->getAxis()[i]), minDouble, maxDouble);
+            UniqueCFRef<CFNumberRef> valueNumber(
+                    CFNumberCreate(kCFAllocatorDefault, kCFNumberDoubleType, &value));
+            CFDictionaryAddValue(dict.get(), axisName, valueNumber.get());
+        }
+        return std::move(dict);
+    }
+    SkTypeface* onCreateFromFontData(std::unique_ptr<SkFontData> fontData) const override {
+        if (fontData->getIndex() != 0) {
+            return nullptr;
+        }
+        UniqueCFRef<CGDataProviderRef> provider(
+                SkCreateDataProviderFromStream(fontData->detachStream()));
+        if (!provider) {
+            return nullptr;
+        }
+        UniqueCFRef<CGFontRef> cg(CGFontCreateWithDataProvider(provider.get()));
+        if (!cg) {
+            return nullptr;
+        }
+
+        UniqueCFRef<CFDictionaryRef> cgVariations = copy_axes(cg.get(), fontData.get());
+        // The CGFontRef returned by CGFontCreateCopyWithVariations when the passed CGFontRef was
+        // created from a data provider does not appear to have any ownership of the underlying
+        // data. The original CGFontRef must be kept alive until the copy will no longer be used.
+        UniqueCFRef<CGFontRef> cgVariant;
+        if (cgVariations) {
+            cgVariant.reset(CGFontCreateCopyWithVariations(cg.get(), cgVariations.get()));
+        } else {
+            cgVariant.reset(cg.release());
+        }
+
+        UniqueCFRef<CTFontRef> ct(
+                CTFontCreateWithGraphicsFont(cgVariant.get(), 0, nullptr, nullptr));
+        if (!ct) {
+            return nullptr;
+        }
+        return create_from_CTFontRef(std::move(ct), std::move(cg), true);
+    }
+
+    SkTypeface* onCreateFromFile(const char path[], int ttcIndex) const override {
+        UniqueCFRef<CGDataProviderRef> pr(CGDataProviderCreateWithFilename(path));
+        if (!pr) {
+            return nullptr;
+        }
+        return create_from_dataProvider(std::move(pr), ttcIndex);
+    }
+
+    SkTypeface* onLegacyCreateTypeface(const char familyName[], SkFontStyle style) const override {
+        if (familyName) {
+            familyName = map_css_names(familyName);
+        }
+
+        SkTypeface* face = create_from_name(familyName, style);
+        if (face) {
+            return face;
+        }
+
+        static SkTypeface* gDefaultFace;
+        static SkOnce lookupDefault;
+        static const char FONT_DEFAULT_NAME[] = "Lucida Sans";
+        lookupDefault([]{
+            gDefaultFace = create_from_name(FONT_DEFAULT_NAME, SkFontStyle());
+        });
+        return SkSafeRef(gDefaultFace);
     }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 
-SkFontMgr* SkFontMgr::Factory() {
-    return SkNEW(SkFontMgr_Mac);
-}
-#endif
+sk_sp<SkFontMgr> SkFontMgr::Factory() { return sk_make_sp<SkFontMgr_Mac>(); }
+
+#endif//defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)

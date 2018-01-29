@@ -70,7 +70,7 @@ struct OffscreenTargetManager::OffscreenAtlas {
   AllocationMap allocation_map;
   size_t allocations_used;
   scoped_refptr<backend::FramebufferRenderTargetEGL> framebuffer;
-  SkAutoTUnref<SkSurface> skia_surface;
+  sk_sp<SkSurface> skia_surface;
   bool needs_flush;
 };
 
@@ -81,7 +81,8 @@ OffscreenTargetManager::OffscreenTargetManager(
     : graphics_context_(graphics_context),
       create_fallback_surface_(create_fallback_surface),
       offscreen_target_size_mask_(0, 0),
-      memory_limit_(memory_limit) {
+      memory_limit_(memory_limit),
+      cache_error_threshold_(1.0f) {
 }
 
 OffscreenTargetManager::~OffscreenTargetManager() {
@@ -154,6 +155,11 @@ void OffscreenTargetManager::Flush() {
   }
 }
 
+void OffscreenTargetManager::SetCacheErrorThreshold(float threshold) {
+  DCHECK_GE(threshold, 0.0f);
+  cache_error_threshold_ = threshold;
+}
+
 bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
     const CacheErrorFunction& error_function, TargetInfo* out_target_info) {
   // Find the cache of the given node (if any) with the lowest error.
@@ -169,8 +175,8 @@ bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
     }
   }
 
-  // A cache entry matches the caller's criteria only if error < 1.
-  if (best_error < 1.0f) {
+  // A cache entry matches the caller's criteria only if error < threshold.
+  if (best_error < cache_error_threshold_) {
     offscreen_cache_->allocations_used += 1;
     out_target_info->framebuffer = offscreen_cache_->framebuffer.get();
     out_target_info->skia_canvas = offscreen_cache_->skia_surface->getCanvas();
@@ -196,8 +202,8 @@ bool OffscreenTargetManager::GetCachedTarget(const render_tree::Node* node,
     }
   }
 
-  // A cache entry matches the caller's criteria only if error < 1.
-  if (best_error < 1.0f) {
+  // A cache entry matches the caller's criteria only if error < threshold.
+  if (best_error < cache_error_threshold_) {
     offscreen_cache_1d_->allocations_used += 1;
     out_target_info->framebuffer = offscreen_cache_1d_->framebuffer.get();
     out_target_info->skia_canvas = nullptr;
@@ -469,7 +475,7 @@ OffscreenTargetManager::CreateOffscreenAtlas(const math::Size& size,
 
   if (create_canvas) {
     // Wrap the framebuffer as a skia surface.
-    atlas->skia_surface.reset(create_fallback_surface_.Run(atlas->framebuffer));
+    atlas->skia_surface = create_fallback_surface_.Run(atlas->framebuffer);
   }
 
   return atlas.Pass();

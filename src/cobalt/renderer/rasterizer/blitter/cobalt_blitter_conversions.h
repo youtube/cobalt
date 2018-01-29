@@ -26,15 +26,12 @@ namespace renderer {
 namespace rasterizer {
 namespace blitter {
 
-int RoundToInt(float value);
-math::Rect RectFToRect(const math::RectF& rectf);
-
 inline SbBlitterRect RectToBlitterRect(const math::Rect& rect) {
   return SbBlitterMakeRect(rect.x(), rect.y(), rect.width(), rect.height());
 }
 
 inline SbBlitterRect RectFToBlitterRect(const math::RectF& rectf) {
-  return RectToBlitterRect(RectFToRect(rectf));
+  return RectToBlitterRect(cobalt::math::Rect::RoundFromRectF(rectf));
 }
 
 }  // namespace blitter

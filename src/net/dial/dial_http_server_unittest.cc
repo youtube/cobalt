@@ -66,7 +66,7 @@ class DialHttpServerTest : public testing::Test {
     client_.reset(new HttpNetworkTransaction(session_));
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     dial_service_.reset(new DialService());
     dial_service_->Register(handler_);
     EXPECT_EQ(OK, dial_service_->http_server()->GetLocalAddress(&addr_));
@@ -74,7 +74,7 @@ class DialHttpServerTest : public testing::Test {
     InitHttpClientLibrary();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     dial_service_->Deregister(handler_);
     dial_service_.reset(NULL);
 

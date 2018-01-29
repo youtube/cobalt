@@ -34,6 +34,7 @@
 #include "cobalt/script/callback_interface_traits.h"
 #include "cobalt/script/v8c/callback_function_conversion.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
@@ -48,14 +49,18 @@
 
 {% block using_directives %}
 {{ super() }}
+using cobalt::script::v8c::EntryScope;
+using cobalt::script::v8c::EscapableEntryScope;
 using cobalt::script::v8c::FromJSValue;
 using cobalt::script::v8c::InterfaceData;
 using cobalt::script::v8c::kConversionFlagClamped;
 using cobalt::script::v8c::kConversionFlagNullable;
+using cobalt::script::v8c::kConversionFlagObjectOnly;
 using cobalt::script::v8c::kConversionFlagRestricted;
 using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::v8c::kNoConversionFlags;
+using cobalt::script::v8c::ToJSValue;
 using cobalt::script::v8c::TypeTraits;
 using cobalt::script::v8c::V8cExceptionState;
 using cobalt::script::v8c::V8cGlobalEnvironment;
@@ -81,7 +86,7 @@ void FromJSValue(v8::Isolate* context, v8::Local<v8::Value> value,
 
 {% block top_level_unnamed_namespace %}
 
-v8::Local<v8::Object> DummyFunctor(V8cGlobalEnvironment*, const scoped_refptr<Wrappable>&) {
+v8::Local<v8::Object> DummyFunctor(v8::Isolate*, const scoped_refptr<Wrappable>&) {
   NOTIMPLEMENTED();
   return {};
 }
@@ -92,96 +97,154 @@ v8::Local<v8::Object> DummyFunctor(V8cGlobalEnvironment*, const scoped_refptr<Wr
 
 namespace {
 
-void {{interface.name}}Constructor(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  NOTIMPLEMENTED();
-  if (!args.IsConstructCall()) {
-    // TODO: Probably throw something here...
-    return;
-  }
+{% if constructor %}
 
-  DCHECK(args.This()->InternalFieldCount() == 1);
-  args.This()->SetInternalField(0, v8::External::New(args.GetIsolate(), nullptr));
-  args.GetReturnValue().Set(args.This());
+{% for overload in constructor.overloads if constructor.overloads|length > 1 %}
+void Constructor{{overload.overload_index}}(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+{{ constructor_implementation(overload) -}}
 }
+{% endfor %}
 
-{% for attribute in attributes if not attribute.is_constructor_attribute %}
+void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+{% if constructor.overloads|length == 1 %}
+  v8::Isolate* isolate = info.GetIsolate();
+{{ constructor_implementation(constructor.overloads[0]) -}}
+{% else %}
+{{ overload_resolution_implementation(constructor, "Constructor")}}
+{% endif %}
+}
+{% endif %}
+
+{% for constant in constants %}
+void {{constant.idl_name}}AttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // TODO: Consider just attaching a constant instead.
+  v8::Local<v8::Value> result_value;
+  ToJSValue(info.GetIsolate(), {{constant.value}}, &result_value);
+  info.GetReturnValue().Set(result_value);
+}
+{% endfor %}
+
+{% for attribute in attributes + static_attributes %}
 {% if attribute.conditional %}
 #if defined({{attribute.conditional}})
 {% endif %}
-
-void v8cGet_{{attribute.idl_name}}(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  {{interface.name}}* impl = static_cast<{{interface.name}}*>(wrapper_private->wrappable<{{interface.name}}>());
-
-{% if attribute.put_forwards %}
-  NOTIMPLEMENTED();
+{% if attribute.is_constructor_attribute %}
+void {{attribute.idl_name}}AttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> global_object = info.GetIsolate()->GetCurrentContext()->Global();
+  v8::Local<v8::Object> interface_object = V8c{{attribute.interface_name}}::GetInterfaceObject(isolate, global_object);
+  info.GetReturnValue().Set(interface_object);
+}
 {% else %}
-  v8::Local<v8::Value> result_value;
-{##}
-{% endif %} {#- attribute.put_forwards #}
+{% if attribute.is_static %}
+void {{attribute.idl_name}}StaticAttributeGetter(
+{% else %}
+void {{attribute.idl_name}}AttributeGetter(
+{% endif %}
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+{% if attribute.is_static %}
+{{ static_function_prologue() -}}
+{% endif %}
+
+{% if not attribute.is_static %}
+{{ check_if_object_implements_interface() }}
+{{ nonstatic_function_prologue(impl_class) }}
+{% endif %}
+{{ call_cobalt_function(impl_class, attribute.type,
+                        attribute.getter_function_name, [],
+                        attribute.raises_exception, attribute.call_with,
+                        attribute.is_static) }}
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
 {% if attribute.has_setter %}
-
-void v8cSet_{{attribute.idl_name}}(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  {{interface.name}}* impl = static_cast<{{interface.name}}*>(wrapper_private->wrappable<{{interface.name}}>());
-
-{% if attribute.put_forwards %}
-  NOTIMPLEMENTED();
+{% if attribute.is_static %}
+void {{attribute.idl_name}}StaticAttributeSetter(
 {% else %}
-  TypeTraits<{{attribute.type}}>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, {{attribute.conversion_flags}}, &exception_state, &conversion_value);
-{% if attribute.raises_exception %}
-  V8cExceptionState exception;
+void {{attribute.idl_name}}AttributeSetter(
 {% endif %}
-  impl->{{attribute.setter_function_name}}(
-    conversion_value
-{% if attribute.raises_exception %}
-    ,&exception
-{% endif %}
-  );
-{##}
-{% endif %} {#- attribute.put_forwards #}
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+{% if attribute.is_static %}
+{{ static_function_prologue() }}
+{% else %}
+{{ check_if_object_implements_interface() }}
+{{ nonstatic_function_prologue(impl_class)}}
+{% endif %} {#- attribute.is_static #}
+{{ set_attribute_implementation(attribute, impl_class) -}}
 }
+{% endif %} {#- attribute.has_setter #}
 
 {% endif %}
-
 {% if attribute.conditional %}
 #endif  // {{attribute.conditional}}
+{% endif %} {#- attribute.is_constructor_attribute #}
+{% endfor %} {#- for attribute in attributes + static_attributes #}
+
+{%- for operation in operations + static_operations %}
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+{% set boundFunctionSuffix = "StaticMethod" if operation.is_static else "Method" %}
+
+{% for overload in operation.overloads if operation.overloads|length > 1 %}
+void {{operation.idl_name}}{{boundFunctionSuffix}}{{overload.overload_index}}(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+{{ function_implementation(overload) -}}
+}
+{% endfor %}
+
+void {{operation.idl_name}}{{boundFunctionSuffix}}(const v8::FunctionCallbackInfo<v8::Value>& info) {
+{% if operation.overloads|length == 1 %}
+{{ function_implementation(operation.overloads[0]) -}}
+{% else %}
+{{ overload_resolution_implementation(operation, operation.idl_name + boundFunctionSuffix) }}
+{% endif %}
+}
+
+{% if operation.conditional %}
+#endif  // {{operation.conditional}}
 {% endif %}
 {% endfor %}
 
-void DummyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  LOG(INFO) << __func__;
-}
-
-void InitializeTemplate(
-  V8cGlobalEnvironment* env,
-  InterfaceData* interface_data) {
-  v8::Isolate* isolate = env->isolate();
-  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
-    isolate);
+void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* interface_data) {
+  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(isolate);
   function_template->SetClassName(
     v8::String::NewFromUtf8(isolate, "{{interface_name}}",
         v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
-  instance_template->SetInternalFieldCount(1);
+  instance_template->SetInternalFieldCount(WrapperPrivate::kInternalFieldCount);
+
+{% if parent_interface %}
+  v8::Local<v8::FunctionTemplate> parent_template = {{parent_interface}}::CreateTemplate(isolate);
+  function_template->Inherit(parent_template);
+{% elif is_exception_interface %}
+  NOTIMPLEMENTED();
+{% endif %}
 
   v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
-  prototype_template->SetInternalFieldCount(1);
+
+{% for constant in constants %}
+  prototype_template->SetAccessor(
+    v8::String::NewFromUtf8(isolate, "{{constant.idl_name}}",
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked(),
+    {{constant.idl_name}}AttributeGetter);
+{% endfor %}
 
 {% for attribute in attributes if not attribute.is_constructor_attribute %}
 {% if attribute.conditional %}
@@ -191,70 +254,79 @@ void InitializeTemplate(
     v8::String::NewFromUtf8(isolate, "{{attribute.idl_name}}",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_{{attribute.idl_name}}
+    {{attribute.idl_name}}AttributeGetter
 {% if attribute.has_setter %}
-    ,v8cSet_{{attribute.idl_name}}
+    ,{{attribute.idl_name}}AttributeSetter
 {% endif %}
   );
 {% if attribute.conditional %}
-#endif  // {{attribute.conditional}}
+#endif  // defined({{attribute.conditional}})
 {% endif %}
 {% endfor %}
 
 {% for operation in operations %}
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "{{operation.idl_name}}",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
+{% if operation.conditional %}
+#if defined({{operation.conditional}})
+{% endif %}
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, {{operation.idl_name}}Method);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "{{operation.idl_name}}",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+{% if operation.conditional %}
+#endif  // defined({{operation.conditional}})
+{% endif %}
+
 {% endfor %}
 
-  interface_data->templ.Set(env->isolate(), function_template);
+  interface_data->function_template.Set(isolate, function_template);
 }
 
-inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* env) {
+inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
   const int kInterfaceUniqueId = {{unique_id}};
   // By convention, the |V8cGlobalEnvironment| that we are associated with
   // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
   // for it to be there in the first place, and could not have conflicted with
   // any other interface.
-  return env->GetInterfaceData(kInterfaceUniqueId);
+  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 }  // namespace
 
-v8::Local<v8::Object> {{binding_class}}::CreateWrapper(V8cGlobalEnvironment* env, const scoped_refptr<Wrappable>& wrappable) {
-  v8::Isolate* isolate = env->isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
-  v8::EscapableHandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = env->context();
-  v8::Context::Scope scope(context);
+v8::Local<v8::Object> {{binding_class}}::CreateWrapper(v8::Isolate* isolate, const scoped_refptr<Wrappable>& wrappable) {
+  EscapableEntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  InterfaceData* interface_data = GetInterfaceData(env);
-  if (interface_data->templ.IsEmpty()) {
-    InitializeTemplate(env, interface_data);
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  InterfaceData* interface_data = GetInterfaceData(global_environment);
+  if (interface_data->function_template.IsEmpty()) {
+    InitializeTemplateAndInterfaceObject(isolate, interface_data);
   }
-  DCHECK(!interface_data->templ.IsEmpty());
+  DCHECK(!interface_data->function_template.IsEmpty());
 
-  v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
-  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
+  v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
+  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
   v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
-  DCHECK(object->InternalFieldCount() == 1);
+  DCHECK(object->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
 
-  // |WrapperPrivate|'s lifetime will be managed by V8.
+  // This |WrapperPrivate|'s lifetime will be managed by V8.
   new WrapperPrivate(isolate, wrappable, object);
-  return handle_scope.Escape(object);
+  return entry_scope.Escape(object);
 }
 
-v8::Local<v8::FunctionTemplate> {{binding_class}}::CreateTemplate(V8cGlobalEnvironment* env) {
-  InterfaceData* interface_data = GetInterfaceData(env);
-  if (interface_data->templ.IsEmpty()) {
-    InitializeTemplate(env, interface_data);
+v8::Local<v8::FunctionTemplate> {{binding_class}}::CreateTemplate(v8::Isolate* isolate) {
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  InterfaceData* interface_data = GetInterfaceData(global_environment);
+  if (interface_data->function_template.IsEmpty()) {
+    InitializeTemplateAndInterfaceObject(isolate, interface_data);
   }
 
-  return interface_data->templ.Get(env->isolate());
+  return interface_data->function_template.Get(isolate);
 }
 
 {% endblock implementation %}
@@ -269,10 +341,11 @@ template <typename GlobalInterface>
 void V8cGlobalEnvironment::CreateGlobalObject(
     const scoped_refptr<GlobalInterface>& global_interface,
     EnvironmentSettings* environment_settings) {
+  // Intentionally not an |EntryScope|, since the context doesn't exist yet.
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::ObjectTemplate> global_object_template = {{binding_class}}::CreateTemplate(isolate_)->InstanceTemplate();
 
-  v8::Local<v8::ObjectTemplate> global_object_template = v8::ObjectTemplate::New(isolate_);
 {% for interface in all_interfaces %}
 {% if interface.conditional %}
 #if defined({{interface.conditional}})
@@ -281,7 +354,7 @@ void V8cGlobalEnvironment::CreateGlobalObject(
       v8::String::NewFromUtf8(
           isolate_, "{{interface.name}}",
           v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8c{{interface.name}}::CreateTemplate(this));
+      V8c{{interface.name}}::CreateTemplate(isolate_));
 {% if interface.conditional %}
 #endif  // defined({{interface.conditional}})
 {% endif %}
@@ -290,7 +363,10 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_, nullptr, global_object_template);
   context_.Reset(isolate_, context);
+  v8::Context::Scope context_scope(context);
 
+  DCHECK(!environment_settings_);
+  DCHECK(environment_settings);
   environment_settings_ = environment_settings;
   EvaluateAutomatics();
 
@@ -351,20 +427,27 @@ inline void ToJSValue(
   }
 }
 
-inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 {{impl_class}}::{{enumeration.name}}* out_enum) {
+inline void FromJSValue(
+    v8::Isolate* isolate, v8::Local<v8::Value> value,
+    int conversion_flags, ExceptionState* exception_state,
+    {{impl_class}}::{{enumeration.name}}* out_enum) {
   DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
   // Value -> IDL enum algorithm described here:
   // http://heycam.github.io/webidl/#es-enumeration
   // 1. Let S be the result of calling ToString(V).
-  v8::Local<v8::String> string = value->ToString();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::MaybeLocal<v8::String> maybe_string = value->ToString(context);
+  v8::Local<v8::String> string;
+  if (!maybe_string.ToLocal(&string)) {
+    exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
+    return;
+  }
 
   bool match = false;
 // 3. Return the enumeration value of type E that is equal to S.
 {% for value, idl_value in enumeration.value_pairs %}
 {{-" else " if not loop.first}}
-  if (string == v8::String::NewFromUtf8(isolate, "{{id_value}}")) {
+  if (string == v8::String::NewFromUtf8(isolate, "{{id_value}}", v8::NewStringType::kInternalized).ToLocalChecked()) {
     *out_enum = {{impl_class}}::{{value}};
   }
 {% endfor %}

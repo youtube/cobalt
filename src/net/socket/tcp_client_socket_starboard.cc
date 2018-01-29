@@ -88,11 +88,11 @@ class TCPClientSocketStarboard::Watcher : public MessageLoopForIO::Watcher {
   explicit Watcher(TCPClientSocketStarboard* socket) : socket_(socket) {}
   virtual ~Watcher() {}
 
-  void OnSocketReadyToRead(SbSocket socket) OVERRIDE {
+  void OnSocketReadyToRead(SbSocket socket) override {
     socket_->DidCompleteRead();
   }
 
-  void OnSocketReadyToWrite(SbSocket socket) OVERRIDE {
+  void OnSocketReadyToWrite(SbSocket socket) override {
     // is this a connection callback?
     if (socket_->waiting_connect()) {
       socket_->DidCompleteConnect();

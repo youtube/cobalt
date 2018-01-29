@@ -6,12 +6,12 @@
  */
 
 #include "SampleCode.h"
+#include "SkAnimTimer.h"
 #include "SkView.h"
 #include "SkCanvas.h"
 #include "SkCornerPathEffect.h"
 #include "SkGradientShader.h"
 #include "SkGraphics.h"
-#include "SkImageDecoder.h"
 #include "SkPath.h"
 #include "SkRandom.h"
 #include "SkRegion.h"
@@ -21,28 +21,10 @@
 #include "SkColorFilter.h"
 #include "SkTime.h"
 #include "SkTypeface.h"
-#include "SkXfermode.h"
-
 #include "SkStream.h"
-#include "SkXMLParser.h"
 #include "SkColorPriv.h"
-#include "SkImageDecoder.h"
 
 static SkRandom gRand;
-
-static void test_chromium_9005() {
-    SkBitmap bm;
-    bm.allocN32Pixels(800, 600);
-
-    SkCanvas canvas(bm);
-
-    SkPoint pt0 = { 799.33374f, 1.2360189f };
-    SkPoint pt1 = { 808.49969f, -7.4338055f };
-
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    canvas.drawLine(pt0.fX, pt0.fY, pt1.fX, pt1.fY, paint);
-}
 
 static void generate_pts(SkPoint pts[], int count, int w, int h) {
     for (int i = 0; i < count; i++) {
@@ -95,7 +77,7 @@ static void line_proc(SkCanvas* canvas, const SkPaint& paint,
     for (int i = 0; i < 400; i++) {
         generate_pts(pts, N, WIDTH, HEIGHT);
 
-        canvas->drawLine(pts[0].fX, pts[0].fY, pts[1].fX, pts[1].fY, paint);
+        canvas->drawLine(pts[0], pts[1], paint);
         if (!check_bitmap_margin(bm, MARGIN)) {
             SkDebugf("---- hairline failure (%g %g) (%g %g)\n",
                      pts[0].fX, pts[0].fY, pts[1].fX, pts[1].fY);
@@ -191,7 +173,6 @@ class HairlineView : public SampleView {
     bool fDoAA;
 public:
     HairlineView() {
-        fCounter = 0;
         fProcIndex = 0;
         fDoAA = true;
         fNow = 0;
@@ -199,7 +180,7 @@ public:
 
 protected:
     // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) {
+    bool onQuery(SkEvent* evt) override {
         if (SampleCode::TitleQ(*evt)) {
             SkString str;
             str.printf("Hair-%s", gProcs[fProcIndex].fName);
@@ -211,18 +192,12 @@ protected:
 
     void show_bitmaps(SkCanvas* canvas, const SkBitmap& b0, const SkBitmap& b1,
                       const SkIRect& inset) {
-        canvas->drawBitmap(b0, 0, 0, NULL);
-        canvas->drawBitmap(b1, SkIntToScalar(b0.width()), 0, NULL);
+        canvas->drawBitmap(b0, 0, 0, nullptr);
+        canvas->drawBitmap(b1, SkIntToScalar(b0.width()), 0, nullptr);
     }
 
-    int fCounter;
-
-    virtual void onDrawContent(SkCanvas* canvas) {
+    void onDrawContent(SkCanvas* canvas) override {
         gRand.setSeed(fNow);
-
-        if (false) { // avoid bit rot, suppress warning
-            test_chromium_9005();
-        }
 
         SkBitmap bm, bm2;
         bm.allocN32Pixels(WIDTH + MARGIN*2, HEIGHT + MARGIN*2);
@@ -239,26 +214,21 @@ protected:
 
         bm2.eraseColor(SK_ColorTRANSPARENT);
         gProcs[fProcIndex].fProc(&c2, paint, bm);
-        canvas->drawBitmap(bm2, SkIntToScalar(10), SkIntToScalar(10), NULL);
-
-        SkMSec now = SampleCode::GetAnimTime();
-        if (fNow != now) {
-            fNow = now;
-            fCounter += 1;
-            fDoAA = !fDoAA;
-            if (fCounter > 50) {
-                fProcIndex = cycle_hairproc_index(fProcIndex);
-                // todo: signal that we want to rebuild our TITLE
-                fCounter = 0;
-            }
-            this->inval(NULL);
-        }
+        canvas->drawBitmap(bm2, SkIntToScalar(10), SkIntToScalar(10), nullptr);
     }
 
-    virtual SkView::Click* onFindClickHandler(SkScalar x, SkScalar y,
-                                              unsigned modi) {
+    bool onAnimate(const SkAnimTimer&) override {
+        if (fDoAA) {
+            fProcIndex = cycle_hairproc_index(fProcIndex);
+            // todo: signal that we want to rebuild our TITLE
+        }
         fDoAA = !fDoAA;
-        this->inval(NULL);
+        return true;
+    }
+
+    SkView::Click* onFindClickHandler(SkScalar x, SkScalar y, unsigned modi) override {
+        fDoAA = !fDoAA;
+        this->inval(nullptr);
         return this->INHERITED::onFindClickHandler(x, y, modi);
     }
 

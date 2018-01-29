@@ -60,6 +60,10 @@ void MediaSession::SetActionHandler(
   MaybeQueueChangeTask();
 }
 
+void MediaSession::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(metadata_);
+}
+
 void MediaSession::MaybeQueueChangeTask() {
   DCHECK_EQ(base::MessageLoopProxy::current(), message_loop_.get());
   if (is_change_task_queued_) {

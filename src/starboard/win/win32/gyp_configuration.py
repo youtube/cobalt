@@ -13,6 +13,9 @@
 # limitations under the License.
 """Starboard win-win32 platform configuration for gyp_cobalt."""
 
+from __future__ import print_function
+
+import imp
 import logging
 import os
 import sys
@@ -25,7 +28,6 @@ sys.path.append(
             os.pardir, 'shared', 'win32')))
 import gyp_configuration
 
-
 def CreatePlatformConfig():
   try:
     win_lib_config = WinWin32PlatformConfig('win-win32')
@@ -34,10 +36,16 @@ def CreatePlatformConfig():
     logging.critical(e)
     return None
 
-
-
 class WinWin32PlatformConfig(gyp_configuration.PlatformConfig):
   """Starboard win-32 platform configuration."""
 
   def __init__(self, platform):
     super(WinWin32PlatformConfig, self).__init__(platform)
+
+  def GetLauncher(self):
+    """Gets the module used to launch applications on this platform."""
+    module_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), 'launcher.py'))
+
+    launcher_module = imp.load_source('launcher', module_path)
+    return launcher_module

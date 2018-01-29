@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2012 The Android Open Source Project
  *
@@ -7,6 +6,7 @@
  */
 
 #include "Benchmark.h"
+#include "SkBitmap.h"
 #include "SkCanvas.h"
 
 
@@ -20,14 +20,14 @@ public:
     ReadPixBench() {}
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return "readpix";
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         canvas->clear(SK_ColorBLACK);
 
-        SkISize size = canvas->getDeviceSize();
+        SkISize size = canvas->getBaseLayerSize();
 
         int offX = (size.width() - kWindowSize) / kNumStepsX;
         int offY = (size.height() - kWindowSize) / kNumStepsY;
@@ -43,12 +43,13 @@ protected:
 
         SkBitmap bitmap;
 
-        bitmap.setInfo(SkImageInfo::MakeN32Premul(kWindowSize, kWindowSize));
+        bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWindowSize, kWindowSize));
 
         for (int i = 0; i < loops; i++) {
             for (int x = 0; x < kNumStepsX; ++x) {
                 for (int y = 0; y < kNumStepsY; ++y) {
-                    canvas->readPixels(&bitmap, x * offX, y * offY);
+                    canvas->readPixels(bitmap.info(), bitmap.getPixels(), bitmap.rowBytes(),
+                                       x * offX, y * offY);
                 }
             }
         }

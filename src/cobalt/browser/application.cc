@@ -37,6 +37,8 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
+#include "cobalt/base/on_screen_keyboard_blurred_event.h"
+#include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/startup_timer.h"
@@ -360,10 +362,14 @@ void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
 
 void ApplyCommandLineSettingsToRendererOptions(
     renderer::RendererModule::Options* options) {
-  SetIntegerIfSwitchIsSet(browser::switches::kSurfaceCacheSizeInBytes,
-                          &options->surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  auto command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kDisableRasterizerCaching)) {
+    options->disable_rasterizer_caching = true;
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 }
 
 struct NonTrivialStaticFields {
@@ -407,6 +413,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       stats_update_timer_(true, true) {
+  DCHECK(!quit_closure_.is_null());
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -621,12 +628,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
                                      deep_link_event_callback_);
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                      window_size_change_event_callback_);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   on_screen_keyboard_shown_event_callback_ = base::Bind(
       &Application::OnOnScreenKeyboardShownEvent, base::Unretained(this));
@@ -637,6 +644,16 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardHiddenEvent::TypeId(),
       on_screen_keyboard_hidden_event_callback_);
+  on_screen_keyboard_focused_event_callback_ = base::Bind(
+      &Application::OnOnScreenKeyboardFocusedEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardFocusedEvent::TypeId(),
+      on_screen_keyboard_focused_event_callback_);
+  on_screen_keyboard_blurred_event_callback_ = base::Bind(
+      &Application::OnOnScreenKeyboardBlurredEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardBlurredEvent::TypeId(),
+      on_screen_keyboard_blurred_event_callback_);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -694,10 +711,10 @@ Application::~Application() {
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
                                         deep_link_event_callback_);
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
   app_status_ = kShutDownAppStatus;
 }
 
@@ -723,11 +740,7 @@ void Application::Quit() {
     return;
   }
 
-  DCHECK(!quit_closure_.is_null());
-  if (!quit_closure_.is_null()) {
-    quit_closure_.Run();
-  }
-
+  quit_closure_.Run();
   app_status_ = kQuitAppStatus;
 }
 
@@ -751,7 +764,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_API_VERSION >= 6
       OnApplicationEvent(starboard_event->type);
       break;
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
@@ -759,13 +772,25 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
               ->size));
       break;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
-      DispatchEventInternal(new base::OnScreenKeyboardShownEvent());
+      DCHECK(starboard_event->data);
+      DispatchEventInternal(new base::OnScreenKeyboardShownEvent(
+          *static_cast<int*>(starboard_event->data)));
       break;
     case kSbEventTypeOnScreenKeyboardHidden:
-      DispatchEventInternal(new base::OnScreenKeyboardHiddenEvent());
+      DispatchEventInternal(new base::OnScreenKeyboardHiddenEvent(
+          *static_cast<int*>(starboard_event->data)));
+      break;
+    case kSbEventTypeOnScreenKeyboardFocused:
+      DCHECK(starboard_event->data);
+      DispatchEventInternal(new base::OnScreenKeyboardFocusedEvent(
+          *static_cast<int*>(starboard_event->data)));
+      break;
+    case kSbEventTypeOnScreenKeyboardBlurred:
+      DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
+          *static_cast<int*>(starboard_event->data)));
       break;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeNetworkConnect:
@@ -878,28 +903,46 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
   }
 }
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
   const base::WindowSizeChangedEvent* window_size_change_event =
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   browser_module_->OnWindowSizeChanged(window_size_change_event->size());
 }
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnOnScreenKeyboardShownEvent()");
-  UNREFERENCED_PARAMETER(event);
-  browser_module_->OnOnScreenKeyboardShown();
+  browser_module_->OnOnScreenKeyboardShown(
+      base::polymorphic_downcast<const base::OnScreenKeyboardShownEvent*>(
+          event));
 }
 
 void Application::OnOnScreenKeyboardHiddenEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnOnScreenKeyboardHiddenEvent()");
-  UNREFERENCED_PARAMETER(event);
-  browser_module_->OnOnScreenKeyboardHidden();
+  browser_module_->OnOnScreenKeyboardHidden(
+      base::polymorphic_downcast<const base::OnScreenKeyboardHiddenEvent*>(
+          event));
+}
+
+void Application::OnOnScreenKeyboardFocusedEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardFocusedEvent()");
+  browser_module_->OnOnScreenKeyboardFocused(
+      base::polymorphic_downcast<const base::OnScreenKeyboardFocusedEvent*>(
+          event));
+}
+
+void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardBlurredEvent()");
+  browser_module_->OnOnScreenKeyboardBlurred(
+      base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
+          event));
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 

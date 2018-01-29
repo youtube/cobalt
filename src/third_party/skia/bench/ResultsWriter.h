@@ -12,9 +12,10 @@
 
 #include "BenchLogger.h"
 #include "SkJSONCPP.h"
+#include "SkOSFile.h"
+#include "SkOSPath.h"
 #include "SkStream.h"
 #include "SkString.h"
-#include "SkTArray.h"
 #include "SkTypes.h"
 
 /**
@@ -34,7 +35,7 @@ public:
     virtual void property(const char name[], const char value[]) {}
 
     // Denote the start of a specific benchmark. Once bench is called,
-    // then config and timer can be called multiple times to record runs.
+    // then config and metric can be called multiple times to record runs.
     virtual void bench(const char name[], int32_t x, int32_t y) {}
 
     // Record the specific configuration a bench is run under, such as "8888".
@@ -44,7 +45,13 @@ public:
     virtual void configOption(const char name[], const char* value) {}
 
     // Record a single test metric.
-    virtual void timer(const char name[], double ms) {}
+    virtual void metric(const char name[], double ms) {}
+
+    // Record a list of test metrics.
+    virtual void metrics(const char name[], const SkTArray<double>& array) {}
+
+    // Flush to storage now please.
+    virtual void flush() {}
 };
 
 /**
@@ -75,42 +82,63 @@ public:
         : fFilename(filename)
         , fRoot()
         , fResults(fRoot["results"])
-        , fBench(NULL)
-        , fConfig(NULL) {}
+        , fBench(nullptr)
+        , fConfig(nullptr) {}
 
-    ~NanoJSONResultsWriter() {
-        SkFILEWStream stream(fFilename.c_str());
-        stream.writeText(Json::StyledWriter().write(fRoot).c_str());
-        stream.flush();
+    ~NanoJSONResultsWriter() override {
+        this->flush();
     }
 
     // Added under "key".
-    virtual void key(const char name[], const char value[]) {
+    void key(const char name[], const char value[]) override {
         fRoot["key"][name] = value;
     }
     // Inserted directly into the root.
-    virtual void property(const char name[], const char value[]) {
+    void property(const char name[], const char value[]) override {
         fRoot[name] = value;
     }
-    virtual void bench(const char name[], int32_t x, int32_t y) {
+    void bench(const char name[], int32_t x, int32_t y) override {
         SkString id = SkStringPrintf( "%s_%d_%d", name, x, y);
         fResults[id.c_str()] = Json::Value(Json::objectValue);
         fBench = &fResults[id.c_str()];
     }
-    virtual void config(const char name[]) {
+    void config(const char name[]) override {
         SkASSERT(fBench);
         fConfig = &(*fBench)[name];
     }
-    virtual void configOption(const char name[], const char* value) {
+    void configOption(const char name[], const char* value) override {
         (*fConfig)["options"][name] = value;
     }
-    virtual void timer(const char name[], double ms) {
+    void metric(const char name[], double ms) override {
         // Don't record if nan, or -nan.
         if (sk_double_isnan(ms)) {
             return;
         }
         SkASSERT(fConfig);
         (*fConfig)[name] = ms;
+    }
+    void metrics(const char name[], const SkTArray<double>& array) override {
+        SkASSERT(fConfig);
+        Json::Value value = Json::Value(Json::arrayValue);
+        value.resize(array.count());
+        for (int i = 0; i < array.count(); i++) {
+            // Don't care about nan-ness.
+            value[i] = array[i];
+        }
+        (*fConfig)[name] = std::move(value);
+    }
+
+    // Flush to storage now please.
+    void flush() override {
+        SkString dirname = SkOSPath::Dirname(fFilename.c_str());
+        if (!sk_exists(dirname.c_str(), kWrite_SkFILE_Flag)) {
+            if (!sk_mkdir(dirname.c_str())) {
+                SkDebugf("Failed to create directory.");
+            }
+        }
+        SkFILEWStream stream(fFilename.c_str());
+        stream.writeText(Json::StyledWriter().write(fRoot).c_str());
+        stream.flush();
     }
 
 private:

@@ -39,6 +39,58 @@ size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
   return width * height * 3 / 2;
 }
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+
+void ReleaseBuffer(void* opaque, uint8_t* data) {
+  SbMemorySet(data, 0, sizeof(data));
+  SbMemoryDeallocate(data);
+}
+
+int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame, int flags) {
+  if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
+      codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
+    SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;
+    return AVERROR(EINVAL);
+  }
+
+  int ret =
+      av_image_check_size(codec_context->width, codec_context->height, 0, NULL);
+  if (ret < 0) {
+    return ret;
+  }
+
+  // Align to kAlignment * 2 as we will divide y_stride by 2 for u and v planes
+  size_t y_stride = AlignUp(codec_context->width, kAlignment * 2);
+  size_t uv_stride = y_stride / 2;
+  size_t aligned_height = AlignUp(codec_context->height, kAlignment * 2);
+
+  uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(SbMemoryAllocateAligned(
+      kAlignment, GetYV12SizeInBytes(y_stride, aligned_height)));
+
+  frame->data[0] = frame_buffer;
+  frame->linesize[0] = y_stride;
+
+  frame->data[1] = frame_buffer + y_stride * aligned_height;
+  frame->linesize[1] = uv_stride;
+
+  frame->data[2] = frame->data[1] + uv_stride * aligned_height / 2;
+  frame->linesize[2] = uv_stride;
+
+  frame->opaque = frame;
+  frame->width = codec_context->width;
+  frame->height = codec_context->height;
+  frame->format = codec_context->pix_fmt;
+
+  frame->reordered_opaque = codec_context->reordered_opaque;
+
+  frame->buf[0] = av_buffer_create(frame_buffer,
+                                   GetYV12SizeInBytes(y_stride, aligned_height),
+                                   &ReleaseBuffer, frame->opaque, 0);
+  return 0;
+}
+
+#else  // LIBAVUTIL_VERSION_MAJOR > 52
+
 int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame) {
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
@@ -93,6 +145,7 @@ void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
   SbMemorySet(frame->data, 0, sizeof(frame->data));
 }
 
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
 }  // namespace
 
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
@@ -100,7 +153,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
     : video_codec_(video_codec),
-      host_(NULL),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
@@ -118,17 +170,22 @@ VideoDecoder::~VideoDecoder() {
   TeardownCodec();
 }
 
-void VideoDecoder::SetHost(Host* host) {
-  SB_DCHECK(host != NULL);
-  SB_DCHECK(host_ == NULL);
-  host_ = host;
+void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                              const ErrorCB& error_cb) {
+  SB_DCHECK(decoder_status_cb);
+  SB_DCHECK(!decoder_status_cb_);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
+
+  decoder_status_cb_ = decoder_status_cb;
+  error_cb_ = error_cb;
 }
 
 void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
   SB_DCHECK(queue_.Poll().type == kInvalid);
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
@@ -146,11 +203,19 @@ void VideoDecoder::WriteInputBuffer(
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
+
+  if (!SbThreadIsValid(decoder_thread_)) {
+    // In case there is no WriteInputBuffer() call before WriteEndOfStream(),
+    // don't create the decoder thread and send the EOS frame directly.
+    decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    return;
+  }
+
   queue_.Put(Event(kWriteEndOfStream));
 }
 
@@ -201,7 +266,7 @@ void VideoDecoder::DecoderThreadFunc() {
       codec_context_->reordered_opaque = packet.pts;
 
       DecodePacket(&packet);
-      host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
+      decoder_status_cb_(kNeedMoreInput, NULL);
     } else {
       SB_DCHECK(event.type == kWriteEndOfStream);
       // Stream has ended, try to decode any frames left in ffmpeg.
@@ -213,7 +278,7 @@ void VideoDecoder::DecoderThreadFunc() {
         packet.pts = 0;
       } while (DecodePacket(&packet));
 
-      host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+      decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
     }
   }
 }
@@ -221,37 +286,50 @@ void VideoDecoder::DecoderThreadFunc() {
 bool VideoDecoder::DecodePacket(AVPacket* packet) {
   SB_DCHECK(packet != NULL);
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_unref(av_frame_);
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   avcodec_get_frame_defaults(av_frame_);
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   int frame_decoded = 0;
-  int result =
+  int decode_result =
       avcodec_decode_video2(codec_context_, av_frame_, &frame_decoded, packet);
+  if (decode_result < 0) {
+    SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
+                   << decode_result;
+    error_cb_();
+    error_occured_ = true;
+    return false;
+  }
   if (frame_decoded == 0) {
     return false;
   }
 
   if (av_frame_->opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
-    host_->OnDecoderStatusUpdate(kFatalError, NULL);
+    error_cb_();
     error_occured_ = true;
     return false;
   }
 
   int pitch = AlignUp(av_frame_->width, kAlignment * 2);
 
-  scoped_refptr<VideoFrame> frame = VideoFrame::CreateYV12Frame(
-      av_frame_->width, av_frame_->height, pitch,
-      codec_context_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
-      av_frame_->data[2]);
-  host_->OnDecoderStatusUpdate(kBufferFull, frame);
+  scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
+      av_frame_->width, av_frame_->height, pitch, av_frame_->reordered_opaque,
+      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]);
 
+  bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    return UpdateDecodeTarget(frame);
+    result = UpdateDecodeTarget(frame);
   }
 
-  return true;
+  decoder_status_cb_(kBufferFull, frame);
+
+  return result;
 }
 
-bool VideoDecoder::UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame) {
+bool VideoDecoder::UpdateDecodeTarget(
+    const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
 
@@ -288,8 +366,12 @@ void VideoDecoder::InitializeCodec() {
   codec_context_->thread_count = 2;
   codec_context_->opaque = this;
   codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  codec_context_->get_buffer2 = AllocateBuffer;
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   codec_context_->get_buffer = AllocateBuffer;
   codec_context_->release_buffer = ReleaseBuffer;
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
 
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
@@ -309,7 +391,11 @@ void VideoDecoder::InitializeCodec() {
     return;
   }
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_ = av_frame_alloc();
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   av_frame_ = avcodec_alloc_frame();
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();

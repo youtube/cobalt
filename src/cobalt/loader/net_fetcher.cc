@@ -29,6 +29,16 @@
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // OS_STARBOARD
 
+#if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+
+namespace cobalt {
+namespace loader {
+std::string CobaltFetchMaybeAddHeader(const GURL& url);
+}  // namespace loader
+}  // namespace cobalt
+
+#endif  // defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+
 namespace cobalt {
 namespace loader {
 
@@ -99,6 +109,13 @@ NetFetcher::NetFetcher(const GURL& url,
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
 
+#if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+  std::string added_header = CobaltFetchMaybeAddHeader(url);
+  if (!added_header.empty()) {
+    url_fetcher_->AddExtraRequestHeader(added_header);
+  }
+#endif
+
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
@@ -154,7 +171,7 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
     return HandleError(msg).InvalidateThis();
   }
 
-  last_url_origin_ = Origin(source->GetURL());
+  SetLastUrlOrigin(Origin(source->GetURL()));
 }
 
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
@@ -164,6 +181,19 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   if (status.is_success() && IsResponseCodeSuccess(response_code)) {
     handler()->OnDone(this);
   } else {
+    // Check for response codes and errors that are considered transient. These
+    // are the ones that net::URLFetcherCore is willing to attempt retries on,
+    // along with ERR_NAME_RESOLUTION_FAILED, which indicates a socket error.
+    if (response_code >= 500 ||
+        status.error() == net::ERR_TEMPORARILY_THROTTLED ||
+        status.error() == net::ERR_NETWORK_CHANGED ||
+        status.error() == net::ERR_NAME_RESOLUTION_FAILED ||
+        status.error() == net::ERR_CONNECTION_RESET ||
+        status.error() == net::ERR_CONNECTION_CLOSED ||
+        status.error() == net::ERR_CONNECTION_ABORTED) {
+      SetFailedFromTransientError();
+    }
+
     std::string msg(
         base::StringPrintf("NetFetcher error on %s: %s, response code %d",
                            source->GetURL().spec().c_str(),

@@ -11,27 +11,9 @@
 // glGetError() forces a sync with gpu process on chrome
 #define GR_GL_CHECK_ERROR_START                     0
 
-#if defined(SK_BUILD_FOR_WIN32)
-// ANGLE creates a temp VB for vertex attributes not specified per-vertex.
-#define GR_GL_NO_CONSTANT_ATTRIBUTES                1
-
-// For RGBA teximage/readpixels ANGLE will sw-convert to/from BGRA.
-#define GR_GL_RGBA_8888_PIXEL_OPS_SLOW              1
-
-// ANGLE can go faster if the entire fbo is read rather than a subrect
-#define GR_GL_FULL_READPIXELS_FASTER_THAN_PARTIAL   1
-#else
-#define GR_GL_NO_CONSTANT_ATTRIBUTES                0
-#define GR_GL_RGBA_8888_PIXEL_OPS_SLOW              0
-#define GR_GL_FULL_READPIXELS_FASTER_THAN_PARTIAL   0
-#endif
-
 // cmd buffer allocates memory and memsets it to zero when it sees glBufferData
 // with NULL.
 #define GR_GL_USE_BUFFER_DATA_NULL_HINT             0
-
-// chrome uses this to set the context on each GL call.
-#define GR_GL_PER_GL_FUNC_CALLBACK                  1
 
 // Check error is even more expensive in chrome (cmd buffer flush). The
 // compositor also doesn't check its allocations.

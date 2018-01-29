@@ -8,8 +8,8 @@
 #ifndef SkMultiPictureDraw_DEFINED
 #define SkMultiPictureDraw_DEFINED
 
+#include "../private/SkTDArray.h"
 #include "SkMatrix.h"
-#include "SkTDArray.h"
 
 class SkCanvas;
 class SkPaint;
@@ -40,14 +40,15 @@ public:
      */
     void add(SkCanvas* canvas,
              const SkPicture* picture,
-             const SkMatrix* matrix = NULL, 
+             const SkMatrix* matrix = NULL,
              const SkPaint* paint = NULL);
 
     /**
      *  Perform all the previously added draws. This will reset the state
-     *  of this object.
+     *  of this object. If flush is true, all canvases are flushed after
+     *  draw.
      */
-    void draw();
+    void draw(bool flush = false);
 
     /**
      *  Abandon all buffered draws and reset to the initial state.
@@ -56,13 +57,19 @@ public:
 
 private:
     struct DrawData {
-        SkCanvas*        canvas;  // reffed
-        const SkPicture* picture; // reffed
-        SkMatrix         matrix;
-        SkPaint*         paint;   // owned
+        SkCanvas*        fCanvas;
+        const SkPicture* fPicture; // reffed
+        SkMatrix         fMatrix;
+        SkPaint*         fPaint;   // owned
+
+        void init(SkCanvas*, const SkPicture*, const SkMatrix*, const SkPaint*);
+        void draw();
+
+        static void Reset(SkTDArray<DrawData>&);
     };
 
-    SkTDArray<DrawData> fDrawData;
+    SkTDArray<DrawData> fThreadSafeDrawData;
+    SkTDArray<DrawData> fGPUDrawData;
 };
 
 #endif

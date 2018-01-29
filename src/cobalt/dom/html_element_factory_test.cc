@@ -63,7 +63,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
             dom_stat_tracker_.get(), "" /* language */,
             base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)) {}
-  ~HTMLElementFactoryTest() OVERRIDE {}
+  ~HTMLElementFactoryTest() override {}
 
   loader::FetcherFactory fetcher_factory_;
   scoped_ptr<Parser> dom_parser_;

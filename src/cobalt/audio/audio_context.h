@@ -129,6 +129,7 @@ class AudioContext : public dom::EventTarget {
   const scoped_refptr<AudioLock>& audio_lock() const { return audio_lock_; }
 
   DEFINE_WRAPPABLE_TYPE(AudioContext);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   struct DecodeCallbackInfo {
@@ -160,7 +161,7 @@ class AudioContext : public dom::EventTarget {
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
 
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "AudioContext"; }
+  std::string GetDebugName() override { return "AudioContext"; }
 
   void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,

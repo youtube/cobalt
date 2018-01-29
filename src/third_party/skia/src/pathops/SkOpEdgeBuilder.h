@@ -9,38 +9,48 @@
 
 #include "SkOpContour.h"
 #include "SkPathWriter.h"
-#include "SkTArray.h"
 
 class SkOpEdgeBuilder {
 public:
-    SkOpEdgeBuilder(const SkPathWriter& path, SkTArray<SkOpContour>& contours)
-        : fPath(path.nativePath())
-        , fContours(contours)
+    SkOpEdgeBuilder(const SkPathWriter& path, SkOpContourHead* contours2,
+            SkOpGlobalState* globalState)
+        : fGlobalState(globalState)
+        , fPath(path.nativePath())
+        , fContourBuilder(contours2)
+        , fContoursHead(contours2)
         , fAllowOpenContours(true) {
         init();
     }
 
-    SkOpEdgeBuilder(const SkPath& path, SkTArray<SkOpContour>& contours)
-        : fPath(&path)
-        , fContours(contours)
+    SkOpEdgeBuilder(const SkPath& path, SkOpContourHead* contours2, SkOpGlobalState* globalState)
+        : fGlobalState(globalState)
+        , fPath(&path)
+        , fContourBuilder(contours2)
+        , fContoursHead(contours2)
         , fAllowOpenContours(false) {
         init();
     }
 
+    void addOperand(const SkPath& path);
+
     void complete() {
-        if (fCurrentContour && fCurrentContour->segments().count()) {
-            fCurrentContour->complete();
-            fCurrentContour = NULL;
+        fContourBuilder.flush();
+        SkOpContour* contour = fContourBuilder.contour();
+        if (contour && contour->count()) {
+            contour->complete();
+            fContourBuilder.setContour(nullptr);
         }
     }
 
-    SkPathOpsMask xorMask() const {
-        return fXorMask[fOperand];
+    bool finish();
+
+    const SkOpContour* head() const {
+        return fContoursHead;
     }
 
-    void addOperand(const SkPath& path);
-    bool finish();
     void init();
+    bool unparseable() const { return fUnparseable; }
+    SkPathOpsMask xorMask() const { return fXorMask[fOperand]; }
 
 private:
     void closeContour(const SkPoint& curveEnd, const SkPoint& curveStart);
@@ -48,11 +58,13 @@ private:
     int preFetch();
     bool walk();
 
+    SkOpGlobalState* fGlobalState;
     const SkPath* fPath;
-    SkTArray<SkPoint, true> fPathPts;
-    SkTArray<uint8_t, true> fPathVerbs;
-    SkOpContour* fCurrentContour;
-    SkTArray<SkOpContour>& fContours;
+    SkTDArray<SkPoint> fPathPts;
+    SkTDArray<SkScalar> fWeights;
+    SkTDArray<uint8_t> fPathVerbs;
+    SkOpContourBuilder fContourBuilder;
+    SkOpContourHead* fContoursHead;
     SkPathOpsMask fXorMask[2];
     int fSecondHalf;
     bool fOperand;

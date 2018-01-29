@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'includes': [
+    '<(DEPTH)/starboard/shared/starboard/player/filter/filter_tests.gypi',
+  ],
   'targets': [
     {
       'target_name': 'starboard_platform_tests',
       'type': '<(gtest_target_type)',
       'includes': [
         '<(DEPTH)/starboard/shared/starboard/media/media_tests.gypi',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/filter_tests.gypi',
       ],
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
-        '<@(filter_tests_sources)',
         '<@(media_tests_sources)',
       ],
       'defines': [

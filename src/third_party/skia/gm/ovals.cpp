@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -7,10 +6,12 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkTArray.h"
 #include "SkRandom.h"
 #include "SkMatrix.h"
 #include "SkBlurMaskFilter.h"
+#include "SkColorFilter.h"
 #include "SkGradientShader.h"
 #include "SkBlurDrawLooper.h"
 #include "SkRect.h"
@@ -26,15 +27,12 @@ public:
     }
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("ovals");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(1200, 900);
     }
 
@@ -135,10 +133,10 @@ protected:
         hsv[1] = rand->nextRangeF(0.75f, 1.0f);
         hsv[2] = rand->nextRangeF(0.75f, 1.0f);
 
-        return SkHSVToColor(hsv);
+        return sk_tool_utils::color_to_565(SkHSVToColor(hsv));
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         SkRandom rand(1);
         canvas->translate(20 * SK_Scalar1, 20 * SK_Scalar1);
         SkRect oval = SkRect::MakeLTRB(-20, -30, 20, 30);
@@ -153,7 +151,7 @@ protected:
         rectPaint.setAntiAlias(true);
         rectPaint.setStyle(SkPaint::kStroke_Style);
         rectPaint.setStrokeWidth(SkIntToScalar(0));
-        rectPaint.setColor(SK_ColorLTGRAY);
+        rectPaint.setColor(sk_tool_utils::color_to_565(SK_ColorLTGRAY));
 
         int testCount = 0;
         for (int i = 0; i < fPaints.count(); ++i) {
@@ -249,12 +247,8 @@ protected:
         SkPoint center = SkPoint::Make(SkIntToScalar(0), SkIntToScalar(0));
         SkColor colors[] = { SK_ColorBLUE, SK_ColorRED, SK_ColorGREEN };
         SkScalar pos[] = { 0, SK_ScalarHalf, SK_Scalar1 };
-        SkAutoTUnref<SkShader> shader(SkGradientShader::CreateRadial(center,
-                                                     SkIntToScalar(20),
-                                                     colors,
-                                                     pos,
-                                                     SK_ARRAY_COUNT(colors),
-                                                     SkShader::kClamp_TileMode));
+        auto shader = SkGradientShader::MakeRadial(center, 20, colors, pos, SK_ARRAY_COUNT(colors),
+                                                   SkShader::kClamp_TileMode);
 
         for (int i = 0; i < fPaints.count(); ++i) {
             canvas->save();
@@ -270,8 +264,28 @@ protected:
             canvas->drawRect(oval, rectPaint);
             canvas->drawOval(oval, fPaints[i]);
 
-            fPaints[i].setShader(NULL);
+            fPaints[i].setShader(nullptr);
 
+            canvas->restore();
+        }
+
+        // reflected oval
+        for (int i = 0; i < fPaints.count(); ++i) {
+            SkRect oval = SkRect::MakeLTRB(-30, -30, 30, 30);
+            canvas->save();
+            // position the oval, and make it at off-integer coords.
+            canvas->translate(kXStart + SK_Scalar1 * kXStep * 5 + SK_Scalar1 / 4,
+                              kYStart + SK_Scalar1 * kYStep * i + 3 * SK_Scalar1 / 4 +
+                              SK_ScalarHalf * kYStep);
+            canvas->rotate(90);
+            canvas->scale(1, -1);
+            canvas->scale(1, 0.66f);
+
+            SkColor color = genColor(&rand);
+            fPaints[i].setColor(color);
+
+            canvas->drawRect(oval, rectPaint);
+            canvas->drawOval(oval, fPaints[i]);
             canvas->restore();
         }
     }

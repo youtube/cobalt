@@ -15,25 +15,6 @@
 {
   'targets': [
     {
-      'target_name': 'poem',
-      'type': 'static_library',
-      'sources': [
-        'eztime_poem.h',
-        'getenv_stub_poem.h',
-        'inet_poem.h',
-        'stdio_poem.h',
-        'stdlib_poem.h',
-        'string_poem.h',
-        'strings_poem.h',
-        'strnlen_poem.h',
-        'wchar_poem.h',
-      ],
-      'dependencies': [
-        '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
-      ],
-    },
-    {
       'target_name': 'poem_unittests',
       'type': '<(gtest_target_type)',
       'sources': [

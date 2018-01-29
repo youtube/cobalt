@@ -62,21 +62,23 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Initialize(const Closure& output_cb,
-                              const Closure& error_cb) {
+void AudioDecoder::Initialize(const OutputCB& output_cb,
+                              const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb.is_valid());
-  SB_DCHECK(!output_cb_.is_valid());
-  SB_UNREFERENCED_PARAMETER(error_cb);
+  SB_DCHECK(output_cb);
+  SB_DCHECK(!output_cb_);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
 
   output_cb_ = output_cb;
+  error_cb_ = error_cb;
 }
 
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
-                          const Closure& consumed_cb) {
+                          const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_CHECK(codec_context_ != NULL);
 
   Schedule(consumed_cb);
@@ -91,7 +93,11 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   packet.data = const_cast<uint8_t*>(input_buffer->data());
   packet.size = input_buffer->size();
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_unref(av_frame_);
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   avcodec_get_frame_defaults(av_frame_);
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   int frame_decoded = 0;
   int result =
       avcodec_decode_audio4(codec_context_, av_frame_, &frame_decoded, &packet);
@@ -100,6 +106,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
                      << " with input buffer size: " << input_buffer->size()
                      << " and frame decoded: " << frame_decoded;
+    error_cb_();
     return;
   }
 
@@ -136,7 +143,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
 
 void AudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
 
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
   // to ensure that Decode() is not called when the stream is ended.
@@ -149,7 +156,7 @@ void AudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
   scoped_refptr<DecodedAudio> result;
@@ -247,7 +254,11 @@ void AudioDecoder::InitializeCodec() {
     return;
   }
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_ = av_frame_alloc();
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   av_frame_ = avcodec_alloc_frame();
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();

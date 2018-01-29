@@ -1,3 +1,10 @@
+/*
+ * Copyright 2015 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 #include "Test.h"
 
 #include "SkRecord.h"
@@ -6,9 +13,9 @@
 #include "SkRecords.h"
 
 using namespace SkRecords;
-typedef Pattern3<Is<Save>,
-                 Is<ClipRect>,
-                 Is<Restore> >
+typedef Pattern<Is<Save>,
+                Is<ClipRect>,
+                Is<Restore>>
     SaveClipRectRestore;
 
 DEF_TEST(RecordPattern_Simple, r) {
@@ -28,9 +35,9 @@ DEF_TEST(RecordPattern_Simple, r) {
 
     recorder.restore();
     REPORTER_ASSERT(r, pattern.match(&record, 0));
-    REPORTER_ASSERT(r, pattern.first<Save>()      != NULL);
-    REPORTER_ASSERT(r, pattern.second<ClipRect>() != NULL);
-    REPORTER_ASSERT(r, pattern.third<Restore>()   != NULL);
+    REPORTER_ASSERT(r, pattern.first<Save>()      != nullptr);
+    REPORTER_ASSERT(r, pattern.second<ClipRect>() != nullptr);
+    REPORTER_ASSERT(r, pattern.third<Restore>()   != nullptr);
 }
 
 DEF_TEST(RecordPattern_StartingIndex, r) {
@@ -47,7 +54,7 @@ DEF_TEST(RecordPattern_StartingIndex, r) {
     }
 
     // We should match only at 0 and 3.  Going over the length should fail gracefully.
-    for (unsigned i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++) {
         if (i == 0 || i == 3) {
             REPORTER_ASSERT(r, pattern.match(&record, i) == i + 3);
         } else {
@@ -70,130 +77,76 @@ DEF_TEST(RecordPattern_DontMatchSubsequences, r) {
     REPORTER_ASSERT(r, !pattern.match(&record, 0));
 }
 
-DEF_TEST(RecordPattern_Star, r) {
-    Pattern3<Is<Save>, Star<Is<ClipRect> >, Is<Restore> > pattern;
+DEF_TEST(RecordPattern_Greedy, r) {
+    Pattern<Is<Save>, Greedy<Is<ClipRect>>, Is<Restore>> pattern;
 
     SkRecord record;
     SkRecorder recorder(&record, 1920, 1200);
-
-    recorder.save();
-    recorder.restore();
-    REPORTER_ASSERT(r, pattern.match(&record, 0));
+    int index = 0;
 
     recorder.save();
         recorder.clipRect(SkRect::MakeWH(300, 200));
     recorder.restore();
-    REPORTER_ASSERT(r, pattern.match(&record, 2));
+    REPORTER_ASSERT(r, pattern.match(&record, index));
+    index += 3;
 
     recorder.save();
         recorder.clipRect(SkRect::MakeWH(300, 200));
         recorder.clipRect(SkRect::MakeWH(100, 100));
     recorder.restore();
-    REPORTER_ASSERT(r, pattern.match(&record, 5));
-}
-
-DEF_TEST(RecordPattern_IsDraw, r) {
-    Pattern3<Is<Save>, IsDraw, Is<Restore> > pattern;
-
-    SkRecord record;
-    SkRecorder recorder(&record, 1920, 1200);
-
-    recorder.save();
-        recorder.clipRect(SkRect::MakeWH(300, 200));
-    recorder.restore();
-
-    REPORTER_ASSERT(r, !pattern.match(&record, 0));
-
-    SkPaint paint;
-
-    recorder.save();
-        paint.setColor(0xEEAA8822);
-        recorder.drawRect(SkRect::MakeWH(300, 200), paint);
-    recorder.restore();
-
-    recorder.save();
-        paint.setColor(0xFACEFACE);
-        recorder.drawPaint(paint);
-    recorder.restore();
-
-    REPORTER_ASSERT(r, pattern.match(&record, 3));
-    REPORTER_ASSERT(r, pattern.first<Save>()    != NULL);
-    REPORTER_ASSERT(r, pattern.second<SkPaint>()->getColor() == 0xEEAA8822);
-    REPORTER_ASSERT(r, pattern.third<Restore>() != NULL);
-
-    REPORTER_ASSERT(r, pattern.match(&record, 6));
-    REPORTER_ASSERT(r, pattern.first<Save>()    != NULL);
-    REPORTER_ASSERT(r, pattern.second<SkPaint>()->getColor() == 0xFACEFACE);
-    REPORTER_ASSERT(r, pattern.third<Restore>() != NULL);
+    REPORTER_ASSERT(r, pattern.match(&record, index));
 }
 
 DEF_TEST(RecordPattern_Complex, r) {
-    Pattern3<Is<Save>,
-             Star<Not<Or3<Is<Save>,
+    Pattern<Is<Save>,
+            Greedy<Not<Or<Is<Save>,
                           Is<Restore>,
-                          IsDraw> > >,
-             Is<Restore> > pattern;
+                          IsDraw>>>,
+            Is<Restore>> pattern;
 
     SkRecord record;
     SkRecorder recorder(&record, 1920, 1200);
+    int start, begin, end;
 
-    recorder.save();
-    recorder.restore();
-    REPORTER_ASSERT(r, pattern.match(&record, 0) == 2);
-
-    recorder.save();
-        recorder.save();
-        recorder.restore();
-    recorder.restore();
-    REPORTER_ASSERT(r, !pattern.match(&record, 2));
-    REPORTER_ASSERT(r, pattern.match(&record, 3) == 5);
-
+    start = record.count();
     recorder.save();
         recorder.clipRect(SkRect::MakeWH(300, 200));
     recorder.restore();
-    REPORTER_ASSERT(r, pattern.match(&record, 6) == 9);
+    REPORTER_ASSERT(r, pattern.match(&record, 0) == record.count());
+    end = start;
+    REPORTER_ASSERT(r, pattern.search(&record, &begin, &end));
+    REPORTER_ASSERT(r, begin == start);
+    REPORTER_ASSERT(r, end == record.count());
 
+    start = record.count();
     recorder.save();
         recorder.clipRect(SkRect::MakeWH(300, 200));
         recorder.drawRect(SkRect::MakeWH(100, 3000), SkPaint());
     recorder.restore();
-    REPORTER_ASSERT(r, !pattern.match(&record, 9));
+    REPORTER_ASSERT(r, !pattern.match(&record, start));
+    end = start;
+    REPORTER_ASSERT(r, !pattern.search(&record, &begin, &end));
 
+    start = record.count();
     recorder.save();
-        recorder.pushCull(SkRect::MakeWH(300, 200));
         recorder.clipRect(SkRect::MakeWH(300, 200));
         recorder.clipRect(SkRect::MakeWH(100, 400));
-        recorder.popCull();
     recorder.restore();
-    REPORTER_ASSERT(r, pattern.match(&record, 13) == 19);
-
-    // Same as above, but using pattern.search to step through matches.
-    unsigned begin, end = 0;
+    REPORTER_ASSERT(r, pattern.match(&record, start) == record.count());
+    end = start;
     REPORTER_ASSERT(r, pattern.search(&record, &begin, &end));
-    REPORTER_ASSERT(r, begin == 0);
-    REPORTER_ASSERT(r, end == 2);
-
-    REPORTER_ASSERT(r, pattern.search(&record, &begin, &end));
-    REPORTER_ASSERT(r, begin == 3);
-    REPORTER_ASSERT(r, end == 5);
-
-    REPORTER_ASSERT(r, pattern.search(&record, &begin, &end));
-    REPORTER_ASSERT(r, begin == 6);
-    REPORTER_ASSERT(r, end == 9);
-
-    REPORTER_ASSERT(r, pattern.search(&record, &begin, &end));
-    REPORTER_ASSERT(r, begin == 13);
-    REPORTER_ASSERT(r, end == 19);
+    REPORTER_ASSERT(r, begin == start);
+    REPORTER_ASSERT(r, end == record.count());
 
     REPORTER_ASSERT(r, !pattern.search(&record, &begin, &end));
 }
 
 DEF_TEST(RecordPattern_SaveLayerIsNotADraw, r) {
-    Pattern1<IsDraw> pattern;
+    Pattern<IsDraw> pattern;
 
     SkRecord record;
     SkRecorder recorder(&record, 1920, 1200);
-    recorder.saveLayer(NULL, NULL);
+    recorder.saveLayer(nullptr, nullptr);
 
     REPORTER_ASSERT(r, !pattern.match(&record, 0));
 }

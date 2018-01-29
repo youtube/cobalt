@@ -35,8 +35,8 @@ static void assert_empty(skiatest::Reporter* reporter, const SkReader32& reader)
 DEF_TEST(Reader32, reporter) {
     SkReader32 reader;
     assert_empty(reporter, reader);
-    REPORTER_ASSERT(reporter, NULL == reader.base());
-    REPORTER_ASSERT(reporter, NULL == reader.peek());
+    REPORTER_ASSERT(reporter, nullptr == reader.base());
+    REPORTER_ASSERT(reporter, nullptr == reader.peek());
 
     size_t i;
 
@@ -74,8 +74,17 @@ DEF_TEST(Reader32, reporter) {
     reader.read(buffer, sizeof(data2));
     REPORTER_ASSERT(reporter, !memcmp(data2, buffer, sizeof(data2)));
 
-    reader.setMemory(NULL, 0);
+    reader.setMemory(nullptr, 0);
     assert_empty(reporter, reader);
-    REPORTER_ASSERT(reporter, NULL == reader.base());
-    REPORTER_ASSERT(reporter, NULL == reader.peek());
+    REPORTER_ASSERT(reporter, nullptr == reader.base());
+    REPORTER_ASSERT(reporter, nullptr == reader.peek());
+
+    // need to handle read(null, 0) and not get undefined behavior from memcpy
+    {
+        char storage[100];
+        reader.setMemory(storage, sizeof(storage));
+        char buffer[10];
+        reader.read(buffer, 0);     // easy case, since we pass a ptr
+        reader.read(nullptr, 0);    // undef case, read() can't blindly call memcpy
+    }
 }

@@ -33,15 +33,15 @@ class SolidColorBrush;
 //         return shader_;
 //       }
 //
-//       void Visit(SolidColorBrush* solid_color_brush) OVERRIDE {
+//       void Visit(SolidColorBrush* solid_color_brush) override {
 //         shader_ = new SkColorShader(...);
 //       }
 //
-//       void Visit(LinearGradientBrush* linear_gradient_brush) OVERRIDE {
+//       void Visit(LinearGradientBrush* linear_gradient_brush) override {
 //         shader_ = new SkGradientShader(...);
 //       }
 //
-//       void Visit(RadialGradientBrush* radial_gradient_brush) OVERRIDE {
+//       void Visit(RadialGradientBrush* radial_gradient_brush) override {
 //         shader_ = new SkGradientShader(...);
 //       }
 //     };

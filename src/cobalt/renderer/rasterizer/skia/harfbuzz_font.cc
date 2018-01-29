@@ -100,7 +100,7 @@ hb_bool_t GetGlyphHorizontalOrigin(hb_font_t* font, void* data,
 
 hb_position_t GetGlyphKerning(Font* font_data, hb_codepoint_t first_glyph,
                               hb_codepoint_t second_glyph) {
-  SkAutoTUnref<SkTypeface> typeface(font_data->GetSkTypeface());
+  const sk_sp<SkTypeface_Cobalt>& typeface(font_data->GetSkTypeface());
   const uint16_t glyphs[2] = {static_cast<uint16_t>(first_glyph),
                               static_cast<uint16_t>(second_glyph)};
   int32_t kerning_adjustments[1] = {0};
@@ -111,8 +111,9 @@ hb_position_t GetGlyphKerning(Font* font_data, hb_codepoint_t first_glyph,
 
   SkScalar size = font_data->size();
   SkScalar upm = SkIntToScalar(typeface->getUnitsPerEm());
-  return SkScalarToFixed(
-      SkScalarMulDiv(SkIntToScalar(kerning_adjustments[0]), size, upm));
+  // Similar to
+  // https://github.com/flutter/engine/pull/3430/commits/e40447c475cdc2154139c39aecf3d40a5e681f72
+  return SkScalarToFixed(kerning_adjustments[0] * size / upm);
 }
 
 hb_position_t GetGlyphHorizontalKerning(hb_font_t* font, void* data,
@@ -169,7 +170,8 @@ base::LazyInstance<FontFuncs>::Leaky g_font_funcs = LAZY_INSTANCE_INITIALIZER;
 
 // Returns the raw data of the font table |tag|.
 hb_blob_t* GetFontTable(hb_face_t* face, hb_tag_t tag, void* user_data) {
-  SkTypeface* typeface = reinterpret_cast<SkTypeface*>(user_data);
+  auto* skia_face = reinterpret_cast<sk_sp<SkTypeface_Cobalt>*>(user_data);
+  SkTypeface_Cobalt* typeface = skia_face->get();
 
   const size_t table_size = typeface->getTableSize(tag);
   if (!table_size) {
@@ -190,9 +192,9 @@ hb_blob_t* GetFontTable(hb_face_t* face, hb_tag_t tag, void* user_data) {
                         buffer_raw, DeleteArrayByType<char>);
 }
 
-void UnrefSkTypeface(void* data) {
-  SkTypeface* skia_face = reinterpret_cast<SkTypeface*>(data);
-  SkSafeUnref(skia_face);
+void ResetSkiaFace(void* data) {
+  auto* skia_face = reinterpret_cast<sk_sp<SkTypeface_Cobalt>*>(data);
+  skia_face->reset();
 }
 
 }  // namespace
@@ -205,19 +207,25 @@ HarfBuzzFontProvider::HarfBuzzFace::~HarfBuzzFace() {
   }
 }
 
-void HarfBuzzFontProvider::HarfBuzzFace::Init(SkTypeface* skia_face) {
-  face_ = hb_face_create_for_tables(GetFontTable, skia_face, UnrefSkTypeface);
+void HarfBuzzFontProvider::HarfBuzzFace::Init(
+    const sk_sp<SkTypeface_Cobalt>& skia_face) {
+  DCHECK(!typeface_);
+  typeface_ = skia_face;
+  face_ = hb_face_create_for_tables(GetFontTable, &typeface_, ResetSkiaFace);
   DCHECK(face_);
 }
 
-hb_face_t* HarfBuzzFontProvider::HarfBuzzFace::get() { return face_; }
+hb_face_t* HarfBuzzFontProvider::HarfBuzzFace::get() {
+  return face_;
+}
 
 hb_font_t* HarfBuzzFontProvider::GetHarfBuzzFont(Font* skia_font) {
   // Retrieve the typeface from the cache. In the case where it does not already
   // exist, it will be NULL and we must create it.
   HarfBuzzFace& face = face_cache_[skia_font->GetTypefaceId()];
   if (face.get() == NULL) {
-    face.Init(skia_font->GetSkTypeface());
+    const sk_sp<SkTypeface_Cobalt>& typeface = skia_font->GetSkTypeface();
+    face.Init(typeface);
   }
 
   hb_font_t* harfbuzz_font = hb_font_create(face.get());

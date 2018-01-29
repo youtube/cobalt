@@ -35,13 +35,13 @@ class TransformMatrixFunctionValue : public PropertyValue {
  public:
   explicit TransformMatrixFunctionValue(const TransformMatrix& matrix);
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE {
+  void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTransformMatrixFunction(this);
   }
 
   const TransformMatrix& value() const { return value_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const TransformMatrixFunctionValue& other) const {
     return value_ == other.value_;
@@ -50,7 +50,7 @@ class TransformMatrixFunctionValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformMatrixFunctionValue);
 
  private:
-  virtual ~TransformMatrixFunctionValue() OVERRIDE {}
+  ~TransformMatrixFunctionValue() override {}
 
   const TransformMatrix value_;
 };

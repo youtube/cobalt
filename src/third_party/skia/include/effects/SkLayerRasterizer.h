@@ -1,11 +1,9 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 
 #ifndef SkLayerRasterizer_DEFINED
 #define SkLayerRasterizer_DEFINED
@@ -18,7 +16,7 @@ class SkPaint;
 
 class SK_API SkLayerRasterizer : public SkRasterizer {
 public:
-    virtual ~SkLayerRasterizer();
+    ~SkLayerRasterizer() override;
 
     class SK_API Builder {
     public:
@@ -44,7 +42,7 @@ public:
           *
           *  The caller is responsible for calling unref() on the returned object, if non NULL.
           */
-        SkLayerRasterizer* detachRasterizer();
+        sk_sp<SkLayerRasterizer> detach();
 
         /**
           *  Create and return a new immutable SkLayerRasterizer that contains a shapshot of the
@@ -58,8 +56,8 @@ public:
           *
           *  The caller is responsible for calling unref() on the returned object, if non NULL.
           */
-        SkLayerRasterizer* snapshotRasterizer() const;
-
+        sk_sp<SkLayerRasterizer> snapshot() const;
+    
     private:
         SkDeque* fLayers;
     };
@@ -69,15 +67,12 @@ public:
 protected:
     SkLayerRasterizer();
     SkLayerRasterizer(SkDeque* layers);
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-    SkLayerRasterizer(SkReadBuffer&);
-#endif
-    virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
+    void flatten(SkWriteBuffer&) const override;
 
     // override from SkRasterizer
     virtual bool onRasterize(const SkPath& path, const SkMatrix& matrix,
                              const SkIRect* clipBounds,
-                             SkMask* mask, SkMask::CreateMode mode) const;
+                             SkMask* mask, SkMask::CreateMode mode) const override;
 
 private:
     const SkDeque* const fLayers;

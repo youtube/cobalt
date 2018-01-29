@@ -84,8 +84,8 @@ public:
     }
 
     // deprecated, but still here for animator (for now)
-    void rotate(SkScalar x, SkScalar y, SkScalar z) {}
-    void rotateDegrees(SkScalar x, SkScalar y, SkScalar z) {}
+    void rotate(SkScalar /*x*/, SkScalar /*y*/, SkScalar /*z*/) {}
+    void rotateDegrees(SkScalar /*x*/, SkScalar /*y*/, SkScalar /*z*/) {}
 
 private:
 public: // make public for SkDraw3D for now
@@ -103,10 +103,10 @@ public:
     void update();
     void patchToMatrix(const SkPatch3D&, SkMatrix* matrix) const;
 
-    SkPoint3D   fLocation;
-    SkPoint3D   fAxis;
-    SkPoint3D   fZenith;
-    SkPoint3D   fObserver;
+    SkPoint3D   fLocation;   // origin of the camera's space
+    SkPoint3D   fAxis;       // view direction
+    SkPoint3D   fZenith;     // up direction
+    SkPoint3D   fObserver;   // eye position (may not be the same as the origin)
 
 private:
     mutable SkMatrix    fOrientation;

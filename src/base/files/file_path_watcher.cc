@@ -22,11 +22,11 @@ class FilePathWatcherDelegate : public base::files::FilePathWatcher::Delegate {
       : callback_(callback) {}
 
   // FilePathWatcher::Delegate implementation.
-  virtual void OnFilePathChanged(const FilePath& path) OVERRIDE {
+  virtual void OnFilePathChanged(const FilePath& path) override {
     callback_.Run(path, false);
   }
 
-  virtual void OnFilePathError(const FilePath& path) OVERRIDE {
+  virtual void OnFilePathError(const FilePath& path) override {
     callback_.Run(path, true);
   }
 

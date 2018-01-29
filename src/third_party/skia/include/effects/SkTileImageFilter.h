@@ -11,36 +11,38 @@
 #include "SkImageFilter.h"
 
 class SK_API SkTileImageFilter : public SkImageFilter {
-    typedef SkImageFilter INHERITED;
-
 public:
     /** Create a tile image filter
-        @param srcRect  Defines the pixels to tile
-        @param dstRect  Defines the pixels where tiles are drawn
+        @param src  Defines the pixels to tile
+        @param dst  Defines the pixels where tiles are drawn
         @param input    Input from which the subregion defined by srcRect will be tiled
     */
-    static SkTileImageFilter* Create(const SkRect& srcRect, const SkRect& dstRect,
-                                     SkImageFilter* input, uint32_t uniqueID = 0);
+    static sk_sp<SkImageFilter> Make(const SkRect& src,
+                                     const SkRect& dst,
+                                     sk_sp<SkImageFilter> input);
 
-    virtual bool onFilterImage(Proxy* proxy, const SkBitmap& src, const Context& ctx,
-                               SkBitmap* dst, SkIPoint* offset) const SK_OVERRIDE;
-    virtual bool onFilterBounds(const SkIRect& src, const SkMatrix&,
-                                SkIRect* dst) const SK_OVERRIDE;
+    SkIRect onFilterBounds(const SkIRect& src, const SkMatrix&, MapDirection) const override;
+    SkIRect onFilterNodeBounds(const SkIRect&, const SkMatrix&, MapDirection) const override;
+    SkRect computeFastBounds(const SkRect& src) const override;
 
+    SK_TO_STRING_OVERRIDE()
     SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkTileImageFilter)
 
 protected:
-    SkTileImageFilter(const SkRect& srcRect, const SkRect& dstRect, SkImageFilter* input, uint32_t uniqueID)
-        : INHERITED(1, &input, NULL, uniqueID), fSrcRect(srcRect), fDstRect(dstRect) {}
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-    explicit SkTileImageFilter(SkReadBuffer& buffer);
-#endif
+    void flatten(SkWriteBuffer& buffer) const override;
 
-    virtual void flatten(SkWriteBuffer& buffer) const SK_OVERRIDE;
+    sk_sp<SkSpecialImage> onFilterImage(SkSpecialImage* source, const Context&,
+                                        SkIPoint* offset) const override;
+    sk_sp<SkImageFilter> onMakeColorSpace(SkColorSpaceXformer*) const override;
 
 private:
+    SkTileImageFilter(const SkRect& srcRect, const SkRect& dstRect, sk_sp<SkImageFilter> input)
+        : INHERITED(&input, 1, nullptr), fSrcRect(srcRect), fDstRect(dstRect) {}
+
     SkRect fSrcRect;
     SkRect fDstRect;
+
+    typedef SkImageFilter INHERITED;
 };
 
 #endif

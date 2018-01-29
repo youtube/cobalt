@@ -1,5 +1,5 @@
 
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ namespace testing {
 
 class V8cNoInterfaceObjectInterface {
  public:
-  static v8::Local<v8::Object> CreateWrapper(script::v8c::V8cGlobalEnvironment* env, const scoped_refptr<script::Wrappable>& wrappable);
-  static v8::Local<v8::FunctionTemplate> CreateTemplate(script::v8c::V8cGlobalEnvironment* env);
+  static v8::Local<v8::Object> CreateWrapper(v8::Isolate* isolate, const scoped_refptr<script::Wrappable>& wrappable);
+  static v8::Local<v8::FunctionTemplate> CreateTemplate(v8::Isolate* isolate);
 };
 
 }  // namespace testing

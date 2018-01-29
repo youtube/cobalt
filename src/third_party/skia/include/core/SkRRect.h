@@ -16,7 +16,6 @@ class SkMatrix;
 
 // Path forward:
 //   core work
-//      add validate method (all radii positive, all radii sums < rect size, etc.)
 //      add contains(SkRect&)  - for clip stack
 //      add contains(SkRRect&) - for clip stack
 //      add heart rect computation (max rect inside RR)
@@ -47,14 +46,15 @@ class SkMatrix;
 */
 class SK_API SkRRect {
 public:
+    SkRRect() { /* unititialized */ }
+    SkRRect(const SkRRect&) = default;
+    SkRRect& operator=(const SkRRect&) = default;
+
     /**
      * Enum to capture the various possible subtypes of RR. Accessed
      * by type(). The subtypes become progressively less restrictive.
      */
     enum Type {
-        // !< Internal indicator that the sub type must be computed.
-        kUnknown_Type = -1,
-
         // !< The RR is empty
         kEmpty_Type,
 
@@ -89,13 +89,8 @@ public:
      * Returns the RR's sub type.
      */
     Type getType() const {
-        SkDEBUGCODE(this->validate();)
-
-        if (kUnknown_Type == fType) {
-            this->computeType();
-        }
-        SkASSERT(kUnknown_Type != fType);
-        return fType;
+        SkASSERT(this->isValid());
+        return static_cast<Type>(fType);
     }
 
     Type type() const { return this->getType(); }
@@ -104,13 +99,18 @@ public:
     inline bool isRect() const { return kRect_Type == this->getType(); }
     inline bool isOval() const { return kOval_Type == this->getType(); }
     inline bool isSimple() const { return kSimple_Type == this->getType(); }
+    // TODO: should isSimpleCircular & isCircle take a tolerance? This could help
+    // instances where the mapping to device space is noisy.
     inline bool isSimpleCircular() const {
-        return this->isSimple() && fRadii[0].fX == fRadii[0].fY;
+        return this->isSimple() && SkScalarNearlyEqual(fRadii[0].fX, fRadii[0].fY);
+    }
+    inline bool isCircle() const {
+        return this->isOval() && SkScalarNearlyEqual(fRadii[0].fX, fRadii[0].fY);
     }
     inline bool isNinePatch() const { return kNinePatch_Type == this->getType(); }
     inline bool isComplex() const { return kComplex_Type == this->getType(); }
 
-    bool allCornersCircular() const;
+    bool allCornersCircular(SkScalar tolerance = SK_ScalarNearlyZero) const;
 
     SkScalar width() const { return fRect.width(); }
     SkScalar height() const { return fRect.height(); }
@@ -123,23 +123,49 @@ public:
         memset(fRadii, 0, sizeof(fRadii));
         fType = kEmpty_Type;
 
-        SkDEBUGCODE(this->validate();)
+        SkASSERT(this->isValid());
     }
 
     /**
      * Set this RR to match the supplied rect. All radii will be 0.
      */
     void setRect(const SkRect& rect) {
-        if (rect.isEmpty()) {
+        fRect = rect;
+        fRect.sort();
+
+        if (fRect.isEmpty()) {
             this->setEmpty();
             return;
         }
 
-        fRect = rect;
         memset(fRadii, 0, sizeof(fRadii));
         fType = kRect_Type;
 
-        SkDEBUGCODE(this->validate();)
+        SkASSERT(this->isValid());
+    }
+
+    static SkRRect MakeEmpty() {
+        SkRRect rr;
+        rr.setEmpty();
+        return rr;
+    }
+
+    static SkRRect MakeRect(const SkRect& r) {
+        SkRRect rr;
+        rr.setRect(r);
+        return rr;
+    }
+
+    static SkRRect MakeOval(const SkRect& oval) {
+        SkRRect rr;
+        rr.setOval(oval);
+        return rr;
+    }
+
+    static SkRRect MakeRectXY(const SkRect& rect, SkScalar xRad, SkScalar yRad) {
+        SkRRect rr;
+        rr.setRectXY(rect, xRad, yRad);
+        return rr;
     }
 
     /**
@@ -147,21 +173,23 @@ public:
      * width and all y radii will equal half the height.
      */
     void setOval(const SkRect& oval) {
-        if (oval.isEmpty()) {
+        fRect = oval;
+        fRect.sort();
+
+        if (fRect.isEmpty()) {
             this->setEmpty();
             return;
         }
 
-        SkScalar xRad = SkScalarHalf(oval.width());
-        SkScalar yRad = SkScalarHalf(oval.height());
+        SkScalar xRad = SkScalarHalf(fRect.width());
+        SkScalar yRad = SkScalarHalf(fRect.height());
 
-        fRect = oval;
         for (int i = 0; i < 4; ++i) {
             fRadii[i].set(xRad, yRad);
         }
         fType = kOval_Type;
 
-        SkDEBUGCODE(this->validate();)
+        SkASSERT(this->isValid());
     }
 
     /**
@@ -249,13 +277,17 @@ public:
         fRect.offset(dx, dy);
     }
 
+    SkRRect SK_WARN_UNUSED_RESULT makeOffset(SkScalar dx, SkScalar dy) const {
+        return SkRRect(fRect.makeOffset(dx, dy), fRadii, fType);
+    }
+
     /**
      *  Returns true if 'rect' is wholy inside the RR, and both
      *  are not empty.
      */
     bool contains(const SkRect& rect) const;
 
-    SkDEBUGCODE(void validate() const;)
+    bool isValid() const;
 
     enum {
         kSizeInMemory = 12 * sizeof(SkScalar)
@@ -292,24 +324,27 @@ public:
      */
     bool transform(const SkMatrix& matrix, SkRRect* dst) const;
 
-#ifdef SK_DEVELOPER
-    /**
-     * Prints the rrect using SkDebugf. This is intended for Skia development debugging. Don't
-     * rely on the existence of this function or the formatting of its output.
-     */
-    void dump() const;
-#endif
+    void dump(bool asHex) const;
+    void dump() const { this->dump(false); }
+    void dumpHex() const { this->dump(true); }
 
 private:
+    SkRRect(const SkRect& rect, const SkVector radii[4], int32_t type)
+        : fRect(rect)
+        , fRadii{radii[0], radii[1], radii[2], radii[3]}
+        , fType(type) {}
+
     SkRect fRect;
     // Radii order is UL, UR, LR, LL. Use Corner enum to index into fRadii[]
     SkVector fRadii[4];
-    mutable Type fType;
+    // use an explicitly sized type so we're sure the class is dense (no uninitialized bytes)
+    int32_t fType;
     // TODO: add padding so we can use memcpy for flattening and not copy
     // uninitialized data
 
-    void computeType() const;
+    void computeType();
     bool checkCornerContainment(SkScalar x, SkScalar y) const;
+    void scaleRadii();
 
     // to access fRadii directly
     friend class SkPath;

@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
@@ -13,6 +12,7 @@
 #include "SkPath.h"
 #include "SkRandom.h"
 #include "SkString.h"
+#include "SkStrokeRec.h"
 #include "SkTDArray.h"
 
 
@@ -57,11 +57,11 @@ public:
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint paint;
         this->setupPaint(&paint);
         paint.setStyle(SkPaint::kStroke_Style);
@@ -71,8 +71,7 @@ protected:
         SkPath path;
         this->makePath(&path);
 
-        paint.setPathEffect(SkDashPathEffect::Create(fIntervals.begin(),
-                                                     fIntervals.count(), 0))->unref();
+        paint.setPathEffect(SkDashPathEffect::Make(fIntervals.begin(), fIntervals.count(), 0));
 
         if (fDoClip) {
             SkRect r = path.getBounds();
@@ -106,7 +105,7 @@ public:
 
 protected:
     virtual void handlePath(SkCanvas* canvas, const SkPath& path,
-                            const SkPaint& paint, int N) SK_OVERRIDE {
+                            const SkPaint& paint, int N) override {
         SkPoint pts[2];
         if (!path.isLine(pts) || pts[0].fY != pts[1].fY) {
             this->INHERITED::handlePath(canvas, path, paint, N);
@@ -119,7 +118,7 @@ protected:
 
             SkPaint p(paint);
             p.setStyle(SkPaint::kFill_Style);
-            p.setPathEffect(NULL);
+            p.setPathEffect(nullptr);
 
             int count = SkScalarRoundToInt((pts[1].fX - pts[0].fX) / (2*fWidth));
             SkScalar dx = SkIntToScalar(2 * fWidth);
@@ -153,8 +152,7 @@ static void make_unit_star(SkPath* path, int n) {
 
 static void make_poly(SkPath* path) {
     make_unit_star(path, 9);
-    SkMatrix matrix;
-    matrix.setScale(SkIntToScalar(100), SkIntToScalar(100));
+    const SkMatrix matrix = SkMatrix::MakeScale(SkIntToScalar(100), SkIntToScalar(100));
     path->transform(matrix);
 }
 
@@ -178,7 +176,7 @@ static void make_cubic(SkPath* path) {
 class MakeDashBench : public Benchmark {
     SkString fName;
     SkPath   fPath;
-    SkAutoTUnref<SkPathEffect> fPE;
+    sk_sp<SkPathEffect> fPE;
 
 public:
     MakeDashBench(void (*proc)(SkPath*), const char name[])  {
@@ -186,20 +184,20 @@ public:
         proc(&fPath);
 
         SkScalar vals[] = { SkIntToScalar(4), SkIntToScalar(4) };
-        fPE.reset(SkDashPathEffect::Create(vals, 2, 0));
+        fPE = SkDashPathEffect::Make(vals, 2, 0);
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas*) override {
         SkPath dst;
         for (int i = 0; i < loops; ++i) {
             SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
 
-            fPE->filterPath(&dst, fPath, &rec, NULL);
+            fPE->filterPath(&dst, fPath, &rec, nullptr);
             dst.rewind();
         }
     }
@@ -215,7 +213,7 @@ class DashLineBench : public Benchmark {
     SkString fName;
     SkScalar fStrokeWidth;
     bool     fIsRound;
-    SkAutoTUnref<SkPathEffect> fPE;
+    sk_sp<SkPathEffect> fPE;
 
 public:
     DashLineBench(SkScalar width, bool isRound)  {
@@ -224,15 +222,15 @@ public:
         fIsRound = isRound;
 
         SkScalar vals[] = { SK_Scalar1, SK_Scalar1 };
-        fPE.reset(SkDashPathEffect::Create(vals, 2, 0));
+        fPE = SkDashPathEffect::Make(vals, 2, 0);
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint paint;
         this->setupPaint(&paint);
         paint.setStrokeWidth(fStrokeWidth);
@@ -253,7 +251,7 @@ class DrawPointsDashingBench : public Benchmark {
     int      fStrokeWidth;
     bool     fDoAA;
 
-    SkAutoTUnref<SkPathEffect> fPathEffect;
+    sk_sp<SkPathEffect> fPathEffect;
 
 public:
     DrawPointsDashingBench(int dashLength, int strokeWidth, bool doAA)
@@ -263,15 +261,15 @@ public:
         fDoAA = doAA;
 
         SkScalar vals[] = { SkIntToScalar(dashLength), SkIntToScalar(dashLength) };
-        fPathEffect.reset(SkDashPathEffect::Create(vals, 2, SK_Scalar1));
+        fPathEffect = SkDashPathEffect::Make(vals, 2, SK_Scalar1);
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint p;
         this->setupPaint(&p);
         p.setColor(SK_ColorBLACK);
@@ -300,7 +298,7 @@ class GiantDashBench : public Benchmark {
     SkString fName;
     SkScalar fStrokeWidth;
     SkPoint  fPts[2];
-    SkAutoTUnref<SkPathEffect> fPathEffect;
+    sk_sp<SkPathEffect> fPathEffect;
 
 public:
     enum LineType {
@@ -312,7 +310,7 @@ public:
 
     static const char* LineTypeName(LineType lt) {
         static const char* gNames[] = { "hori", "vert", "diag" };
-        SK_COMPILE_ASSERT(kLineTypeCount == SK_ARRAY_COUNT(gNames), names_wrong_size);
+        static_assert(kLineTypeCount == SK_ARRAY_COUNT(gNames), "names_wrong_size");
         return gNames[lt];
     }
 
@@ -323,8 +321,7 @@ public:
         // deliberately pick intervals that won't be caught by asPoints(), so
         // we can test the filterPath code-path.
         const SkScalar intervals[] = { 20, 10, 10, 10 };
-        fPathEffect.reset(SkDashPathEffect::Create(intervals,
-                                                   SK_ARRAY_COUNT(intervals), 0));
+        fPathEffect = SkDashPathEffect::Make(intervals, SK_ARRAY_COUNT(intervals), 0);
 
         SkScalar cx = 640 / 2;  // center X
         SkScalar cy = 480 / 2;  // center Y
@@ -353,11 +350,11 @@ public:
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint p;
         this->setupPaint(&p);
         p.setStyle(SkPaint::kStroke_Style);
@@ -380,7 +377,7 @@ class DashGridBench : public Benchmark {
     int      fStrokeWidth;
     bool     fDoAA;
 
-    SkAutoTUnref<SkPathEffect> fPathEffect;
+    sk_sp<SkPathEffect> fPathEffect;
 
 public:
     DashGridBench(int dashLength, int strokeWidth, bool doAA) {
@@ -389,15 +386,15 @@ public:
         fDoAA = doAA;
 
         SkScalar vals[] = { SkIntToScalar(dashLength), SkIntToScalar(dashLength) };
-        fPathEffect.reset(SkDashPathEffect::Create(vals, 2, SK_Scalar1));
+        fPathEffect = SkDashPathEffect::Make(vals, 2, SK_Scalar1);
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkPaint p;
         this->setupPaint(&p);
         p.setColor(SK_ColorBLACK);

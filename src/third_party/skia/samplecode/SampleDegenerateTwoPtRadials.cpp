@@ -6,6 +6,7 @@
  */
 
 #include "SampleCode.h"
+#include "SkAnimTimer.h"
 #include "SkView.h"
 #include "SkCanvas.h"
 #include "SkGradientShader.h"
@@ -26,18 +27,15 @@ static void draw_gradient2(SkCanvas* canvas, const SkRect& rect, SkScalar delta)
     SkPoint c1 = { l + 3 * w / 5, t + h / 2 };
     SkScalar r0 = w / 5;
     SkScalar r1 = 2 * w / 5;
-    SkShader* s = SkGradientShader::CreateTwoPointConical(c0, r0, c1, r1, colors,
-                                                         pos, SK_ARRAY_COUNT(pos),
-                                                         SkShader::kClamp_TileMode);
     SkPaint paint;
-    paint.setShader(s)->unref();
-
+    paint.setShader(SkGradientShader::MakeTwoPointConical(c0, r0, c1, r1, colors,
+                                                          pos, SK_ARRAY_COUNT(pos),
+                                                          SkShader::kClamp_TileMode));
     canvas->drawRect(rect, paint);
 }
 
 
 class DegenerateTwoPtRadialsView : public SampleView {
-
 public:
     DegenerateTwoPtRadialsView() {
         fTime = 0;
@@ -45,8 +43,7 @@ public:
     }
 
 protected:
-    // overrides from SkEventSink
-    virtual bool onQuery(SkEvent* evt) {
+    bool onQuery(SkEvent* evt) override {
         if (SampleCode::TitleQ(*evt)) {
             SampleCode::TitleR(evt, "DegenerateTwoPtRadials");
             return true;
@@ -54,8 +51,7 @@ protected:
         return this->INHERITED::onQuery(evt);
     }
 
-    virtual void onDrawContent(SkCanvas* canvas) {
-        fTime += SampleCode::GetAnimSecondsDelta();
+    void onDrawContent(SkCanvas* canvas) override {
         SkScalar delta = fTime / 15.f;
         int intPart = SkScalarFloorToInt(delta);
         delta = delta - SK_Scalar1 * intPart;
@@ -76,8 +72,12 @@ protected:
         SkPaint paint;
         paint.setAntiAlias(true);
         paint.setColor(SK_ColorBLACK);
-        canvas->drawText(txt.c_str(), txt.size(), l + w/2 + w*DELTA_SCALE*delta, t + h + SK_Scalar1 * 10, paint);
-        this->inval(NULL);
+        canvas->drawString(txt, l + w/2 + w*DELTA_SCALE*delta, t + h + SK_Scalar1 * 10, paint);
+    }
+
+    bool onAnimate(const SkAnimTimer& timer) override {
+        fTime = SkDoubleToScalar(timer.secs() / 15);
+        return true;
     }
 
 private:

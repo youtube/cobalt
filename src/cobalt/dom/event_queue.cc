@@ -51,9 +51,7 @@ void EventQueue::CancelAllEvents() {
 }
 
 void EventQueue::TraceMembers(script::Tracer* tracer) {
-  for (const auto& event : events_) {
-    tracer->Trace(event);
-  }
+  tracer->TraceItems(events_);
 }
 
 void EventQueue::DispatchEvents() {

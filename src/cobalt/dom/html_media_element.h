@@ -48,6 +48,7 @@ typedef media::ChunkDemuxer ChunkDemuxer;
 typedef media::WebMediaPlayer WebMediaPlayer;
 typedef media::WebMediaPlayerClient WebMediaPlayerClient;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ChunkDemuxer ChunkDemuxer;
 typedef ::media::WebMediaPlayer WebMediaPlayer;
 typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -57,7 +58,7 @@ typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
  public:
   HTMLMediaElement(Document* document, base::Token tag_name);
-  ~HTMLMediaElement() OVERRIDE;
+  ~HTMLMediaElement() override;
 
   // Web API: HTMLMediaElement
   //
@@ -127,6 +128,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   float current_time(script::ExceptionState* exception_state) const;
   void set_current_time(float time, script::ExceptionState* exception_state);
   float duration() const;
+  base::Time GetStartDate() const;
   bool paused() const;
   float default_playback_rate() const;
   void set_default_playback_rate(float rate);
@@ -153,9 +155,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // Custom, not in any spec
   //
   // From Node
-  void OnInsertedIntoDocument() OVERRIDE;
-
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void OnInsertedIntoDocument() override;
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
   // Called by MediaSource
@@ -167,6 +167,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void ScheduleEvent(const scoped_refptr<Event>& event);
 
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   WebMediaPlayer* player() { return player_.get(); }
@@ -234,37 +235,33 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void MediaEngineError(scoped_refptr<MediaError> error);
 
   // WebMediaPlayerClient methods
-  void NetworkStateChanged() OVERRIDE;
-  void ReadyStateChanged() OVERRIDE;
-  void TimeChanged(bool eos_played) OVERRIDE;
-  void DurationChanged() OVERRIDE;
-  void OutputModeChanged() OVERRIDE;
-  void ContentSizeChanged() OVERRIDE;
-  void PlaybackStateChanged() OVERRIDE;
-  void SawUnsupportedTracks() OVERRIDE;
-  float Volume() const OVERRIDE;
-#if defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened(ChunkDemuxer* chunk_demuxer) OVERRIDE;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened() OVERRIDE;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
-  std::string SourceURL() const OVERRIDE;
-  bool PreferDecodeToTexture() OVERRIDE;
+  void NetworkStateChanged() override;
+  void ReadyStateChanged() override;
+  void TimeChanged(bool eos_played) override;
+  void DurationChanged() override;
+  void OutputModeChanged() override;
+  void ContentSizeChanged() override;
+  void PlaybackStateChanged() override;
+  void SawUnsupportedTracks() override;
+  float Volume() const override;
+  void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
+  std::string SourceURL() const override;
+  bool PreferDecodeToTexture() override;
 #if defined(COBALT_MEDIA_SOURCE_2016)
   void EncryptedMediaInitDataEncountered(
       media::EmeInitDataType init_data_type, const unsigned char* init_data,
-      unsigned int init_data_length) OVERRIDE;
+      unsigned int init_data_length) override;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   void KeyAdded(const std::string& key_system,
-                const std::string& session_id) OVERRIDE;
+                const std::string& session_id) override;
   void KeyError(const std::string& key_system, const std::string& session_id,
-                MediaKeyErrorCode error_code, uint16 system_code) OVERRIDE;
+                MediaKeyErrorCode error_code, uint16 system_code) override;
   void KeyMessage(const std::string& key_system, const std::string& session_id,
                   const unsigned char* message, unsigned int message_length,
-                  const std::string& default_url) OVERRIDE;
+                  const std::string& default_url) override;
   void KeyNeeded(const std::string& key_system, const std::string& session_id,
                  const unsigned char* init_data,
-                 unsigned int init_data_length) OVERRIDE;
+                 unsigned int init_data_length) override;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   void ClearMediaSource();
 #if !defined(COBALT_MEDIA_SOURCE_2016)
@@ -295,6 +292,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   double previous_progress_time_;
 
   double duration_;
+  base::Time start_date_;
 
   bool playing_;
   bool have_fired_loaded_data_;
@@ -302,7 +300,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   bool muted_;
   bool paused_;
   bool seeking_;
-  bool loop_;
   bool controls_;
 
   // The last time a timeupdate event was sent (wall clock).

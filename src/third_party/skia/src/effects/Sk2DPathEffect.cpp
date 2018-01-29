@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -12,9 +11,11 @@
 #include "SkWriteBuffer.h"
 #include "SkPath.h"
 #include "SkRegion.h"
+#include "SkStrokeRec.h"
 
 Sk2DPathEffect::Sk2DPathEffect(const SkMatrix& mat) : fMatrix(mat) {
-    fMatrixIsInvertible = mat.invert(&fInverse);
+    // Calling invert will set the type mask on both matrices, making them thread safe.
+    fMatrixIsInvertible = fMatrix.invert(&fInverse);
 }
 
 bool Sk2DPathEffect::filterPath(SkPath* dst, const SkPath& src,
@@ -73,10 +74,12 @@ void Sk2DPathEffect::flatten(SkWriteBuffer& buffer) const {
     buffer.writeMatrix(fMatrix);
 }
 
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-Sk2DPathEffect::Sk2DPathEffect(SkReadBuffer& buffer) {
-    buffer.readMatrix(&fMatrix);
-    fMatrixIsInvertible = fMatrix.invert(&fInverse);
+#ifndef SK_IGNORE_TO_STRING
+void Sk2DPathEffect::toString(SkString* str) const {
+    str->appendf("(matrix: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f)",
+            fMatrix[SkMatrix::kMScaleX], fMatrix[SkMatrix::kMSkewX],  fMatrix[SkMatrix::kMTransX],
+            fMatrix[SkMatrix::kMSkewY],  fMatrix[SkMatrix::kMScaleY], fMatrix[SkMatrix::kMTransY],
+            fMatrix[SkMatrix::kMPersp0], fMatrix[SkMatrix::kMPersp1], fMatrix[SkMatrix::kMPersp2]);
 }
 #endif
 
@@ -104,17 +107,11 @@ void SkLine2DPathEffect::nextSpan(int u, int v, int ucount, SkPath* dst) const {
     }
 }
 
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-SkLine2DPathEffect::SkLine2DPathEffect(SkReadBuffer& buffer) : INHERITED(buffer) {
-    fWidth = buffer.readScalar();
-}
-#endif
-
-SkFlattenable* SkLine2DPathEffect::CreateProc(SkReadBuffer& buffer) {
+sk_sp<SkFlattenable> SkLine2DPathEffect::CreateProc(SkReadBuffer& buffer) {
     SkMatrix matrix;
     buffer.readMatrix(&matrix);
     SkScalar width = buffer.readScalar();
-    return SkLine2DPathEffect::Create(width, matrix);
+    return SkLine2DPathEffect::Make(width, matrix);
 }
 
 void SkLine2DPathEffect::flatten(SkWriteBuffer &buffer) const {
@@ -122,24 +119,28 @@ void SkLine2DPathEffect::flatten(SkWriteBuffer &buffer) const {
     buffer.writeScalar(fWidth);
 }
 
+
+#ifndef SK_IGNORE_TO_STRING
+void SkLine2DPathEffect::toString(SkString* str) const {
+    str->appendf("SkLine2DPathEffect: (");
+    this->INHERITED::toString(str);
+    str->appendf("width: %f", fWidth);
+    str->appendf(")");
+}
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 
 SkPath2DPathEffect::SkPath2DPathEffect(const SkMatrix& m, const SkPath& p)
     : INHERITED(m), fPath(p) {
 }
 
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-SkPath2DPathEffect::SkPath2DPathEffect(SkReadBuffer& buffer) : INHERITED(buffer) {
-    buffer.readPath(&fPath);
-}
-#endif
-
-SkFlattenable* SkPath2DPathEffect::CreateProc(SkReadBuffer& buffer) {
+sk_sp<SkFlattenable> SkPath2DPathEffect::CreateProc(SkReadBuffer& buffer) {
     SkMatrix matrix;
     buffer.readMatrix(&matrix);
     SkPath path;
     buffer.readPath(&path);
-    return SkPath2DPathEffect::Create(matrix, path);
+    return SkPath2DPathEffect::Make(matrix, path);
 }
 
 void SkPath2DPathEffect::flatten(SkWriteBuffer& buffer) const {
@@ -151,3 +152,12 @@ void SkPath2DPathEffect::next(const SkPoint& loc, int u, int v,
                               SkPath* dst) const {
     dst->addPath(fPath, loc.fX, loc.fY);
 }
+
+#ifndef SK_IGNORE_TO_STRING
+void SkPath2DPathEffect::toString(SkString* str) const {
+    str->appendf("SkPath2DPathEffect: (");
+    this->INHERITED::toString(str);
+    // TODO: print out path information
+    str->appendf(")");
+}
+#endif

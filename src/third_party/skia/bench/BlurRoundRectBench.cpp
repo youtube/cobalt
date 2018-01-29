@@ -17,7 +17,6 @@
 #include "SkRRect.h"
 #include "SkRect.h"
 #include "SkString.h"
-#include "SkXfermode.h"
 
 // Large blurred RR appear frequently on web pages. This benchmark measures our
 // performance in this case.
@@ -25,38 +24,35 @@ class BlurRoundRectBench : public Benchmark {
 public:
     BlurRoundRectBench(int width, int height, int cornerRadius)
         : fName("blurroundrect") {
-        fName.appendf("_WH[%ix%i]_cr[%i]", width, height, cornerRadius);
+        fName.appendf("_WH_%ix%i_cr_%i", width, height, cornerRadius);
         SkRect r = SkRect::MakeWH(SkIntToScalar(width), SkIntToScalar(height));
         fRRect.setRectXY(r, SkIntToScalar(cornerRadius), SkIntToScalar(cornerRadius));
     }
 
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual SkIPoint onGetSize() SK_OVERRIDE {
+    SkIPoint onGetSize() override {
         return SkIPoint::Make(SkScalarCeilToInt(fRRect.rect().width()),
                               SkScalarCeilToInt(fRRect.rect().height()));
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkLayerDrawLooper::Builder looperBuilder;
         {
             SkLayerDrawLooper::LayerInfo info;
             info.fPaintBits = SkLayerDrawLooper::kMaskFilter_Bit
                               | SkLayerDrawLooper::kColorFilter_Bit;
-            info.fColorMode = SkXfermode::kSrc_Mode;
+            info.fColorMode = SkBlendMode::kSrc;
             info.fOffset = SkPoint::Make(SkIntToScalar(-1), SkIntToScalar(0));
             info.fPostTranslate = false;
             SkPaint* paint = looperBuilder.addLayerOnTop(info);
-            SkMaskFilter* maskFilter = SkBlurMaskFilter::Create(
-                    kNormal_SkBlurStyle,
-                    SkBlurMask::ConvertRadiusToSigma(SK_ScalarHalf),
-                    SkBlurMaskFilter::kHighQuality_BlurFlag);
-            paint->setMaskFilter(maskFilter)->unref();
-            SkColorFilter* colorFilter = SkColorFilter::CreateModeFilter(SK_ColorLTGRAY,
-                    SkXfermode::kSrcIn_Mode);
-            paint->setColorFilter(colorFilter)->unref();
+            paint->setMaskFilter(SkBlurMaskFilter::Make(kNormal_SkBlurStyle,
+                                                        SkBlurMask::ConvertRadiusToSigma(0.5),
+                                                        SkBlurMaskFilter::kHighQuality_BlurFlag));
+            paint->setColorFilter(SkColorFilter::MakeModeFilter(SK_ColorLTGRAY,
+                                                                SkBlendMode::kSrcIn));
             paint->setColor(SK_ColorGRAY);
         }
         {
@@ -67,7 +63,7 @@ public:
         dullPaint.setAntiAlias(true);
 
         SkPaint loopedPaint;
-        loopedPaint.setLooper(looperBuilder.detachLooper())->unref();
+        loopedPaint.setLooper(looperBuilder.detach());
         loopedPaint.setAntiAlias(true);
         loopedPaint.setColor(SK_ColorCYAN);
 

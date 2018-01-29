@@ -14,7 +14,7 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/nullable_types_test_interface.h"
-
+#include "cobalt/bindings/testing/utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::InSequence;
@@ -81,7 +81,8 @@ TEST_F(NullableTypesBindingsTest, GetNonNullProperty) {
       .WillOnce(Return(make_scoped_refptr(new ArbitraryInterface())));
   EXPECT_TRUE(
       EvaluateScript("test.nullableObjectProperty.__proto__;", &result));
-  EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
+  EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
+      << result;
 }
 
 TEST_F(NullableTypesBindingsTest, ReturnNullFromOperation) {
@@ -139,7 +140,8 @@ TEST_F(NullableTypesBindingsTest, ReturnNonNullFromOperation) {
       .WillOnce(Return(make_scoped_refptr(new ArbitraryInterface())));
   EXPECT_TRUE(
       EvaluateScript("test.nullableObjectOperation().__proto__;", &result));
-  EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
+  EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
+      << result;
 }
 
 TEST_F(NullableTypesBindingsTest, SetNullProperty) {

@@ -8,11 +8,12 @@
 #ifndef GrSingleTextureEffect_DEFINED
 #define GrSingleTextureEffect_DEFINED
 
-#include "GrProcessor.h"
-#include "SkMatrix.h"
+#include "GrFragmentProcessor.h"
+#include "GrColorSpaceXform.h"
 #include "GrCoordTransform.h"
 
-class GrTexture;
+class GrTextureProxy;
+class SkMatrix;
 
 /**
  * A base class for effects that draw a single texture with a texture matrix. This effect has no
@@ -20,46 +21,44 @@ class GrTexture;
  */
 class GrSingleTextureEffect : public GrFragmentProcessor {
 public:
-    virtual ~GrSingleTextureEffect();
+    SkString dumpInfo() const override {
+        SkString str;
+        str.appendf("Texture: %d", fTextureSampler.proxy()->uniqueID().asUInt());
+        return str;
+    }
+
+    GrColorSpaceXform* colorSpaceXform() const { return fColorSpaceXform.get(); }
 
 protected:
     /** unfiltered, clamp mode */
-    GrSingleTextureEffect(GrTexture*, const SkMatrix&, GrCoordSet = kLocal_GrCoordSet);
+    GrSingleTextureEffect(OptimizationFlags, sk_sp<GrTextureProxy>,
+                          sk_sp<GrColorSpaceXform>, const SkMatrix&);
     /** clamp mode */
-    GrSingleTextureEffect(GrTexture*, const SkMatrix&, GrTextureParams::FilterMode filterMode,
-                          GrCoordSet = kLocal_GrCoordSet);
-    GrSingleTextureEffect(GrTexture*,
-                          const SkMatrix&,
-                          const GrTextureParams&,
-                          GrCoordSet = kLocal_GrCoordSet);
+    GrSingleTextureEffect(OptimizationFlags, sk_sp<GrTextureProxy>,
+                          sk_sp<GrColorSpaceXform>, const SkMatrix&,
+                          GrSamplerParams::FilterMode filterMode);
+    GrSingleTextureEffect(OptimizationFlags, sk_sp<GrTextureProxy>,
+                          sk_sp<GrColorSpaceXform>, const SkMatrix&, const GrSamplerParams&);
 
     /**
-     * Helper for subclass onIsEqual() functions.
+     * Can be used as a helper to decide which fragment processor OptimizationFlags should be set.
+     * This assumes that the subclass output color will be a modulation of the input color with a
+     * value read from the texture and that the texture contains premultiplied color or alpha values
+     * that are in range.
      */
-    bool hasSameTextureParamsMatrixAndSourceCoords(const GrSingleTextureEffect& other) const {
-        // We don't have to check the accesses' swizzles because they are inferred from the texture.
-        return fTextureAccess == other.fTextureAccess &&
-               fCoordTransform.getMatrix().cheapEqualTo(other.fCoordTransform.getMatrix()) &&
-               fCoordTransform.sourceCoords() == other.fCoordTransform.sourceCoords();
-    }
-
-    /**
-     * Can be used as a helper to implement subclass getConstantColorComponents(). It assumes that
-     * the subclass output color will be a modulation of the input color with a value read from the
-     * texture.
-     */
-    void updateConstantColorComponentsForModulation(GrColor* color, uint32_t* validFlags) const {
-        if ((*validFlags & kA_GrColorComponentFlag) && 0xFF == GrColorUnpackA(*color) &&
-            GrPixelConfigIsOpaque(this->texture(0)->config())) {
-            *validFlags = kA_GrColorComponentFlag;
+    static OptimizationFlags ModulationFlags(GrPixelConfig config) {
+        if (GrPixelConfigIsOpaque(config)) {
+            return kCompatibleWithCoverageAsAlpha_OptimizationFlag |
+                   kPreservesOpaqueInput_OptimizationFlag;
         } else {
-            *validFlags = 0;
+            return kCompatibleWithCoverageAsAlpha_OptimizationFlag;
         }
     }
 
 private:
-    GrCoordTransform fCoordTransform;
-    GrTextureAccess  fTextureAccess;
+    GrCoordTransform         fCoordTransform;
+    TextureSampler           fTextureSampler;
+    sk_sp<GrColorSpaceXform> fColorSpaceXform;
 
     typedef GrFragmentProcessor INHERITED;
 };

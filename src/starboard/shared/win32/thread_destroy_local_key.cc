@@ -17,15 +17,20 @@
 #include <windows.h>
 
 #include "starboard/memory.h"
+#include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetThreadSubsystemSingleton;
+using starboard::shared::win32::TlsInternalFree;
 using starboard::shared::win32::ThreadSubsystemSingleton;
 
 void SbThreadDestroyLocalKey(SbThreadLocalKey key) {
   if (!SbThreadIsValidLocalKey(key)) {
     return;
   }
+  // To match pthreads, the thread local pointer for the key is set to null
+  // so that a supplied destructor doesn't run.
+  SbThreadSetLocalValue(key, nullptr);
   DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
 
@@ -33,6 +38,6 @@ void SbThreadDestroyLocalKey(SbThreadLocalKey key) {
   singleton->thread_local_keys_.erase(tls_index);
   SbMutexRelease(&singleton->mutex_);
 
-  TlsFree(tls_index);
+  TlsInternalFree(tls_index);
   SbMemoryDeallocateNoReport(key);
 }

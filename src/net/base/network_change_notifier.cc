@@ -35,7 +35,7 @@ NetworkChangeNotifierFactory* g_network_change_notifier_factory = NULL;
 
 class MockNetworkChangeNotifier : public NetworkChangeNotifier {
  public:
-  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE {
+  virtual ConnectionType GetCurrentConnectionType() const override {
     return CONNECTION_UNKNOWN;
   }
 };
@@ -72,7 +72,7 @@ class HistogramWatcher
   virtual ~HistogramWatcher() {}
 
   // NetworkChangeNotifier::IPAddressObserver implementation.
-  virtual void OnIPAddressChanged() OVERRIDE {
+  virtual void OnIPAddressChanged() override {
     UMA_HISTOGRAM_MEDIUM_TIMES("NCN.IPAddressChange",
                                SinceLast(&last_ip_address_change_));
     UMA_HISTOGRAM_MEDIUM_TIMES(
@@ -82,7 +82,7 @@ class HistogramWatcher
 
   // NetworkChangeNotifier::ConnectionTypeObserver implementation.
   virtual void OnConnectionTypeChanged(
-      NetworkChangeNotifier::ConnectionType type) OVERRIDE {
+      NetworkChangeNotifier::ConnectionType type) override {
     if (type != NetworkChangeNotifier::CONNECTION_NONE) {
       UMA_HISTOGRAM_MEDIUM_TIMES("NCN.OnlineChange",
                                  SinceLast(&last_connection_change_));
@@ -114,14 +114,14 @@ class HistogramWatcher
   }
 
   // NetworkChangeNotifier::DNSObserver implementation.
-  virtual void OnDNSChanged() OVERRIDE {
+  virtual void OnDNSChanged() override {
     UMA_HISTOGRAM_MEDIUM_TIMES("NCN.DNSConfigChange",
                                SinceLast(&last_dns_change_));
   }
 
   // NetworkChangeNotifier::NetworkChangeObserver implementation.
   virtual void OnNetworkChanged(
-      NetworkChangeNotifier::ConnectionType type) OVERRIDE {
+      NetworkChangeNotifier::ConnectionType type) override {
     if (type != NetworkChangeNotifier::CONNECTION_NONE) {
       UMA_HISTOGRAM_MEDIUM_TIMES("NCN.NetworkOnlineChange",
                                  SinceLast(&last_network_change_));
@@ -241,7 +241,7 @@ class NetworkChangeNotifier::NetworkChangeCalculator
   }
 
   // NetworkChangeNotifier::IPAddressObserver implementation.
-  virtual void OnIPAddressChanged() OVERRIDE {
+  virtual void OnIPAddressChanged() override {
     base::TimeDelta delay = last_announced_connection_type_ == CONNECTION_NONE
         ? params_.ip_address_offline_delay_ : params_.ip_address_online_delay_;
     // Cancels any previous timer.
@@ -249,7 +249,7 @@ class NetworkChangeNotifier::NetworkChangeCalculator
   }
 
   // NetworkChangeNotifier::ConnectionTypeObserver implementation.
-  virtual void OnConnectionTypeChanged(ConnectionType type) OVERRIDE {
+  virtual void OnConnectionTypeChanged(ConnectionType type) override {
     pending_connection_type_ = type;
     base::TimeDelta delay = last_announced_connection_type_ == CONNECTION_NONE
         ? params_.connection_type_offline_delay_

@@ -31,8 +31,6 @@
       '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
-      '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
-      '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
       '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
       '<(DEPTH)/starboard/win/shared/system_get_path.cc',

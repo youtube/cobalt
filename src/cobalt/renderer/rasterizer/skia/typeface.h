@@ -36,32 +36,28 @@ namespace skia {
 // than the thread making the character glyph queries.
 class SkiaTypeface : public render_tree::Typeface {
  public:
-  explicit SkiaTypeface(SkTypeface_Cobalt* typeface);
+  explicit SkiaTypeface(const sk_sp<SkTypeface_Cobalt>& typeface);
 
-  // Returns the contained SkTypeface_Cobalt object, which has its reference
-  // count incremented.
-  // NOTE: The caller is responsible for decrementing the reference count after
-  // finishing with the object.
-  SkTypeface_Cobalt* GetSkTypeface() const;
+  const sk_sp<SkTypeface_Cobalt>& GetSkTypeface() const;
 
   // From render_tree::Typeface
 
   // Returns the typeface's id, which is guaranteed to be unique among the
   // typefaces registered with the resource provider.
-  render_tree::TypefaceId GetId() const OVERRIDE;
+  render_tree::TypefaceId GetId() const override;
 
   // Returns a size estimate for this typeface in bytes.
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE;
+  uint32 GetEstimatedSizeInBytes() const override;
 
   // Creates a font using this typeface, with the font's size set to the passed
   // in value.
-  scoped_refptr<render_tree::Font> CreateFontWithSize(float font_size) OVERRIDE;
+  scoped_refptr<render_tree::Font> CreateFontWithSize(float font_size) override;
 
   // Returns an index to the glyph that the typeface provides for a given UTF-32
   // unicode character. If the character is unsupported, then it returns
   // kInvalidGlyphIndex. The results are cached to speed up subsequent requests
   // for the same character.
-  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE;
+  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character) override;
 
  private:
   // Usually covers Latin-1 in a single page.
@@ -69,7 +65,7 @@ class SkiaTypeface : public render_tree::Typeface {
   typedef base::hash_map<int32, render_tree::GlyphIndex> CharacterToGlyphMap;
 
   // The underlying SkTypeface that was used to create this typeface.
-  SkAutoTUnref<SkTypeface_Cobalt> typeface_;
+  sk_sp<SkTypeface_Cobalt> typeface_;
 
   // The glyphs for characters are lazily computed and cached to speed up later
   // lookups. The page containing indices 0-255 is optimized within an array.

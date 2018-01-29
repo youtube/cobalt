@@ -8,9 +8,11 @@
 #include "CrashHandler.h"
 #include "OverwriteLine.h"
 #include "Resources.h"
+#include "SkAtomics.h"
 #include "SkCommonFlags.h"
 #include "SkGraphics.h"
 #include "SkOSFile.h"
+#include "SkPathOpsDebug.h"
 #include "SkTArray.h"
 #include "SkTaskGroup.h"
 #include "SkTemplates.h"
@@ -23,82 +25,101 @@
 #endif
 
 using namespace skiatest;
+using namespace sk_gpu_test;
 
+DEFINE_bool2(dumpOp, d, false, "dump the pathOps to a file to recover mid-crash.");
 DEFINE_bool2(extendedTest, x, false, "run extended tests for pathOps.");
+DEFINE_bool2(runFail, f, false, "check for success on tests known to fail.");
+DEFINE_bool2(verifyOp, y, false, "compare the pathOps result against a region.");
+
+#if DEBUG_COIN
+DEFINE_bool2(coinTest, c, false, "detect unused coincidence algorithms.");
+#endif
 
 // need to explicitly declare this, or we get some weird infinite loop llist
 template TestRegistry* TestRegistry::gHead;
+void (*gVerboseFinalize)() = nullptr;
 
-class Iter {
+// The threads report back to this object when they are done.
+class Status {
 public:
-    Iter() { this->reset(); }
-    void reset() { fReg = TestRegistry::Head(); }
-
-    Test* next(Reporter* r) {
-        if (fReg) {
-            TestRegistry::Factory fact = fReg->factory();
-            fReg = fReg->next();
-            Test* test = fact(NULL);
-            test->setReporter(r);
-            return test;
-        }
-        return NULL;
-    }
-
-private:
-    const TestRegistry* fReg;
-};
-
-class DebugfReporter : public Reporter {
-public:
-    explicit DebugfReporter(int total) : fDone(0), fTotal(total) {}
-
-    virtual bool allowExtendedTest() const SK_OVERRIDE { return FLAGS_extendedTest; }
-    virtual bool verbose()           const SK_OVERRIDE { return FLAGS_veryVerbose; }
-
-protected:
-    virtual void onReportFailed(const SkString& desc) SK_OVERRIDE {
-        SkDebugf("\nFAILED: %s", desc.c_str());
-    }
-
-    virtual void onEnd(Test* test) SK_OVERRIDE {
+    explicit Status(int total)
+        : fDone(0), fTestCount(0), fFailCount(0), fTotal(total) {}
+    // Threadsafe.
+    void endTest(const char* testName,
+                 bool success,
+                 SkMSec elapsed,
+                 int testCount) {
         const int done = 1 + sk_atomic_inc(&fDone);
-
-        if (!test->passed()) {
-            SkDebugf("\n---- %s FAILED", test->getName());
+        for (int i = 0; i < testCount; ++i) {
+            sk_atomic_inc(&fTestCount);
+        }
+        if (!success) {
+            SkDebugf("\n---- %s FAILED", testName);
         }
 
         SkString prefix(kSkOverwriteLine);
         SkString time;
         if (FLAGS_verbose) {
             prefix.printf("\n");
-            time.printf("%5dms ", test->elapsedMs());
+            time.printf("%5dms ", elapsed);
         }
-        SkDebugf("%s[%3d/%3d] %s%s", prefix.c_str(), done, fTotal, time.c_str(), test->getName());
+        SkDebugf("%s[%3d/%3d] %s%s", prefix.c_str(), done, fTotal, time.c_str(),
+                 testName);
     }
+
+    void reportFailure() { sk_atomic_inc(&fFailCount); }
+
+    int32_t testCount() { return fTestCount; }
+    int32_t failCount() { return fFailCount; }
 
 private:
     int32_t fDone;  // atomic
+    int32_t fTestCount;  // atomic
+    int32_t fFailCount;  // atomic
     const int fTotal;
 };
 
-// Deletes self when run.
-class SkTestRunnable : public SkRunnable {
+class SkTestRunnable {
 public:
-  // Takes ownership of test.
-  SkTestRunnable(Test* test, int32_t* failCount) : fTest(test), fFailCount(failCount) {}
+    SkTestRunnable(const Test& test,
+                   Status* status,
+                   GrContextFactory* grContextFactory = nullptr)
+        : fTest(test), fStatus(status), fGrContextFactory(grContextFactory) {}
 
-  virtual void run() {
-      fTest->run();
-      if(!fTest->passed()) {
-          sk_atomic_inc(fFailCount);
+  void operator()() {
+      struct TestReporter : public skiatest::Reporter {
+      public:
+          TestReporter() : fStats(nullptr), fError(false), fTestCount(0) {}
+          void bumpTestCount() override { ++fTestCount; }
+          bool allowExtendedTest() const override {
+              return FLAGS_extendedTest;
+          }
+          bool verbose() const override { return FLAGS_veryVerbose; }
+          void reportFailed(const skiatest::Failure& failure) override {
+              SkDebugf("\nFAILED: %s", failure.toString().c_str());
+              fError = true;
+          }
+          void* stats() const override { return fStats; }
+          void* fStats;
+          bool fError;
+          int fTestCount;
+      } reporter;
+
+      const Timer timer;
+      fTest.proc(&reporter, fGrContextFactory);
+      SkMSec elapsed = timer.elapsedMsInt();
+      if (reporter.fError) {
+          fStatus->reportFailure();
       }
-      SkDELETE(this);
+      fStatus->endTest(fTest.name, !reporter.fError, elapsed,
+                       reporter.fTestCount);
   }
 
 private:
-    SkAutoTDelete<Test> fTest;
-    int32_t* fFailCount;
+    Test fTest;
+    Status* fStatus;
+    GrContextFactory* fGrContextFactory;
 };
 
 static bool should_run(const char* testName, bool isGPUTest) {
@@ -114,17 +135,17 @@ static bool should_run(const char* testName, bool isGPUTest) {
     return true;
 }
 
-int test_main();
-int test_main() {
+int main(int argc, char** argv) {
+    SkCommandLineFlags::Parse(argc, argv);
+#if DEBUG_DUMP_VERIFY
+    SkPathOpsDebug::gDumpOp = FLAGS_dumpOp;
+    SkPathOpsDebug::gVerifyOp = FLAGS_verifyOp;
+#endif
+    SkPathOpsDebug::gRunFail = FLAGS_runFail;
+    SkPathOpsDebug::gVeryVerbose = FLAGS_veryVerbose;
     SetupCrashHandler();
 
-#if SK_ENABLE_INST_COUNT
-    if (FLAGS_leaks) {
-        gPrintInstCount = true;
-    }
-#endif
-
-    SkGraphics::Init();
+    SkAutoGraphics ag;
 
     {
         SkString header("Skia UnitTests:");
@@ -134,7 +155,7 @@ int test_main() {
                 header.appendf(" %s", FLAGS_match[index]);
             }
         }
-        SkString tmpDir = Test::GetTmpDir();
+        SkString tmpDir = skiatest::GetTmpDir();
         if (!tmpDir.isEmpty()) {
             header.appendf(" --tmpDir %s", tmpDir.c_str());
         }
@@ -142,83 +163,108 @@ int test_main() {
         if (!resourcePath.isEmpty()) {
             header.appendf(" --resourcePath %s", resourcePath.c_str());
         }
+#if DEBUG_COIN
+        if (FLAGS_coinTest) {
+            header.appendf(" -c");
+        }
+#endif
+        if (FLAGS_dumpOp) {
+            header.appendf(" -d");
+        }
+#ifdef SK_DEBUG
+        if (FLAGS_runFail) {
+            header.appendf(" -f");
+        }
+#endif
+        if (FLAGS_verbose) {
+            header.appendf(" -v");
+        }
+        if (FLAGS_veryVerbose) {
+            header.appendf(" -V");
+        }
+        if (FLAGS_extendedTest) {
+            header.appendf(" -x");
+        }
+        if (FLAGS_verifyOp) {
+            header.appendf(" -y");
+        }
 #ifdef SK_DEBUG
         header.append(" SK_DEBUG");
 #else
         header.append(" SK_RELEASE");
 #endif
-        header.appendf(" skia_arch_width=%d", (int)sizeof(void*) * 8);
         if (FLAGS_veryVerbose) {
             header.appendf("\n");
         }
-        SkDebugf(header.c_str());
+        SkDebugf("%s", header.c_str());
     }
 
 
     // Count tests first.
     int total = 0;
     int toRun = 0;
-    Test* test;
 
-    Iter iter;
-    while ((test = iter.next(NULL/*reporter not needed*/)) != NULL) {
-        SkAutoTDelete<Test> owned(test);
-        if (should_run(test->getName(), test->isGPUTest())) {
+    for (const TestRegistry* iter = TestRegistry::Head(); iter;
+         iter = iter->next()) {
+        const Test& test = iter->factory();
+        if (should_run(test.name, test.needsGpu)) {
             toRun++;
         }
         total++;
     }
 
     // Now run them.
-    iter.reset();
-    int32_t failCount = 0;
     int skipCount = 0;
 
     SkTaskGroup::Enabler enabled(FLAGS_threads);
     SkTaskGroup cpuTests;
-    SkTArray<Test*> gpuTests;  // Always passes ownership to an SkTestRunnable
+    SkTArray<const Test*> gpuTests;
 
-    DebugfReporter reporter(toRun);
-    for (int i = 0; i < total; i++) {
-        SkAutoTDelete<Test> test(iter.next(&reporter));
-        if (!should_run(test->getName(), test->isGPUTest())) {
+    Status status(toRun);
+    for (const TestRegistry* iter = TestRegistry::Head(); iter;
+         iter = iter->next()) {
+        const Test& test = iter->factory();
+        if (!should_run(test.name, test.needsGpu)) {
             ++skipCount;
-        } else if (test->isGPUTest()) {
-            gpuTests.push_back() = test.detach();
+        } else if (test.needsGpu) {
+            gpuTests.push_back(&test);
         } else {
-            cpuTests.add(SkNEW_ARGS(SkTestRunnable, (test.detach(), &failCount)));
+            cpuTests.add(SkTestRunnable(test, &status));
         }
     }
 
+    GrContextFactory* grContextFactoryPtr = nullptr;
 #if SK_SUPPORT_GPU
     // Give GPU tests a context factory if that makes sense on this machine.
     GrContextFactory grContextFactory;
-    for (int i = 0; i < gpuTests.count(); i++) {
-        gpuTests[i]->setGrContextFactory(&grContextFactory);
-    }
+    grContextFactoryPtr = &grContextFactory;
+
 #endif
 
     // Run GPU tests on this thread.
     for (int i = 0; i < gpuTests.count(); i++) {
-        SkNEW_ARGS(SkTestRunnable, (gpuTests[i], &failCount))->run();
+        SkTestRunnable(*gpuTests[i], &status, grContextFactoryPtr)();
     }
 
     // Block until threaded tests finish.
     cpuTests.wait();
 
     if (FLAGS_verbose) {
-        SkDebugf("\nFinished %d tests, %d failures, %d skipped. (%d internal tests)",
-                 toRun, failCount, skipCount, reporter.countTests());
+        SkDebugf(
+                "\nFinished %d tests, %d failures, %d skipped. "
+                "(%d internal tests)",
+                toRun, status.failCount(), skipCount, status.testCount());
+        if (gVerboseFinalize) {
+            (*gVerboseFinalize)();
+        }
     }
-    SkGraphics::Term();
 
     SkDebugf("\n");
-    return (failCount == 0) ? 0 : 1;
-}
-
-#if !defined(SK_BUILD_FOR_IOS) && !defined(SK_BUILD_FOR_NACL)
-int main(int argc, char** argv) {
-    SkCommandLineFlags::Parse(argc, argv);
-    return test_main();
-}
+#if DEBUG_COIN
+    if (FLAGS_coinTest) {
+        SkPathOpsDebug::DumpCoinDict();
+    }
 #endif
+
+    return (status.failCount() == 0) ? 0 : 1;
+}

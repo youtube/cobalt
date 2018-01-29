@@ -15,10 +15,21 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PLAYER_COMPONENTS_H_
 
+#include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/decode_target.h"
+#include "starboard/drm.h"
+#include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
@@ -27,59 +38,83 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-struct AudioParameters {
-  SbMediaAudioCodec audio_codec;
-  const SbMediaAudioHeader& audio_header;
-  SbDrmSystem drm_system;
-  JobQueue* job_queue;
-};
-
-struct VideoParameters {
-  SbMediaVideoCodec video_codec;
-  SbDrmSystem drm_system;
-  JobQueue* job_queue;
-  SbPlayerOutputMode output_mode;
-  SbDecodeTargetGraphicsContextProvider*
-      decode_target_graphics_context_provider;
-};
-
-// All the platform specific components that a
-// |FilterBasedPlayerWorkerHandler| needs to function.  Note that the
-// existence of a |PlayerComponents| object implies that it is valid.  If
-// creation fails in |PlayerComponents::Create|, then NULL will be returned.
+// This class creates all the platform specific components that is required by
+// |FilterBasedPlayerWorkerHandler| to function.
 class PlayerComponents {
  public:
-  // Individual implementations have to implement this function to create the
-  // player components required by |FilterBasedPlayerWorkerHandler|.
-  static scoped_ptr<PlayerComponents> Create(
+  struct AudioParameters {
+    SbMediaAudioCodec audio_codec;
+    const SbMediaAudioHeader& audio_header;
+    SbDrmSystem drm_system;
+    JobQueue* job_queue;
+  };
+
+  struct VideoParameters {
+    SbPlayer player;
+    SbMediaVideoCodec video_codec;
+    SbDrmSystem drm_system;
+    JobQueue* job_queue;
+    SbPlayerOutputMode output_mode;
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider;
+  };
+
+  virtual ~PlayerComponents() {}
+
+  // Individual platform should implement this function to allow the creation of
+  // a PlayerComponents instance.
+  static scoped_ptr<PlayerComponents> Create();
+
+  scoped_ptr<AudioRenderer> CreateAudioRenderer(
+      const AudioParameters& audio_parameters) {
+    scoped_ptr<AudioDecoder> audio_decoder;
+    scoped_ptr<AudioRendererSink> audio_renderer_sink;
+
+    CreateAudioComponents(audio_parameters, &audio_decoder,
+                          &audio_renderer_sink);
+    if (!audio_decoder || !audio_renderer_sink) {
+      return scoped_ptr<AudioRenderer>();
+    }
+    return make_scoped_ptr(new AudioRenderer(audio_decoder.Pass(),
+                                             audio_renderer_sink.Pass(),
+                                             audio_parameters.audio_header));
+  }
+  scoped_ptr<VideoRenderer> CreateVideoRenderer(
+      const VideoParameters& video_parameters,
+      MediaTimeProvider* media_time_provider) {
+    scoped_ptr<VideoDecoder> video_decoder;
+    scoped_ptr<VideoRenderAlgorithm> video_render_algorithm;
+    scoped_refptr<VideoRendererSink> video_renderer_sink;
+    CreateVideoComponents(video_parameters, &video_decoder,
+                          &video_render_algorithm, &video_renderer_sink);
+    if (!video_decoder || !video_render_algorithm || !video_renderer_sink) {
+      return scoped_ptr<VideoRenderer>();
+    }
+    return make_scoped_ptr(
+        new VideoRenderer(video_decoder.Pass(), media_time_provider,
+                          video_render_algorithm.Pass(), video_renderer_sink));
+  }
+
+#if COBALT_BUILD_TYPE_GOLD
+ private:
+#endif  // COBALT_BUILD_TYPE_GOLD
+  // Note that the following functions are exposed in non-Gold build to allow
+  // unit tests to run.
+  virtual void CreateAudioComponents(
       const AudioParameters& audio_parameters,
-      const VideoParameters& video_parameters);
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink) = 0;
 
-  // After successful creation, the client should retrieve both
-  // |audio_renderer_| and |video_renderer_| from the |PlayerComponents|.
-  void GetRenderers(scoped_ptr<AudioRenderer>* audio_renderer,
-                    scoped_ptr<VideoRenderer>* video_renderer) {
-    SB_DCHECK(audio_renderer);
-    SB_DCHECK(video_renderer);
-    SB_DCHECK(is_valid());
-    *audio_renderer = audio_renderer_.Pass();
-    *video_renderer = video_renderer_.Pass();
-  }
+  virtual void CreateVideoComponents(
+      const VideoParameters& video_parameters,
+      scoped_ptr<VideoDecoder>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_refptr<VideoRendererSink>* video_renderer_sink) = 0;
 
-  bool is_valid() const {
-    SB_DCHECK(!!audio_renderer_ == !!video_renderer_);
-    return audio_renderer_ && video_renderer_;
-  }
+ protected:
+  PlayerComponents() {}
 
  private:
-  // |PlayerComponent|s must only be created through |Create|.
-  PlayerComponents(AudioRenderer* audio_renderer, VideoRenderer* video_renderer)
-      : audio_renderer_(audio_renderer), video_renderer_(video_renderer) {
-    SB_DCHECK(is_valid());
-  }
-  scoped_ptr<AudioRenderer> audio_renderer_;
-  scoped_ptr<VideoRenderer> video_renderer_;
-
   SB_DISALLOW_COPY_AND_ASSIGN(PlayerComponents);
 };
 

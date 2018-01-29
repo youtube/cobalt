@@ -6,65 +6,87 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
+#include "SkImageSource.h"
 #include "SkMagnifierImageFilter.h"
+#include "SkPixelRef.h"
 #include "SkRandom.h"
+#include "SkSurface.h"
 
 #define WIDTH 500
 #define HEIGHT 500
 
-namespace skiagm {
-
-class ImageMagnifierGM : public GM {
-public:
-    ImageMagnifierGM() {
-        this->setBGColor(0xFF000000);
-    }
-
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        // Skip tiled drawing until https://code.google.com/p/skia/issues/detail?id=781 is fixed.
-        return this->INHERITED::onGetFlags() | GM::kSkipTiled_Flag;
-    }
-
-    virtual SkString onShortName() SK_OVERRIDE {
-        return SkString("imagemagnifier");
-    }
-
-    virtual SkISize onISize() SK_OVERRIDE {
-        return SkISize::Make(WIDTH, HEIGHT);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        SkPaint paint;
-        paint.setImageFilter(
-            SkMagnifierImageFilter::Create(
+DEF_SIMPLE_GM_BG(imagemagnifier, canvas, WIDTH, HEIGHT, SK_ColorBLACK) {
+        SkPaint filterPaint;
+        filterPaint.setImageFilter(
+            SkMagnifierImageFilter::Make(
                 SkRect::MakeXYWH(SkIntToScalar(100), SkIntToScalar(100),
                                  SkIntToScalar(WIDTH / 2),
                                  SkIntToScalar(HEIGHT / 2)),
-                100))->unref();
-        canvas->saveLayer(NULL, &paint);
-        paint.setAntiAlias(true);
-        sk_tool_utils::set_portable_typeface(&paint);
+                100, nullptr));
+        canvas->saveLayer(nullptr, &filterPaint);
         const char* str = "The quick brown fox jumped over the lazy dog.";
         SkRandom rand;
         for (int i = 0; i < 25; ++i) {
             int x = rand.nextULessThan(WIDTH);
             int y = rand.nextULessThan(HEIGHT);
-            paint.setColor(rand.nextBits(24) | 0xFF000000);
+            SkPaint paint;
+            sk_tool_utils::set_portable_typeface(&paint);
+            paint.setColor(sk_tool_utils::color_to_565(rand.nextBits(24) | 0xFF000000));
             paint.setTextSize(rand.nextRangeScalar(0, 300));
-            canvas->drawText(str, strlen(str), SkIntToScalar(x),
+            paint.setAntiAlias(true);
+            canvas->drawString(str, SkIntToScalar(x),
                              SkIntToScalar(y), paint);
         }
         canvas->restore();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+#define WIDTH_HEIGHT 256
+
+static sk_sp<SkImage> make_img() {
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(WIDTH_HEIGHT, WIDTH_HEIGHT);
+    SkCanvas canvas(bitmap);
+
+    canvas.clear(0x0);
+
+    SkPaint paint;
+    paint.setColor(SK_ColorBLUE);
+
+    for (float pos = 0; pos < WIDTH_HEIGHT; pos += 16) {
+        canvas.drawLine(0, pos, SkIntToScalar(WIDTH_HEIGHT), pos, paint);
+        canvas.drawLine(pos, 0, pos, SkIntToScalar(WIDTH_HEIGHT), paint);
     }
 
-private:
-    typedef GM INHERITED;
-};
+    SkBitmap result;
+    result.setInfo(SkImageInfo::MakeS32(WIDTH_HEIGHT, WIDTH_HEIGHT, kPremul_SkAlphaType));
+    result.setPixelRef(sk_ref_sp(bitmap.pixelRef()), 0, 0);
 
-//////////////////////////////////////////////////////////////////////////////
+    return SkImage::MakeFromBitmap(result);
+}
 
-static GM* MyFactory(void*) { return new ImageMagnifierGM; }
-static GMRegistry reg(MyFactory);
+DEF_SIMPLE_GM_BG(imagemagnifier_cropped, canvas, WIDTH_HEIGHT, WIDTH_HEIGHT, SK_ColorBLACK) {
 
+    sk_sp<SkImage> image(make_img());
+
+    sk_sp<SkImageFilter> imageSource(SkImageSource::Make(std::move(image)));
+
+    SkRect srcRect = SkRect::MakeWH(SkIntToScalar(WIDTH_HEIGHT-32),
+                                    SkIntToScalar(WIDTH_HEIGHT-32));
+    srcRect.inset(64.0f, 64.0f);
+
+    constexpr SkScalar kInset = 64.0f;
+
+    // Crop out a 16 pixel ring around the result
+    const SkRect rect = SkRect::MakeXYWH(16, 16, WIDTH_HEIGHT-32, WIDTH_HEIGHT-32);
+    SkImageFilter::CropRect cropRect(rect);
+
+    SkPaint filterPaint;
+    filterPaint.setImageFilter(SkMagnifierImageFilter::Make(srcRect, kInset,
+                                                            std::move(imageSource),
+                                                            &cropRect));
+
+    canvas->saveLayer(nullptr, &filterPaint);
+    canvas->restore();
 }

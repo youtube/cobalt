@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Google Inc.
  *
@@ -10,15 +9,22 @@
 #define SkCanvasStack_DEFINED
 
 #include "SkNWayCanvas.h"
+#include "SkRegion.h"
 #include "SkTArray.h"
 
+/**
+ *  Like NWayCanvas, in that it forwards all canvas methods to each sub-canvas that is "pushed".
+ *
+ *  Unlike NWayCanvas, this takes ownership of each subcanvas, and deletes them when this canvas
+ *  is deleted.
+ */
 class SkCanvasStack : public SkNWayCanvas {
 public:
     SkCanvasStack(int width, int height);
-    virtual ~SkCanvasStack();
+    ~SkCanvasStack() override;
 
-    void pushCanvas(SkCanvas* canvas, const SkIPoint& origin);
-    virtual void removeAll() SK_OVERRIDE;
+    void pushCanvas(std::unique_ptr<SkCanvas>, const SkIPoint& origin);
+    void removeAll() override;
 
     /*
      * The following add/remove canvas methods are overrides from SkNWayCanvas
@@ -26,16 +32,16 @@ public:
      * can share most of the other implementation of NWay we override those
      * methods to be no-ops.
      */
-    virtual void addCanvas(SkCanvas*) SK_OVERRIDE { SkDEBUGFAIL("Invalid Op"); }
-    virtual void removeCanvas(SkCanvas*) SK_OVERRIDE { SkDEBUGFAIL("Invalid Op"); }
+    void addCanvas(SkCanvas*) override { SkDEBUGFAIL("Invalid Op"); }
+    void removeCanvas(SkCanvas*) override { SkDEBUGFAIL("Invalid Op"); }
 
 protected:
-    virtual void didSetMatrix(const SkMatrix&) SK_OVERRIDE;
+    void didSetMatrix(const SkMatrix&) override;
 
-    virtual void onClipRect(const SkRect&, SkRegion::Op, ClipEdgeStyle) SK_OVERRIDE;
-    virtual void onClipRRect(const SkRRect&, SkRegion::Op, ClipEdgeStyle) SK_OVERRIDE;
-    virtual void onClipPath(const SkPath&, SkRegion::Op, ClipEdgeStyle) SK_OVERRIDE;
-    virtual void onClipRegion(const SkRegion&, SkRegion::Op) SK_OVERRIDE;
+    void onClipRect(const SkRect&, SkClipOp, ClipEdgeStyle) override;
+    void onClipRRect(const SkRRect&, SkClipOp, ClipEdgeStyle) override;
+    void onClipPath(const SkPath&, SkClipOp, ClipEdgeStyle) override;
+    void onClipRegion(const SkRegion&, SkClipOp) override;
 
 private:
     void clipToZOrderedBounds();
@@ -43,6 +49,7 @@ private:
     struct CanvasData {
         SkIPoint origin;
         SkRegion requiredClip;
+        std::unique_ptr<SkCanvas> ownedCanvas;
     };
 
     SkTArray<CanvasData> fCanvasData;

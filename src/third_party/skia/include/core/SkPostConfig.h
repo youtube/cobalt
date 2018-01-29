@@ -5,11 +5,21 @@
  * found in the LICENSE file.
  */
 
+// IWYU pragma: private, include "SkTypes.h"
+
 #ifndef SkPostConfig_DEFINED
 #define SkPostConfig_DEFINED
 
-#if defined(SK_BUILD_FOR_WIN32) || defined(SK_BUILD_FOR_WINCE)
+#if defined(SK_BUILD_FOR_WIN32)
 #  define SK_BUILD_FOR_WIN
+#endif
+
+#if !defined(SK_DEBUG) && !defined(SK_RELEASE)
+    #ifdef NDEBUG
+        #define SK_RELEASE
+    #else
+        #define SK_DEBUG
+    #endif
 #endif
 
 #if defined(SK_DEBUG) && defined(SK_RELEASE)
@@ -24,13 +34,12 @@
 
 /**
  * Matrix calculations may be float or double.
- * The default is double, as that is faster given our impl uses doubles
- * for intermediate calculations.
+ * The default is float, as that's what Chromium's using.
  */
 #if defined(SK_MSCALAR_IS_DOUBLE) && defined(SK_MSCALAR_IS_FLOAT)
 #  error "cannot define both SK_MSCALAR_IS_DOUBLE and SK_MSCALAR_IS_FLOAT"
 #elif !defined(SK_MSCALAR_IS_DOUBLE) && !defined(SK_MSCALAR_IS_FLOAT)
-#  define SK_MSCALAR_IS_DOUBLE
+#  define SK_MSCALAR_IS_FLOAT
 #endif
 
 #if defined(SK_CPU_LENDIAN) && defined(SK_CPU_BENDIAN)
@@ -68,6 +77,14 @@
 #  endif
 #endif
 
+#if defined(_MSC_VER) && SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSE2
+    #define SK_VECTORCALL __vectorcall
+#elif defined(SK_CPU_ARM32) && defined(SK_ARM_HAS_NEON)
+    #define SK_VECTORCALL __attribute__((pcs("aapcs-vfp")))
+#else
+    #define SK_VECTORCALL
+#endif
+
 #if !defined(SK_SUPPORT_GPU)
 #  define SK_SUPPORT_GPU 1
 #endif
@@ -88,80 +105,15 @@
 #  endif
 #endif
 
-#if defined(SK_ZLIB_INCLUDE) && defined(SK_SYSTEM_ZLIB)
-#  error "cannot define both SK_ZLIB_INCLUDE and SK_SYSTEM_ZLIB"
-#elif defined(SK_ZLIB_INCLUDE) || defined(SK_SYSTEM_ZLIB)
-#  define SK_HAS_ZLIB
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SkNEW
-#  define SkNEW(type_name)                           (new type_name)
-#  define SkNEW_ARGS(type_name, args)                (new type_name args)
-#  define SkNEW_ARRAY(type_name, count)              (new type_name[(count)])
-#  define SkNEW_PLACEMENT(buf, type_name)            (new (buf) type_name)
-#  define SkNEW_PLACEMENT_ARGS(buf, type_name, args) (new (buf) type_name args)
-#  define SkDELETE(obj)                              (delete (obj))
-#  define SkDELETE_ARRAY(array)                      (delete[] (array))
-#endif
+// TODO(mdempsky): Move elsewhere as appropriate.
+#include <new>
 
-#ifndef SK_CRASH
-#  ifdef SK_BUILD_FOR_WIN
-#    define SK_CRASH() __debugbreak()
-#  else
-#    if 1   // set to 0 for infinite loop, which can help connecting gdb
-#      define SK_CRASH() do { SkNO_RETURN_HINT(); *(int *)(uintptr_t)0xbbadbeef = 0; } while (false)
-#    else
-#      define SK_CRASH() do { SkNO_RETURN_HINT(); } while (true)
-#    endif
-#  endif
-#endif
-
-///////////////////////////////////////////////////////////////////////////////
-
-/**
- * SK_ENABLE_INST_COUNT controlls printing how many reference counted objects
- * are still held on exit.
- * Defaults to 1 in DEBUG and 0 in RELEASE.
- */
-#ifndef SK_ENABLE_INST_COUNT
-#  ifdef SK_DEBUG
-// Only enabled for static builds, because instance counting relies on static
-// variables in functions defined in header files.
-#    if defined(SKIA_DLL)
-#      define SK_ENABLE_INST_COUNT 0
-#    else
-#      define SK_ENABLE_INST_COUNT 1
-#    endif
-#  else
-#    define SK_ENABLE_INST_COUNT 0
-#  endif
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifdef SK_BUILD_FOR_WIN
-#  ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
-#    define WIN32_IS_MEAN_WAS_LOCALLY_DEFINED
-#  endif
-#  ifndef NOMINMAX
-#    define NOMINMAX
-#    define NOMINMAX_WAS_LOCALLY_DEFINED
-#  endif
-#
-#  include <windows.h>
-#
-#  ifdef WIN32_IS_MEAN_WAS_LOCALLY_DEFINED
-#    undef WIN32_IS_MEAN_WAS_LOCALLY_DEFINED
-#    undef WIN32_LEAN_AND_MEAN
-#  endif
-#  ifdef NOMINMAX_WAS_LOCALLY_DEFINED
-#    undef NOMINMAX_WAS_LOCALLY_DEFINED
-#    undef NOMINMAX
-#  endif
-#
 #  ifndef SK_A32_SHIFT
 #    define SK_A32_SHIFT 24
 #    define SK_R32_SHIFT 16
@@ -171,17 +123,31 @@
 #
 #endif
 
-#ifndef SK_ALWAYSBREAK
-#  ifdef SK_DEBUG
-#    define SK_ALWAYSBREAK(cond) do { \
-              if (cond) break; \
-              SkNO_RETURN_HINT(); \
-              SkDebugf("%s:%d: failed assertion \"%s\"\n", __FILE__, __LINE__, #cond); \
-              SK_CRASH(); \
-        } while (false)
-#  else
-#    define SK_ALWAYSBREAK(cond) do { if (cond) break; SK_CRASH(); } while (false)
-#  endif
+#if defined(GOOGLE3)
+    void SkDebugfForDumpStackTrace(const char* data, void* unused);
+    void DumpStackTrace(int skip_count, void w(const char*, void*), void* arg);
+#  define SK_DUMP_GOOGLE3_STACK() DumpStackTrace(0, SkDebugfForDumpStackTrace, nullptr)
+#else
+#  define SK_DUMP_GOOGLE3_STACK()
+#endif
+
+#ifdef SK_BUILD_FOR_WIN
+// permits visual studio to follow error back to source
+#define SK_DUMP_LINE_FORMAT(message) \
+    SkDebugf("%s(%d): fatal error: \"%s\"\n", __FILE__, __LINE__, message)
+#else
+#define SK_DUMP_LINE_FORMAT(message) \
+    SkDebugf("%s:%d: fatal error: \"%s\"\n", __FILE__, __LINE__, message)
+#endif
+
+#ifndef SK_ABORT
+#  define SK_ABORT(message) \
+    do { \
+       SkNO_RETURN_HINT(); \
+       SK_DUMP_LINE_FORMAT(message); \
+       SK_DUMP_GOOGLE3_STACK(); \
+       sk_abort_no_print(); \
+    } while (false)
 #endif
 
 /**
@@ -233,26 +199,7 @@
          SK_ ## C3 ## 32_SHIFT == 24)
 #endif
 
-//////////////////////////////////////////////////////////////////////
-
-// TODO: rebaseline as needed so we can remove this flag entirely.
-//  - all platforms have int64_t now
-//  - we have slightly different fixed math results because of this check
-//    since we don't define this for linux/android
-#if defined(SK_BUILD_FOR_WIN32) || defined(SK_BUILD_FOR_MAC)
-#  ifndef SkLONGLONG
-#    define SkLONGLONG int64_t
-#  endif
-#endif
-
 //////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef SK_BUILD_FOR_WINCE
-#  include <string.h>
-#  include <stdlib.h>
-#else
-#  define _CMNINTRIN_DECLARE_ONLY
-#  include "cmnintrin.h"
-#endif
 
 #if defined SK_DEBUG && defined SK_BUILD_FOR_WIN32 && !defined(COBALT_WIN)
 #  ifdef free
@@ -297,44 +244,17 @@
 
 //////////////////////////////////////////////////////////////////////
 
-#ifndef SK_OVERRIDE
-#  if defined(_MSC_VER)
-#    define SK_OVERRIDE override
-#  elif defined(__clang__)
-     // Using __attribute__((override)) on clang does not appear to always work.
-     // Clang defaults to C++03 and warns about using override. Squelch that. Intentionally no
-     // push/pop here so all users of SK_OVERRIDE ignore the warning too. This is like passing
-     // -Wno-c++11-extensions, except that GCC won't die (because it won't see this pragma).
-#    pragma clang diagnostic ignored "-Wc++11-extensions"
-#
-#    if __has_feature(cxx_override_control)
-#      define SK_OVERRIDE override
-#    elif defined(__has_extension) && __has_extension(cxx_override_control)
-#      define SK_OVERRIDE override
-#    endif
-#  endif
-#  ifndef SK_OVERRIDE
-#    define SK_OVERRIDE
-#  endif
-#endif
-
-//////////////////////////////////////////////////////////////////////
-
 #if !defined(SK_UNUSED)
-#  define SK_UNUSED SK_ATTRIBUTE(unused)
+#  if defined(_MSC_VER)
+#    define SK_UNUSED __pragma(warning(suppress:4189))
+#  else
+#    define SK_UNUSED SK_ATTRIBUTE(unused)
+#  endif
 #endif
 
 #if !defined(SK_ATTR_DEPRECATED)
    // FIXME: we ignore msg for now...
 #  define SK_ATTR_DEPRECATED(msg) SK_ATTRIBUTE(deprecated)
-#endif
-
-#if !defined(SK_ATTR_EXTERNALLY_DEPRECATED)
-#  if !defined(SK_INTERNAL)
-#    define SK_ATTR_EXTERNALLY_DEPRECATED(msg) SK_ATTR_DEPRECATED(msg)
-#  else
-#    define SK_ATTR_EXTERNALLY_DEPRECATED(msg)
-#  endif
 #endif
 
 /**
@@ -351,14 +271,29 @@
 #  endif
 #endif
 
+/**
+ * If your judgment is better than the compiler's (i.e. you've profiled it),
+ * you can use SK_NEVER_INLINE to prevent inlining.
+ */
+#if !defined(SK_NEVER_INLINE)
+#  if defined(SK_BUILD_FOR_WIN)
+#    define SK_NEVER_INLINE __declspec(noinline)
+#  else
+#    define SK_NEVER_INLINE SK_ATTRIBUTE(noinline)
+#  endif
+#endif
+
 //////////////////////////////////////////////////////////////////////
 
-#if defined(__clang__) || defined(__GNUC__)
-#  define SK_PREFETCH(ptr) __builtin_prefetch(ptr)
-#  define SK_WRITE_PREFETCH(ptr) __builtin_prefetch(ptr, 1)
+#if SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSE1
+    #define SK_PREFETCH(ptr)       _mm_prefetch(reinterpret_cast<const char*>(ptr), _MM_HINT_T0)
+    #define SK_WRITE_PREFETCH(ptr) _mm_prefetch(reinterpret_cast<const char*>(ptr), _MM_HINT_T0)
+#elif defined(__GNUC__)
+    #define SK_PREFETCH(ptr)       __builtin_prefetch(ptr)
+    #define SK_WRITE_PREFETCH(ptr) __builtin_prefetch(ptr, 1)
 #else
-#  define SK_PREFETCH(ptr)
-#  define SK_WRITE_PREFETCH(ptr)
+    #define SK_PREFETCH(ptr)
+    #define SK_WRITE_PREFETCH(ptr)
 #endif
 
 //////////////////////////////////////////////////////////////////////
@@ -389,41 +324,40 @@
 
 //////////////////////////////////////////////////////////////////////
 
-#ifndef SK_ATOMICS_PLATFORM_H
-#  if defined(_MSC_VER)
-#    define SK_ATOMICS_PLATFORM_H "../../src/ports/SkAtomics_win.h"
+#ifndef SK_EGL
+#  if defined(SK_BUILD_FOR_ANDROID)
+#    define SK_EGL 1
 #  else
-#    define SK_ATOMICS_PLATFORM_H "../../src/ports/SkAtomics_sync.h"
+#    define SK_EGL 0
 #  endif
 #endif
-
-#ifndef SK_MUTEX_PLATFORM_H
-#  if defined(SK_BUILD_FOR_WIN)
-#    define SK_MUTEX_PLATFORM_H "../../src/ports/SkMutex_win.h"
-#  else
-#    define SK_MUTEX_PLATFORM_H "../../src/ports/SkMutex_pthread.h"
-#  endif
-#endif
-
-#ifndef SK_BARRIERS_PLATFORM_H
-#  if SK_HAS_COMPILER_FEATURE(thread_sanitizer)
-#    define SK_BARRIERS_PLATFORM_H "../../src/ports/SkBarriers_tsan.h"
-#  elif defined(SK_CPU_ARM32) || defined(SK_CPU_ARM64)
-#    define SK_BARRIERS_PLATFORM_H "../../src/ports/SkBarriers_arm.h"
-#  else
-#    define SK_BARRIERS_PLATFORM_H "../../src/ports/SkBarriers_x86.h"
-#  endif
-#endif
-
 
 //////////////////////////////////////////////////////////////////////
 
-#if defined(SK_GAMMA_EXPONENT) && defined(SK_GAMMA_SRGB)
-#  error "cannot define both SK_GAMMA_EXPONENT and SK_GAMMA_SRGB"
-#elif defined(SK_GAMMA_SRGB)
-#  define SK_GAMMA_EXPONENT (0.0f)
-#elif !defined(SK_GAMMA_EXPONENT)
-#  define SK_GAMMA_EXPONENT (2.2f)
+#if !defined(SK_GAMMA_EXPONENT)
+    #define SK_GAMMA_EXPONENT (0.0f)  // SRGB
+#endif
+
+//////////////////////////////////////////////////////////////////////
+
+#ifndef GR_TEST_UTILS
+#  define GR_TEST_UTILS 0
+#endif
+
+//////////////////////////////////////////////////////////////////////
+
+#if defined(SK_HISTOGRAM_ENUMERATION) && defined(SK_HISTOGRAM_BOOLEAN)
+#  define SK_HISTOGRAMS_ENABLED 1
+#else
+#  define SK_HISTOGRAMS_ENABLED 0
+#endif
+
+#ifndef SK_HISTOGRAM_BOOLEAN
+#  define SK_HISTOGRAM_BOOLEAN(name, value)
+#endif
+
+#ifndef SK_HISTOGRAM_ENUMERATION
+#  define SK_HISTOGRAM_ENUMERATION(name, value, boundary_value)
 #endif
 
 #endif // SkPostConfig_DEFINED

@@ -1,10 +1,10 @@
-
 /*
  * Copyright 2011 Google Inc.
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+
 #include "SkLineClipper.h"
 
 template <typename T> T pin_unsorted(T value, T limit0, T limit1) {
@@ -78,7 +78,7 @@ bool SkLineClipper::IntersectLine(const SkPoint src[2], const SkRect& clip,
                                   SkPoint dst[2]) {
     SkRect bounds;
 
-    bounds.set(src, 2);
+    bounds.set(src[0], src[1]);
     if (containsNoEmptyCheck(clip, bounds)) {
         if (src != dst) {
             memcpy(dst, src, 2 * sizeof(SkPoint));
@@ -137,7 +137,7 @@ bool SkLineClipper::IntersectLine(const SkPoint src[2], const SkRect& clip,
         tmp[index1].set(clip.fRight, sect_with_vertical(src, clip.fRight));
     }
 #ifdef SK_DEBUG
-    bounds.set(tmp, 2);
+    bounds.set(tmp[0], tmp[1]);
     SkASSERT(containsNoEmptyCheck(clip, bounds));
 #endif
     memcpy(dst, tmp, sizeof(tmp));
@@ -157,33 +157,8 @@ static bool is_between_unsorted(SkScalar value,
 }
 #endif
 
-#ifdef SK_DEBUG
-// This is an example of why we need to pin the result computed in
-// sect_with_horizontal. If we didn't explicitly pin, is_between_unsorted would
-// fail.
-//
-static void sect_with_horizontal_test_for_pin_results() {
-    const SkPoint pts[] = {
-        { -540000,    -720000 },
-        { -9.10000017e-05f, 9.99999996e-13f }
-    };
-    float x = sect_with_horizontal(pts, 0);
-    SkASSERT(is_between_unsorted(x, pts[0].fX, pts[1].fX));
-}
-#endif
-
-int SkLineClipper::ClipLine(const SkPoint pts[], const SkRect& clip,
-                            SkPoint lines[]) {
-#ifdef SK_DEBUG
-    {
-        static bool gOnce;
-        if (!gOnce) {
-            sect_with_horizontal_test_for_pin_results();
-            gOnce = true;
-        }
-    }
-#endif
-
+int SkLineClipper::ClipLine(const SkPoint pts[], const SkRect& clip, SkPoint lines[],
+                            bool canCullToTheRight) {
     int index0, index1;
 
     if (pts[0].fY < pts[1].fY) {
@@ -241,6 +216,9 @@ int SkLineClipper::ClipLine(const SkPoint pts[], const SkRect& clip,
         result = tmp;
         reverse = false;
     } else if (tmp[index0].fX >= clip.fRight) {    // wholly to the right
+        if (canCullToTheRight) {
+            return 0;
+        }
         tmp[0].fX = tmp[1].fX = clip.fRight;
         result = tmp;
         reverse = false;

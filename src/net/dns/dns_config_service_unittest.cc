@@ -27,8 +27,8 @@ class DnsConfigServiceTest : public testing::Test {
  protected:
   class TestDnsConfigService : public DnsConfigService {
    public:
-    virtual void ReadNow() OVERRIDE {}
-    virtual bool StartWatching() OVERRIDE { return true; }
+    virtual void ReadNow() override {}
+    virtual bool StartWatching() override { return true; }
 
     // Expose the protected methods to this test suite.
     void InvalidateConfig() {
@@ -83,7 +83,7 @@ class DnsConfigServiceTest : public testing::Test {
     return hosts;
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     quit_on_config_ = false;
 
     service_.reset(new TestDnsConfigService());

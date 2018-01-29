@@ -40,7 +40,7 @@ CachedSoftwareRasterizer::CachedSoftwareRasterizer(
     : cache_capacity_(cache_capacity),
       device_(device),
       context_(context),
-      software_rasterizer_(0, purge_skia_font_caches_on_destruction),
+      software_rasterizer_(purge_skia_font_caches_on_destruction),
       cache_memory_usage_(
           "Memory.CachedSoftwareRasterizer.CacheUsage", 0,
           "Total memory occupied by cached software-rasterized surfaces."),
@@ -190,10 +190,11 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
   SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
       device_, coord_mapping.output_bounds.width(),
       coord_mapping.output_bounds.height(), blitter_pixel_data_format);
-  DCHECK(SbBlitterIsPixelDataValid(pixel_data));
   if (!SbBlitterIsPixelDataValid(pixel_data)) {
     // We failed to allocate the pixel data, just return with a null surface
     // in this case.
+    LOG(ERROR) << "Error allocating pixel data for an offscreen software "
+                  "rasterization.";
     return software_surface;
   }
 

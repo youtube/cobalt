@@ -57,15 +57,15 @@ class StaticImage : public Image {
     DCHECK(image);
   }
 
-  const math::Size& GetSize() const OVERRIDE { return image_->GetSize(); }
+  const math::Size& GetSize() const override { return image_->GetSize(); }
 
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE {
+  uint32 GetEstimatedSizeInBytes() const override {
     return image_->GetEstimatedSizeInBytes();
   }
 
-  bool IsAnimated() const OVERRIDE { return false; }
+  bool IsAnimated() const override { return false; }
 
-  bool IsOpaque() const OVERRIDE { return image_->IsOpaque(); }
+  bool IsOpaque() const override { return image_->IsOpaque(); }
 
   scoped_refptr<render_tree::Image> image() { return image_; }
 
@@ -118,9 +118,9 @@ class AnimatedImage : public Image {
     scoped_refptr<render_tree::Image> frame_;
   };
 
-  bool IsAnimated() const OVERRIDE { return true; }
+  bool IsAnimated() const override { return true; }
 
-  bool IsOpaque() const OVERRIDE { return false; }
+  bool IsOpaque() const override { return false; }
 
   // Start playing the animation, decoding on the given message loop.
   // Implementation should be thread safe.

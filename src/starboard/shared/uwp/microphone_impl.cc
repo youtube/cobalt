@@ -24,6 +24,7 @@
 #include <deque>
 #include <memory>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "starboard/atomic.h"
@@ -53,6 +54,7 @@ using starboard::Semaphore;
 using starboard::shared::uwp::ApplicationUwp;
 using starboard::shared::win32::CheckResult;
 using starboard::shared::win32::platformStringToString;
+using starboard::shared::win32::SimpleThread;
 using Windows::Devices::Enumeration::DeviceInformation;
 using Windows::Devices::Enumeration::DeviceInformationCollection;
 using Windows::Foundation::EventRegistrationToken;
@@ -224,7 +226,7 @@ void ExtractRawAudioData(AudioFrameOutputNode^ node,
 class MutedTrigger {
  public:
   void SignalMuted() {
-    if (state_ != kInitialized) {
+    if (state_ == kIsMuted) {
       return;
     }
     state_ = kIsMuted;
@@ -261,34 +263,32 @@ class MutedTrigger {
 // immediately start recording. A callback will be created which will process
 // audio data when new samples are available. The Microphone will stop
 // recording when Close() is called.
-ref class MicrophoneProcessor sealed {
+class MicrophoneProcessor : public SimpleThread {
  public:
   // This will try and create a microphone. This will fail (return null) if
   // there are not available microphones.
-  static MicrophoneProcessor^ TryCreateAndStartRecording(
+  static scoped_ptr<MicrophoneProcessor> TryCreateAndStartRecording(
       size_t max_num_samples,
       int sample_rate) {
+    scoped_ptr<MicrophoneProcessor> output;
+
     std::vector<DeviceInformation^> microphone_devices =
         GetAllMicrophoneDevices();
     if (microphone_devices.empty()) {  // Unexpected condition.
-      return nullptr;
+      return output.Pass();
     }
 
-    MicrophoneProcessor^ output = ref new MicrophoneProcessor(
-        max_num_samples, sample_rate, microphone_devices);
+    output.reset(new MicrophoneProcessor(
+        max_num_samples, sample_rate, microphone_devices));
 
     if (output->input_nodes_.empty()) {
-      output = nullptr;
+      output.reset(nullptr);
     }
-    return output;
+    return output.Pass();
   }
 
   virtual ~MicrophoneProcessor() {
-  }
-
-  void Close() {
-    audio_graph_->QuantumStarted -= removal_token_;
-    ScopedLock lock(mutex_);
+    SimpleThread::Join();
     audio_graph_->Stop();
   }
 
@@ -315,7 +315,8 @@ ref class MicrophoneProcessor sealed {
       size_t max_num_samples,
       int sample_rate,
       const std::vector<DeviceInformation^>& microphone_devices)
-          : max_num_samples_(max_num_samples) {
+          : SimpleThread("MicrophoneProcessor"),
+            max_num_samples_(max_num_samples) {
     audio_graph_ = CreateAudioGraph(AudioRenderCategory::Speech,
                                     QuantumSizeSelectionMode::SystemDefault);
     wave_encoder_ =
@@ -333,15 +334,15 @@ ref class MicrophoneProcessor sealed {
       audio_frame_nodes_.push_back(audio_frame_node);
     }
     // Update the audio data whenever a new audio sample has been finished.
-    removal_token_ =
-        audio_graph_->QuantumStarted +=
-            ref new TypedEventHandler<AudioGraph^, Object^>(
-                this, &MicrophoneProcessor::OnQuantumStarted);
     audio_graph_->Start();
+    SimpleThread::Start();
   }
 
-  void OnQuantumStarted(AudioGraph^, Object^) {
-    Process();
+  void Run() override {
+    while (!join_called()) {
+      SleepMilliseconds(1);
+      Process();
+    }
   }
 
   void Process() {
@@ -403,7 +404,6 @@ ref class MicrophoneProcessor sealed {
   std::vector<AudioFrameOutputNode^> audio_frame_nodes_;
   std::vector<std::unique_ptr<std::vector<float>>> audio_channel_;
   std::vector<int16_t> pcm_audio_data_;
-  EventRegistrationToken removal_token_;
   size_t max_num_samples_ = 0;
   MutedTrigger muted_timer_;
   Mutex mutex_;
@@ -420,7 +420,7 @@ class MicrophoneImpl : public SbMicrophonePrivate {
   ~MicrophoneImpl() { Close(); }
 
   bool Open() override {
-    if (!microphone_.Get()) {
+    if (!microphone_) {
       if (IsUiThread()) {
         SB_LOG(INFO) << "Could not open microphone from UI thread.";
         return false;
@@ -433,13 +433,12 @@ class MicrophoneImpl : public SbMicrophonePrivate {
   }
 
   bool Close() override {
-    microphone_->Close();
-    microphone_ = nullptr;
+    microphone_.reset(nullptr);
     return true;
   }
 
   int Read(void* out_audio_data, int audio_data_size) override {
-    if (!microphone_.Get()) {
+    if (!microphone_) {
       return -1;
     }
     int16_t* pcm_buffer = reinterpret_cast<int16*>(out_audio_data);
@@ -455,7 +454,7 @@ class MicrophoneImpl : public SbMicrophonePrivate {
  private:
   const int buffer_size_bytes_;
   const int sample_rate_;
-  Platform::Agile<MicrophoneProcessor> microphone_;
+  scoped_ptr<MicrophoneProcessor> microphone_;
 };
 
 // Singleton access is required by the microphone interface as specified by
@@ -469,12 +468,30 @@ starboard::atomic_pointer<MicrophoneImpl*> s_singleton_pointer;
 int SbMicrophonePrivate::GetAvailableMicrophones(
     SbMicrophoneInfo* out_info_array,
     int info_array_size) {
-  if (GetAllMicrophoneDevices().empty()) {
+
+  std::vector<DeviceInformation^> mic_devices = GetAllMicrophoneDevices();
+  if (mic_devices.empty()) {
     return 0;
   }
   if (out_info_array && (info_array_size >= 1)) {
-    SbMicrophoneInfo info = {kSingletonId, kSBMicrophoneAnalogHeadset,
-                             kMaxSampleRate, kMinReadSizeBytes};
+    SbMicrophoneInfo info;
+    info.id = kSingletonId;
+    info.type = kSBMicrophoneAnalogHeadset;
+    info.max_sample_rate_hz = kMaxSampleRate;
+    info.min_read_size = kMinReadSizeBytes;
+
+#if SB_API_VERSION >= 9
+    std::stringstream all_mic_names;
+    for (size_t i = 0; i < mic_devices.size(); ++i) {
+      DeviceInformation^ mic_dev = mic_devices[i];
+      if (i > 0) {
+        all_mic_names << ", ";
+      }
+      all_mic_names << "[" << platformStringToString(mic_dev->Name) << "]";
+    }
+    SbStringCopy(info.label, all_mic_names.str().c_str(),
+                 SB_ARRAY_SIZE(info.label));
+#endif  // SB_API_VERSION >= 9
     out_info_array[0] = info;
   }
   return 1;

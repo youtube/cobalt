@@ -26,16 +26,17 @@
 #include <vector>
 
 #include "starboard/event.h"
+#include "starboard/file.h"
 #include "starboard/input.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 #include "starboard/shared/uwp/app_accessors.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/log_file_impl.h"
+#include "starboard/shared/uwp/watchdog_log.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
@@ -53,7 +54,6 @@ using starboard::shared::uwp::RunInMainThreadAsync;
 using starboard::shared::uwp::WaitForResult;
 using starboard::shared::win32::stringToPlatformString;
 using starboard::shared::win32::wchar_tToUTF8;
-using starboard::shared::starboard::player::VideoFrame;
 using Windows::ApplicationModel::Activation::ActivationKind;
 using Windows::ApplicationModel::Activation::DialReceiverActivatedEventArgs;
 using Windows::ApplicationModel::Activation::IActivatedEventArgs;
@@ -76,10 +76,9 @@ using Windows::Globalization::Calendar;
 using Windows::Media::Protection::HdcpProtection;
 using Windows::Media::Protection::HdcpSession;
 using Windows::Media::Protection::HdcpSetProtectionResult;
-using Windows::Networking::Connectivity::ConnectionProfile;
-using Windows::Networking::Connectivity::NetworkConnectivityLevel;
-using Windows::Networking::Connectivity::NetworkInformation;
-using Windows::Networking::Connectivity::NetworkStatusChangedEventHandler;
+using Windows::Security::Authentication::Web::Core::WebTokenRequestResult;
+using Windows::Security::Authentication::Web::Core::WebTokenRequestStatus;
+using Windows::Security::Credentials::WebAccountProvider;
 using Windows::Storage::KnownFolders;
 using Windows::Storage::StorageFolder;
 using Windows::System::Threading::ThreadPoolTimer;
@@ -90,10 +89,6 @@ using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::CoreWindow;
 using Windows::UI::Core::DispatchedHandler;
 using Windows::UI::Core::KeyEventArgs;
-using Windows::UI::Popups::IUICommand;
-using Windows::UI::Popups::MessageDialog;
-using Windows::UI::Popups::UICommand;
-using Windows::UI::Popups::UICommandInvokedHandler;
 using Windows::UI::ViewManagement::ApplicationView;
 
 namespace {
@@ -106,8 +101,20 @@ const int kWinSockVersionMinor = 2;
 
 const char kDialParamPrefix[] = "cobalt-dial:?";
 const char kLogPathSwitch[] = "xb1_log_file";
+// A special log that the app will periodically write to. This allows
+// tests to determine if the app is still alive.
+const char kWatchDogLog[] = "xb1_watchdog_log";
 const char kStarboardArgumentsPath[] = "arguments\\starboard_arguments.txt";
 const int64_t kMaxArgumentFileSizeBytes = 4 * 1024 * 1024;
+
+// Filename, placed in the cache dir, whose presence indicates
+// that the first run has happened.
+const char kFirstRunFilename[] = "first_run";
+// The entry point used by the main app.
+const char kMainAppDefaultEntryPoint[] = "https://www.youtube.com/tv";
+// The URL to be used for the main app on the first run.
+const char kMainAppFirstRunUrl[]
+    = "https://www.youtube.com/api/xbox/cobalt_bootstrap";
 
 int main_return_value = 0;
 
@@ -244,77 +251,36 @@ std::string GetBinaryName() {
   return full_binary_path.substr(index + 1);
 }
 
+// Returns true of this is the app's first run on a given device.
+bool IsFirstRun() {
+  char path[SB_FILE_MAX_PATH];
+  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
+                                 path, SB_FILE_MAX_PATH);
+  SB_DCHECK(success);
+  std::string file_path(path);
+  file_path.append(1, '/');
+  file_path.append(kFirstRunFilename);
+
+  if (SbFileExists(file_path.c_str())) {
+    return false;
+  }
+
+  bool created;
+  SbFile file = SbFileOpen(file_path.c_str(),
+      kSbFileRead | kSbFileOpenAlways, &created, nullptr);
+  SbFileClose(file);
+
+  return true;
+}
 }  // namespace
-
-// Note that this is a "struct" and not a "class" because
-// that's how it's defined in starboard/system.h
-struct SbSystemPlatformErrorPrivate {
-  SbSystemPlatformErrorPrivate(const SbSystemPlatformErrorPrivate&) = delete;
-  SbSystemPlatformErrorPrivate& operator=(
-      const SbSystemPlatformErrorPrivate&) = delete;
-
-  SbSystemPlatformErrorPrivate(
-      SbSystemPlatformErrorType type,
-      SbSystemPlatformErrorCallback callback,
-      void* user_data)
-      : callback_(callback), user_data_(user_data) {
-    SB_DCHECK(type == kSbSystemPlatformErrorTypeConnectionError);
-
-    RunInMainThreadAsync([this, callback, user_data]() {
-      ApplicationUwp* app = ApplicationUwp::Get();
-      MessageDialog^ dialog = ref new MessageDialog(
-          app->GetString("UNABLE_TO_CONTACT_YOUTUBE_1",
-              "Sorry, could not connect to YouTube."));
-      dialog->Commands->Append(
-          MakeUICommand(
-              "OFFLINE_MESSAGE_TRY_AGAIN", "Try again",
-              kSbSystemPlatformErrorResponsePositive));
-      dialog->Commands->Append(
-          MakeUICommand(
-              "EXIT_BUTTON", "Exit",
-              kSbSystemPlatformErrorResponseCancel));
-      dialog->DefaultCommandIndex = 0;
-      dialog->CancelCommandIndex = 1;
-      IAsyncOperation<IUICommand^>^ operation = dialog->ShowAsync();
-      dialog_operation_ = operation;
-      concurrency::create_task(operation).then([this](IUICommand^ command) {
-        delete this;
-      });
-    });
-  }
-
-  UICommand^ MakeUICommand(
-      const char* id,
-      const char* fallback,
-      SbSystemPlatformErrorResponse response) {
-    ApplicationUwp* app = ApplicationUwp::Get();
-    Platform::String^ label = app->GetString(id, fallback);
-
-    return ref new UICommand(label,
-      ref new UICommandInvokedHandler(
-        [this, response](IUICommand^ command) {
-          callback_(response, user_data_);
-        }));
-  }
-
-  void Clear() {
-    RunInMainThreadAsync([this]() {
-      dialog_operation_->Cancel();
-    });
-  }
-
- private:
-  SbSystemPlatformErrorCallback callback_;
-  void* user_data_;
-  Platform::Agile<IAsyncOperation<IUICommand^>> dialog_operation_;
-};
 
 ref class App sealed : public IFrameworkView {
  public:
-  App() : previously_activated_(false), has_internet_access_(false) {}
+  App() : previously_activated_(false),
+          first_run_(IsFirstRun()) {}
 
   // IFrameworkView methods.
-  virtual void Initialize(CoreApplicationView^ applicationView) {
+  virtual void Initialize(CoreApplicationView^ application_view) {
     // The following incantation creates a DisplayRequest and obtains
     // it's underlying COM interface.
     ComPtr<IInspectable> inspectable = reinterpret_cast<IInspectable*>(
@@ -328,38 +294,9 @@ ref class App sealed : public IFrameworkView {
         ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
     CoreApplication::Resuming +=
         ref new EventHandler<Object^>(this, &App::OnResuming);
-    applicationView->Activated +=
+    application_view->Activated +=
         ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(
             this, &App::OnActivated);
-
-    has_internet_access_ = HasInternetAccess();
-
-    SB_LOG(INFO) << "Has internet access? " << std::boolalpha
-                 << has_internet_access_;
-
-    NetworkInformation::NetworkStatusChanged +=
-        ref new NetworkStatusChangedEventHandler(this, &App::OnNetworkChanged);
-  }
-
-  void OnNetworkChanged(Platform::Object^ sender) {
-    SB_UNREFERENCED_PARAMETER(sender);
-    bool has_internet_access = HasInternetAccess();
-
-    if (has_internet_access == has_internet_access_) {
-      return;
-    }
-
-    SB_LOG(INFO) << "NetworkChanged.  Has internet access? " << std::boolalpha
-      << has_internet_access;
-
-    has_internet_access_ = has_internet_access;
-
-    const SbEventType network_event =
-        (has_internet_access ? kSbEventTypeNetworkConnect
-                             : kSbEventTypeNetworkDisconnect);
-
-    ApplicationUwp::Get()->Inject(
-        new ApplicationUwp::Event(network_event, nullptr, nullptr));
   }
 
   virtual void SetWindow(CoreWindow^ window) {
@@ -412,8 +349,47 @@ ref class App sealed : public IFrameworkView {
     ApplicationUwp::Get()->OnKeyEvent(sender, args, false);
   }
 
+#pragma warning(push)
+#pragma warning(disable: 4451)  // False-positive Platform::Agile warning
   void OnActivated(
-      CoreApplicationView^ applicationView, IActivatedEventArgs^ args) {
+      CoreApplicationView^ application_view, IActivatedEventArgs^ args) {
+    SB_LOG(INFO) << "OnActivated first run:" << first_run_;
+    if (!first_run_) {
+      FinishActivated(application_view, args, entry_point_);
+    } else {
+      sbuwp::TryToFetchSsoToken(kMainAppFirstRunUrl).then(
+          [this, application_view, args](
+            concurrency::task<WebTokenRequestResult^> previous_task) {
+        bool success = false;
+        try {
+          WebTokenRequestResult^ result = previous_task.get();
+          success = result &&
+              (result->ResponseStatus == WebTokenRequestStatus::Success);
+        } catch(Platform::Exception^) {
+          SB_LOG(INFO) << "Exception during RequestTokenAsync";
+        }
+        // It seems like it should be able to specify a task_contination_context
+        // such that we don't need to additionally do RunInMainThreadAsync here,
+        // however obvious solutions seem to cause this to run in background
+        // threads.
+        SB_LOG(INFO) << "TryToFetchSsoToken success:" << success;
+        RunInMainThreadAsync([this, application_view, args, success]() {
+          std::string start_url = entry_point_;
+          if (success && start_url == kMainAppDefaultEntryPoint) {
+            SB_LOG(INFO) << "Using special main app first-run entry point.";
+            start_url = kMainAppFirstRunUrl;
+          }
+          FinishActivated(application_view, args, start_url);
+        });
+      });
+    }
+  }
+#pragma warning(pop)
+
+ private:
+  void FinishActivated(
+      CoreApplicationView^ application_view, IActivatedEventArgs^ args,
+      const std::string& start_url) {
     bool command_line_set = false;
 
     // Please see application lifecyle description:
@@ -469,13 +445,21 @@ ref class App sealed : public IFrameworkView {
           kDialParamPrefix + sbwin32::platformStringToString(arguments);
         ProcessDeepLinkUri(&uri_string);
       } else {
-        std::string activation_args =
-            entry_point_ + "?" + sbwin32::platformStringToString(arguments);
+        std::string activation_args = "--url=";
+        activation_args.append(start_url);
+        activation_args.append("?");
+        activation_args.append(sbwin32::platformStringToString(arguments));
         SB_DLOG(INFO) << "Dial Activation url: " << activation_args;
         args_.push_back(GetArgvZero());
         args_.push_back(activation_args);
-        argv_.push_back(args_.front().c_str());
-        argv_.push_back(args_.back().c_str());
+        // Set partition URL in case start_url is the main app first run
+        // special case.
+        std::string partition_arg = "--local_storage_partition_url=";
+        partition_arg.append(entry_point_);
+        args_.push_back(partition_arg);
+        for (const std::string& arg : args_) {
+          argv_.push_back(arg.c_str());
+        }
         ApplicationUwp::Get()->SetCommandLine(static_cast<int>(argv_.size()),
           argv_.data());
         command_line_set = true;
@@ -499,19 +483,36 @@ ref class App sealed : public IFrameworkView {
         }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
+        std::string start_url_arg = "--url=";
+        start_url_arg.append(start_url);
+        args_.push_back(start_url_arg);
+        std::string partition_arg = "--local_storage_partition_url=";
+        partition_arg.append(entry_point_);
+        args_.push_back(partition_arg);
         for (auto& arg : args_) {
           argv_.push_back(arg.c_str());
         }
-        argv_.push_back(entry_point_.c_str());
+
         ApplicationUwp::Get()->SetCommandLine(
             static_cast<int>(argv_.size()), argv_.data());
       }
 
       ApplicationUwp* application_uwp = ApplicationUwp::Get();
-      CommandLine* command_line =
+      const CommandLine* command_line =
           ::starboard::shared::uwp::GetCommandLinePointer(application_uwp);
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+      if (command_line->HasSwitch(kWatchDogLog)) {
+        // Launch a thread.
+        std::string switch_val = command_line->GetSwitchValue(kWatchDogLog);
+        auto uwp_dir =
+            Windows::Storage::ApplicationData::Current->LocalCacheFolder;
+        std::stringstream ss;
+        ss << sbwin32::platformStringToString(uwp_dir->Path) << "/"
+           << switch_val;
+        sbuwp::StartWatchdogLog(ss.str());
+      }
+
       if (command_line->HasSwitch(kLogPathSwitch)) {
         std::string switch_val = command_line->GetSwitchValue(kLogPathSwitch);
         sbuwp::OpenLogFile(
@@ -521,26 +522,33 @@ ref class App sealed : public IFrameworkView {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
         // Log to a file on the last removable device available (probably the
         // most recently added removable device).
-        try {
-          if (KnownFolders::RemovableDevices != nullptr) {
-            concurrency::create_task(
-                KnownFolders::RemovableDevices->GetFoldersAsync()).then(
-                [](IVectorView<StorageFolder^>^ results) {
-                  if (results->Size > 0) {
-                    StorageFolder^ folder = results->GetAt(results->Size - 1);
-                    Calendar^ now = ref new Calendar();
-                    char filename[128];
-                    SbStringFormatF(filename, sizeof(filename),
-                        "cobalt_log_%04d%02d%02d_%02d%02d%02d.txt",
-                        now->Year, now->Month, now->Day,
-                        now->Hour + now->FirstHourInThisPeriod,
-                        now->Minute, now->Second);
-                    sbuwp::OpenLogFile(folder, filename);
-                  }
-                });
-          }
-        } catch(Platform::Exception^) {
-          SB_LOG(ERROR) << "Unable to open log file in RemovableDevices";
+        if (KnownFolders::RemovableDevices != nullptr) {
+          concurrency::create_task(
+              KnownFolders::RemovableDevices->GetFoldersAsync()).then(
+              [](concurrency::task<IVectorView<StorageFolder^>^> result) {
+                IVectorView<StorageFolder^>^ results;
+                try {
+                  results = result.get();
+                } catch(Platform::Exception^) {
+                  SB_LOG(ERROR) <<
+                      "Unable to open log file in RemovableDevices";
+                  return;
+                }
+
+                if (results->Size == 0) {
+                  return;
+                }
+
+                StorageFolder^ folder = results->GetAt(results->Size - 1);
+                Calendar^ now = ref new Calendar();
+                char filename[128];
+                SbStringFormatF(filename, sizeof(filename),
+                    "cobalt_log_%04d%02d%02d_%02d%02d%02d.txt",
+                    now->Year, now->Month, now->Day,
+                    now->Hour + now->FirstHourInThisPeriod,
+                    now->Minute, now->Second);
+                sbuwp::OpenLogFile(folder, filename);
+              });
         }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
       }
@@ -553,13 +561,14 @@ ref class App sealed : public IFrameworkView {
       // interacting with them, some things are disallowed during activation
       // (such as exiting), and DispatchStart (for example) runs
       // automated tests synchronously.
+
       RunInMainThreadAsync([this]() {
         ApplicationUwp::Get()->DispatchStart();
       });
     }
     previously_activated_ = true;
   }
- private:
+
   void ProcessDeepLinkUri(std::string *uri_string) {
     SB_DCHECK(uri_string);
     if (previously_activated_) {
@@ -568,39 +577,13 @@ ref class App sealed : public IFrameworkView {
       SB_DCHECK(event);
       ApplicationUwp::Get()->Inject(event.release());
     } else {
-      SB_DCHECK(!uri_string->empty());
       ApplicationUwp::Get()->SetStartLink(uri_string->c_str());
     }
   }
 
-  bool HasInternetAccess() {
-    ConnectionProfile^ connection_profile =
-        NetworkInformation::GetInternetConnectionProfile();
-
-    if (connection_profile == nullptr) {
-      return false;
-    }
-    const NetworkConnectivityLevel connectivity_level =
-        connection_profile->GetNetworkConnectivityLevel();
-
-    switch (connectivity_level) {
-      case NetworkConnectivityLevel::InternetAccess:
-      case NetworkConnectivityLevel::ConstrainedInternetAccess:
-        return true;
-      case NetworkConnectivityLevel::None:
-      case NetworkConnectivityLevel::LocalAccess:
-        return false;
-    }
-    SB_NOTREACHED() << "Unknown network connectivity level found "
-                    << sbwin32::platformStringToString(
-                            connectivity_level.ToString());
-
-    return false;
-  }
-
   std::string entry_point_;
   bool previously_activated_;
-  bool has_internet_access_;
+  bool first_run_;
   // Only valid if previously_activated_ is true
   ActivationKind previous_activation_kind_;
   std::vector<std::string> args_;
@@ -634,7 +617,9 @@ ApplicationUwp::~ApplicationUwp() {
 
 void ApplicationUwp::Initialize() {}
 
-void ApplicationUwp::Teardown() {}
+void ApplicationUwp::Teardown() {
+  CloseWatchdogLog();
+}
 
 Application::Event* ApplicationUwp::GetNextEvent() {
   SB_NOTREACHED();
@@ -815,21 +800,6 @@ void ApplicationUwp::OnJoystickUpdate(SbKey key, SbInputVector input_vector) {
   data->key_location = key_location;
   Inject(new Event(kSbEventTypeInput, data.release(),
                    &Application::DeleteDestructor<SbInputData>));
-}
-
-SbSystemPlatformError ApplicationUwp::OnSbSystemRaisePlatformError(
-    SbSystemPlatformErrorType type,
-    SbSystemPlatformErrorCallback callback,
-    void* user_data) {
-  return new SbSystemPlatformErrorPrivate(type, callback, user_data);
-}
-
-void ApplicationUwp::OnSbSystemClearPlatformError(
-    SbSystemPlatformError handle) {
-  if (handle == kSbSystemPlatformErrorInvalid) {
-    return;
-  }
-  static_cast<SbSystemPlatformErrorPrivate*>(handle)->Clear();
 }
 
 Platform::String^ ApplicationUwp::GetString(

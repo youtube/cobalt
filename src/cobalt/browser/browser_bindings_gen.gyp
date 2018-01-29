@@ -17,6 +17,11 @@
     '../bindings/bindings.gypi',
   ],
   'variables': {
+    'variables': {
+      # By default enable MSE. This can be overriden by the port.
+      'enable_mse%': 1,
+    },
+
     # Base directory into which generated sources and intermediate files should
     # be generated.
     'bindings_output_dir': '<(SHARED_INTERMEDIATE_DIR)/bindings/browser',
@@ -60,6 +65,7 @@
         '../dom/audio_track_list.idl',
         '../dom/blob.idl',
         '../dom/camera_3d.idl',
+        '../dom/captions/system_caption_settings.idl',
         '../dom/cdata_section.idl',
         '../dom/character_data.idl',
         '../dom/comment.idl',
@@ -113,7 +119,6 @@
         '../dom/location.idl',
         '../dom/media_error.idl',
         '../dom/media_query_list.idl',
-        '../dom/media_source.idl',
         '../dom/memory_info.idl',
         '../dom/message_event.idl',
         '../dom/mime_type_array.idl',
@@ -132,8 +137,6 @@
         '../dom/progress_event.idl',
         '../dom/screen.idl',
         '../dom/security_policy_violation_event.idl',
-        '../dom/source_buffer.idl',
-        '../dom/source_buffer_list.idl',
         '../dom/storage.idl',
         '../dom/storage_event.idl',
         '../dom/test_runner.idl',
@@ -179,6 +182,8 @@
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
 
+        '../media_capture/media_device_info.idl',
+        '../media_capture/media_devices.idl',
         '../media_session/media_metadata.idl',
         '../media_session/media_session.idl',
 
@@ -223,6 +228,12 @@
         '../audio/audio_node_channel_count_mode.idl',
         '../audio/audio_node_channel_interpretation.idl',
         '../dom/blob_property_bag.idl',
+        '../dom/captions/caption_character_edge_style.idl',
+        '../dom/captions/caption_color.idl',
+        '../dom/captions/caption_font_family.idl',
+        '../dom/captions/caption_font_size_percentage.idl',
+        '../dom/captions/caption_opacity_percentage.idl',
+        '../dom/captions/caption_state.idl',
         '../dom/custom_event_init.idl',
         '../dom/device_orientation_event_init.idl',
         '../dom/document_ready_state.idl',
@@ -242,6 +253,7 @@
         '../dom/source_buffer_append_mode.idl',
         '../dom/track_default_type.idl',
         '../dom/wheel_event_init.idl',
+        '../media_capture/media_device_kind.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
@@ -263,6 +275,7 @@
         '../cssom/link_style.idl',
 
         '../dom/buffer_source.idl',
+        '../dom/captions/navigator_system_caption_settings.idl',
         '../dom/document__web_animations_api.idl',
         '../dom/document_cobalt.idl',
         '../dom/document_cssom.idl',
@@ -294,6 +307,7 @@
         '../dom/window_on_screen_keyboard.idl',
         '../dom/window_session_storage.idl',
         '../dom/window_timers.idl',
+        '../media_capture/navigator.idl',
         '../media_session/navigator_media_session.idl',
         '../page_visibility/document.idl',
     ],
@@ -332,6 +346,16 @@
         ],
         'dependency_idl_files': [
             '../dom/html_media_element_eme_01b.idl',
+        ],
+      }],
+      ['enable_mse==1', {
+        'source_idl_files': [
+            '../dom/media_source.idl',
+            '../dom/source_buffer.idl',
+            '../dom/source_buffer_list.idl',
+        ],
+        'dependency_idl_files': [
+            '../dom/url_mse.idl',
         ],
       }],
     ],

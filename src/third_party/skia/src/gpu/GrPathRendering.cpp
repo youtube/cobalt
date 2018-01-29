@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include "GrGpu.h"
 #include "GrPathRendering.h"
 #include "SkDescriptor.h"
 #include "SkGlyph.h"
@@ -12,52 +13,76 @@
 #include "SkTypeface.h"
 #include "GrPathRange.h"
 
+const GrUserStencilSettings& GrPathRendering::GetStencilPassSettings(FillType fill) {
+    switch (fill) {
+        default:
+            SkFAIL("Unexpected path fill.");
+        case GrPathRendering::kWinding_FillType: {
+            constexpr static GrUserStencilSettings kWindingStencilPass(
+                GrUserStencilSettings::StaticInit<
+                    0xffff,
+                    GrUserStencilTest::kAlwaysIfInClip,
+                    0xffff,
+                    GrUserStencilOp::kIncWrap,
+                    GrUserStencilOp::kIncWrap,
+                    0xffff>()
+            );
+            return kWindingStencilPass;
+        }
+        case GrPathRendering::kEvenOdd_FillType: {
+            constexpr static GrUserStencilSettings kEvenOddStencilPass(
+                GrUserStencilSettings::StaticInit<
+                    0xffff,
+                    GrUserStencilTest::kAlwaysIfInClip,
+                    0xffff,
+                    GrUserStencilOp::kInvert,
+                    GrUserStencilOp::kInvert,
+                    0xffff>()
+            );
+            return kEvenOddStencilPass;
+        }
+    }
+}
+
 class GlyphGenerator : public GrPathRange::PathGenerator {
 public:
-    GlyphGenerator(const SkTypeface& typeface, const SkDescriptor& desc)
-        : fDesc(desc.copy()),
-          fScalerContext(typeface.createScalerContext(fDesc)) {
-        fFlipMatrix.setScale(1, -1);
-    }
+    GlyphGenerator(const SkTypeface& typeface, const SkScalerContextEffects& effects,
+                   const SkDescriptor& desc)
+        : fScalerContext(typeface.createScalerContext(effects, &desc))
+#ifdef SK_DEBUG
+        , fDesc(desc.copy())
+#endif
+    {}
 
-    virtual ~GlyphGenerator() {
-        SkDescriptor::Free(fDesc);
-    }
-
-    virtual int getNumPaths() {
+    int getNumPaths() override {
         return fScalerContext->getGlyphCount();
     }
 
-    virtual void generatePath(int glyphID, SkPath* out) {
-        SkGlyph skGlyph;
-        skGlyph.init(SkGlyph::MakeID(glyphID));
-        fScalerContext->getMetrics(&skGlyph);
-
-        fScalerContext->getPath(skGlyph, out);
-        out->transform(fFlipMatrix); // Load glyphs with the inverted y-direction.
+    void generatePath(int glyphID, SkPath* out) override {
+        fScalerContext->getPath(glyphID, out);
     }
-
-    virtual bool isEqualTo(const SkDescriptor& desc) const {
-        return fDesc->equals(desc);
-    }
-
+#ifdef SK_DEBUG
+    bool isEqualTo(const SkDescriptor& desc) const override { return *fDesc == desc; }
+#endif
 private:
-    SkDescriptor* const fDesc;
-    const SkAutoTDelete<SkScalerContext> fScalerContext;
-    SkMatrix fFlipMatrix;
+    const std::unique_ptr<SkScalerContext> fScalerContext;
+#ifdef SK_DEBUG
+    const std::unique_ptr<SkDescriptor> fDesc;
+#endif
 };
 
-GrPathRange* GrPathRendering::createGlyphs(const SkTypeface* typeface,
-                                           const SkDescriptor* desc,
-                                           const SkStrokeRec& stroke) {
-    if (NULL == typeface) {
+sk_sp<GrPathRange> GrPathRendering::createGlyphs(const SkTypeface* typeface,
+                                                 const SkScalerContextEffects& effects,
+                                                 const SkDescriptor* desc,
+                                                 const GrStyle& style) {
+    if (nullptr == typeface) {
         typeface = SkTypeface::GetDefaultTypeface();
-        SkASSERT(NULL != typeface);
+        SkASSERT(nullptr != typeface);
     }
 
     if (desc) {
-        SkAutoTUnref<GlyphGenerator> generator(SkNEW_ARGS(GlyphGenerator, (*typeface, *desc)));
-        return this->createPathRange(generator, stroke);
+        sk_sp<GlyphGenerator> generator(new GlyphGenerator(*typeface, effects, *desc));
+        return this->createPathRange(generator.get(), style);
     }
 
     SkScalerContextRec rec;
@@ -74,6 +99,47 @@ GrPathRange* GrPathRendering::createGlyphs(const SkTypeface* typeface,
     genericDesc->addEntry(kRec_SkDescriptorTag, sizeof(rec), &rec);
     genericDesc->computeChecksum();
 
-    SkAutoTUnref<GlyphGenerator> generator(SkNEW_ARGS(GlyphGenerator, (*typeface, *genericDesc)));
-    return this->createPathRange(generator, stroke);
+    // No effects, so we make a dummy struct
+    SkScalerContextEffects noEffects;
+
+    sk_sp<GlyphGenerator> generator(new GlyphGenerator(*typeface, noEffects, *genericDesc));
+    return this->createPathRange(generator.get(), style);
+}
+
+void GrPathRendering::stencilPath(const StencilPathArgs& args, const GrPath* path) {
+    fGpu->handleDirtyContext();
+    this->onStencilPath(args, path);
+}
+
+void GrPathRendering::drawPath(const GrPipeline& pipeline,
+                               const GrPrimitiveProcessor& primProc,
+                               // Cover pass settings in pipeline.
+                               const GrStencilSettings& stencilPassSettings,
+                               const GrPath* path) {
+    fGpu->handleDirtyContext();
+    if (GrXferBarrierType barrierType = pipeline.xferBarrierType(*fGpu->caps())) {
+        fGpu->xferBarrier(pipeline.getRenderTarget(), barrierType);
+    }
+    this->onDrawPath(pipeline, primProc, stencilPassSettings, path);
+}
+
+void GrPathRendering::drawPaths(const GrPipeline& pipeline,
+                                const GrPrimitiveProcessor& primProc,
+                                // Cover pass settings in pipeline.
+                                const GrStencilSettings& stencilPassSettings,
+                                const GrPathRange* pathRange,
+                                const void* indices,
+                                PathIndexType indexType,
+                                const float transformValues[],
+                                PathTransformType transformType,
+                                int count) {
+    fGpu->handleDirtyContext();
+    if (GrXferBarrierType barrierType = pipeline.xferBarrierType(*fGpu->caps())) {
+        fGpu->xferBarrier(pipeline.getRenderTarget(), barrierType);
+    }
+#ifdef SK_DEBUG
+    pathRange->assertPathsLoaded(indices, indexType, count);
+#endif
+    this->onDrawPaths(pipeline, primProc, stencilPassSettings, pathRange, indices, indexType,
+                      transformValues, transformType, count);
 }

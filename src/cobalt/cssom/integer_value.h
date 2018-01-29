@@ -32,11 +32,11 @@ class IntegerValue : public PropertyValue {
  public:
   explicit IntegerValue(int value) : value_(value) {}
 
-  virtual void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   int value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
+  std::string ToString() const override {
     return base::StringPrintf("%d", value_);
   }
 
@@ -61,7 +61,7 @@ class IntegerValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(IntegerValue);
 
  private:
-  ~IntegerValue() OVERRIDE {}
+  ~IntegerValue() override {}
 
   const int value_;
 

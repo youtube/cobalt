@@ -85,12 +85,13 @@ class MouseEvent : public UIEventWithKeyState {
   // Web API: UIEvent
   // This contains a value equal to the value stored in button+1.
   //   https://w3c.github.io/uievents/#dom-uievent-which
-  uint32 which() const OVERRIDE;
+  uint32 which() const override;
 
   DEFINE_WRAPPABLE_TYPE(MouseEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
-  ~MouseEvent() OVERRIDE {}
+  ~MouseEvent() override {}
 
  private:
   float screen_x_;

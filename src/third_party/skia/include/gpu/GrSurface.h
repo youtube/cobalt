@@ -11,39 +11,33 @@
 
 #include "GrTypes.h"
 #include "GrGpuResource.h"
+#include "SkImageInfo.h"
 #include "SkRect.h"
 
-class GrTexture;
 class GrRenderTarget;
-struct SkImageInfo;
+class GrSurfacePriv;
+class GrTexture;
 
-class GrSurface : public GrGpuResource {
+class SK_API GrSurface : public GrGpuResource {
 public:
-    SK_DECLARE_INST_COUNT(GrSurface);
-
     /**
      * Retrieves the width of the surface.
-     *
-     * @return the width in texels
      */
-    int width() const { return fDesc.fWidth; }
+    int width() const { return fWidth; }
 
     /**
      * Retrieves the height of the surface.
-     *
-     * @return the height in texels
      */
-    int height() const { return fDesc.fHeight; }
+    int height() const { return fHeight; }
 
     /**
      * Helper that gets the width and height of the surface as a bounding rectangle.
      */
-    void getBoundsRect(SkRect* rect) const { rect->setWH(SkIntToScalar(this->width()),
-                                                         SkIntToScalar(this->height())); }
+    SkRect getBoundsRect() const { return SkRect::MakeIWH(this->width(), this->height()); }
 
     GrSurfaceOrigin origin() const {
-        SkASSERT(kTopLeft_GrSurfaceOrigin == fDesc.fOrigin || kBottomLeft_GrSurfaceOrigin == fDesc.fOrigin);
-        return fDesc.fOrigin;
+        SkASSERT(kTopLeft_GrSurfaceOrigin == fOrigin || kBottomLeft_GrSurfaceOrigin == fOrigin);
+        return fOrigin;
     }
 
     /**
@@ -52,103 +46,56 @@ public:
      * if client asked us to render to a target that has a pixel
      * config that isn't equivalent with one of our configs.
      */
-    GrPixelConfig config() const { return fDesc.fConfig; }
+    GrPixelConfig config() const { return fConfig; }
 
     /**
-     * Return the descriptor describing the surface
+     * @return the texture associated with the surface, may be null.
      */
-    const GrTextureDesc& desc() const { return fDesc; }
-
-    SkImageInfo info() const;
+    virtual GrTexture* asTexture() { return nullptr; }
+    virtual const GrTexture* asTexture() const { return nullptr; }
 
     /**
-     * @return the texture associated with the surface, may be NULL.
+     * @return the render target underlying this surface, may be null.
      */
-    virtual GrTexture* asTexture() = 0;
-    virtual const GrTexture* asTexture() const = 0;
+    virtual GrRenderTarget* asRenderTarget() { return nullptr; }
+    virtual const GrRenderTarget* asRenderTarget() const { return nullptr; }
 
-    /**
-     * @return the render target underlying this surface, may be NULL.
-     */
-    virtual GrRenderTarget* asRenderTarget() = 0;
-    virtual const GrRenderTarget* asRenderTarget() const = 0;
+    /** Access methods that are only to be used within Skia code. */
+    inline GrSurfacePriv surfacePriv();
+    inline const GrSurfacePriv surfacePriv() const;
 
-    /**
-     * Checks whether this GrSurface refers to the same GPU object as other. This
-     * catches the case where a GrTexture and GrRenderTarget refer to the same
-     * GPU memory.
-     */
-    bool isSameAs(const GrSurface* other) const {
-        const GrRenderTarget* thisRT = this->asRenderTarget();
-        if (thisRT) {
-            return thisRT == other->asRenderTarget();
-        } else {
-            const GrTexture* thisTex = this->asTexture();
-            SkASSERT(thisTex); // We must be one or the other
-            return thisTex == other->asTexture();
-        }
-    }
+    static size_t WorstCaseSize(const GrSurfaceDesc& desc, bool useNextPow2 = false);
+    static size_t ComputeSize(GrPixelConfig config, int width, int height, int colorSamplesPerPixel,
+                              bool hasMIPMaps, bool useNextPow2 = false);
 
-    /**
-     * Reads a rectangle of pixels from the surface.
-     * @param left          left edge of the rectangle to read (inclusive)
-     * @param top           top edge of the rectangle to read (inclusive)
-     * @param width         width of rectangle to read in pixels.
-     * @param height        height of rectangle to read in pixels.
-     * @param config        the pixel config of the destination buffer
-     * @param buffer        memory to read the rectangle into.
-     * @param rowBytes      number of bytes between consecutive rows. Zero means rows are tightly
-     *                      packed.
-     * @param pixelOpsFlags See the GrContext::PixelOpsFlags enum.
-     *
-     * @return true if the read succeeded, false if not. The read can fail because of an unsupported
-     *              pixel config.
-     */
-    virtual bool readPixels(int left, int top, int width, int height,
-                            GrPixelConfig config,
-                            void* buffer,
-                            size_t rowBytes = 0,
-                            uint32_t pixelOpsFlags = 0) = 0;
-
-    /**
-     * Copy the src pixels [buffer, rowbytes, pixelconfig] into the surface at the specified
-     * rectangle.
-     * @param left          left edge of the rectangle to write (inclusive)
-     * @param top           top edge of the rectangle to write (inclusive)
-     * @param width         width of rectangle to write in pixels.
-     * @param height        height of rectangle to write in pixels.
-     * @param config        the pixel config of the source buffer
-     * @param buffer        memory to read the rectangle from.
-     * @param rowBytes      number of bytes between consecutive rows. Zero means rows are tightly
-     *                      packed.
-     * @param pixelOpsFlags See the GrContext::PixelOpsFlags enum.
-     */
-    virtual void writePixels(int left, int top, int width, int height,
-                             GrPixelConfig config,
-                             const void* buffer,
-                             size_t rowBytes = 0,
-                             uint32_t pixelOpsFlags = 0) = 0;
-
-    /**
-     * Write the contents of the surface to a PNG. Returns true if successful.
-     * @param filename      Full path to desired file
-     */
-    bool savePixels(const char* filename);
-
+protected:
+    // Methods made available via GrSurfacePriv
     bool hasPendingRead() const;
     bool hasPendingWrite() const;
     bool hasPendingIO() const;
 
-protected:
-    GrSurface(GrGpu* gpu, bool isWrapped, const GrTextureDesc& desc)
-    : INHERITED(gpu, isWrapped)
-    , fDesc(desc) {
-    }
+    // Provides access to methods that should be public within Skia code.
+    friend class GrSurfacePriv;
 
-    GrTextureDesc fDesc;
+    GrSurface(GrGpu* gpu, const GrSurfaceDesc& desc)
+            : INHERITED(gpu)
+            , fConfig(desc.fConfig)
+            , fWidth(desc.fWidth)
+            , fHeight(desc.fHeight)
+            , fOrigin(desc.fOrigin) {}
+    ~GrSurface() override {}
+
+
+    void onRelease() override;
+    void onAbandon() override;
 
 private:
+    GrPixelConfig        fConfig;
+    int                  fWidth;
+    int                  fHeight;
+    GrSurfaceOrigin      fOrigin;
+
     typedef GrGpuResource INHERITED;
 };
 
-#endif // GrSurface_DEFINED
+#endif

@@ -5,6 +5,8 @@
  * found in the LICENSE file.
  */
 
+#include "SkTypes.h"
+
 // This tests a Gr class
 #if SK_SUPPORT_GPU
 
@@ -32,25 +34,25 @@ GrMemoryPool A::gBenchPool(10 * (1 << 10), 10 * (1 << 10));
  */
 class GrMemoryPoolBenchStack : public Benchmark {
 public:
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return "grmemorypool_stack";
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         SkRandom r;
         enum {
             kMaxObjects = 4 * (1 << 10),
         };
         A* objects[kMaxObjects];
 
-        // We delete if a random [-1, 1] fixed pt is < the thresh. Otherwise,
+        // We delete if a random number [-1, 1] is < the thresh. Otherwise,
         // we allocate. We start allocate-biased and ping-pong to delete-biased
-        SkFixed delThresh = -SK_FixedHalf;
+        SkScalar delThresh = -SK_ScalarHalf;
         const int kSwitchThreshPeriod = loops / (2 * kMaxObjects);
         int s = 0;
 
@@ -60,7 +62,7 @@ protected:
                 delThresh = -delThresh;
                 s = 0;
             }
-            SkFixed del = r.nextSFixed1();
+            SkScalar del = r.nextSScalar1();
             if (count &&
                 (kMaxObjects == count || del < delThresh)) {
                 delete objects[count-1];
@@ -94,28 +96,28 @@ GrMemoryPool B::gBenchPool(10 * (1 << 10), 10 * (1 << 10));
  */
 class GrMemoryPoolBenchRandom : public Benchmark {
 public:
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return "grmemorypool_random";
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         SkRandom r;
         enum {
             kMaxObjects = 4 * (1 << 10),
         };
-        SkAutoTDelete<B> objects[kMaxObjects];
+        std::unique_ptr<B> objects[kMaxObjects];
 
         for (int i = 0; i < loops; i++) {
             uint32_t idx = r.nextRangeU(0, kMaxObjects-1);
-            if (NULL == objects[idx].get()) {
+            if (nullptr == objects[idx].get()) {
                 objects[idx].reset(new B);
             } else {
-                objects[idx].free();
+                objects[idx].reset();
             }
         }
     }
@@ -142,16 +144,16 @@ class GrMemoryPoolBenchQueue : public Benchmark {
         M = 4 * (1 << 10),
     };
 public:
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
 protected:
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return "grmemorypool_queue";
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         SkRandom r;
         C* objects[M];
         for (int i = 0; i < loops; i++) {

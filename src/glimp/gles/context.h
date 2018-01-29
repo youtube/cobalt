@@ -94,8 +94,10 @@ class Context {
   void ClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
 
   void BlendFunc(GLenum sfactor, GLenum dfactor);
+  void BlendEquation(GLenum mode);
 
   void CullFace(GLenum mode);
+  void FrontFace(GLenum mode);
 
   GLuint CreateProgram();
   void DeleteProgram(GLuint program);
@@ -128,6 +130,8 @@ class Context {
                        GLsizeiptr length,
                        GLbitfield access);
   bool UnmapBuffer(GLenum target);
+
+  void LineWidth(GLfloat width);
 
   void GenTextures(GLsizei n, GLuint* textures);
   void DeleteTextures(GLsizei n, const GLuint* textures);

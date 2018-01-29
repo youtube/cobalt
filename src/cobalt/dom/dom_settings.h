@@ -75,7 +75,7 @@ class DOMSettings : public script::EnvironmentSettings {
               script::GlobalEnvironment* global_environment_proxy,
               MutationObserverTaskManager* mutation_observer_task_manager,
               const Options& options = Options());
-  ~DOMSettings() OVERRIDE;
+  ~DOMSettings() override;
 
   int max_dom_element_depth() { return max_dom_element_depth_; }
   const speech::Microphone::Options& microphone_options() const {
@@ -120,7 +120,7 @@ class DOMSettings : public script::EnvironmentSettings {
   virtual const GURL& base_url() const;
 
   // Return's document's origin.
-  const loader::Origin& document_origin() const;
+  loader::Origin document_origin() const;
 
  private:
   const int max_dom_element_depth_;

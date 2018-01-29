@@ -36,7 +36,7 @@ class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
         network_delegate_(network_delegate) {
   }
 
-  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
+  virtual ProxyResolver* CreateProxyResolver() override {
     // Create a synchronous host resolver wrapper that operates
     // |async_host_resolver_| on |io_loop_|.
     SyncHostResolverBridge* sync_host_resolver =

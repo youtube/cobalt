@@ -5,8 +5,6 @@
  * found in the LICENSE file.
  */
 
-#if defined(SK_BUILD_FOR_MAC)
-
 #import  <Cocoa/Cocoa.h>
 #include "SkOSWindow_Mac.h"
 #include "SkOSMenu.h"
@@ -16,7 +14,7 @@
 #import  "SkEventNotifier.h"
 #define  kINVAL_NSVIEW_EventType "inval-nsview"
 
-SK_COMPILE_ASSERT(SK_SUPPORT_GPU, not_implemented_for_non_gpu_build);
+static_assert(SK_SUPPORT_GPU, "not_implemented_for_non_gpu_build");
 
 SkOSWindow::SkOSWindow(void* hWnd) : fHWND(hWnd) {
     fInvalEventIsPending = false;
@@ -65,11 +63,12 @@ void SkOSWindow::onUpdateMenu(const SkOSMenu* menu) {
     [(SkNSView*)fHWND onUpdateMenu:menu];
 }
 
-bool SkOSWindow::attach(SkBackEndTypes attachType, int sampleCount, AttachmentInfo* info) {
+bool SkOSWindow::attach(SkBackEndTypes attachType, int sampleCount, bool /*deepColor*/,
+                        AttachmentInfo* info) {
     return [(SkNSView*)fHWND attach:attachType withMSAASampleCount:sampleCount andGetInfo:info];
 }
 
-void SkOSWindow::detach() {
+void SkOSWindow::release() {
     [(SkNSView*)fHWND detach];
 }
 
@@ -77,4 +76,19 @@ void SkOSWindow::present() {
     [(SkNSView*)fHWND present];
 }
 
-#endif
+void SkOSWindow::closeWindow() {
+    [[(SkNSView*)fHWND window] close];
+}
+
+void SkOSWindow::setVsync(bool enable) {
+    [(SkNSView*)fHWND setVSync:enable];
+}
+
+bool SkOSWindow::makeFullscreen() {
+    NSScreen* _Nullable screen = [NSScreen mainScreen];
+    if (screen) {
+        [(SkNSView*)fHWND enterFullScreenMode:(NSScreen* _Nonnull)screen withOptions:nil];
+    }
+    return true;
+}
+

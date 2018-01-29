@@ -251,11 +251,11 @@ class AudioDevice::Impl : public ::media::ShellAudioStream {
   virtual ~Impl();
 
   // ShellAudioStream implementation.
-  bool PauseRequested() const OVERRIDE;
-  bool PullFrames(uint32* offset_in_frame, uint32* total_frames) OVERRIDE;
-  void ConsumeFrames(uint32 frame_played) OVERRIDE;
-  const AudioParameters& GetAudioParameters() const OVERRIDE;
-  AudioBus* GetAudioBus() OVERRIDE;
+  bool PauseRequested() const override;
+  bool PullFrames(uint32* offset_in_frame, uint32* total_frames) override;
+  void ConsumeFrames(uint32 frame_played) override;
+  const AudioParameters& GetAudioParameters() const override;
+  AudioBus* GetAudioBus() override;
 
  private:
   typedef ::media::ShellAudioBus ShellAudioBus;

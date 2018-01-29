@@ -59,6 +59,24 @@ namespace nb {
 namespace analytics {
 namespace {
 
+class NoReportAllocator {
+ public:
+  NoReportAllocator() {}
+  NoReportAllocator(const NoReportAllocator&) {}
+  static void* Allocate(size_t n) {
+    return SbMemoryAllocateNoReport(n);
+  }
+  // Second argument can be used for accounting, but is otherwise optional.
+  static void Deallocate(void* ptr, size_t /* not used*/) {
+    SbMemoryDeallocateNoReport(ptr);
+  }
+};
+
+// Some platforms will allocate memory for empty vectors. Therefore
+// use MyVector to prevent empty vectors from reporting memory.
+template <typename T>
+using MyVector = std::vector<T, StdAllocator<T, NoReportAllocator>>;
+
 MemoryTrackerImpl* s_memory_tracker_ = NULL;
 
 struct NoMemTracking {
@@ -353,7 +371,7 @@ TEST_F(MemoryTrackerImplTest, NoStackOverflow) {
     return;
   }
   static const int kNumAllocations = 1000;
-  std::vector<int*> allocations;
+  MyVector<int*> allocations;
 
   // Also it turns out that this test is great for catching
   // background threads pushing allocations through the allocator.
@@ -362,7 +380,8 @@ TEST_F(MemoryTrackerImplTest, NoStackOverflow) {
   // SbThreadYield() is used to give other threads a chance to enter into our
   // allocator and catch a test failure.
   SbThreadSleep(1);
-  ASSERT_EQ_NO_TRACKING(0, NumberOfAllocations());
+  size_t previously_existing_allocs = NumberOfAllocations();
+  ASSERT_EQ_NO_TRACKING(0, previously_existing_allocs);
 
   for (int i = 0; i < kNumAllocations; ++i) {
     SbThreadYield();
@@ -540,17 +559,15 @@ TEST_F(MemoryTrackerImplTest, MemoryTrackerDebugCallback) {
   class MemoryTrackerDebugCallbackTest : public MemoryTrackerDebugCallback {
    public:
     MemoryTrackerDebugCallbackTest() { Reset(); }
-    virtual void OnMemoryAllocation(
-        const void* memory_block,
-        const AllocationRecord& record,
-        const CallStack& callstack) SB_OVERRIDE {
+    void OnMemoryAllocation(const void* memory_block,
+                            const AllocationRecord& record,
+                            const CallStack& callstack) override {
       last_memory_block_allocated_ = memory_block;
       last_allocation_record_allocated_ = record;
     }
-    virtual void OnMemoryDeallocation(
-        const void* memory_block,
-        const AllocationRecord& record,
-        const CallStack& callstack) SB_OVERRIDE {
+    void OnMemoryDeallocation(const void* memory_block,
+                              const AllocationRecord& record,
+                              const CallStack& callstack) override {
       last_memory_block_deallocated_ = memory_block;
       last_allocation_record_deallocated_ = record;
     }
@@ -636,7 +653,7 @@ TEST_F(MemoryTrackerImplTest, MultiThreadedStressAddTest) {
   // Disable allocation filtering.
   memory_tracker()->SetThreadFilter(kSbThreadInvalidId);
 
-  std::vector<nb::TestThread*> threads;
+  MyVector<nb::TestThread*> threads;
 
   const int kNumObjectsToAdd = 10000 / NUM_STRESS_TEST_THREADS;
   AddAllocationStressThread::AllocMap map;
@@ -684,7 +701,7 @@ TEST_F(MemoryTrackerImplTest, MultiThreadedMemoryScope) {
   memory_tracker()->SetThreadFilter(kSbThreadInvalidId);
   TRACK_MEMORY_SCOPE("MultiThreadedStressUseTest");
 
-  std::vector<MemoryScopeThread*> threads;
+  MyVector<MemoryScopeThread*> threads;
 
   for (int i = 0; i < NUM_STRESS_TEST_THREADS; ++i) {
     threads.push_back(new MemoryScopeThread(memory_tracker()));
@@ -717,7 +734,7 @@ TEST_F(MemoryTrackerImplTest, MultiThreadedStressUseTest) {
   memory_tracker()->SetThreadFilter(kSbThreadInvalidId);
   TRACK_MEMORY_SCOPE("MultiThreadedStressUseTest");
 
-  std::vector<AllocationStressThread*> threads;
+  MyVector<AllocationStressThread*> threads;
 
   for (int i = 0; i < NUM_STRESS_TEST_THREADS; ++i) {
     threads.push_back(new AllocationStressThread(memory_tracker()));

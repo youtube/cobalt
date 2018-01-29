@@ -112,7 +112,7 @@ class Node : public EventTarget {
 
   // Web API: EventTarget
   //
-  bool DispatchEvent(const scoped_refptr<Event>& event) OVERRIDE;
+  bool DispatchEvent(const scoped_refptr<Event>& event) override;
 
   // Web API: Node
   //
@@ -233,9 +233,8 @@ class Node : public EventTarget {
     registered_observers_.RemoveMutationObserver(observer);
   }
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
-
   DEFINE_WRAPPABLE_TYPE(Node);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   explicit Node(Document* document);
@@ -277,7 +276,7 @@ class Node : public EventTarget {
 
  private:
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return node_name().c_str(); }
+  std::string GetDebugName() override { return node_name().c_str(); }
 
   // From the spec: Node.
   // Mutation algorithms.

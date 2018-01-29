@@ -16,7 +16,7 @@ namespace net {
 
 class UploadFileElementReaderTest : public PlatformTest {
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     // Some tests (*.ReadPartially) rely on bytes_.size() being even.
     const char kData[] = "123456789abcdefghi";
     bytes_.assign(kData, kData + arraysize(kData) - 1);

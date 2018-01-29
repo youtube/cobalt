@@ -118,6 +118,12 @@ class Mutex {
     SbMutexRelease(&mutex_);
   }
 
+  void DCheckAcquired() const {
+#ifdef _DEBUG
+    SB_DCHECK(currrent_thread_acquired_ == SbThreadGetCurrent());
+#endif  // _DEBUG
+  }
+
  private:
 #ifdef _DEBUG
   void debugInit() { currrent_thread_acquired_ = kSbThreadInvalid; }

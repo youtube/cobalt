@@ -37,19 +37,22 @@ class ExternalRasterizer : public Rasterizer {
                      int skia_atlas_width, int skia_atlas_height,
                      int skia_cache_size_in_bytes,
                      int scratch_surface_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
                      int rasterizer_gpu_cache_size_in_bytes,
-                     bool purge_skia_font_caches_on_destruction);
+#endif
+                     bool purge_skia_font_caches_on_destruction,
+                     bool disable_rasterizer_caching);
   virtual ~ExternalRasterizer();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              const Options& options) OVERRIDE;
+              const Options& options) override;
 
   // Note, this will simply pipe through the HardwareRasterizer's
   // ResourceProvider.
-  render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+  render_tree::ResourceProvider* GetResourceProvider() override;
 
-  void MakeCurrent() OVERRIDE;
+  void MakeCurrent() override;
 
   class Impl;
 

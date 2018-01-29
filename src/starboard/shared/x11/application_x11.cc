@@ -37,6 +37,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
 #include "starboard/time.h"
 
@@ -689,7 +690,7 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
-using shared::starboard::player::VideoFrame;
+using shared::starboard::player::filter::CpuVideoFrame;
 
 ApplicationX11::ApplicationX11()
     : wake_up_atom_(None),
@@ -771,13 +772,21 @@ void ApplicationX11::Composite() {
       for (auto& iter : frame_infos) {
         FrameInfo& frame_info = iter.second;
 
-        if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
-            frame_info.frame->format() != VideoFrame::kBGRA32) {
-          frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
+        if (frame_info.frame->is_end_of_stream()) {
+          continue;
+        }
+
+        scoped_refptr<CpuVideoFrame> cpu_video_frame =
+            static_cast<CpuVideoFrame*>(frame_info.frame.get());
+
+        if (cpu_video_frame &&
+            cpu_video_frame->format() != CpuVideoFrame::kBGRA32) {
+          cpu_video_frame = cpu_video_frame->ConvertTo(CpuVideoFrame::kBGRA32);
+          frame_info.frame = cpu_video_frame;
         }
         window->CompositeVideoFrame(frame_info.x, frame_info.y,
                                     frame_info.width, frame_info.height,
-                                    frame_info.frame);
+                                    cpu_video_frame);
       }
       window->EndComposite();
     }
@@ -1238,7 +1247,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       return NULL;
     }
     case ConfigureNotify: {
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
       XConfigureEvent* x_configure_event =
           reinterpret_cast<XConfigureEvent*>(x_event);
       scoped_ptr<SbEventWindowSizeChangedData> data(
@@ -1258,9 +1267,9 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->window->unhandled_resize = false;
       return new Event(kSbEventTypeWindowSizeChanged, data.release(),
                        &DeleteDestructor<SbInputData>);
-#else  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#else   // SB_API_VERSION >= 8
       return NULL;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
     }
     case SelectionNotify: {
       XSelectionEvent* x_selection_event =

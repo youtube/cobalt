@@ -39,7 +39,6 @@
 
       'sources': [
         'cached_software_rasterizer.cc',
-        'cobalt_blitter_conversions.cc',
         'hardware_rasterizer.cc',
         'image.cc',
         'linear_gradient.cc',
@@ -49,7 +48,6 @@
         'render_tree_node_visitor.cc',
         'resource_provider.cc',
         'scratch_surface_cache.cc',
-        'surface_cache_delegate.cc',
       ],
 
       'dependencies': [

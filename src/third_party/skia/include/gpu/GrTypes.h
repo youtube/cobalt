@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2010 Google Inc.
  *
@@ -6,16 +5,12 @@
  * found in the LICENSE file.
  */
 
-
-
 #ifndef GrTypes_DEFINED
 #define GrTypes_DEFINED
 
+#include "SkMath.h"
 #include "SkTypes.h"
 #include "GrConfig.h"
-#include "SkMath.h"
-
-//#define SK_SUPPORT_LEGACY_GRTYPES
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -24,75 +19,111 @@
  * bitfield.
  */
 #define GR_MAKE_BITFIELD_OPS(X) \
-    inline X operator | (X a, X b) { \
+    inline X operator |(X a, X b) { \
         return (X) (+a | +b); \
     } \
-    \
-    inline X operator & (X a, X b) { \
+    inline X& operator |=(X& a, X b) { \
+        return (a = a | b); \
+    } \
+    inline X operator &(X a, X b) { \
+        return (X) (+a & +b); \
+    } \
+    inline X& operator &=(X& a, X b) { \
+        return (a = a & b); \
+    } \
+    template <typename T> \
+    inline X operator &(T a, X b) { \
         return (X) (+a & +b); \
     } \
     template <typename T> \
-    inline X operator & (T a, X b) { \
-        return (X) (+a & +b); \
-    } \
-    template <typename T> \
-    inline X operator & (X a, T b) { \
+    inline X operator &(X a, T b) { \
         return (X) (+a & +b); \
     } \
 
 #define GR_DECL_BITFIELD_OPS_FRIENDS(X) \
-    friend X operator | (X a, X b); \
+    friend X operator |(X a, X b); \
+    friend X& operator |=(X& a, X b); \
     \
-    friend X operator & (X a, X b); \
+    friend X operator &(X a, X b); \
+    friend X& operator &=(X& a, X b); \
     \
     template <typename T> \
-    friend X operator & (T a, X b); \
+    friend X operator &(T a, X b); \
     \
     template <typename T> \
-    friend X operator & (X a, T b); \
+    friend X operator &(X a, T b); \
+
+/**
+ * Wraps a C++11 enum that we use as a bitfield, and enables a limited amount of
+ * masking with type safety. Instantiated with the ~ operator.
+ */
+template<typename TFlags> class GrTFlagsMask {
+public:
+    constexpr explicit GrTFlagsMask(TFlags value) : GrTFlagsMask(static_cast<int>(value)) {}
+    constexpr explicit GrTFlagsMask(int value) : fValue(value) {}
+    constexpr int value() const { return fValue; }
+private:
+    const int fValue;
+};
+
+// Or-ing a mask always returns another mask.
+template<typename TFlags> constexpr GrTFlagsMask<TFlags> operator|(GrTFlagsMask<TFlags> a,
+                                                                   GrTFlagsMask<TFlags> b) {
+    return GrTFlagsMask<TFlags>(a.value() | b.value());
+}
+template<typename TFlags> constexpr GrTFlagsMask<TFlags> operator|(GrTFlagsMask<TFlags> a,
+                                                                   TFlags b) {
+    return GrTFlagsMask<TFlags>(a.value() | static_cast<int>(b));
+}
+template<typename TFlags> constexpr GrTFlagsMask<TFlags> operator|(TFlags a,
+                                                                   GrTFlagsMask<TFlags> b) {
+    return GrTFlagsMask<TFlags>(static_cast<int>(a) | b.value());
+}
+template<typename TFlags> inline GrTFlagsMask<TFlags>& operator|=(GrTFlagsMask<TFlags>& a,
+                                                                  GrTFlagsMask<TFlags> b) {
+    return (a = a | b);
+}
+
+// And-ing two masks returns another mask; and-ing one with regular flags returns flags.
+template<typename TFlags> constexpr GrTFlagsMask<TFlags> operator&(GrTFlagsMask<TFlags> a,
+                                                                   GrTFlagsMask<TFlags> b) {
+    return GrTFlagsMask<TFlags>(a.value() & b.value());
+}
+template<typename TFlags> constexpr TFlags operator&(GrTFlagsMask<TFlags> a, TFlags b) {
+    return static_cast<TFlags>(a.value() & static_cast<int>(b));
+}
+template<typename TFlags> constexpr TFlags operator&(TFlags a, GrTFlagsMask<TFlags> b) {
+    return static_cast<TFlags>(static_cast<int>(a) & b.value());
+}
+template<typename TFlags> inline TFlags& operator&=(TFlags& a, GrTFlagsMask<TFlags> b) {
+    return (a = a & b);
+}
+
+/**
+ * Defines bitwise operators that make it possible to use an enum class as a
+ * basic bitfield.
+ */
+#define GR_MAKE_BITFIELD_CLASS_OPS(X) \
+    constexpr GrTFlagsMask<X> operator~(X a) { \
+        return GrTFlagsMask<X>(~static_cast<int>(a)); \
+    } \
+    constexpr X operator|(X a, X b) { \
+        return static_cast<X>(static_cast<int>(a) | static_cast<int>(b)); \
+    } \
+    inline X& operator|=(X& a, X b) { \
+        return (a = a | b); \
+    } \
+    constexpr bool operator&(X a, X b) { \
+        return SkToBool(static_cast<int>(a) & static_cast<int>(b)); \
+    } \
+
+#define GR_DECL_BITFIELD_CLASS_OPS_FRIENDS(X) \
+    friend constexpr GrTFlagsMask<X> operator ~(X); \
+    friend constexpr X operator |(X, X); \
+    friend X& operator |=(X&, X); \
+    friend constexpr bool operator &(X, X);
+
 ////////////////////////////////////////////////////////////////////////////////
-
-#ifdef SK_SUPPORT_LEGACY_GRTYPES
-
-/**
- *  Macro to round n up to the next multiple of 4, or return it unchanged if
- *  n is already a multiple of 4
- */
-#define GrALIGN4(n)     SkAlign4(n)
-#define GrIsALIGN4(n)   SkIsAlign4(n)
-
-template <typename T> const T& GrMin(const T& a, const T& b) {
-    return (a < b) ? a : b;
-}
-
-template <typename T> const T& GrMax(const T& a, const T& b) {
-    return (b < a) ? a : b;
-}
-
-/**
- *  Count elements in an array
- */
-#define GR_ARRAY_COUNT(array)  SK_ARRAY_COUNT(array)
-
-/**
- *  16.16 fixed point type
- */
-typedef int32_t GrFixed;
-
-#ifdef SK_DEBUG
-
-static inline int16_t GrToS16(intptr_t x) {
-    SkASSERT((int16_t)x == x);
-    return (int16_t)x;
-}
-
-#else
-
-#define GrToS16(x)  x
-
-#endif
-
-#endif
 
 // compile time versions of min/max
 #define GR_CT_MAX(a, b) (((b) < (a)) ? (a) : (b))
@@ -151,82 +182,70 @@ static inline size_t GrSizeAlignDown(size_t x, uint32_t alignment) {
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
- *  Return the next power of 2 >= n.
- */
-static inline uint32_t GrNextPow2(uint32_t n) {
-    return n ? (1 << (32 - SkCLZ(n - 1))) : 1;
-}
-
-static inline int GrNextPow2(int n) {
-    SkASSERT(n >= 0); // this impl only works for non-neg.
-    return n ? (1 << (32 - SkCLZ(n - 1))) : 1;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-/**
  * Possible 3D APIs that may be used by Ganesh.
  */
 enum GrBackend {
+    kMetal_GrBackend,
     kOpenGL_GrBackend,
-#if defined(COBALT)
-    kCobalt_GrBackend,
-#endif
+    kVulkan_GrBackend,
+    /**
+     * Mock is a backend that does not draw anything. It is used for unit tests
+     * and to measure CPU overhead.
+     */
+    kMock_GrBackend,
 };
 
 /**
  * Backend-specific 3D context handle
- *      GrGLInterface* for OpenGL. If NULL will use the default GL interface.
+ *      OpenGL: const GrGLInterface*. If null will use the result of GrGLCreateNativeInterface().
+ *      Vulkan: GrVkBackendContext*.
+ *      Mock: const GrMockOptions* or null for default constructed GrMockContextOptions.
  */
 typedef intptr_t GrBackendContext;
 
 ///////////////////////////////////////////////////////////////////////////////
 
 /**
-* Geometric primitives used for drawing.
-*/
-enum GrPrimitiveType {
-    kTriangles_GrPrimitiveType,
-    kTriangleStrip_GrPrimitiveType,
-    kTriangleFan_GrPrimitiveType,
-    kPoints_GrPrimitiveType,
-    kLines_GrPrimitiveType,     // 1 pix wide only
-    kLineStrip_GrPrimitiveType  // 1 pix wide only
+ * Used to control antialiasing in draw calls.
+ */
+enum class GrAA {
+    kYes,
+    kNo
 };
 
-static inline bool GrIsPrimTypeLines(GrPrimitiveType type) {
-    return kLines_GrPrimitiveType == type || kLineStrip_GrPrimitiveType == type;
-}
+static inline GrAA GrBoolToAA(bool aa) { return aa ? GrAA::kYes : GrAA::kNo; }
 
-static inline bool GrIsPrimTypeTris(GrPrimitiveType type) {
-    return kTriangles_GrPrimitiveType == type     ||
-           kTriangleStrip_GrPrimitiveType == type ||
-           kTriangleFan_GrPrimitiveType == type;
-}
+///////////////////////////////////////////////////////////////////////////////
 
 /**
- * Coeffecients for alpha-blending.
- */
-enum GrBlendCoeff {
-    kInvalid_GrBlendCoeff = -1,
-
-    kZero_GrBlendCoeff,    //<! 0
-    kOne_GrBlendCoeff,     //<! 1
-    kSC_GrBlendCoeff,      //<! src color
-    kISC_GrBlendCoeff,     //<! one minus src color
-    kDC_GrBlendCoeff,      //<! dst color
-    kIDC_GrBlendCoeff,     //<! one minus dst color
-    kSA_GrBlendCoeff,      //<! src alpha
-    kISA_GrBlendCoeff,     //<! one minus src alpha
-    kDA_GrBlendCoeff,      //<! dst alpha
-    kIDA_GrBlendCoeff,     //<! one minus dst alpha
-    kConstC_GrBlendCoeff,  //<! constant color
-    kIConstC_GrBlendCoeff, //<! one minus constant color
-    kConstA_GrBlendCoeff,  //<! constant color alpha
-    kIConstA_GrBlendCoeff, //<! one minus constant color alpha
-
-    kPublicGrBlendCoeffCount
+* Geometric primitives used for drawing.
+*/
+enum class GrPrimitiveType {
+    kTriangles,
+    kTriangleStrip,
+    kTriangleFan,
+    kPoints,
+    kLines,     // 1 pix wide only
+    kLineStrip, // 1 pix wide only
+    kLinesAdjacency // requires geometry shader support.
 };
+static constexpr int kNumGrPrimitiveTypes = (int) GrPrimitiveType::kLinesAdjacency + 1;
+
+static constexpr bool GrIsPrimTypeLines(GrPrimitiveType type) {
+    return GrPrimitiveType::kLines == type ||
+           GrPrimitiveType::kLineStrip == type ||
+           GrPrimitiveType::kLinesAdjacency == type;
+}
+
+static constexpr bool GrIsPrimTypeTris(GrPrimitiveType type) {
+    return GrPrimitiveType::kTriangles == type     ||
+           GrPrimitiveType::kTriangleStrip == type ||
+           GrPrimitiveType::kTriangleFan == type;
+}
+
+static constexpr bool GrPrimTypeRequiresGeometryShaderSupport(GrPrimitiveType type) {
+    return GrPrimitiveType::kLinesAdjacency == type;
+}
 
 /**
  *  Formats for masks, used by the font cache.
@@ -234,8 +253,7 @@ enum GrBlendCoeff {
  */
 enum GrMaskFormat {
     kA8_GrMaskFormat,    //!< 1-byte per pixel
-    kA565_GrMaskFormat,  //!< 2-bytes per pixel
-    kA888_GrMaskFormat,  //!< 4-bytes per pixel
+    kA565_GrMaskFormat,  //!< 2-bytes per pixel, RGB represent 3-channel LCD coverage
     kARGB_GrMaskFormat,  //!< 4-bytes per pixel, color format
 
     kLast_GrMaskFormat = kARGB_GrMaskFormat
@@ -246,13 +264,15 @@ static const int kMaskFormatCount = kLast_GrMaskFormat + 1;
  *  Return the number of bytes-per-pixel for the specified mask format.
  */
 static inline int GrMaskFormatBytesPerPixel(GrMaskFormat format) {
-    SkASSERT((unsigned)format <= 3);
+    SkASSERT(format < kMaskFormatCount);
     // kA8   (0) -> 1
     // kA565 (1) -> 2
-    // kA888 (2) -> 4
-    // kARGB (3) -> 4
-    static const int sBytesPerPixel[] = { 1, 2, 4, 4 };
-    SK_COMPILE_ASSERT(SK_ARRAY_COUNT(sBytesPerPixel) == kMaskFormatCount, array_size_mismatch);
+    // kARGB (2) -> 4
+    static const int sBytesPerPixel[] = { 1, 2, 4 };
+    static_assert(SK_ARRAY_COUNT(sBytesPerPixel) == kMaskFormatCount, "array_size_mismatch");
+    static_assert(kA8_GrMaskFormat == 0, "enum_order_dependency");
+    static_assert(kA565_GrMaskFormat == 1, "enum_order_dependency");
+    static_assert(kARGB_GrMaskFormat == 2, "enum_order_dependency");
 
     return sBytesPerPixel[(int) format];
 }
@@ -263,7 +283,7 @@ static inline int GrMaskFormatBytesPerPixel(GrMaskFormat format) {
 enum GrPixelConfig {
     kUnknown_GrPixelConfig,
     kAlpha_8_GrPixelConfig,
-    kIndex_8_GrPixelConfig,
+    kGray_8_GrPixelConfig,
     kRGB_565_GrPixelConfig,
     /**
      * Premultiplied
@@ -278,36 +298,38 @@ enum GrPixelConfig {
      */
     kBGRA_8888_GrPixelConfig,
     /**
-     * ETC1 Compressed Data
+     * Premultiplied and sRGB. Byte order is r,g,b,a.
      */
-    kETC1_GrPixelConfig,
+    kSRGBA_8888_GrPixelConfig,
     /**
-     * LATC/RGTC/3Dc/BC4 Compressed Data
+     * Premultiplied and sRGB. Byte order is b,g,r,a.
      */
-    kLATC_GrPixelConfig,
+    kSBGRA_8888_GrPixelConfig,
     /**
-     * R11 EAC Compressed Data
-     * (Corresponds to section C.3.5 of the OpenGL 4.4 core profile spec)
+     * 8 bit signed integers per-channel. Byte order is b,g,r,a.
      */
-    kR11_EAC_GrPixelConfig,
-
-    /**
-     * 12x12 ASTC Compressed Data
-     * ASTC stands for Adaptive Scalable Texture Compression. It is a technique
-     * that allows for a lot of customization in the compressed representataion
-     * of a block. The only thing fixed in the representation is the block size,
-     * which means that a texture that contains ASTC data must be treated as
-     * having RGBA values. However, there are single-channel encodings which set
-     * the alpha to opaque and all three RGB channels equal effectively making the
-     * compression format a single channel such as R11 EAC and LATC.
-     */
-    kASTC_12x12_GrPixelConfig,
+    kRGBA_8888_sint_GrPixelConfig,
 
     /**
      * Byte order is r, g, b, a.  This color format is 32 bits per channel
      */
     kRGBA_float_GrPixelConfig,
-    kLast_GrPixelConfig = kRGBA_float_GrPixelConfig
+    /**
+     * Byte order is r, g.  This color format is 32 bits per channel
+     */
+    kRG_float_GrPixelConfig,
+
+    /**
+     * This color format is a single 16 bit float channel
+     */
+    kAlpha_half_GrPixelConfig,
+
+    /**
+    * Byte order is r, g, b, a.  This color format is 16 bits per channel
+    */
+    kRGBA_half_GrPixelConfig,
+
+    kLast_GrPixelConfig = kRGBA_half_GrPixelConfig
 };
 static const int kGrPixelConfigCnt = kLast_GrPixelConfig + 1;
 
@@ -320,30 +342,53 @@ static const int kGrPixelConfigCnt = kLast_GrPixelConfig + 1;
     #error "SK_*32_SHIFT values must correspond to GL_BGRA or GL_RGBA format."
 #endif
 
-// Returns true if the pixel config is a GPU-specific compressed format
-// representation.
-static inline bool GrPixelConfigIsCompressed(GrPixelConfig config) {
-    switch (config) {
-        case kIndex_8_GrPixelConfig:
-        case kETC1_GrPixelConfig:
-        case kLATC_GrPixelConfig:
-        case kR11_EAC_GrPixelConfig:
-        case kASTC_12x12_GrPixelConfig:
-            return true;
-        default:
-            return false;
-    }
-}
-
 // Returns true if the pixel config is 32 bits per pixel
-static inline bool GrPixelConfigIs8888(GrPixelConfig config) {
+static inline bool GrPixelConfigIs8888Unorm(GrPixelConfig config) {
     switch (config) {
         case kRGBA_8888_GrPixelConfig:
         case kBGRA_8888_GrPixelConfig:
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
             return true;
-        default:
+        case kUnknown_GrPixelConfig:
+        case kAlpha_8_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRGB_565_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+        case kRGBA_float_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
             return false;
     }
+    SkFAIL("Invalid pixel config");
+    return false;
+}
+
+// Returns true if the color (non-alpha) components represent sRGB values. It does NOT indicate that
+// all three color components are present in the config or anything about their order.
+static inline bool GrPixelConfigIsSRGB(GrPixelConfig config) {
+    switch (config) {
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
+            return true;
+        case kUnknown_GrPixelConfig:
+        case kAlpha_8_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRGB_565_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kRGBA_8888_GrPixelConfig:
+        case kBGRA_8888_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+        case kRGBA_float_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
+            return false;
+    }
+    SkFAIL("Invalid pixel config");
+    return false;
 }
 
 // Takes a config and returns the equivalent config with the R and B order
@@ -354,100 +399,171 @@ static inline GrPixelConfig GrPixelConfigSwapRAndB(GrPixelConfig config) {
             return kRGBA_8888_GrPixelConfig;
         case kRGBA_8888_GrPixelConfig:
             return kBGRA_8888_GrPixelConfig;
-        default:
+        case kSBGRA_8888_GrPixelConfig:
+            return kSRGBA_8888_GrPixelConfig;
+        case kSRGBA_8888_GrPixelConfig:
+            return kSBGRA_8888_GrPixelConfig;
+        case kUnknown_GrPixelConfig:
+        case kAlpha_8_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRGB_565_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+        case kRGBA_float_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
             return kUnknown_GrPixelConfig;
     }
+    SkFAIL("Invalid pixel config");
+    return kUnknown_GrPixelConfig;
 }
 
 static inline size_t GrBytesPerPixel(GrPixelConfig config) {
-    SkASSERT(!GrPixelConfigIsCompressed(config));
     switch (config) {
         case kAlpha_8_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
             return 1;
         case kRGB_565_GrPixelConfig:
         case kRGBA_4444_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
             return 2;
         case kRGBA_8888_GrPixelConfig:
         case kBGRA_8888_GrPixelConfig:
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
             return 4;
+        case kRGBA_half_GrPixelConfig:
+            return 8;
         case kRGBA_float_GrPixelConfig:
             return 16;
-        default:
+        case kRG_float_GrPixelConfig:
+            return 8;
+        case kUnknown_GrPixelConfig:
             return 0;
     }
-}
-
-static inline size_t GrUnpackAlignment(GrPixelConfig config) {
-    SkASSERT(!GrPixelConfigIsCompressed(config));
-    switch (config) {
-        case kAlpha_8_GrPixelConfig:
-            return 1;
-        case kRGB_565_GrPixelConfig:
-        case kRGBA_4444_GrPixelConfig:
-            return 2;
-        case kRGBA_8888_GrPixelConfig:
-        case kBGRA_8888_GrPixelConfig:
-        case kRGBA_float_GrPixelConfig:
-            return 4;
-        default:
-            return 0;
-    }
+    SkFAIL("Invalid pixel config");
+    return 0;
 }
 
 static inline bool GrPixelConfigIsOpaque(GrPixelConfig config) {
     switch (config) {
-        case kETC1_GrPixelConfig:
         case kRGB_565_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
             return true;
-        default:
+        case kAlpha_8_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
+        case kRGBA_8888_GrPixelConfig:
+        case kBGRA_8888_GrPixelConfig:
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
+        case kRGBA_float_GrPixelConfig:
+        case kUnknown_GrPixelConfig:
             return false;
     }
+    SkFAIL("Invalid pixel config");
+    return false;
 }
 
 static inline bool GrPixelConfigIsAlphaOnly(GrPixelConfig config) {
     switch (config) {
-        case kR11_EAC_GrPixelConfig:
-        case kLATC_GrPixelConfig:
-        case kASTC_12x12_GrPixelConfig:
         case kAlpha_8_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
             return true;
-        default:
+        case kUnknown_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRGB_565_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kRGBA_8888_GrPixelConfig:
+        case kBGRA_8888_GrPixelConfig:
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+        case kRGBA_float_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
             return false;
     }
+    SkFAIL("Invalid pixel config.");
+    return false;
+}
+
+static inline bool GrPixelConfigIsFloatingPoint(GrPixelConfig config) {
+    switch (config) {
+        case kRGBA_float_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
+            return true;
+        case kUnknown_GrPixelConfig:
+        case kAlpha_8_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRGB_565_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kRGBA_8888_GrPixelConfig:
+        case kBGRA_8888_GrPixelConfig:
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+            return false;
+    }
+    SkFAIL("Invalid pixel config");
+    return false;
+}
+
+static inline bool GrPixelConfigIsSint(GrPixelConfig config) {
+    return config == kRGBA_8888_sint_GrPixelConfig;
+}
+
+static inline bool GrPixelConfigIsUnorm(GrPixelConfig config) {
+    switch (config) {
+        case kAlpha_8_GrPixelConfig:
+        case kGray_8_GrPixelConfig:
+        case kRGB_565_GrPixelConfig:
+        case kRGBA_4444_GrPixelConfig:
+        case kRGBA_8888_GrPixelConfig:
+        case kBGRA_8888_GrPixelConfig:
+        case kSRGBA_8888_GrPixelConfig:
+        case kSBGRA_8888_GrPixelConfig:
+            return true;
+        case kUnknown_GrPixelConfig:
+        case kAlpha_half_GrPixelConfig:
+        case kRGBA_8888_sint_GrPixelConfig:
+        case kRGBA_float_GrPixelConfig:
+        case kRG_float_GrPixelConfig:
+        case kRGBA_half_GrPixelConfig:
+            return false;
+    }
+    SkFAIL("Invalid pixel config.");
+    return false;
 }
 
 /**
- * Optional bitfield flags that can be passed to createTexture.
+ * Optional bitfield flags that can be set on GrSurfaceDesc (below).
  */
-enum GrTextureFlags {
-    kNone_GrTextureFlags            = 0x0,
+enum GrSurfaceFlags {
+    kNone_GrSurfaceFlags = 0x0,
     /**
      * Creates a texture that can be rendered to as a GrRenderTarget. Use
      * GrTexture::asRenderTarget() to access.
      */
-    kRenderTarget_GrTextureFlagBit  = 0x1,
+    kRenderTarget_GrSurfaceFlag = 0x1,
     /**
-     * By default all render targets have an associated stencil buffer that
-     * may be required for path filling. This flag overrides stencil buffer
-     * creation.
-     * MAKE THIS PRIVATE?
+     * Clears to zero on creation. It will cause creation failure if initial data is supplied to the
+     * texture. This only affects the base level if the texture is created with MIP levels.
      */
-    kNoStencil_GrTextureFlagBit     = 0x2,
-    /**
-     * Hint that the CPU may modify this texture after creation.
-     */
-    kDynamicUpdate_GrTextureFlagBit = 0x4,
-    /**
-     * Indicates that all allocations (color buffer, FBO completeness, etc)
-     * should be verified.
-     */
-    kCheckAllocation_GrTextureFlagBit  = 0x8,
-
-    kDummy_GrTextureFlagBit,
-    kLastPublic_GrTextureFlagBit = kDummy_GrTextureFlagBit-1,
+    kPerformInitialClear_GrSurfaceFlag = 0x2
 };
 
-GR_MAKE_BITFIELD_OPS(GrTextureFlags)
+GR_MAKE_BITFIELD_OPS(GrSurfaceFlags)
+
+// opaque type for 3D API object handles
+typedef intptr_t GrBackendObject;
 
 /**
  * Some textures will be stored such that the upper and left edges of the content meet at the
@@ -462,20 +578,26 @@ enum GrSurfaceOrigin {
     kBottomLeft_GrSurfaceOrigin,
 };
 
+struct GrMipLevel {
+    const void* fPixels;
+    size_t fRowBytes;
+};
+
 /**
- * Describes a texture to be created.
+ * Describes a surface to be created.
  */
-struct GrTextureDesc {
-    GrTextureDesc()
-    : fFlags(kNone_GrTextureFlags)
+struct GrSurfaceDesc {
+    GrSurfaceDesc()
+    : fFlags(kNone_GrSurfaceFlags)
     , fOrigin(kDefault_GrSurfaceOrigin)
     , fWidth(0)
     , fHeight(0)
     , fConfig(kUnknown_GrPixelConfig)
-    , fSampleCnt(0) {
+    , fSampleCnt(0)
+    , fIsMipMapped(false) {
     }
 
-    GrTextureFlags         fFlags;  //!< bitfield of TextureFlags
+    GrSurfaceFlags         fFlags;  //!< bitfield of TextureFlags
     GrSurfaceOrigin        fOrigin; //!< origin of the texture
     int                    fWidth;  //!< Width of the texture
     int                    fHeight; //!< Height of the texture
@@ -488,65 +610,17 @@ struct GrTextureDesc {
 
     /**
      * The number of samples per pixel or 0 to disable full scene AA. This only
-     * applies if the kRenderTarget_GrTextureFlagBit is set. The actual number
+     * applies if the kRenderTarget_GrSurfaceFlag is set. The actual number
      * of samples may not exactly match the request. The request will be rounded
      * up to the next supported sample count, or down if it is larger than the
      * max supported count.
      */
     int                    fSampleCnt;
+    bool                   fIsMipMapped; //!< Indicates if the texture has mipmaps
 };
 
-/**
- * GrCacheID is used create and find cached GrResources (e.g. GrTextures). The ID has two parts:
- * the domain and the key. Domains simply allow multiple clients to use 0-based indices as their
- * cache key without colliding. The key uniquely identifies a GrResource within the domain.
- * Users of the cache must obtain a domain via GenerateDomain().
- */
-struct GrCacheID {
-public:
-    typedef uint8_t  Domain;
-
-    struct Key {
-        union {
-            uint8_t  fData8[16];
-            uint32_t fData32[4];
-            uint64_t fData64[2];
-        };
-    };
-
-    /**
-     * A default cache ID is invalid; a set method must be called before the object is used.
-     */
-    GrCacheID() { fDomain = kInvalid_Domain; }
-
-    /**
-     * Initialize the cache ID to a domain and key.
-     */
-    GrCacheID(Domain domain, const Key& key) {
-        SkASSERT(kInvalid_Domain != domain);
-        this->reset(domain, key);
-    }
-
-    void reset(Domain domain, const Key& key) {
-        fDomain = domain;
-        memcpy(&fKey, &key, sizeof(Key));
-    }
-
-    /** Has this been initialized to a valid domain */
-    bool isValid() const { return kInvalid_Domain != fDomain; }
-
-    const Key& getKey() const { SkASSERT(this->isValid()); return fKey; }
-    Domain getDomain() const { SkASSERT(this->isValid()); return fDomain; }
-
-    /** Creates a new unique ID domain. */
-    static Domain GenerateDomain();
-
-private:
-    Key             fKey;
-    Domain          fDomain;
-
-    static const Domain kInvalid_Domain = 0;
-};
+// Legacy alias
+typedef GrSurfaceDesc GrTextureDesc;
 
 /**
  * Clips are composed from these objects.
@@ -558,63 +632,13 @@ enum GrClipType {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// opaque type for 3D API object handles
-typedef intptr_t GrBackendObject;
+/** Ownership rules for external GPU resources imported into Skia. */
+enum GrWrapOwnership {
+    /** Skia will assume the client will keep the resource alive and Skia will not free it. */
+    kBorrow_GrWrapOwnership,
 
-/**
- * Gr can wrap an existing texture created by the client with a GrTexture
- * object. The client is responsible for ensuring that the texture lives at
- * least as long as the GrTexture object wrapping it. We require the client to
- * explicitly provide information about the texture, such as width, height,
- * and pixel config, rather than querying the 3D APIfor these values. We expect
- * these to be immutable even if the 3D API doesn't require this (OpenGL).
- *
- * Textures that are also render targets are supported as well. Gr will manage
- * any ancillary 3D API (stencil buffer, FBO id, etc) objects necessary for
- * Gr to draw into the render target. To access the render target object
- * call GrTexture::asRenderTarget().
- *
- * If in addition to the render target flag, the caller also specifies a sample
- * count Gr will create an MSAA buffer that resolves into the texture. Gr auto-
- * resolves when it reads from the texture. The client can explictly resolve
- * using the GrRenderTarget interface.
- *
- * Note: These flags currently form a subset of GrTexture's flags.
- */
-
-enum GrBackendTextureFlags {
-    /**
-     * No flags enabled
-     */
-    kNone_GrBackendTextureFlag             = kNone_GrTextureFlags,
-    /**
-     * Indicates that the texture is also a render target, and thus should have
-     * a GrRenderTarget object.
-     *
-     * D3D (future): client must have created the texture with flags that allow
-     * it to be used as a render target.
-     */
-    kRenderTarget_GrBackendTextureFlag     = kRenderTarget_GrTextureFlagBit,
-};
-GR_MAKE_BITFIELD_OPS(GrBackendTextureFlags)
-
-struct GrBackendTextureDesc {
-    GrBackendTextureDesc() { memset(this, 0, sizeof(*this)); }
-    GrBackendTextureFlags           fFlags;
-    GrSurfaceOrigin                 fOrigin;
-    int                             fWidth;         //<! width in pixels
-    int                             fHeight;        //<! height in pixels
-    GrPixelConfig                   fConfig;        //<! color format
-    /**
-     * If the render target flag is set and sample count is greater than 0
-     * then Gr will create an MSAA buffer that resolves to the texture.
-     */
-    int                             fSampleCnt;
-    /**
-     * Handle to the 3D API object.
-     * OpenGL: Texture ID.
-     */
-    GrBackendObject                 fTextureHandle;
+    /** Skia will assume ownership of the resource and free it. */
+    kAdopt_GrWrapOwnership,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -647,6 +671,7 @@ struct GrBackendRenderTargetDesc {
     /**
      * Handle to the 3D API object.
      * OpenGL: FBO ID
+     * Vulkan: GrVkImageInfo*
      */
     GrBackendObject                 fRenderTargetHandle;
 };
@@ -673,55 +698,8 @@ enum GrGLBackendState {
 };
 
 /**
- * Returns the data size for the given compressed pixel config
- */
-static inline size_t GrCompressedFormatDataSize(GrPixelConfig config,
-                                                int width, int height) {
-    SkASSERT(GrPixelConfigIsCompressed(config));
-    static const int kGrIndex8TableSize = 256 * 4; // 4 == sizeof(GrColor)
-
-    switch (config) {
-        case kIndex_8_GrPixelConfig:
-            return width * height + kGrIndex8TableSize;
-        case kR11_EAC_GrPixelConfig:
-        case kLATC_GrPixelConfig:
-        case kETC1_GrPixelConfig:
-            SkASSERT((width & 3) == 0);
-            SkASSERT((height & 3) == 0);
-            return (width >> 2) * (height >> 2) * 8;
-
-        case kASTC_12x12_GrPixelConfig:
-            SkASSERT((width % 12) == 0);
-            SkASSERT((height % 12) == 0);
-            return (width / 12) * (height / 12) * 16;
-
-        default:
-            SkFAIL("Unknown compressed pixel config");
-            return 4 * width * height;
-    }
-}
-
-/**
  * This value translates to reseting all the context state for any backend.
  */
 static const uint32_t kAll_GrBackendState = 0xffffffff;
 
-///////////////////////////////////////////////////////////////////////////////
-
-#if GR_ALWAYS_ALLOCATE_ON_HEAP
-    #define GrAutoMallocBaseType SkAutoMalloc
-#else
-    #define GrAutoMallocBaseType SkAutoSMalloc<S>
-#endif
-
-template <size_t S> class GrAutoMalloc : public GrAutoMallocBaseType {
-public:
-    GrAutoMalloc() : INHERITED() {}
-    explicit GrAutoMalloc(size_t size) : INHERITED(size) {}
-    virtual ~GrAutoMalloc() {}
-private:
-    typedef GrAutoMallocBaseType INHERITED;
-};
-
-#undef GrAutoMallocBaseType
 #endif

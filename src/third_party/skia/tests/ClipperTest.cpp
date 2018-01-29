@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include "SkBitmap.h"
 #include "SkCanvas.h"
 #include "SkEdgeClipper.h"
 #include "SkLineClipper.h"
@@ -48,7 +49,7 @@ static void test_hairclipping(skiatest::Reporter* reporter) {
 }
 
 static void test_edgeclipper() {
-    SkEdgeClipper clipper;
+    SkEdgeClipper clipper(false);
 
     const SkPoint pts[] = {
         { 3.0995476e+010f,  42.929779f },

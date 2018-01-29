@@ -9,21 +9,36 @@
 #include "PathOpsThreadedCommon.h"
 #include "SkBitmap.h"
 #include "SkCanvas.h"
-#include "SkForceLinking.h"
 #include "SkMatrix.h"
+#include "SkMutex.h"
 #include "SkPaint.h"
-#include "SkRTConf.h"
+#include "SkRegion.h"
 #include "SkStream.h"
-#include "SkTaskGroup.h"
-#include "SkThread.h"
+
+#include <stdlib.h>
 
 #ifdef SK_BUILD_FOR_MAC
 #include <sys/sysctl.h>
 #endif
 
-__SK_FORCE_IMAGE_DECODER_LINKING;
+// std::to_string isn't implemented on android
+#include <sstream>
 
-DEFINE_bool2(runFail, f, false, "run tests known to fail.");
+template <typename T>
+std::string std_to_string(T value)
+{
+    std::ostringstream os ;
+    os << value ;
+    return os.str() ;
+}
+
+bool OpDebug(const SkPath& one, const SkPath& two, SkPathOp op, SkPath* result
+             SkDEBUGPARAMS(bool skipAssert)
+             SkDEBUGPARAMS(const char* testName));
+
+bool SimplifyDebug(const SkPath& one, SkPath* result
+                   SkDEBUGPARAMS(bool skipAssert)
+                   SkDEBUGPARAMS(const char* testName));
 
 static const char marker[] =
     "</div>\n"
@@ -33,11 +48,11 @@ static const char marker[] =
     "var testDivs = [\n";
 
 static const char* opStrs[] = {
-    "kDifference_PathOp",
-    "kIntersect_PathOp",
-    "kUnion_PathOp",
-    "kXor_PathOp",
-    "kReverseDifference_PathOp",
+    "kDifference_SkPathOp",
+    "kIntersect_SkPathOp",
+    "kUnion_SkPathOp",
+    "kXOR_PathOp",
+    "kReverseDifference_SkPathOp",
 };
 
 static const char* opSuffixes[] = {
@@ -45,11 +60,25 @@ static const char* opSuffixes[] = {
     "i",
     "u",
     "o",
+    "r",
 };
 
-static bool gShowPath = false;
-static bool gComparePathsAssert = true;
-static bool gPathStrAssert = true;
+enum class ExpectSuccess {
+    kNo,
+    kYes,
+    kFlaky
+};
+
+enum class SkipAssert {
+    kNo,
+    kYes
+};
+
+enum class ExpectMatch {
+    kNo,
+    kYes,
+    kFlaky
+};
 
 #if DEBUG_SHOW_TEST_NAME
 static void showPathData(const SkPath& path) {
@@ -82,6 +111,13 @@ static void showPathData(const SkPath& path) {
                 lastPt = pts[2];
                 lastPtSet = true;
                 break;
+            case SkPath::kConic_Verb:
+                SkDebugf("{{%1.9g,%1.9g}, {%1.9g,%1.9g}, {%1.9g,%1.9g}},  //weight=%1.9g\n",
+                        pts[0].fX, pts[0].fY, pts[1].fX, pts[1].fY, pts[2].fX, pts[2].fY,
+                        iter.conicWeight());
+                lastPt = pts[2];
+                lastPtSet = true;
+                break;
             case SkPath::kCubic_Verb:
                 SkDebugf("{{%1.9g,%1.9g}, {%1.9g,%1.9g}, {%1.9g,%1.9g}, {%1.9g,%1.9g}},\n",
                         pts[0].fX, pts[0].fY, pts[1].fX, pts[1].fY, pts[2].fX, pts[2].fY,
@@ -110,19 +146,19 @@ static void showPathData(const SkPath& path) {
 
 void showOp(const SkPathOp op) {
     switch (op) {
-        case kDifference_PathOp:
+        case kDifference_SkPathOp:
             SkDebugf("op difference\n");
             break;
-        case kIntersect_PathOp:
+        case kIntersect_SkPathOp:
             SkDebugf("op intersect\n");
             break;
-        case kUnion_PathOp:
+        case kUnion_SkPathOp:
             SkDebugf("op union\n");
             break;
-        case kXOR_PathOp:
+        case kXOR_SkPathOp:
             SkDebugf("op xor\n");
             break;
-        case kReverseDifference_PathOp:
+        case kReverseDifference_SkPathOp:
             SkDebugf("op reverse difference\n");
             break;
         default:
@@ -154,7 +190,7 @@ void ShowTestName(PathOpsThreadState* state, int a, int b, int c, int d) {
     state->fSerialNo[8] = '\0';
     SkDebugf("%s\n", state->fSerialNo);
     if (strcmp(state->fSerialNo, state->fKey) == 0) {
-        SkDebugf("%s\n", state->fPathStr);
+        SkDebugf("%s\n", state->fPathStr.c_str());
     }
 #endif
 }
@@ -177,6 +213,15 @@ static void scaleMatrix(const SkPath& one, const SkPath& two, SkMatrix& scale) {
     SkScalar vScale = (bitHeight - 2) / largerHeight;
     scale.reset();
     scale.preScale(hScale, vScale);
+    larger.fLeft *= hScale;
+    larger.fRight *= hScale;
+    larger.fTop *= vScale;
+    larger.fBottom *= vScale;
+    SkScalar dx = -16000 > larger.fLeft ? -16000 - larger.fLeft
+            : 16000 < larger.fRight ? 16000 - larger.fRight : 0;
+    SkScalar dy = -16000 > larger.fTop ? -16000 - larger.fTop
+            : 16000 < larger.fBottom ? 16000 - larger.fBottom : 0;
+    scale.postTranslate(dx, dy);
 }
 
 static int pathsDrawTheSame(SkBitmap& bits, const SkPath& scaledOne, const SkPath& scaledTwo,
@@ -273,7 +318,7 @@ bool drawAsciiPaths(const SkPath& one, const SkPath& two, bool drawPaths) {
     return true;
 }
 
-static int comparePaths(skiatest::Reporter* reporter, const char* filename, const SkPath& one,
+int comparePaths(skiatest::Reporter* reporter, const char* filename, const SkPath& one,
         const SkPath& two, SkBitmap& bitmap) {
     int errors2x2;
     SkPath scaledOne, scaledTwo;
@@ -282,138 +327,122 @@ static int comparePaths(skiatest::Reporter* reporter, const char* filename, cons
         return 0;
     }
     const int MAX_ERRORS = 9;
-    REPORTER_ASSERT(reporter, errors2x2 <= MAX_ERRORS || !gComparePathsAssert);
     return errors2x2 > MAX_ERRORS ? errors2x2 : 0;
 }
 
-const int gTestFirst = 4;
-static int gTestNo = gTestFirst;
 static SkTDArray<SkPathOp> gTestOp;
 
 static void showPathOpPath(const char* testName, const SkPath& one, const SkPath& two,
         const SkPath& a, const SkPath& b, const SkPath& scaledOne, const SkPath& scaledTwo,
         const SkPathOp shapeOp, const SkMatrix& scale) {
     SkASSERT((unsigned) shapeOp < SK_ARRAY_COUNT(opStrs));
-    SkString defaultTestName;
     if (!testName) {
-        defaultTestName.printf("xOp%d%s", gTestNo, opSuffixes[shapeOp]);
-        testName = defaultTestName.c_str();
+        testName = "xOp";
     }
-    SkDebugf("static void %s(skiatest::Reporter* reporter, const char* filename) {\n", testName);
+    SkDebugf("static void %s_%s(skiatest::Reporter* reporter, const char* filename) {\n",
+        testName, opSuffixes[shapeOp]);
     *gTestOp.append() = shapeOp;
-    ++gTestNo;
     SkDebugf("    SkPath path, pathB;\n");
-#if DEBUG_SHOW_TEST_NAME
     SkPathOpsDebug::ShowOnePath(a, "path", false);
     SkPathOpsDebug::ShowOnePath(b, "pathB", false);
-#endif
     SkDebugf("    testPathOp(reporter, path, pathB, %s, filename);\n", opStrs[shapeOp]);
     SkDebugf("}\n");
     drawAsciiPaths(scaledOne, scaledTwo, true);
 }
 
-void ShowTestArray() {
-    for (int x = gTestFirst; x < gTestNo; ++x) {
-        SkDebugf("    TEST(xOp%d%s),\n", x, opSuffixes[gTestOp[x - gTestFirst]]);
-    }
-}
-
 SK_DECLARE_STATIC_MUTEX(compareDebugOut3);
-SK_DECLARE_STATIC_MUTEX(compareDebugOut4);
+
 static int comparePaths(skiatest::Reporter* reporter, const char* testName, const SkPath& one,
         const SkPath& scaledOne, const SkPath& two, const SkPath& scaledTwo, SkBitmap& bitmap,
-        const SkPath& a, const SkPath& b, const SkPathOp shapeOp, const SkMatrix& scale) {
+        const SkPath& a, const SkPath& b, const SkPathOp shapeOp, const SkMatrix& scale,
+        ExpectMatch expectMatch) {
     int errors2x2;
+    const int MAX_ERRORS = 8;
     (void) pathsDrawTheSame(bitmap, scaledOne, scaledTwo, errors2x2);
-    if (errors2x2 == 0) {
-        if (gShowPath) {
-            showPathOpPath(testName, one, two, a, b, scaledOne, scaledTwo, shapeOp, scale);
+    if (ExpectMatch::kNo == expectMatch) {
+        if (errors2x2 < MAX_ERRORS) {
+            REPORTER_ASSERT(reporter, 0);
         }
         return 0;
     }
-    const int MAX_ERRORS = 8;
-    if (errors2x2 > MAX_ERRORS && gComparePathsAssert) {
-        SkAutoMutexAcquire autoM(compareDebugOut3);
-        SkDebugf("\n*** this test fails ***\n");
-        showPathOpPath(testName, one, two, a, b, scaledOne, scaledTwo, shapeOp, scale);
-        REPORTER_ASSERT(reporter, 0);
-    } else if (gShowPath || errors2x2 == MAX_ERRORS || errors2x2 == MAX_ERRORS - 1) {
-        SkAutoMutexAcquire autoM(compareDebugOut4);
-        showPathOpPath(testName, one, two, a, b, scaledOne, scaledTwo, shapeOp, scale);
+    if (errors2x2 == 0) {
+        return 0;
     }
-    return errors2x2 > MAX_ERRORS ? errors2x2 : 0;
+    if (ExpectMatch::kYes == expectMatch && errors2x2 >= MAX_ERRORS) {
+        SkAutoMutexAcquire autoM(compareDebugOut3);
+        showPathOpPath(testName, one, two, a, b, scaledOne, scaledTwo, shapeOp, scale);
+        SkDebugf("\n/*");
+        REPORTER_ASSERT(reporter, 0);
+        SkDebugf(" */\n");
+    }
+    return errors2x2 >= MAX_ERRORS ? errors2x2 : 0;
 }
 
 // Default values for when reporter->verbose() is false.
 static int testNumber = 55;
 static const char* testName = "pathOpTest";
 
-static void writeTestName(const char* nameSuffix, SkMemoryWStream& outFile) {
-    outFile.writeText(testName);
-    outFile.writeDecAsText(testNumber);
+static void appendTestName(const char* nameSuffix, std::string& out) {
+    out += testName;
+    out += std_to_string(testNumber);
     ++testNumber;
     if (nameSuffix) {
-        outFile.writeText(nameSuffix);
+        out.append(nameSuffix);
     }
 }
 
-static void outputToStream(const char* pathStr, const char* pathPrefix, const char* nameSuffix,
-        const char* testFunction, bool twoPaths, SkMemoryWStream& outFile) {
+static void appendTest(const char* pathStr, const char* pathPrefix, const char* nameSuffix,
+                       const char* testFunction, bool twoPaths, std::string& out) {
 #if 0
-    outFile.writeText("<div id=\"");
-    writeTestName(nameSuffix, outFile);
-    outFile.writeText("\">\n");
+    out.append("\n<div id=\"");
+    appendTestName(nameSuffix, out);
+    out.append("\">\n");
     if (pathPrefix) {
-        outFile.writeText(pathPrefix);
+        out.append(pathPrefix);
     }
-    outFile.writeText(pathStr);
-    outFile.writeText("</div>\n\n");
+    out.append(pathStr);
+    out.append("</div>\n\n");
 
-    outFile.writeText(marker);
-    outFile.writeText("    ");
-    writeTestName(nameSuffix, outFile);
-    outFile.writeText(",\n\n\n");
+    out.append(marker);
+    out.append("    ");
+    appendTestName(nameSuffix, out);
+    out.append(",\n\n\n");
 #endif
-    outFile.writeText("static void ");
-    writeTestName(nameSuffix, outFile);
-    outFile.writeText("(skiatest::Reporter* reporter) {\n    SkPath path");
+    out.append("static void ");
+    appendTestName(nameSuffix, out);
+    out.append("(skiatest::Reporter* reporter) {\n    SkPath path");
     if (twoPaths) {
-        outFile.writeText(", pathB");
+        out.append(", pathB");
     }
-    outFile.writeText(";\n");
+    out.append(";\n");
     if (pathPrefix) {
-        outFile.writeText(pathPrefix);
+        out.append(pathPrefix);
     }
-    outFile.writeText(pathStr);
-    outFile.writeText("    ");
-    outFile.writeText(testFunction);
-    outFile.writeText("\n}\n\n");
+    out += pathStr;
+    out += "    ";
+    out += testFunction;
 #if 0
-    outFile.writeText("static void (*firstTest)() = ");
-    writeTestName(nameSuffix, outFile);
-    outFile.writeText(";\n\n");
+    out.append("static void (*firstTest)() = ");
+    appendTestName(nameSuffix, out);
+    out.append(";\n\n");
 
-    outFile.writeText("static struct {\n");
-    outFile.writeText("    void (*fun)();\n");
-    outFile.writeText("    const char* str;\n");
-    outFile.writeText("} tests[] = {\n");
-    outFile.writeText("    TEST(");
-    writeTestName(nameSuffix, outFile);
-    outFile.writeText("),\n");
+    out.append("static struct {\n");
+    out.append("    void (*fun)();\n");
+    out.append("    const char* str;\n");
+    out.append("} tests[] = {\n");
+    out.append("    TEST(");
+    appendTestName(nameSuffix, out);
+    out.append("),\n");
 #endif
-    outFile.flush();
 }
 
 SK_DECLARE_STATIC_MUTEX(simplifyDebugOut);
+
 bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& state,
                   const char* pathStr) {
     SkPath::FillType fillType = useXor ? SkPath::kEvenOdd_FillType : SkPath::kWinding_FillType;
     path.setFillType(fillType);
-#if DEBUG_SHOW_TEST_NAME
-    if (gShowPath) {
-        SkPathOpsDebug::ShowOnePath(path, "path", false);
-    }
-#endif
+    state.fReporter->bumpTestCount();
     if (!Simplify(path, &out)) {
         SkDebugf("%s did not expect failure\n", __FUNCTION__);
         REPORTER_ASSERT(state.fReporter, 0);
@@ -422,44 +451,73 @@ bool testSimplify(SkPath& path, bool useXor, SkPath& out, PathOpsThreadState& st
     if (!state.fReporter->verbose()) {
         return true;
     }
-    int result = comparePaths(state.fReporter, NULL, path, out, *state.fBitmap);
-    if (result && gPathStrAssert) {
+    int result = comparePaths(state.fReporter, nullptr, path, out, *state.fBitmap);
+    if (result) {
         SkAutoMutexAcquire autoM(simplifyDebugOut);
-        char temp[8192];
-        sk_bzero(temp, sizeof(temp));
-        SkMemoryWStream stream(temp, sizeof(temp));
-        const char* pathPrefix = NULL;
-        const char* nameSuffix = NULL;
+        std::string str;
+        const char* pathPrefix = nullptr;
+        const char* nameSuffix = nullptr;
         if (fillType == SkPath::kEvenOdd_FillType) {
             pathPrefix = "    path.setFillType(SkPath::kEvenOdd_FillType);\n";
             nameSuffix = "x";
         }
         const char testFunction[] = "testSimplify(reporter, path);";
-        outputToStream(pathStr, pathPrefix, nameSuffix, testFunction, false, stream);
-        SkDebugf(temp);
+        appendTest(pathStr, pathPrefix, nameSuffix, testFunction, false, str);
+        SkDebugf("%s", str.c_str());
         REPORTER_ASSERT(state.fReporter, 0);
     }
     state.fReporter->bumpTestCount();
     return result == 0;
 }
 
-bool testSimplify(skiatest::Reporter* reporter, const SkPath& path, const char* filename) {
-#if DEBUG_SHOW_TEST_NAME
+static bool inner_simplify(skiatest::Reporter* reporter, const SkPath& path, const char* filename,
+        ExpectSuccess expectSuccess, SkipAssert skipAssert, ExpectMatch expectMatch) {
+#if 0 && DEBUG_SHOW_TEST_NAME
     showPathData(path);
 #endif
     SkPath out;
-    if (!Simplify(path, &out)) {
-        SkDebugf("%s did not expect failure\n", __FUNCTION__);
-        REPORTER_ASSERT(reporter, 0);
+    if (!SimplifyDebug(path, &out  SkDEBUGPARAMS(SkipAssert::kYes == skipAssert)
+            SkDEBUGPARAMS(testName))) {
+        if (ExpectSuccess::kYes == expectSuccess) {
+            SkDebugf("%s did not expect %s failure\n", __FUNCTION__, filename);
+            REPORTER_ASSERT(reporter, 0);
+        }
         return false;
+    } else {
+        if (ExpectSuccess::kNo == expectSuccess) {
+            SkDebugf("%s %s unexpected success\n", __FUNCTION__, filename);
+            REPORTER_ASSERT(reporter, 0);
+        }
     }
     SkBitmap bitmap;
-    int result = comparePaths(reporter, filename, path, out, bitmap);
-    if (result && gPathStrAssert) {
+    int errors = comparePaths(reporter, filename, path, out, bitmap);
+    if (ExpectMatch::kNo == expectMatch) {
+        if (!errors) {
+            SkDebugf("%s failing test %s now succeeds\n", __FUNCTION__, filename);
+            REPORTER_ASSERT(reporter, 0);
+            return false;
+        }
+    } else if (ExpectMatch::kYes == expectMatch && errors) {
         REPORTER_ASSERT(reporter, 0);
     }
     reporter->bumpTestCount();
-    return result == 0;
+    return errors == 0;
+}
+
+bool testSimplify(skiatest::Reporter* reporter, const SkPath& path, const char* filename) {
+    return inner_simplify(reporter, path, filename, ExpectSuccess::kYes, SkipAssert::kNo,
+            ExpectMatch::kYes);
+}
+
+bool testSimplifyFuzz(skiatest::Reporter* reporter, const SkPath& path, const char* filename) {
+    return inner_simplify(reporter, path, filename, ExpectSuccess::kFlaky, SkipAssert::kYes,
+            ExpectMatch::kFlaky);
+}
+
+bool testSimplifyCheck(skiatest::Reporter* reporter, const SkPath& path, const char* filename,
+        bool checkFail) {
+    return inner_simplify(reporter, path, filename, checkFail ?
+            ExpectSuccess::kYes : ExpectSuccess::kNo, SkipAssert::kNo, ExpectMatch::kNo);
 }
 
 #if DEBUG_SHOW_TEST_NAME
@@ -472,17 +530,26 @@ static void showName(const SkPath& a, const SkPath& b, const SkPathOp shapeOp) {
 #endif
 
 static bool innerPathOp(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
-                 const SkPathOp shapeOp, const char* testName, bool threaded) {
-#if DEBUG_SHOW_TEST_NAME
+        const SkPathOp shapeOp, const char* testName, ExpectSuccess expectSuccess,
+        SkipAssert skipAssert, ExpectMatch expectMatch) {
+#if 0 && DEBUG_SHOW_TEST_NAME
     showName(a, b, shapeOp);
 #endif
     SkPath out;
-    if (!Op(a, b, shapeOp, &out) ) {
-        SkDebugf("%s did not expect failure\n", __FUNCTION__);
-        REPORTER_ASSERT(reporter, 0);
+    if (!OpDebug(a, b, shapeOp, &out  SkDEBUGPARAMS(SkipAssert::kYes == skipAssert)
+            SkDEBUGPARAMS(testName))) {
+        if (ExpectSuccess::kYes == expectSuccess) {
+            SkDebugf("%s %s did not expect failure\n", __FUNCTION__, testName);
+            REPORTER_ASSERT(reporter, 0);
+        }
         return false;
+    } else {
+        if (ExpectSuccess::kNo == expectSuccess) {
+                SkDebugf("%s %s unexpected success\n", __FUNCTION__, testName);
+                REPORTER_ASSERT(reporter, 0);
+        }
     }
-    if (threaded && !reporter->verbose()) {
+    if (!reporter->verbose()) {
         return true;
     }
     SkPath pathOut, scaledPathOut;
@@ -510,45 +577,49 @@ static bool innerPathOp(skiatest::Reporter* reporter, const SkPath& a, const SkP
     scaledOut.addPath(out, scale);
     scaledOut.setFillType(out.getFillType());
     int result = comparePaths(reporter, testName, pathOut, scaledPathOut, out, scaledOut, bitmap,
-            a, b, shapeOp, scale);
-    if (result && gPathStrAssert) {
-        REPORTER_ASSERT(reporter, 0);
-    }
+            a, b, shapeOp, scale, expectMatch);
     reporter->bumpTestCount();
     return result == 0;
 }
 
 bool testPathOp(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
-                 const SkPathOp shapeOp, const char* testName) {
-    return innerPathOp(reporter, a, b, shapeOp, testName, false);
+        const SkPathOp shapeOp, const char* testName) {
+    return innerPathOp(reporter, a, b, shapeOp, testName, ExpectSuccess::kYes, SkipAssert::kNo,
+            ExpectMatch::kYes);
 }
 
-bool testPathFailOp(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
+bool testPathOpCheck(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
+        const SkPathOp shapeOp, const char* testName, bool checkFail) {
+    return innerPathOp(reporter, a, b, shapeOp, testName, checkFail ?
+            ExpectSuccess::kYes : ExpectSuccess::kNo, SkipAssert::kNo, ExpectMatch::kNo);
+}
+
+bool testPathOpFuzz(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
+        const SkPathOp shapeOp, const char* testName) {
+    return innerPathOp(reporter, a, b, shapeOp, testName, ExpectSuccess::kFlaky, SkipAssert::kYes,
+            ExpectMatch::kFlaky);
+}
+
+bool testPathOpFail(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
                  const SkPathOp shapeOp, const char* testName) {
 #if DEBUG_SHOW_TEST_NAME
     showName(a, b, shapeOp);
 #endif
-    SkPath out;
+    SkPath orig;
+    orig.lineTo(54, 43);
+    SkPath out = orig;
     if (Op(a, b, shapeOp, &out) ) {
         SkDebugf("%s test is expected to fail\n", __FUNCTION__);
         REPORTER_ASSERT(reporter, 0);
         return false;
     }
+    SkASSERT(out == orig);
     return true;
-}
-
-bool testThreadedPathOp(skiatest::Reporter* reporter, const SkPath& a, const SkPath& b,
-                 const SkPathOp shapeOp, const char* testName) {
-    return innerPathOp(reporter, a, b, shapeOp, testName, true);
 }
 
 SK_DECLARE_STATIC_MUTEX(gMutex);
 
 void initializeTests(skiatest::Reporter* reporter, const char* test) {
-#if 0  // doesn't work yet
-    SK_CONF_SET("images.jpeg.suppressDecoderWarnings", true);
-    SK_CONF_SET("images.png.suppressDecoderWarnings", true);
-#endif
     if (reporter->verbose()) {
         SkAutoMutexAcquire lock(gMutex);
         testName = test;
@@ -559,7 +630,7 @@ void initializeTests(skiatest::Reporter* reporter, const char* test) {
             inData.setCount((int) inFile.getLength());
             size_t inLen = inData.count();
             inFile.read(inData.begin(), inLen);
-            inFile.setPath(NULL);
+            inFile.close();
             char* insert = strstr(inData.begin(), marker);
             if (insert) {
                 insert += sizeof(marker) - 1;
@@ -570,28 +641,27 @@ void initializeTests(skiatest::Reporter* reporter, const char* test) {
     }
 }
 
-void outputProgress(char* ramStr, const char* pathStr, SkPath::FillType pathFillType) {
+void PathOpsThreadState::outputProgress(const char* pathStr, SkPath::FillType pathFillType) {
     const char testFunction[] = "testSimplify(path);";
-    const char* pathPrefix = NULL;
-    const char* nameSuffix = NULL;
+    const char* pathPrefix = nullptr;
+    const char* nameSuffix = nullptr;
     if (pathFillType == SkPath::kEvenOdd_FillType) {
         pathPrefix = "    path.setFillType(SkPath::kEvenOdd_FillType);\n";
         nameSuffix = "x";
     }
-    SkMemoryWStream rRamStream(ramStr, PATH_STR_SIZE);
-    outputToStream(pathStr, pathPrefix, nameSuffix, testFunction, false, rRamStream);
+    appendTest(pathStr, pathPrefix, nameSuffix, testFunction, false, fPathStr);
 }
 
-void outputProgress(char* ramStr, const char* pathStr, SkPathOp op) {
+void PathOpsThreadState::outputProgress(const char* pathStr, SkPathOp op) {
     const char testFunction[] = "testOp(path);";
     SkASSERT((size_t) op < SK_ARRAY_COUNT(opSuffixes));
     const char* nameSuffix = opSuffixes[op];
-    SkMemoryWStream rRamStream(ramStr, PATH_STR_SIZE);
-    outputToStream(pathStr, NULL, nameSuffix, testFunction, true, rRamStream);
+    appendTest(pathStr, nullptr, nameSuffix, testFunction, true, fPathStr);
 }
 
 void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
                 void (*firstTest)(skiatest::Reporter* , const char* filename),
+                void (*skipTest)(skiatest::Reporter* , const char* filename),
                 void (*stopTest)(skiatest::Reporter* , const char* filename), bool reverse) {
     size_t index;
     if (firstTest) {
@@ -600,8 +670,7 @@ void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
             --index;
         }
 #if DEBUG_SHOW_TEST_NAME
-        SkDebugf("<div id=\"%s\">\n", tests[index].str);
-        SkDebugf("  %s [%s]\n", __FUNCTION__, tests[index].str);
+        SkDebugf("\n<div id=\"%s\">\n", tests[index].str);
 #endif
         (*tests[index].fun)(reporter, tests[index].str);
         if (tests[index].fun == stopTest) {
@@ -610,21 +679,45 @@ void RunTestSet(skiatest::Reporter* reporter, TestDesc tests[], size_t count,
     }
     index = reverse ? count - 1 : 0;
     size_t last = reverse ? 0 : count - 1;
+    bool foundSkip = !skipTest;
     do {
-        if (tests[index].fun != firstTest) {
+        if (tests[index].fun == skipTest) {
+            foundSkip = true;
+        }
+        if (foundSkip && tests[index].fun != firstTest) {
     #if DEBUG_SHOW_TEST_NAME
-            SkDebugf("<div id=\"%s\">\n", tests[index].str);
-            SkDebugf("  %s [%s]\n", __FUNCTION__, tests[index].str);
+            SkDebugf("\n<div id=\"%s\">\n", tests[index].str);
     #endif
-            (*tests[index].fun)(reporter, tests[index].str);
+             (*tests[index].fun)(reporter, tests[index].str);
         }
-        if (tests[index].fun == stopTest) {
-            SkDebugf("lastTest\n");
-            break;
-        }
-        if (index == last) {
+        if (tests[index].fun == stopTest || index == last) {
             break;
         }
         index += reverse ? -1 : 1;
     } while (true);
+#if DEBUG_SHOW_TEST_NAME
+    SkDebugf(
+            "\n"
+            "</div>\n"
+            "\n"
+            "<script type=\"text/javascript\">\n"
+            "\n"
+            "var testDivs = [\n"
+    );
+    index = reverse ? count - 1 : 0;
+    last = reverse ? 0 : count - 1;
+    foundSkip = !skipTest;
+    do {
+        if (tests[index].fun == skipTest) {
+            foundSkip = true;
+        }
+        if (foundSkip && tests[index].fun != firstTest) {
+            SkDebugf("    %s,\n", tests[index].str);
+        }
+        if (tests[index].fun == stopTest || index == last) {
+            break;
+        }
+        index += reverse ? -1 : 1;
+    } while (true);
+#endif
 }

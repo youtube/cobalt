@@ -85,7 +85,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
     if (write_size > 0) {
       write_size =
           WriteData(reinterpret_cast<const uint8_t*>(data) + data_size_written,
-                    write_size, kDataEOS, SbTimeGetNow());
+                    write_size, kDataEOS, SbTimeGetMonotonicNow());
       SB_DCHECK(write_size >= 0);
       data_size_written += write_size;
     }

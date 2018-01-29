@@ -41,87 +41,87 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
                            GrContext* gr_context,
                            SubmitOffscreenCallback submit_offscreen_callback,
                            bool purge_skia_font_caches_on_destruction);
-  ~HardwareResourceProvider() OVERRIDE;
+  ~HardwareResourceProvider() override;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<HardwareResourceProvider>();
   }
 
-  void Finish() OVERRIDE;
+  void Finish() override;
 
-  bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
-  bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
+  bool PixelFormatSupported(render_tree::PixelFormat pixel_format) override;
+  bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) override;
 
   scoped_ptr<render_tree::ImageData> AllocateImageData(
       const math::Size& size, render_tree::PixelFormat pixel_format,
-      render_tree::AlphaFormat alpha_format) OVERRIDE;
+      render_tree::AlphaFormat alpha_format) override;
 
   scoped_refptr<render_tree::Image> CreateImage(
-      scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
+      scoped_ptr<render_tree::ImageData> pixel_data) override;
 
 #if SB_HAS(GRAPHICS)
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
-      SbDecodeTarget decode_target) OVERRIDE;
+      SbDecodeTarget decode_target) override;
 
   // Return the associated SbDecodeTargetProvider with the ResourceProvider,
   // if it exists.  Returns NULL if SbDecodeTarget is not supported.
   SbDecodeTargetGraphicsContextProvider*
-  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+  GetSbDecodeTargetGraphicsContextProvider() override {
     return &decode_target_graphics_context_provider_;
   }
 
   // Whether SbDecodeTargetIsSupported or not.
-  bool SupportsSbDecodeTarget() OVERRIDE { return true; }
+  bool SupportsSbDecodeTarget() override { return true; }
 
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
-      size_t size_in_bytes, size_t alignment) OVERRIDE;
+      size_t size_in_bytes, size_t alignment) override;
 
   scoped_refptr<render_tree::Image> CreateMultiPlaneImageFromRawMemory(
       scoped_ptr<render_tree::RawImageMemory> raw_image_memory,
-      const render_tree::MultiPlaneImageDataDescriptor& descriptor) OVERRIDE;
+      const render_tree::MultiPlaneImageDataDescriptor& descriptor) override;
 
-  bool HasLocalFontFamily(const char* font_family_name) const OVERRIDE;
+  bool HasLocalFontFamily(const char* font_family_name) const override;
 
   scoped_refptr<render_tree::Typeface> GetLocalTypeface(
-      const char* font_family_name, render_tree::FontStyle font_style) OVERRIDE;
+      const char* font_family_name, render_tree::FontStyle font_style) override;
 
   scoped_refptr<render_tree::Typeface> GetLocalTypefaceByFaceNameIfAvailable(
-      const char* font_face_name) OVERRIDE;
+      const char* font_face_name) override;
 
   scoped_refptr<render_tree::Typeface> GetCharacterFallbackTypeface(
       int32 character, render_tree::FontStyle font_style,
-      const std::string& language) OVERRIDE;
+      const std::string& language) override;
 
   // This resource provider uses ots (OpenTypeSanitizer) to sanitize the raw
   // typeface data and skia to generate the typeface. It supports TrueType,
   // OpenType, and WOFF data formats.
   scoped_refptr<render_tree::Typeface> CreateTypefaceFromRawData(
       scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data,
-      std::string* error_string) OVERRIDE;
+      std::string* error_string) override;
 
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
       const char16* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
-      render_tree::FontProvider* font_provider) OVERRIDE;
+      render_tree::FontProvider* font_provider) override;
 
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
       const std::string& utf8_string,
-      const scoped_refptr<render_tree::Font>& font) OVERRIDE;
+      const scoped_refptr<render_tree::Font>& font) override;
 
   float GetTextWidth(const char16* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
-                     render_tree::FontVector* maybe_used_fonts) OVERRIDE;
+                     render_tree::FontVector* maybe_used_fonts) override;
 
   scoped_refptr<render_tree::Mesh> CreateMesh(
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
-      render_tree::Mesh::DrawMode draw_mode) OVERRIDE;
+      render_tree::Mesh::DrawMode draw_mode) override;
 
   scoped_refptr<render_tree::Image> DrawOffscreenImage(
-      const scoped_refptr<render_tree::Node>& root) OVERRIDE;
+      const scoped_refptr<render_tree::Node>& root) override;
 
  private:
   backend::GraphicsContextEGL* cobalt_context_;

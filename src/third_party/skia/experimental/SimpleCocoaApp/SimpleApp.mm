@@ -1,3 +1,9 @@
+/*
+ * Copyright 2011 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
 #include "SkCanvas.h"
 #include "SkCGUtils.h"
 #include "SkGraphics.h"
@@ -23,15 +29,14 @@ static SkPicture* LoadPicture(const char path[]) {
     SkBitmap bm;
     if (SkImageDecoder::DecodeFile(path, &bm)) {
         bm.setImmutable();
-        pic = SkNEW(SkPicture);
+        pic = new SkPicture;
         SkCanvas* can = pic->beginRecording(bm.width(), bm.height());
         can->drawBitmap(bm, 0, 0, NULL);
         pic->endRecording();
     } else {
         SkFILEStream stream(path);
         if (stream.isValid()) {
-            pic = SkNEW_ARGS(SkPicture,
-                             (&stream, NULL, &SkImageDecoder::DecodeStream));
+            pic = new SkPicture(&stream, NULL, &SkImageDecoder::DecodeStream);
         }
 
         if (false) { // re-record
@@ -64,7 +69,7 @@ protected:
      //   SkRect r = {50, 50, 80, 80};
         p.setColor(0xAA11EEAA);
    //     canvas->drawRect(r, p);
-        
+
         SkRect result;
         SkPath path;
         path.moveTo(0, 0);
@@ -72,7 +77,7 @@ protected:
         path.lineTo(1, 8);
         path.lineTo(0, 9);
         SkASSERT(path.hasRectangularInterior(&result));
-        
+
         path.reset();
         path.addRect(10, 10, 100, 100, SkPath::kCW_Direction);
         path.addRect(20, 20, 50, 50, SkPath::kCW_Direction);
@@ -89,7 +94,7 @@ protected:
 
     }
 private:
-    typedef SkView INHERITED; 
+    typedef SkView INHERITED;
 };
 
 void application_init();
@@ -189,12 +194,12 @@ class PathCanvas : public SkCanvas {
         path.hasRectangularInterior(&copy);
         SkDebugf("</div>\n\n");
     }
-    
+
     virtual void drawPosTextH(const void* text, size_t byteLength,
                               const SkScalar xpos[], SkScalar constY,
                               const SkPaint& paint) {
     }
-    
+
 public:
     void divName(const SkString& str, bool only) {
         filename = str;
@@ -206,14 +211,14 @@ public:
         count = 0;
         nameonly = only;
     }
-    
+
     void init() {
         pointsMin = verbsMin = SK_MaxS32;
         pointsMax = verbsMax = SK_MinS32;
         rectPointsMin = rectVerbsMin = SK_MaxS32;
         rectPointsMax = rectVerbsMax = SK_MinS32;
     }
-    
+
     SkString filename;
     int count;
     bool nameonly;
@@ -247,7 +252,7 @@ void application_init() {
         canvas.divName(filename, false);
         SkPicture* pic = LoadPicture(path.c_str());
         pic->draw(&canvas);
-        SkDELETE(pic);
+        delete pic;
     }
     SkDebugf("\n</div>\n\n");
 
@@ -261,7 +266,7 @@ void application_init() {
         canvas.divName(filename, true);
         SkPicture* pic = LoadPicture(path.c_str());
         pic->draw(&canvas);
-        SkDELETE(pic);
+        delete pic;
     }
     SkDebugf("];\n\n");
 
@@ -274,7 +279,6 @@ void application_init() {
 }
 
 void application_term() {
-    SkGraphics::Term();
     SkEvent::Term();
 }
 

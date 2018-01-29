@@ -34,6 +34,7 @@
     'src/ports/SkFreeType_cobalt.cc',
     'src/ports/SkFreeType_cobalt.h',
     'src/ports/SkOSFile_cobalt.cc',
+    'src/ports/SkOSFile_cobalt.h',
     'src/ports/SkStream_cobalt.cc',
     'src/ports/SkStream_cobalt.h',
     'src/ports/SkTypeface_cobalt.cc',
@@ -58,7 +59,6 @@
     }],
     ['gl_type != "none"', {
       'sources': [
-        'egl/src/gpu/cobalt/GrGpuFactory.cc',
         'src/gpu/gl/GrGLCreateNativeInterface_cobalt.cc',
       ],
     }],

@@ -9,6 +9,7 @@
 #include "SkBlurDrawLooper.h"
 #include "SkBlurMask.h"
 #include "SkBlurMaskFilter.h"
+#include "SkColorFilter.h"
 #include "SkGradientShader.h"
 #include "SkMatrix.h"
 #include "SkTArray.h"
@@ -25,15 +26,12 @@ public:
     }
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
 
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("rects");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(1200, 900);
     }
 
@@ -67,11 +65,10 @@ protected:
             SkPaint p;
             p.setColor(SK_ColorWHITE);
             p.setAntiAlias(true);
-            SkMaskFilter* mf = SkBlurMaskFilter::Create(
+            p.setMaskFilter(SkBlurMaskFilter::Make(
                                    kNormal_SkBlurStyle,
                                    SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(5)),
-                                   SkBlurMaskFilter::kHighQuality_BlurFlag);
-            p.setMaskFilter(mf)->unref();
+                                   SkBlurMaskFilter::kHighQuality_BlurFlag));
             fPaints.push_back(p);
         }
 
@@ -83,13 +80,9 @@ protected:
             SkPoint center = SkPoint::Make(SkIntToScalar(-5), SkIntToScalar(30));
             SkColor colors[] = { SK_ColorBLUE, SK_ColorRED, SK_ColorGREEN };
             SkScalar pos[] = { 0, SK_ScalarHalf, SK_Scalar1 };
-            SkShader* s = SkGradientShader::CreateRadial(center,
-                                                         SkIntToScalar(20),
-                                                         colors,
-                                                         pos,
-                                                         SK_ARRAY_COUNT(colors),
-                                                         SkShader::kClamp_TileMode);
-            p.setShader(s)->unref();
+            p.setShader(SkGradientShader::MakeRadial(center, 20, colors, pos,
+                                                     SK_ARRAY_COUNT(colors),
+                                                     SkShader::kClamp_TileMode));
             fPaints.push_back(p);
         }
 
@@ -98,15 +91,9 @@ protected:
             SkPaint p;
             p.setColor(SK_ColorWHITE);
             p.setAntiAlias(true);
-            SkBlurDrawLooper* shadowLooper =
-                SkBlurDrawLooper::Create(SK_ColorWHITE,
+            p.setLooper(SkBlurDrawLooper::Make(SK_ColorWHITE,
                                          SkBlurMask::ConvertRadiusToSigma(SkIntToScalar(10)),
-                                         SkIntToScalar(5), SkIntToScalar(10),
-                                         SkBlurDrawLooper::kIgnoreTransform_BlurFlag |
-                                         SkBlurDrawLooper::kOverrideColor_BlurFlag |
-                                         SkBlurDrawLooper::kHighQuality_BlurFlag);
-            SkAutoUnref aurL0(shadowLooper);
-            p.setLooper(shadowLooper);
+                                         SkIntToScalar(5), SkIntToScalar(10)));
             fPaints.push_back(p);
         }
 
@@ -254,14 +241,10 @@ protected:
                           SK_Scalar1 * 100 * (testCount / 10) + 3 * SK_Scalar1 / 4);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        SkAutoCommentBlock acb(canvas, "onDraw");
-
+    void onDraw(SkCanvas* canvas) override {
         canvas->translate(20 * SK_Scalar1, 20 * SK_Scalar1);
 
         int testCount = 0;
-
-        canvas->addComment("Test", "Various Paints");
 
         for (int i = 0; i < fPaints.count(); ++i) {
             for (int j = 0; j < fRects.count(); ++j, ++testCount) {
@@ -271,8 +254,6 @@ protected:
                 canvas->restore();
             }
         }
-
-        canvas->addComment("Test", "Matrices");
 
         SkPaint paint;
         paint.setColor(SK_ColorWHITE);

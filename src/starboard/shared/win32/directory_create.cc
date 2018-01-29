@@ -14,31 +14,30 @@
 
 #include "starboard/directory.h"
 
+#include <vector>
 #include <windows.h>
 
 #include "starboard/shared/win32/directory_internal.h"
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-bool SbDirectoryCreate(const char* path) {
-  using starboard::shared::win32::DirectoryExists;
-  using starboard::shared::win32::NormalizeWin32Path;
+using starboard::shared::win32::DirectoryExists;
+using starboard::shared::win32::DirectoryExistsOrCreated;
+using starboard::shared::win32::IsAbsolutePath;
+using starboard::shared::win32::NormalizeWin32Path;
+using starboard::shared::win32::TrimExtraFileSeparators;
 
+bool SbDirectoryCreate(const char* path) {
   if ((path == nullptr) || (path[0] == '\0')) {
     return false;
   }
 
   std::wstring path_wstring = NormalizeWin32Path(path);
-  starboard::shared::win32::TrimExtraFileSeparators(&path_wstring);
+  TrimExtraFileSeparators(&path_wstring);
 
-  if (!starboard::shared::win32::IsAbsolutePath(path_wstring)) {
+  if (!IsAbsolutePath(path_wstring)) {
     return false;
   }
 
-  if (DirectoryExists(path_wstring)) {
-    return true;
-  }
-
-  BOOL directory_created = CreateDirectoryW(path_wstring.c_str(), NULL);
-  return directory_created;
+  return DirectoryExistsOrCreated(path_wstring);
 }

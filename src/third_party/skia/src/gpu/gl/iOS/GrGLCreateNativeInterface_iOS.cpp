@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2014 Google Inc.
  *
@@ -25,7 +24,7 @@ public:
     }
 
     void* handle() const {
-        return NULL == fLibrary ? RTLD_DEFAULT : fLibrary;
+        return nullptr == fLibrary ? RTLD_DEFAULT : fLibrary;
     }
 
 private:
@@ -39,7 +38,7 @@ public:
     GrGLFuncPtr getProc(const char name[]) const {
         return (GrGLFuncPtr) dlsym(fLoader.handle(), name);
     }
-    
+
 private:
     GLLoader fLoader;
 };

@@ -2,6 +2,19 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 14
+ - **Add support for document.hasFocus()**
+
+   While support for firing blur and focus events was implemented, querying
+   the current state via document.hasFocus() was not implemented until now.
+
+ - **Implemented Same Origin Policy and removed navigation whitelist**
+
+   - Added Same Origin Policy and Cross Origin Resource Sharing to vulnerable
+     code areas including XHR, script elements, link elements, style elements,
+     media elements and @font-face CSS rules.
+   - Removed hardcoded YouTube navigation whitelist in favor of SOP and CSP.
+
 ## Version 12
  - **Add support for touchpad not associated with a pointer**
 

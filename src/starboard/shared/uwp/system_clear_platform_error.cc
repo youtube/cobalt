@@ -14,10 +14,10 @@
 
 #include "starboard/system.h"
 
-#include "starboard/shared/uwp/application_uwp.h"
-
-using starboard::shared::uwp::ApplicationUwp;
+#include "starboard/shared/uwp/system_platform_error_internal.h"
 
 void SbSystemClearPlatformError(SbSystemPlatformError handle) {
-  ApplicationUwp::Get()->OnSbSystemClearPlatformError(handle);
+  if (SbSystemPlatformErrorIsValid(handle)) {
+    handle->ClearAndDelete();
+  }
 }

@@ -6,14 +6,9 @@
  */
 
 #include "SkBitmapProcState_opts_SSSE3.h"
+#include "SkColorPriv.h"
 #include "SkPaint.h"
 #include "SkUtils.h"
-
-/* With the exception of the compilers that don't support it, we always build the
- * SSSE3 functions and enable the caller to determine SSSE3 support.  However for
- * compilers that do not support SSSE3 we provide a stub implementation.
- */
-#if SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSSE3
 
 #include <tmmintrin.h>  // SSSE3
 
@@ -392,9 +387,9 @@ template<bool has_alpha>
 void S32_generic_D32_filter_DX_SSSE3(const SkBitmapProcState& s,
                                      const uint32_t* xy,
                                      int count, uint32_t* colors) {
-    SkASSERT(count > 0 && colors != NULL);
-    SkASSERT(s.fFilterLevel != SkPaint::kNone_FilterLevel);
-    SkASSERT(kN32_SkColorType == s.fBitmap->colorType());
+    SkASSERT(count > 0 && colors != nullptr);
+    SkASSERT(s.fFilterQuality != kNone_SkFilterQuality);
+    SkASSERT(kN32_SkColorType == s.fPixmap.colorType());
     if (has_alpha) {
         SkASSERT(s.fAlphaScale < 256);
     } else {
@@ -402,8 +397,8 @@ void S32_generic_D32_filter_DX_SSSE3(const SkBitmapProcState& s,
     }
 
     const uint8_t* src_addr =
-            static_cast<const uint8_t*>(s.fBitmap->getPixels());
-    const size_t rb = s.fBitmap->rowBytes();
+            static_cast<const uint8_t*>(s.fPixmap.addr());
+    const size_t rb = s.fPixmap.rowBytes();
     const uint32_t XY = *xy++;
     const unsigned y0 = XY >> 14;
     const uint32_t* row0 =
@@ -584,9 +579,9 @@ template<bool has_alpha>
 void S32_generic_D32_filter_DXDY_SSSE3(const SkBitmapProcState& s,
                                        const uint32_t* xy,
                                        int count, uint32_t* colors) {
-    SkASSERT(count > 0 && colors != NULL);
-    SkASSERT(s.fFilterLevel != SkPaint::kNone_FilterLevel);
-    SkASSERT(kN32_SkColorType == s.fBitmap->colorType());
+    SkASSERT(count > 0 && colors != nullptr);
+    SkASSERT(s.fFilterQuality != kNone_SkFilterQuality);
+    SkASSERT(kN32_SkColorType == s.fPixmap.colorType());
     if (has_alpha) {
         SkASSERT(s.fAlphaScale < 256);
     } else {
@@ -594,8 +589,8 @@ void S32_generic_D32_filter_DXDY_SSSE3(const SkBitmapProcState& s,
     }
 
     const uint8_t* src_addr =
-                        static_cast<const uint8_t*>(s.fBitmap->getPixels());
-    const size_t rb = s.fBitmap->rowBytes();
+                        static_cast<const uint8_t*>(s.fPixmap.addr());
+    const size_t rb = s.fPixmap.rowBytes();
 
     // vector constants
     const __m128i mask_dist_select = _mm_set_epi8(12, 12, 12, 12,
@@ -720,41 +715,13 @@ void S32_alpha_D32_filter_DX_SSSE3(const SkBitmapProcState& s,
 }
 
 void S32_opaque_D32_filter_DXDY_SSSE3(const SkBitmapProcState& s,
-                                    const uint32_t* xy,
-                                    int count, uint32_t* colors) {
+                                      const uint32_t* xy,
+                                      int count, uint32_t* colors) {
     S32_generic_D32_filter_DXDY_SSSE3<false>(s, xy, count, colors);
 }
 
 void S32_alpha_D32_filter_DXDY_SSSE3(const SkBitmapProcState& s,
-                                   const uint32_t* xy,
-                                   int count, uint32_t* colors) {
+                                     const uint32_t* xy,
+                                     int count, uint32_t* colors) {
     S32_generic_D32_filter_DXDY_SSSE3<true>(s, xy, count, colors);
 }
-
-#else // SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSSE3
-
-void S32_opaque_D32_filter_DX_SSSE3(const SkBitmapProcState& s,
-                                    const uint32_t* xy,
-                                    int count, uint32_t* colors) {
-    sk_throw();
-}
-
-void S32_alpha_D32_filter_DX_SSSE3(const SkBitmapProcState& s,
-                                   const uint32_t* xy,
-                                   int count, uint32_t* colors) {
-    sk_throw();
-}
-
-void S32_opaque_D32_filter_DXDY_SSSE3(const SkBitmapProcState& s,
-                                    const uint32_t* xy,
-                                    int count, uint32_t* colors) {
-    sk_throw();
-}
-
-void S32_alpha_D32_filter_DXDY_SSSE3(const SkBitmapProcState& s,
-                                   const uint32_t* xy,
-                                   int count, uint32_t* colors) {
-    sk_throw();
-}
-
-#endif

@@ -9,17 +9,19 @@
 #define GrGLPathRendering_DEFINED
 
 #include "SkRefCnt.h"
+#include "GrGpu.h"
 #include "GrPathRendering.h"
-#include "GrStencil.h"
-#include "gl/GrGLFunctions.h"
-#include "gl/GrGLProgram.h"
+#include "GrStencilSettings.h"
+#include "gl/GrGLTypes.h"
+#include "glsl/GrGLSLUtil.h"
 
 class GrGLNameAllocator;
-class GrGpuGL;
+class GrGLGpu;
+class GrStyle;
 
 /**
  * This class wraps the NV_path_rendering extension and manages its various
- * API versions. If a method is not present in the GrGLInterface of the GrGpuGL
+ * API versions. If a method is not present in the GrGLInterface of the GrGLGpu
  * (because the driver version is old), it tries to provide a backup
  * implementation. But if a backup implementation is not practical, it marks the
  * method as not supported.
@@ -27,60 +29,28 @@ class GrGpuGL;
 class GrGLPathRendering : public GrPathRendering {
 public:
     /**
-     * Create a new GrGLPathRendering object from a given GrGpuGL.
+     * Create a new GrGLPathRendering object from a given GrGLGpu.
      */
-    GrGLPathRendering(GrGpuGL* gpu);
-    virtual ~GrGLPathRendering();
+    GrGLPathRendering(GrGLGpu* gpu);
+    ~GrGLPathRendering() override;
 
     // GrPathRendering implementations.
-    virtual GrPath* createPath(const SkPath&, const SkStrokeRec&) SK_OVERRIDE;
-    virtual GrPathRange* createPathRange(GrPathRange::PathGenerator*,
-                                         const SkStrokeRec&) SK_OVERRIDE;
-    virtual GrPathRange* createGlyphs(const SkTypeface*,
-                                      const SkDescriptor*,
-                                      const SkStrokeRec&) SK_OVERRIDE;
-    virtual void stencilPath(const GrPath*, SkPath::FillType) SK_OVERRIDE;
-    virtual void drawPath(const GrPath*, SkPath::FillType) SK_OVERRIDE;
-    virtual void drawPaths(const GrPathRange*, const uint32_t indices[], int count,
-                           const float transforms[], PathTransformType,
-                           SkPath::FillType) SK_OVERRIDE;
+    sk_sp<GrPath> createPath(const SkPath&, const GrStyle&) override;
+    virtual sk_sp<GrPathRange> createPathRange(GrPathRange::PathGenerator*,
+                                               const GrStyle&) override;
 
     /* Called when the 3D context state is unknown. */
     void resetContext();
 
     /**
-     * Called when the GPU resources have been lost and need to be abandoned
-     * (for example after a context loss).
+     * Called when the context either is about to be lost or is lost. DisconnectType indicates
+     * whether GPU resources should be cleaned up or abandoned when this is called.
      */
-    void abandonGpuResources();
+    void disconnect(GrGpu::DisconnectType);
 
-
-    enum TexturingMode {
-        FixedFunction_TexturingMode,
-        SeparableShaders_TexturingMode
-    };
-
-    /** Specifies whether texturing should use fixed fuction pipe or separable shaders
-     * Specifies whether texturing should use fixed fuction pipe or whether
-     * it is ok to use normal vertex and fragment shaders, and for path rendering
-     * populate fragment shaders with setProgramPathFragmentInputTransform.
-     * The fixed function mode will be removed once the other mode is more widely
-     * available.
-     */
-    TexturingMode texturingMode() const  {
-        return caps().fragmentInputGenSupport ?
-            SeparableShaders_TexturingMode : FixedFunction_TexturingMode;
+    bool shouldBindFragmentInputs() const {
+        return fCaps.bindFragmentInputSupport;
     }
-
-    // Functions for fixed function texturing support.
-    enum PathTexGenComponents {
-        kS_PathTexGenComponents = 1,
-        kST_PathTexGenComponents = 2,
-        kSTR_PathTexGenComponents = 3
-    };
-    void enablePathTexGen(int unitIdx, PathTexGenComponents, const GrGLfloat* coefficients);
-    void enablePathTexGen(int unitIdx, PathTexGenComponents, const SkMatrix& matrix);
-    void flushPathTexGenSettings(int numUsedTexCoordSets);
 
     // Functions for "separable shader" texturing support.
     void setProgramPathFragmentInputTransform(GrGLuint program, GrGLint location,
@@ -95,49 +65,69 @@ public:
     GrGLuint genPaths(GrGLsizei range);
     GrGLvoid deletePaths(GrGLuint path, GrGLsizei range);
 
+protected:
+    void onStencilPath(const StencilPathArgs&, const GrPath*) override;
+    void onDrawPath(const GrPipeline&,
+                    const GrPrimitiveProcessor&,
+                    const GrStencilSettings&,
+                    const GrPath*) override;
+    void onDrawPaths(const GrPipeline&,
+                     const GrPrimitiveProcessor&,
+                     const GrStencilSettings&,
+                     const GrPathRange*,
+                     const void* indices,
+                     PathIndexType,
+                     const float transformValues[],
+                     PathTransformType,
+                     int count) override;
 private:
     /**
-     * Mark certain functionality as not supported if the driver version is too
-     * old and a backup implementation is not practical.
+     * Mark certain functionality as not supported.
      */
     struct Caps {
-        bool stencilThenCoverSupport : 1;
-        bool fragmentInputGenSupport : 1;
-        bool glyphLoadingSupport     : 1;
+        bool bindFragmentInputSupport : 1;
     };
-    const Caps& caps() const { return fCaps; }
 
-    void flushPathStencilSettings(SkPath::FillType fill);
+    void flushPathStencilSettings(const GrStencilSettings&);
 
-    // NV_path_rendering v1.2
-    void stencilThenCoverFillPath(GrGLuint path, GrGLenum fillMode,
-                                  GrGLuint mask, GrGLenum coverMode);
+    struct MatrixState {
+        SkMatrix        fViewMatrix;
+        SkISize         fRenderTargetSize;
+        GrSurfaceOrigin fRenderTargetOrigin;
 
-    void stencilThenCoverStrokePath(GrGLuint path, GrGLint reference,
-                                    GrGLuint mask, GrGLenum coverMode);
+        MatrixState() { this->invalidate(); }
+        void invalidate() {
+            fViewMatrix = SkMatrix::InvalidMatrix();
+            fRenderTargetSize.fWidth = -1;
+            fRenderTargetSize.fHeight = -1;
+            fRenderTargetOrigin = (GrSurfaceOrigin) -1;
+        }
 
-    void stencilThenCoverFillPathInstanced(
-        GrGLsizei numPaths, GrGLenum pathNameType, const GrGLvoid *paths,
-                         GrGLuint pathBase, GrGLenum fillMode, GrGLuint mask, GrGLenum coverMode,
-                         GrGLenum transformType, const GrGLfloat *transformValues);
+        /**
+         * Gets a matrix that goes from local coordinates to GL normalized device coords.
+         */
+        template<int Size> void getRTAdjustedGLMatrix(float* destMatrix) {
+            SkMatrix combined;
+            if (kBottomLeft_GrSurfaceOrigin == fRenderTargetOrigin) {
+                combined.setAll(SkIntToScalar(2) / fRenderTargetSize.fWidth, 0, -SK_Scalar1,
+                                0, -SkIntToScalar(2) / fRenderTargetSize.fHeight, SK_Scalar1,
+                                0, 0, 1);
+            } else {
+                combined.setAll(SkIntToScalar(2) / fRenderTargetSize.fWidth, 0, -SK_Scalar1,
+                                0, SkIntToScalar(2) / fRenderTargetSize.fHeight, -SK_Scalar1,
+                                0, 0, 1);
+            }
+            combined.preConcat(fViewMatrix);
+            GrGLSLGetMatrix<Size>(destMatrix, combined);
+        }
+    };
+    GrGLGpu* gpu();
 
-    void stencilThenCoverStrokePathInstanced(
-                         GrGLsizei numPaths, GrGLenum pathNameType, const GrGLvoid *paths,
-                         GrGLuint pathBase, GrGLint reference, GrGLuint mask, GrGLenum coverMode,
-                         GrGLenum transformType, const GrGLfloat *transformValues);
-
-    GrGpuGL* fGpu;
-    SkAutoTDelete<GrGLNameAllocator> fPathNameAllocator;
-    Caps fCaps;
-    GrGLProgram::MatrixState fHWProjectionMatrixState;
+    GrGLuint fFirstPreallocatedPathID;
+    GrGLsizei fPreallocatedPathCount;
+    MatrixState fHWProjectionMatrixState;
     GrStencilSettings fHWPathStencilSettings;
-    struct PathTexGenData {
-        GrGLenum  fMode;
-        GrGLint   fNumComponents;
-        GrGLfloat fCoefficients[3 * 3];
-    };
-    int fHWActivePathTexGenSets;
-    SkTArray<PathTexGenData, true> fHWPathTexGenSettings;
+    Caps fCaps;
 };
 
 #endif

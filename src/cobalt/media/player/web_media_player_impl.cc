@@ -11,7 +11,6 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/callback.h"
 #include "base/debug/trace_event.h"
 #include "base/float_util.h"
 #include "base/message_loop_proxy.h"
@@ -461,6 +460,19 @@ float WebMediaPlayerImpl::GetDuration() const {
   return static_cast<float>(duration.InSecondsF());
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+base::Time WebMediaPlayerImpl::GetStartDate() const {
+  DCHECK_EQ(main_loop_, MessageLoop::current());
+
+  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
+    return base::Time();
+
+  base::TimeDelta start_date = pipeline_->GetMediaStartDate();
+
+  return base::Time::FromSbTime(start_date.InMicroseconds());
+}
+#endif  // SB_HAS(PLAYER_WITH(URL)
+
 float WebMediaPlayerImpl::GetCurrentTime() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   if (state_.paused) return static_cast<float>(state_.paused_time.InSecondsF());
@@ -589,14 +601,6 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
     drm_system_ready_cb_.Run(drm_system_->wrapped_drm_system());
   }
 }
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-void WebMediaPlayerImpl::SetEMEInitDataReadyCB(
-    const EMEInitDataReadyCB& eme_init_data_ready_cb) {
-  DCHECK(!eme_init_data_ready_cb.is_null());
-  eme_init_data_ready_cb_ = eme_init_data_ready_cb;
-}
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
@@ -729,9 +733,6 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       NULL, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetEMEInitDataReadyCB),
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
       url.spec(), BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
@@ -751,9 +752,6 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetEMEInitDataReadyCB),
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
       // SB_HAS(PLAYER_WITH_URL)
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
@@ -844,11 +842,6 @@ void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered(
 
   GetClient()->EncryptedMediaInitDataEncountered(init_data_type, &init_data[0],
                                                  init_data.size());
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  DCHECK(!eme_init_data_ready_cb_.is_null());
-  eme_init_data_ready_cb_.Run(init_data);
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {

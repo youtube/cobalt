@@ -17,7 +17,7 @@ public:
         fName.printf("matrix44_%s", name);
     }
 
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return backend == kNonRendering_Backend;
     }
 
@@ -26,11 +26,11 @@ public:
 protected:
     virtual int mulLoopCount() const { return 1; }
 
-    virtual const char* onGetName() {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) {
+    void onDraw(int loops, SkCanvas*) override {
         for (int i = 0; i < loops; i++) {
             this->performTest();
         }
@@ -52,7 +52,7 @@ public:
         fM2.set(3, 3, 0);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 10; ++i) {
             (void) (fM0 == fM1);
             (void) (fM1 == fM2);
@@ -78,7 +78,7 @@ public:
         mat.setRowMajord(rowMajor);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 10; ++i) {
             mat.setIdentity();
         }
@@ -97,7 +97,7 @@ public:
         fX = fY = fZ = SkDoubleToMScalar(1.5);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         fM0.reset();
         for (int i = 0; i < 10; ++i) {
             fM0.preScale(fX, fY, fZ);
@@ -116,25 +116,25 @@ public:
         , fM0(SkMatrix44::kUninitialized_Constructor)
         , fM1(SkMatrix44::kUninitialized_Constructor)
     {
-        fM0.set(0, 0, -1.1);
-        fM0.set(0, 1, 2.1);
-        fM0.set(0, 2, -3.1);
-        fM0.set(0, 3, 4.1);
-        fM0.set(1, 0, 5.1);
-        fM0.set(1, 1, -6.1);
-        fM0.set(1, 2, 7.1);
-        fM0.set(1, 3, 8.1);
-        fM0.set(2, 0, -9.1);
-        fM0.set(2, 1, 10.1);
-        fM0.set(2, 2, 11.1);
-        fM0.set(2, 3, -12.1);
-        fM0.set(3, 0, -13.1);
-        fM0.set(3, 1, 14.1);
-        fM0.set(3, 2, -15.1);
-        fM0.set(3, 3, 16.1);
+        fM0.setDouble(0, 0, -1.1);
+        fM0.setDouble(0, 1, 2.1);
+        fM0.setDouble(0, 2, -3.1);
+        fM0.setDouble(0, 3, 4.1);
+        fM0.setDouble(1, 0, 5.1);
+        fM0.setDouble(1, 1, -6.1);
+        fM0.setDouble(1, 2, 7.1);
+        fM0.setDouble(1, 3, 8.1);
+        fM0.setDouble(2, 0, -9.1);
+        fM0.setDouble(2, 1, 10.1);
+        fM0.setDouble(2, 2, 11.1);
+        fM0.setDouble(2, 3, -12.1);
+        fM0.setDouble(3, 0, -13.1);
+        fM0.setDouble(3, 1, 14.1);
+        fM0.setDouble(3, 2, -15.1);
+        fM0.setDouble(3, 3, 16.1);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 10; ++i) {
             fM0.invert(&fM1);
         }
@@ -151,22 +151,22 @@ public:
         , fM0(SkMatrix44::kIdentity_Constructor)
         , fM1(SkMatrix44::kUninitialized_Constructor)
     {
-        fM0.set(0, 0, -1.1);
-        fM0.set(0, 1, 2.1);
-        fM0.set(0, 2, -3.1);
-        fM0.set(0, 3, 4.1);
-        fM0.set(1, 0, 5.1);
-        fM0.set(1, 1, -6.1);
-        fM0.set(1, 2, 7.1);
-        fM0.set(1, 3, 8.1);
-        fM0.set(2, 0, -9.1);
-        fM0.set(2, 1, 10.1);
-        fM0.set(2, 2, 11.1);
-        fM0.set(2, 3, -12.1);
+        fM0.setDouble(0, 0, -1.1);
+        fM0.setDouble(0, 1, 2.1);
+        fM0.setDouble(0, 2, -3.1);
+        fM0.setDouble(0, 3, 4.1);
+        fM0.setDouble(1, 0, 5.1);
+        fM0.setDouble(1, 1, -6.1);
+        fM0.setDouble(1, 2, 7.1);
+        fM0.setDouble(1, 3, 8.1);
+        fM0.setDouble(2, 0, -9.1);
+        fM0.setDouble(2, 1, 10.1);
+        fM0.setDouble(2, 2, 11.1);
+        fM0.setDouble(2, 3, -12.1);
         // bottom row (perspective component) remains (0, 0, 0, 1).
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 10; ++i) {
             fM0.invert(&fM1);
         }
@@ -183,17 +183,17 @@ public:
         , fM0(SkMatrix44::kIdentity_Constructor)
         , fM1(SkMatrix44::kUninitialized_Constructor)
     {
-        fM0.set(0, 0, -1.1);
-        fM0.set(0, 3, 4.1);
+        fM0.setDouble(0, 0, -1.1);
+        fM0.setDouble(0, 3, 4.1);
 
-        fM0.set(1, 1, -6.1);
-        fM0.set(1, 3, 8.1);
+        fM0.setDouble(1, 1, -6.1);
+        fM0.setDouble(1, 3, 8.1);
 
-        fM0.set(2, 2, 11.1);
-        fM0.set(2, 3, -12.1);
+        fM0.setDouble(2, 2, 11.1);
+        fM0.setDouble(2, 3, -12.1);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 10; ++i) {
             fM0.invert(&fM1);
         }
@@ -210,12 +210,12 @@ public:
         , fM0(SkMatrix44::kIdentity_Constructor)
         , fM1(SkMatrix44::kUninitialized_Constructor)
     {
-        fM0.set(0, 3, 4.1);
-        fM0.set(1, 3, 8.1);
-        fM0.set(2, 3, -12.1);
+        fM0.setDouble(0, 3, 4.1);
+        fM0.setDouble(1, 3, 8.1);
+        fM0.setDouble(2, 3, -12.1);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 10; ++i) {
             fM0.invert(&fM1);
         }
@@ -234,7 +234,7 @@ public:
         fX = fY = fZ = SkDoubleToMScalar(1.5);
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         fM0.reset();
         for (int i = 0; i < 10; ++i) {
             fM0.postScale(fX, fY, fZ);
@@ -248,26 +248,35 @@ private:
 
 class SetConcatMatrix44Bench : public Matrix44Bench {
 public:
-    SetConcatMatrix44Bench()
-        : INHERITED("setconcat")
+    // SkMatrix44::setConcat() has a fast path for matrices that are at most scale+translate.
+    SetConcatMatrix44Bench(bool fastPath)
+        : INHERITED(fastPath ? "setconcat_fast" : "setconcat_general")
         , fM0(SkMatrix44::kUninitialized_Constructor)
         , fM1(SkMatrix44::kUninitialized_Constructor)
         , fM2(SkMatrix44::kUninitialized_Constructor)
 {
-        fX = fY = fZ = SkDoubleToMScalar(1.5);
-        fM1.setScale(fX, fY, fZ);
-        fM2.setTranslate(fX, fY, fZ);
+        if (fastPath) {
+            const SkMScalar v = SkDoubleToMScalar(1.5);
+            fM1.setScale(v,v,v);
+            fM2.setTranslate(v,v,v);
+        } else {
+            SkRandom rand;
+            for (int x = 0; x < 4; x++) {
+            for (int y = 0; y < 4; y++) {
+                fM1.setFloat(x,y, rand.nextF());
+                fM2.setFloat(x,y, rand.nextF());
+            }}
+        }
     }
 protected:
-    virtual void performTest() {
+    void performTest() override {
         fM0.reset();    // just to normalize this test with prescale/postscale
-        for (int i = 0; i < 10; ++i) {
+        for (int i = 0; i < 10000; ++i) {
             fM0.setConcat(fM1, fM2);
         }
     }
 private:
     SkMatrix44 fM0, fM1, fM2;
-    SkMScalar  fX, fY, fZ;
     typedef Matrix44Bench INHERITED;
 };
 
@@ -281,7 +290,7 @@ protected:
     // Putting random generation of the matrix inside performTest()
     // would help us avoid anomalous runs, but takes up 25% or
     // more of the function time.
-    virtual void performTest() {
+    void performTest() override {
         for (int i = 0; i < 20; ++i) {
             fMatrix.set(1, 2, 1);   // to invalidate the type-cache
             fMatrix.getType();
@@ -300,5 +309,6 @@ DEF_BENCH( return new InvertMatrix44Bench(); )
 DEF_BENCH( return new InvertAffineMatrix44Bench(); )
 DEF_BENCH( return new InvertScaleTranslateMatrix44Bench(); )
 DEF_BENCH( return new InvertTranslateMatrix44Bench(); )
-DEF_BENCH( return new SetConcatMatrix44Bench(); )
+DEF_BENCH( return new SetConcatMatrix44Bench(true); )
+DEF_BENCH( return new SetConcatMatrix44Bench(false); )
 DEF_BENCH( return new GetTypeMatrix44Bench(); )

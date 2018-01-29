@@ -50,7 +50,7 @@ class AnimationEvent : public Event {
   DEFINE_WRAPPABLE_TYPE(AnimationEvent);
 
  private:
-  ~AnimationEvent() OVERRIDE {}
+  ~AnimationEvent() override {}
 
   std::string animation_name_;
   float elapsed_time_;

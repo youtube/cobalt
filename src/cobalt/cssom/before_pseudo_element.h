@@ -35,13 +35,13 @@ class BeforePseudoElement : public PseudoElement {
  public:
   BeforePseudoElement()
       : PseudoElement(base::Tokens::before_pseudo_element_selector()) {}
-  ~BeforePseudoElement() OVERRIDE {}
+  ~BeforePseudoElement() override {}
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
+  void Accept(SelectorVisitor* visitor) override;
 
   // From PseudoElement.
-  BeforePseudoElement* AsBeforePseudoElement() OVERRIDE { return this; }
+  BeforePseudoElement* AsBeforePseudoElement() override { return this; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BeforePseudoElement);

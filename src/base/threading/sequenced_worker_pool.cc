@@ -95,12 +95,12 @@ class SequencedWorkerPoolTaskRunner : public TaskRunner {
   // TaskRunner implementation
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
-                               TimeDelta delay) OVERRIDE;
+                               TimeDelta delay) override;
 #if defined(COBALT)
   virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
-                                const Closure& task) OVERRIDE;
+                                const Closure& task) override;
 #endif
-  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+  virtual bool RunsTasksOnCurrentThread() const override;
 
  private:
   virtual ~SequencedWorkerPoolTaskRunner();
@@ -160,18 +160,18 @@ class SequencedWorkerPoolSequencedTaskRunner : public SequencedTaskRunner {
   // TaskRunner implementation
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
-                               TimeDelta delay) OVERRIDE;
+                               TimeDelta delay) override;
 #if defined(COBALT)
   virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
-                                const Closure& task) OVERRIDE;
+                                const Closure& task) override;
 #endif
-  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+  virtual bool RunsTasksOnCurrentThread() const override;
 
   // SequencedTaskRunner implementation
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       const Closure& task,
-      TimeDelta delay) OVERRIDE;
+      TimeDelta delay) override;
 
  private:
   virtual ~SequencedWorkerPoolSequencedTaskRunner();
@@ -253,7 +253,7 @@ class SequencedWorkerPool::Worker : public SimpleThread {
   virtual ~Worker();
 
   // SimpleThread implementation. This actually runs the background thread.
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
   void set_running_sequence(SequenceToken token) {
     running_sequence_ = token;

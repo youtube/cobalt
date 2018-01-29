@@ -51,6 +51,7 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -109,85 +110,85 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       DecoderBuffer::Allocator* buffer_allocator,
       const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
       const scoped_refptr<MediaLog>& media_log);
-  ~WebMediaPlayerImpl() OVERRIDE;
+  ~WebMediaPlayerImpl() override;
 
 #if SB_HAS(PLAYER_WITH_URL)
-  void LoadUrl(const GURL& url) OVERRIDE;
+  void LoadUrl(const GURL& url) override;
 #else   // SB_HAS(PLAYER_WITH_URL)
-  void LoadMediaSource() OVERRIDE;
+  void LoadMediaSource() override;
   void LoadProgressive(const GURL& url,
-                       scoped_ptr<BufferedDataSource> data_source) OVERRIDE;
+                       scoped_ptr<BufferedDataSource> data_source) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  void CancelLoad() OVERRIDE;
+  void CancelLoad() override;
 
   // Playback controls.
-  void Play() OVERRIDE;
-  void Pause() OVERRIDE;
-  bool SupportsFullscreen() const OVERRIDE;
-  bool SupportsSave() const OVERRIDE;
-  void Seek(float seconds) OVERRIDE;
-  void SetEndTime(float seconds) OVERRIDE;
-  void SetRate(float rate) OVERRIDE;
-  void SetVolume(float volume) OVERRIDE;
-  void SetVisible(bool visible) OVERRIDE;
-  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE;
-  float GetMaxTimeSeekable() const OVERRIDE;
+  void Play() override;
+  void Pause() override;
+  bool SupportsFullscreen() const override;
+  bool SupportsSave() const override;
+  void Seek(float seconds) override;
+  void SetEndTime(float seconds) override;
+  void SetRate(float rate) override;
+  void SetVolume(float volume) override;
+  void SetVisible(bool visible) override;
+  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() override;
+  float GetMaxTimeSeekable() const override;
 
   // Suspend/Resume
-  void Suspend() OVERRIDE;
-  void Resume() OVERRIDE;
+  void Suspend() override;
+  void Resume() override;
 
   // True if the loaded media has a playable video/audio track.
-  bool HasVideo() const OVERRIDE;
-  bool HasAudio() const OVERRIDE;
+  bool HasVideo() const override;
+  bool HasAudio() const override;
 
   // Dimensions of the video.
-  gfx::Size GetNaturalSize() const OVERRIDE;
+  gfx::Size GetNaturalSize() const override;
 
   // Getters of playback state.
-  bool IsPaused() const OVERRIDE;
-  bool IsSeeking() const OVERRIDE;
-  float GetDuration() const OVERRIDE;
-  float GetCurrentTime() const OVERRIDE;
+  bool IsPaused() const override;
+  bool IsSeeking() const override;
+  float GetDuration() const override;
+#if SB_HAS(PLAYER_WITH_URL)
+  base::Time GetStartDate() const override;
+#endif  // SB_HAS(PLAYER_WITH_URL)
+  float GetCurrentTime() const override;
 
   // Get rate of loading the resource.
-  int32 GetDataRate() const OVERRIDE;
+  int32 GetDataRate() const override;
 
   // Internal states of loading and network.
   // TODO(hclam): Ask the pipeline about the state rather than having reading
   // them from members which would cause race conditions.
-  WebMediaPlayer::NetworkState GetNetworkState() const OVERRIDE;
-  WebMediaPlayer::ReadyState GetReadyState() const OVERRIDE;
+  WebMediaPlayer::NetworkState GetNetworkState() const override;
+  WebMediaPlayer::ReadyState GetReadyState() const override;
 
-  bool DidLoadingProgress() const OVERRIDE;
+  bool DidLoadingProgress() const override;
 
-  bool HasSingleSecurityOrigin() const OVERRIDE;
-  bool DidPassCORSAccessCheck() const OVERRIDE;
+  bool HasSingleSecurityOrigin() const override;
+  bool DidPassCORSAccessCheck() const override;
 
-  float MediaTimeForTimeValue(float timeValue) const OVERRIDE;
+  float MediaTimeForTimeValue(float timeValue) const override;
 
-  unsigned GetDecodedFrameCount() const OVERRIDE;
-  unsigned GetDroppedFrameCount() const OVERRIDE;
-  unsigned GetAudioDecodedByteCount() const OVERRIDE;
-  unsigned GetVideoDecodedByteCount() const OVERRIDE;
+  unsigned GetDecodedFrameCount() const override;
+  unsigned GetDroppedFrameCount() const override;
+  unsigned GetAudioDecodedByteCount() const override;
+  unsigned GetVideoDecodedByteCount() const override;
 
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE;
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override;
 
-  SetBoundsCB GetSetBoundsCB() OVERRIDE;
+  SetBoundsCB GetSetBoundsCB() override;
 
   // As we are closing the tab or even the browser, |main_loop_| is destroyed
   // even before this object gets destructed, so we need to know when
   // |main_loop_| is being destroyed and we can stop posting repaint task
   // to it.
-  void WillDestroyCurrentMessageLoop() OVERRIDE;
+  void WillDestroyCurrentMessageLoop() override;
 
-  bool GetDebugReportDataAddress(void** out_address, size_t* out_size) OVERRIDE;
+  bool GetDebugReportDataAddress(void** out_address, size_t* out_size) override;
 
-  void SetDrmSystem(DrmSystem* drm_system) OVERRIDE;
+  void SetDrmSystem(DrmSystem* drm_system) override;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  void SetEMEInitDataReadyCB(const EMEInitDataReadyCB& eme_init_data_ready_cb);
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
@@ -322,11 +323,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       media_time_and_seeking_state_cb_;
 
   DrmSystemReadyCB drm_system_ready_cb_;
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  EMEInitDataReadyCB eme_init_data_ready_cb_;
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-
   DrmSystem* drm_system_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);

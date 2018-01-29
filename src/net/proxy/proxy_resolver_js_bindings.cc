@@ -49,7 +49,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for "alert(message)".
-  virtual void Alert(const string16& message) OVERRIDE {
+  virtual void Alert(const string16& message) override {
     VLOG(1) << "PAC-alert: " << message;
 
     // Send to the NetLog.
@@ -61,7 +61,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   // Handler for "myIpAddress()".
   // TODO(eroman): Perhaps enumerate the interfaces directly, using
   // getifaddrs().
-  virtual bool MyIpAddress(std::string* first_ip_address) OVERRIDE {
+  virtual bool MyIpAddress(std::string* first_ip_address) override {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS);
 
@@ -73,7 +73,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for "myIpAddressEx()".
-  virtual bool MyIpAddressEx(std::string* ip_address_list) OVERRIDE {
+  virtual bool MyIpAddressEx(std::string* ip_address_list) override {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_MY_IP_ADDRESS_EX);
 
@@ -86,7 +86,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   // Handler for "dnsResolve(host)".
   virtual bool DnsResolve(const std::string& host,
-                          std::string* first_ip_address) OVERRIDE {
+                          std::string* first_ip_address) override {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE);
 
@@ -99,7 +99,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
   // Handler for "dnsResolveEx(host)".
   virtual bool DnsResolveEx(const std::string& host,
-                            std::string* ip_address_list) OVERRIDE {
+                            std::string* ip_address_list) override {
     LogEventToCurrentRequest(NetLog::PHASE_BEGIN,
                              NetLog::TYPE_PAC_JAVASCRIPT_DNS_RESOLVE_EX);
 
@@ -111,7 +111,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for when an error is encountered. |line_number| may be -1.
-  virtual void OnError(int line_number, const string16& message) OVERRIDE {
+  virtual void OnError(int line_number, const string16& message) override {
     // Send to the chrome log.
     if (line_number == -1)
       VLOG(1) << "PAC-error: " << message;
@@ -127,7 +127,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       error_observer_->OnPACScriptError(line_number, message);
   }
 
-  virtual void Shutdown() OVERRIDE {
+  virtual void Shutdown() override {
     host_resolver_->Shutdown();
   }
 

@@ -8,13 +8,13 @@
 #ifndef SkRemotableFontMgr_DEFINED
 #define SkRemotableFontMgr_DEFINED
 
+#include "../private/SkTemplates.h"
 #include "SkFontStyle.h"
 #include "SkRefCnt.h"
-#include "SkTemplates.h"
+#include "SkTypes.h"
 
 class SkDataTable;
 class SkStreamAsset;
-class SkString;
 
 struct SK_API SkFontIdentity {
     static const uint32_t kInvalidDataId = 0xFFFFFFFF;
@@ -35,8 +35,6 @@ struct SK_API SkFontIdentity {
 
 class SK_API SkRemotableFontIdentitySet : public SkRefCnt {
 public:
-    SK_DECLARE_INST_COUNT(SkRemotableFontIdentitySet)
-
     SkRemotableFontIdentitySet(int count, SkFontIdentity** data);
 
     int count() const { return fCount; }
@@ -46,7 +44,8 @@ public:
 
 private:
     SkRemotableFontIdentitySet() : fCount(0), fData() { }
-    static SkRemotableFontIdentitySet* NewEmptyImpl();
+
+    friend SkRemotableFontIdentitySet* sk_remotable_font_identity_set_new();
 
     int fCount;
     SkAutoTMalloc<SkFontIdentity> fData;
@@ -56,19 +55,6 @@ private:
 
 class SK_API SkRemotableFontMgr : public SkRefCnt {
 public:
-    SK_DECLARE_INST_COUNT(SkRemotableFontMgr)
-
-    /**
-     *  Returns the names of the known fonts on the system.
-     *  Will not return NULL, will return an empty table if no families exist.
-     *
-     *  The indexes may be used with getIndex(int) and
-     *  matchIndexStyle(int, SkFontStyle).
-     *
-     *  The caller must unref() the returned object.
-     */
-    virtual SkDataTable* getFamilyNames() const = 0;
-
     /**
      *  Returns all of the fonts with the given familyIndex.
      *  Returns NULL if the index is out of bounds.
@@ -133,14 +119,9 @@ public:
      *  Note that bpc47 is a combination of ISO 639, 15924, and 3166-1 codes,
      *  so it is fine to just pass a ISO 639 here.
      */
-#ifdef SK_FM_NEW_MATCH_FAMILY_STYLE_CHARACTER
     virtual SkFontIdentity matchNameStyleCharacter(const char familyName[], const SkFontStyle&,
                                                    const char* bcp47[], int bcp47Count,
                                                    SkUnichar character) const=0;
-#else
-    virtual SkFontIdentity matchNameStyleCharacter(const char familyName[], const SkFontStyle&,
-                                                   const char bcp47[], SkUnichar character) const=0;
-#endif
 
     /**
      *  Returns the data for the given data id.

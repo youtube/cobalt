@@ -11,8 +11,9 @@
 #include "SkTArray.h"
 #include "SkTDArray.h"
 #include "SkTypes.h"
+#include "GrTypesPriv.h"
 
-class GrGeometryBuffer;
+class GrBuffer;
 class GrGpu;
 
 /**
@@ -41,68 +42,25 @@ public:
     void reset();
 
     /**
-     * Gets the number of preallocated buffers that are yet to be used.
-     */
-    int preallocatedBuffersRemaining() const;
-
-    /**
-     * gets the number of preallocated buffers
-     */
-    int preallocatedBufferCount() const;
-
-    /**
      * Frees data from makeSpaces in LIFO order.
      */
     void putBack(size_t bytes);
 
-    /**
-     * Gets the GrGpu that this pool is associated with.
-     */
-    GrGpu* getGpu() { return fGpu; }
-
 protected:
-    /**
-     * Used to determine what type of buffers to create. We could make the
-     * createBuffer a virtual except that we want to use it in the cons for
-     * pre-allocated buffers.
-     */
-    enum BufferType {
-        kVertex_BufferType,
-        kIndex_BufferType,
-    };
-
     /**
      * Constructor
      *
      * @param gpu                   The GrGpu used to create the buffers.
      * @param bufferType            The type of buffers to create.
-     * @param frequentResetHint     A hint that indicates that the pool
-     *                              should expect frequent unmap() calls
-     *                              (as opposed to many makeSpace / acquires
-     *                              between resets).
      * @param bufferSize            The minimum size of created buffers.
      *                              This value will be clamped to some
      *                              reasonable minimum.
-     * @param preallocBufferCnt     The pool will allocate this number of
-     *                              buffers at bufferSize and keep them until it
-     *                              is destroyed.
      */
      GrBufferAllocPool(GrGpu* gpu,
-                       BufferType bufferType,
-                       bool frequentResetHint,
-                       size_t   bufferSize = 0,
-                       int preallocBufferCnt = 0);
+                       GrBufferType bufferType,
+                       size_t   bufferSize = 0);
 
-    virtual ~GrBufferAllocPool();
-
-    /**
-     * Gets the size of the preallocated buffers.
-     *
-     * @return the size of preallocated buffers.
-     */
-    size_t preallocatedBufferSize() const {
-        return fPreallocBuffers.count() ? fMinBlockSize : 0;
-    }
+     virtual ~GrBufferAllocPool();
 
     /**
      * Returns a block of memory to hold data. A buffer designated to hold the
@@ -125,60 +83,68 @@ protected:
      */
     void* makeSpace(size_t size,
                     size_t alignment,
-                    const GrGeometryBuffer** buffer,
+                    const GrBuffer** buffer,
                     size_t* offset);
 
     /**
-     * Gets the number of items of a size that can be added to the current
-     * buffer without spilling to another buffer. If the pool has been reset, or
-     * the previous makeSpace completely exhausted a buffer then the returned
-     * size will be the size of the next available preallocated buffer, or zero
-     * if no preallocated buffer remains available. It is assumed that items
-     * should be itemSize-aligned from the start of a buffer.
+     * Returns a block of memory to hold data. A buffer designated to hold the
+     * data is given to the caller. The buffer may or may not be locked. The
+     * returned ptr remains valid until any of the following:
+     *      *makeSpace is called again.
+     *      *unmap is called.
+     *      *reset is called.
+     *      *this object is destroyed.
      *
-     * @return the number of items that would fit in the current buffer.
+     * Once unmap on the pool is called the data is guaranteed to be in the
+     * buffer at the offset indicated by offset. Until that time it may be
+     * in temporary storage and/or the buffer may be locked.
+     *
+     * The caller requests a minimum number of bytes, but the block may be (much)
+     * larger. Assuming that a new block must be allocated, it will be fallbackSize bytes.
+     * The actual block size is returned in actualSize.
+     *
+     * @param minSize        the minimum amount of data to make space for
+     * @param fallbackSize   the amount of data to make space for if a new block is needed
+     * @param alignment      alignment constraint from start of buffer
+     * @param buffer         returns the buffer that will hold the data.
+     * @param offset         returns the offset into buffer of the data.
+     * @param actualSize     returns the capacity of the block
+     * @return pointer to where the client should write the data.
      */
-    int currentBufferItems(size_t itemSize) const;
+    void* makeSpaceAtLeast(size_t minSize,
+                           size_t fallbackSize,
+                           size_t alignment,
+                           const GrBuffer** buffer,
+                           size_t* offset,
+                           size_t* actualSize);
 
-    GrGeometryBuffer* createBuffer(size_t size);
+    GrBuffer* getBuffer(size_t size);
 
 private:
-
-    // The GrGpu must be able to clear the ref of pools it creates as members
-    friend class GrGpu;
-    void releaseGpuRef();
-
     struct BufferBlock {
-        size_t              fBytesFree;
-        GrGeometryBuffer*   fBuffer;
+        size_t      fBytesFree;
+        GrBuffer*   fBuffer;
     };
 
     bool createBlock(size_t requestSize);
     void destroyBlock();
+    void deleteBlocks();
     void flushCpuData(const BufferBlock& block, size_t flushSize);
+    void* resetCpuData(size_t newSize);
 #ifdef SK_DEBUG
     void validate(bool unusedBlockAllowed = false) const;
 #endif
-
     size_t                          fBytesInUse;
 
     GrGpu*                          fGpu;
-    bool                            fGpuIsReffed;
-    bool                            fFrequentResetHint;
-    SkTDArray<GrGeometryBuffer*>    fPreallocBuffers;
     size_t                          fMinBlockSize;
-    BufferType                      fBufferType;
+    GrBufferType                    fBufferType;
 
     SkTArray<BufferBlock>           fBlocks;
-    int                             fPreallocBuffersInUse;
-    // We attempt to cycle through the preallocated buffers rather than
-    // always starting from the first.
-    int                             fPreallocBufferStartIdx;
-    SkAutoMalloc                    fCpuData;
+    void*                           fCpuData;
     void*                           fBufferPtr;
+    size_t                          fBufferMapThreshold;
 };
-
-class GrVertexBuffer;
 
 /**
  * A GrBufferAllocPool of vertex buffers
@@ -189,20 +155,8 @@ public:
      * Constructor
      *
      * @param gpu                   The GrGpu used to create the vertex buffers.
-     * @param frequentResetHint     A hint that indicates that the pool
-     *                              should expect frequent unmap() calls
-     *                              (as opposed to many makeSpace / acquires
-     *                              between resets).
-     * @param bufferSize            The minimum size of created VBs This value
-     *                              will be clamped to some reasonable minimum.
-     * @param preallocBufferCnt     The pool will allocate this number of VBs at
-     *                              bufferSize and keep them until it is
-     *                              destroyed.
      */
-    GrVertexBufferAllocPool(GrGpu* gpu,
-                            bool frequentResetHint,
-                            size_t bufferSize = 0,
-                            int preallocBufferCnt = 0);
+    GrVertexBufferAllocPool(GrGpu* gpu);
 
     /**
      * Returns a block of memory to hold vertices. A buffer designated to hold
@@ -227,46 +181,46 @@ public:
      */
     void* makeSpace(size_t vertexSize,
                     int vertexCount,
-                    const GrVertexBuffer** buffer,
+                    const GrBuffer** buffer,
                     int* startVertex);
 
     /**
-     * Shortcut to make space and then write verts into the made space.
-     */
-    bool appendVertices(size_t vertexSize,
-                        int vertexCount,
-                        const void* vertices,
-                        const GrVertexBuffer** buffer,
-                        int* startVertex);
-
-    /**
-     * Gets the number of vertices that can be added to the current VB without
-     * spilling to another VB. If the pool has been reset, or the previous
-     * makeSpace completely exhausted a VB then the returned number of vertices
-     * would fit in the next available preallocated buffer. If any makeSpace
-     * would force a new VB to be created the return value will be zero.
+     * Returns a block of memory to hold vertices. A buffer designated to hold
+     * the vertices given to the caller. The buffer may or may not be locked.
+     * The returned ptr remains valid until any of the following:
+     *      *makeSpace is called again.
+     *      *unmap is called.
+     *      *reset is called.
+     *      *this object is destroyed.
      *
-     * @param   the size of a vertex to compute space for.
-     * @return the number of vertices that would fit in the current buffer.
-     */
-    int currentBufferVertices(size_t vertexSize) const;
-
-    /**
-     * Gets the number of vertices that can fit in a  preallocated vertex buffer.
-     * Zero if no preallocated buffers.
+     * Once unmap on the pool is called the vertices are guaranteed to be in
+     * the buffer at the offset indicated by startVertex. Until that time they
+     * may be in temporary storage and/or the buffer may be locked.
      *
-     * @param   the size of a vertex to compute space for.
+     * The caller requests a minimum number of vertices, but the block may be (much)
+     * larger. Assuming that a new block must be allocated, it will be sized to hold
+     * fallbackVertexCount vertices. The actual block size (in vertices) is returned in
+     * actualVertexCount.
      *
-     * @return number of vertices that fit in one of the preallocated vertex
-     *         buffers.
+     * @param vertexSize           specifies size of a vertex to allocate space for
+     * @param minVertexCount       minimum number of vertices to allocate space for
+     * @param fallbackVertexCount  number of vertices to allocate space for if a new block is needed
+     * @param buffer               returns the vertex buffer that will hold the vertices.
+     * @param startVertex          returns the offset into buffer of the first vertex.
+     *                             In units of the size of a vertex from layout param.
+     * @param actualVertexCount    returns the capacity of the block (in vertices)
+     * @return pointer to first vertex.
      */
-    int preallocatedBufferVertices(size_t vertexSize) const;
+    void* makeSpaceAtLeast(size_t vertexSize,
+                           int minVertexCount,
+                           int fallbackVertexCount,
+                           const GrBuffer** buffer,
+                           int* startVertex,
+                           int* actualVertexCount);
 
 private:
     typedef GrBufferAllocPool INHERITED;
 };
-
-class GrIndexBuffer;
 
 /**
  * A GrBufferAllocPool of index buffers
@@ -277,20 +231,8 @@ public:
      * Constructor
      *
      * @param gpu                   The GrGpu used to create the index buffers.
-     * @param frequentResetHint     A hint that indicates that the pool
-     *                              should expect frequent unmap() calls
-     *                              (as opposed to many makeSpace / acquires
-     *                              between resets).
-     * @param bufferSize            The minimum size of created IBs This value
-     *                              will be clamped to some reasonable minimum.
-     * @param preallocBufferCnt     The pool will allocate this number of VBs at
-     *                              bufferSize and keep them until it is
-     *                              destroyed.
      */
-    GrIndexBufferAllocPool(GrGpu* gpu,
-                           bool frequentResetHint,
-                           size_t bufferSize = 0,
-                           int preallocBufferCnt = 0);
+    GrIndexBufferAllocPool(GrGpu* gpu);
 
     /**
      * Returns a block of memory to hold indices. A buffer designated to hold
@@ -311,34 +253,39 @@ public:
      * @return pointer to first index.
      */
     void* makeSpace(int indexCount,
-                    const GrIndexBuffer** buffer,
+                    const GrBuffer** buffer,
                     int* startIndex);
 
     /**
-     * Shortcut to make space and then write indices into the made space.
-     */
-    bool appendIndices(int indexCount,
-                       const void* indices,
-                       const GrIndexBuffer** buffer,
-                       int* startIndex);
-
-    /**
-     * Gets the number of indices that can be added to the current IB without
-     * spilling to another IB. If the pool has been reset, or the previous
-     * makeSpace completely exhausted a IB then the returned number of indices
-     * would fit in the next available preallocated buffer. If any makeSpace
-     * would force a new IB to be created the return value will be zero.
-     */
-    int currentBufferIndices() const;
-
-    /**
-     * Gets the number of indices that can fit in a preallocated index buffer.
-     * Zero if no preallocated buffers.
+     * Returns a block of memory to hold indices. A buffer designated to hold
+     * the indices is given to the caller. The buffer may or may not be locked.
+     * The returned ptr remains valid until any of the following:
+     *      *makeSpace is called again.
+     *      *unmap is called.
+     *      *reset is called.
+     *      *this object is destroyed.
      *
-     * @return number of indices that fit in one of the preallocated index
-     *         buffers.
+     * Once unmap on the pool is called the indices are guaranteed to be in the
+     * buffer at the offset indicated by startIndex. Until that time they may be
+     * in temporary storage and/or the buffer may be locked.
+     *
+     * The caller requests a minimum number of indices, but the block may be (much)
+     * larger. Assuming that a new block must be allocated, it will be sized to hold
+     * fallbackIndexCount indices. The actual block size (in indices) is returned in
+     * actualIndexCount.
+     *
+     * @param minIndexCount        minimum number of indices to allocate space for
+     * @param fallbackIndexCount   number of indices to allocate space for if a new block is needed
+     * @param buffer               returns the index buffer that will hold the indices.
+     * @param startIndex           returns the offset into buffer of the first index.
+     * @param actualIndexCount     returns the capacity of the block (in indices)
+     * @return pointer to first index.
      */
-    int preallocatedBufferIndices() const;
+    void* makeSpaceAtLeast(int minIndexCount,
+                           int fallbackIndexCount,
+                           const GrBuffer** buffer,
+                           int* startIndex,
+                           int* actualIndexCount);
 
 private:
     typedef GrBufferAllocPool INHERITED;

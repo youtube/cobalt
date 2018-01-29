@@ -35,8 +35,6 @@
 #include "cobalt/renderer/rasterizer/blitter/linear_gradient_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
-#include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
-#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -64,25 +62,23 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   RenderTreeNodeVisitor(SbBlitterDevice device, SbBlitterContext context,
                         const RenderState& render_state,
                         ScratchSurfaceCache* scratch_surface_cache,
-                        SurfaceCacheDelegate* surface_cache_delegate,
-                        common::SurfaceCache* surface_cache,
                         CachedSoftwareRasterizer* software_surface_cache,
                         LinearGradientCache* linear_gradient_cache);
 
-  void Visit(render_tree::animations::AnimateNode* animate_node) OVERRIDE {
+  void Visit(render_tree::animations::AnimateNode* animate_node) override {
     NOTREACHED();
   }
-  void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
-  void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
-  void Visit(render_tree::ImageNode* image_node) OVERRIDE;
+  void Visit(render_tree::CompositionNode* composition_node) override;
+  void Visit(render_tree::FilterNode* filter_node) override;
+  void Visit(render_tree::ImageNode* image_node) override;
   void Visit(
-      render_tree::MatrixTransform3DNode* matrix_transform_3d_node) OVERRIDE;
-  void Visit(render_tree::MatrixTransformNode* matrix_transform_node) OVERRIDE;
+      render_tree::MatrixTransform3DNode* matrix_transform_3d_node) override;
+  void Visit(render_tree::MatrixTransformNode* matrix_transform_node) override;
   void Visit(
-      render_tree::PunchThroughVideoNode* punch_through_video_node) OVERRIDE;
-  void Visit(render_tree::RectNode* rect_node) OVERRIDE;
-  void Visit(render_tree::RectShadowNode* rect_shadow_node) OVERRIDE;
-  void Visit(render_tree::TextNode* text_node) OVERRIDE;
+      render_tree::PunchThroughVideoNode* punch_through_video_node) override;
+  void Visit(render_tree::RectNode* rect_node) override;
+  void Visit(render_tree::RectShadowNode* rect_shadow_node) override;
+  void Visit(render_tree::TextNode* text_node) override;
 
  private:
   // Can be called with any render tree node in order to invoke the Skia
@@ -112,11 +108,6 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // Manager for scratch surfaces used for intermediate rendering during render
   // tree traversal.
   ScratchSurfaceCache* scratch_surface_cache_;
-
-  SurfaceCacheDelegate* surface_cache_delegate_;
-  common::SurfaceCache* surface_cache_;
-  base::optional<SurfaceCacheDelegate::ScopedContext>
-      surface_cache_scoped_context_;
 
   // We fallback to software rasterization in order to render anything that we
   // cannot render via the Blitter API directly.  We cache the results.

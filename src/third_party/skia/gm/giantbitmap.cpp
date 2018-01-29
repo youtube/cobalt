@@ -25,7 +25,7 @@ class GiantBitmapGM : public skiagm::GM {
     bool fDoRotate;
 
     const SkBitmap& getBitmap() {
-        if (NULL == fBM) {
+        if (nullptr == fBM) {
             fBM = new SkBitmap;
             fBM->allocN32Pixels(W, H);
             fBM->eraseColor(SK_ColorWHITE);
@@ -60,29 +60,17 @@ class GiantBitmapGM : public skiagm::GM {
     }
 
 public:
-    GiantBitmapGM(SkShader::TileMode mode, bool doFilter, bool doRotate) : fBM(NULL) {
+    GiantBitmapGM(SkShader::TileMode mode, bool doFilter, bool doRotate) : fBM(nullptr) {
         fMode = mode;
         fDoFilter = doFilter;
         fDoRotate = doRotate;
     }
 
-    virtual ~GiantBitmapGM() {
-        SkDELETE(fBM);
-    }
+    ~GiantBitmapGM() override { delete fBM; }
 
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-#ifdef SK_BUILD_FOR_ANDROID
-        return kSkipTiled_Flag;
-#else
-        if (fDoFilter && fDoRotate && fMode != SkShader::kClamp_TileMode) {
-            return kSkipTiled_Flag;
-        }
-        return 0;
-#endif
-    }
 
-    virtual SkString onShortName() {
+    SkString onShortName() override {
         SkString str("giantbitmap_");
         switch (fMode) {
             case SkShader::kClamp_TileMode:
@@ -102,9 +90,9 @@ protected:
         return str;
     }
 
-    virtual SkISize onISize() { return SkISize::Make(640, 480); }
+    SkISize onISize() override { return SkISize::Make(640, 480); }
 
-    virtual void onDraw(SkCanvas* canvas) {
+    void onDraw(SkCanvas* canvas) override {
         SkPaint paint;
 
         SkMatrix m;
@@ -116,10 +104,8 @@ protected:
             SkScalar scale = 11*SK_Scalar1/12;
             m.setScale(scale, scale);
         }
-        SkShader* s = SkShader::CreateBitmapShader(getBitmap(), fMode, fMode, &m);
-
-        paint.setShader(s)->unref();
-        paint.setFilterLevel(fDoFilter ? SkPaint::kLow_FilterLevel : SkPaint::kNone_FilterLevel);
+        paint.setShader(SkShader::MakeBitmapShader(getBitmap(), fMode, fMode, &m));
+        paint.setFilterQuality(fDoFilter ? kLow_SkFilterQuality : kNone_SkFilterQuality);
 
         canvas->translate(SkIntToScalar(50), SkIntToScalar(50));
 
@@ -134,30 +120,16 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static skiagm::GM* G000(void*) { return new GiantBitmapGM(SkShader::kClamp_TileMode, false, false); }
-static skiagm::GM* G100(void*) { return new GiantBitmapGM(SkShader::kRepeat_TileMode, false, false); }
-static skiagm::GM* G200(void*) { return new GiantBitmapGM(SkShader::kMirror_TileMode, false, false); }
-static skiagm::GM* G010(void*) { return new GiantBitmapGM(SkShader::kClamp_TileMode, true, false); }
-static skiagm::GM* G110(void*) { return new GiantBitmapGM(SkShader::kRepeat_TileMode, true, false); }
-static skiagm::GM* G210(void*) { return new GiantBitmapGM(SkShader::kMirror_TileMode, true, false); }
+DEF_GM( return new GiantBitmapGM(SkShader::kClamp_TileMode, false, false); )
+DEF_GM( return new GiantBitmapGM(SkShader::kRepeat_TileMode, false, false); )
+DEF_GM( return new GiantBitmapGM(SkShader::kMirror_TileMode, false, false); )
+DEF_GM( return new GiantBitmapGM(SkShader::kClamp_TileMode, true, false); )
+DEF_GM( return new GiantBitmapGM(SkShader::kRepeat_TileMode, true, false); )
+DEF_GM( return new GiantBitmapGM(SkShader::kMirror_TileMode, true, false); )
 
-static skiagm::GM* G001(void*) { return new GiantBitmapGM(SkShader::kClamp_TileMode, false, true); }
-static skiagm::GM* G101(void*) { return new GiantBitmapGM(SkShader::kRepeat_TileMode, false, true); }
-static skiagm::GM* G201(void*) { return new GiantBitmapGM(SkShader::kMirror_TileMode, false, true); }
-static skiagm::GM* G011(void*) { return new GiantBitmapGM(SkShader::kClamp_TileMode, true, true); }
-static skiagm::GM* G111(void*) { return new GiantBitmapGM(SkShader::kRepeat_TileMode, true, true); }
-static skiagm::GM* G211(void*) { return new GiantBitmapGM(SkShader::kMirror_TileMode, true, true); }
-
-static skiagm::GMRegistry reg000(G000);
-static skiagm::GMRegistry reg100(G100);
-static skiagm::GMRegistry reg200(G200);
-static skiagm::GMRegistry reg010(G010);
-static skiagm::GMRegistry reg110(G110);
-static skiagm::GMRegistry reg210(G210);
-
-static skiagm::GMRegistry reg001(G001);
-static skiagm::GMRegistry reg101(G101);
-static skiagm::GMRegistry reg201(G201);
-static skiagm::GMRegistry reg011(G011);
-static skiagm::GMRegistry reg111(G111);
-static skiagm::GMRegistry reg211(G211);
+DEF_GM( return new GiantBitmapGM(SkShader::kClamp_TileMode, false, true); )
+DEF_GM( return new GiantBitmapGM(SkShader::kRepeat_TileMode, false, true); )
+DEF_GM( return new GiantBitmapGM(SkShader::kMirror_TileMode, false, true); )
+DEF_GM( return new GiantBitmapGM(SkShader::kClamp_TileMode, true, true); )
+DEF_GM( return new GiantBitmapGM(SkShader::kRepeat_TileMode, true, true); )
+DEF_GM( return new GiantBitmapGM(SkShader::kMirror_TileMode, true, true); )

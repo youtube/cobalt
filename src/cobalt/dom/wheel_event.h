@@ -70,7 +70,7 @@ class WheelEvent : public MouseEvent {
   double delta_z_;
   DeltaMode delta_mode_;
 
-  ~WheelEvent() OVERRIDE {}
+  ~WheelEvent() override {}
 };
 
 }  // namespace dom

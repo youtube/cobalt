@@ -7,51 +7,67 @@
  */
 
 #include "SkRasterWidget.h"
+#include "SkDebugger.h"
+#include <QtGui>
 
-SkRasterWidget::SkRasterWidget(SkDebugger *debugger) : QWidget() {
-    fBitmap.allocN32Pixels(800, 800);
-    fBitmap.eraseColor(SK_ColorTRANSPARENT);
-    fDevice = new SkBitmapDevice(fBitmap);
-    fDebugger = debugger;
-    fCanvas = new SkCanvas(fDevice);
-    this->setStyleSheet("QWidget {background-color: white; border: 1px solid #cccccc;}");
-}
-
-SkRasterWidget::~SkRasterWidget() {
-    SkSafeUnref(fCanvas);
-    SkSafeUnref(fDevice);
+SkRasterWidget::SkRasterWidget(SkDebugger *debugger)
+    : QWidget()
+    , fDebugger(debugger)
+    , fNeedImageUpdate(false) {
+    this->setStyleSheet("QWidget {background-color: black; border: 1px solid #cccccc;}");
 }
 
 void SkRasterWidget::resizeEvent(QResizeEvent* event) {
-    fBitmap.allocN32Pixels(event->size().width(), event->size().height());
-    fBitmap.eraseColor(SK_ColorTRANSPARENT);
-    SkSafeUnref(fCanvas);
-    SkSafeUnref(fDevice);
-    fDevice = new SkBitmapDevice(fBitmap);
-    fCanvas = new SkCanvas(fDevice);
-    fDebugger->setWindowSize(event->size().width(), event->size().height());
-    this->update();
+    this->QWidget::resizeEvent(event);
+
+    QRect r = this->contentsRect();
+    if (r.width() == 0 || r.height() == 0) {
+        fSurface = nullptr;
+    } else {
+        SkImageInfo info = SkImageInfo::MakeN32Premul(r.width(), r.height());
+        fSurface = SkSurface::MakeRaster(info);
+    }
+    this->updateImage();
 }
 
 void SkRasterWidget::paintEvent(QPaintEvent* event) {
-    if (!this->isHidden()) {
-        fDebugger->draw(fCanvas);
-        QPainter painter(this);
-        QStyleOption opt;
-        opt.init(this);
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    QStyleOption opt;
+    opt.init(this);
+    style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, this);
 
-        style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, this);
-
-        QPoint origin(0,0);
-        QImage image((uchar *)fBitmap.getPixels(), fBitmap.width(),
-                fBitmap.height(), QImage::Format_ARGB32_Premultiplied);
-
-#if SK_R32_SHIFT == 0
-        painter.drawImage(origin, image.rgbSwapped());
-#else
-        painter.drawImage(origin, image);
-#endif
-        painter.end();
-        emit drawComplete();
+    if (!fSurface) {
+        return;
     }
+
+    if (fNeedImageUpdate) {
+        fDebugger->draw(fSurface->getCanvas());
+        fSurface->getCanvas()->flush();
+        fNeedImageUpdate = false;
+        Q_EMIT drawComplete();
+    }
+
+    SkPixmap pixmap;
+
+    if (fSurface->peekPixels(&pixmap)) {
+        QImage image(reinterpret_cast<const uchar*>(pixmap.addr()),
+                     pixmap.width(),
+                     pixmap.height(),
+                     pixmap.rowBytes(),
+                     QImage::Format_ARGB32_Premultiplied);
+#if SK_R32_SHIFT == 0
+        painter.drawImage(this->contentsRect(), image.rgbSwapped());
+#else
+        painter.drawImage(this->contentsRect(), image);
+#endif
+    }
+}
+
+void SkRasterWidget::updateImage() {
+    if (!fSurface) {
+        return;
+    }
+    fNeedImageUpdate = true;
+    this->update();
 }

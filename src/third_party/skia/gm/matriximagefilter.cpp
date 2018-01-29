@@ -6,44 +6,26 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkColor.h"
-#include "SkMatrixImageFilter.h"
+#include "SkImageFilter.h"
 
-namespace skiagm {
-
-class MatrixImageFilterGM : public GM {
-public:
-    MatrixImageFilterGM() {
-        this->setBGColor(0x00000000);
-    }
-
-protected:
-    virtual SkString onShortName() {
-        return SkString("matriximagefilter");
-    }
-
-    void draw(SkCanvas* canvas, const SkRect& rect, const SkBitmap& bitmap,
-              const SkMatrix& matrix, SkPaint::FilterLevel filterLevel) {
-        SkAutoTUnref<SkImageFilter> imageFilter(
-            SkMatrixImageFilter::Create(matrix, filterLevel));
+static void draw(SkCanvas* canvas, const SkRect& rect, const SkBitmap& bitmap,
+                 const SkMatrix& matrix, SkFilterQuality filter) {
         SkPaint paint;
-        paint.setImageFilter(imageFilter.get());
+        paint.setImageFilter(SkImageFilter::MakeMatrixFilter(matrix, filter, nullptr));
         canvas->saveLayer(&rect, &paint);
         canvas->drawBitmap(bitmap, 0, 0);
         canvas->restore();
-    }
+}
 
-    virtual SkISize onISize() {
-        return SkISize::Make(420, 100);
-    }
-
-    void make_checkerboard(SkBitmap* bitmap) {
+static void make_checkerboard(SkBitmap* bitmap) {
         bitmap->allocN32Pixels(64, 64);
         SkCanvas canvas(*bitmap);
         SkPaint darkPaint;
-        darkPaint.setColor(0xFF404040);
+        darkPaint.setColor(sk_tool_utils::color_to_565(0xFF404040));
         SkPaint lightPaint;
-        lightPaint.setColor(0xFFA0A0A0);
+        lightPaint.setColor(sk_tool_utils::color_to_565(0xFFA0A0A0));
         for (int y = 0; y < 64; y += 32) {
             for (int x = 0; x < 64; x += 32) {
                 canvas.save();
@@ -55,10 +37,9 @@ protected:
                 canvas.restore();
             }
         }
-    }
+}
 
-    virtual void onDraw(SkCanvas* canvas) {
-        canvas->clear(0x00000000);
+DEF_SIMPLE_GM_BG(matriximagefilter, canvas, 420, 100, SK_ColorBLACK) {
         SkMatrix matrix;
         SkScalar margin = SkIntToScalar(10);
         matrix.setSkew(SkDoubleToScalar(0.5), SkDoubleToScalar(0.2));
@@ -68,28 +49,17 @@ protected:
         SkRect srcRect = SkRect::MakeWH(96, 96);
 
         canvas->translate(margin, margin);
-        draw(canvas, srcRect, checkerboard, matrix, SkPaint::kNone_FilterLevel);
+        draw(canvas, srcRect, checkerboard, matrix, kNone_SkFilterQuality);
 
         canvas->translate(srcRect.width() + margin, 0);
-        draw(canvas, srcRect, checkerboard, matrix, SkPaint::kLow_FilterLevel);
+        draw(canvas, srcRect, checkerboard, matrix, kLow_SkFilterQuality);
 
 #if 0
         // This may be causing Mac 10.6 to barf.
         canvas->translate(srcRect.width() + margin, 0);
-        draw(canvas, srcRect, checkerboard, matrix, SkPaint::kMedium_FilterLevel);
+        draw(canvas, srcRect, checkerboard, matrix, kMedium_SkFilterQuality);
 
         canvas->translate(srcRect.width() + margin, 0);
-        draw(canvas, srcRect, checkerboard, matrix, SkPaint::kHigh_FilterLevel);
+        draw(canvas, srcRect, checkerboard, matrix, kHigh_SkFilterQuality);
 #endif
-    }
-
-private:
-    typedef GM INHERITED;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-static GM* MyFactory(void*) { return new MatrixImageFilterGM; }
-static GMRegistry reg(MyFactory);
-
 }

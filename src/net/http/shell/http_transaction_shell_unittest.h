@@ -38,7 +38,7 @@ class MockStreamShellLoader : public HttpStreamShellLoader {
         reading_headers_(false) {}
 
   virtual int Open(const HttpRequestInfo* info,
-                   const BoundNetLog& net_log) OVERRIDE {
+                   const BoundNetLog& net_log) override {
     net_log_ = net_log;
     return OK;
   }
@@ -46,7 +46,7 @@ class MockStreamShellLoader : public HttpStreamShellLoader {
   virtual int SendRequest(const std::string& request_line,
                           const HttpRequestHeaders& headers,
                           HttpResponseInfo* response,
-                          const CompletionCallback& callback) OVERRIDE {
+                          const CompletionCallback& callback) override {
     DCHECK(callback_.is_null());
     response_ = response;
     response_->socket_address = HostPortPair::FromString(request_line);
@@ -63,7 +63,7 @@ class MockStreamShellLoader : public HttpStreamShellLoader {
     return ERR_IO_PENDING;
   }
 
-  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE {
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) override {
     DCHECK(callback_.is_null());
     // Set headers
     callback_ = callback;
@@ -77,7 +77,7 @@ class MockStreamShellLoader : public HttpStreamShellLoader {
   }
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               const CompletionCallback& callback) OVERRIDE {
+                               const CompletionCallback& callback) override {
     DCHECK(callback_.is_null());
     // Copy data
     int to_read = std::min(buf_len,
@@ -90,13 +90,13 @@ class MockStreamShellLoader : public HttpStreamShellLoader {
     return ERR_IO_PENDING;
   }
 
-  virtual void SetProxy(const ProxyInfo* info) OVERRIDE {}
+  virtual void SetProxy(const ProxyInfo* info) override {}
 
-  virtual bool IsResponseBodyComplete() const OVERRIDE {
+  virtual bool IsResponseBodyComplete() const override {
     return current_pos_ == data_.size();
   }
 
-  virtual void Close(bool not_reusable) OVERRIDE {
+  virtual void Close(bool not_reusable) override {
   }
 
   void IOComplete(int result) {
@@ -154,7 +154,7 @@ class MockTransactionFactoryShell : public HttpTransactionFactoryShell {
 
   // HttpTransactionFactory methods:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
-                                HttpTransactionDelegate* delegate) OVERRIDE {
+                                HttpTransactionDelegate* delegate) override {
     HttpStreamShell* stream = new HttpStreamShell(new MockStreamShellLoader());
     trans->reset(new MockTransactionShell(&params_, stream));
     return OK;

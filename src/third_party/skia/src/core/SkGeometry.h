@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2006 The Android Open Source Project
  *
@@ -6,26 +5,25 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkGeometry_DEFINED
 #define SkGeometry_DEFINED
 
 #include "SkMatrix.h"
+#include "SkNx.h"
 
-/** An XRay is a half-line that runs from the specific point/origin to
-    +infinity in the X direction. e.g. XRay(3,5) is the half-line
-    (3,5)....(infinity, 5)
- */
-typedef SkPoint SkXRay;
+static inline Sk2s from_point(const SkPoint& point) {
+    return Sk2s::Load(&point);
+}
 
-/** Given a line segment from pts[0] to pts[1], and an xray, return true if
-    they intersect. Optional outgoing "ambiguous" argument indicates
-    whether the answer is ambiguous because the query occurred exactly at
-    one of the endpoints' y coordinates, indicating that another query y
-    coordinate is preferred for robustness.
-*/
-bool SkXRayCrossesLine(const SkXRay& pt, const SkPoint pts[2],
-                       bool* ambiguous = NULL);
+static inline SkPoint to_point(const Sk2s& x) {
+    SkPoint point;
+    x.store(&point);
+    return point;
+}
+
+static Sk2s times_2(const Sk2s& value) {
+    return value + value;
+}
 
 /** Given a quadratic equation Ax^2 + Bx + C = 0, return 0, 1, 2 roots for the
     equation.
@@ -34,13 +32,13 @@ int SkFindUnitQuadRoots(SkScalar A, SkScalar B, SkScalar C, SkScalar roots[2]);
 
 ///////////////////////////////////////////////////////////////////////////////
 
+SkPoint SkEvalQuadAt(const SkPoint src[3], SkScalar t);
+SkPoint SkEvalQuadTangentAt(const SkPoint src[3], SkScalar t);
+
 /** Set pt to the point on the src quadratic specified by t. t must be
     0 <= t <= 1.0
 */
-void SkEvalQuadAt(const SkPoint src[3], SkScalar t, SkPoint* pt,
-                  SkVector* tangent = NULL);
-void SkEvalQuadAtHalf(const SkPoint src[3], SkPoint* pt,
-                      SkVector* tangent = NULL);
+void SkEvalQuadAt(const SkPoint src[3], SkScalar t, SkPoint* pt, SkVector* tangent = nullptr);
 
 /** Given a src quadratic bezier, chop it at the specified t value,
     where 0 < t < 1, and return the two new quadratics in dst:
@@ -76,7 +74,7 @@ int SkChopQuadAtXExtrema(const SkPoint src[3], SkPoint dst[5]);
     curvature exists on the segment, returns the t value for this
     point along the curve. Otherwise it will return a value of 0.
 */
-float SkFindQuadMaxCurvature(const SkPoint src[3]);
+SkScalar SkFindQuadMaxCurvature(const SkPoint src[3]);
 
 /** Given 3 points on a quadratic bezier, divide it into 2 quadratics
     if the point of maximum curvature exists on the quad segment.
@@ -95,11 +93,6 @@ SK_API void SkConvertQuadToCubic(const SkPoint src[3], SkPoint dst[4]);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/** Convert from parametric from (pts) to polynomial coefficients
-    coeff[0]*T^3 + coeff[1]*T^2 + coeff[2]*T + coeff[3]
-*/
-void SkGetCubicCoeff(const SkPoint pts[4], SkScalar cx[4], SkScalar cy[4]);
-
 /** Set pt to the point on the src cubic specified by t. t must be
     0 <= t <= 1.0
 */
@@ -111,6 +104,7 @@ void SkEvalCubicAt(const SkPoint src[4], SkScalar t, SkPoint* locOrNull,
     dst[0..3] and dst[3..6]
 */
 void SkChopCubicAt(const SkPoint src[4], SkPoint dst[7], SkScalar t);
+
 /** Given a src cubic bezier, chop it at the specified t values,
     where 0 < t < 1, and return the new cubics in dst:
     dst[0..3],dst[3..6],...,dst[3*t_count..3*(t_count+1)]
@@ -159,37 +153,37 @@ int SkChopCubicAtInflections(const SkPoint src[4], SkPoint dst[10]);
 
 int SkFindCubicMaxCurvature(const SkPoint src[4], SkScalar tValues[3]);
 int SkChopCubicAtMaxCurvature(const SkPoint src[4], SkPoint dst[13],
-                              SkScalar tValues[3] = NULL);
+                              SkScalar tValues[3] = nullptr);
 
-/** Given a monotonic cubic bezier, determine whether an xray intersects the
-    cubic.
-    By definition the cubic is open at the starting point; in other
-    words, if pt.fY is equivalent to cubic[0].fY, and pt.fX is to the
-    left of the curve, the line is not considered to cross the curve,
-    but if it is equal to cubic[3].fY then it is considered to
-    cross.
-    Optional outgoing "ambiguous" argument indicates whether the answer is
-    ambiguous because the query occurred exactly at one of the endpoints' y
-    coordinates, indicating that another query y coordinate is preferred
-    for robustness.
- */
-bool SkXRayCrossesMonotonicCubic(const SkXRay& pt, const SkPoint cubic[4],
-                                 bool* ambiguous = NULL);
+bool SkChopMonoCubicAtX(SkPoint src[4], SkScalar y, SkPoint dst[7]);
+bool SkChopMonoCubicAtY(SkPoint src[4], SkScalar x, SkPoint dst[7]);
 
-/** Given an arbitrary cubic bezier, return the number of times an xray crosses
-    the cubic. Valid return values are [0..3]
-    By definition the cubic is open at the starting point; in other
-    words, if pt.fY is equivalent to cubic[0].fY, and pt.fX is to the
-    left of the curve, the line is not considered to cross the curve,
-    but if it is equal to cubic[3].fY then it is considered to
-    cross.
-    Optional outgoing "ambiguous" argument indicates whether the answer is
-    ambiguous because the query occurred exactly at one of the endpoints' y
-    coordinates or at a tangent point, indicating that another query y
-    coordinate is preferred for robustness.
- */
-int SkNumXRayCrossingsForCubic(const SkXRay& pt, const SkPoint cubic[4],
-                               bool* ambiguous = NULL);
+enum class SkCubicType {
+    kSerpentine,
+    kLoop,
+    kLocalCusp,       // Cusp at a non-infinite parameter value with an inflection at t=infinity.
+    kCuspAtInfinity,  // Cusp with a cusp at t=infinity and a local inflection.
+    kQuadratic,
+    kLineOrPoint
+};
+
+/** Returns the cubic classification.
+
+    t[],s[] are set to the two homogeneous parameter values at which points the lines L & M
+    intersect with K, sorted from smallest to largest and oriented so positive values of the
+    implicit are on the "left" side. For a serpentine curve they are the inflection points. For a
+    loop they are the double point. For a local cusp, they are both equal and denote the cusp point.
+    For a cusp at an infinite parameter value, one will be the local inflection point and the other
+    +inf (t,s = 1,0). If the curve is degenerate (i.e. quadratic or linear) they are both set to a
+    parameter value of +inf (t,s = 1,0).
+
+    d[] is filled with the cubic inflection function coefficients. See "Resolution Independent
+    Curve Rendering using Programmable Graphics Hardware", 4.2 Curve Categorization:
+
+    https://www.microsoft.com/en-us/research/wp-content/uploads/2005/01/p1000-loop.pdf
+*/
+SkCubicType SkClassifyCubic(const SkPoint p[4], double t[2] = nullptr, double s[2] = nullptr,
+                            double d[4] = nullptr);
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -198,27 +192,31 @@ enum SkRotationDirection {
     kCCW_SkRotationDirection
 };
 
-/** Maximum number of points needed in the quadPoints[] parameter for
-    SkBuildQuadArc()
-*/
-#define kSkBuildQuadArcStorage  17
-
-/** Given 2 unit vectors and a rotation direction, fill out the specified
-    array of points with quadratic segments. Return is the number of points
-    written to, which will be { 0, 3, 5, 7, ... kSkBuildQuadArcStorage }
-
-    matrix, if not null, is appled to the points before they are returned.
-*/
-int SkBuildQuadArc(const SkVector& unitStart, const SkVector& unitStop,
-                   SkRotationDirection, const SkMatrix*, SkPoint quadPoints[]);
-
-// experimental
 struct SkConic {
+    SkConic() {}
+    SkConic(const SkPoint& p0, const SkPoint& p1, const SkPoint& p2, SkScalar w) {
+        fPts[0] = p0;
+        fPts[1] = p1;
+        fPts[2] = p2;
+        fW = w;
+    }
+    SkConic(const SkPoint pts[3], SkScalar w) {
+        memcpy(fPts, pts, sizeof(fPts));
+        fW = w;
+    }
+
     SkPoint  fPts[3];
     SkScalar fW;
 
     void set(const SkPoint pts[3], SkScalar w) {
         memcpy(fPts, pts, 3 * sizeof(SkPoint));
+        fW = w;
+    }
+
+    void set(const SkPoint& p0, const SkPoint& p1, const SkPoint& p2, SkScalar w) {
+        fPts[0] = p0;
+        fPts[1] = p1;
+        fPts[2] = p2;
         fW = w;
     }
 
@@ -229,9 +227,13 @@ struct SkConic {
      *  tangent value's length is arbitrary, and only its direction should
      *  be used.
      */
-    void evalAt(SkScalar t, SkPoint* pos, SkVector* tangent = NULL) const;
-    void chopAt(SkScalar t, SkConic dst[2]) const;
+    void evalAt(SkScalar t, SkPoint* pos, SkVector* tangent = nullptr) const;
+    bool SK_WARN_UNUSED_RESULT chopAt(SkScalar t, SkConic dst[2]) const;
+    void chopAt(SkScalar t1, SkScalar t2, SkConic* dst) const;
     void chop(SkConic dst[2]) const;
+
+    SkPoint evalAt(SkScalar t) const;
+    SkVector evalTangentAt(SkScalar t) const;
 
     void computeAsQuadError(SkVector* err) const;
     bool asQuadTol(SkScalar tol) const;
@@ -246,7 +248,7 @@ struct SkConic {
      *  Chop this conic into N quads, stored continguously in pts[], where
      *  N = 1 << pow2. The amount of storage needed is (1 + 2 * N)
      */
-    int chopIntoQuadsPOW2(SkPoint pts[], int pow2) const;
+    int SK_WARN_UNUSED_RESULT chopIntoQuadsPOW2(SkPoint pts[], int pow2) const;
 
     bool findXExtrema(SkScalar* t) const;
     bool findYExtrema(SkScalar* t) const;
@@ -263,8 +265,112 @@ struct SkConic {
      *
      *  @return  true if max curvature found inside 0..1 range, false otherwise
      */
-    bool findMaxCurvature(SkScalar* t) const;
+//    bool findMaxCurvature(SkScalar* t) const;  // unimplemented
+
+    static SkScalar TransformW(const SkPoint[3], SkScalar w, const SkMatrix&);
+
+    enum {
+        kMaxConicsForArc = 5
+    };
+    static int BuildUnitArc(const SkVector& start, const SkVector& stop, SkRotationDirection,
+                            const SkMatrix*, SkConic conics[kMaxConicsForArc]);
 };
+
+// inline helpers are contained in a namespace to avoid external leakage to fragile SkNx members
+namespace {
+
+/**
+ *  use for : eval(t) == A * t^2 + B * t + C
+ */
+struct SkQuadCoeff {
+    SkQuadCoeff() {}
+
+    SkQuadCoeff(const Sk2s& A, const Sk2s& B, const Sk2s& C)
+        : fA(A)
+        , fB(B)
+        , fC(C)
+    {
+    }
+
+    SkQuadCoeff(const SkPoint src[3]) {
+        fC = from_point(src[0]);
+        Sk2s P1 = from_point(src[1]);
+        Sk2s P2 = from_point(src[2]);
+        fB = times_2(P1 - fC);
+        fA = P2 - times_2(P1) + fC;
+    }
+
+    Sk2s eval(SkScalar t) {
+        Sk2s tt(t);
+        return eval(tt);
+    }
+
+    Sk2s eval(const Sk2s& tt) {
+        return (fA * tt + fB) * tt + fC;
+    }
+
+    Sk2s fA;
+    Sk2s fB;
+    Sk2s fC;
+};
+
+struct SkConicCoeff {
+    SkConicCoeff(const SkConic& conic) {
+        Sk2s p0 = from_point(conic.fPts[0]);
+        Sk2s p1 = from_point(conic.fPts[1]);
+        Sk2s p2 = from_point(conic.fPts[2]);
+        Sk2s ww(conic.fW);
+
+        Sk2s p1w = p1 * ww;
+        fNumer.fC = p0;
+        fNumer.fA = p2 - times_2(p1w) + p0;
+        fNumer.fB = times_2(p1w - p0);
+
+        fDenom.fC = Sk2s(1);
+        fDenom.fB = times_2(ww - fDenom.fC);
+        fDenom.fA = Sk2s(0) - fDenom.fB;
+    }
+
+    Sk2s eval(SkScalar t) {
+        Sk2s tt(t);
+        Sk2s numer = fNumer.eval(tt);
+        Sk2s denom = fDenom.eval(tt);
+        return numer / denom;
+    }
+
+    SkQuadCoeff fNumer;
+    SkQuadCoeff fDenom;
+};
+
+struct SkCubicCoeff {
+    SkCubicCoeff(const SkPoint src[4]) {
+        Sk2s P0 = from_point(src[0]);
+        Sk2s P1 = from_point(src[1]);
+        Sk2s P2 = from_point(src[2]);
+        Sk2s P3 = from_point(src[3]);
+        Sk2s three(3);
+        fA = P3 + three * (P1 - P2) - P0;
+        fB = three * (P2 - times_2(P1) + P0);
+        fC = three * (P1 - P0);
+        fD = P0;
+    }
+
+    Sk2s eval(SkScalar t) {
+        Sk2s tt(t);
+        return eval(tt);
+    }
+
+    Sk2s eval(const Sk2s& t) {
+        return ((fA * t + fB) * t + fC) * t + fD;
+    }
+
+    Sk2s fA;
+    Sk2s fB;
+    Sk2s fC;
+    Sk2s fD;
+};
+
+}
 
 #include "SkTemplates.h"
 
@@ -291,7 +397,7 @@ public:
         int pow2 = conic.computeQuadPOW2(tol);
         fQuadCount = 1 << pow2;
         SkPoint* pts = fStorage.reset(1 + 2 * fQuadCount);
-        conic.chopIntoQuadsPOW2(pts, pow2);
+        fQuadCount = conic.chopIntoQuadsPOW2(pts, pow2);
         return pts;
     }
 

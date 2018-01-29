@@ -41,7 +41,7 @@ public:
         kSmallPow2_RectType
     };
 
-    RectanizerBench(RectanizerType rectanizerType, RectType rectType) 
+    RectanizerBench(RectanizerType rectanizerType, RectType rectType)
         : fName("rectanizer_")
         , fRectanizerType(rectanizerType)
         , fRectType(rectType) {
@@ -64,26 +64,26 @@ public:
     }
 
 protected:
-    virtual bool isSuitableFor(Backend backend) SK_OVERRIDE {
+    bool isSuitableFor(Backend backend) override {
         return kNonRendering_Backend == backend;
     }
 
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return fName.c_str();
     }
 
-    virtual void onPreDraw() SK_OVERRIDE {
-        SkASSERT(NULL == fRectanizer.get());
+    void onDelayedSetup() override {
+        SkASSERT(nullptr == fRectanizer.get());
 
         if (kPow2_RectanizerType == fRectanizerType) {
-            fRectanizer.reset(SkNEW_ARGS(GrRectanizerPow2, (kWidth, kHeight)));
+            fRectanizer.reset(new GrRectanizerPow2(kWidth, kHeight));
         } else {
             SkASSERT(kSkyline_RectanizerType == fRectanizerType);
-            fRectanizer.reset(SkNEW_ARGS(GrRectanizerSkyline, (kWidth, kHeight)));
+            fRectanizer.reset(new GrRectanizerSkyline(kWidth, kHeight));
         }
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         SkRandom rand;
         SkIPoint16 loc;
         SkISize size;
@@ -115,7 +115,7 @@ private:
     SkString                    fName;
     RectanizerType              fRectanizerType;
     RectType                    fRectType;
-    SkAutoTDelete<GrRectanizer> fRectanizer;
+    std::unique_ptr<GrRectanizer> fRectanizer;
 
     typedef Benchmark INHERITED;
 };

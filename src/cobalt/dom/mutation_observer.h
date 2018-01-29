@@ -92,6 +92,7 @@ class MutationObserver : public script::Wrappable {
   class CallbackInternal;
 
   DEFINE_WRAPPABLE_TYPE(MutationObserver);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void TrackObservedNode(const scoped_refptr<dom::Node>& node);

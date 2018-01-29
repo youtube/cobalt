@@ -45,25 +45,71 @@ class ThreadCreateInfo {
   std::string name_;
 };
 
-void CallThreadLocalDestructors() {
-  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
+  int num_destructors_called = 0;
 
-  // TODO note that the implementation below holds a global lock
-  // while processing TLS destructors on thread exit. This could
-  // be a bottleneck in some scenarios. A lockless approach may be preferrable.
-  SbMutexAcquire(&singleton->mutex_);
+  for (auto it = singleton->thread_local_keys_.begin();
+       it != singleton->thread_local_keys_.end();) {
+    auto curr_it = it++;
+
+    if (!curr_it->second->destructor) {
+      continue;
+    }
+    auto key = curr_it->second;
+    void* entry = SbThreadGetLocalValue(key);
+    if (!entry) {
+      continue;
+    }
+    SbThreadSetLocalValue(key, nullptr);
+    ++num_destructors_called;
+    curr_it->second->destructor(entry);
+  }
+  return num_destructors_called;
+}
+
+int CountTlsObjectsRemaining(ThreadSubsystemSingleton* singleton) {
+  int num_objects_remain = 0;
   for (auto it = singleton->thread_local_keys_.begin();
        it != singleton->thread_local_keys_.end(); ++it) {
     if (!it->second->destructor) {
       continue;
     }
-    void* entry = SbThreadGetLocalValue(it->second);
+    auto key = it->second;
+    void* entry = SbThreadGetLocalValue(key);
     if (!entry) {
       continue;
     }
-    it->second->destructor(entry);
+    ++num_objects_remain;
   }
+  return num_objects_remain;
+}
+
+void CallThreadLocalDestructorsMultipleTimes() {
+  // The number of passes conforms to the base_unittests. This is useful for
+  // destructors that insert new objects into thread local storage. These
+  // objects then need to be destroyed as well in subsequent passes. The total
+  // number of passes is 4, which is one more than what base_unittest tests
+  // for.
+  const int kNumDestructorPasses = 4;
+
+  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+  int num_tls_objects_remaining = 0;
+  // TODO note that the implementation below holds a global lock
+  // while processing TLS destructors on thread exit. This could
+  // be a bottleneck in some scenarios. A lockless approach may be preferrable.
+  SbMutexAcquire(&singleton->mutex_);
+
+  for (int i = 0; i < kNumDestructorPasses; ++i) {
+    // Run through each destructor and call it.
+    const int num_destructors_called = RunThreadLocalDestructors(singleton);
+    if (0 == num_destructors_called) {
+      break;  // No more destructors to call.
+    }
+  }
+  num_tls_objects_remaining = CountTlsObjectsRemaining(singleton);
   SbMutexRelease(&singleton->mutex_);
+
+  SB_DCHECK(num_tls_objects_remaining == 0) << "Dangling objects in TLS exist.";
 }
 
 unsigned ThreadTrampoline(void* thread_create_info_context) {
@@ -71,14 +117,12 @@ unsigned ThreadTrampoline(void* thread_create_info_context) {
       static_cast<ThreadCreateInfo*>(thread_create_info_context));
 
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
-
   SbThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
-
   SbThreadSetName(info->name_.c_str());
 
   void* result = info->entry_point_(info->user_context_);
 
-  CallThreadLocalDestructors();
+  CallThreadLocalDestructorsMultipleTimes();
 
   SbMutexAcquire(&info->thread_private_.mutex_);
   info->thread_private_.result_ = result;

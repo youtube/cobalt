@@ -57,6 +57,7 @@ class TextureEGL {
              const scoped_refptr<RenderTargetEGL>& render_target);
   virtual ~TextureEGL();
 
+  bool IsValid() const { return gl_handle_ != 0; }
   const math::Size& GetSize() const { return size_; }
   GLenum GetFormat() const { return format_; }
   GLenum GetTarget() const { return target_; }
@@ -65,6 +66,8 @@ class TextureEGL {
 
   // Returns an index to the texture that can be passed to OpenGL functions.
   GLuint gl_handle() const { return gl_handle_; }
+
+  GraphicsContextEGL* graphics_context() { return graphics_context_; }
 
  private:
   // A reference to the graphics context that this texture is associated with.

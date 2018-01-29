@@ -103,7 +103,7 @@ class SampleTestAdvancedBenchmark : public cobalt::trace_event::Benchmark {
  public:
   // This method will be executed in order to generate the trace results
   // that will subsequently be analyzed.
-  void Experiment() OVERRIDE {
+  void Experiment() override {
     const int kRenderIterationCount = 100;
     for (int i = 0; i < kRenderIterationCount; ++i) {
       TRACE_EVENT0("SampleBenchmark", "LoopIteration");
@@ -122,8 +122,9 @@ class SampleTestAdvancedBenchmark : public cobalt::trace_event::Benchmark {
   // occurring.  This occurs when a TRACE_EVENT or TRACE_EVENT_FLOW
   // call from above completes and all its child events and flows have also
   // completed.
-  void AnalyzeTraceEvent(const scoped_refptr<
-      cobalt::trace_event::EventParser::ScopedEvent>& event) OVERRIDE {
+  void AnalyzeTraceEvent(
+      const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& event)
+      override {
     if (event->name() == "LoopIteration") {
       if (event->flow_duration()) {
         loop_iteration_times_in_seconds_.push_back(
@@ -145,7 +146,7 @@ class SampleTestAdvancedBenchmark : public cobalt::trace_event::Benchmark {
   // This is called after all events have been analyzed and it is time to
   // produce results.  All Result objects returned will be output as separate
   // variables.
-  std::vector<Result> CompileResults() OVERRIDE {
+  std::vector<Result> CompileResults() override {
     std::vector<Result> results;
 
     results.push_back(Result("LoopIteration time in seconds",

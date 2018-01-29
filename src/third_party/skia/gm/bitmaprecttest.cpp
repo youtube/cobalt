@@ -7,6 +7,7 @@
 
 #include "gm.h"
 #include "SkCanvas.h"
+#include "SkPath.h"
 
 static void make_bm(SkBitmap* bm) {
     bm->allocN32Pixels(60, 60);
@@ -33,45 +34,18 @@ static void make_bm(SkBitmap* bm) {
 //  twice. The fix resulted in (a) not taking the fast-path, but (b) drawing
 //  the image correctly.
 //
-static void test_bitmaprect(SkCanvas* canvas) {
+DEF_SIMPLE_GM(bitmaprecttest, canvas, 320, 240) {
     SkBitmap bm;
     make_bm(&bm);
 
-    canvas->drawBitmap(bm, 150, 45, NULL);
+    canvas->drawBitmap(bm, 150, 45, nullptr);
 
     SkScalar scale = 0.472560018f;
     canvas->save();
     canvas->scale(scale, scale);
-    canvas->drawBitmapRectToRect(bm, NULL, SkRect::MakeXYWH(100, 100, 128, 128), NULL);
+    canvas->drawBitmapRect(bm, SkRect::MakeXYWH(100, 100, 128, 128), nullptr);
     canvas->restore();
 
     canvas->scale(-1, 1);
-    canvas->drawBitmap(bm, -310, 45, NULL);
+    canvas->drawBitmap(bm, -310, 45, nullptr);
 }
-
-class BitmapRectTestGM : public skiagm::GM {
-public:
-    BitmapRectTestGM() {
-
-    }
-
-protected:
-    virtual SkString onShortName() {
-        return SkString("bitmaprecttest");
-    }
-
-    virtual SkISize onISize() {
-        return SkISize::Make(320, 240);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        test_bitmaprect(canvas);
-    }
-
-private:
-    typedef skiagm::GM INHERITED;
-};
-
-//////////////////////////////////////////////////////////////////////////////
-
-DEF_GM( return new BitmapRectTestGM; )

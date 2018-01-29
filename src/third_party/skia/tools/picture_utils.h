@@ -8,7 +8,9 @@
 #ifndef picture_utils_DEFINED
 #define picture_utils_DEFINED
 
-class SkBitmap;
+#include "SkBitmap.h"
+
+class SkData;
 class SkString;
 
 namespace sk_tools {
@@ -22,10 +24,6 @@ namespace sk_tools {
 
     /**
      * Replaces all instances of oldChar with newChar in str.
-     *
-     * TODO: This function appears here and in skimage_main.cpp ;
-     * we should add the implementation to src/core/SkString.cpp, write tests for it,
-     * and remove it from elsewhere.
      */
     void replace_char(SkString* str, const char oldChar, const char newChar);
 
@@ -43,13 +41,19 @@ namespace sk_tools {
      *
      * @param bm the bitmap to record
      * @param dirPath directory within which to write the image file
-     * @param subdirOrNull subdirectory within dirPath, or NULL to just write into dirPath
+     * @param subdirOrNull subdirectory within dirPath, or nullptr to just write into dirPath
      * @param baseName last part of the filename
      *
      * @return true if written out successfully
      */
     bool write_bitmap_to_disk(const SkBitmap& bm, const SkString& dirPath,
                               const char *subdirOrNull, const SkString& baseName);
+
+    // Return raw unpremultiplied RGBA bytes, suitable for storing in a PNG. The output
+    // colors are assumed to be sRGB values. This is only guaranteed to work for the
+    // cases that are currently emitted by tools:
+    // Linear premul 8888, sRGB premul 8888, Linear premul F16
+    sk_sp<SkData> encode_bitmap_for_png(SkBitmap bitmap);
 
 } // namespace sk_tools
 

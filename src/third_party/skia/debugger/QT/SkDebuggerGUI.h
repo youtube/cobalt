@@ -17,8 +17,10 @@
 #include "SkListWidget.h"
 #include "SkInspectorWidget.h"
 #include "SkRasterWidget.h"
-#include "SkImageWidget.h"
+#include "SkDrawCommandGeometryWidget.h"
 #include "SkSettingsWidget.h"
+#include <QtCore/QFileSystemWatcher>
+#include <QtCore/QSignalMapper>
 #include <QtCore/QVariant>
 #include <QtGui/QAction>
 #include <QtGui/QApplication>
@@ -37,11 +39,6 @@
 #include <QtGui/QMenuBar>
 #include <vector>
 
-class SkTimedPicture;
-namespace sk_tools {
-    class PictureRenderer;
-}
-
 /** \class SkDebuggerGUI
 
     Container for the UI and it's functions.
@@ -56,8 +53,6 @@ public:
      */
     SkDebuggerGUI(QWidget *parent = 0);
 
-    ~SkDebuggerGUI();
-
     /**
         Updates the directory widget with the latest directory path stored in
         the global class variable fPath.
@@ -69,24 +64,14 @@ public:
     */
     void openFile(const QString& filename);
 
-signals:
+Q_SIGNALS:
     void commandChanged(int command);
 
-private slots:
+private Q_SLOTS:
     /**
         Toggles breakpoint view in the list widget.
      */
     void actionBreakpoints();
-
-    /**
-        Toggles between count and offset style of command indexing in GUI
-     */
-    void actionToggleIndexStyle();
-
-    /**
-        Profile the commands
-     */
-    void actionProfile();
 
     /**
         Cancels the command filter in the list widget.
@@ -104,11 +89,6 @@ private slots:
     void actionClearDeletes();
 
     /**
-        Applies a visible filter to all drawing commands other than the previous.
-     */
-    void actionCommandFilter();
-
-    /**
         Closes the application.
      */
     void actionClose();
@@ -122,7 +102,7 @@ private slots:
     /**
         Updates the visibility of the GL canvas widget and sample count of the GL surface.
      */
-    void actionGLWidget();
+    void actionGLSettingsChanged();
 #endif
 
     /**
@@ -137,24 +117,14 @@ private slots:
     void actionPlay();
 
     /**
-        Toggles the visibility of the raster canvas widget.
+        Sets the visibility of the raster canvas widget according to the settings widget.
      */
-    void actionRasterWidget(bool isToggled);
+    void actionRasterSettingsChanged();
 
     /**
-        Toggles the the overdraw visualization on and off
+        Sets the visualization settings according to the settings widget.
      */
-    void actionOverdrawVizWidget(bool isToggled);
-
-    /**
-        Toggles the the mega visualization on and off
-     */
-    void actionMegaVizWidget(bool isToggled);
-
-    /**
-        Toggles using path ops to simplify the clip stack
-     */
-    void actionPathOpsWidget(bool );
+    void actionVisualizationsChanged();
 
     /**
         Applies the new texture filter override
@@ -219,9 +189,9 @@ private slots:
     void pauseDrawing(bool isPaused = true);
 
     /**
-        Executes draw commands up to the selected command
+        Updates the UI based on the selected command.
      */
-    void registerListClick(QListWidgetItem *item);
+    void updateDrawCommandInfo();
 
     /**
         Sets the command to active in the list widget.
@@ -244,11 +214,20 @@ private slots:
     void toggleDirectory();
 
     /**
+        Populates the contents of the directory widget with the skp files in the
+        current directory pointed to by fFile.
+     */
+    void populateDirectoryWidget();
+
+    /**
         Filters the list widgets command visibility based on the currently
         active selection.
      */
     void toggleFilter(QString string);
 
+    void updateHit(int newHit);
+
+    void updateImage();
 private:
     QSplitter fCentralSplitter;
     QStatusBar fStatusBar;
@@ -256,8 +235,6 @@ private:
 
     QAction fActionOpen;
     QAction fActionBreakpoint;
-    QAction fActionToggleIndexStyle;
-    QAction fActionProfile;
     QAction fActionCancel;
     QAction fActionClearBreakpoints;
     QAction fActionClearDeletes;
@@ -292,16 +269,26 @@ private:
     QListWidget fListWidget;
     QListWidget fDirectoryWidget;
 
+    QFileSystemWatcher fDirectoryWatcher;
+
     SkDebugger fDebugger;
     SkCanvasWidget fCanvasWidget;
-    SkImageWidget fImageWidget;
+
     SkInspectorWidget fInspectorWidget;
     SkSettingsWidget fSettingsWidget;
+
+    QFrame fViewStateFrame;
+    QVBoxLayout fViewStateFrameLayout;
+    QGroupBox fViewStateGroup;
+    QFormLayout fViewStateLayout;
+    QLineEdit fCurrentCommandBox;
+    QLineEdit fCommandHitBox;
+    QLineEdit fZoomBox;
+    SkDrawCommandGeometryWidget fDrawCommandGeometryWidget;
 
     QString fPath;
     SkString fFileName;
     SkTDArray<bool> fSkipCommands; // has a specific command been deleted?
-    bool fDirectoryWidgetActive;
 
     QMenuBar fMenuBar;
     QMenu fMenuFile;
@@ -310,10 +297,6 @@ private:
     QMenu fMenuView;
     QMenu fMenuWindows;
 
-    bool fBreakpointsActivated;
-    bool fIndexStyleToggle;
-    bool fDeletesActivated;
-    bool fPause;
     bool fLoading;
     int fPausedRow;
 
@@ -334,32 +317,23 @@ private:
     void saveToFile(const SkString& filename);
 
     /**
-        Populates the list widget with the vector of strings passed in.
+        Populates the list widget with the debugger draw command info.
      */
-    void setupListWidget(SkTArray<SkString>* commands, SkTDArray<size_t>* offsets);
+    void setupListWidget();
 
     /**
-        Populates the combo box widget with the vector of strings passed in.
+        Populates the combo box widget with with the debugger draw command info.
      */
-    void setupComboBox(SkTArray<SkString>* command);
+    void setupComboBox();
 
     /**
         Fills in the overview pane with text
      */
     void setupOverviewText(const SkTDArray<double>* typeTimes, double totTime, int numRuns);
 
-    /**
-        Fills in the clip stack pane with text
-     */
-    void setupClipStackText();
-
-    /**
-        Render the supplied picture several times tracking the time consumed
-        by each command.
-     */
-    void run(const SkPicture* pict,
-             sk_tools::PictureRenderer* renderer,
-             int repeats);
+    bool isPaused() const {
+        return fActionPause.isChecked();
+    }
 };
 
 #endif // SKDEBUGGERUI_H

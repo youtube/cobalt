@@ -72,9 +72,9 @@ class CubicBezierTimingFunction : public TimingFunction {
   CubicBezierTimingFunction(float p1_x, float p1_y, float p2_x, float p2_y)
       : cubic_bezier_(p1_x, p1_y, p2_x, p2_y) {}
 
-  float Evaluate(float x) const OVERRIDE;
+  float Evaluate(float x) const override;
 
-  std::string ToString() OVERRIDE;
+  std::string ToString() override;
 
   bool operator==(const CubicBezierTimingFunction& other) const {
     return cubic_bezier_ == other.cubic_bezier_;
@@ -83,7 +83,7 @@ class CubicBezierTimingFunction : public TimingFunction {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(CubicBezierTimingFunction);
 
  protected:
-  ~CubicBezierTimingFunction() OVERRIDE {}
+  ~CubicBezierTimingFunction() override {}
 
  private:
   math::CubicBezier cubic_bezier_;
@@ -107,9 +107,9 @@ class SteppingTimingFunction : public TimingFunction {
     DCHECK_LT(0, number_of_steps_);
   }
 
-  float Evaluate(float x) const OVERRIDE;
+  float Evaluate(float x) const override;
 
-  std::string ToString() OVERRIDE;
+  std::string ToString() override;
 
   bool operator==(const SteppingTimingFunction& other) const {
     return number_of_steps_ == other.number_of_steps_ &&
@@ -119,7 +119,7 @@ class SteppingTimingFunction : public TimingFunction {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(SteppingTimingFunction);
 
  protected:
-  ~SteppingTimingFunction() OVERRIDE{};
+  ~SteppingTimingFunction() override{};
 
  private:
   int number_of_steps_;

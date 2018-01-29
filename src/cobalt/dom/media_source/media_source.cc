@@ -259,6 +259,19 @@ void MediaSource::RemoveSourceBuffer(
   source_buffers_->Remove(source_buffer);
 }
 
+void MediaSource::EndOfStreamAlgorithm(MediaSourceEndOfStreamError error) {
+  SetReadyState(kMediaSourceReadyStateEnded);
+
+  PipelineStatus pipeline_status = PIPELINE_OK;
+
+  if (error == kMediaSourceEndOfStreamErrorNetwork) {
+    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
+  } else if (error == kMediaSourceEndOfStreamErrorDecode) {
+    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+  }
+  chunk_demuxer_->MarkEndOfStream(pipeline_status);
+}
+
 void MediaSource::EndOfStream(script::ExceptionState* exception_state) {
   // If there is no error string provided, treat it as empty.
   EndOfStream(kMediaSourceEndOfStreamErrorNoError, exception_state);
@@ -270,18 +283,7 @@ void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
     DOMException::Raise(DOMException::kInvalidStateErr, exception_state);
     return;
   }
-
-  SetReadyState(kMediaSourceReadyStateEnded);
-
-  PipelineStatus pipeline_status = PIPELINE_OK;
-
-  if (error == kMediaSourceEndOfStreamErrorNetwork) {
-    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
-  } else if (error == kMediaSourceEndOfStreamErrorDecode) {
-    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
-  }
-
-  chunk_demuxer_->MarkEndOfStream(pipeline_status);
+  EndOfStreamAlgorithm(error);
 }
 
 void MediaSource::SetLiveSeekableRange(
@@ -519,7 +521,7 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
 void MediaSource::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 
-  event_queue_.TraceMembers(tracer);
+  tracer->Trace(event_queue_);
   tracer->Trace(attached_element_);
   tracer->Trace(source_buffers_);
   tracer->Trace(active_source_buffers_);

@@ -21,7 +21,6 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -35,18 +34,17 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
  public:
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header);
-  ~AudioDecoder() SB_OVERRIDE;
+  ~AudioDecoder() override;
 
-  void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) SB_OVERRIDE;
+  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE;
-  int GetSamplesPerSecond() const SB_OVERRIDE;
+              const ConsumedCB& consumed_cb) override;
+  void WriteEndOfStream() override;
+  scoped_refptr<DecodedAudio> Read() override;
+  void Reset() override;
+  SbMediaAudioSampleType GetSampleType() const override;
+  SbMediaAudioFrameStorageType GetStorageType() const override;
+  int GetSamplesPerSecond() const override;
 
   bool is_valid() const { return codec_context_ != NULL; }
 
@@ -56,7 +54,8 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
 
   static const int kMaxDecodedAudiosSize = 64;
 
-  Closure output_cb_;
+  OutputCB output_cb_;
+  ErrorCB error_cb_;
   SbMediaAudioCodec audio_codec_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;

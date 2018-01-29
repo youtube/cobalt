@@ -13,16 +13,32 @@
 #include "SkPaint.h"
 #include "SkSize.h"
 #include "SkString.h"
-#include "SkTRegistry.h"
-#include "sk_tool_utils.h"
+#include "../tools/Registry.h"
+#include "SkClipOpPriv.h"
 
-#if SK_SUPPORT_GPU
-#include "GrContext.h"
-#endif
+class SkAnimTimer;
+struct GrContextOptions;
 
 #define DEF_GM(code) \
     static skiagm::GM*          SK_MACRO_APPEND_LINE(F_)(void*) { code; } \
     static skiagm::GMRegistry   SK_MACRO_APPEND_LINE(R_)(SK_MACRO_APPEND_LINE(F_));
+
+// a Simple GM is a rendering test that does not store state between
+// rendering calls or make use of the onOnceBeforeDraw() virtual; it
+// consists of:
+//   *   A single void(*)(SkCanvas*) function.
+//   *   A name.
+//   *   Prefered width and height.
+//   *   Optionally, a background color (default is white).
+#define DEF_SIMPLE_GM(NAME, CANVAS, W, H) \
+    DEF_SIMPLE_GM_BG_NAME(NAME, CANVAS, W, H, SK_ColorWHITE, SkString(#NAME))
+#define DEF_SIMPLE_GM_BG(NAME, CANVAS, W, H, BGCOLOR)\
+    DEF_SIMPLE_GM_BG_NAME(NAME, CANVAS, W, H, BGCOLOR, SkString(#NAME))
+#define DEF_SIMPLE_GM_BG_NAME(NAME, CANVAS, W, H, BGCOLOR, NAME_STR)         \
+    static void SK_MACRO_CONCAT(NAME, _GM)(SkCanvas * CANVAS);               \
+    DEF_GM(return new skiagm::SimpleGM(NAME_STR, SK_MACRO_CONCAT(NAME, _GM), \
+                                       SkISize::Make(W, H), BGCOLOR);)       \
+    void SK_MACRO_CONCAT(NAME, _GM)(SkCanvas * CANVAS)
 
 namespace skiagm {
 
@@ -30,24 +46,6 @@ namespace skiagm {
     public:
         GM();
         virtual ~GM();
-
-        enum Flags {
-            kSkipPDF_Flag               = 1 << 0,
-            kSkipPicture_Flag           = 1 << 1,
-            kSkipPipe_Flag              = 1 << 2,
-            kSkipPipeCrossProcess_Flag  = 1 << 3,
-            kSkipTiled_Flag             = 1 << 4,
-            kSkip565_Flag               = 1 << 5,
-            kSkipScaledReplay_Flag      = 1 << 6,
-            kSkipGPU_Flag               = 1 << 7,
-            kSkipPDFRasterization_Flag  = 1 << 8,
-
-            kGPUOnly_Flag               = 1 << 9,
-
-            kAsBench_Flag               = 1 << 10, // Run the GM as a benchmark in the bench tool
-
-            kNoBBH_Flag                 = 1 << 11, // May draw wrong using a bounding-box hierarchy
-        };
 
         enum Mode {
             kGM_Mode,
@@ -65,9 +63,7 @@ namespace skiagm {
         SkISize getISize() { return this->onISize(); }
         const char* getName();
 
-        uint32_t getFlags() const {
-            return this->onGetFlags();
-        }
+        virtual bool runAsBench() const { return false; }
 
         SkScalar width() {
             return SkIntToScalar(this->getISize().width());
@@ -103,13 +99,25 @@ namespace skiagm {
             fStarterMatrix = matrix;
         }
 
+        bool animate(const SkAnimTimer&);
+        bool handleKey(SkUnichar uni) {
+            return this->onHandleKey(uni);
+        }
+
+        virtual void modifyGrContextOptions(GrContextOptions* options) {}
+
+        /** draws a standard message that the GM is only intended to be used with the GPU.*/
+        static void DrawGpuOnlyMessage(SkCanvas*);
+
     protected:
         virtual void onOnceBeforeDraw() {}
         virtual void onDraw(SkCanvas*) = 0;
         virtual void onDrawBackground(SkCanvas*);
         virtual SkISize onISize() = 0;
         virtual SkString onShortName() = 0;
-        virtual uint32_t onGetFlags() const { return 0; }
+
+        virtual bool onAnimate(const SkAnimTimer&) { return false; }
+        virtual bool onHandleKey(SkUnichar uni) { return false; }
         virtual SkMatrix onGetInitialTransform() const { return SkMatrix::I(); }
 
     private:
@@ -121,7 +129,28 @@ namespace skiagm {
         SkMatrix fStarterMatrix;
     };
 
-    typedef SkTRegistry<GM*(*)(void*)> GMRegistry;
+    typedef sk_tools::Registry<GM*(*)(void*)> GMRegistry;
+
+    class SimpleGM : public skiagm::GM {
+    public:
+        SimpleGM(const SkString& name,
+                 void (*drawProc)(SkCanvas*),
+                 const SkISize& size,
+                 SkColor backgroundColor)
+            : fName(name), fDrawProc(drawProc), fSize(size) {
+            if (backgroundColor != SK_ColorWHITE) {
+                this->setBGColor(backgroundColor);
+            }
+        }
+    protected:
+        void onDraw(SkCanvas* canvas) override;
+        SkISize onISize() override;
+        SkString onShortName() override;
+    private:
+        SkString fName;
+        void (*fDrawProc)(SkCanvas*);
+        SkISize fSize;
+    };
 }
 
 #endif

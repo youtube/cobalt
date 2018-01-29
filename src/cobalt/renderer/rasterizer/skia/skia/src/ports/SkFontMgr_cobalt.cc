@@ -158,7 +158,7 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyle(
   SkTypeface* typeface = NULL;
 
   if (family_name != NULL) {
-    SkAutoTUnref<SkFontStyleSet> family(matchFamily(family_name));
+    sk_sp<SkFontStyleSet> family(matchFamily(family_name));
     typeface = family->matchStyle(style);
   }
 
@@ -184,11 +184,8 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFaceStyle(const SkTypeface* family_member,
 }
 
 SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
-    const char family_name[], const SkFontStyle& style, const char bcp47_val[],
-    SkUnichar character) const {
-  const char** bcp47 = &bcp47_val;
-  int bcp47_count = bcp47_val ? 1 : 0;
-
+    const char family_name[], const SkFontStyle& style, const char* bcp47[],
+    int bcp47_count, SkUnichar character) const {
   // Remove const from the manager. SkFontMgr_Cobalt modifies its internals
   // within FindFamilyStyleCharacter().
   SkFontMgr_Cobalt* font_manager = const_cast<SkFontMgr_Cobalt*>(this);
@@ -227,8 +224,9 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromData(SkData* data,
                                                int face_index) const {
-  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(data));
-  return createFromStream(stream, face_index);
+  scoped_ptr<SkStreamAsset> stream(
+      new SkMemoryStream(data->data(), data->size()));
+  return createFromStream(stream.get(), face_index);
 }
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
@@ -241,26 +239,19 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
                                     &is_fixed_pitch)) {
     return NULL;
   }
-  return SkNEW_ARGS(SkTypeface_CobaltStream,
-                    (stream, face_index, style, is_fixed_pitch, name));
+  return new SkTypeface_CobaltStream(stream, face_index, style, is_fixed_pitch,
+                                     name);
 }
 
 SkTypeface* SkFontMgr_Cobalt::onCreateFromFile(const char path[],
                                                int face_index) const {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::onCreateFromFile()");
-  SkAutoTUnref<SkStreamAsset> stream(SkStream::NewFromFile(path));
-  return stream.get() ? createFromStream(stream, face_index) : NULL;
+  std::unique_ptr<SkStreamAsset> stream = SkStream::MakeFromFile(path);
+  return stream.get() ? createFromStream(stream.release(), face_index) : NULL;
 }
 
-SkTypeface* SkFontMgr_Cobalt::onLegacyCreateTypeface(
-    const char family_name[], unsigned style_bits) const {
-  SkTypeface::Style old_style = (SkTypeface::Style)style_bits;
-  SkFontStyle style = SkFontStyle(
-      old_style & SkTypeface::kBold ? SkFontStyle::kBold_Weight
-                                    : SkFontStyle::kNormal_Weight,
-      SkFontStyle::kNormal_Width,
-      old_style & SkTypeface::kItalic ? SkFontStyle::kItalic_Slant
-                                      : SkFontStyle::kUpright_Slant);
+SkTypeface* SkFontMgr_Cobalt::onLegacyCreateTypeface(const char family_name[],
+                                                     SkFontStyle style) const {
   return matchFamilyStyle(family_name, style);
 }
 
@@ -294,10 +285,9 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
       fallback_name.printf("%.2x##fallback", families_.count());
     }
 
-    SkAutoTUnref<SkFontStyleSet_Cobalt> new_family(
-        SkNEW_ARGS(SkFontStyleSet_Cobalt,
-                   (family_info, font_files_directory,
-                    &local_typeface_stream_manager_, &family_mutex_)));
+    sk_sp<SkFontStyleSet_Cobalt> new_family(new SkFontStyleSet_Cobalt(
+        family_info, font_files_directory, &local_typeface_stream_manager_,
+        &family_mutex_));
 
     // Do not add the family if none of its fonts were available. This allows
     // the configuration files to specify a superset of all fonts, and ones that
@@ -332,7 +322,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
           new_family.get());
     }
 
-    for (SkAutoTUnref<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
+    for (sk_sp<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
              family_style_entry = new_family->styles_.begin();
          family_style_entry != new_family->styles_.end();
          ++family_style_entry) {
@@ -394,13 +384,13 @@ void SkFontMgr_Cobalt::FindDefaultFamily(
   CHECK(!families_.empty());
 
   for (size_t i = 0; i < default_families.count(); ++i) {
-    SkAutoTUnref<SkFontStyleSet_Cobalt> check_family(
+    sk_sp<SkFontStyleSet_Cobalt> check_family(
         onMatchFamily(default_families[i].c_str()));
     if (check_family.get() == NULL) {
       continue;
     }
 
-    SkAutoTUnref<SkTypeface> check_typeface(
+    sk_sp<SkTypeface> check_typeface(
         check_family->MatchStyleWithoutLocking(SkFontStyle()));
     if (check_typeface.get() != NULL) {
       default_family_ = check_family.get();
@@ -409,7 +399,7 @@ void SkFontMgr_Cobalt::FindDefaultFamily(
   }
 
   if (default_family_ == NULL) {
-    SkAutoTUnref<SkTypeface> check_typeface(
+    sk_sp<SkTypeface> check_typeface(
         families_[0]->MatchStyleWithoutLocking(SkFontStyle()));
     if (check_typeface.get() != NULL) {
       default_family_ = families_[0].get();

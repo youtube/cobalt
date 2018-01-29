@@ -10,16 +10,17 @@
 #ifndef SkWriter32_DEFINED
 #define SkWriter32_DEFINED
 
+#include "../private/SkTemplates.h"
 #include "SkData.h"
 #include "SkMatrix.h"
 #include "SkPath.h"
 #include "SkPoint.h"
+#include "SkPoint3.h"
 #include "SkRRect.h"
 #include "SkRect.h"
 #include "SkRegion.h"
 #include "SkScalar.h"
 #include "SkStream.h"
-#include "SkTemplates.h"
 #include "SkTypes.h"
 
 class SK_API SkWriter32 : SkNoncopyable {
@@ -45,17 +46,10 @@ public:
         SkASSERT(SkIsAlign4((uintptr_t)external));
         SkASSERT(SkIsAlign4(externalBytes));
 
-        fSnapshot.reset(NULL);
         fData = (uint8_t*)external;
         fCapacity = externalBytes;
         fUsed = 0;
         fExternal = external;
-    }
-
-    // Returns the current buffer.
-    // The pointer may be invalidated by any future write calls.
-    const uint32_t* contiguousArray() const {
-        return (uint32_t*)fData;
     }
 
     // size MUST be multiple of 4
@@ -89,7 +83,6 @@ public:
     void overwriteTAt(size_t offset, const T& value) {
         SkASSERT(SkAlign4(offset) == offset);
         SkASSERT(offset < fUsed);
-        SkASSERT(fSnapshot.get() == NULL);
         *(T*)(fData + offset) = value;
     }
 
@@ -124,6 +117,10 @@ public:
 
     void writePoint(const SkPoint& pt) {
         *(SkPoint*)this->reserve(sizeof(pt)) = pt;
+    }
+
+    void writePoint3(const SkPoint3& pt) {
+        *(SkPoint3*)this->reserve(sizeof(pt)) = pt;
     }
 
     void writeRect(const SkRect& rect) {
@@ -167,7 +164,7 @@ public:
      */
     void write(const void* values, size_t size) {
         SkASSERT(SkAlign4(size) == size);
-        memcpy(this->reserve(size), values, size);
+        sk_careful_memcpy(this->reserve(size), values, size);
     }
 
     /**
@@ -188,7 +185,7 @@ public:
      *  Write size bytes from src, and pad to 4 byte alignment with zeroes.
      */
     void writePad(const void* src, size_t size) {
-        memcpy(this->reservePad(size), src, size);
+        sk_careful_memcpy(this->reservePad(size), src, size);
     }
 
     /**
@@ -207,6 +204,18 @@ public:
      *  computed by calling strlen().
      */
     static size_t WriteStringSize(const char* str, size_t len = (size_t)-1);
+
+    void writeData(const SkData* data) {
+        uint32_t len = data ? SkToU32(data->size()) : 0;
+        this->write32(len);
+        if (data) {
+            this->writePad(data->data(), len);
+        }
+    }
+
+    static size_t WriteDataSize(const SkData* data) {
+        return 4 + SkAlign4(data ? data->size() : 0);
+    }
 
     /**
      *  Move the cursor back to offset bytes from the beginning.
@@ -235,16 +244,8 @@ public:
 
     /**
      *  Captures a snapshot of the data as it is right now, and return it.
-     *  Multiple calls without intervening writes may return the same SkData,
-     *  but this is not guaranteed.
-     *  Future appends will not affect the returned buffer.
-     *  It is illegal to call overwriteTAt after this without an intervening
-     *  append. It may cause the snapshot buffer to be corrupted.
-     *  Callers must unref the returned SkData.
-     *  This is not thread safe, it should only be called on the writing thread,
-     *  the result however can be shared across threads.
      */
-    SkData* snapshotAsData() const;
+    sk_sp<SkData> snapshotAsData() const;
 private:
     void growToAtLeast(size_t size);
 
@@ -253,7 +254,6 @@ private:
     size_t fUsed;                      // Number of bytes written.
     void* fExternal;                   // Unmanaged memory block.
     SkAutoTMalloc<uint8_t> fInternal;  // Managed memory block.
-    SkAutoTUnref<SkData> fSnapshot;    // Holds the result of last asData.
 };
 
 /**

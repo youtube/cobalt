@@ -12,11 +12,11 @@
 #include "SkString.h"
 
 /**
- * This bench measures the rendering time of the call SkCanvas::drawPatch with different types of 
- * input patches (regular case, with loops, a square, with a big difference between "parallel" 
- * sides). This bench also tests the different combination of optional parameters for the function 
+ * This bench measures the rendering time of the call SkCanvas::drawPatch with different types of
+ * input patches (regular case, with loops, a square, with a big difference between "parallel"
+ * sides). This bench also tests the different combination of optional parameters for the function
  * (passing texture coordinates and colors, only textures coordinates, only colors or none).
- * Finally, it applies a scale to test if the size affects the rendering time. 
+ * Finally, it applies a scale to test if the size affects the rendering time.
  */
 
 class PatchBench : public Benchmark {
@@ -69,20 +69,19 @@ public:
     }
 
     // override this method to change the shader
-    virtual SkShader* createShader() {
+    virtual sk_sp<SkShader> createShader() {
         const SkColor colors[] = {
             SK_ColorRED, SK_ColorCYAN, SK_ColorGREEN, SK_ColorWHITE,
             SK_ColorMAGENTA, SK_ColorBLUE, SK_ColorYELLOW,
         };
         const SkPoint pts[] = { { 200.f / 4.f, 0.f }, { 3.f * 200.f / 4, 200.f } };
 
-        return SkGradientShader::CreateLinear(pts, colors, NULL,
-                                              SK_ARRAY_COUNT(colors),
-                                              SkShader::kMirror_TileMode);
+        return SkGradientShader::MakeLinear(pts, colors, nullptr, SK_ARRAY_COUNT(colors),
+                                            SkShader::kMirror_TileMode);
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         SkString vertexMode;
         switch (fVertexMode) {
             case kNone_VertexMode:
@@ -102,12 +101,12 @@ protected:
         }
         SkString type;
         this->appendName(&type);
-        fName.printf("patch_%s_%s_[%f,%f]", type.c_str(), vertexMode.c_str(),
+        fName.printf("patch_%s_%s_%fx%f", type.c_str(), vertexMode.c_str(),
                     fScale.x(), fScale.y());
         return fName.c_str();
     }
 
-    virtual void onPreDraw() SK_OVERRIDE {
+    void onDelayedSetup() override {
         this->setCubics();
         this->setColors();
         this->setTexCoords();
@@ -115,29 +114,29 @@ protected:
         switch (fVertexMode) {
             case kTexCoords_VertexMode:
             case kBoth_VertexMode:
-                fPaint.setShader(this->createShader())->unref();
+                fPaint.setShader(this->createShader());
                 break;
             default:
-                fPaint.setShader(NULL);
+                fPaint.setShader(nullptr);
                 break;
         }
     }
 
-    virtual void onDraw(const int loops, SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas* canvas) override {
         canvas->scale(fScale.x(), fScale.y());
         for (int i = 0; i < loops; i++) {
             switch (fVertexMode) {
                 case kNone_VertexMode:
-                    canvas->drawPatch(fCubics, NULL, NULL, NULL, fPaint);
+                    canvas->drawPatch(fCubics, nullptr, nullptr, fPaint);
                     break;
                 case kColors_VertexMode:
-                    canvas->drawPatch(fCubics, fColors, NULL, NULL, fPaint);
+                    canvas->drawPatch(fCubics, fColors, nullptr, fPaint);
                     break;
                 case kTexCoords_VertexMode:
-                    canvas->drawPatch(fCubics, NULL, fTexCoords, NULL, fPaint);
+                    canvas->drawPatch(fCubics, nullptr, fTexCoords, fPaint);
                     break;
                 case kBoth_VertexMode:
-                    canvas->drawPatch(fCubics, fColors, fTexCoords, NULL, fPaint);
+                    canvas->drawPatch(fCubics, fColors, fTexCoords, fPaint);
                     break;
                 default:
                     break;
@@ -161,11 +160,11 @@ public:
     SquarePatchBench(SkPoint scale, VertexMode vertexMode)
     : INHERITED(scale, vertexMode) { }
 
-    virtual void appendName(SkString* name) SK_OVERRIDE {
+    void appendName(SkString* name) override {
         name->append("square");
     }
 
-    virtual void setCubics() SK_OVERRIDE {
+    void setCubics() override {
         const SkPoint points[SkPatchUtils::kNumCtrlPts] = {
             //top points
             {100,100},{150,100},{250,100}, {300,100},
@@ -187,11 +186,11 @@ public:
     LODDiffPatchBench(SkPoint scale, VertexMode vertexMode)
     : INHERITED(scale, vertexMode) { }
 
-    virtual void appendName(SkString* name) SK_OVERRIDE {
+    void appendName(SkString* name) override {
         name->append("LOD_Diff");
     }
 
-    virtual void setCubics() SK_OVERRIDE {
+    void setCubics() override {
         const SkPoint points[SkPatchUtils::kNumCtrlPts] = {
             //top points
             {100,175},{150,100},{250,100}, {300,0},
@@ -213,11 +212,11 @@ public:
     LoopPatchBench(SkPoint scale, VertexMode vertexMode)
     : INHERITED(scale, vertexMode) { }
 
-    virtual void appendName(SkString* name) SK_OVERRIDE {
+    void appendName(SkString* name) override {
         name->append("loop");
     }
 
-    virtual void setCubics() SK_OVERRIDE {
+    void setCubics() override {
         const SkPoint points[SkPatchUtils::kNumCtrlPts] = {
             //top points
             {100,100},{300,200},{100,200}, {300,100},
@@ -323,3 +322,39 @@ DEF_BENCH( return new LoopPatchBench(SkVector::Make(3.0f, 3.0f),
                                         PatchBench::kTexCoords_VertexMode); )
 DEF_BENCH( return new LoopPatchBench(SkVector::Make(3.0f, 3.0f),
                                         PatchBench::kBoth_VertexMode); )
+
+//////////////////////////////////////////////
+#include "SkPatchUtils.h"
+
+class PatchUtilsBench : public Benchmark {
+    SkString    fName;
+    const bool  fLinearInterp;
+public:
+    PatchUtilsBench(bool linearInterp) : fLinearInterp(linearInterp) {
+        fName.printf("patchutils_%s", linearInterp ? "linear" : "legacy");
+    }
+
+    const char* onGetName() override { return fName.c_str(); }
+
+    bool isSuitableFor(Backend backend) override {
+        return backend == kNonRendering_Backend;
+    }
+
+    void onDraw(int loops, SkCanvas*) override {
+        const SkColor colors[] = { 0xFF000000, 0xFF00FF00, 0xFF0000FF, 0xFFFF0000 };
+        const SkPoint pts[] = {
+            { 0, 0 }, { 10, 0 }, { 20, 0 }, { 30, 0 },
+            { 30,10}, { 30,20 }, { 30,30 }, { 20,30 },
+            { 10,30}, { 0, 30 }, { 0, 20 }, { 0, 10 },
+        };
+        const SkPoint tex[] = {
+            { 0, 0 }, { 10, 0 }, { 10, 10 }, { 0, 10 },
+        };
+
+        for (int i = 0; i < 100*loops; ++i) {
+            SkPatchUtils::MakeVertices(pts, colors, tex, 20, 20, fLinearInterp);
+        }
+    }
+};
+DEF_BENCH( return new PatchUtilsBench(false); )
+DEF_BENCH( return new PatchUtilsBench(true); )

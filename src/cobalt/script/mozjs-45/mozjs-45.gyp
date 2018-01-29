@@ -39,6 +39,8 @@
         'mozjs_script_value_factory.h',
         'mozjs_source_code.cc',
         'mozjs_source_code.h',
+        'mozjs_tracer.cc',
+        'mozjs_tracer.h',
         'mozjs_user_object_holder.h',
         'mozjs_value_handle.h',
         'mozjs_wrapper_handle.h',

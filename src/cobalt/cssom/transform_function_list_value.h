@@ -37,18 +37,18 @@ class TransformFunctionListValue : public ScopedListValue<TransformFunction> {
       ScopedListValue<TransformFunction>::Builder value)
       : ScopedListValue<TransformFunction>(value.Pass()) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE {
+  void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitTransformFunctionList(this);
   }
 
   TransformMatrix ToMatrix() const;
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(TransformFunctionListValue);
 
  private:
-  virtual ~TransformFunctionListValue() OVERRIDE {}
+  ~TransformFunctionListValue() override {}
 };
 
 }  // namespace cssom

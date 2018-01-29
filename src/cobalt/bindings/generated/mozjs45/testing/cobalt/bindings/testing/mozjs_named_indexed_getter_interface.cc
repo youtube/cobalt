@@ -1,4 +1,6 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+
+
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::NamedIndexedGetterInterface;
 using cobalt::bindings::testing::MozjsNamedIndexedGetterInterface;
@@ -87,7 +90,9 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
 
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
@@ -145,6 +150,8 @@ bool GetNamedProperty(
   return !exception_state.is_exception_set();
 }
 
+
+
 bool SetNamedProperty(
   JSContext* context, JS::HandleObject object, JS::HandleId id,
   JS::MutableHandleValue vp, JS::ObjectOpResult& object_op_result) {
@@ -185,6 +192,9 @@ bool SetNamedProperty(
     return false;
   }
 }
+
+
+
 
 bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
                               uint32_t index) {
@@ -242,6 +252,8 @@ bool GetIndexedProperty(
   return !exception_state.is_exception_set();
 }
 
+
+
 bool SetIndexedProperty(
   JSContext* context, JS::HandleObject object, JS::HandleId id,
   JS::MutableHandleValue vp, JS::ObjectOpResult& object_op_result) {
@@ -281,6 +293,8 @@ bool SetIndexedProperty(
   }
 }
 
+
+
 class MozjsNamedIndexedGetterInterfaceHandler : public ProxyHandler {
  public:
   MozjsNamedIndexedGetterInterfaceHandler()
@@ -299,6 +313,7 @@ MozjsNamedIndexedGetterInterfaceHandler::named_property_hooks = {
   SetNamedProperty,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsNamedIndexedGetterInterfaceHandler::indexed_property_hooks = {
   IsSupportedIndexProperty,
@@ -310,6 +325,14 @@ MozjsNamedIndexedGetterInterfaceHandler::indexed_property_hooks = {
 
 static base::LazyInstance<MozjsNamedIndexedGetterInterfaceHandler>
     proxy_handler;
+
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "NamedIndexedGetterInterface is not constructible.");
+  return false;
+}
+
 
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
@@ -517,6 +540,7 @@ bool set_propertyOnBaseClass(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_indexedGetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -586,6 +610,7 @@ bool fcn_indexedGetter(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_indexedSetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -663,6 +688,7 @@ bool fcn_indexedSetter(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_namedGetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -732,6 +758,7 @@ bool fcn_namedGetter(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_namedSetter(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -809,6 +836,7 @@ bool fcn_namedSetter(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_operationOnBaseClass(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -858,6 +886,7 @@ bool fcn_operationOnBaseClass(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Readonly attribute
     "length",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -893,6 +922,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -933,17 +963,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "NamedIndexedGetterInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "NamedIndexedGetterInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
@@ -970,7 +1008,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 32;
+  const int kInterfaceUniqueId = 33;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
@@ -1049,8 +1087,9 @@ JSObject* MozjsNamedIndexedGetterInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

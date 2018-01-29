@@ -12,11 +12,10 @@ namespace {
 static void* gGlobalAddress;
 class TestKey : public SkResourceCache::Key {
 public:
-    void*    fPtr;
     intptr_t fValue;
 
-    TestKey(intptr_t value) : fPtr(&gGlobalAddress), fValue(value) {
-        this->init(sizeof(fPtr) + sizeof(fValue));
+    TestKey(intptr_t value) : fValue(value) {
+        this->init(&gGlobalAddress, 0, sizeof(fValue));
     }
 };
 struct TestRec : public SkResourceCache::Rec {
@@ -25,8 +24,10 @@ struct TestRec : public SkResourceCache::Rec {
 
     TestRec(const TestKey& key, intptr_t value) : fKey(key), fValue(value) {}
 
-    virtual const Key& getKey() const SK_OVERRIDE { return fKey; }
-    virtual size_t bytesUsed() const SK_OVERRIDE { return sizeof(fKey) + sizeof(fValue); }
+    const Key& getKey() const override { return fKey; }
+    size_t bytesUsed() const override { return sizeof(fKey) + sizeof(fValue); }
+    const char* getCategory() const override { return "imagecachebench-test"; }
+    SkDiscardableMemory* diagnostic_only_getDiscardable() const override { return nullptr; }
 
     static bool Visitor(const SkResourceCache::Rec&, void*) {
         return true;
@@ -45,16 +46,16 @@ public:
 
     void populateCache() {
         for (int i = 0; i < CACHE_COUNT; ++i) {
-            fCache.add(SkNEW_ARGS(TestRec, (TestKey(i), i)));
+            fCache.add(new TestRec(TestKey(i), i));
         }
     }
 
 protected:
-    virtual const char* onGetName() SK_OVERRIDE {
+    const char* onGetName() override {
         return "imagecache";
     }
 
-    virtual void onDraw(const int loops, SkCanvas*) SK_OVERRIDE {
+    void onDraw(int loops, SkCanvas*) override {
         if (fCache.getTotalBytesUsed() == 0) {
             this->populateCache();
         }
@@ -62,7 +63,7 @@ protected:
         TestKey key(-1);
         // search for a miss (-1)
         for (int i = 0; i < loops; ++i) {
-            SkDEBUGCODE(bool found =) fCache.find(key, TestRec::Visitor, NULL);
+            SkDEBUGCODE(bool found =) fCache.find(key, TestRec::Visitor, nullptr);
             SkASSERT(!found);
         }
     }

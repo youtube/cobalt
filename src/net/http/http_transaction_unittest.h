@@ -158,33 +158,33 @@ class MockNetworkTransaction : public net::HttpTransaction {
 
   virtual int Start(const net::HttpRequestInfo* request,
                     const net::CompletionCallback& callback,
-                    const net::BoundNetLog& net_log) OVERRIDE;
+                    const net::BoundNetLog& net_log) override;
 
   virtual int RestartIgnoringLastError(
-      const net::CompletionCallback& callback) OVERRIDE;
+      const net::CompletionCallback& callback) override;
 
   virtual int RestartWithCertificate(
       net::X509Certificate* client_cert,
-      const net::CompletionCallback& callback) OVERRIDE;
+      const net::CompletionCallback& callback) override;
 
   virtual int RestartWithAuth(
       const net::AuthCredentials& credentials,
-      const net::CompletionCallback& callback) OVERRIDE;
+      const net::CompletionCallback& callback) override;
 
-  virtual bool IsReadyToRestartForAuth() OVERRIDE;
+  virtual bool IsReadyToRestartForAuth() override;
 
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback) OVERRIDE;
+                   const net::CompletionCallback& callback) override;
 
-  virtual void StopCaching() OVERRIDE;
+  virtual void StopCaching() override;
 
-  virtual void DoneReading() OVERRIDE;
+  virtual void DoneReading() override;
 
-  virtual const net::HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual const net::HttpResponseInfo* GetResponseInfo() const override;
 
-  virtual net::LoadState GetLoadState() const OVERRIDE;
+  virtual net::LoadState GetLoadState() const override;
 
-  virtual net::UploadProgress GetUploadProgress() const OVERRIDE;
+  virtual net::UploadProgress GetUploadProgress() const override;
 
  private:
   void CallbackLater(const net::CompletionCallback& callback, int result);
@@ -211,9 +211,9 @@ class MockNetworkLayer : public net::HttpTransactionFactory,
   // net::HttpTransactionFactory:
   virtual int CreateTransaction(
       scoped_ptr<net::HttpTransaction>* trans,
-      net::HttpTransactionDelegate* delegate) OVERRIDE;
-  virtual net::HttpCache* GetCache() OVERRIDE;
-  virtual net::HttpNetworkSession* GetSession() OVERRIDE;
+      net::HttpTransactionDelegate* delegate) override;
+  virtual net::HttpCache* GetCache() override;
+  virtual net::HttpNetworkSession* GetSession() override;
 
  private:
   int transaction_count_;

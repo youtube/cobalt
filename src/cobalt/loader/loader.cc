@@ -13,8 +13,6 @@
 // limitations under the License.
 
 #include "cobalt/loader/loader.h"
-#include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/loader/text_decoder.h"
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
@@ -39,7 +37,7 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
   // From Fetcher::Handler.
   LoadResponseType OnResponseStarted(
       Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE {
+      const scoped_refptr<net::HttpResponseHeaders>& headers) override {
     if (headers) {
       return decoder_->OnResponseStarted(fetcher, headers);
     } else {
@@ -47,21 +45,21 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
     }
   }
 
-  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnReceivedPassed(Fetcher* fetcher,
-                        scoped_ptr<std::string> data) OVERRIDE {
+                        scoped_ptr<std::string> data) override {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunkPassed(data.Pass());
   }
-  void OnDone(Fetcher* fetcher) OVERRIDE {
+  void OnDone(Fetcher* fetcher) override {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
   }
-  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(fetcher);
     error_callback_.Run(error);
   }
@@ -85,7 +83,7 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
       is_suspended_(is_suspended) {
   DCHECK(!fetcher_creator_.is_null());
   DCHECK(decoder_);
-  DCHECK(!on_error.is_null());
+  DCHECK(!on_error_.is_null());
 
   if (!is_suspended_) {
     Start();
@@ -129,6 +127,11 @@ void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
 
   decoder_->Resume(resource_provider);
   Start();
+}
+
+bool Loader::DidFailFromTransientError() const {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return fetcher_ && fetcher_->did_fail_from_transient_error();
 }
 
 void Loader::Start() {

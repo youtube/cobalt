@@ -23,7 +23,8 @@ namespace v8c {
 
 // Data that is cached on a per-interface basis.
 struct InterfaceData {
-  v8::Eternal<v8::FunctionTemplate> templ;
+  v8::Eternal<v8::FunctionTemplate> function_template;
+  v8::Eternal<v8::Object> interface_object;
 };
 
 }  // namespace v8c

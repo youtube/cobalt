@@ -11,32 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Raspberry Pi 0 platform configuration for gyp_cobalt."""
+"""Starboard Raspberry Pi 0 platform configuration."""
 
-import logging
-import os
-import sys
-
-_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(_SCRIPT_DIR, '..'))
-
-import cobalt.tools.webdriver_benchmark_config as wb_config
-# pylint: disable=g-import-not-at-top
-from shared.gyp_configuration import RaspiPlatformConfig
+from starboard.raspi.shared import gyp_configuration as shared_configuration
 
 
 def CreatePlatformConfig():
-  try:
-    return RaspiZeroPlatformConfig('raspi-0')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
-
-
-class RaspiZeroPlatformConfig(RaspiPlatformConfig):
-
-  def __init__(self, platform):
-    super(RaspiZeroPlatformConfig, self).__init__(platform)
-
-  def GetDefaultSampleSize(self):
-    return wb_config.REDUCED_SIZE
+  return shared_configuration.RaspiPlatformConfig('raspi-0')

@@ -36,18 +36,18 @@ class ActivePseudoClass : public PseudoClass {
  public:
   ActivePseudoClass()
       : PseudoClass(base::Tokens::active_pseudo_class_selector()) {}
-  ~ActivePseudoClass() OVERRIDE {}
+  ~ActivePseudoClass() override {}
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
+  void Accept(SelectorVisitor* visitor) override;
 
   // From SimpleSelector.
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
-                             CombinatorType combinator) OVERRIDE;
+                             CombinatorType combinator) override;
 
   // From PseudoClass.
-  ActivePseudoClass* AsActivePseudoClass() OVERRIDE { return this; }
+  ActivePseudoClass* AsActivePseudoClass() override { return this; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ActivePseudoClass);

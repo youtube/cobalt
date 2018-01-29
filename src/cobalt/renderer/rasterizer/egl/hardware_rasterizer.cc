@@ -50,7 +50,8 @@ class HardwareRasterizer::Impl {
                 int skia_cache_size_in_bytes,
                 int scratch_surface_cache_size_in_bytes,
                 int offscreen_target_cache_size_in_bytes,
-                bool purge_skia_font_caches_on_destruction);
+                bool purge_skia_font_caches_on_destruction,
+                bool disable_rasterizer_caching);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -80,7 +81,7 @@ class HardwareRasterizer::Impl {
                      backend::RenderTargetEGL* render_target,
                      const math::Rect& content_rect);
 
-  SkSurface* CreateFallbackSurface(
+  sk_sp<SkSurface> CreateFallbackSurface(
       const backend::RenderTarget* render_target);
 
   scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
@@ -97,11 +98,11 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
                                int offscreen_target_cache_size_in_bytes,
-                               bool purge_skia_font_caches_on_destruction)
+                               bool purge_skia_font_caches_on_destruction,
+                               bool disable_rasterizer_caching)
     : fallback_rasterizer_(new skia::HardwareRasterizer(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          0 /* fallback rasterizer should not use a surface cache */,
           purge_skia_font_caches_on_destruction)),
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
@@ -118,6 +119,9 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       base::Bind(&HardwareRasterizer::Impl::CreateFallbackSurface,
                  base::Unretained(this)),
       offscreen_target_cache_size_in_bytes));
+  if (disable_rasterizer_caching) {
+    offscreen_target_manager_->SetCacheErrorThreshold(0.0f);
+  }
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -148,8 +152,6 @@ void HardwareRasterizer::Impl::Submit(
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
-
-  fallback_rasterizer_->AdvanceFrame();
 
   // Update only the dirty pixels if the render target contents are preserved
   // between frames.
@@ -273,7 +275,7 @@ void HardwareRasterizer::Impl::RasterizeTree(
   graphics_state_->EndFrame();
 }
 
-SkSurface* HardwareRasterizer::Impl::CreateFallbackSurface(
+sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
     const backend::RenderTarget* render_target) {
   // Wrap the given render target in a new skia surface.
   GrBackendRenderTargetDesc skia_desc;
@@ -285,13 +287,11 @@ SkSurface* HardwareRasterizer::Impl::CreateFallbackSurface(
   skia_desc.fStencilBits = 0;
   skia_desc.fRenderTargetHandle = render_target->GetPlatformHandle();
 
-  SkAutoTUnref<GrRenderTarget> skia_render_target(
-      GetFallbackContext()->wrapBackendRenderTarget(skia_desc));
   SkSurfaceProps skia_surface_props(
       SkSurfaceProps::kUseDistanceFieldFonts_Flag,
       SkSurfaceProps::kLegacyFontHost_InitType);
-  return SkSurface::NewRenderTargetDirect(
-      skia_render_target, &skia_surface_props);
+  return SkSurface::MakeFromBackendRenderTarget(GetFallbackContext(), skia_desc,
+                                                &skia_surface_props);
 }
 
 HardwareRasterizer::HardwareRasterizer(
@@ -299,12 +299,13 @@ HardwareRasterizer::HardwareRasterizer(
     int skia_atlas_height, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes,
     int offscreen_target_cache_size_in_bytes,
-    bool purge_skia_font_caches_on_destruction)
+    bool purge_skia_font_caches_on_destruction,
+    bool disable_rasterizer_caching)
     : impl_(new Impl(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
           offscreen_target_cache_size_in_bytes,
-          purge_skia_font_caches_on_destruction)) {
+          purge_skia_font_caches_on_destruction, disable_rasterizer_caching)) {
 }
 
 HardwareRasterizer::~HardwareRasterizer() {}

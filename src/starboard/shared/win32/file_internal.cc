@@ -144,7 +144,7 @@ HANDLE OpenFileOrDirectory(const char* path,
 
   SB_DCHECK(desired_access != 0) << "Invalid permission flag.";
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
+  std::wstring path_wstring = NormalizeWin32Path(path);
 
   CREATEFILE2_EXTENDED_PARAMETERS create_ex_params = {0};
   // Enabling |FILE_FLAG_BACKUP_SEMANTICS| allows us to figure out if the path
@@ -155,17 +155,19 @@ HANDLE OpenFileOrDirectory(const char* path,
   create_ex_params.dwSecurityQosFlags = SECURITY_ANONYMOUS;
   create_ex_params.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
 
+  const bool file_exists_prior_to_open = SbFileExists(path);
+
   HANDLE file_handle =
       CreateFile2(path_wstring.c_str(), desired_access, share_mode,
                   creation_disposition, &create_ex_params);
 
-  if (out_created) {
-    if (flags & (kSbFileCreateAlways | kSbFileCreateOnly)) {
-      *out_created = starboard::shared::win32::IsValidHandle(file_handle);
-    }
+  const bool file_exists_after_open = SbFileExists(path);
 
-    if ((creation_disposition == OPEN_ALWAYS) && (open_file_in_write_mode)) {
-      *out_created = (GetLastError() != ERROR_ALREADY_EXISTS);
+  if (out_created && starboard::shared::win32::IsValidHandle(file_handle)) {
+    if (flags & kSbFileCreateAlways) {
+      *out_created = file_exists_after_open;
+    } else {
+      *out_created = (!file_exists_prior_to_open && file_exists_after_open);
     }
   }
 
@@ -179,9 +181,14 @@ HANDLE OpenFileOrDirectory(const char* path,
         case ERROR_ACCESS_DENIED:
           *out_error = kSbFileErrorAccessDenied;
           break;
-        case ERROR_FILE_EXISTS:
-          *out_error = kSbFileErrorAccessDenied;
+        case ERROR_FILE_EXISTS: {
+          if (flags & kSbFileCreateOnly) {
+            *out_error = kSbFileErrorExists;
+          } else {
+            *out_error = kSbFileErrorAccessDenied;
+          }
           break;
+        }
         case ERROR_FILE_NOT_FOUND:
           *out_error = kSbFileErrorNotFound;
           break;
@@ -192,19 +199,6 @@ HANDLE OpenFileOrDirectory(const char* path,
   }
 
   return file_handle;
-}
-
-bool DirectoryExists(const std::wstring& dir_path) {
-  if (dir_path.empty()) {
-    return false;
-  }
-  std::wstring norm_dir_path = NormalizeWin32Path(dir_path);
-  WIN32_FILE_ATTRIBUTE_DATA attribute_data = {0};
-  if (!GetFileAttributesExW(norm_dir_path.c_str(), GetFileExInfoStandard,
-                            &attribute_data)) {
-    return false;
-  }
-  return (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 }  // namespace win32

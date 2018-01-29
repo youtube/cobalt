@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "third_party/skia/src/utils/SkOSPath.h"
 
 namespace {
 
@@ -36,7 +37,8 @@ int MatchScore(const SkFontStyle& pattern, const SkFontStyle& candidate) {
   // CSS style (italic/oblique)
   // Being italic trumps all valid weights which are not italic.
   // Note that newer specs differentiate between italic and oblique.
-  if (pattern.isItalic() == candidate.isItalic()) {
+  if ((pattern.slant() == SkFontStyle::kItalic_Slant) ==
+      (candidate.slant() == SkFontStyle::kItalic_Slant)) {
     score += 1001;
   }
 
@@ -116,10 +118,9 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
                                     font_file.postscript_name.size());
     }
 
-    styles_.push_back().reset(
-        SkNEW_ARGS(SkFontStyleSetEntry_Cobalt,
-                   (file_path, font_file.index, style, full_font_name,
-                    postscript_name, font_file.disable_synthetic_bolding)));
+    styles_.push_back().reset(new SkFontStyleSetEntry_Cobalt(
+        file_path, font_file.index, style, full_font_name, postscript_name,
+        font_file.disable_synthetic_bolding));
   }
 }
 
@@ -181,14 +182,14 @@ SkTypeface* SkFontStyleSet_Cobalt::MatchFontPostScriptName(
 SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
     int style_index) {
   DCHECK(style_index >= 0 && style_index < styles_.count());
-  SkFontStyleSetEntry_Cobalt* style = styles_[style_index];
+  SkFontStyleSetEntry_Cobalt* style = styles_[style_index].get();
   // If the typeface doesn't already exist, then attempt to create it.
   if (style->typeface == NULL) {
     CreateStreamProviderTypeface(style);
     // If the creation attempt failed and the typeface is still NULL, then
     // remove the entry from the set's styles.
     if (style->typeface == NULL) {
-      styles_[style_index].swap(&styles_.back());
+      styles_[style_index].swap(styles_.back());
       styles_.pop_back();
       return NULL;
     }
@@ -198,7 +199,7 @@ SkTypeface* SkFontStyleSet_Cobalt::TryRetrieveTypefaceAndRemoveStyleOnFailure(
 
 bool SkFontStyleSet_Cobalt::ContainsTypeface(const SkTypeface* typeface) {
   for (int i = 0; i < styles_.count(); ++i) {
-    if (styles_[i]->typeface == typeface) {
+    if (styles_[i]->typeface.get() == typeface) {
       return true;
     }
   }
@@ -247,7 +248,7 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
     // set, the logic will be attempted again.
     while (styles_.count() > 0) {
       int style_index = GetClosestStyleIndex(style);
-      SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index];
+      SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index].get();
 
       SkFileMemoryChunkStreamProvider* stream_provider =
           local_typeface_stream_manager_->GetStreamProvider(
@@ -260,9 +261,8 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
       scoped_ptr<const SkFileMemoryChunks> memory_chunks_snapshot(
           stream_provider->CreateMemoryChunksSnapshot());
 
-      SkAutoTUnref<SkFileMemoryChunkStream> stream(
-          stream_provider->OpenStream());
-      if (GenerateStyleFaceInfo(closest_style, stream)) {
+      scoped_ptr<SkFileMemoryChunkStream> stream(stream_provider->OpenStream());
+      if (GenerateStyleFaceInfo(closest_style, stream.get())) {
         if (CharacterMapContainsCharacter(character)) {
           CreateStreamProviderTypeface(closest_style, stream_provider);
           return true;
@@ -271,13 +271,13 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
           // newly created memory chunks. The stream must be destroyed first or
           // it will retain references to memory chunks, preventing them from
           // being purged.
-          stream.reset(NULL);
+          stream.reset(nullptr);
           stream_provider->PurgeUnusedMemoryChunks();
           return false;
         }
       }
 
-      styles_[style_index].swap(&styles_.back());
+      styles_[style_index].swap(styles_.back());
       styles_.pop_back();
     }
 
@@ -341,15 +341,14 @@ void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
         style_entry->font_file_path.c_str());
   }
 
-  SkAutoTUnref<SkFileMemoryChunkStream> stream(stream_provider->OpenStream());
-  if (GenerateStyleFaceInfo(style_entry, stream)) {
+  scoped_ptr<SkFileMemoryChunkStream> stream(stream_provider->OpenStream());
+  if (GenerateStyleFaceInfo(style_entry, stream.get())) {
     LOG(INFO) << "Scanned font from file: " << style_entry->face_name.c_str()
               << "(" << style_entry->face_style << ")";
-    style_entry->typeface.reset(
-        SkNEW_ARGS(SkTypeface_CobaltStreamProvider,
-                   (stream_provider, style_entry->face_index,
-                    style_entry->face_style, style_entry->face_is_fixed_pitch,
-                    family_name_, style_entry->disable_synthetic_bolding)));
+    style_entry->typeface.reset(new SkTypeface_CobaltStreamProvider(
+        stream_provider, style_entry->face_index, style_entry->face_style,
+        style_entry->face_is_fixed_pitch, family_name_,
+        style_entry->disable_synthetic_bolding));
   } else {
     LOG(ERROR) << "Failed to scan font: "
                << style_entry->font_file_path.c_str();
@@ -360,8 +359,8 @@ void SkFontStyleSet_Cobalt::PurgeUnreferencedTypefaces() {
   // Walk each of the styles looking for any that have a non-NULL typeface.
   // These are purged if they are unreferenced outside of the style set.
   for (int i = 0; i < styles_.count(); ++i) {
-    SkAutoTUnref<SkTypeface>& typeface = styles_[i]->typeface;
-    if (typeface.get() != NULL && typeface->getRefCnt() == 1) {
+    sk_sp<SkTypeface>& typeface = styles_[i]->typeface;
+    if (typeface.get() != NULL && typeface->unique()) {
       typeface.reset(NULL);
     }
   }

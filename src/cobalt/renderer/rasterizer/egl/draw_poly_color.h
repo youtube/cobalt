@@ -35,12 +35,13 @@ class DrawPolyColor : public DrawObject {
                 const math::RectF& rect,
                 const render_tree::ColorRGBA& color);
 
-  bool TryMerge(DrawObject* other) OVERRIDE;
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
+  bool TryMerge(DrawObject* other) override;
+  void ExecuteUpdateVertexBuffer(
+      GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) override;
   void ExecuteRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
-  base::TypeId GetTypeId() const OVERRIDE;
+                        ShaderProgramManager* program_manager) override;
+  base::TypeId GetTypeId() const override;
 
  protected:
   explicit DrawPolyColor(const BaseState& base_state);

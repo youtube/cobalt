@@ -23,7 +23,7 @@ struct SkOTUtils {
 
     /**
       *  Renames an sfnt font. On failure (invalid data or not an sfnt font)
-      *  returns NULL.
+      *  returns nullptr.
       *
       *  Essentially, this removes any existing 'name' table and replaces it
       *  with a new one in which FontFamilyName, FontSubfamilyName,
@@ -33,6 +33,8 @@ struct SkOTUtils {
       *  UnicodeBMPUCS2, and English_UnitedStates settings.
       *
       *  fontName and fontNameLen must be specified in terms of ASCII chars.
+      *
+      *  Does not affect fontData's ownership.
       */
     static SkData* RenameFont(SkStreamAsset* fontData, const char* fontName, int fontNameLen);
 
@@ -48,18 +50,18 @@ struct SkOTUtils {
         { }
 
         /** Creates an iterator over all the family names in the 'name' table of a typeface.
-         *  If no valid 'name' table can be found, returns NULL.
+         *  If no valid 'name' table can be found, returns nullptr.
          */
         static LocalizedStrings_NameTable* CreateForFamilyNames(const SkTypeface& typeface);
 
-        virtual bool next(SkTypeface::LocalizedString* localizedString) SK_OVERRIDE;
+        bool next(SkTypeface::LocalizedString* localizedString) override;
     private:
         static SkOTTableName::Record::NameID::Predefined::Value familyNameTypes[3];
 
         SkOTTableName::Record::NameID::Predefined::Value* fTypes;
         int fTypesCount;
         int fTypesIndex;
-        SkAutoTDeleteArray<SkOTTableName> fNameTableData;
+        std::unique_ptr<SkOTTableName[]> fNameTableData;
         SkOTTableName::Iterator fFamilyNameIter;
     };
 
@@ -70,7 +72,7 @@ struct SkOTUtils {
             : fName(name), fLanguage(language), fHasNext(true)
         { }
 
-        virtual bool next(SkTypeface::LocalizedString* localizedString) SK_OVERRIDE {
+        bool next(SkTypeface::LocalizedString* localizedString) override {
             localizedString->fString = fName;
             localizedString->fLanguage = fLanguage;
 

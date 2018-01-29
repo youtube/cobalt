@@ -6,6 +6,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkCanvas.h"
 #include "SkDashPathEffect.h"
 
@@ -30,7 +31,7 @@ static void draw_text_stroked(SkCanvas* canvas, const SkPaint& paint, SkScalar s
 
     if (strokeWidth > 0) {
         p.setStyle(SkPaint::kFill_Style);
-        canvas->drawText("P", 1, loc.fX, loc.fY - 225, p);
+        canvas->drawString("P", loc.fX, loc.fY - 225, p);
         canvas->drawPosText("P", 1, &loc, p);
     }
 
@@ -38,7 +39,7 @@ static void draw_text_stroked(SkCanvas* canvas, const SkPaint& paint, SkScalar s
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(strokeWidth);
 
-    canvas->drawText("P", 1, loc.fX, loc.fY - 225, p);
+    canvas->drawString("P", loc.fX, loc.fY - 225, p);
     canvas->drawPosText("P", 1, &loc, p);
 }
 
@@ -55,35 +56,18 @@ static void draw_text_set(SkCanvas* canvas, const SkPaint& paint) {
 
     canvas->translate(200, 0);
     SkPaint p(paint);
-    p.setPathEffect(SkDashPathEffect::Create(intervals, SK_ARRAY_COUNT(intervals), phase))->unref();
+    p.setPathEffect(SkDashPathEffect::Make(intervals, SK_ARRAY_COUNT(intervals), phase));
     draw_text_stroked(canvas, p, 10);
 }
 
-class StrokeTextGM : public skiagm::GM {
-    // Skia has a threshold above which it draws text via paths instead of using scalercontext
-    // and caching the glyph. This GM wants to ensure that we draw stroking correctly on both
-    // sides of this threshold.
+namespace {
     enum {
         kBelowThreshold_TextSize = 255,
         kAboveThreshold_TextSize = 257
     };
-public:
-    StrokeTextGM() {}
+}
 
-protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
-    }
-
-    virtual SkString onShortName() SK_OVERRIDE {
-        return SkString("stroketext");
-    }
-
-    virtual SkISize onISize() SK_OVERRIDE {
-        return SkISize::Make(1200, 480);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+DEF_SIMPLE_GM(stroketext, canvas, 1200, 480) {
         if (true) { test_nulldev(canvas); }
         SkPaint paint;
         paint.setAntiAlias(true);
@@ -95,10 +79,4 @@ protected:
         canvas->translate(600, 0);
         paint.setTextSize(kAboveThreshold_TextSize);
         draw_text_set(canvas, paint);
-    }
-
-private:
-    typedef skiagm::GM INHERITED;
-};
-
-DEF_GM( return SkNEW(StrokeTextGM); )
+}

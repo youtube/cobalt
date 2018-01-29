@@ -91,6 +91,8 @@ Blob::Blob(script::EnvironmentSettings* settings,
   }
 }
 
+void Blob::TraceMembers(script::Tracer* tracer) { tracer->Trace(buffer_); }
+
 const BlobPropertyBag& Blob::EmptyBlobPropertyBag() {
   return empty_blob_property_bag.Get();
 }

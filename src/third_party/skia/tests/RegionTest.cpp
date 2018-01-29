@@ -5,6 +5,8 @@
  * found in the LICENSE file.
  */
 
+#include "SkAutoMalloc.h"
+#include "SkPath.h"
 #include "SkRandom.h"
 #include "SkRegion.h"
 #include "Test.h"
@@ -91,6 +93,13 @@ static void test_empties(skiatest::Reporter* reporter) {
     REPORTER_ASSERT(reporter, !empty.contains(empty2));
     REPORTER_ASSERT(reporter, !valid.contains(empty));
     REPORTER_ASSERT(reporter, !empty.contains(valid));
+
+    SkPath emptyPath;
+    emptyPath.moveTo(1, 5);
+    emptyPath.close();
+    SkRegion openClip;
+    openClip.setRect(-16000, -16000, 16000, 16000);
+    empty.setPath(emptyPath, openClip);  // should not assert
 }
 
 enum {
@@ -253,4 +262,137 @@ DEF_TEST(Region, reporter) {
     test_proc(reporter, intersects_proc);
     test_empties(reporter);
     test_fromchrome(reporter);
+}
+
+// Test that writeToMemory reports the same number of bytes whether there was a
+// buffer to write to or not.
+static void test_write(const SkRegion& region, skiatest::Reporter* r) {
+    const size_t bytesNeeded = region.writeToMemory(nullptr);
+    SkAutoMalloc storage(bytesNeeded);
+    const size_t bytesWritten = region.writeToMemory(storage.get());
+    REPORTER_ASSERT(r, bytesWritten == bytesNeeded);
+
+    // Also check that the bytes are meaningful.
+    SkRegion copy;
+    REPORTER_ASSERT(r, copy.readFromMemory(storage.get(), bytesNeeded));
+    REPORTER_ASSERT(r, region == copy);
+}
+
+DEF_TEST(Region_writeToMemory, r) {
+    // Test an empty region.
+    SkRegion region;
+    REPORTER_ASSERT(r, region.isEmpty());
+    test_write(region, r);
+
+    // Test a rectangular region
+    bool nonEmpty = region.setRect(0, 0, 50, 50);
+    REPORTER_ASSERT(r, nonEmpty);
+    REPORTER_ASSERT(r, region.isRect());
+    test_write(region, r);
+
+    // Test a complex region
+    nonEmpty = region.op(50, 50, 100, 100, SkRegion::kUnion_Op);
+    REPORTER_ASSERT(r, nonEmpty);
+    REPORTER_ASSERT(r, region.isComplex());
+    test_write(region, r);
+
+    SkRegion complexRegion;
+    Union(&complexRegion, SkIRect::MakeXYWH(0, 0, 1, 1));
+    Union(&complexRegion, SkIRect::MakeXYWH(0, 0, 3, 3));
+    Union(&complexRegion, SkIRect::MakeXYWH(10, 0, 3, 3));
+    Union(&complexRegion, SkIRect::MakeXYWH(0, 10, 13, 3));
+    test_write(complexRegion, r);
+
+    Union(&complexRegion, SkIRect::MakeXYWH(10, 20, 3, 3));
+    Union(&complexRegion, SkIRect::MakeXYWH(0,  20, 3, 3));
+    test_write(complexRegion, r);
+}
+
+DEF_TEST(Region_readFromMemory_bad, r) {
+    // These assume what our binary format is: conceivably we could change it
+    // and might need to remove or change some of these tests.
+    SkRegion region;
+
+    {
+        // invalid boundary rectangle
+        int32_t data[5] = {0, 4, 4, 8, 2};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    // Region Layout, Serialized Format:
+    //    COUNT LEFT TOP RIGHT BOTTOM Y_SPAN_COUNT TOTAL_INTERVAL_COUNT
+    //    Top ( Bottom Span_Interval_Count ( Left Right )* Sentinel )+ Sentinel
+    {
+        // Example of valid data
+        int32_t data[] = {9, 0, 0, 10, 10, 1, 2, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 != region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // Example of valid data with 4 intervals
+        int32_t data[] = {19, 0, 0, 30, 30, 3, 4, 0, 10, 2, 0, 10, 20, 30,
+                          2147483647, 20, 0, 2147483647, 30, 2, 0, 10, 20, 30,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 != region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // Short count
+        int32_t data[] = {8, 0, 0, 10, 10, 1, 2, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // bounds don't match
+        int32_t data[] = {9, 0, 0, 10, 11, 1, 2, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        //  bad yspan count
+        int32_t data[] = {9, 0, 0, 10, 10, 2, 2, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // bad int count
+        int32_t data[] = {9, 0, 0, 10, 10, 1, 3, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // bad final sentinal
+        int32_t data[] = {9, 0, 0, 10, 10, 1, 2, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, -1};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // bad row sentinal
+        int32_t data[] = {9, 0, 0, 10, 10, 1, 2, 0, 10, 2, 0, 4, 6, 10,
+                          -1, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // starts with empty yspan
+        int32_t data[] = {12, 0, 0, 10, 10, 2, 2, -5, 0, 0, 2147483647, 10,
+                          2, 0, 4, 6, 10, 2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // ends with empty yspan
+        int32_t data[] = {12, 0, 0, 10, 10, 2, 2, 0, 10, 2, 0, 4, 6, 10,
+                          2147483647, 15, 0, 2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // y intervals out of order
+        int32_t data[] = {19, 0, -20, 30, 10, 3, 4, 0, 10, 2, 0, 10, 20, 30,
+                          2147483647, -20, 0, 2147483647, -10, 2, 0, 10, 20, 30,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
+    {
+        // x intervals out of order
+        int32_t data[] = {9, 0, 0, 10, 10, 1, 2, 0, 10, 2, 6, 10, 0, 4,
+                          2147483647, 2147483647};
+        REPORTER_ASSERT(r, 0 == region.readFromMemory(data, sizeof(data)));
+    }
 }

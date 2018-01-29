@@ -9,6 +9,8 @@
 #include "SkView.h"
 #include "SkLua.h"
 #include "SkCanvas.h"
+#include "Resources.h"
+#include "SkData.h"
 
 extern "C" {
 #include "lua.h"
@@ -16,103 +18,87 @@ extern "C" {
 #include "lauxlib.h"
 }
 
-static const char gDrawName[] = "onDrawContent";
+//#define LUA_FILENAME    "test.lua"
+#define LUA_FILENAME    "slides.lua"
 
-static const char gCode[] = ""
-    "require \"math\" "
+static const char gDrawName[] = "onDrawContent";
+static const char gClickName[] = "onClickHandler";
+static const char gUnicharName[] = "onCharHandler";
+
+static const char gLuaClickHandlerName[] = "lua-click-handler";
+
+static const char gMissingCode[] = ""
+    "local paint = Sk.newPaint()"
+    "paint:setAntiAlias(true)"
+    "paint:setTextSize(30)"
     ""
-    "local r = { left = 10, top = 10, right = 100, bottom = 80 } "
-    "local x = 0;"
-    ""
-    "local paint = Sk.newPaint();"
-    "paint:setAntiAlias(true);"
-    ""
-    "local image = Sk.loadImage('/skia/trunk/sailboat.jpg');"
-    ""
-    "local color = {a = 1, r = 1, g = 0, b = 0};"
-    ""
-    "function rnd(range) "
-    "   return math.random() * range;"
-    "end "
-    ""
-    "rndX = function () return rnd(640) end "
-    "rndY = function () return rnd(480) end "
-    ""
-    "function draw_rand_path(canvas);"
-    "   if not path_paint then "
-    "       path_paint = Sk.newPaint();"
-    "       path_paint:setAntiAlias(true);"
-    "   end "
-    "   path_paint:setColor({a = 1, r = math.random(), g = math.random(), b = math.random() });"
-    ""
-    "   local path = Sk.newPath();"
-    "   path:moveTo(rndX(), rndY());"
-    "   for i = 0, 50 do "
-    "       path:quadTo(rndX(), rndY(), rndX(), rndY());"
-    "   end "
-    "   canvas:drawPath(path, path_paint);"
-    ""
-    "   paint:setColor{a=1,r=0,g=0,b=1};"
-    "   local align = { 'left', 'center', 'right' };"
-    "   paint:setTextSize(30);"
-    "   for k, v in next, align do "
-    "       paint:setTextAlign(v);"
-    "       canvas:drawText('Hamburgefons', 320, 200 + 30*k, paint);"
-    "   end "
-    "end "
-    ""
-    "function onStartup() "
-    "   local paint = Sk.newPaint();"
-    "   paint:setColor{a=1, r=1, g=0, b=0};"
-    "   local doc = Sk.newDocumentPDF('/skia/trunk/test.pdf');"
-    "   local canvas = doc:beginPage(72*8.5, 72*11);"
-    "   canvas:drawText('Hello Lua', 300, 300, paint);"
-    "   doc:close();"
-    "   doc = nil;"
-    "end "
-    ""
-    "function onDrawContent(canvas) "
-    "   draw_rand_path(canvas);"
-    "   color.g = x / 100;"
-    "   paint:setColor(color) "
-    "   canvas:translate(x, 0);"
-    "   canvas:drawOval(r, paint) "
-    "   x = x + 1;"
-    "   canvas:drawImage(image, x, r.bottom + 50, 0.5);"
-    "   if x > 100 then x = 0 end;"
-    "end "
-    ""
-    "onStartup();";
+    "function onDrawContent(canvas)"
+    "   canvas:drawText('missing \"test.lua\"', 20, 50, paint)"
+    "end"
+    ;
 
 class LuaView : public SampleView {
 public:
-    LuaView() : fLua(NULL) {}
+    LuaView() : fLua(nullptr) {}
 
-    virtual ~LuaView() {
-        SkDELETE(fLua);
+    virtual ~LuaView() { delete fLua; }
+
+    void setImageFilename(lua_State* L) {
+        SkString str = GetResourcePath("mandrill_256.png");
+
+        lua_getglobal(L, "setImageFilename");
+        if (lua_isfunction(L, -1)) {
+            fLua->pushString(str.c_str());
+            if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+                SkDebugf("lua err: %s\n", lua_tostring(L, -1));
+            }
+        }
     }
 
     lua_State* ensureLua() {
-        if (NULL == fLua) {
-            fLua = SkNEW(SkLua);
-            fLua->runCode(gCode);
+        if (nullptr == fLua) {
+            fLua = new SkLua;
+
+            SkString str = GetResourcePath(LUA_FILENAME);
+            sk_sp<SkData> data(SkData::MakeFromFileName(str.c_str()));
+            if (data) {
+                fLua->runCode(data->data(), data->size());
+                this->setImageFilename(fLua->get());
+            } else {
+                fLua->runCode(gMissingCode);
+            }
         }
         return fLua->get();
     }
 
 protected:
-    virtual bool onQuery(SkEvent* evt) SK_OVERRIDE {
+    bool onQuery(SkEvent* evt) override {
         if (SampleCode::TitleQ(*evt)) {
             SampleCode::TitleR(evt, "Lua");
             return true;
         }
         SkUnichar uni;
         if (SampleCode::CharQ(*evt, &uni)) {
+            lua_State* L = this->ensureLua();
+            lua_getglobal(L, gUnicharName);
+            if (lua_isfunction(L, -1)) {
+                SkString str;
+                str.appendUnichar(uni);
+                fLua->pushString(str.c_str());
+                if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
+                    SkDebugf("lua err: %s\n", lua_tostring(L, -1));
+                } else {
+                    if (lua_isboolean(L, -1) && lua_toboolean(L, -1)) {
+                        this->inval(nullptr);
+                        return true;
+                    }
+                }
+            }
         }
         return this->INHERITED::onQuery(evt);
     }
 
-    virtual void onDrawContent(SkCanvas* canvas) SK_OVERRIDE {
+    void onDrawContent(SkCanvas* canvas) override {
         lua_State* L = this->ensureLua();
 
         lua_getglobal(L, gDrawName);
@@ -124,22 +110,67 @@ protected:
             // does it make sense to try to "cache" the lua version of this
             // canvas between draws?
             fLua->pushCanvas(canvas);
-            if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+            fLua->pushScalar(this->width());
+            fLua->pushScalar(this->height());
+            if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
                 SkDebugf("lua err: %s\n", lua_tostring(L, -1));
+            } else {
+                if (lua_isboolean(L, -1) && lua_toboolean(L, -1)) {
+                    this->inval(nullptr);
+                }
             }
         }
-        // need a way for the lua-sample to tell us if they want animations...
-        // hard-code it ON for now.
-        this->inval(NULL);
     }
 
     virtual SkView::Click* onFindClickHandler(SkScalar x, SkScalar y,
-                                              unsigned modi) SK_OVERRIDE {
+                                              unsigned modi) override {
+        lua_State* L = this->ensureLua();
+        lua_getglobal(L, gClickName);
+        if (lua_isfunction(L, -1)) {
+            fLua->pushScalar(x);
+            fLua->pushScalar(y);
+            fLua->pushString("down");
+            if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
+                SkDebugf("lua err: %s\n", lua_tostring(L, -1));
+            } else {
+                if (lua_isboolean(L, -1) && lua_toboolean(L, -1)) {
+                    this->inval(nullptr);
+                    Click* c = new Click(this);
+                    c->setType(gLuaClickHandlerName);
+                    return c;
+                }
+            }
+        }
         return this->INHERITED::onFindClickHandler(x, y, modi);
     }
 
-    virtual bool onClick(Click* click) SK_OVERRIDE {
-        return this->INHERITED::onClick(click);
+    bool onClick(Click* click) override {
+        if (click->getType() != gLuaClickHandlerName) {
+            return this->INHERITED::onClick(click);
+        }
+
+        const char* state = nullptr;
+        switch (click->fState) {
+            case Click::kMoved_State:
+                state = "moved";
+                break;
+            case Click::kUp_State:
+                state = "up";
+                break;
+            default:
+                break;
+        }
+        if (state) {
+            this->inval(nullptr);
+            lua_State* L = fLua->get();
+            lua_getglobal(L, gClickName);
+            fLua->pushScalar(click->fCurr.x());
+            fLua->pushScalar(click->fCurr.y());
+            fLua->pushString(state);
+            lua_pcall(L, 3, 1, 0);
+            return lua_isboolean(L, -1) && lua_toboolean(L, -1);
+        }
+        return true;
     }
 
 private:

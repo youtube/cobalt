@@ -21,6 +21,42 @@
 #include "starboard/shared/win32/time_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
+namespace {
+
+bool IsDriveLetter(wchar_t drive_letter) {
+  if (L'A' <= drive_letter && drive_letter <= 'Z') {
+    return true;
+  }
+
+  if (L'a' <= drive_letter && drive_letter <= 'z') {
+    return true;
+  }
+  return false;
+}
+
+bool IsRootDirectory(std::wstring wpath) {
+  if (wpath.length() > 3) {
+    return false;
+  }
+
+  // Strip optional trailing slash.
+  if (wpath.length() == 3) {
+    if (wpath.back() != L'\\') {
+      return false;
+    }
+    wpath.pop_back();
+  }
+
+  if (wpath.length() == 2) {
+    if (IsDriveLetter(wpath[0]) && wpath[1] == ':') {
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
 bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
   using starboard::shared::win32::CStringToWString;
   using starboard::shared::win32::NormalizeWin32Path;
@@ -30,6 +66,16 @@ bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
   }
 
   std::wstring path_wstring = NormalizeWin32Path(path);
+
+  // GetFileAttributesExW(...) does not handle root directories
+  // we we have to handle it here.
+  if (IsRootDirectory(path_wstring)) {
+    out_info->is_directory = true;
+    out_info->last_modified = 0;
+    out_info->last_accessed = 0;
+    out_info->creation_time = 0;
+    return true;
+  }
 
   WIN32_FILE_ATTRIBUTE_DATA attribute_data = {0};
   if (!GetFileAttributesExW(path_wstring.c_str(), GetFileExInfoStandard,

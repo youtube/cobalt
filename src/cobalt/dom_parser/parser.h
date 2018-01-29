@@ -43,38 +43,38 @@ class Parser : public dom::Parser {
       : dom_max_element_depth_(dom_max_element_depth),
         error_callback_(error_callback),
         require_csp_(require_csp) {}
-  ~Parser() OVERRIDE {}
+  ~Parser() override {}
 
   // From dom::Parser.
   //
   scoped_refptr<dom::Document> ParseDocument(
       const std::string& input, dom::HTMLElementContext* html_element_context,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_refptr<dom::XMLDocument> ParseXMLDocument(
       const std::string& input, dom::HTMLElementContext* html_element_context,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   void ParseDocumentFragment(
       const std::string& input, const scoped_refptr<dom::Document>& document,
       const scoped_refptr<dom::Node>& parent_node,
       const scoped_refptr<dom::Node>& reference_node,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   void ParseXMLDocumentFragment(
       const std::string& input,
       const scoped_refptr<dom::XMLDocument>& xml_document,
       const scoped_refptr<dom::Node>& parent_node,
       const scoped_refptr<dom::Node>& reference_node,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_ptr<loader::Decoder> ParseDocumentAsync(
       const scoped_refptr<dom::Document>& document,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
       const scoped_refptr<dom::XMLDocument>& xml_document,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
  private:
   static const int kDefaultDOMMaxElementDepth = 32;

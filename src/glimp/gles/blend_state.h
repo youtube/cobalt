@@ -43,13 +43,26 @@ struct BlendState {
     kFactorInvalid,
   };
 
+  // https://www.khronos.org/registry/OpenGL-Refpages/es2.0/xhtml/glBlendEquation.xml
+  enum Equation {
+    kEquationFuncAdd,
+    kEquationFuncSubtract,
+    kEquationFuncReverseSubtract,
+    kEquationFuncInvalid,
+  };
+
   // Setup the blend state with initial values specified by the specification.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBlendFunc.xml
   BlendState()
-      : src_factor(kFactorOne), dst_factor(kFactorZero), enabled(false) {}
+      : src_factor(kFactorOne),
+        dst_factor(kFactorZero),
+        enabled(false),
+        equation(kEquationFuncAdd) {}
 
   Factor src_factor;
   Factor dst_factor;
+
+  Equation equation;
 
   bool enabled;
 };

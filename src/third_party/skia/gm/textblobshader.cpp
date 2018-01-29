@@ -6,6 +6,7 @@
  */
 
 #include "gm.h"
+#include "sk_tool_utils.h"
 
 #include "SkCanvas.h"
 #include "SkGradientShader.h"
@@ -20,41 +21,43 @@ class TextBlobShaderGM : public skiagm::GM {
 public:
     TextBlobShaderGM(const char* txt) {
         SkPaint p;
+        sk_tool_utils::set_portable_typeface(&p);
         size_t txtLen = strlen(txt);
-        fGlyphs.append(p.textToGlyphs(txt, txtLen, NULL));
+        fGlyphs.append(p.textToGlyphs(txt, txtLen, nullptr));
         p.textToGlyphs(txt, txtLen, fGlyphs.begin());
     }
 
 protected:
 
-    virtual void onOnceBeforeDraw() SK_OVERRIDE {
+    void onOnceBeforeDraw() override {
         SkPaint p;
         p.setAntiAlias(true);
         p.setSubpixelText(true);
         p.setTextSize(30);
         p.setTextEncoding(SkPaint::kGlyphID_TextEncoding);
+        sk_tool_utils::set_portable_typeface(&p);
 
         SkTextBlobBuilder builder;
         int glyphCount = fGlyphs.count();
         const SkTextBlobBuilder::RunBuffer* run;
 
-        run = &builder.allocRun(p, glyphCount, 10, 10, NULL);
+        run = &builder.allocRun(p, glyphCount, 10, 10, nullptr);
         memcpy(run->glyphs, fGlyphs.begin(), glyphCount * sizeof(uint16_t));
 
-        run = &builder.allocRunPosH(p, glyphCount,  80, NULL);
+        run = &builder.allocRunPosH(p, glyphCount,  80, nullptr);
         memcpy(run->glyphs, fGlyphs.begin(), glyphCount * sizeof(uint16_t));
         for (int i = 0; i < glyphCount; ++i) {
             run->pos[i] = p.getTextSize() * i * .75f;
         }
 
-        run = &builder.allocRunPos(p, glyphCount, NULL);
+        run = &builder.allocRunPos(p, glyphCount, nullptr);
         memcpy(run->glyphs, fGlyphs.begin(), glyphCount * sizeof(uint16_t));
         for (int i = 0; i < glyphCount; ++i) {
             run->pos[i * 2] = p.getTextSize() * i * .75f;
             run->pos[i * 2 + 1] = 150 + 5 * sinf((float)i * 8 / glyphCount);
         }
 
-        fBlob.reset(builder.build());
+        fBlob = builder.make();
 
         SkColor  colors[2];
         colors[0] = SK_ColorRED;
@@ -66,33 +69,29 @@ protected:
         }
 
         SkISize sz = this->onISize();
-        fShader.reset(SkGradientShader::CreateRadial(SkPoint::Make(SkIntToScalar(sz.width() / 2),
-                                                                   SkIntToScalar(sz.height() / 2)),
-                                                     sz.width() * .66f, colors, pos,
-                                                     SK_ARRAY_COUNT(colors),
-                                                     SkShader::kRepeat_TileMode));
+        fShader = SkGradientShader::MakeRadial(SkPoint::Make(SkIntToScalar(sz.width() / 2),
+                                               SkIntToScalar(sz.height() / 2)),
+                                               sz.width() * .66f, colors, pos,
+                                               SK_ARRAY_COUNT(colors),
+                                               SkShader::kRepeat_TileMode);
     }
 
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkip565_Flag;
-    }
-
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("textblobshader");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(640, 480);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         SkPaint p;
         p.setStyle(SkPaint::kFill_Style);
         p.setShader(fShader);
 
         SkISize sz = this->onISize();
-        static const int kXCount = 4;
-        static const int kYCount = 3;
+        constexpr int kXCount = 4;
+        constexpr int kYCount = 3;
         for (int i = 0; i < kXCount; ++i) {
             for (int j = 0; j < kYCount; ++j) {
                 canvas->drawTextBlob(fBlob,
@@ -104,11 +103,11 @@ protected:
     }
 
 private:
-    SkTDArray<uint16_t>            fGlyphs;
-    SkAutoTUnref<const SkTextBlob> fBlob;
-    SkAutoTUnref<SkShader>         fShader;
+    SkTDArray<uint16_t> fGlyphs;
+    sk_sp<SkTextBlob>   fBlob;
+    sk_sp<SkShader>     fShader;
 
     typedef skiagm::GM INHERITED;
 };
 
-DEF_GM( return SkNEW_ARGS(TextBlobShaderGM, ("Blobber")); )
+DEF_GM(return new TextBlobShaderGM("Blobber");)

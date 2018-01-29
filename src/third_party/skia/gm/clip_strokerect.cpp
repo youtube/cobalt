@@ -16,15 +16,15 @@ public:
     }
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("clip_strokerect");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(200, 400);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
+    void onDraw(SkCanvas* canvas) override {
         SkPaint p;
         p.setColor(SK_ColorRED);
         p.setAntiAlias(true);
@@ -36,7 +36,7 @@ protected:
         SkRect rect = SkRect::MakeXYWH(20, 0, 100, 20);
 
         canvas->save();
-        canvas->clipRect(rect, SkRegion::kReplace_Op, true);
+        canvas->clipRect(rect, true);
         canvas->drawRect(r, p);
         canvas->restore();
 
@@ -54,7 +54,7 @@ protected:
         SkRect rect2 = SkRect::MakeXYWH(20, 120, 100, 19);
 
         canvas->save();
-        canvas->clipRect(rect2, SkRegion::kReplace_Op, true);
+        canvas->clipRect(rect2, true);
         canvas->drawRect(r2, p);
         canvas->restore();
 
@@ -63,11 +63,8 @@ protected:
         canvas->drawRect(rect2, p);
     }
 
-    virtual uint32_t onGetFlags() const { return kSkipPipe_Flag; }
-
 private:
     typedef skiagm::GM INHERITED;
 };
 
-DEF_GM( return SkNEW(ClipStrokeRectGM); )
-
+DEF_GM(return new ClipStrokeRectGM;)

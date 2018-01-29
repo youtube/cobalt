@@ -20,13 +20,13 @@ class NET_EXPORT_PRIVATE FixRateReceiver : public ReceiveAlgorithmInterface {
 
   // Implements ReceiveAlgorithmInterface.
   virtual bool GenerateCongestionFeedback(
-      QuicCongestionFeedbackFrame* feedback) OVERRIDE;
+      QuicCongestionFeedbackFrame* feedback) override;
 
   // Implements ReceiveAlgorithmInterface.
   virtual void RecordIncomingPacket(size_t bytes,
                                     QuicPacketSequenceNumber sequence_number,
                                     QuicTime timestamp,
-                                    bool recovered) OVERRIDE;
+                                    bool recovered) override;
 
   void SetBitrate(int bytes_per_second);  // Used for testing only.
 

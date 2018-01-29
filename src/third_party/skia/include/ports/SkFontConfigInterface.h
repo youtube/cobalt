@@ -8,28 +8,26 @@
 #ifndef SkFontConfigInterface_DEFINED
 #define SkFontConfigInterface_DEFINED
 
-#include "SkDataTable.h"
 #include "SkFontStyle.h"
 #include "SkRefCnt.h"
-#include "SkTArray.h"
 #include "SkTypeface.h"
 
-struct SkBaseMutex;
+class SkFontMgr;
 
 /**
  *  \class SkFontConfigInterface
  *
- *  Provides SkFontHost clients with access to fontconfig services. They will
- *  access the global instance found in RefGlobal().
+ *  A simple interface for remotable font management.
+ *  The global instance can be found with RefGlobal().
  */
 class SK_API SkFontConfigInterface : public SkRefCnt {
 public:
-    SK_DECLARE_INST_COUNT(SkFontConfigInterface)
 
     /**
-     *  Returns the global SkFontConfigInterface instance, and if it is not
-     *  NULL, calls ref() on it. The caller must balance this with a call to
-     *  unref().
+     *  Returns the global SkFontConfigInterface instance. If it is not
+     *  nullptr, calls ref() on it. The caller must balance this with a call to
+     *  unref(). The default SkFontConfigInterface is the result of calling
+     *  GetSingletonDirectInterface.
      */
     static SkFontConfigInterface* RefGlobal();
 
@@ -82,34 +80,34 @@ public:
      *  If a match is not found, return false, and ignore all out parameters.
      */
     virtual bool matchFamilyName(const char familyName[],
-                                 SkTypeface::Style requested,
+                                 SkFontStyle requested,
                                  FontIdentity* outFontIdentifier,
                                  SkString* outFamilyName,
-                                 SkTypeface::Style* outStyle) = 0;
+                                 SkFontStyle* outStyle) = 0;
 
     /**
      *  Given a FontRef, open a stream to access its data, or return null
      *  if the FontRef's data is not available. The caller is responsible for
-     *  calling stream->unref() when it is done accessing the data.
+     *  deleting the stream when it is done accessing the data.
      */
     virtual SkStreamAsset* openStream(const FontIdentity&) = 0;
 
     /**
+     *  Return an SkTypeface for the given FontIdentity.
+     *
+     *  The default implementation simply returns a new typeface built using data obtained from
+     *  openStream(), but derived classes may implement more complex caching schemes.
+     */
+    virtual sk_sp<SkTypeface> makeTypeface(const FontIdentity& identity) {
+        return SkTypeface::MakeFromStream(this->openStream(identity), identity.fTTCIndex);
+    }
+
+    /**
      *  Return a singleton instance of a direct subclass that calls into
      *  libfontconfig. This does not affect the refcnt of the returned instance.
-     *  The mutex may be used to guarantee the singleton is only constructed once.
      */
-    static SkFontConfigInterface* GetSingletonDirectInterface
-        (SkBaseMutex* mutex = NULL);
+    static SkFontConfigInterface* GetSingletonDirectInterface();
 
-    // New APIS, which have default impls for now (which do nothing)
-
-    virtual SkDataTable* getFamilyNames() { return SkDataTable::NewEmpty(); }
-    virtual bool matchFamilySet(const char inFamilyName[],
-                                SkString* outFamilyName,
-                                SkTArray<FontIdentity>*) {
-        return false;
-    }
     typedef SkRefCnt INHERITED;
 };
 

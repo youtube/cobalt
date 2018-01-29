@@ -8,9 +8,9 @@
 #ifndef SkBlitMask_DEFINED
 #define SkBlitMask_DEFINED
 
-#include "SkBitmap.h"
 #include "SkColor.h"
 #include "SkMask.h"
+#include "SkPixmap.h"
 
 class SkBlitMask {
 public:
@@ -18,7 +18,7 @@ public:
      *  Returns true if the device config and mask format were supported.
      *  else return false (nothing was drawn)
      */
-    static bool BlitColor(const SkBitmap& device, const SkMask& mask,
+    static bool BlitColor(const SkPixmap& device, const SkMask& mask,
                           const SkIRect& clip, SkColor color);
 
     /**
@@ -44,20 +44,8 @@ public:
      *  onto a row of dst colors. The RowFactory that returns this function ptr
      *  will have been told the formats for the mask and the dst.
      */
-    typedef void (*RowProc)(void* dst, const void* mask,
+    typedef void (*RowProc)(SkPMColor* dst, const void* mask,
                             const SkPMColor* src, int width);
-
-    /**
-     *  Public entry-point to return a blitmask ColorProc.
-     *  May return NULL if config or format are not supported.
-     */
-    static ColorProc ColorFactory(SkColorType, SkMask::Format, SkColor);
-
-    /**
-     *  Return either platform specific optimized blitmask ColorProc,
-     *  or NULL if no optimized routine is available.
-     */
-    static ColorProc PlatformColorProcs(SkColorType, SkMask::Format, SkColor);
 
     /**
      *  Public entry-point to return a blitcolor BlitLCD16RowProc.
@@ -66,7 +54,7 @@ public:
 
     /**
      *  Return either platform specific optimized blitcolor BlitLCD16RowProc,
-     *  or NULL if no optimized routine is available.
+     *  or nullptr if no optimized routine is available.
      */
     static BlitLCD16RowProc PlatformBlitRowProcs16(bool isOpaque);
 
@@ -76,13 +64,13 @@ public:
 
     /**
      *  Public entry-point to return a blitmask RowProc.
-     *  May return NULL if config or format are not supported.
+     *  May return nullptr if config or format are not supported.
      */
     static RowProc RowFactory(SkColorType, SkMask::Format, RowFlags);
 
     /**
      *  Return either platform specific optimized blitmask RowProc,
-     *  or NULL if no optimized routine is available.
+     *  or nullptr if no optimized routine is available.
      */
     static RowProc PlatformRowProcs(SkColorType, SkMask::Format, RowFlags);
 };

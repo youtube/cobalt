@@ -7,36 +7,29 @@
  */
 
 #include "SkDebugger.h"
+#include "SkMakeUnique.h"
 #include "SkPictureRecorder.h"
 #include "SkString.h"
 
 
-SkDebugger::SkDebugger() {
-    // Create this some other dynamic way?
-    fDebugCanvas = new SkDebugCanvas(0, 0);
-    fPicture = NULL;
-    fIndex = 0;
-}
+SkDebugger::SkDebugger()
+    : fDebugCanvas(skstd::make_unique<SkDebugCanvas>(0, 0))
+    , fIndex(-1) { }
 
-SkDebugger::~SkDebugger() {
-    // Need to inherit from SkRef object in order for following to work
-    SkSafeUnref(fDebugCanvas);
-    SkSafeUnref(fPicture);
-}
+SkDebugger::~SkDebugger() {}
 
 void SkDebugger::loadPicture(SkPicture* picture) {
-    SkRefCnt_SafeAssign(fPicture, picture);
-
-    delete fDebugCanvas;
-    fDebugCanvas = new SkDebugCanvas(SkScalarCeilToInt(this->pictureCull().width()), 
-                                     SkScalarCeilToInt(this->pictureCull().height()));
+    fPicture = sk_ref_sp(picture);
+    fDebugCanvas = skstd::make_unique<SkDebugCanvas>(
+        SkScalarCeilToInt(this->pictureCull().width()),
+        SkScalarCeilToInt(this->pictureCull().height()));
     fDebugCanvas->setPicture(picture);
-    picture->playback(fDebugCanvas);
-    fDebugCanvas->setPicture(NULL);
+    picture->playback(fDebugCanvas.get());
+    fDebugCanvas->setPicture(nullptr);
     fIndex = fDebugCanvas->getSize() - 1;
 }
 
-SkPicture* SkDebugger::copyPicture() {
+sk_sp<SkPicture> SkDebugger::copyPicture() {
     // We can't just call clone here since we want to removed the "deleted"
     // commands. Playing back will strip those out.
     SkPictureRecorder recorder;
@@ -49,22 +42,14 @@ SkPicture* SkDebugger::copyPicture() {
     fDebugCanvas->setOverdrawViz(false);
     bool pathOps = fDebugCanvas->getAllowSimplifyClip();
     fDebugCanvas->setAllowSimplifyClip(false);
-    int saveCount = fDebugCanvas->getOutstandingSaveCount();
-    fDebugCanvas->setOutstandingSaveCount(0);
 
     fDebugCanvas->draw(canvas);
 
-    int temp = fDebugCanvas->getOutstandingSaveCount();
-    for (int i = 0; i < temp; ++i) {
-        canvas->restore();
-    }
-
     fDebugCanvas->setMegaVizMode(vizMode);
     fDebugCanvas->setOverdrawViz(overDraw);
-    fDebugCanvas->setOutstandingSaveCount(saveCount);
     fDebugCanvas->setAllowSimplifyClip(pathOps);
 
-    return recorder.endRecording();
+    return recorder.finishRecordingAsPicture();
 }
 
 void SkDebugger::getOverviewText(const SkTDArray<double>* typeTimes,
@@ -74,8 +59,8 @@ void SkDebugger::getOverviewText(const SkTDArray<double>* typeTimes,
     const SkTDArray<SkDrawCommand*>& commands = this->getDrawCommands();
 
     SkTDArray<int> counts;
-    counts.setCount(LAST_DRAWTYPE_ENUM+1);
-    for (int i = 0; i < LAST_DRAWTYPE_ENUM+1; ++i) {
+    counts.setCount(SkDrawCommand::kOpTypeCount);
+    for (int i = 0; i < SkDrawCommand::kOpTypeCount; ++i) {
         counts[i] = 0;
     }
 
@@ -88,14 +73,14 @@ void SkDebugger::getOverviewText(const SkTDArray<double>* typeTimes,
 #ifdef SK_DEBUG
     double totPercent = 0, tempSum = 0;
 #endif
-    for (int i = 0; i < LAST_DRAWTYPE_ENUM+1; ++i) {
+    for (int i = 0; i < SkDrawCommand::kOpTypeCount; ++i) {
         if (0 == counts[i]) {
             // if there were no commands of this type then they should've consumed no time
-            SkASSERT(NULL == typeTimes || 0.0 == (*typeTimes)[i]);
+            SkASSERT(nullptr == typeTimes || 0.0 == (*typeTimes)[i]);
             continue;
         }
 
-        overview->append(SkDrawCommand::GetCommandString((DrawType) i));
+        overview->append(SkDrawCommand::GetCommandString((SkDrawCommand::OpType) i));
         overview->append(": ");
         overview->appendS32(counts[i]);
         if (typeTimes && totTime >= 0.0) {

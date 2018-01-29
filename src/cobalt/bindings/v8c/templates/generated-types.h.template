@@ -66,6 +66,7 @@ void FromJSValue(
     {{dictionary.fully_qualified_name}}* out_value);
 
 {% endfor %}
+
 {% for enum in enumerations %}
 // {{enum.fully_qualified_name}} -> JSValue
 void ToJSValue(
@@ -80,8 +81,8 @@ void FromJSValue(
     int conversion_flags,
     ExceptionState* exception_state,
     {{enum.fully_qualified_name}}* out_value);
-
 {% endfor %}
+
 }  // namespace v8c
 }  // namespace script
 }  // namespace cobalt

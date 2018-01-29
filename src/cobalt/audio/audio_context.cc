@@ -54,6 +54,12 @@ scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource() {
   return scoped_refptr<AudioBufferSourceNode>(new AudioBufferSourceNode(this));
 }
 
+void AudioContext::TraceMembers(script::Tracer* tracer) {
+  dom::EventTarget::TraceMembers(tracer);
+
+  tracer->Trace(destination_);
+}
+
 void AudioContext::DecodeAudioData(
     script::EnvironmentSettings* settings,
     const scoped_refptr<dom::ArrayBuffer>& audio_data,

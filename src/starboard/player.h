@@ -71,10 +71,18 @@ typedef enum SbPlayerState {
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerStateDestroyed,
 
+#if SB_HAS(PLAYER_WITH_URL)
+  // The following error codes are used by the URL player to report detailed
+  // errors.  They are not required in non-URL player mode.
+  kSbPlayerWithUrlStateNetworkError,
+  kSbPlayerWithUrlStateDecodeError,
+  kSbPlayerWithUrlStateSrcNotSupportedError,
+#else   //  SB_HAS(PLAYER_WITH_URL)
   // The player encountered an error. It expects an SbPlayerDestroy() call
   // to tear down the player. Calls to other functions may be ignored and
   // callbacks may not be triggered.
   kSbPlayerStateError,
+#endif  //  SB_HAS(PLAYER_WITH_URL)
 } SbPlayerState;
 
 typedef enum SbPlayerOutputMode {
@@ -107,6 +115,10 @@ typedef struct SbPlayerInfo {
   // The known duration of the currently playing media stream, in 90KHz ticks
   // (PTS).
   SbMediaTime duration_pts;
+
+  // The result of getStartDate for the currently playing media stream, in
+  // microseconds since the epoch of January 1, 1601 UTC.
+  SbTime start_date;
 
   // The width of the currently displayed frame, in pixels, or 0 if not provided
   // by this player.
@@ -141,6 +153,16 @@ typedef struct SbPlayerInfo {
   // is played in a slower than normal speed.  Negative speeds are not
   // supported.
   double playback_rate;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  // The position of the buffer head, as precisely as possible, in 90KHz ticks
+  // (PTS).
+  SbMediaTime buffer_start_pts;
+
+  // The known duration of the currently playing media buffer, in 90KHz ticks
+  // (PTS).
+  SbMediaTime buffer_duration_pts;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 } SbPlayerInfo;
 
 // An opaque handle to an implementation-private structure representing a
@@ -192,12 +214,11 @@ typedef void (*SbPlayerEncryptedMediaInitDataEncounteredCB)(
     const char* init_data_type,
     const unsigned char* init_data,
     unsigned int init_data_length);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION  &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 // --- Constants -------------------------------------------------------------
 
-// The value to pass into SbPlayerCreate's |duration_ptr| argument for cases
+// The value to pass into SbPlayerCreate's |duration_pts| argument for cases
 // where the duration is unknown, such as for live streams.
 #define SB_PLAYER_NO_DURATION (-1)
 

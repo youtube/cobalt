@@ -86,9 +86,9 @@ class NET_EXPORT_PRIVATE DoNothingDhcpProxyScriptFetcher
   virtual ~DoNothingDhcpProxyScriptFetcher();
 
   virtual int Fetch(string16* utf16_text,
-                    const CompletionCallback& callback) OVERRIDE;
-  virtual void Cancel() OVERRIDE;
-  virtual const GURL& GetPacURL() const OVERRIDE;
+                    const CompletionCallback& callback) override;
+  virtual void Cancel() override;
+  virtual const GURL& GetPacURL() const override;
  private:
   GURL gurl_;
   DISALLOW_COPY_AND_ASSIGN(DoNothingDhcpProxyScriptFetcher);

@@ -9,9 +9,12 @@
 #define SkResourceCache_DEFINED
 
 #include "SkBitmap.h"
+#include "SkMessageBus.h"
+#include "SkTDArray.h"
 
+class SkCachedData;
 class SkDiscardableMemory;
-class SkMipMap;
+class SkTraceMemoryDump;
 
 /**
  *  Cache object for bitmaps (with possible scale in X Y as part of the key).
@@ -26,12 +29,21 @@ class SkMipMap;
 class SkResourceCache {
 public:
     struct Key {
-        // Call this to access your private contents. Must not use the address after calling init()
-        void* writableContents() { return this + 1; }
+        /** Key subclasses must call this after their own fields and data are initialized.
+         *  All fields and data must be tightly packed.
+         *  @param nameSpace must be unique per Key subclass.
+         *  @param sharedID == 0 means ignore this field, does not support group purging.
+         *  @param dataSize is size of fields and data of the subclass, must be a multiple of 4.
+         */
+        void init(void* nameSpace, uint64_t sharedID, size_t dataSize);
 
-        // must call this after your private data has been written.
-        // length must be a multiple of 4
-        void init(size_t length);
+        /** Returns the size of this key. */
+        size_t size() const {
+            return fCount32 << 2;
+        }
+
+        void* getNamespace() const { return fNamespace; }
+        uint64_t getSharedID() const { return ((uint64_t)fSharedID_hi << 32) | fSharedID_lo; }
 
         // This is only valid after having called init().
         uint32_t hash() const { return fHash; }
@@ -39,7 +51,7 @@ public:
         bool operator==(const Key& other) const {
             const uint32_t* a = this->as32();
             const uint32_t* b = other.as32();
-            for (int i = 0; i < fCount32; ++i) {
+            for (int i = 0; i < fCount32; ++i) {  // (This checks fCount == other.fCount first.)
                 if (a[i] != b[i]) {
                     return false;
                 }
@@ -48,13 +60,15 @@ public:
         }
 
     private:
-        // store fCount32 first, so we don't consider it in operator<
-        int32_t  fCount32;  // 2 + user contents count32
+        int32_t  fCount32;   // local + user contents count32
         uint32_t fHash;
+        // split uint64_t into hi and lo so we don't force ourselves to pad on 32bit machines.
+        uint32_t fSharedID_lo;
+        uint32_t fSharedID_hi;
+        void*    fNamespace; // A unique namespace tag. This is hashed.
         /* uint32_t fContents32[] */
 
         const uint32_t* as32() const { return (const uint32_t*)this; }
-        const uint32_t* as32SkipCount() const { return this->as32() + 1; }
     };
 
     struct Rec {
@@ -68,15 +82,38 @@ public:
         virtual const Key& getKey() const = 0;
         virtual size_t bytesUsed() const = 0;
 
-        // for SkTDynamicHash::Traits
-        static uint32_t Hash(const Key& key) { return key.hash(); }
-        static const Key& GetKey(const Rec& rec) { return rec.getKey(); }
+        // Called if the cache needs to purge/remove/delete the Rec. Default returns true.
+        // Subclass may return false if there are outstanding references to it (e.g. bitmaps).
+        // Will only be deleted/removed-from-the-cache when this returns true.
+        virtual bool canBePurged() { return true; }
+
+        // A rec is first created/initialized, and then added to the cache. As part of the add(),
+        // the cache will callback into the rec with postAddInstall, passing in whatever payload
+        // was passed to add/Add.
+        //
+        // This late-install callback exists because the process of add-ing might end up deleting
+        // the new rec (if an existing rec in the cache has the same key and cannot be purged).
+        // If the new rec will be deleted during add, the pre-existing one (with the same key)
+        // will have postAddInstall() called on it instead, so that either way an "install" will
+        // happen during the add.
+        virtual void postAddInstall(void*) {}
+
+        // for memory usage diagnostics
+        virtual const char* getCategory() const = 0;
+        virtual SkDiscardableMemory* diagnostic_only_getDiscardable() const { return nullptr; }
 
     private:
         Rec*    fNext;
         Rec*    fPrev;
 
         friend class SkResourceCache;
+    };
+
+    // Used with SkMessageBus
+    struct PurgeSharedIDMessage {
+        PurgeSharedIDMessage(uint64_t sharedID) : fSharedID(sharedID) {}
+
+        uint64_t    fSharedID;
     };
 
     typedef const Rec* ID;
@@ -91,11 +128,11 @@ public:
      *  true, then the Rec is considered "valid". If false is returned, the Rec will be considered
      *  "stale" and will be purged from the cache.
      */
-    typedef bool (*VisitorProc)(const Rec&, void* context);
+    typedef bool (*FindVisitor)(const Rec&, void* context);
 
     /**
      *  Returns a locked/pinned SkDiscardableMemory instance for the specified
-     *  number of bytes, or NULL on failure.
+     *  number of bytes, or nullptr on failure.
      */
     typedef SkDiscardableMemory* (*DiscardableFactory)(size_t bytes);
 
@@ -108,13 +145,17 @@ public:
      *  Returns true if the visitor was called on a matching Key, and the visitor returned true.
      *
      *  Find() will search the cache for the specified Key. If no match is found, return false and
-     *  do not call the VisitorProc. If a match is found, return whatever the visitor returns.
+     *  do not call the FindVisitor. If a match is found, return whatever the visitor returns.
      *  Its return value is interpreted to mean:
      *      true  : Rec is valid
      *      false : Rec is "stale" -- the cache will purge it.
      */
-    static bool Find(const Key& key, VisitorProc, void* context);
-    static void Add(Rec*);
+    static bool Find(const Key& key, FindVisitor, void* context);
+    static void Add(Rec*, void* payload = nullptr);
+
+    typedef void (*Visitor)(const Rec&, void* context);
+    // Call the visitor for every Rec in the cache.
+    static void VisitAll(Visitor, void* context);
 
     static size_t GetTotalBytesUsed();
     static size_t GetTotalByteLimit();
@@ -122,19 +163,25 @@ public:
 
     static size_t SetSingleAllocationByteLimit(size_t);
     static size_t GetSingleAllocationByteLimit();
+    static size_t GetEffectiveSingleAllocationByteLimit();
 
     static void PurgeAll();
 
+    static void TestDumpMemoryStatistics();
+
+    /** Dump memory usage statistics of every Rec in the cache using the
+        SkTraceMemoryDump interface.
+     */
+    static void DumpMemoryStatistics(SkTraceMemoryDump* dump);
+
     /**
-     *  Returns the DiscardableFactory used by the global cache, or NULL.
+     *  Returns the DiscardableFactory used by the global cache, or nullptr.
      */
     static DiscardableFactory GetDiscardableFactory();
 
-    /**
-     * Use this allocator for bitmaps, so they can use ashmem when available.
-     * Returns NULL if the ResourceCache has not been initialized with a DiscardableFactory.
-     */
-    static SkBitmap::Allocator* GetAllocator();
+    static SkCachedData* NewCachedData(size_t bytes);
+
+    static void PostPurgeSharedID(uint64_t sharedID);
 
     /**
      *  Call SkDebugf() with diagnostic information about the state of the cache
@@ -165,13 +212,14 @@ public:
      *  Returns true if the visitor was called on a matching Key, and the visitor returned true.
      *
      *  find() will search the cache for the specified Key. If no match is found, return false and
-     *  do not call the VisitorProc. If a match is found, return whatever the visitor returns.
+     *  do not call the FindVisitor. If a match is found, return whatever the visitor returns.
      *  Its return value is interpreted to mean:
      *      true  : Rec is valid
      *      false : Rec is "stale" -- the cache will purge it.
      */
-    bool find(const Key&, VisitorProc, void* context);
-    void add(Rec*);
+    bool find(const Key&, FindVisitor, void* context);
+    void add(Rec*, void* payload = nullptr);
+    void visitAll(Visitor, void* context);
 
     size_t getTotalBytesUsed() const { return fTotalBytesUsed; }
     size_t getTotalByteLimit() const { return fTotalByteLimit; }
@@ -183,6 +231,10 @@ public:
      */
     size_t setSingleAllocationByteLimit(size_t maximumAllocationSize);
     size_t getSingleAllocationByteLimit() const;
+    // returns the logical single allocation size (pinning against the budget when the cache
+    // is not backed by discardable memory.
+    size_t getEffectiveSingleAllocationByteLimit() const;
+
     /**
      *  Set the maximum number of bytes available to this cache. If the current
      *  cache exceeds this new value, it will be purged to try to fit within
@@ -190,12 +242,15 @@ public:
      */
     size_t setTotalByteLimit(size_t newLimit);
 
+    void purgeSharedID(uint64_t sharedID);
+
     void purgeAll() {
         this->purgeAsNeeded(true);
     }
 
     DiscardableFactory discardableFactory() const { return fDiscardableFactory; }
-    SkBitmap::Allocator* allocator() const { return fAllocator; };
+
+    SkCachedData* newCachedData(size_t bytes);
 
     /**
      *  Call SkDebugf() with diagnostic information about the state of the cache
@@ -210,20 +265,21 @@ private:
     Hash*   fHash;
 
     DiscardableFactory  fDiscardableFactory;
-    // the allocator is NULL or one that matches discardables
-    SkBitmap::Allocator* fAllocator;
 
     size_t  fTotalBytesUsed;
     size_t  fTotalByteLimit;
     size_t  fSingleAllocationByteLimit;
     int     fCount;
 
+    SkMessageBus<PurgeSharedIDMessage>::Inbox fPurgeSharedIDInbox;
+
+    void checkMessages();
     void purgeAsNeeded(bool forcePurge = false);
 
     // linklist management
     void moveToHead(Rec*);
     void addToHead(Rec*);
-    void detach(Rec*);
+    void release(Rec*);
     void remove(Rec*);
 
     void init();    // called by constructors

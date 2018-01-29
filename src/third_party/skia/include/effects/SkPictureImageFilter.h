@@ -16,42 +16,67 @@ public:
     /**
      *  Refs the passed-in picture.
      */
-    static SkPictureImageFilter* Create(const SkPicture* picture, int32_t uniqueID = 0) {
-        return SkNEW_ARGS(SkPictureImageFilter, (picture, uniqueID));
-    }
+    static sk_sp<SkImageFilter> Make(sk_sp<SkPicture> picture);
 
     /**
      *  Refs the passed-in picture. cropRect can be used to crop or expand the destination rect when
      *  the picture is drawn. (No scaling is implied by the dest rect; only the CTM is applied.)
      */
-    static SkPictureImageFilter* Create(const SkPicture* picture, const SkRect& cropRect, uint32_t uniqueID = 0) {
-        return SkNEW_ARGS(SkPictureImageFilter, (picture, cropRect, uniqueID));
-    }
+    static sk_sp<SkImageFilter> Make(sk_sp<SkPicture> picture, const SkRect& cropRect);
 
+    /**
+     *  Refs the passed-in picture. The picture is rasterized at a resolution that matches the
+     *  local coordinate space. If the picture needs to be resampled for drawing it into the
+     *  destination canvas, bilinear filtering will be used. cropRect can be used to crop or
+     *  expand the destination rect when the picture is drawn. (No scaling is implied by the
+     *  dest rect; only the CTM is applied.)
+     */
+    static sk_sp<SkImageFilter> MakeForLocalSpace(sk_sp<SkPicture> picture,
+                                                  const SkRect& cropRect,
+                                                  SkFilterQuality filterQuality);
+
+    SK_TO_STRING_OVERRIDE()
     SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkPictureImageFilter)
 
 protected:
-    explicit SkPictureImageFilter(const SkPicture* picture, uint32_t uniqueID);
-    SkPictureImageFilter(const SkPicture* picture, const SkRect& cropRect, uint32_t uniqueID);
-    virtual ~SkPictureImageFilter();
+    enum PictureResolution {
+        kDeviceSpace_PictureResolution,
+        kLocalSpace_PictureResolution
+    };
+
     /*  Constructs an SkPictureImageFilter object from an SkReadBuffer.
      *  Note: If the SkPictureImageFilter object construction requires bitmap
      *  decoding, the decoder must be set on the SkReadBuffer parameter by calling
      *  SkReadBuffer::setBitmapDecoder() before calling this constructor.
      *  @param SkReadBuffer Serialized picture data.
      */
-#ifdef SK_SUPPORT_LEGACY_DEEPFLATTENING
-    explicit SkPictureImageFilter(SkReadBuffer&);
-#endif
-    virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
-    virtual bool onFilterImage(Proxy*, const SkBitmap& src, const Context&,
-                               SkBitmap* result, SkIPoint* offset) const SK_OVERRIDE;
-    virtual bool onFilterBounds(const SkIRect& src, const SkMatrix&,
-                                SkIRect* dst) const SK_OVERRIDE;
+    void flatten(SkWriteBuffer&) const override;
+    sk_sp<SkSpecialImage> onFilterImage(SkSpecialImage* source, const Context&,
+                                        SkIPoint* offset) const override;
+    sk_sp<SkImageFilter> onMakeColorSpace(SkColorSpaceXformer*) const override;
 
 private:
-    const SkPicture* fPicture;
-    SkRect           fCropRect;
+    explicit SkPictureImageFilter(sk_sp<SkPicture> picture);
+    SkPictureImageFilter(sk_sp<SkPicture> picture, const SkRect& cropRect,
+                         PictureResolution, SkFilterQuality, sk_sp<SkColorSpace>);
+
+    void drawPictureAtDeviceResolution(SkCanvas* canvas,
+                                       const SkIRect& deviceBounds,
+                                       const Context&) const;
+    void drawPictureAtLocalResolution(SkSpecialImage* source,
+                                      SkCanvas*,
+                                      const SkIRect& deviceBounds,
+                                      const Context&) const;
+
+    sk_sp<SkPicture>      fPicture;
+    SkRect                fCropRect;
+    PictureResolution     fPictureResolution;
+    SkFilterQuality       fFilterQuality;
+
+    // Should never be set by a public constructor.  This is only used when onMakeColorSpace()
+    // forces a deferred color space xform.
+    sk_sp<SkColorSpace>   fColorSpace;
+
     typedef SkImageFilter INHERITED;
 };
 

@@ -21,13 +21,15 @@
 #include <vector>
 
 #include "starboard/atomic.h"
+#include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -41,7 +43,7 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class Application {
  public:
-  typedef player::VideoFrame VideoFrame;
+  typedef player::filter::VideoFrame VideoFrame;
 
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
@@ -155,12 +157,18 @@ class Application {
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
   // initialization and teardown events. Returns the resulting error level.
-  int Run(int argc, char** argv, const char* link_data);
-  int Run(int argc, char** argv);
+  int Run(CommandLine command_line, const char* link_data);
+  int Run(CommandLine command_line);
+  int Run(int argc, char** argv, const char* link_data) {
+    return Run(CommandLine(argc, argv), link_data);
+  }
+  int Run(int argc, char** argv) {
+    return Run(CommandLine(argc, argv));
+  }
 
   // Retrieves the CommandLine for the application.
   // NULL until Run() is called.
-  CommandLine* GetCommandLine();
+  const CommandLine* GetCommandLine();
 
   // Signals that the application should transition from STARTED to PAUSED as
   // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
@@ -212,14 +220,14 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // Inject a window size change event.
   //
   // |context|: A context value to pass to |callback| on event completion. Must
   // not be NULL if callback is not NULL.
   // |callback|: A function to call on event completion, from the main thread.
   void WindowSizeChanged(void* context, EventHandledCallback callback);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
   // Schedules an event into the event queue.  May be called from an external
   // thread.

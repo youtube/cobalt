@@ -398,12 +398,10 @@ class EventTarget : public script::Wrappable,
 
   // script::Wrappable
   //
-  bool ShouldKeepWrapperAlive() OVERRIDE;
+  bool ShouldKeepWrapperAlive() override;
 
   // Returns a string that represents the target for debug purpose.
   virtual std::string GetDebugName() { return ""; }
-
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
   // This function sends the event to the event listeners attached to the
   // current event target. It takes stop immediate propagation flag into
@@ -411,6 +409,7 @@ class EventTarget : public script::Wrappable,
   void FireEventOnListeners(const scoped_refptr<Event>& event);
 
   DEFINE_WRAPPABLE_TYPE(EventTarget);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   struct EventListenerInfo {

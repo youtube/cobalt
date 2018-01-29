@@ -24,18 +24,18 @@ class BASE_EXPORT_PRIVATE SampleMap : public HistogramSamples {
 
   // HistogramSamples implementation:
   virtual void Accumulate(HistogramBase::Sample value,
-                          HistogramBase::Count count) OVERRIDE;
+                          HistogramBase::Count count) override;
   virtual HistogramBase::Count GetCount(
-      HistogramBase::Sample value) const OVERRIDE;
-  virtual HistogramBase::Count TotalCount() const OVERRIDE;
-  virtual scoped_ptr<SampleCountIterator> Iterator() const OVERRIDE;
+      HistogramBase::Sample value) const override;
+  virtual HistogramBase::Count TotalCount() const override;
+  virtual scoped_ptr<SampleCountIterator> Iterator() const override;
 
   void ResetRedundantCount(HistogramBase::Count count);
 
  protected:
   virtual bool AddSubtractImpl(
       SampleCountIterator* iter,
-      HistogramSamples::Operator op) OVERRIDE;  // |op| is ADD or SUBTRACT.
+      HistogramSamples::Operator op) override;  // |op| is ADD or SUBTRACT.
 
  private:
   std::map<HistogramBase::Sample, HistogramBase::Count> sample_counts_;
@@ -52,11 +52,11 @@ class BASE_EXPORT_PRIVATE SampleMapIterator : public SampleCountIterator {
   virtual ~SampleMapIterator();
 
   // SampleCountIterator implementation:
-  virtual bool Done() const OVERRIDE;
-  virtual void Next() OVERRIDE;
+  virtual bool Done() const override;
+  virtual void Next() override;
   virtual void Get(HistogramBase::Sample* min,
                    HistogramBase::Sample* max,
-                   HistogramBase::Count* count) const OVERRIDE;
+                   HistogramBase::Count* count) const override;
  private:
   SampleToCountMap::const_iterator iter_;
   const SampleToCountMap::const_iterator end_;

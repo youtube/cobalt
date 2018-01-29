@@ -16,6 +16,7 @@
 
 #include <cctype>
 #include <sstream>
+#include <vector>
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
@@ -154,19 +155,16 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
                  << session_id_copy;
     {
       ScopedLock lock(mutex_);
-      successful_requests_[iter->first] = license;
+      successful_requests_[iter->first] =
+          LicenseInfo(kSbDrmKeyStatusUsable, license);
     }
     session_updated_callback_(this, context_, ticket, session_id,
                               session_id_size, true);
 
-    GUID key_id = license->key_id();
-    SbDrmKeyId drm_key_id;
-    SB_DCHECK(sizeof(drm_key_id.identifier) >= sizeof(key_id));
-    SbMemoryCopy(&drm_key_id, &key_id, sizeof(key_id));
-    drm_key_id.identifier_size = sizeof(key_id);
-    SbDrmKeyStatus key_status = kSbDrmKeyStatusUsable;
-    key_statuses_changed_callback_(this, context_, session_id, session_id_size,
-                                   1, &drm_key_id, &key_status);
+    {
+      ScopedLock lock(mutex_);
+      ReportKeyStatusChanged_Locked(session_id_copy);
+    }
     pending_requests_.erase(iter);
   } else {
     SB_LOG(INFO) << "Failed to add key for session " << session_id_copy;
@@ -227,14 +225,17 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
 
   ScopedLock lock(mutex_);
   for (auto& item : successful_requests_) {
-    if (item.second->key_id() == key_id) {
+    if (item.second.license_->key_id() == key_id) {
       if (buffer->sample_type() == kSbMediaTypeAudio) {
         return kSuccess;
       }
 
-      if (item.second->IsHDCPRequired()) {
+      if (item.second.license_->IsHDCPRequired()) {
         if (!SbMediaSetOutputProtection(true)) {
-          return kFailure;
+          SB_LOG(INFO) << "HDCP required but not available";
+          item.second.status_ = kSbDrmKeyStatusRestricted;
+          ReportKeyStatusChanged_Locked(item.first);
+          return kRetry;
         }
       }
 
@@ -243,6 +244,25 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
   }
 
   return kRetry;
+}
+
+void SbDrmSystemPlayready::ReportKeyStatusChanged_Locked(
+    const std::string& session_id) {
+  // mutex_ must be held by caller
+  ::starboard::ScopedTryLock lock_should_fail(mutex_);
+  SB_DCHECK(!lock_should_fail.is_locked());
+
+  LicenseInfo& item = successful_requests_[session_id];
+
+  GUID key_id = item.license_->key_id();
+  SbDrmKeyId drm_key_id;
+  SB_DCHECK(sizeof(drm_key_id.identifier) >= sizeof(key_id));
+  SbMemoryCopy(&(drm_key_id.identifier), &key_id, sizeof(key_id));
+  drm_key_id.identifier_size = sizeof(key_id);
+
+  key_statuses_changed_callback_(this, context_,
+      session_id.data(), static_cast<int>(session_id.size()),
+      1, &drm_key_id, &(item.status_));
 }
 
 scoped_refptr<SbDrmSystemPlayready::License> SbDrmSystemPlayready::GetLicense(
@@ -257,8 +277,8 @@ scoped_refptr<SbDrmSystemPlayready::License> SbDrmSystemPlayready::GetLicense(
   ScopedLock lock(mutex_);
 
   for (auto& item : successful_requests_) {
-    if (item.second->key_id() == key_id_copy) {
-      return item.second;
+    if (item.second.license_->key_id() == key_id_copy) {
+      return item.second.license_;
     }
   }
 

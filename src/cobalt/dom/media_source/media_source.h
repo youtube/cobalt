@@ -93,6 +93,7 @@ class MediaSource : public EventTarget {
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
                           script::ExceptionState* exception_state);
 
+  void EndOfStreamAlgorithm(MediaSourceEndOfStreamError error);
   void EndOfStream(script::ExceptionState* exception_state);
   void EndOfStream(MediaSourceEndOfStreamError error,
                    script::ExceptionState* exception_state);
@@ -121,9 +122,8 @@ class MediaSource : public EventTarget {
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
   HTMLMediaElement* GetMediaElement() const;
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
-
   DEFINE_WRAPPABLE_TYPE(MediaSource);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void SetReadyState(MediaSourceReadyState ready_state);

@@ -5,14 +5,27 @@
  * found in the LICENSE file.
  */
 
+#include "SkTypes.h"
+
+#if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+
 #include "SkCGUtils.h"
+#include "SkMalloc.h"
 #include "SkStream.h"
 
-// This is used by CGDataProviderCreateWithData
+// These are used by CGDataProviderCreateWithData
 
 static void unref_proc(void* info, const void* addr, size_t size) {
     SkASSERT(info);
     ((SkRefCnt*)info)->unref();
+}
+
+static void delete_stream_proc(void* info, const void* addr, size_t size) {
+    SkASSERT(info);
+    SkStream* stream = (SkStream*)info;
+    SkASSERT(stream->getMemoryBase() == addr);
+    SkASSERT(stream->getLength() == size);
+    delete stream;
 }
 
 // These are used by CGDataProviderSequentialCallbacks
@@ -31,19 +44,20 @@ static void rewind_proc(void* info) {
     ((SkStream*)info)->rewind();
 }
 
+// Used when info is an SkStream.
 static void release_info_proc(void* info) {
     SkASSERT(info);
-    ((SkStream*)info)->unref();
+    delete (SkStream*)info;
 }
 
-CGDataProviderRef SkCreateDataProviderFromStream(SkStream* stream) {
-    stream->ref();  // unref will be called when the provider is deleted
-
+CGDataProviderRef SkCreateDataProviderFromStream(std::unique_ptr<SkStreamRewindable> stream) {
+    // TODO: Replace with SkStream::getData() when that is added. Then we only
+    // have one version of CGDataProviderCreateWithData (i.e. same release proc)
     const void* addr = stream->getMemoryBase();
     if (addr) {
         // special-case when the stream is just a block of ram
-        return CGDataProviderCreateWithData(stream, addr, stream->getLength(),
-                                            unref_proc);
+        size_t size = stream->getLength();
+        return CGDataProviderCreateWithData(stream.release(), addr, size, delete_stream_proc);
     }
 
     CGDataProviderSequentialCallbacks rec;
@@ -53,15 +67,17 @@ CGDataProviderRef SkCreateDataProviderFromStream(SkStream* stream) {
     rec.skipForward = skip_forward_proc;
     rec.rewind = rewind_proc;
     rec.releaseInfo = release_info_proc;
-    return CGDataProviderCreateSequential(stream, &rec);
+    return CGDataProviderCreateSequential(stream.release(), &rec);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "SkData.h"
 
-CGDataProviderRef SkCreateDataProviderFromData(SkData* data) {
-    data->ref();
-    return CGDataProviderCreateWithData(data, data->data(), data->size(),
-                                            unref_proc);
+CGDataProviderRef SkCreateDataProviderFromData(sk_sp<SkData> data) {
+    const void* addr = data->data();
+    size_t size = data->size();
+    return CGDataProviderCreateWithData(data.release(), addr, size, unref_proc);
 }
+
+#endif//defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)

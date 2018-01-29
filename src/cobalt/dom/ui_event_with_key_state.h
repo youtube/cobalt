@@ -73,7 +73,7 @@ class UIEventWithKeyState : public UIEvent {
                                const scoped_refptr<Window>& view, int32 detail,
                                bool ctrl_key, bool alt_key, bool shift_key,
                                bool meta_key);
-  ~UIEventWithKeyState() OVERRIDE {}
+  ~UIEventWithKeyState() override {}
 
   bool ctrl_key_;
   bool shift_key_;

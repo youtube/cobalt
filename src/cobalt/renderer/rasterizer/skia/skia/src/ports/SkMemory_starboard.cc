@@ -34,13 +34,9 @@ static inline void* throw_on_failure(size_t size, void* p) {
   return p;
 }
 
-void sk_throw() {
-  SkDEBUGFAIL("sk_throw");
-  SbSystemBreakIntoDebugger();
-}
+void sk_abort_no_print() { SbSystemBreakIntoDebugger(); }
 
 void sk_out_of_memory(void) {
-  SkDEBUGFAIL("sk_out_of_memory");
   SbSystemBreakIntoDebugger();
 }
 

@@ -53,7 +53,7 @@ class FileFetcher : public Fetcher {
 
   FileFetcher(const FilePath& file_path, Handler* handler,
               const Options& options);
-  ~FileFetcher() OVERRIDE;
+  ~FileFetcher() override;
 
   // This function is used for binding callback for creating FileFetcher.
   static scoped_ptr<Fetcher> Create(const FilePath& file_path,

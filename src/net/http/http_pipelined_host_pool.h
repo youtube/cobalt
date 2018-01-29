@@ -68,13 +68,13 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostPool
   bool IsExistingPipelineAvailableForKey(const HttpPipelinedHost::Key& key);
 
   // Callbacks for HttpPipelinedHost.
-  virtual void OnHostIdle(HttpPipelinedHost* host) OVERRIDE;
+  virtual void OnHostIdle(HttpPipelinedHost* host) override;
 
-  virtual void OnHostHasAdditionalCapacity(HttpPipelinedHost* host) OVERRIDE;
+  virtual void OnHostHasAdditionalCapacity(HttpPipelinedHost* host) override;
 
   virtual void OnHostDeterminedCapability(
       HttpPipelinedHost* host,
-      HttpPipelinedHostCapability capability) OVERRIDE;
+      HttpPipelinedHostCapability capability) override;
 
   // Creates a Value summary of this pool's |host_map_|. Caller assumes
   // ownership of the returned Value.

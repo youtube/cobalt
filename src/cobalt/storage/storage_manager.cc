@@ -177,8 +177,14 @@ StorageManager::~StorageManager() {
 
 void StorageManager::GetSqlContext(const SqlCallback& callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  sql_message_loop_->PostTask(FROM_HERE,
-                              base::Bind(callback, sql_context_.get()));
+  if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
+    sql_message_loop_->PostTask(FROM_HERE,
+                                base::Bind(&StorageManager::GetSqlContext,
+                                           base::Unretained(this), callback));
+    return;
+  }
+
+  callback.Run(sql_context_.get());
 }
 
 void StorageManager::FlushOnChange() {
@@ -266,6 +272,8 @@ void StorageManager::FinishInit() {
     return;
   }
 
+  initialized_ = true;
+
   vfs_.reset(new VirtualFileSystem());
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
   // Savegame has finished loading. Now initialize the database connection.
@@ -278,13 +286,14 @@ void StorageManager::FinishInit() {
   DCHECK(loaded_raw_bytes);
   Savegame::ByteVector& raw_bytes = *loaded_raw_bytes;
   VirtualFileSystem::SerializedHeader header = {};
+  bool has_upgrade_data = false;
 
   if (raw_bytes.size() > 0) {
     const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
     int buffer_size = static_cast<int>(raw_bytes.size());
     // Is this upgrade data?
     if (upgrade::UpgradeReader::IsUpgradeData(buffer, buffer_size)) {
-      upgrade_handler_->OnUpgrade(this, buffer, buffer_size);
+      has_upgrade_data = true;
     } else {
       if (raw_bytes.size() >= sizeof(VirtualFileSystem::SerializedHeader)) {
         memcpy(&header, &raw_bytes[0],
@@ -331,7 +340,11 @@ void StorageManager::FinishInit() {
   SqlCreateSchemaTable(connection_.get());
   SqlUpdateDatabaseUserVersion(connection_.get());
 
-  initialized_ = true;
+  if (has_upgrade_data) {
+    const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
+    int buffer_size = static_cast<int>(raw_bytes.size());
+    upgrade_handler_->OnUpgrade(this, buffer, buffer_size);
+  }
 }
 
 void StorageManager::StopFlushOnChangeTimers() {
@@ -433,6 +446,11 @@ void StorageManager::FinishIO() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(!sql_message_loop_->BelongsToCurrentThread());
 
+  // Make sure that the on change timers fire if they're running.
+  sql_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&StorageManager::FireRunningOnChangeTimers,
+                            base::Unretained(this)));
+
   // The SQL thread may be communicating with the savegame I/O thread still,
   // flushing all pending updates.  This process can require back and forth
   // communication.  This method exists to wait for that communication to
@@ -449,6 +467,16 @@ void StorageManager::FinishIO() {
   // Now wait for all pending flushes to wrap themselves up.  This may involve
   // the savegame I/O thread and the SQL thread posting tasks to each other.
   no_flushes_pending_.Wait();
+}
+
+void StorageManager::FireRunningOnChangeTimers() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(sql_message_loop_->BelongsToCurrentThread());
+
+  if (flush_on_last_change_timer_->IsRunning() ||
+      flush_on_change_max_delay_timer_->IsRunning()) {
+    OnFlushOnChangeTimerFired();
+  }
 }
 
 void StorageManager::OnDestroy() {

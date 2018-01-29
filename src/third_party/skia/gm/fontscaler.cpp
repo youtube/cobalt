@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 #include "gm.h"
+#include "sk_tool_utils.h"
 #include "SkTypeface.h"
 
 namespace skiagm {
@@ -15,31 +16,19 @@ public:
         this->setBGColor(0xFFFFFFFF);
     }
 
-    virtual ~FontScalerGM() {
-    }
-
 protected:
-    virtual uint32_t onGetFlags() const SK_OVERRIDE {
-        return kSkipTiled_Flag;
+
+    SkString onShortName() override {
+        SkString name("fontscaler");
+        name.append(sk_tool_utils::major_platform_os_name());
+        return name;
     }
 
-    virtual SkString onShortName() {
-        return SkString("fontscaler");
-    }
-
-    virtual SkISize onISize() {
+    SkISize onISize() override {
         return SkISize::Make(1450, 750);
     }
 
-    static void rotate_about(SkCanvas* canvas,
-                             SkScalar degrees,
-                             SkScalar px, SkScalar py) {
-        canvas->translate(px, py);
-        canvas->rotate(degrees);
-        canvas->translate(-px, -py);
-    }
-
-    virtual void onDraw(SkCanvas* canvas) {
+    void onDraw(SkCanvas* canvas) override {
         SkPaint paint;
 
         paint.setAntiAlias(true);
@@ -47,7 +36,6 @@ protected:
         //With freetype the default (normal hinting) can be really ugly.
         //Most distros now set slight (vertical hinting only) in any event.
         paint.setHinting(SkPaint::kSlight_Hinting);
-        sk_tool_utils::set_portable_typeface(&paint, "Times Roman", SkTypeface::kNormal);
 
         const char* text = "Hamburgefons ooo mmm";
         const size_t textLen = strlen(text);
@@ -61,7 +49,7 @@ protected:
                 SkAutoCanvasRestore acr(canvas, true);
                 canvas->translate(SkIntToScalar(50 + i * 230),
                                   SkIntToScalar(20));
-                rotate_about(canvas, SkIntToScalar(i * 5), x, y * 10);
+                canvas->rotate(SkIntToScalar(i * 5), x, y * 10);
 
                 {
                     SkPaint p;
@@ -75,7 +63,7 @@ protected:
                 for (int ps = 6; ps <= 22; ps++) {
                     paint.setTextSize(SkIntToScalar(ps));
                     canvas->drawText(text, textLen, x, y, paint);
-                    y += paint.getFontMetrics(NULL);
+                    y += paint.getFontMetrics(nullptr);
                 }
             }
             canvas->translate(0, SkIntToScalar(360));

@@ -5,7 +5,6 @@
  * found in the LICENSE file.
  */
 
-
 #ifndef SkMallocPixelRef_DEFINED
 #define SkMallocPixelRef_DEFINED
 
@@ -16,19 +15,15 @@
 */
 class SK_API SkMallocPixelRef : public SkPixelRef {
 public:
-    SK_DECLARE_INST_COUNT(SkMallocPixelRef)
     /**
      *  Return a new SkMallocPixelRef with the provided pixel storage, rowBytes,
      *  and optional colortable. The caller is responsible for managing the
      *  lifetime of the pixel storage buffer, as this pixelref will not try
      *  to delete it.
      *
-     *  The pixelref will ref() the colortable (if not NULL).
-     *
      *  Returns NULL on failure.
      */
-    static SkMallocPixelRef* NewDirect(const SkImageInfo&, void* addr,
-                                       size_t rowBytes, SkColorTable*);
+    static sk_sp<SkPixelRef> MakeDirect(const SkImageInfo&, void* addr, size_t rowBytes);
 
     /**
      *  Return a new SkMallocPixelRef, automatically allocating storage for the
@@ -40,23 +35,28 @@ public:
      *
      *  Returns NULL on failure.
      */
-    static SkMallocPixelRef* NewAllocate(const SkImageInfo& info,
-                                         size_t rowBytes, SkColorTable*);
+    static sk_sp<SkPixelRef> MakeAllocate(const SkImageInfo&, size_t rowBytes);
+
+    /**
+     *  Identical to MakeAllocate, except all pixel bytes are zeroed.
+     */
+    static sk_sp<SkPixelRef> MakeZeroed(const SkImageInfo&, size_t rowBytes);
 
     /**
      *  Return a new SkMallocPixelRef with the provided pixel storage,
      *  rowBytes, and optional colortable. On destruction, ReleaseProc
      *  will be called.
      *
-     *  This pixelref will ref() the specified colortable (if not NULL).
+     *  If ReleaseProc is NULL, the pixels will never be released. This
+     *  can be useful if the pixels were stack allocated. However, such an
+     *  SkMallocPixelRef must not live beyond its pixels (e.g. by copying
+     *  an SkBitmap pointing to it, or drawing to an SkPicture).
      *
      *  Returns NULL on failure.
      */
     typedef void (*ReleaseProc)(void* addr, void* context);
-    static SkMallocPixelRef* NewWithProc(const SkImageInfo& info,
-                                         size_t rowBytes, SkColorTable*,
-                                         void* addr, ReleaseProc proc,
-                                         void* context);
+    static sk_sp<SkPixelRef> MakeWithProc(const SkImageInfo& info, size_t rowBytes, void* addr,
+                                          ReleaseProc proc, void* context);
 
     /**
      *  Return a new SkMallocPixelRef that will use the provided
@@ -64,43 +64,23 @@ public:
      *  The SkData will be ref()ed and on destruction of the PielRef,
      *  the SkData will be unref()ed.
      *
-     *  This pixelref will ref() the specified colortable (if not NULL).
-     *
      *  Returns NULL on failure.
      */
-    static SkMallocPixelRef* NewWithData(const SkImageInfo& info,
-                                         size_t rowBytes,
-                                         SkColorTable* ctable,
-                                         SkData* data);
-
-    void* getAddr() const { return fStorage; }
-
-    class PRFactory : public SkPixelRefFactory {
-    public:
-        virtual SkPixelRef* create(const SkImageInfo&,
-                                   size_t rowBytes,
-                                   SkColorTable*) SK_OVERRIDE;
-    };
+    static sk_sp<SkPixelRef> MakeWithData(const SkImageInfo&, size_t rowBytes, sk_sp<SkData> data);
 
 protected:
-    // The ownPixels version of this constructor is deprecated.
-    SkMallocPixelRef(const SkImageInfo&, void* addr, size_t rb, SkColorTable*,
-                     bool ownPixels);
-    virtual ~SkMallocPixelRef();
-
-    virtual bool onNewLockPixels(LockRec*) SK_OVERRIDE;
-    virtual void onUnlockPixels() SK_OVERRIDE;
-    virtual size_t getAllocatedSizeInBytes() const SK_OVERRIDE;
+    ~SkMallocPixelRef() override;
 
 private:
-    void*           fStorage;
-    SkColorTable*   fCTable;
-    size_t          fRB;
-    ReleaseProc     fReleaseProc;
-    void*           fReleaseProcContext;
+    // Uses alloc to implement NewAllocate or NewZeroed.
+    static sk_sp<SkPixelRef> MakeUsing(void*(*alloc)(size_t),
+                                       const SkImageInfo&,
+                                       size_t rowBytes);
 
-    SkMallocPixelRef(const SkImageInfo&, void* addr, size_t rb, SkColorTable*,
-                     ReleaseProc proc, void* context);
+    ReleaseProc fReleaseProc;
+    void*       fReleaseProcContext;
+
+    SkMallocPixelRef(const SkImageInfo&, void* addr, size_t rb, ReleaseProc proc, void* context);
 
     typedef SkPixelRef INHERITED;
 };

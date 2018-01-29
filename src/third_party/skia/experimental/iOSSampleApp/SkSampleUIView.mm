@@ -1,12 +1,20 @@
+/*
+ * Copyright 2015 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
 #import "SkSampleUIView.h"
 
-#define SKGL_CONFIG         kEAGLColorFormatRGB565
-//#define SKGL_CONFIG         kEAGLColorFormatRGBA8
+//#define SKGL_CONFIG         kEAGLColorFormatRGB565
+#define SKGL_CONFIG         kEAGLColorFormatRGBA8
 
 #define FORCE_REDRAW
 
 #include "SkCanvas.h"
 #include "SkCGUtils.h"
+#include "SkSurface.h"
 #include "SampleApp.h"
 
 #if SK_SUPPORT_GPU
@@ -24,9 +32,9 @@ public:
 #if SK_SUPPORT_GPU
         fCurContext = NULL;
         fCurIntf = NULL;
-        fCurRenderTarget = NULL;
         fMSAASampleCount = 0;
-        fLayerFBO = layerFBO;
+        fDeepColor = false;
+        fActualColorBits = 0;
 #endif
         fBackend = SkOSWindow::kNone_BackEndType;
     }
@@ -35,24 +43,20 @@ public:
 #if SK_SUPPORT_GPU
         SkSafeUnref(fCurContext);
         SkSafeUnref(fCurIntf);
-        SkSafeUnref(fCurRenderTarget);
 #endif
     }
     
-    virtual void setUpBackend(SampleWindow* win, int msaaSampleCount) SK_OVERRIDE {
+    void setUpBackend(SampleWindow* win, int msaaSampleCount, bool deepColor) override {
         SkASSERT(SkOSWindow::kNone_BackEndType == fBackend);
         
         fBackend = SkOSWindow::kNone_BackEndType;
         
 #if SK_SUPPORT_GPU
         switch (win->getDeviceType()) {
-            // these two don't use GL
             case SampleWindow::kRaster_DeviceType:
-            case SampleWindow::kPicture_DeviceType:
                 break;
             // these guys use the native backend
             case SampleWindow::kGPU_DeviceType:
-            case SampleWindow::kNullGPU_DeviceType:
                 fBackend = SkOSWindow::kNativeGL_BackEndType;
                 break;
             default:
@@ -60,25 +64,23 @@ public:
                 break;
         }
         SkOSWindow::AttachmentInfo info;
-        bool result = win->attach(fBackend, msaaSampleCount, &info);
+        bool result = win->attach(fBackend, msaaSampleCount, false, &info);
         if (!result) {
             SkDebugf("Failed to initialize GL");
             return;
         }
         fMSAASampleCount = msaaSampleCount;
+        fDeepColor = deepColor;
+        // Assume that we have at least 24-bit output, for backends that don't supply this data
+        fActualColorBits = SkTMax(info.fColorBits, 24);
         
         SkASSERT(NULL == fCurIntf);
         switch (win->getDeviceType()) {
-            // these two don't use GL
             case SampleWindow::kRaster_DeviceType:
-            case SampleWindow::kPicture_DeviceType:
                 fCurIntf = NULL;
                 break;
             case SampleWindow::kGPU_DeviceType:
                 fCurIntf = GrGLCreateNativeInterface();
-                break;
-            case SampleWindow::kNullGPU_DeviceType:
-                fCurIntf = GrGLCreateNullInterface();
                 break;
             default:
                 SkASSERT(false);
@@ -97,14 +99,14 @@ public:
             SkSafeUnref(fCurContext);
             SkSafeUnref(fCurIntf);
             SkDebugf("Failed to setup 3D");
-            win->detach();
+            win->release();
         }
 #endif // SK_SUPPORT_GPU
         // call windowSizeChanged to create the render target
         this->windowSizeChanged(win);
     }
     
-    virtual void tearDownBackend(SampleWindow *win) SK_OVERRIDE {
+    void tearDownBackend(SampleWindow *win) override {
 #if SK_SUPPORT_GPU
         SkSafeUnref(fCurContext);
         fCurContext = NULL;
@@ -112,46 +114,35 @@ public:
         SkSafeUnref(fCurIntf);
         fCurIntf = NULL;
         
-        SkSafeUnref(fCurRenderTarget);
-        fCurRenderTarget = NULL;
+        fGpuSurface = nullptr;
 #endif
-        win->detach();
+        win->release();
         fBackend = SampleWindow::kNone_BackEndType;
     }
 
-    virtual SkCanvas* createCanvas(SampleWindow::DeviceType dType,
-                                   SampleWindow* win) {
-        switch (dType) {
-            case SampleWindow::kRaster_DeviceType:
-                // fallthrough
-            case SampleWindow::kPicture_DeviceType:
-                // fallthrough
-#if SK_ANGLE
-            case SampleWindow::kANGLE_DeviceType:
-#endif
-                break;
+    sk_sp<SkSurface> makeSurface(SampleWindow::DeviceType dType, SampleWindow* win) override {
 #if SK_SUPPORT_GPU
-            case SampleWindow::kGPU_DeviceType:
-            case SampleWindow::kNullGPU_DeviceType:
-                if (fCurContext) {
-                    SkAutoTUnref<SkBaseDevice> device(new SkGpuDevice(fCurContext,
-                                                                      fCurRenderTarget));
-                    return new SkCanvas(device);
-                } else {
-                    return NULL;
-                }
-                break;
-#endif
-            default:
-                SkASSERT(false);
-                return NULL;
+        if (SampleWindow::IsGpuDeviceType(dType) && fCurContext) {
+            SkSurfaceProps props(win->getSurfaceProps());
+            if (kRGBA_F16_SkColorType == win->info().colorType() || fActualColorBits > 24) {
+                // If we're rendering to F16, we need an off-screen surface - the current render
+                // target is most likely the wrong format.
+                //
+                // If we're using a deep (10-bit or higher) surface, we probably need an off-screen
+                // surface. 10-bit, in particular, has strange gamma behavior.
+                return SkSurface::MakeRenderTarget(fCurContext, SkBudgeted::kNo, win->info(),
+                                                   fMSAASampleCount, &props);
+            } else {
+                return fGpuSurface;
+            }
         }
-        return NULL;
+#endif
+        return nullptr;
     }
-    
+
     virtual void publishCanvas(SampleWindow::DeviceType dType,
                                SkCanvas* canvas,
-                               SampleWindow* win) SK_OVERRIDE {
+                               SampleWindow* win) override {
 #if SK_SUPPORT_GPU
         if (NULL != fCurContext) {
             fCurContext->flush();
@@ -159,55 +150,53 @@ public:
 #endif
         win->present();
     }
-    
-    virtual void windowSizeChanged(SampleWindow* win) SK_OVERRIDE {
+
+    void windowSizeChanged(SampleWindow* win) override {
 #if SK_SUPPORT_GPU
-        if (NULL != fCurContext) {
-            SkOSWindow::AttachmentInfo info;
-
-            win->attach(fBackend, fMSAASampleCount, &info);
-            
-            glBindFramebuffer(GL_FRAMEBUFFER, fLayerFBO);
-            GrBackendRenderTargetDesc desc;
-            desc.fWidth = SkScalarRoundToInt(win->width());
-            desc.fHeight = SkScalarRoundToInt(win->height());
-            desc.fConfig = kSkia8888_GrPixelConfig;
-            desc.fRenderTargetHandle = fLayerFBO;
-            desc.fSampleCnt = info.fSampleCount;
-            desc.fStencilBits = info.fStencilBits;
-
-            SkSafeUnref(fCurRenderTarget);
-            fCurRenderTarget = fCurContext->wrapBackendRenderTarget(desc);
+        if (fCurContext) {
+            SampleWindow::AttachmentInfo attachmentInfo;
+            win->attach(fBackend, fMSAASampleCount, fDeepColor, &attachmentInfo);
+            fActualColorBits = SkTMax(attachmentInfo.fColorBits, 24);
+            fGpuSurface = win->makeGpuBackedSurface(attachmentInfo, fCurIntf, fCurContext);
         }
 #endif
     }
-    
-    virtual GrContext* getGrContext() SK_OVERRIDE {
+
+    GrContext* getGrContext() override {
 #if SK_SUPPORT_GPU
         return fCurContext;
 #else
         return NULL;
 #endif
     }
-    
-    virtual GrRenderTarget* getGrRenderTarget() SK_OVERRIDE {
+
+    int numColorSamples() const override {
 #if SK_SUPPORT_GPU
-        return fCurRenderTarget;
+        return fMSAASampleCount;
 #else
-        return NULL;
+        return 0;
 #endif
     }
-    
+
+    int getColorBits() override {
+#if SK_SUPPORT_GPU
+        return fActualColorBits;
+#else
+        return 24;
+#endif
+    }
+
     bool isUsingGL() const { return SkOSWindow::kNone_BackEndType != fBackend; }
-    
+
 private:
-   
+
 #if SK_SUPPORT_GPU
     GrContext*              fCurContext;
     const GrGLInterface*    fCurIntf;
-    GrRenderTarget*         fCurRenderTarget;
+    sk_sp<SkSurface>        fGpuSurface;
     int                     fMSAASampleCount;
-    GLint                   fLayerFBO;
+    bool                    fDeepColor;
+    int                     fActualColorBits;
 #endif
     
     SkOSWindow::SkBackEndTypes fBackend;
@@ -332,12 +321,26 @@ static FPSState gFPS;
         fRasterLayer.actions = newActions;
         [newActions release];
         
+        // rebuild argc and argv from process info
+        NSArray* arguments = [[NSProcessInfo processInfo] arguments];
+        int argc = [arguments count];
+        char** argv = new char*[argc];
+        for (int i = 0; i < argc; ++i) {
+            NSString* arg = [arguments objectAtIndex:i];
+            int strlen = [arg lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+            argv[i] = new char[strlen+1];
+            [arg getCString:argv[i] maxLength:strlen+1 encoding:NSUTF8StringEncoding];
+        }
+        
         fDevManager = new SkiOSDeviceManager(fGL.fFramebuffer);
-        static char* kDummyArgv = const_cast<char*>("dummyExecutableName");
-        fWind = new SampleWindow(self, 1, &kDummyArgv, fDevManager);
+        fWind = new SampleWindow(self, argc, argv, fDevManager);
 
-        fWind->resize(self.frame.size.width, self.frame.size.height,
-                      kN32_SkColorType);
+        fWind->resize(self.frame.size.width, self.frame.size.height);
+        
+        for (int i = 0; i < argc; ++i) {
+            delete [] argv[i];
+        }
+        delete [] argv;
     }
     return self;
 }
@@ -419,23 +422,25 @@ static FPSState gFPS;
     glViewport(0, 0, fGL.fWidth, fGL.fHeight);
     
    
-    SkAutoTUnref<SkCanvas> canvas(fWind->createCanvas());
+    sk_sp<SkSurface> surface(fWind->makeSurface());
+    SkCanvas* canvas = surface->getCanvas();
+
     // if we're not "retained", then we have to always redraw everything.
     // This call forces us to ignore the fDirtyRgn, and draw everywhere.
     // If we are "retained", we can skip this call (as the raster case does)
     fWind->forceInvalAll();
 
     [self drawWithCanvas:canvas];
-    
+
     // This application only creates a single color renderbuffer which is already bound at this point.
     // This call is redundant, but needed if dealing with multiple renderbuffers.
     glBindRenderbuffer(GL_RENDERBUFFER, fGL.fRenderbuffer);
     [fGL.fContext presentRenderbuffer:GL_RENDERBUFFER];
-    
 }
 
 - (void)drawInRaster {
-    SkAutoTUnref<SkCanvas> canvas(fWind->createCanvas());
+    sk_sp<SkSurface> surface(fWind->makeSurface());
+    SkCanvas* canvas = surface->getCanvas();
     [self drawWithCanvas:canvas];
     CGImageRef cgimage = SkCreateCGImageRef(fWind->getBitmap());
     fRasterLayer.contents = (id)cgimage;

@@ -78,14 +78,14 @@ class CapturingNetLog : public NetLog {
   void SetLogLevel(NetLog::LogLevel log_level);
 
   // NetLog implementation:
-  virtual void OnAddEntry(const net::NetLog::Entry& entry) OVERRIDE;
-  virtual uint32 NextID() OVERRIDE;
-  virtual LogLevel GetLogLevel() const OVERRIDE;
+  virtual void OnAddEntry(const net::NetLog::Entry& entry) override;
+  virtual uint32 NextID() override;
+  virtual LogLevel GetLogLevel() const override;
   virtual void AddThreadSafeObserver(ThreadSafeObserver* observer,
-                                     LogLevel log_level) OVERRIDE;
+                                     LogLevel log_level) override;
   virtual void SetObserverLogLevel(ThreadSafeObserver* observer,
-                                   LogLevel log_level) OVERRIDE;
-  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) OVERRIDE;
+                                   LogLevel log_level) override;
+  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) override;
 
  private:
   // Needs to be "mutable" so can use it in GetEntries().

@@ -184,9 +184,9 @@ void GraphicsContextEGL::SetupBlitObjects() {
   const char* blit_fragment_shader_source =
       "precision mediump float;"
       "varying vec2 v_tex_coord;"
-      "uniform sampler2D texture;"
+      "uniform sampler2D tex;"
       "void main() {"
-      "  gl_FragColor = texture2D(texture, v_tex_coord);"
+      "  gl_FragColor = texture2D(tex, v_tex_coord);"
       "}";
   int blit_fragment_shader_source_length = strlen(blit_fragment_shader_source);
   GL_CALL(glShaderSource(blit_fragment_shader_, 1, &blit_fragment_shader_source,
@@ -237,6 +237,10 @@ GraphicsContextEGL::~GraphicsContextEGL() {
 }
 
 void GraphicsContextEGL::SafeEglMakeCurrent(RenderTargetEGL* surface) {
+  // In some EGL implementations, like Angle, the first time we make current on
+  // a thread can result in global allocations being made that are never freed.
+  ANNOTATE_SCOPED_MEMORY_LEAK;
+
   EGLSurface egl_surface = surface->GetSurface();
 
   // This should only be used with egl surfaces (not framebuffer objects).
@@ -274,6 +278,10 @@ void GraphicsContextEGL::SafeEglMakeCurrent(RenderTargetEGL* surface) {
 void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
   DCHECK_NE(EGL_NO_SURFACE, surface) <<
       "Use ReleaseCurrentContext().";
+
+  // In some EGL implementations, like Angle, the first time we make current on
+  // a thread can result in global allocations being made that are never freed.
+  ANNOTATE_SCOPED_MEMORY_LEAK;
 
   EGLSurface egl_surface = surface->GetSurface();
   if (egl_surface != EGL_NO_SURFACE) {

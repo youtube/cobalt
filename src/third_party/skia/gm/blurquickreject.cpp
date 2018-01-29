@@ -22,17 +22,17 @@ public:
     BlurQuickRejectGM() {}
 
 protected:
-    virtual SkString onShortName() SK_OVERRIDE {
+    SkString onShortName() override {
         return SkString("blurquickreject");
     }
 
-    virtual SkISize onISize() SK_OVERRIDE {
+    SkISize onISize() override {
         return SkISize::Make(kWidth, kHeight);
     }
 
-    virtual void onDraw(SkCanvas* canvas) SK_OVERRIDE {
-        static const SkScalar kBlurRadius = SkIntToScalar(20);
-        static const SkScalar kBoxSize = SkIntToScalar(100);
+    void onDraw(SkCanvas* canvas) override {
+        constexpr SkScalar kBlurRadius = SkIntToScalar(20);
+        constexpr SkScalar kBoxSize = SkIntToScalar(100);
 
         SkRect clipRect = SkRect::MakeXYWH(0, 0, kBoxSize, kBoxSize);
         SkRect blurRects[] = {
@@ -55,10 +55,9 @@ protected:
         hairlinePaint.setStrokeWidth(0);
 
         SkPaint blurPaint;
-        blurPaint.setFilterLevel(SkPaint::kLow_FilterLevel);
-        SkMaskFilter* mf = SkBlurMaskFilter::Create(kNormal_SkBlurStyle,
-                                                    SkBlurMask::ConvertRadiusToSigma(kBlurRadius));
-        blurPaint.setMaskFilter(mf)->unref();
+        blurPaint.setFilterQuality(kLow_SkFilterQuality);
+        blurPaint.setMaskFilter(SkBlurMaskFilter::Make(kNormal_SkBlurStyle,
+                                                    SkBlurMask::ConvertRadiusToSigma(kBlurRadius)));
 
         canvas->clear(SK_ColorBLACK);
         canvas->save();
@@ -74,8 +73,8 @@ protected:
     }
 
 private:
-    static const int kWidth = 300;
-    static const int kHeight = 300;
+    static constexpr int kWidth = 300;
+    static constexpr int kHeight = 300;
 
     typedef GM INHERITED;
 };
