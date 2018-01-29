@@ -434,7 +434,7 @@ template <class NodeSet>
 void ForEachChildOnNodes(
     const NodeSet& node_set, cssom::CombinatorType combinator_type,
     HTMLElement* element,
-    base::Callback<void(HTMLElement* element, const SelectorTree::Node*)>
+    const base::Callback<void(HTMLElement* element, const SelectorTree::Node*)>&
         callback) {
   // Gathering Phase: Generate candidate nodes from the node set.
   SelectorTree::NodeSet<kRuleMatchingNodeSetSize> candidate_nodes;
