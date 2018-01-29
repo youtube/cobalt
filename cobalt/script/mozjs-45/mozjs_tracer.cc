@@ -32,7 +32,7 @@ void MozjsTracer::Trace(Traceable* traceable) {
   // rather than a |JSContext|. Fortunately, Cobalt will only create one
   // global environment per runtime, so we can still safely get back to our
   // context, and thus our global environment.
-  JSContext* context = NULL;
+  JSContext* context = nullptr;
   JS_ContextIterator(js_tracer_->runtime(), &context);
   DCHECK(context);
   MozjsGlobalEnvironment* global_environment =
@@ -74,10 +74,10 @@ void MozjsTracer::Trace(Traceable* traceable) {
     DCHECK(wrapper_private->context_ == context);
     DCHECK(wrapper_private->wrapper_proxy_);
     JS_CallObjectTracer(js_tracer_, &wrapper_private->wrapper_proxy_,
-                        "WrapperPrivate::TraceWrappable");
+                        "MozjsTracer::Trace");
   }
 
-  DCHECK(JS_ContextIterator(js_tracer_->runtime(), &context) == NULL);
+  DCHECK(JS_ContextIterator(js_tracer_->runtime(), &context) == nullptr);
 }
 
 void MozjsTracer::TraceFrom(Wrappable* wrappable) {

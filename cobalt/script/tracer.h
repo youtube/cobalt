@@ -15,7 +15,10 @@
 #ifndef COBALT_SCRIPT_TRACER_H_
 #define COBALT_SCRIPT_TRACER_H_
 
+#include <memory>
+
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/script/sequence.h"
 
@@ -23,6 +26,7 @@ namespace cobalt {
 namespace script {
 
 class Tracer;
+
 class Traceable {
  public:
   // Trace all native |Traceable|s accessible by the |Traceable|.  Any class
@@ -54,6 +58,16 @@ class Tracer {
 
   void Trace(const Traceable& traceable) {
     Trace(const_cast<Traceable*>(&traceable));
+  }
+
+  template <typename T>
+  void Trace(const scoped_ptr<T>& ptr) {
+    Trace(ptr.get());
+  }
+
+  template <typename T>
+  void Trace(const std::unique_ptr<T>& ptr) {
+    Trace(ptr.get());
   }
 
   // Trace the items of a container of |Traceable|s, such as |std::vector|.
