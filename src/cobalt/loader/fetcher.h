@@ -61,7 +61,12 @@ class Fetcher {
   };
 
   // Concrete Fetcher subclass should start fetching immediately in constructor.
-  explicit Fetcher(Handler* handler) : handler_(handler) {}
+  explicit Fetcher(Handler* handler)
+      : handler_(handler), did_fail_from_transient_error_(false) {}
+
+  bool did_fail_from_transient_error() const {
+    return did_fail_from_transient_error_;
+  }
 
   // Concrete Fetcher subclass should cancel fetching in destructor.
   virtual ~Fetcher() = 0;
@@ -69,8 +74,14 @@ class Fetcher {
  protected:
   Handler* handler() const { return handler_; }
 
+  void SetFailedFromTransientError() { did_fail_from_transient_error_ = true; }
+
  private:
   Handler* handler_;
+
+  // Whether or not the fetcher failed from an error that is considered
+  // transient, indicating that the same fetch may later succeed.
+  bool did_fail_from_transient_error_;
 };
 
 }  // namespace loader

@@ -373,8 +373,10 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
   DCHECK(!seek_cb.is_null());
 
   if (audio_read_in_progress_ || video_read_in_progress_) {
-    message_loop_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb));
+    const TimeDelta kDelay = TimeDelta::FromMilliseconds(50);
+    message_loop_->PostDelayedTask(
+        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb),
+        kDelay);
     return;
   }
 
@@ -693,8 +695,6 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     audio_stream_ = audio_stream;
     video_stream_ = video_stream;
 
-    buffering_state_cb_.Run(kHaveMetadata);
-
     bool is_encrypted = audio_stream_->audio_decoder_config().is_encrypted();
     natural_size_ = video_stream_->video_decoder_config().natural_size();
     is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
@@ -824,6 +824,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       NOTREACHED();
       break;
     case kSbPlayerStatePrerolling:
+      buffering_state_cb_.Run(kHaveMetadata);
       break;
     case kSbPlayerStatePresenting:
       buffering_state_cb_.Run(kPrerollCompleted);

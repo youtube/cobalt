@@ -218,6 +218,13 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void AllowGarbageCollection();
   void StartRequest(const std::string& request_body);
 
+  // The following two methods are used to determine if garbage collection is
+  // needed. It is legal to reuse XHR and send a new request in last request's
+  // onload event listener. We should not allow garbage collection until
+  // the last request is fetched.
+  void IncrementActiveRequests();
+  void DecrementActiveRequests();
+
   // Accessors / mutators for testing.
   const GURL& request_url() const { return request_url_; }
   bool error() const { return error_; }
@@ -271,6 +278,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool sent_;
   bool stop_timeout_;
   bool upload_complete_;
+  int active_requests_count_;
 
   static bool verbose_;
   // Unique ID for debugging.

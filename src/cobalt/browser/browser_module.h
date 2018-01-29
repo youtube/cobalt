@@ -84,7 +84,6 @@ class BrowserModule {
     storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
-    std::string language;
     std::string initial_deep_link;
     base::Closure web_module_recreated_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
@@ -424,6 +423,9 @@ class BrowserModule {
   // that may be producing render trees.
   base::MessageQueue render_tree_submission_queue_;
 
+  // The splash screen cache.
+  scoped_ptr<SplashScreenCache> splash_screen_cache_;
+
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
@@ -534,9 +536,6 @@ class BrowserModule {
   // The fallback URL to the splash screen. If empty (the default), no splash
   // screen will be displayed.
   base::optional<GURL> fallback_splash_screen_url_;
-
-  // The splash screen cache.
-  scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
   // Number of main web modules that have take place so far, helpful for
   // ditinguishing lingering events produced by older web modules as we switch

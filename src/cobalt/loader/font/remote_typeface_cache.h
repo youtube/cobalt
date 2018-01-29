@@ -57,7 +57,7 @@ inline static scoped_ptr<RemoteTypefaceCache> CreateRemoteTypefaceCache(
     const std::string& name, uint32 cache_capacity,
     loader::LoaderFactory* loader_factory) {
   return make_scoped_ptr<RemoteTypefaceCache>(new RemoteTypefaceCache(
-      name, cache_capacity,
+      name, cache_capacity, true /*are_loading_retries_enabled*/,
       base::Bind(&loader::LoaderFactory::CreateTypefaceLoader,
                  base::Unretained(loader_factory))));
 }

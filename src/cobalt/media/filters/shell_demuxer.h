@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/base/decoder_buffer.h"
@@ -180,6 +181,8 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<ShellAU> requested_au_;
   bool audio_reached_eos_;
   bool video_reached_eos_;
+
+  base::WeakPtrFactory<ShellDemuxer> weak_ptr_factory_;
 };
 
 }  // namespace media

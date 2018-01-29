@@ -103,6 +103,7 @@ void SqlWrite(const std::string& id, const std::string& key,
   write_statement.BindString(2, value);
   bool ok = write_statement.Run();
   DCHECK(ok);
+  sql_context->FlushOnChange();
 }
 
 void SqlDelete(const std::string& id, const std::string& key,
@@ -117,6 +118,7 @@ void SqlDelete(const std::string& id, const std::string& key,
   delete_statement.BindString(1, key);
   bool ok = delete_statement.Run();
   DCHECK(ok);
+  sql_context->FlushOnChange();
 }
 
 void SqlClear(const std::string& id, storage::SqlContext* sql_context) {
@@ -129,6 +131,7 @@ void SqlClear(const std::string& id, storage::SqlContext* sql_context) {
   clear_statement.BindString(0, id);
   bool ok = clear_statement.Run();
   DCHECK(ok);
+  sql_context->FlushOnChange();
 }
 }  // namespace
 
@@ -156,20 +159,17 @@ void LocalStorageDatabase::Write(const std::string& id, const std::string& key,
   TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->GetSqlContext(base::Bind(&SqlWrite, id, key, value));
-  storage_->FlushOnChange();
 }
 
 void LocalStorageDatabase::Delete(const std::string& id,
                                   const std::string& key) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlDelete, id, key));
-  storage_->FlushOnChange();
 }
 
 void LocalStorageDatabase::Clear(const std::string& id) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlClear, id));
-  storage_->FlushOnChange();
 }
 
 void LocalStorageDatabase::Flush(const base::Closure& callback) {

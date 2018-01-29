@@ -82,7 +82,7 @@ Loader::Loader(const FetcherCreator& fetcher_creator,
       is_suspended_(is_suspended) {
   DCHECK(!fetcher_creator_.is_null());
   DCHECK(decoder_);
-  DCHECK(!on_error.is_null());
+  DCHECK(!on_error_.is_null());
 
   if (!is_suspended_) {
     Start();
@@ -126,6 +126,11 @@ void Loader::Resume(render_tree::ResourceProvider* resource_provider) {
 
   decoder_->Resume(resource_provider);
   Start();
+}
+
+bool Loader::DidFailFromTransientError() const {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return fetcher_ && fetcher_->did_fail_from_transient_error();
 }
 
 void Loader::Start() {

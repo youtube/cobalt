@@ -60,6 +60,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   void Suspend();
   void Resume();
+  void Purge();
 
   bool IsRenderTreePending() const;
 
@@ -253,7 +254,15 @@ void LayoutManager::Impl::DoSynchronousLayout() {
 void LayoutManager::Impl::Suspend() {
   // Mark that we are suspended so that we don't try to perform any layouts.
   suspended_ = true;
+  Purge();
+}
 
+void LayoutManager::Impl::Resume() {
+  // Re-enable layouts.
+  suspended_ = false;
+}
+
+void LayoutManager::Impl::Purge() {
   // Invalidate any cached layout boxes from the document prior to clearing
   // the initial containing block. That'll ensure that the full box tree is
   // destroyed when the containing block is destroyed and that no children of
@@ -263,13 +272,8 @@ void LayoutManager::Impl::Suspend() {
   // Clear our reference to the initial containing block to allow any resources
   // like images that were referenced by it to be released.
   initial_containing_block_ = NULL;
-}
 
-void LayoutManager::Impl::Resume() {
-  // Mark that we are no longer suspended and indicate that the layout is
-  // dirty since when Suspend() was called we invalidated our previous layout.
   DirtyLayout();
-  suspended_ = false;
 }
 
 bool LayoutManager::Impl::IsRenderTreePending() const {
@@ -417,6 +421,7 @@ LayoutManager::~LayoutManager() {}
 
 void LayoutManager::Suspend() { impl_->Suspend(); }
 void LayoutManager::Resume() { impl_->Resume(); }
+void LayoutManager::Purge() { impl_->Purge(); }
 bool LayoutManager::IsRenderTreePending() const {
   return impl_->IsRenderTreePending();
 }

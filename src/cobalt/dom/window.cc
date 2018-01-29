@@ -74,6 +74,14 @@ class Window::RelayLoadEvent : public DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
 
+namespace {
+// Ensure that the timer resolution is at the lowest 20 microseconds in
+// order to mitigate potential Spectre-related attacks.  This is following
+// Mozilla's lead as described here:
+//   https://www.mozilla.org/en-US/security/advisories/mfsa2018-01/
+const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
+}  // namespace
+
 Window::Window(int width, int height, float device_pixel_ratio,
                base::ApplicationState initial_application_state,
                cssom::CSSParser* css_parser, Parser* dom_parser,
@@ -94,6 +102,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
                MediaSource::Registry* media_source_registry,
                DomStatTracker* dom_stat_tracker, const GURL& url,
                const std::string& user_agent, const std::string& language,
+               const std::string& font_language_script,
                const base::Callback<void(const GURL&)> navigation_callback,
                const base::Callback<void(const std::string&)>& error_callback,
                network_bridge::CookieJar* cookie_jar,
@@ -122,13 +131,19 @@ Window::Window(int width, int height, float device_pixel_ratio,
           web_media_player_factory, script_runner, script_value_factory,
           media_source_registry, resource_provider, animated_image_tracker,
           image_cache, reduced_image_cache_capacity_manager,
-          remote_typeface_cache, mesh_cache, dom_stat_tracker, language,
-          initial_application_state, video_playback_rate_multiplier)),
+          remote_typeface_cache, mesh_cache, dom_stat_tracker,
+          font_language_script, initial_application_state,
+          video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
-          clock_type == kClockTypeTestRunner ? test_runner_->GetClock() :
+          clock_type == kClockTypeTestRunner
+              ? test_runner_->GetClock()
+              :
 #endif
-                                             new base::SystemMonotonicClock())),
+              new base::MinimumResolutionClock(
+                  new base::SystemMonotonicClock(),
+                  base::TimeDelta::FromMicroseconds(
+                      kPerformanceTimerMinResolutionInMicroseconds)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(

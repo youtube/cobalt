@@ -43,12 +43,12 @@ FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
 FontCache::FontCache(render_tree::ResourceProvider** resource_provider,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
                      const base::Closure& external_typeface_load_event_callback,
-                     const std::string& language)
+                     const std::string& language_script)
     : resource_provider_(resource_provider),
       remote_typeface_cache_(remote_typeface_cache),
       external_typeface_load_event_callback_(
           external_typeface_load_event_callback),
-      language_(language),
+      language_script_(language_script),
       font_face_map_(new FontFaceMap()),
       last_inactive_process_time_(base::TimeTicks::Now()) {}
 
@@ -92,13 +92,32 @@ void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
 
 void FontCache::PurgeCachedResources() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  font_face_map_->clear();
-  font_list_map_.clear();
-  inactive_font_set_.clear();
-  font_map_.clear();
-  character_fallback_typeface_maps_.clear();
   requested_remote_typeface_cache_.clear();
+
+  // Remove all font lists that are unreferenced outside of the cache and reset
+  // those that are retained to their initial state.
+  for (FontListMap::iterator iter = font_list_map_.begin();
+       iter != font_list_map_.end();) {
+    FontListInfo& font_list_info = iter->second;
+    if (font_list_info.font_list->HasOneRef()) {
+      font_list_map_.erase(iter++);
+      continue;
+    }
+    DLOG(WARNING) << "Unable to purge font list!";
+    font_list_info.font_list->Reset();
+    ++iter;
+  }
+
   local_typeface_map_.clear();
+  font_map_.clear();
+  inactive_font_set_.clear();
+
+  // Walk the character fallback maps, clearing their typefaces.
+  for (CharacterFallbackTypefaceMaps::iterator iter =
+           character_fallback_typeface_maps_.begin();
+       iter != character_fallback_typeface_maps_.end(); ++iter) {
+    iter->second.clear();
+  }
 }
 
 void FontCache::ProcessInactiveFontListsAndFonts() {
@@ -192,7 +211,7 @@ FontCache::GetCharacterFallbackTypeface(int32 utf32_character,
   DCHECK(resource_provider());
   return GetCachedLocalTypeface(
       resource_provider()->GetCharacterFallbackTypeface(utf32_character, style,
-                                                        language_));
+                                                        language_script_));
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
@@ -200,7 +219,7 @@ scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
     FontList* font_list) {
   DCHECK(resource_provider());
   return resource_provider()->CreateGlyphBuffer(
-      text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
+      text_buffer, static_cast<size_t>(text_length), language_script_, is_rtl,
       font_list);
 }
 
@@ -209,7 +228,7 @@ float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
                               render_tree::FontVector* maybe_used_fonts) {
   DCHECK(resource_provider());
   return resource_provider()->GetTextWidth(
-      text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
+      text_buffer, static_cast<size_t>(text_length), language_script_, is_rtl,
       font_list, maybe_used_fonts);
 }
 
@@ -340,14 +359,13 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
     *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(typeface, size);
   } else {
-    if (cached_remote_typeface->IsLoading()) {
-      if (requested_remote_typeface_iterator->second->HasActiveRequestTimer()) {
-        *state = FontListFont::kLoadingWithTimerActiveState;
-      } else {
-        *state = FontListFont::kLoadingWithTimerExpiredState;
-      }
-    } else {
+    if (cached_remote_typeface->IsLoadingComplete()) {
       *state = FontListFont::kUnavailableState;
+    } else if (requested_remote_typeface_iterator->second
+                   ->HasActiveRequestTimer()) {
+      *state = FontListFont::kLoadingWithTimerActiveState;
+    } else {
+      *state = FontListFont::kLoadingWithTimerExpiredState;
     }
     return NULL;
   }

@@ -47,22 +47,20 @@ FontList::FontList(FontCache* font_cache, const FontListKey& font_list_key)
   fonts_.push_back(FontListFont(""));
 }
 
-bool FontList::IsVisible() const {
+void FontList::Reset() {
   for (size_t i = 0; i < fonts_.size(); ++i) {
-    // While any font in the font list is loading with an active timer, the font
-    // is made transparent. "In cases where textual content is loaded before
-    // downloadable fonts are available, user agents may... render text
-    // transparently with fallback fonts to avoid a flash of  text using a
-    // fallback font. In cases where the font download fails user agents must
-    // display text, simply leaving transparent text is considered
-    // non-conformant behavior."
-    //   https://www.w3.org/TR/css3-fonts/#font-face-loading
-    if (fonts_[i].state() == FontListFont::kLoadingWithTimerActiveState) {
-      return false;
-    }
+    FontListFont& font_list_font = fonts_[i];
+    font_list_font.set_state(FontListFont::kUnrequestedState);
+    font_list_font.set_font(NULL);
   }
 
-  return true;
+  primary_font_ = NULL;
+  is_font_metrics_set_ = false;
+  is_space_width_set_ = false;
+  is_ellipsis_info_set_ = false;
+  ellipsis_font_ = NULL;
+
+  fallback_typeface_to_font_map_.clear();
 }
 
 void FontList::ResetLoadingFonts() {
@@ -87,6 +85,24 @@ void FontList::ResetLoadingFonts() {
       found_loaded_font = true;
     }
   }
+}
+
+bool FontList::IsVisible() const {
+  for (size_t i = 0; i < fonts_.size(); ++i) {
+    // While any font in the font list is loading with an active timer, the font
+    // is made transparent. "In cases where textual content is loaded before
+    // downloadable fonts are available, user agents may... render text
+    // transparently with fallback fonts to avoid a flash of  text using a
+    // fallback font. In cases where the font download fails user agents must
+    // display text, simply leaving transparent text is considered
+    // non-conformant behavior."
+    //   https://www.w3.org/TR/css3-fonts/#font-face-loading
+    if (fonts_[i].state() == FontListFont::kLoadingWithTimerActiveState) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontList::CreateGlyphBuffer(

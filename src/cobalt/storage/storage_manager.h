@@ -115,7 +115,7 @@ class StorageManager {
   friend class StorageManagerTest;
 
   // Flushes all queued flushes to the savegame thread.
-  virtual void FlushInternal();
+  void FlushInternal();
 
   // Initialize the SQLite database. This blocks until the savegame load is
   // complete.
@@ -136,6 +136,9 @@ class StorageManager {
   // it will require the SQL message loop to process, it must be called from
   // outside the SQL message loop (such as from StorageManager's destructor).
   void FinishIO();
+
+  // This function will immediately the on change timers if they are running.
+  void FireRunningOnChangeTimers();
 
   // Called by the destructor, to ensure we destroy certain objects on the
   // sql thread.

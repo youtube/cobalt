@@ -195,7 +195,8 @@ ShellDemuxer::ShellDemuxer(
       stopped_(false),
       flushing_(false),
       audio_reached_eos_(false),
-      video_reached_eos_(false) {
+      video_reached_eos_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
   DCHECK(message_loop_);
   DCHECK(buffer_allocator_);
   DCHECK(data_source_);
@@ -239,7 +240,10 @@ void ShellDemuxer::Initialize(DemuxerHost* host,
       blocking_thread_.message_loop_proxy(), FROM_HERE,
       base::Bind(&ShellDemuxer::ParseConfigBlocking, base::Unretained(this),
                  status_cb),
-      base::Bind(&ShellDemuxer::ParseConfigDone, base::Unretained(this),
+      // ParseConfigDone() will run on the current thread.  Use a WeakPtr to
+      // ensure that ParseConfigDone() won't run if the current instance is
+      // destroyed.
+      base::Bind(&ShellDemuxer::ParseConfigDone, weak_ptr_factory_.GetWeakPtr(),
                  status_cb));
 }
 
@@ -289,6 +293,11 @@ PipelineStatus ShellDemuxer::ParseConfigBlocking(
 void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
                                    PipelineStatus status) {
   DCHECK(MessageLoopBelongsToCurrentThread());
+
+  if (stopped_) {
+    return;
+  }
+
   // if the blocking parser thread cannot parse config we're done.
   if (status != PIPELINE_OK) {
     status_cb.Run(status);
@@ -442,7 +451,14 @@ void ShellDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // Notify host of each disjoint range.
   host_->OnBufferedTimeRangesChanged(buffered);
 
-  IssueNextRequest();
+  // Post the task with a delay to make the request loop a bit friendly to
+  // other tasks as otherwise IssueNextRequest(), Request(), AllocateBuffer(),
+  // and Download() can form a tight loop on the |blocking_thread_|.
+  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(5);
+  blocking_thread_.message_loop_proxy()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&ShellDemuxer::IssueNextRequest, base::Unretained(this)),
+      kDelay);
 }
 
 void ShellDemuxer::IssueNextRequest() {
