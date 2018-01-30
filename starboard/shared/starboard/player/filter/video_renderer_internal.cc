@@ -105,8 +105,8 @@ void VideoRenderer::WriteEndOfStream() {
     return;
   }
   end_of_stream_written_ = true;
-  decoder_->WriteEndOfStream();
   first_input_written_ = true;
+  decoder_->WriteEndOfStream();
 }
 
 void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
