@@ -38,6 +38,7 @@ _TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
 _TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
 _SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
 
+
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
 
@@ -79,6 +80,10 @@ class TestLineReader(object):
     self.output_lines = cStringIO.StringIO()
     self.stop_event = threading.Event()
     self.reader_thread = threading.Thread(target=self._ReadLines)
+
+    # Don't allow this thread to block sys.exit() when ctrl+c is pressed.
+    # Otherwise it will hang forever waiting for the pipe to close.
+    self.reader_thread.daemon = True
 
   def _ReadLines(self):
     """Continuously reads and stores lines of test output."""
@@ -167,7 +172,8 @@ class TestRunner(object):
   """Runs unit tests."""
 
   def __init__(self, platform, config, device_id, single_target,
-               target_params, out_directory, application_name=None):
+               target_params, out_directory, application_name=None,
+               dry_run=False):
     self.platform = platform
     self.config = config
     self.device_id = device_id
@@ -176,6 +182,7 @@ class TestRunner(object):
     self._platform_config = build.GetPlatformConfig(platform)
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
+    self.dry_run = dry_run
     self.threads = []
 
     # If a particular test binary has been provided, configure only that one.
@@ -263,6 +270,8 @@ class TestRunner(object):
           self.platform, self.config)
 
     args_list = ["ninja", "-C", build_dir]
+    if self.dry_run:
+      args_list.append("-n")
     args_list.extend([
         "{}_deploy".format(test_name) for test_name in self.test_targets])
     if ninja_flags:
@@ -315,19 +324,26 @@ class TestRunner(object):
     self.threads.append(test_launcher)
     self.threads.append(test_reader)
 
-    sys.stdout.write("Starting {}\n".format(target_name))
+    if self.dry_run:
+      sys.stdout.write(
+          "{} {}\n".format(target_name, test_params) if test_params
+          else "{}\n".format(target_name))
+      write_pipe.close()
+      read_pipe.close()
 
-    test_reader.Start()
-    test_launcher.Start()
+    else:
+      sys.stdout.write("Starting {}\n".format(target_name))
+      test_reader.Start()
+      test_launcher.Start()
 
-    # If there are actives threads during a ctrl+c exit, they will join here.
-    test_launcher.Join()
-    write_pipe.close()
+      # Wait for the launcher to exit then close the write pipe, which will
+      # cause the reader to exit.
+      test_launcher.Join()
+      write_pipe.close()
 
-    # Do not join the reader thread until the launcher has finished and the
-    # write pipe has been closed, otherwise the thread could hang.
-    test_reader.Join()
-    read_pipe.close()
+      # Only after closing the write pipe, wait for the reader to exit.
+      test_reader.Join()
+      read_pipe.close()
 
     output = test_reader.GetLines()
 
@@ -397,12 +413,16 @@ class TestRunner(object):
     Returns:
       True if the test run succeeded, False if not.
     """
+    if self.dry_run:
+      print "\n{} TOTAL TEST TARGETS".format(len(results))
+      return True
+
     total_run_count = 0
     total_passed_count = 0
     total_failed_count = 0
 
     # If the number of run tests from a test binary cannot be
-    # determined, assume an error occured while running it.
+    # determined, assume an error occurred while running it.
     error = False
 
     print "\nTEST RUN COMPLETE. RESULTS BELOW:\n"
@@ -503,6 +523,11 @@ def main():
       " If both the \"--build\" and \"--run\" flags are not"
       " provided, this is the default.")
   arg_parser.add_argument(
+      "-n",
+      "--dry_run",
+      action="store_true",
+      help="Specifies to show what would be done without actually doing it.")
+  arg_parser.add_argument(
       "-t",
       "--target_name",
       help="Name of executable target.")
@@ -526,7 +551,7 @@ def main():
 
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, target_params, args.out_directory,
-                      args.application_name)
+                      args.application_name, args.dry_run)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.
@@ -543,6 +568,9 @@ def main():
 
   build_success = True
   run_success = True
+
+  if args.dry_run:
+    sys.stderr.write("=== Dry run ===\n")
 
   if args.build:
     build_success = runner.BuildAllTests(args.ninja_flags)
