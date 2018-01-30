@@ -239,6 +239,21 @@ void AudioDecoder::InitializeCodec() {
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
 
+  if (audio_header_.audio_specific_config_size > 0) {
+    codec_context_->extradata_size = audio_header_.audio_specific_config_size;
+    codec_context_->extradata = reinterpret_cast<uint8_t*>(av_malloc(
+        codec_context_->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE));
+#if SB_API_VERSION >= 6
+    memcpy(codec_context_->extradata, audio_header_.audio_specific_config,
+           codec_context_->extradata_size);
+#else
+    memcpy(codec_context_->extradata, &audio_header_.audio_specific_config[0],
+           codec_context_->extradata_size);
+#endif
+    memset(codec_context_->extradata + codec_context_->extradata_size, '\0',
+           AV_INPUT_BUFFER_PADDING_SIZE);
+  }
+
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
 
   if (codec == NULL) {
