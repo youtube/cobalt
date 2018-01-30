@@ -42,7 +42,6 @@ size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
 #if LIBAVUTIL_VERSION_MAJOR > 52
 
 void ReleaseBuffer(void* opaque, uint8_t* data) {
-  SbMemorySet(data, 0, sizeof(data));
   SbMemoryDeallocate(data);
 }
 
