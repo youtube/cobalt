@@ -50,6 +50,10 @@ void RectAllocator::Reset(const math::Size& total_size) {
 }
 
 math::Rect RectAllocator::Allocate(const math::Size& alloc_size) {
+  if ((alloc_size.width() < 0) || (alloc_size.height() < 0)) {
+    // Invalid allocation was requested.
+    return math::Rect(0, 0, 0, 0);
+  }
   math::Rect allocation(0, 0, alloc_size.width(), alloc_size.height());
 
   // Find the first block that is too small for the requested allocation.
