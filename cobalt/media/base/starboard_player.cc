@@ -76,7 +76,8 @@ StarboardPlayer::StarboardPlayer(
     const std::string& url, SbWindow window, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture,
     const OnEncryptedMediaInitDataEncounteredCB&
-        on_encrypted_media_init_data_encountered_cb)
+        on_encrypted_media_init_data_encountered_cb,
+    VideoFrameProvider* const video_frame_provider)
     : url_(url),
       message_loop_(message_loop),
       callback_helper_(
@@ -93,7 +94,8 @@ StarboardPlayer::StarboardPlayer(
       seek_pending_(false),
       state_(kPlaying),
       on_encrypted_media_init_data_encountered_cb_(
-          on_encrypted_media_init_data_encountered_cb) {
+          on_encrypted_media_init_data_encountered_cb),
+      video_frame_provider_(video_frame_provider) {
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
 
@@ -113,7 +115,8 @@ StarboardPlayer::StarboardPlayer(
     const AudioDecoderConfig& audio_config,
     const VideoDecoderConfig& video_config, SbWindow window,
     SbDrmSystem drm_system, Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture)
+    SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture,
+    VideoFrameProvider* const video_frame_provider)
     : message_loop_(message_loop),
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
@@ -129,10 +132,12 @@ StarboardPlayer::StarboardPlayer(
       volume_(1.0),
       playback_rate_(0.0),
       seek_pending_(false),
-      state_(kPlaying) {
+      state_(kPlaying),
+      video_frame_provider_(video_frame_provider) {
   DCHECK(video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
+  DCHECK(video_frame_provider_);
 
   output_mode_ = ComputeSbPlayerOutputMode(
       MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
@@ -153,11 +158,8 @@ StarboardPlayer::~StarboardPlayer() {
   callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayer(NULL);
 
-  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
-      ShellVideoFrameProvider::kOutputModeInvalid);
-  ShellMediaPlatform::Instance()
-      ->GetVideoFrameProvider()
-      ->ResetGetCurrentSbDecodeTargetFunction();
+  video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
+  video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
   if (SbPlayerIsValid(player_)) {
     SbPlayerDestroy(player_);
@@ -423,11 +425,8 @@ void StarboardPlayer::Suspend() {
   preroll_timestamp_ = SbMediaTimeToTimeDelta(info.current_media_pts);
 
   set_bounds_helper_->SetPlayer(NULL);
-  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
-      ShellVideoFrameProvider::kOutputModeInvalid);
-  ShellMediaPlatform::Instance()
-      ->GetVideoFrameProvider()
-      ->ResetGetCurrentSbDecodeTargetFunction();
+  video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
+  video_frame_provider_->ResetGetCurrentSbDecodeTargetFunction();
 
   SbPlayerDestroy(player_);
 
@@ -459,19 +458,19 @@ void StarboardPlayer::Resume() {
 }
 
 namespace {
-ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
+VideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
     SbPlayerOutputMode output_mode) {
   switch (output_mode) {
     case kSbPlayerOutputModeDecodeToTexture:
-      return ShellVideoFrameProvider::kOutputModeDecodeToTexture;
+      return VideoFrameProvider::kOutputModeDecodeToTexture;
     case kSbPlayerOutputModePunchOut:
-      return ShellVideoFrameProvider::kOutputModePunchOut;
+      return VideoFrameProvider::kOutputModePunchOut;
     case kSbPlayerOutputModeInvalid:
-      return ShellVideoFrameProvider::kOutputModeInvalid;
+      return VideoFrameProvider::kOutputModeInvalid;
   }
 
   NOTREACHED();
-  return ShellVideoFrameProvider::kOutputModeInvalid;
+  return VideoFrameProvider::kOutputModeInvalid;
 }
 
 }  // namespace
@@ -503,13 +502,10 @@ void StarboardPlayer::CreatePlayerWithUrl(const std::string& url) {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    ShellMediaPlatform::Instance()
-        ->GetVideoFrameProvider()
-        ->SetGetCurrentSbDecodeTargetFunction(
-            base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
-                       base::Unretained(this)));
+    video_frame_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
+        &StarboardPlayer::GetCurrentSbDecodeTarget, base::Unretained(this)));
   }
-  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+  video_frame_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
   set_bounds_helper_->SetPlayer(this);
@@ -552,13 +548,10 @@ void StarboardPlayer::CreatePlayer() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    ShellMediaPlatform::Instance()
-        ->GetVideoFrameProvider()
-        ->SetGetCurrentSbDecodeTargetFunction(
-            base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
-                       base::Unretained(this)));
+    video_frame_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
+        &StarboardPlayer::GetCurrentSbDecodeTarget, base::Unretained(this)));
   }
-  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+  video_frame_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
   set_bounds_helper_->SetPlayer(this);

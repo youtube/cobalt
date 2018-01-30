@@ -81,8 +81,7 @@ class MediaModuleStarboard : public MediaModule {
       window = system_window_->GetSbWindow();
     }
     return make_scoped_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
-        window, client, this, &decoder_buffer_allocator_,
-        media_platform_.GetVideoFrameProvider(), new media::MediaLog));
+        window, client, this, &decoder_buffer_allocator_, new media::MediaLog));
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
     scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
     scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
