@@ -43,7 +43,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/web_animations/keyframe_effect_read_only.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media/base/shell_video_frame_provider.h"
+#include "cobalt/media/base/video_frame_provider.h"
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_video_frame_provider.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -53,17 +53,16 @@ namespace cobalt {
 namespace layout {
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
-using media::ShellVideoFrameProvider;
-using media::VideoFrame;
+using media::VideoFrameProvider;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-using ::media::ShellVideoFrameProvider;
+using VideoFrameProvider = ::media::ShellVideoFrameProvider;
 using ::media::VideoFrame;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace {
 
 scoped_refptr<render_tree::Image> GetVideoFrame(
-    const scoped_refptr<ShellVideoFrameProvider>& frame_provider,
+    const scoped_refptr<VideoFrameProvider>& frame_provider,
     render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::layout", "GetVideoFrame()");
   SbDecodeTarget decode_target = frame_provider->GetCurrentSbDecodeTarget();
@@ -76,13 +75,14 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 #endif  // SB_HAS(GRAPHICS)
   } else {
     DCHECK(frame_provider);
+#if !defined(COBALT_MEDIA_SOURCE_2016)
     scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
     if (video_frame && video_frame->texture_id()) {
       scoped_refptr<render_tree::Image> image =
           reinterpret_cast<render_tree::Image*>(video_frame->texture_id());
       return image;
     }
-
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
     return NULL;
   }
 }
@@ -316,8 +316,8 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   //   https://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
   //   https://www.w3.org/TR/css3-text/#line-break-details
   int32 text_position =
-      (*paragraph_)->AppendCodePoint(
-          Paragraph::kObjectReplacementCharacterCodePoint);
+      (*paragraph_)
+          ->AppendCodePoint(Paragraph::kObjectReplacementCharacterCodePoint);
 
   render_tree::ResourceProvider* resource_provider =
       *video_element->node_document()
@@ -328,11 +328,10 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
   // or not.
   base::optional<bool> is_punch_out;
   if (video_element->GetVideoFrameProvider()) {
-    ShellVideoFrameProvider::OutputMode output_mode =
+    VideoFrameProvider::OutputMode output_mode =
         video_element->GetVideoFrameProvider()->GetOutputMode();
-    if (output_mode != ShellVideoFrameProvider::kOutputModeInvalid) {
-      is_punch_out =
-          output_mode == ShellVideoFrameProvider::kOutputModePunchOut;
+    if (output_mode != VideoFrameProvider::kOutputModeInvalid) {
+      is_punch_out = output_mode == VideoFrameProvider::kOutputModePunchOut;
     }
   }
 
@@ -543,8 +542,9 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
       //   https://www.w3.org/TR/CSS21/visuren.html#propdef-unicode-bidi
       //   https://www.w3.org/TR/css3-text/#line-break-details
       int32 text_position =
-          (*paragraph_)->AppendCodePoint(
-              Paragraph::kObjectReplacementCharacterCodePoint);
+          (*paragraph_)
+              ->AppendCodePoint(
+                  Paragraph::kObjectReplacementCharacterCodePoint);
       scoped_refptr<Paragraph> prior_paragraph = *paragraph_;
 
       // The inline block creates a new paragraph, which the old paragraph

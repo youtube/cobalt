@@ -106,6 +106,7 @@
         'base/video_codecs.h',
         'base/video_decoder_config.cc',
         'base/video_decoder_config.h',
+        'base/video_frame_provider.h',
         'base/video_util.cc',
         'base/video_util.h',
         'filters/chunk_demuxer.cc',

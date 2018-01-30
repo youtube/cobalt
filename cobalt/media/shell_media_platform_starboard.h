@@ -30,18 +30,13 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
  public:
   explicit ShellMediaPlatformStarboard(
       cobalt::render_tree::ResourceProvider* resource_provider)
-      : resource_provider_(resource_provider),
-        video_frame_provider_(new ShellVideoFrameProvider) {
+      : resource_provider_(resource_provider) {
     SetInstance(this);
   }
 
   ~ShellMediaPlatformStarboard() {
     DCHECK_EQ(Instance(), this);
     SetInstance(NULL);
-  }
-
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override {
-    return video_frame_provider_;
   }
 
   SbDecodeTargetGraphicsContextProvider*
@@ -78,7 +73,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
   }
 
   cobalt::render_tree::ResourceProvider* resource_provider_;
-  scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
 };
 
 }  // namespace media
@@ -91,7 +85,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 #include "base/memory/aligned_memory.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media/shell_video_data_allocator_common.h"
-#include "media/base/shell_video_frame_provider.h"
 #include "nb/memory_pool.h"
 #include "starboard/common/locked_ptr.h"
 
@@ -110,9 +103,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
   }
   size_t GetSourceBufferStreamVideoMemoryLimit() const override {
     return SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT;
-  }
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override {
-    return video_frame_provider_;
   }
   int GetMaxVideoPrerollFrames() const override {
     return SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES;
@@ -152,7 +142,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
   starboard::LockedPtr<nb::MemoryPool> main_memory_pool_;
 
   ShellVideoDataAllocatorCommon video_data_allocator_;
-  scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellMediaPlatformStarboard);
 };
