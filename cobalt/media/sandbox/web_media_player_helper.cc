@@ -99,9 +99,11 @@ WebMediaPlayerHelper::~WebMediaPlayerHelper() {
   delete client_;
 }
 
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 scoped_refptr<VideoFrame> WebMediaPlayerHelper::GetCurrentFrame() const {
   return player_->GetVideoFrameProvider()->GetCurrentFrame();
 }
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 SbDecodeTarget WebMediaPlayerHelper::GetCurrentDecodeTarget() const {
   return player_->GetVideoFrameProvider()->GetCurrentSbDecodeTarget();

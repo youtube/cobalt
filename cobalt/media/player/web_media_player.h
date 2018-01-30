@@ -19,7 +19,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time.h"
 #include "cobalt/media/base/ranges.h"
-#include "cobalt/media/base/shell_video_frame_provider.h"
+#include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
 #include "cobalt/media/player/buffered_data_source.h"
 #include "googleurl/src/gurl.h"
@@ -145,7 +145,7 @@ class WebMediaPlayer {
   virtual unsigned GetAudioDecodedByteCount() const = 0;
   virtual unsigned GetVideoDecodedByteCount() const = 0;
 
-  virtual scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() {
+  virtual scoped_refptr<VideoFrameProvider> GetVideoFrameProvider() {
     return NULL;
   }
 
