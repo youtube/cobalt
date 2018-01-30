@@ -26,6 +26,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
 #include "ui/gfx/rect.h"
@@ -75,7 +76,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   static scoped_refptr<Pipeline> Create(
       PipelineWindow window,
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
-      MediaLog* media_log);
+      MediaLog* media_log, VideoFrameProvider* video_frame_provider);
 
   virtual ~Pipeline() {}
 

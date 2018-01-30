@@ -63,6 +63,7 @@
 #include "cobalt/media/base/eme_constants.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/video_frame_provider.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "googleurl/src/gurl.h"
@@ -108,7 +109,6 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       PipelineWindow window, WebMediaPlayerClient* client,
       WebMediaPlayerDelegate* delegate,
       DecoderBuffer::Allocator* buffer_allocator,
-      const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
       const scoped_refptr<MediaLog>& media_log);
   ~WebMediaPlayerImpl() override;
 
@@ -175,7 +175,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   unsigned GetAudioDecodedByteCount() const override;
   unsigned GetVideoDecodedByteCount() const override;
 
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override;
+  scoped_refptr<VideoFrameProvider> GetVideoFrameProvider() override;
 
   SetBoundsCB GetSetBoundsCB() override;
 
@@ -296,7 +296,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* client_;
   WebMediaPlayerDelegate* delegate_;
   DecoderBuffer::Allocator* buffer_allocator_;
-  scoped_refptr<ShellVideoFrameProvider> video_frame_provider_;
+  scoped_refptr<VideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 

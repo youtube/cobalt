@@ -22,10 +22,10 @@ namespace cobalt {
 namespace dom {
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
-using media::ShellVideoFrameProvider;
+using media::VideoFrameProvider;
 using media::WebMediaPlayer;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-using ::media::ShellVideoFrameProvider;
+using VideoFrameProvider = ::media::ShellVideoFrameProvider;
 using ::media::WebMediaPlayer;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
@@ -87,8 +87,7 @@ scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality()
       0.);  // total_frame_delay
 }
 
-scoped_refptr<ShellVideoFrameProvider>
-HTMLVideoElement::GetVideoFrameProvider() {
+scoped_refptr<VideoFrameProvider> HTMLVideoElement::GetVideoFrameProvider() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return player() ? player()->GetVideoFrameProvider() : NULL;
 }

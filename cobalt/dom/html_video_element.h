@@ -33,9 +33,9 @@ namespace dom {
 class HTMLVideoElement : public HTMLMediaElement {
  public:
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  typedef media::ShellVideoFrameProvider ShellVideoFrameProvider;
+  typedef media::VideoFrameProvider VideoFrameProvider;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-  typedef ::media::ShellVideoFrameProvider ShellVideoFrameProvider;
+  typedef ::media::ShellVideoFrameProvider VideoFrameProvider;
 #endif  // defined(WebMediaPlayerDelegate)
 
   static const char kTagName[];
@@ -57,10 +57,7 @@ class HTMLVideoElement : public HTMLMediaElement {
   // From HTMLElement
   scoped_refptr<HTMLVideoElement> AsHTMLVideoElement() override { return this; }
 
-  // TODO: ShellVideoFrameProvider is guaranteed to be long live and
-  // thread safe. However, it is actually a singleton internally. We should find
-  // a better way to support concurrent video playbacks.
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider();
+  scoped_refptr<VideoFrameProvider> GetVideoFrameProvider();
 
   WebMediaPlayer::SetBoundsCB GetSetBoundsCB();
 
