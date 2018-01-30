@@ -29,6 +29,7 @@
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/base/video_frame_provider.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 
@@ -58,14 +59,16 @@ class StarboardPlayer {
                   SbPlayerSetBoundsHelper* set_bounds_helper,
                   bool prefer_decode_to_texture,
                   const OnEncryptedMediaInitDataEncounteredCB&
-                      encrypted_media_init_data_encountered_cb);
+                      encrypted_media_init_data_encountered_cb,
+                  VideoFrameProvider* const video_frame_provider);
 #else   // SB_HAS(PLAYER_WITH_URL)
   StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                   const AudioDecoderConfig& audio_config,
                   const VideoDecoderConfig& video_config, SbWindow window,
                   SbDrmSystem drm_system, Host* host,
                   SbPlayerSetBoundsHelper* set_bounds_helper,
-                  bool prefer_decode_to_texture);
+                  bool prefer_decode_to_texture,
+                  VideoFrameProvider* const video_frame_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   ~StarboardPlayer();
 
@@ -220,6 +223,8 @@ class StarboardPlayer {
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
+
+  VideoFrameProvider* const video_frame_provider_;
 };
 
 }  // namespace media

@@ -28,11 +28,9 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media/base/shell_video_frame_provider.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
+#if !defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/video_frame.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 #include "net/base/net_util.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
@@ -339,9 +337,12 @@ class Application {
       return media_sandbox_.resource_provider()->CreateImageFromSbDecodeTarget(
           decode_target);
     }
-
+#if !defined(COBALT_MEDIA_SOURCE_2016)
     scoped_refptr<VideoFrame> frame = player_helper_->GetCurrentFrame();
     return frame ? reinterpret_cast<Image*>(frame->texture_id()) : NULL;
+#else   // !defined(COBALT_MEDIA_SOURCE_2016)
+    return NULL;
+#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 #else   // SB_HAS(GRAPHICS)
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
