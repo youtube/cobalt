@@ -22,59 +22,35 @@
 #include "base/message_loop.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
+#include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
-#include "starboard/once.h"
-#include "v8/include/libplatform/libplatform.h"
-#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
 namespace v8c {
-namespace {
-
-SbOnceControl g_js_init_once_control = SB_ONCE_INITIALIZER;
-v8::Platform* g_platform = nullptr;
-v8::ArrayBuffer::Allocator* g_array_buffer_allocator = nullptr;
-
-void ShutDown(void*) {
-  v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
-
-  DCHECK(g_platform);
-  delete g_platform;
-  g_platform = nullptr;
-
-  DCHECK(g_array_buffer_allocator);
-  delete g_array_buffer_allocator;
-  g_array_buffer_allocator = nullptr;
-}
-
-void InitializeAndRegisterShutDownOnce() {
-  // TODO: Initialize V8 ICU stuff here as well.
-  g_platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(g_platform);
-  v8::V8::Initialize();
-  g_array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-
-  base::AtExitManager::RegisterCallback(ShutDown, nullptr);
-}
-
-}  // namespace
-
-v8::Platform* GetPlatform() { return g_platform; }
 
 V8cEngine::V8cEngine(const Options& options)
     : accumulated_extra_memory_cost_(0), options_(options) {
   TRACE_EVENT0("cobalt::script", "V8cEngine::V8cEngine()");
-  SbOnce(&g_js_init_once_control, InitializeAndRegisterShutDownOnce);
-  DCHECK(g_platform);
-  DCHECK(g_array_buffer_allocator);
 
-  v8::Isolate::CreateParams params;
-  params.array_buffer_allocator = g_array_buffer_allocator;
+  auto* isolate_fellowship = IsolateFellowship::GetInstance();
 
-  isolate_ = v8::Isolate::New(params);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      isolate_fellowship->array_buffer_allocator;
+  auto* startup_data = &isolate_fellowship->startup_data;
+  if (startup_data->data != nullptr) {
+    create_params.snapshot_blob = startup_data;
+  } else {
+    // Technically possible to attempt to recover here, but hitting this
+    // indicates that something is probably seriously wrong.
+    LOG(WARNING) << "Isolate fellowship startup data was null, this will "
+                    "significantly slow down startup time.";
+  }
+
+  isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);
+
   // There are 2 total isolate data slots, one for the sole |V8cEngine| (us),
   // and one for the |V8cGlobalEnvironment|.
   const int kTotalIsolateDataSlots = 2;

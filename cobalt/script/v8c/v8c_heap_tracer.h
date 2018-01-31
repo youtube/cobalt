@@ -19,17 +19,14 @@
 #include <utility>
 #include <vector>
 
+#include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/wrappable.h"
-#include "v8/include/v8.h"
 #include "v8/include/v8-platform.h"
+#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
 namespace v8c {
-
-// We need to re-forward declare this because |V8cEngine| needs us to be
-// defined to have us as a member inside of a |scoped_ptr|.
-v8::Platform* GetPlatform();
 
 class V8cHeapTracer final : public v8::EmbedderHeapTracer,
                             public ::cobalt::script::Tracer {
@@ -57,7 +54,7 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
 
  private:
   v8::Isolate* const isolate_;
-  v8::Platform* const platform_ = GetPlatform();
+  v8::Platform* const platform_ = IsolateFellowship::GetInstance()->platform;
   std::vector<Traceable*> frontier_;
   std::unordered_set<Traceable*> visited_;
 };

@@ -28,8 +28,6 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-v8::Platform* GetPlatform();
-
 class V8cEngine : public JavaScriptEngine {
  public:
   // Helper function to allow others to retrieve us (a |V8cEngine|) from our
