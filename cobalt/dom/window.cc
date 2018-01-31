@@ -119,7 +119,8 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
                float video_playback_rate_multiplier, ClockType clock_type,
-               const CacheCallback& splash_screen_cache_callback)
+               const CacheCallback& splash_screen_cache_callback,
+               const scoped_refptr<captions::SystemCaptionSettings>& captions)
     : width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
@@ -159,7 +160,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
       document_loader_(NULL),
       history_(new History()),
       navigator_(new Navigator(user_agent, language, media_session,
-                               script_value_factory)),
+                               captions, script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),

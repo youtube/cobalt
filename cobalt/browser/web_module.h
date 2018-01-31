@@ -263,6 +263,8 @@ class WebModule : public LifecycleObserver {
   // will be called.
   void InjectBeforeUnloadEvent();
 
+  void InjectCaptionSettingsChangedEvent();
+
   // Executes Javascript code in this web module.  The calling thread will
   // block until the JavaScript has executed and the output results are
   // available.

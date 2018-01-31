@@ -27,6 +27,7 @@
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
+#include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/crypto.h"
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -155,7 +156,8 @@ class Window : public EventTarget,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
-      const CacheCallback& splash_screen_cache_callback = CacheCallback());
+      const CacheCallback& splash_screen_cache_callback = CacheCallback(),
+      const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr);
 
   // Web API: Window
   //

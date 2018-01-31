@@ -801,6 +801,15 @@ void BrowserModule::OnOnScreenKeyboardBlurred(
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
+#if SB_HAS(CAPTIONS)
+void BrowserModule::OnCaptionSettingsChanged(
+    const base::AccessibilityCaptionSettingsChangedEvent* /*event*/) {
+  if (web_module_) {
+    web_module_->InjectCaptionSettingsChangedEvent();
+  }
+}
+#endif  // SB_HAS(CAPTIONS)
+
 #if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
   if (MessageLoop::current() != self_message_loop_) {
