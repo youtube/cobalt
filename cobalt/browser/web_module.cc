@@ -184,6 +184,8 @@ class WebModule::Impl {
   // will be called. The event is not directed at a specific element.
   void InjectBeforeUnloadEvent();
 
+  void InjectCaptionSettingsChangedEvent();
+
   // Executes JavaScript in this WebModule. Sets the |result| output parameter
   // and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
@@ -425,6 +427,9 @@ class WebModule::Impl {
   base::Closure on_before_unload_fired_but_not_handled_;
 
   bool should_retain_remote_typeface_cache_on_suspend_;
+
+  scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
+      system_caption_settings_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -572,6 +577,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_session_client_ = media_session::MediaSessionClient::Create();
 
+  system_caption_settings_ =
+      new cobalt::dom::captions::SystemCaptionSettings();
+
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
 
@@ -610,7 +618,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #else
       dom::Window::kClockTypeSystemTime,
 #endif
-      splash_screen_cache_callback);
+      splash_screen_cache_callback,
+      system_caption_settings_);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -1141,6 +1150,11 @@ void WebModule::Impl::InjectBeforeUnloadEvent() {
   }
 }
 
+void WebModule::Impl::InjectCaptionSettingsChangedEvent() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  system_caption_settings_->OnCaptionSettingsChanged();
+}
+
 void WebModule::Impl::PurgeResourceCaches(
     bool should_retain_remote_typeface_cache) {
   image_cache_->Purge();
@@ -1390,6 +1404,16 @@ void WebModule::InjectBeforeUnloadEvent() {
   message_loop()->PostTask(FROM_HERE,
                            base::Bind(&WebModule::Impl::InjectBeforeUnloadEvent,
                                       base::Unretained(impl_.get())));
+}
+
+void WebModule::InjectCaptionSettingsChangedEvent() {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::InjectCaptionSettingsChangedEvent()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(FROM_HERE,
+      base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
+                 base::Unretained(impl_.get())));
 }
 
 std::string WebModule::ExecuteJavascript(
