@@ -123,7 +123,12 @@ const sk_sp<SkImage>& SinglePlaneImage::GetImage() const {
         size_.width(), size_.height(), kN32_SkColorType, kPremul_SkAlphaType);
 
     SkBitmap bitmap;
-    bitmap.allocPixels(image_info);
+    bool allocation_successful = bitmap.tryAllocPixels(image_info);
+    if (!allocation_successful) {
+      LOG(WARNING) << "Unable to allocate pixels of size " << size_.width()
+                   << "x" << size_.height();
+      return image_;
+    }
     bool result = SbBlitterDownloadSurfacePixels(
         surface_, SkiaToBlitterPixelFormat(image_info.colorType()),
         bitmap.rowBytes(), bitmap.getPixels());
