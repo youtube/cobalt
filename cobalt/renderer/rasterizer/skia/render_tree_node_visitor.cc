@@ -1311,7 +1311,13 @@ void DrawSolidRoundedRectBorderSoftware(
   SkImageInfo image_info =
       SkImageInfo::MakeN32(rect.width(), rect.height(), kPremul_SkAlphaType);
   SkBitmap bitmap;
-  bitmap.allocPixels(image_info);
+
+  bool allocation_successful = bitmap.tryAllocPixels(image_info);
+  if (!allocation_successful) {
+    LOG(WARNING) << "Unable to allocate pixels of size " << rect.width() << "x"
+                 << rect.height();
+    return;
+  }
 
   SkCanvas canvas(bitmap);
   canvas.clear(SkColorSetARGB(0, 0, 0, 0));
