@@ -25,6 +25,8 @@
         'conversion_helpers.h',
         'entry_scope.h',
         'interface_data.h',
+        'isolate_fellowship.cc',
+        'isolate_fellowship.h',
         'native_promise.h',
         'scoped_persistent.h',
         'stack_trace_helpers.cc',
@@ -64,6 +66,15 @@
       'defines': [
         'ENGINE_SUPPORTS_INT64',
         'ENGINE_SUPPORTS_JIT',
+        # The file name to store our V8 startup snapshot file at.  This is a
+        # serialized representation of a |v8::Isolate| after completing all
+        # tasks prior to creation of the global object (e.g., executing self
+        # hosted JavaScript to implement ECMAScript level features).  This
+        # state is architecture dependent, and in fact, dependent on anything
+        # that could affect JavaScript execution (such as #defines), and thus
+        # must be unique with respect to binary, which is why we build it out
+        # of platform name and configuration.
+        'V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME="<(starboard_platform_name)_<(cobalt_config)_v8_startup_snapshot.bin"',
       ],
       'all_dependent_settings': {
         'defines': [
