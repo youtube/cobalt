@@ -108,15 +108,19 @@ SkBitmap BlurBitmap(const SkBitmap& bitmap, float sigma) {
     // We need to convert our image to premultiplied alpha and N32 color
     // before proceeding to blur them, as Skia is designed to primarily deal
     // only with images in this format.
-    SkImageInfo premul_alpha_image_info = SkImageInfo::Make(
-        bitmap.width(), bitmap.height(), kN32_SkColorType, kPremul_SkAlphaType);
-    premul_alpha_bitmap.allocPixels(premul_alpha_image_info);
+    SkImageInfo premul_alpha_image_info =
+        SkImageInfo::MakeN32Premul(bitmap.width(), bitmap.height());
+    bool allocation_successful =
+        premul_alpha_bitmap.tryAllocPixels(premul_alpha_image_info);
+    // Since this is a test, just crash.
+    DCHECK(allocation_successful);
     bitmap.readPixels(premul_alpha_image_info, premul_alpha_bitmap.getPixels(),
                       premul_alpha_bitmap.rowBytes(), 0, 0);
   }
   SkBitmap blurred_bitmap;
-  blurred_bitmap.allocPixels(SkImageInfo::Make(
-      bitmap.width(), bitmap.height(), kN32_SkColorType, kPremul_SkAlphaType));
+  bool blurred_bitmap_allocated =
+      blurred_bitmap.tryAllocN32Pixels(bitmap.width(), bitmap.height());
+  DCHECK(blurred_bitmap_allocated);
 
   SkPaint paint;
   sk_sp<SkImageFilter> blur_filter(
