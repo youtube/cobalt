@@ -25,6 +25,7 @@
 #include "base/threading/thread.h"
 #include "base/timer.h"
 #include "cobalt/account/account_manager.h"
+#include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
 #include "cobalt/base/on_screen_keyboard_blurred_event.h"
@@ -180,6 +181,11 @@ class BrowserModule {
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
+#if SB_HAS(CAPTIONS)
+  void OnCaptionSettingsChanged(
+      const base::AccessibilityCaptionSettingsChangedEvent* event);
+#endif  // SB_HAS(CAPTIONS)
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
