@@ -53,6 +53,29 @@ inline void ConvertSample(ShellAudioBus::SampleType src_type,
   }
 }
 
+void Sum(const float* source, float* destination, size_t size) {
+  for (int i = 0; i < size; ++i) {
+    *destination += *source;
+    ++source;
+    ++destination;
+  }
+}
+
+void Sum(const int16* source, int16* destination, size_t size) {
+  for (int i = 0; i < size; ++i) {
+    int sample_in_int32 = *destination + static_cast<int>(*source);
+    if (sample_in_int32 > std::numeric_limits<int16>::max()) {
+      *destination = std::numeric_limits<int16>::max();
+    } else if (sample_in_int32 < std::numeric_limits<int16>::min()) {
+      *destination = std::numeric_limits<int16>::min();
+    } else {
+      *destination = static_cast<int16>(sample_in_int32);
+    }
+    ++source;
+    ++destination;
+  }
+}
+
 }  // namespace
 
 ShellAudioBus::ShellAudioBus(size_t channels, size_t frames,
@@ -148,6 +171,17 @@ const uint8* ShellAudioBus::planar_data(size_t channel) const {
   return channel_data_[channel];
 }
 
+uint8* ShellAudioBus::interleaved_data() {
+  DCHECK_EQ(storage_type_, kInterleaved);
+  return channel_data_[0];
+}
+
+uint8* ShellAudioBus::planar_data(size_t channel) {
+  DCHECK_LT(channel, channels_);
+  DCHECK_EQ(storage_type_, kPlanar);
+  return channel_data_[channel];
+}
+
 void ShellAudioBus::ZeroFrames(size_t start_frame, size_t end_frame) {
   DCHECK_LE(start_frame, end_frame);
   DCHECK_LE(end_frame, frames_);
@@ -223,84 +257,103 @@ void ShellAudioBus::Assign(const ShellAudioBus& source,
   }
 }
 
-template <typename SourceSampleType, typename DestSampleType,
-          StorageType SourceStorageType, StorageType DestStorageType>
-void ShellAudioBus::MixForTypes(const ShellAudioBus& source) {
+template <StorageType SourceStorageType, StorageType DestStorageType>
+void ShellAudioBus::MixFloatSamples(const ShellAudioBus& source) {
   const size_t frames = std::min(frames_, source.frames_);
+
+  if (SourceStorageType == DestStorageType) {
+    if (SourceStorageType == kInterleaved) {
+      Sum(reinterpret_cast<const float*>(source.interleaved_data()),
+          reinterpret_cast<float*>(interleaved_data()), frames * channels_);
+      return;
+    }
+    for (size_t channel = 0; channel < channels_; ++channel) {
+      Sum(reinterpret_cast<const float*>(source.planar_data(channel)),
+          reinterpret_cast<float*>(planar_data(channel)), frames);
+    }
+    return;
+  }
 
   for (size_t channel = 0; channel < channels_; ++channel) {
     for (size_t frame = 0; frame < frames; ++frame) {
-      *reinterpret_cast<DestSampleType*>(
-          GetSamplePtrForType<DestSampleType, DestStorageType>(channel,
-                                                               frame)) +=
-          source.GetSampleForType<SourceSampleType, SourceStorageType>(channel,
-                                                                       frame);
+      *reinterpret_cast<float*>(
+          GetSamplePtrForType<float, DestStorageType>(channel, frame)) +=
+          source.GetSampleForType<float, SourceStorageType>(channel, frame);
+    }
+  }
+}
+
+template <StorageType SourceStorageType, StorageType DestStorageType>
+void ShellAudioBus::MixInt16Samples(const ShellAudioBus& source) {
+  const size_t frames = std::min(frames_, source.frames_);
+
+  if (SourceStorageType == DestStorageType) {
+    if (SourceStorageType == kInterleaved) {
+      Sum(reinterpret_cast<const int16*>(source.interleaved_data()),
+          reinterpret_cast<int16*>(interleaved_data()), frames * channels_);
+      return;
+    }
+    for (size_t channel = 0; channel < channels_; ++channel) {
+      Sum(reinterpret_cast<const int16*>(source.planar_data(channel)),
+          reinterpret_cast<int16*>(planar_data(channel)), frames);
+    }
+    return;
+  }
+
+  for (size_t channel = 0; channel < channels_; ++channel) {
+    for (size_t frame = 0; frame < frames; ++frame) {
+      auto& dest_sample = *reinterpret_cast<int16*>(
+          GetSamplePtrForType<int16, DestStorageType>(channel, frame));
+      int source_sample =
+          source.GetSampleForType<int16, SourceStorageType>(channel, frame);
+      if (dest_sample + source_sample > std::numeric_limits<int16>::max()) {
+        dest_sample = std::numeric_limits<int16>::max();
+      } else if (dest_sample + source_sample <
+                 std::numeric_limits<int16>::min()) {
+        dest_sample = std::numeric_limits<int16>::min();
+      } else {
+        dest_sample += source_sample;
+      }
     }
   }
 }
 
 void ShellAudioBus::Mix(const ShellAudioBus& source) {
   DCHECK_EQ(channels_, source.channels_);
+  DCHECK_EQ(sample_type_, source.sample_type_);
 
-  if (channels_ != source.channels_) {
+  if (channels_ != source.channels_ || sample_type_ != source.sample_type_) {
     ZeroAllFrames();
     return;
   }
 
   // Profiling has identified this area of code as hot, so instead of calling
-  // GetSamplePtr, which branches each time it is called, we branch once
-  // before we loop and inline the branch of the function we want.
-  if (source.sample_type_ == kInt16 && sample_type_ == kInt16 &&
-      source.storage_type_ == kInterleaved && storage_type_ == kInterleaved) {
-    MixForTypes<int16, int16, kInterleaved, kInterleaved>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kInt16 &&
-             source.storage_type_ == kInterleaved && storage_type_ == kPlanar) {
-    MixForTypes<int16, int16, kInterleaved, kPlanar>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kInt16 &&
-             source.storage_type_ == kPlanar && storage_type_ == kInterleaved) {
-    MixForTypes<int16, int16, kPlanar, kInterleaved>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kInt16 &&
-             source.storage_type_ == kPlanar && storage_type_ == kPlanar) {
-    MixForTypes<int16, int16, kPlanar, kPlanar>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kInterleaved &&
+  // GetSamplePtr, which branches each time it is called, we branch once before
+  // we loop and inline the branch of the function we want.
+  if (source.sample_type_ == kInt16 && source.storage_type_ == kInterleaved &&
+      storage_type_ == kInterleaved) {
+    MixInt16Samples<kInterleaved, kInterleaved>(source);
+  } else if (sample_type_ == kInt16 && source.storage_type_ == kInterleaved &&
+             storage_type_ == kPlanar) {
+    MixInt16Samples<kInterleaved, kPlanar>(source);
+  } else if (sample_type_ == kInt16 && source.storage_type_ == kPlanar &&
              storage_type_ == kInterleaved) {
-    MixForTypes<int16, float, kInterleaved, kInterleaved>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kInterleaved && storage_type_ == kPlanar) {
-    MixForTypes<int16, float, kInterleaved, kPlanar>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kPlanar && storage_type_ == kInterleaved) {
-    MixForTypes<int16, float, kPlanar, kInterleaved>(source);
-  } else if (source.sample_type_ == kInt16 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kPlanar && storage_type_ == kPlanar) {
-    MixForTypes<int16, float, kPlanar, kPlanar>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kInt16 &&
-             source.storage_type_ == kInterleaved &&
+    MixInt16Samples<kPlanar, kInterleaved>(source);
+  } else if (sample_type_ == kInt16 && source.storage_type_ == kPlanar &&
+             storage_type_ == kPlanar) {
+    MixInt16Samples<kPlanar, kPlanar>(source);
+  } else if (sample_type_ == kFloat32 && source.storage_type_ == kInterleaved &&
              storage_type_ == kInterleaved) {
-    MixForTypes<float, int16, kInterleaved, kInterleaved>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kInt16 &&
-             source.storage_type_ == kInterleaved && storage_type_ == kPlanar) {
-    MixForTypes<float, int16, kInterleaved, kPlanar>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kInt16 &&
-             source.storage_type_ == kPlanar && storage_type_ == kInterleaved) {
-    MixForTypes<float, int16, kPlanar, kInterleaved>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kInt16 &&
-             source.storage_type_ == kPlanar && storage_type_ == kPlanar) {
-    MixForTypes<float, int16, kPlanar, kPlanar>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kInterleaved &&
+    MixFloatSamples<kInterleaved, kInterleaved>(source);
+  } else if (sample_type_ == kFloat32 && source.storage_type_ == kInterleaved &&
+             storage_type_ == kPlanar) {
+    MixFloatSamples<kInterleaved, kPlanar>(source);
+  } else if (sample_type_ == kFloat32 && source.storage_type_ == kPlanar &&
              storage_type_ == kInterleaved) {
-    MixForTypes<float, float, kInterleaved, kInterleaved>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kInterleaved && storage_type_ == kPlanar) {
-    MixForTypes<float, float, kInterleaved, kPlanar>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kPlanar && storage_type_ == kInterleaved) {
-    MixForTypes<float, float, kPlanar, kInterleaved>(source);
-  } else if (source.sample_type_ == kFloat32 && sample_type_ == kFloat32 &&
-             source.storage_type_ == kPlanar && storage_type_ == kPlanar) {
-    MixForTypes<float, float, kPlanar, kPlanar>(source);
+    MixFloatSamples<kPlanar, kInterleaved>(source);
+  } else if (sample_type_ == kFloat32 && source.storage_type_ == kPlanar &&
+             storage_type_ == kPlanar) {
+    MixFloatSamples<kPlanar, kPlanar>(source);
   } else {
     NOTREACHED();
   }

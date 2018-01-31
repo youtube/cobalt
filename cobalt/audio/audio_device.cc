@@ -170,13 +170,13 @@ void AudioDevice::Impl::UpdateSourceStatus(int* frames_in_buffer,
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
   if ((kFramesPerChannel - *frames_in_buffer) >= kRenderBufferSizeFrames) {
-    bool silence = false;
-
     // If there was silence last time we were called, then the buffer has
     // already been zeroed out and we don't need to do it again.
     if (!was_silence_last_update_) {
       input_audio_bus_.ZeroAllFrames();
     }
+
+    bool silence = true;
 
     // Fill our temporary buffer with planar PCM float samples.
     render_callback_->FillAudioBus(&input_audio_bus_, &silence);
@@ -345,7 +345,7 @@ bool AudioDevice::Impl::PullFrames(uint32* offset_in_frame,
 
   if ((kFramesPerChannel - *total_frames) >= kRenderBufferSizeFrames) {
     // Fill our temporary buffer with PCM float samples.
-    bool silence = false;
+    bool silence = true;
     render_callback_->FillAudioBus(&audio_bus_, &silence);
 
     if (!silence) {
