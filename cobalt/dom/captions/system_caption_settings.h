@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include "cobalt/base/event.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/captions/caption_character_edge_style.h"
 #include "cobalt/dom/captions/caption_color.h"
 #include "cobalt/dom/captions/caption_font_family.h"
@@ -32,7 +34,7 @@ namespace captions {
 
 class SystemCaptionSettings : public EventTarget {
  public:
-  SystemCaptionSettings();
+  SystemCaptionSettings() {}
 
   base::optional<std::string> background_color();
   CaptionState background_color_state();
@@ -73,6 +75,8 @@ class SystemCaptionSettings : public EventTarget {
 
   const EventListenerScriptValue* onchanged() const;
   void set_onchanged(const EventListenerScriptValue& event_listener);
+
+  void OnCaptionSettingsChanged();
 
  private:
   // TODO: Delete these functions and their implementations if nullable

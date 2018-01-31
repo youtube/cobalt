@@ -82,6 +82,10 @@ class Application {
   void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
+#if SB_HAS(CAPTIONS)
+  void OnCaptionSettingsChangedEvent(const base::Event* event);
+#endif  // SB_HAS(CAPTIONS)
+
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleRecreated();
 
