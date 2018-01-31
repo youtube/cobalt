@@ -38,6 +38,10 @@ class AudioDevice {
     typedef ::media::ShellAudioBus ShellAudioBus;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
+    // |silence| will be set to true before calling if |audio_buffer| contains
+    // only silence samples, it will be set to |false| otherwise.  On return
+    // FillAudioBus() will set |silence| to |false| if it has modified
+    // |audio_buffer|.
     virtual void FillAudioBus(ShellAudioBus* audio_buffer, bool* silence) = 0;
 
    protected:
