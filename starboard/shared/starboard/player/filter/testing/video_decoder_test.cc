@@ -28,10 +28,10 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/shared/starboard/player/filter/testing/fake_graphics_context_provider.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/string.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -48,6 +48,7 @@ namespace filter {
 namespace testing {
 namespace {
 
+using ::starboard::testing::FakeGraphicsContextProvider;
 using ::std::placeholders::_1;
 using ::std::placeholders::_2;
 using ::testing::ValuesIn;
