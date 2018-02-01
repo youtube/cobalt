@@ -91,9 +91,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   ScriptValueFactory* script_value_factory() override;
 
-  // Evaluates any automatically included Javascript for the environment.
-  void EvaluateAutomatics();
-
   JSContext* context() const { return context_; }
 
   JSObject* global_object_proxy() const { return global_object_proxy_; }
@@ -158,6 +155,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
     JS::Heap<JSObject*> heap_object;
     int count;
   };
+
+  // Evaluates any automatically included Javascript for the environment.
+  void EvaluateAutomatics();
 
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
                               bool mute_errors,
