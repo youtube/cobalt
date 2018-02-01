@@ -23,6 +23,8 @@
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
+        '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
+        '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
         'accessibility_get_setting_test.cc',
         'align_test.cc',
         'atomic_test.cc',
