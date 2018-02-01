@@ -111,37 +111,14 @@ bool V8cGlobalEnvironment::EvaluateScript(
 
   EntryScope entry_scope(isolate_);
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
-
-  V8cSourceCode* v8c_source_code =
-      base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
-  const base::SourceLocation& source_location = v8c_source_code->location();
-
   v8::TryCatch try_catch(isolate_);
-  v8::ScriptOrigin script_origin(
-      v8::String::NewFromUtf8(isolate_, source_location.file_path.c_str(),
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::Integer::New(isolate_, source_location.line_number),
-      v8::Integer::New(isolate_, source_location.column_number),
-      v8::Boolean::New(isolate_, !mute_errors));
-  v8::Local<v8::String> source =
-      v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked();
 
-  v8::MaybeLocal<v8::Script> maybe_script =
-      v8::Script::Compile(context, source, &script_origin);
-  v8::Local<v8::Script> script;
-  if (!maybe_script.ToLocal(&script)) {
-    if (out_result_utf8) {
-      *out_result_utf8 = ExceptionToString(try_catch);
-    }
-    return false;
-  }
-
-  v8::MaybeLocal<v8::Value> maybe_result = script->Run(context);
   v8::Local<v8::Value> result;
-  if (!maybe_result.ToLocal(&result)) {
+  if (!EvaluateScriptInternal(source_code, mute_errors).ToLocal(&result)) {
+    if (!try_catch.HasCaught()) {
+      LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
+      return false;
+    }
     if (out_result_utf8) {
       *out_result_utf8 = ExceptionToString(try_catch);
     }
@@ -165,34 +142,13 @@ bool V8cGlobalEnvironment::EvaluateScript(
 
   EntryScope entry_scope(isolate_);
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
-
-  V8cSourceCode* v8c_source_code =
-      base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
-  const base::SourceLocation& source_location = v8c_source_code->location();
-
   v8::TryCatch try_catch(isolate_);
-  v8::ScriptOrigin script_origin(
-      v8::String::NewFromUtf8(isolate_, source_location.file_path.c_str(),
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::Integer::New(isolate_, source_location.line_number),
-      v8::Integer::New(isolate_, source_location.column_number),
-      v8::Boolean::New(isolate_, !mute_errors));
-  v8::Local<v8::String> source =
-      v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked();
 
-  v8::MaybeLocal<v8::Script> maybe_script =
-      v8::Script::Compile(context, source, &script_origin);
-  v8::Local<v8::Script> script;
-  if (!maybe_script.ToLocal(&script)) {
-    return false;
-  }
-
-  v8::MaybeLocal<v8::Value> maybe_result = script->Run(context);
   v8::Local<v8::Value> result;
-  if (!maybe_result.ToLocal(&result)) {
+  if (!EvaluateScriptInternal(source_code, mute_errors).ToLocal(&result)) {
+    if (!try_catch.HasCaught()) {
+      LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
+    }
     return false;
   }
 
@@ -207,10 +163,18 @@ bool V8cGlobalEnvironment::EvaluateScript(
 std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::GetStackTrace()");
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // cobalt::script treats |max_frames| being set to 0 as "the entire stack",
+  // while V8 interprets the frame count being set to 0 as "give me 0 frames",
+  // so we have to translate between the two.
+  const int kV8CallMaxFrameAmount = 4096;
+  int v8_max_frames = (max_frames == 0) ? kV8CallMaxFrameAmount : max_frames;
+
   v8::HandleScope handle_scope(isolate_);
-  std::vector<StackFrame> result;
   v8::Local<v8::StackTrace> stack_trace =
-      v8::StackTrace::CurrentStackTrace(isolate_, max_frames);
+      v8::StackTrace::CurrentStackTrace(isolate_, v8_max_frames);
+
+  std::vector<StackFrame> result;
   for (int i = 0; i < stack_trace->GetFrameCount(); i++) {
     v8::Local<v8::StackFrame> stack_frame = stack_trace->GetFrame(i);
     result.emplace_back(
@@ -218,6 +182,7 @@ std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
         *v8::String::Utf8Value(isolate_, stack_frame->GetFunctionName()),
         *v8::String::Utf8Value(isolate_, stack_frame->GetScriptName()));
   }
+
   return result;
 }
 
@@ -308,6 +273,63 @@ void V8cGlobalEnvironment::Bind(const std::string& identifier,
 ScriptValueFactory* V8cGlobalEnvironment::script_value_factory() {
   DCHECK(script_value_factory_);
   return script_value_factory_;
+}
+
+v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
+    const scoped_refptr<SourceCode>& source_code, bool mute_errors) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  // Note that we expect an |EntryScope| and |v8::TryCatch| to have been set
+  // up by our caller.
+  V8cSourceCode* v8c_source_code =
+      base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
+  const base::SourceLocation& source_location = v8c_source_code->location();
+
+  v8::Local<v8::String> resource_name;
+  if (!v8::String::NewFromUtf8(isolate_, source_location.file_path.c_str(),
+                               v8::NewStringType::kNormal)
+           .ToLocal(&resource_name)) {
+    // Technically possible, but whoa man should this never happen.
+    LOG(WARNING) << "Failed to convert source location file path \""
+                 << source_location.file_path << "\" to a V8 UTF-8 string.";
+    return {};
+  }
+
+  // Note that |v8::ScriptOrigin| offsets are 0-based, whereas
+  // |SourceLocation| line/column numbers are 1-based, so subtract 1 to
+  // translate between the two.
+  v8::ScriptOrigin script_origin(
+      /*resource_name=*/resource_name,
+      /*resource_line_offset=*/
+      v8::Integer::New(isolate_, source_location.line_number - 1),
+      /*resource_column_offset=*/
+      v8::Integer::New(isolate_, source_location.column_number - 1),
+      /*resource_is_shared_cross_origin=*/
+      v8::Boolean::New(isolate_, !mute_errors));
+
+  v8::Local<v8::String> source;
+  if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
+                               v8::NewStringType::kNormal)
+           .ToLocal(&source)) {
+    LOG(WARNING) << "Failed to convert source code to V8 UTF-8 string.";
+    return {};
+  }
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  v8::Local<v8::Script> script;
+  if (!v8::Script::Compile(context, source, &script_origin).ToLocal(&script)) {
+    LOG(WARNING) << "Failed to compile script.";
+    return {};
+  }
+
+  v8::Local<v8::Value> result;
+  if (!script->Run(context).ToLocal(&result)) {
+    LOG(WARNING) << "Failed to run script.";
+    return {};
+  }
+
+  return result;
 }
 
 void V8cGlobalEnvironment::EvaluateAutomatics() {

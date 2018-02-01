@@ -69,7 +69,6 @@
         'defines': [
           'ENGINE_SUPPORTS_INDEXED_DELETERS',
           'ENGINE_SUPPORTS_INT64',
-          'ENGINE_SUPPORTS_STACK_TRACE_COLUMNS',
           # TODO: Remove this when exact rooting and generational GC is enabled.
           'ENGINE_USES_CONSERVATIVE_ROOTING',
         ],
