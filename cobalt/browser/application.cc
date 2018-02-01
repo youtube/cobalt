@@ -43,6 +43,9 @@
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+#include "cobalt/base/version_compatibility.h"
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/window_size_changed_event.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -53,7 +56,7 @@
 #include "cobalt/script/javascript_engine.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
-#endif
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
@@ -493,7 +496,22 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     options.storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
-#endif
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+  constexpr int kDefaultMinCompatibilityVersion = 1;
+  int minimum_version = kDefaultMinCompatibilityVersion;
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  if (command_line->HasSwitch(browser::switches::kMinCompatibilityVersion)) {
+    std::string switch_value =
+        command_line->GetSwitchValueASCII(switches::kMinCompatibilityVersion);
+    if (!base::StringToInt(switch_value, &minimum_version)) {
+      DLOG(ERROR) << "Invalid min_compatibility_version provided.";
+    }
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(minimum_version);
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
   base::optional<std::string> partition_key;
   if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {
