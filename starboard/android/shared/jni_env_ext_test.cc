@@ -38,6 +38,11 @@ const int kU16Length = SB_ARRAY_SIZE(kU16) - 1;
 const int kU8Length = SB_ARRAY_SIZE(kU8) - 1;
 const int kMU8Length = SB_ARRAY_SIZE(kMU8) - 1;
 
+// Note: there is no test for getting the string back as modified UTF-8 since
+// on some Android devices GetStringUTFChars() may return standard UTF-8.
+// (e.g. Nexus Player returns modified UTF-8, but Shield returns standard UTF-8)
+// see: https://github.com/android-ndk/ndk/issues/283
+
 TEST(JniEnvExtTest, NewStringStandardUTF) {
   JniEnvExt* env = JniEnvExt::Get();
   jstring j_str = env->NewStringStandardUTFOrAbort(kU8);
@@ -48,12 +53,18 @@ TEST(JniEnvExtTest, NewStringStandardUTF) {
       reinterpret_cast<const char16_t*>(u16_chars), kU16Length);
   EXPECT_EQ(std::u16string(kU16), u16_string);
   env->ReleaseStringChars(j_str, u16_chars);
+}
 
-  EXPECT_EQ(kMU8Length, env->GetStringUTFLength(j_str));
-  const char* mu8_chars = env->GetStringUTFChars(j_str, NULL);
-  std::string mu8_string(mu8_chars);
-  EXPECT_EQ(std::string(kMU8), mu8_string);
-  env->ReleaseStringUTFChars(j_str, mu8_chars);
+TEST(JniEnvExtTest, NewStringModifiedUTF) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jstring j_str = env->NewStringUTF(kMU8);
+
+  EXPECT_EQ(kU16Length, env->GetStringLength(j_str));
+  const jchar* u16_chars = env->GetStringChars(j_str, NULL);
+  std::u16string u16_string(
+      reinterpret_cast<const char16_t*>(u16_chars), kU16Length);
+  EXPECT_EQ(std::u16string(kU16), u16_string);
+  env->ReleaseStringChars(j_str, u16_chars);
 }
 
 TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
@@ -61,11 +72,6 @@ TEST(JniEnvExtTest, EmptyNewStringStandardUTF) {
   jstring j_str = env->NewStringStandardUTFOrAbort("");
 
   EXPECT_EQ(0, env->GetStringLength(j_str));
-  EXPECT_EQ(0, env->GetStringUTFLength(j_str));
-
-  const char* mu8_chars = env->GetStringUTFChars(j_str, NULL);
-  EXPECT_EQ('\0', mu8_chars[0]);
-  env->ReleaseStringUTFChars(j_str, mu8_chars);
 }
 
 TEST(JniEnvExtTest, GetStringStandardUTF) {
