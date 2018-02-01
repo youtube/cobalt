@@ -49,6 +49,10 @@ def count_rasterize_new_render_tree():
   return 'Count.Renderer.Rasterize.NewRenderTree'
 
 
+def count_version_compatibility_violation():
+  return 'Count.VersionCompatibilityViolation'
+
+
 def event_duration_dom_video_start_delay():
   return 'Event.Duration.MainWebModule.DOM.VideoStartDelay'
 

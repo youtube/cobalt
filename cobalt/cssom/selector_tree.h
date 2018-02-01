@@ -140,6 +140,9 @@ class SelectorTree {
     }
   };
 
+  typedef std::map<std::pair<const Node*, CombinatorType>, OwnedNodes>
+      OwnedNodesMap;
+
   struct PseudoClassNode {
     PseudoClassType pseudo_class_type;
     CombinatorType combinator_type;
@@ -265,6 +268,12 @@ class SelectorTree {
   // Used by unit tests only.
   const OwnedNodes& children(const Node* node, CombinatorType combinator);
 
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+  // Validates the selector tree's compatibility against pre-selected versions
+  // of Cobalt. Returns true if there are no version compatibility violations.
+  bool ValidateVersionCompatibility() const;
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+
  private:
   // Gets or creates node for complex selector, starting from root.
   Node* GetOrCreateNodeForComplexSelector(ComplexSelector* selector);
@@ -283,7 +292,7 @@ class SelectorTree {
   // type.  It is only used when modifying the SelectorTree and is not used
   // during rule matching.  So we store it externally to the Node to minimize
   // the size of Node structure.
-  std::map<std::pair<const Node*, CombinatorType>, OwnedNodes> owned_nodes_map_;
+  OwnedNodesMap owned_nodes_map_;
 
   bool has_sibling_combinators_;
 

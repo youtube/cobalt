@@ -78,6 +78,8 @@
         'unused.h',
         'user_log.cc',
         'user_log.h',
+        'version_compatibility.cc',
+        'version_compatibility.h',
       ],
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
