@@ -52,6 +52,24 @@
       "revId": "148fb5ee9b696562ff332bd01890ef5cb6d09676",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "47660b98_685f6cd5",
+        "filename": "src/starboard/creator/sysroot/mipsel-toolchain-sysroot-creator.sh",
+        "patchSetId": 1
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-02-01T00:44:35Z",
+      "side": 1,
+      "message": "We\u0027ve been asked to have you upload this (and please include the NaCL LICENSE file) to something under third_party ( third_party/ci20 would do)",
+      "parentUuid": "34061cd7_d96cd915",
+      "revId": "148fb5ee9b696562ff332bd01890ef5cb6d09676",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
     }
   ]
 }
