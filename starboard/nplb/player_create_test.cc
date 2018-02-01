@@ -15,6 +15,7 @@
 #include "starboard/blitter.h"
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,28 +25,26 @@ namespace {
 
 #if SB_HAS(PLAYER_WITH_URL)
 // This test does not apply. See player_create_with_url_test.cc instead.
-#else
+#else  // SB_HAS(PLAYER_WITH_URL)
 
-#if SB_HAS(GLES2)
-void GlesContextRunner(
-    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-    SbDecodeTargetGlesContextRunnerTarget target_function,
-    void* target_function_context) {
-  SB_UNREFERENCED_PARAMETER(graphics_context_provider);
+using ::starboard::testing::FakeGraphicsContextProvider;
 
-  // Just call the function directly in case the player implementation relies
-  // on this function call being made.
-  (*target_function)(target_function_context);
-}
-#endif  // SB_HAS(GLES2)
+class SbPlayerTest : public ::testing::Test {
+ protected:
+  void SetUp() {
+    SbWindowOptions window_options;
+    SbWindowSetDefaultOptions(&window_options);
 
-TEST(SbPlayerTest, SunnyDay) {
-  SbWindowOptions window_options;
-  SbWindowSetDefaultOptions(&window_options);
+    window_ = SbWindowCreate(&window_options);
+    EXPECT_TRUE(SbWindowIsValid(window_));
+  }
+  void TearDown() { SbWindowDestroy(window_); }
 
-  SbWindow window = SbWindowCreate(&window_options);
-  EXPECT_TRUE(SbWindowIsValid(window));
+  SbWindow window_;
+  FakeGraphicsContextProvider fake_graphics_context_provider_;
+};
 
+TEST_F(SbPlayerTest, SunnyDay) {
   SbMediaAudioHeader audio_header;
 
   audio_header.format_tag = 0xff;
@@ -54,9 +53,6 @@ TEST(SbPlayerTest, SunnyDay) {
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = 32;
   audio_header.audio_specific_config_size = 0;
-#if SB_API_VERSION >= 6
-  audio_header.audio_specific_config = NULL;
-#endif  // SB_API_VERSION >= 6
   audio_header.average_bytes_per_second = audio_header.samples_per_second *
                                           audio_header.number_of_channels *
                                           audio_header.bits_per_sample / 8;
@@ -73,22 +69,11 @@ TEST(SbPlayerTest, SunnyDay) {
       continue;
     }
 
-    SbDecodeTargetGraphicsContextProvider
-        decode_target_graphics_context_provider;
-#if SB_HAS(BLITTER)
-    decode_target_graphics_context_provider.device = kSbBlitterInvalidDevice;
-#elif SB_HAS(GLES2)
-    decode_target_graphics_context_provider.egl_display = NULL;
-    decode_target_graphics_context_provider.egl_context = NULL;
-    decode_target_graphics_context_provider.gles_context_runner =
-        &GlesContextRunner;
-    decode_target_graphics_context_provider.gles_context_runner_context = NULL;
-#endif  // SB_HAS(BLITTER)
-
     SbPlayer player = SbPlayerCreate(
-        window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+        window_, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
         SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header, NULL, NULL,
-        NULL, NULL, output_mode, &decode_target_graphics_context_provider);
+        NULL, NULL, output_mode,
+        fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_TRUE(SbPlayerIsValid(player));
 
     if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
@@ -97,9 +82,37 @@ TEST(SbPlayerTest, SunnyDay) {
 
     SbPlayerDestroy(player);
   }
-
-  SbWindowDestroy(window);
 }
+
+#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+TEST_F(SbPlayerTest, Audioless) {
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
+  SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
+    SbPlayerOutputMode output_mode = output_modes[i];
+    if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
+      continue;
+    }
+
+    SbPlayer player = SbPlayerCreate(
+        window_, kSbMediaVideoCodecH264, kSbMediaAudioCodecNone,
+        SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, NULL, NULL, NULL, NULL,
+        NULL, output_mode,
+        fake_graphics_context_provider_.decoder_target_provider());
+    EXPECT_TRUE(SbPlayerIsValid(player));
+
+    if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      SbDecodeTarget current_frame = SbPlayerGetCurrentFrame(player);
+    }
+
+    SbPlayerDestroy(player);
+  }
+}
+#endif  // SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
