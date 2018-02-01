@@ -93,9 +93,6 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   ScriptValueFactory* script_value_factory() override;
 
-  // Evaluates any automatically included Javascript for the environment.
-  void EvaluateAutomatics();
-
   v8::Isolate* isolate() const { return isolate_; }
   v8::Local<v8::Context> context() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
@@ -146,6 +143,12 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
     v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> handle;
     int count;
   };
+
+  v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
+      const scoped_refptr<SourceCode>& source_code, bool mute_errors);
+
+  // Evaluates any automatically included Javascript for the environment.
+  void EvaluateAutomatics();
 
   // Where we store ourselves as embedder private data in our corresponding
   // |v8::Isolate|.

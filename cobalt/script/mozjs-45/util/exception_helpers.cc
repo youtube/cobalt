@@ -79,7 +79,7 @@ void GetStackTrace(JSContext* context, size_t max_frames,
 
     sf.line_number = static_cast<int>(line);
     sf.column_number = static_cast<int>(column);
-    sf.function_name = "global code";
+    sf.function_name = "";
     if (name) {
       JS::RootedValue rooted_value(context);
       rooted_value.setString(name);
@@ -125,10 +125,10 @@ void GetStackTraceUsingInternalApi(JSContext* context, size_t max_frames,
         auto* chars = atom->latin1Chars(nogc);
         sf.function_name = std::string(chars, chars + atom->length());
       } else {
-        sf.function_name = "(anonymous function)";
+        sf.function_name = "<anonymous>";
       }
     } else {
-      sf.function_name = "global code";
+      sf.function_name = "";
     }
 
     output->push_back(sf);
