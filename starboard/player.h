@@ -301,6 +301,10 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 // |audio_codec|: The audio codec used for the player. The value should never
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
 //   populated |audio_header| if the audio codec is |kSbMediaAudioCodecAac|.
+#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+//   This can be set to |kSbMediaAudioCodecNone| to play a video without any
+//   audio track.  In such case |audio_header| must be NULL.
+#endif  // SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
 //
 // |duration_pts|: The expected media duration in 90KHz ticks (PTS). It may be
 //   set to |SB_PLAYER_NO_DURATION| for live streams.
@@ -318,6 +322,9 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
 #endif  // SB_API_VERSION >= 6
+#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+//   When |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
+#endif  // SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
