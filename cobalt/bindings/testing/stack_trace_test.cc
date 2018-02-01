@@ -41,27 +41,27 @@ TEST_F(StackTraceTest, GetStackTrace) {
       "    return foo(depth - 1);\n"
       "  }\n"
       "}\n"
-      "foo(4)";
+      "foo(4);";
   EXPECT_TRUE(EvaluateScript(script, &result));
 
   // Expect that bar is on top.
   std::string match_line = "bar @ [object BindingsTestBase]:2";
   size_t position = result.find(match_line);
-  EXPECT_TRUE(position != std::string::npos);
+  EXPECT_TRUE(position != std::string::npos) << result;
   // Expect a foo at line 6.
   match_line = "foo @ [object BindingsTestBase]:6";
   position = result.find(match_line, ++position);
-  EXPECT_TRUE(position != std::string::npos);
+  EXPECT_TRUE(position != std::string::npos) << result;
   // Expect 4 subsequent foos at line 8.
   match_line = "foo @ [object BindingsTestBase]:8";
   for (int i = 0; i < 4; ++i) {
     position = result.find(match_line, ++position);
-    EXPECT_TRUE(position != std::string::npos);
+    EXPECT_TRUE(position != std::string::npos) << result;
   }
   // Expect global code at line 11.
-  match_line = "global code @ [object BindingsTestBase]:11";
+  match_line = " @ [object BindingsTestBase]:11";
   position = result.find(match_line, ++position);
-  EXPECT_TRUE(position != std::string::npos);
+  EXPECT_TRUE(position != std::string::npos) << result;
 }
 
 TEST_F(StackTraceTest, UnnamedFunction) {
@@ -73,14 +73,13 @@ TEST_F(StackTraceTest, UnnamedFunction) {
       "  return fun();\n"
       "}\n"
       "foo(function() { return getStackTrace();})";
-  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_TRUE(EvaluateScript(script, &result)) << result;
 
   std::string match_line = "[object BindingsTestBase]:4";
   size_t position = result.find(match_line);
-  EXPECT_TRUE(position != std::string::npos);
+  EXPECT_TRUE(position != std::string::npos) << result;
 }
 
-#if defined(ENGINE_SUPPORTS_STACK_TRACE_COLUMNS)
 // Test for column numbers in stack trace. Behavior varies somewhat
 // across engines & versions so, don't check actual column values.
 TEST_F(StackTraceTest, GetStackTraceColumns) {
@@ -99,10 +98,9 @@ TEST_F(StackTraceTest, GetStackTraceColumns) {
   EXPECT_TRUE(EvaluateScript(script, &result));
   const std::string expected =
       "bar @ \\[object BindingsTestBase\\]:3:\\d+\n"
-      "global code @ \\[object BindingsTestBase\\]:8:\\d+";
+      " @ \\[object BindingsTestBase\\]:8:\\d+";
   EXPECT_THAT(result, MatchesRegex(expected));
 }
-#endif  // ENGINE_SUPPORTS_STACK_TRACE_COLUMNS
 
 }  // namespace testing
 }  // namespace bindings
