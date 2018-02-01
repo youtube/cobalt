@@ -898,6 +898,12 @@ void Document::UpdateSelectorTree() {
       AppendRulesFromCSSStyleSheetToSelectorTree(css_style_sheet,
                                                  selector_tree_.get());
     }
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+    // Now that the selector tree is fully updated, validate its version
+    // compatibility.
+    selector_tree_->ValidateVersionCompatibility();
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+
     scoped_refptr<HTMLHtmlElement> current_html = html();
     if (current_html) {
       current_html->InvalidateMatchingRulesRecursively();

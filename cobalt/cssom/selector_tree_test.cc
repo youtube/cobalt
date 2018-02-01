@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/cssom/selector_tree.h"
+
+#include "cobalt/base/version_compatibility.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_style_rule.h"
-#include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/specificity.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -48,6 +50,12 @@ TEST(SelectorTreeTest, AppendRuleShouldTakeOneRule) {
                                           "[object SelectorTreeTest]", 1, 1))
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
+
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
+
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
   ASSERT_EQ(1,
@@ -88,6 +96,12 @@ TEST(SelectorTreeTest, AppendRuleShouldNormalizeCompoundSelector) {
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
+
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
+
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
   ASSERT_EQ(1,
@@ -118,6 +132,11 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
+
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
@@ -159,6 +178,11 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDesendantSelectors) {
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
+
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
@@ -212,6 +236,16 @@ TEST(SelectorTreeTest, AppendRuleTwoDifferentNotSelectorsForSameElement) {
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
 
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 16.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(16);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
+
+  // Verify that ValidateVersionCompatibility reports a usage error when the
+  // minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_FALSE(selector_tree.ValidateVersionCompatibility());
+
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
   ASSERT_EQ(2,
@@ -258,6 +292,11 @@ TEST(SelectorTreeTest, AppendRuleTwoNotSelectorsForDifferentElements) {
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
 
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
+
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
   ASSERT_EQ(2,
@@ -302,6 +341,11 @@ TEST(SelectorTreeTest, AppendRuleTwoIdenticalNotSelectors) {
           ->AsCSSStyleRule();
   selector_tree.AppendRule(css_style_rule_1);
   selector_tree.AppendRule(css_style_rule_2);
+
+  // Verify that ValidateVersionCompatibility does not report a usage error
+  // when the minimum compatibility version is 1.
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
+  EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
   ASSERT_EQ(
       0, selector_tree.children(selector_tree.root(), kChildCombinator).size());

@@ -73,6 +73,11 @@ const char kMemoryTracker[] = "memory_tracker";
 const char kMemoryTrackerHelp[] =
     "Enables memory tracking by installing the memory tracker on startup.";
 
+const char kMinCompatibilityVersion[] = "min_compatibility_version";
+const char kMinCompatibilityVersionHelp[] =
+    "The minimum version of Cobalt that will be checked during compatibility "
+    "validations.";
+
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
     "Set the minimum logging level: info|warning|error|fatal.";
@@ -310,6 +315,7 @@ std::string HelpMessage() {
         {kFakeMicrophone, kFakeMicrophoneHelp},
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
         {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
+        {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
         {kMinLogLevel, kMinLogLevelHelp},
         {kNullAudioStreamer, kNullAudioStreamerHelp},
         {kNullSavegame, kNullSavegameHelp},

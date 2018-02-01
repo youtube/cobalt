@@ -51,7 +51,7 @@ class CompoundSelector : public Selector {
   // Rest of public methods.
 
   void AppendSelector(scoped_ptr<SimpleSelector> selector);
-  const SimpleSelectors& simple_selectors() { return simple_selectors_; }
+  const SimpleSelectors& simple_selectors() const { return simple_selectors_; }
   PseudoElement* pseudo_element() {
     if (has_pseudo_element_) {
       for (SimpleSelectors::iterator iter = simple_selectors_.begin();
