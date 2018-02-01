@@ -204,9 +204,9 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
 }
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
+  pending_set_bounds_z_index_ = z_index;
+  pending_set_bounds_rect_ = rect;
   if (state_ == kSuspended) {
-    pending_set_bounds_z_index_ = z_index;
-    pending_set_bounds_rect_ = rect;
     return;
   }
 
@@ -358,11 +358,10 @@ void StarboardPlayer::Resume() {
   }
 
   decoder_buffer_cache_.StartResuming();
-
-  CreatePlayer();
-
   base::AutoLock auto_lock(lock_);
   state_ = kResuming;
+
+  CreatePlayer();
 }
 
 namespace {
