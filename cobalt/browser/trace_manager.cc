@@ -90,7 +90,8 @@ void TraceManager::OnTraceMessage(const std::string& message) {
 
   if (trace_to_file_) {
     LOG(INFO) << "Ending trace.";
-    LOG(INFO) << "Trace results in file \"" << kOutputTraceFilename << "\"";
+    LOG(INFO) << "Trace results in file \""
+              << trace_to_file_->absolute_output_path().value() << "\"";
     trace_to_file_.reset();
   } else {
     if (IsTracing()) {
