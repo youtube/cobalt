@@ -256,9 +256,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     run_timer = Timer('running executable')
     try:
       args = ['shell', 'am', 'start']
+      command_line_params = ['--android_log_sleep_time=1000']
       if self.target_command_line_params:
-        args += ['--esa', 'args']
-        args += self.target_command_line_params
+        command_line_params += self.target_command_line_params
+      args += ['--esa', 'args', ','.join(command_line_params)]
       args += [_APP_START_INTENT]
 
       self._CheckCallAdb(*args)
