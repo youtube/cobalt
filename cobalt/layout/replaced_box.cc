@@ -207,18 +207,6 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 }
 
 namespace {
-void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
-                           CompositionNode::Builder* composition_node_builder) {
-  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
-
-  for (uint32 i = 0; i < dimensions.fill_rects.size(); ++i) {
-    const math::RectF& fill_rect = dimensions.fill_rects[i];
-    composition_node_builder->AddChild(new RectNode(
-        fill_rect,
-        scoped_ptr<render_tree::Brush>(new SolidColorBrush(kSolidBlack))));
-  }
-}
-
 void AddLetterboxedImageToRenderTree(
     const LetterboxDimensions& dimensions,
     const scoped_refptr<render_tree::Image>& image,
@@ -227,8 +215,6 @@ void AddLetterboxedImageToRenderTree(
     ImageNode::Builder image_builder(image, *dimensions.image_rect);
     composition_node_builder->AddChild(new ImageNode(image_builder));
   }
-
-  AddLetterboxFillRects(dimensions, composition_node_builder);
 }
 
 void AddLetterboxedPunchThroughVideoNodeToRenderTree(
@@ -240,7 +226,6 @@ void AddLetterboxedPunchThroughVideoNodeToRenderTree(
                                            set_bounds_cb);
     border_node_builder->AddChild(new PunchThroughVideoNode(builder));
   }
-  AddLetterboxFillRects(dimensions, border_node_builder);
 }
 
 void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
@@ -255,9 +240,9 @@ void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
   }
 }
 
-// Animates an image, and additionally adds letterbox rectangles as well
-// according to the aspect ratio of the resulting animated image versus the
-// aspect ratio of the destination box size.
+// Animates an image, and letterboxes the image as well according to the aspect
+// ratio of the resulting animated image versus the aspect ratio of the
+// destination box size.
 void AnimateVideoWithLetterboxing(
     const ReplacedBox::ReplaceImageCB& replace_image_cb,
     math::SizeF destination_size,
