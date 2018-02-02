@@ -50,7 +50,11 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
 
 static void DeallocateSampleFunc(SbPlayer player,
                                  void* context,
-                                 const void* sample_buffer) {}
+                                 const void* sample_buffer) {
+  SB_UNREFERENCED_PARAMETER(player);
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(sample_buffer);
+}
 
 }  // namespace
 
@@ -76,8 +80,8 @@ scoped_refptr<InputBuffer> VideoDmpReader::GetAudioInputBuffer(
   SB_DCHECK(index < audio_access_units_.size());
   const AudioAccessUnit& au = audio_access_units_[index];
   return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleFunc, NULL, NULL,
-                         au.data().data(), au.data().size(), au.timestamp(),
-                         NULL, NULL);
+                         au.data().data(), static_cast<int>(au.data().size()),
+                         au.timestamp(), NULL, NULL);
 }
 
 scoped_refptr<InputBuffer> VideoDmpReader::GetVideoInputBuffer(
@@ -85,8 +89,8 @@ scoped_refptr<InputBuffer> VideoDmpReader::GetVideoInputBuffer(
   SB_DCHECK(index < video_access_units_.size());
   const VideoAccessUnit& au = video_access_units_[index];
   return new InputBuffer(kSbMediaTypeVideo, DeallocateSampleFunc, NULL, NULL,
-                         au.data().data(), au.data().size(), au.timestamp(),
-                         &au.video_sample_info(), NULL);
+                         au.data().data(), static_cast<int>(au.data().size()),
+                         au.timestamp(), &au.video_sample_info(), NULL);
 }
 
 void VideoDmpReader::Parse() {
@@ -110,8 +114,8 @@ void VideoDmpReader::Parse() {
       break;
     }
     if (reverse_byte_order_) {
-      std::reverse(reinterpret_cast<uint8_t*>(type),
-                   reinterpret_cast<uint8_t*>(type + 1));
+      std::reverse(reinterpret_cast<uint8_t*>(&type),
+                   reinterpret_cast<uint8_t*>(&type + 1));
     }
     switch (type) {
       case kRecordTypeAudioConfig:
