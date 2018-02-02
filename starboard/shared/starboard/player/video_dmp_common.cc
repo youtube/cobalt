@@ -28,8 +28,8 @@ namespace video_dmp {
     int32_t int32_value;                                                   \
     Read(read_cb, &int32_value, sizeof(int32_value));                      \
     if (reverse_byte_order) {                                              \
-      std::reverse(reinterpret_cast<uint8_t*>(int32_value),                \
-                   reinterpret_cast<uint8_t*>(int32_value + 1));           \
+      std::reverse(reinterpret_cast<uint8_t*>(&int32_value),               \
+                   reinterpret_cast<uint8_t*>(&int32_value + 1));          \
     }                                                                      \
     *value = static_cast<Type>(int32_value);                               \
   }
@@ -40,8 +40,8 @@ namespace video_dmp {
     uint32_t uint32_value;                                                 \
     Read(read_cb, &uint32_value, sizeof(uint32_value));                    \
     if (reverse_byte_order) {                                              \
-      std::reverse(reinterpret_cast<uint8_t*>(uint32_value),               \
-                   reinterpret_cast<uint8_t*>(uint32_value + 1));          \
+      std::reverse(reinterpret_cast<uint8_t*>(&uint32_value),              \
+                   reinterpret_cast<uint8_t*>(&uint32_value + 1));         \
     }                                                                      \
     *value = static_cast<Type>(uint32_value);                              \
   }
