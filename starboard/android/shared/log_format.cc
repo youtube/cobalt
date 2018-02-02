@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <android/log.h>
 #include <stdio.h>
 #include <string>
 
-#include "starboard/android/shared/log_file_impl.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/string.h"
-
-using starboard::android::shared::WriteToLogFile;
 
 namespace {
 SbMutex log_line_mutex = SB_MUTEX_INITIALIZER;
@@ -49,10 +45,7 @@ void SbLogFormat(const char* format, va_list arguments) {
   if (newline != NULL) {
     log_line.flush();
 
-    // TODO what's the correct priority for SbLogFormat?
-    __android_log_write(ANDROID_LOG_INFO, "starboard", log_line.str().c_str());
-
-    WriteToLogFile(log_line.str().c_str());
+    SbLogRaw(log_line.str().c_str());
 
     log_line.str("");
     log_line.clear();
