@@ -12,14 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <android/log.h>
-
 #include "starboard/log.h"
-#include "starboard/android/shared/log_file_impl.h"
-
-using starboard::android::shared::WriteToLogFile;
 
 void SbLogRaw(const char* message) {
-  __android_log_write(ANDROID_LOG_INFO, "starboard", message);
-  WriteToLogFile(message);
+  SbLog(kSbLogPriorityInfo, message);
 }
