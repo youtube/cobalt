@@ -33,6 +33,8 @@ class ScopedTraceToFile {
   explicit ScopedTraceToFile(const FilePath& output_path_relative_to_logs);
   ~ScopedTraceToFile();
 
+  const FilePath& absolute_output_path() const { return absolute_output_path_; }
+
  private:
   FilePath absolute_output_path_;
 };
