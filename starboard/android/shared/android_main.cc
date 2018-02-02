@@ -15,7 +15,7 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
-#include "starboard/android/shared/log_file_impl.h"
+#include "starboard/android/shared/log_internal.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
@@ -26,13 +26,9 @@ namespace android {
 namespace shared {
 namespace {
 
-const char kExitFilePathSwitch[] = "android_exit_file";
-
 using ::starboard::shared::starboard::CommandLine;
 typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
     AndroidCommand;
-
-const char kLogPathSwitch[] = "android_log_file";
 
 SbThread g_starboard_thread = kSbThreadInvalid;
 
@@ -74,40 +70,14 @@ std::string GetStartDeepLink() {
   return start_url;
 }
 
-void LogExit(const std::string& exit_file_path, int error_level) {
-  // We are going to make a temporary file here and rename it
-  // to the actual exitcode file.  This is so that tools searching for
-  // the exitcode file don't find it until it has been written to.
-  std::string temp_path = exit_file_path;
-  temp_path.append(".tmp");
-
-  SbFile exitcode_file = SbFileOpen(
-    temp_path.c_str(),
-    kSbFileCreateAlways | kSbFileRead | kSbFileWrite, NULL, NULL);
-
-  if (exitcode_file != NULL) {
-    std::ostringstream exit_stream;
-    exit_stream << std::dec << error_level;
-
-    SbFileWrite(exitcode_file, exit_stream.str().c_str(),
-                exit_stream.str().size());
-    SbFileClose(exitcode_file);
-    rename(temp_path.c_str(), exit_file_path.c_str());
-  }
-}
-
 void* ThreadEntryPoint(void* context) {
   Semaphore* app_created_semaphore = static_cast<Semaphore*>(context);
 
   ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
   ApplicationAndroid app(looper);
 
-  // Open the log file used by unit tests in lieu of logcat.
   CommandLine command_line(GetArgs());
-  std::string exit_file_path = command_line.GetSwitchValue(kExitFilePathSwitch);
-  if (command_line.HasSwitch(kLogPathSwitch)) {
-    OpenLogFile(command_line.GetSwitchValue(kLogPathSwitch).c_str());
-  }
+  LogInit(command_line);
 
   // Mark the app running before signaling app created so there's no race to
   // allow sending the first AndroidCommand after onCreate() returns.
@@ -127,13 +97,6 @@ void* ThreadEntryPoint(void* context) {
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;
-
-  // Since we cannot reliably flush the exit code in the log, we write a file to
-  // our app files directory.
-  if (!exit_file_path.empty()) {
-    LogExit(exit_file_path, error_level);
-  }
-  CloseLogFile();
 
   // Inform StarboardBridge that the run loop has exited so it can cleanup and
   // kill the process.
