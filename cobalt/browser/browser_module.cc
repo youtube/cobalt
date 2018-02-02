@@ -241,6 +241,10 @@ BrowserModule::BrowserModule(const GURL& url,
       network_module_(&storage_manager_, event_dispatcher_,
                       options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
+          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
@@ -265,10 +269,6 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
-          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       has_resumed_(true, false),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
       timeout_polling_thread_(kTimeoutPollingThreadName),
