@@ -375,7 +375,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
   WriteSingleInput(0);
   WriteEndOfStream();
 
-  bool error_occurred;
+  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
         if (event.frame) {
@@ -392,12 +392,13 @@ TEST_P(VideoDecoderTest, SingleInvalidInput) {
   outstanding_inputs_.insert(input_buffer->pts());
   std::vector<uint8_t> content(input_buffer->size(), 0xab);
   // Replace the content with invalid data.
-  input_buffer->SetDecryptedContent(content.data(), content.size());
+  input_buffer->SetDecryptedContent(content.data(),
+                                    static_cast<int>(content.size()));
   video_decoder_->WriteInputBuffer(input_buffer);
 
   WriteEndOfStream();
 
-  bool error_occurred;
+  bool error_occurred = true;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
   if (error_occurred) {
     ASSERT_TRUE(decoded_frames_.empty());
@@ -443,6 +444,7 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
       [&](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
         frames_decoded += decoded_frames_.size();
         decoded_frames_.clear();
         *continue_process = frames_decoded < number_of_expected_decoded_frames;
@@ -459,6 +461,7 @@ TEST_P(VideoDecoderTest, Preroll) {
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
       [=](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
         if (decoded_frames_.size() >= video_decoder_->GetPrerollFrameCount()) {
           *continue_process = false;
           return;
@@ -478,12 +481,14 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
       [=](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
         *continue_process = decoded_frames_.size() < kMaxCachedFrames;
       }));
   WriteEndOfStream();
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
         *continue_process = decoded_frames_.size() < kMaxCachedFrames;
       }));
   ASSERT_FALSE(error_occurred);
@@ -502,6 +507,7 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
 
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, gop_size, [=](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
         while (decoded_frames_.size() >
                video_decoder_->GetPrerollFrameCount()) {
           decoded_frames_.pop_front();

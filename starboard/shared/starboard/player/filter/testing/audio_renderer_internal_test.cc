@@ -233,6 +233,7 @@ class AudioRendererTest : public ::testing::Test {
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer) {
+    SB_UNREFERENCED_PARAMETER(player);
     AudioRendererTest* test = static_cast<AudioRendererTest*>(context);
     EXPECT_TRUE(test != NULL);
     test->OnDeallocateSample(sample_buffer);
@@ -264,7 +265,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  FillRendererWithDecodedAudioAndWriteEOS();
 
   bool is_playing = true;
   bool is_eos_played = true;
@@ -342,7 +343,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   Seek(0);
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  FillRendererWithDecodedAudioAndWriteEOS();
   bool is_playing = false;
   bool is_eos_played = true;
 
@@ -406,7 +407,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   audio_renderer_->Play();
 
-  int frames_written = FillRendererWithDecodedAudioAndWriteEOS();
+  FillRendererWithDecodedAudioAndWriteEOS();
 
   SendDecoderOutput(new DecodedAudio);
 

@@ -167,7 +167,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     --number_of_inputs_to_write;
 
     while (number_of_inputs_to_write > 0) {
-      Event event;
+      Event event = kError;
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
       if (event == kConsumed) {
         ASSERT_NO_FATAL_FAILURE(WriteSingleInput(start_index));
@@ -189,7 +189,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
     }
 
     for (;;) {
-      Event event;
+      Event event = kError;
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
       if (event == kError) {
         if (error_occurred) {
@@ -245,12 +245,13 @@ TEST_P(AudioDecoderTest, SingleInvalidInput) {
   last_input_buffer_ = dmp_reader_.GetAudioInputBuffer(0);
   std::vector<uint8_t> content(last_input_buffer_->size(), 0xab);
   // Replace the content with invalid data.
-  last_input_buffer_->SetDecryptedContent(content.data(), content.size());
+  last_input_buffer_->SetDecryptedContent(content.data(),
+                                          static_cast<int>(content.size()));
   audio_decoder_->Decode(last_input_buffer_, consumed_cb());
 
   audio_decoder_->WriteEndOfStream();
 
-  bool error_occurred;
+  bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
   // The decoder is allowed to either signal an error or return dummy audio
   // data but not both.
