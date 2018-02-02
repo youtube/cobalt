@@ -464,6 +464,8 @@ class BrowserModule {
   // The splash screen cache.
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
+  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
+
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
@@ -517,8 +519,6 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
-
-  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
