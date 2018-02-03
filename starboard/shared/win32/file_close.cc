@@ -16,7 +16,10 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/file_internal.h"
+
+using starboard::shared::win32::DebugLogWinError;
 
 bool SbFileClose(SbFile file) {
   if (!SbFileIsValid(file)) {
@@ -24,6 +27,10 @@ bool SbFileClose(SbFile file) {
   }
 
   bool success = CloseHandle(file->file_handle);
+
+  if (!success) {
+    DebugLogWinError();
+  }
 
   delete file;
 
