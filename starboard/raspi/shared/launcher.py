@@ -217,8 +217,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # ssh into the raspi and run the test
       if not self.shutdown_initiated.is_set():
         self._PexpectSpawnAndConnect(self.ssh_command)
-        self.pexpect_process.sendline(self.test_command)
       if not self.shutdown_initiated.is_set():
+        self.pexpect_process.sendline(self.test_command)
         self._PexpectReadLines()
 
     except pexpect.EOF:
