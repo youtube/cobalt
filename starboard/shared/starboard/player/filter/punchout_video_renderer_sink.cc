@@ -54,7 +54,7 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
   render_cb_ = render_cb;
 
   thread_ = SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true,
-                           "punchout_video_sink",
+                           "punchoutvidsink",
                            &PunchoutVideoRendererSink::ThreadEntryPoint, this);
 }
 
