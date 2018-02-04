@@ -74,6 +74,15 @@ class VideoDecoder {
   // On most platforms this can be simply set to |kSbTimeMax|.
   virtual SbTime GetPrerollTimeout() const = 0;
 
+  // Returns a soft limit of the maximum number of frames the user of this class
+  // (usually the VideoRenderer) should cache, i.e. the user won't write more
+  // inputs once the frames it holds on exceed this limit.  Note that other part
+  // of the video pipeline like the VideoRendererSink may also cache frames.  It
+  // is the responsibility of the decoder to ensure that this wouldn't result in
+  // anything catastrophic.
+  // TODO:  Turn this into pure virtual.
+  virtual size_t GetMaxNumberOfCachedFrames() const { return 12; }
+
   // Send encoded video frame stored in |input_buffer| to decode.
   virtual void WriteInputBuffer(
       const scoped_refptr<InputBuffer>& input_buffer) = 0;
