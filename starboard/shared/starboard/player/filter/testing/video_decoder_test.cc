@@ -51,6 +51,9 @@ namespace {
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::std::placeholders::_1;
 using ::std::placeholders::_2;
+using ::testing::AssertionFailure;
+using ::testing::AssertionResult;
+using ::testing::AssertionSuccess;
 using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
@@ -80,10 +83,21 @@ std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
 }
 
+AssertionResult AlmostEqualPts(SbMediaTime pts1, SbMediaTime pts2) {
+  const SbMediaTime kEpsilon = kSbMediaTimeSecond / 1000;
+  SbMediaTime diff = pts1 - pts2;
+  if (-kEpsilon <= diff && diff <= kEpsilon) {
+    return AssertionSuccess();
+  }
+  return AssertionFailure()
+         << "pts " << pts1 << " doesn't match with pts " << pts2;
+}
+
 class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
  public:
   VideoDecoderTest()
       : dmp_reader_(ResolveTestFileName(GetParam().filename).c_str()) {}
+
   void SetUp() override {
     ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
     ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
@@ -107,6 +121,9 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
                                       &video_render_algorithm_,
                                       &video_renderer_sink_);
     ASSERT_TRUE(video_decoder_);
+
+    video_renderer_sink_->SetRenderCB(
+        std::bind(&VideoDecoderTest::Render, this, _1));
 
     video_decoder_->Initialize(
         std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
@@ -135,6 +152,10 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   // |true| when calling this callback.  The callback can set it to false to
   // stop further processing.
   typedef std::function<void(const Event&, bool* continue_process)> EventCB;
+
+  void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
+    SB_UNREFERENCED_PARAMETER(draw_frame_cb);
+  }
 
   void WaitForNextEvent(
       Event* event,
@@ -230,9 +251,9 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
           ASSERT_LT(decoded_frames_.back()->pts(), event.frame->pts());
         }
         decoded_frames_.push_back(event.frame);
-        ASSERT_TRUE(outstanding_inputs_.find(event.frame->pts()) !=
-                    outstanding_inputs_.end());
-        outstanding_inputs_.erase(outstanding_inputs_.find(event.frame->pts()));
+        ASSERT_TRUE(
+            AlmostEqualPts(*outstanding_inputs_.begin(), event.frame->pts()));
+        outstanding_inputs_.erase(outstanding_inputs_.begin());
       }
       if (event_cb) {
         bool continue_process = true;
@@ -271,10 +292,9 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
             ASSERT_LT(decoded_frames_.back()->pts(), event.frame->pts());
           }
           decoded_frames_.push_back(event.frame);
-          ASSERT_TRUE(outstanding_inputs_.find(event.frame->pts()) !=
-                      outstanding_inputs_.end());
-          outstanding_inputs_.erase(
-              outstanding_inputs_.find(event.frame->pts()));
+          ASSERT_TRUE(
+              AlmostEqualPts(*outstanding_inputs_.begin(), event.frame->pts()));
+          outstanding_inputs_.erase(outstanding_inputs_.begin());
         }
       }
       if (event_cb) {
@@ -476,20 +496,20 @@ TEST_P(VideoDecoderTest, Preroll) {
 }
 
 TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
-  // TODO: Move the following to VideoDecoder::GetMaxNumberOfCachedFrames().
-  const size_t kMaxCachedFrames = 12;
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
       [=](const Event& event, bool* continue_process) {
         SB_UNREFERENCED_PARAMETER(event);
-        *continue_process = decoded_frames_.size() < kMaxCachedFrames;
+        *continue_process = decoded_frames_.size() <
+                            video_decoder_->GetMaxNumberOfCachedFrames();
       }));
   WriteEndOfStream();
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
         SB_UNREFERENCED_PARAMETER(event);
-        *continue_process = decoded_frames_.size() < kMaxCachedFrames;
+        *continue_process = decoded_frames_.size() <
+                            video_decoder_->GetMaxNumberOfCachedFrames();
       }));
   ASSERT_FALSE(error_occurred);
 }
@@ -508,14 +528,25 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, gop_size, [=](const Event& event, bool* continue_process) {
         SB_UNREFERENCED_PARAMETER(event);
-        while (decoded_frames_.size() >
+        while (decoded_frames_.size() >=
                video_decoder_->GetPrerollFrameCount()) {
           decoded_frames_.pop_front();
         }
         *continue_process = true;
       }));
   WriteEndOfStream();
-  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+
+  bool error_occurred = true;
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs(
+      &error_occurred, [=](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
+        while (decoded_frames_.size() >=
+               video_decoder_->GetMaxNumberOfCachedFrames()) {
+          decoded_frames_.pop_front();
+        }
+        *continue_process = true;
+      }));
+  ASSERT_FALSE(error_occurred);
 }
 
 std::vector<TestParam> GetSupportedTests() {
