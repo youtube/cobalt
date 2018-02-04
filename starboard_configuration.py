@@ -18,6 +18,7 @@ from cobalt.build import cobalt_configuration
 # relative to the location of this file.
 PORT_ROOTS = [
     ["starboard"],
+    ["starboard", "contrib"],
     ["starboard", "port"],
     ["third_party", "starboard"]
 ]
