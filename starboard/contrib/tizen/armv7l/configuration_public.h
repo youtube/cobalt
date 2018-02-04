@@ -19,8 +19,8 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
-#ifndef STARBOARD_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
 #define SB_API_VERSION 4
@@ -152,7 +152,7 @@
 // --- Common Configuration ---------------------------------------------------
 
 // Include the Tizen configuration that's common between all Tizen.
-#include "starboard/tizen/shared/configuration_public.h"
+#include "starboard/contrib/tizen/shared/configuration_public.h"
 
 // --- User Configuration ----------------------------------------------------
 
@@ -165,4 +165,4 @@
 // has spent in the executing state.
 #define SB_HAS_TIME_THREAD_NOW 1
 
-#endif  // STARBOARD_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_

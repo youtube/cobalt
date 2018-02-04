@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef STARBOARD_TIZEN_ARMV7L_ATOMIC_PUBLIC_H_
-#define STARBOARD_TIZEN_ARMV7L_ATOMIC_PUBLIC_H_
+#ifndef STARBOARD_CONTRIB_TIZEN_ARMV7L_ATOMIC_PUBLIC_H_
+#define STARBOARD_CONTRIB_TIZEN_ARMV7L_ATOMIC_PUBLIC_H_
 
-#include "starboard/tizen/shared/atomic_public.h"
+#include "starboard/contrib/tizen/shared/atomic_public.h"
 
-#endif  // STARBOARD_TIZEN_ARMV7L_ATOMIC_PUBLIC_H_
+#endif  // STARBOARD_CONTRIB_TIZEN_ARMV7L_ATOMIC_PUBLIC_H_

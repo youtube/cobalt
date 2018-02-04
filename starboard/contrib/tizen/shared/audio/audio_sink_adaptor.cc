@@ -14,7 +14,7 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/log.h"
-#include "starboard/tizen/shared/audio/audio_sink_private.h"
+#include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
   if (audio_sink == kSbAudioSinkInvalid) {
