@@ -150,7 +150,7 @@ cp -rd %{_outdir}/content/data/web %{buildroot}%{_contentdir}/data/
 cp -rd %{_outdir}/content/dir_source_root %{buildroot}%{_contentdir}/
 %endif
 
-cp src/starboard/tizen/packaging/%{_pkgname}.xml %{buildroot}%{_manifestdir}
+cp src/starboard/contrib/tizen/packaging/%{_pkgname}.xml %{buildroot}%{_manifestdir}
 
 %post
 
@@ -160,7 +160,7 @@ cp src/starboard/tizen/packaging/%{_pkgname}.xml %{buildroot}%{_manifestdir}
 # rpm files
 #####################
 %files
-%manifest src/starboard/tizen/packaging/%{_pkgname}.manifest
+%manifest src/starboard/contrib/tizen/packaging/%{_pkgname}.manifest
 %defattr(-,root,root,-)
 %if "%{_name}" == "all"
 %{_bindir}/*

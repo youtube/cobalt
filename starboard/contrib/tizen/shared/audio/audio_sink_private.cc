@@ -15,7 +15,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
-#include "starboard/tizen/shared/audio/audio_sink_private.h"
+#include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
 
 #define CHECK_CAPI_AUDIO_ERROR(func)                            \
   if (capi_ret != AUDIO_IO_ERROR_NONE) {                        \
