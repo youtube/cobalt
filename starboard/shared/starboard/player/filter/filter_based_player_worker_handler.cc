@@ -140,8 +140,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
 
-  video_renderer_ = player_components->CreateVideoRenderer(
-      video_parameters, GetMediaTimeProvider());
+  auto media_time_provider = GetMediaTimeProvider();
+  SB_DCHECK(media_time_provider);
+
+  video_renderer_ = player_components->CreateVideoRenderer(video_parameters,
+                                                           media_time_provider);
   video_renderer_->Initialize(
       std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
 
@@ -418,7 +421,6 @@ MediaTimeProvider* FilterBasedPlayerWorkerHandler::GetMediaTimeProvider()
   if (audio_renderer_) {
     return audio_renderer_.get();
   }
-  SB_DCHECK(media_time_provider_impl_);
   return media_time_provider_impl_.get();
 }
 
