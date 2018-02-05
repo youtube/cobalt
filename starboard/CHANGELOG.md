@@ -8,6 +8,13 @@ version previous to it.
 
 **NOTE: Starboard versions 3 and below are no longer supported.**
 
+## Version 10
+
+### Moved `tizen` to `contrib/tizen`.
+
+Please see [contrib/README.md](contrib/README.md) for description of
+expectations for contents in this directory.
+
 ## Version 9
 
 ### Add string label to `SbMicrophoneInfo`.
