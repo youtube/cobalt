@@ -557,14 +557,15 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       GrContext::Create(kOpenGL_GrBackend, NULL, context_options));
 
   DCHECK(gr_context_);
-  // The GrContext manages a resource cache internally using GrResourceCache
-  // which by default caches 96MB of resources.  This is used for helping with
-  // rendering shadow effects, gradient effects, and software rendered paths.
-  // As we have our own cache for most resources, set it to a much smaller value
-  // so Skia doesn't use too much GPU memory.
+  // The GrContext manages a budget for GPU resources.  Setting the budget equal
+  // to |skia_cache_size_in_bytes| + glyph cache's size will let Skia use
+  // additional |skia_cache_size_in_bytes| for GPU resources like textures,
+  // vertex buffers, etc.
   const int kSkiaCacheMaxResources = 128;
-  gr_context_->setResourceCacheLimits(kSkiaCacheMaxResources,
-                                      skia_cache_size_in_bytes);
+  gr_context_->setResourceCacheLimits(
+      kSkiaCacheMaxResources,
+      skia_cache_size_in_bytes +
+          context_options.fGlyphCacheTextureMaximumBytes);
 
   base::Callback<sk_sp<SkSurface>(const math::Size&)>
       create_sk_surface_function = base::Bind(
@@ -710,7 +711,9 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateSkSurface(
                "width", size.width(), "height", size.height());
   SkImageInfo image_info =
       SkImageInfo::MakeN32(size.width(), size.height(), kPremul_SkAlphaType);
-  return SkSurface::MakeRenderTarget(gr_context_.get(), SkBudgeted::kYes,
+  // Do not count the resources for this surface towards the budget since
+  // the budget is currently only meant for Skia managed resources.
+  return SkSurface::MakeRenderTarget(gr_context_.get(), SkBudgeted::kNo,
                                      image_info);
 }
 
