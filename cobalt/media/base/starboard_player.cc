@@ -204,11 +204,16 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
 }
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
+  base::AutoLock auto_lock(lock_);
+
   if (state_ == kSuspended) {
     pending_set_bounds_z_index_ = z_index;
     pending_set_bounds_rect_ = rect;
     return;
   }
+
+  pending_set_bounds_z_index_ = base::nullopt_t();
+  pending_set_bounds_rect_ = base::nullopt_t();
 
   DCHECK(SbPlayerIsValid(player_));
   SbPlayerSetBounds(player_, z_index, rect.x(), rect.y(), rect.width(),
@@ -361,8 +366,16 @@ void StarboardPlayer::Resume() {
 
   CreatePlayer();
 
-  base::AutoLock auto_lock(lock_);
-  state_ = kResuming;
+  {
+    base::AutoLock auto_lock(lock_);
+    state_ = kResuming;
+  }
+
+  if (pending_set_bounds_z_index_ && pending_set_bounds_rect_) {
+    SetBounds(*pending_set_bounds_z_index_, *pending_set_bounds_rect_);
+    pending_set_bounds_z_index_ = base::nullopt_t();
+    pending_set_bounds_rect_ = base::nullopt_t();
+  }
 }
 
 namespace {
