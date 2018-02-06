@@ -23,6 +23,7 @@ namespace nplb {
 namespace {
 
 #if SB_HAS(PLAYER_WITH_URL)
+
 TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
