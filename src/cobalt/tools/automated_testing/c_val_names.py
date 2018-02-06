@@ -49,6 +49,10 @@ def count_rasterize_new_render_tree():
   return 'Count.Renderer.Rasterize.NewRenderTree'
 
 
+def count_version_compatibility_violation():
+  return 'Count.VersionCompatibilityViolation'
+
+
 def event_duration_dom_video_start_delay():
   return 'Event.Duration.MainWebModule.DOM.VideoStartDelay'
 
@@ -67,8 +71,12 @@ def event_value_dictionary(event_type):
   return 'Event.MainWebModule.{}.ValueDictionary'.format(event_type)
 
 
-def layout_is_render_tree_pending():
+def is_render_tree_generation_pending():
   return 'MainWebModule.Layout.IsRenderTreePending'
+
+
+def is_render_tree_rasterization_pending():
+  return 'MainWebModule.IsRenderTreeRasterizationPending'
 
 
 def memory_font_cache_resource_loaded():

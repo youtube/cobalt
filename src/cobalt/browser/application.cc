@@ -29,6 +29,7 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "build/build_config.h"
+#include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/application_event.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -43,6 +44,9 @@
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+#include "cobalt/base/version_compatibility.h"
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/base/window_size_changed_event.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -53,7 +57,7 @@
 #include "cobalt/script/javascript_engine.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
-#endif
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
@@ -493,7 +497,22 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     options.storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
-#endif
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+  constexpr int kDefaultMinCompatibilityVersion = 1;
+  int minimum_version = kDefaultMinCompatibilityVersion;
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  if (command_line->HasSwitch(browser::switches::kMinCompatibilityVersion)) {
+    std::string switch_value =
+        command_line->GetSwitchValueASCII(switches::kMinCompatibilityVersion);
+    if (!base::StringToInt(switch_value, &minimum_version)) {
+      DLOG(ERROR) << "Invalid min_compatibility_version provided.";
+    }
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  base::VersionCompatibility::GetInstance()->SetMinimumVersion(minimum_version);
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
   base::optional<std::string> partition_key;
   if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {
@@ -655,6 +674,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
+#if SB_HAS(CAPTIONS)
+  event_dispatcher_.AddEventCallback(
+      base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
+      base::Bind(&Application::OnCaptionSettingsChangedEvent,
+                 base::Unretained(this)));
+#endif  // SB_HAS(CAPTIONS)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -809,6 +835,12 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
+#if SB_HAS(CAPTIONS)
+    case kSbEventTypeAccessibilityCaptionSettingsChanged:
+      DispatchEventInternal(
+          new base::AccessibilityCaptionSettingsChangedEvent());
+      break;
+#endif  // SB_HAS(CAPTIONS)
     default:
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
@@ -945,6 +977,16 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
           event));
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
+#if SB_HAS(CAPTIONS)
+void Application::OnCaptionSettingsChangedEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnCaptionSettingsChangedEvent()");
+  browser_module_->OnCaptionSettingsChanged(
+      base::polymorphic_downcast<
+          const base::AccessibilityCaptionSettingsChangedEvent*>(event));
+}
+#endif  // SB_HAS(CAPTIONS)
 
 void Application::WebModuleRecreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");

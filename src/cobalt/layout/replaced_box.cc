@@ -207,18 +207,6 @@ LayoutUnit ReplacedBox::GetBaselineOffsetFromTopMarginEdge() const {
 }
 
 namespace {
-void AddLetterboxFillRects(const LetterboxDimensions& dimensions,
-                           CompositionNode::Builder* composition_node_builder) {
-  const render_tree::ColorRGBA kSolidBlack(0, 0, 0, 1);
-
-  for (uint32 i = 0; i < dimensions.fill_rects.size(); ++i) {
-    const math::RectF& fill_rect = dimensions.fill_rects[i];
-    composition_node_builder->AddChild(new RectNode(
-        fill_rect,
-        scoped_ptr<render_tree::Brush>(new SolidColorBrush(kSolidBlack))));
-  }
-}
-
 void AddLetterboxedImageToRenderTree(
     const LetterboxDimensions& dimensions,
     const scoped_refptr<render_tree::Image>& image,
@@ -227,8 +215,6 @@ void AddLetterboxedImageToRenderTree(
     ImageNode::Builder image_builder(image, *dimensions.image_rect);
     composition_node_builder->AddChild(new ImageNode(image_builder));
   }
-
-  AddLetterboxFillRects(dimensions, composition_node_builder);
 }
 
 void AddLetterboxedPunchThroughVideoNodeToRenderTree(
@@ -240,7 +226,6 @@ void AddLetterboxedPunchThroughVideoNodeToRenderTree(
                                            set_bounds_cb);
     border_node_builder->AddChild(new PunchThroughVideoNode(builder));
   }
-  AddLetterboxFillRects(dimensions, border_node_builder);
 }
 
 void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
@@ -255,9 +240,9 @@ void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
   }
 }
 
-// Animates an image, and additionally adds letterbox rectangles as well
-// according to the aspect ratio of the resulting animated image versus the
-// aspect ratio of the destination box size.
+// Animates an image, and letterboxes the image as well according to the aspect
+// ratio of the resulting animated image versus the aspect ratio of the
+// destination box size.
 void AnimateVideoWithLetterboxing(
     const ReplacedBox::ReplaceImageCB& replace_image_cb,
     math::SizeF destination_size,
@@ -324,7 +309,8 @@ void ReplacedBox::RenderAndAnimateContent(
       cssom::MapToMeshFunction::ExtractFromFilterList(
           computed_style()->filter());
 
-  if (mtm_filter_function) {
+  if (mtm_filter_function && mtm_filter_function->mesh_spec().mesh_type() !=
+                                 cssom::MapToMeshFunction::kRectangular) {
     DCHECK(!*is_video_punched_out_)
         << "We currently do not support punched out video with map-to-mesh "
            "filters.";
@@ -338,11 +324,18 @@ void ReplacedBox::RenderAndAnimateContent(
       animate_node_builder.Add(
           image_node, base::Bind(&AnimateVideoImage, replace_image_cb_));
 
+      render_tree::StereoMode stereo_mode = render_tree::kMono;
+
+      if (mtm_filter_function) {
+        // For rectangular stereo.
+        stereo_mode = ReadStereoMode(mtm_filter_function->stereo_mode());
+      }
+
       // Attach an empty map to mesh filter node to signal the need for an
       // external mesh.
-      border_node_builder->AddChild(
-          new FilterNode(MapToMeshFilter(render_tree::kMono),
-                         new AnimateNode(animate_node_builder, image_node)));
+      border_node_builder->AddChild(new FilterNode(
+          MapToMeshFilter(stereo_mode, render_tree::kRectangular),
+          new AnimateNode(animate_node_builder, image_node)));
       return;
     }
 #endif
@@ -611,6 +604,7 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   render_tree::StereoMode stereo_mode =
       ReadStereoMode(stereo_mode_keyword_value);
 
+  scoped_refptr<render_tree::Node> filter_node;
   // Fetch either the embedded equirectangular mesh or a custom one depending
   // on the spec.
   MapToMeshFilter::Builder builder;
@@ -685,10 +679,10 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
             loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
         mesh_projection->GetMesh(
             loader::mesh::MeshProjection::kRightEyeCollection));
-  }
 
-  scoped_refptr<render_tree::Node> filter_node =
-      new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
+    filter_node =
+        new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
+  }
 
 #if !SB_HAS(VIRTUAL_REALITY)
   // Attach a 3D camera to the map-to-mesh node, so the rendering of its

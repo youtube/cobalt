@@ -137,6 +137,9 @@ class WebModule : public LifecycleObserver {
     // Mesh cache capacity in bytes.
     int mesh_cache_capacity;
 
+    // Whether map-to-mesh for rectangular videos is enabled.
+    bool enable_map_to_mesh_rectangular;
+
     // Content Security Policy enforcement mode for this web module.
     dom::CspEnforcementType csp_enforcement_mode;
 
@@ -262,6 +265,8 @@ class WebModule : public LifecycleObserver {
   // handled by the web application, |on_before_unload_fired_but_not_handled_|
   // will be called.
   void InjectBeforeUnloadEvent();
+
+  void InjectCaptionSettingsChangedEvent();
 
   // Executes Javascript code in this web module.  The calling thread will
   // block until the JavaScript has executed and the output results are

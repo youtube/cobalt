@@ -38,20 +38,51 @@ class V8cUserObjectHolder
  public:
   typedef ScriptValue<typename V8cUserObjectType::BaseType> BaseClass;
 
-  V8cUserObjectHolder()
-      : isolate_(nullptr), prevent_garbage_collection_count_(0) {}
-
+  V8cUserObjectHolder() = default;
   V8cUserObjectHolder(v8::Isolate* isolate, v8::Local<v8::Value> value)
       : isolate_(isolate),
         handle_(isolate, value),
         prevent_garbage_collection_count_(0) {
     handle_.SetWeak();
   }
-
-  V8cUserObjectHolder& operator=(const V8cUserObjectHolder& other) {
+  V8cUserObjectHolder(const V8cUserObjectHolder&) = delete;
+  V8cUserObjectHolder& operator=(const V8cUserObjectHolder&) = delete;
+  V8cUserObjectHolder(V8cUserObjectHolder&& other)
+      : isolate_(other.isolate_),
+        handle_(other.isolate_, other.v8_value()),
+        prevent_garbage_collection_count_(
+            other.prevent_garbage_collection_count_) {
+    if (prevent_garbage_collection_count_ == 0) {
+      handle_.SetWeak();
+    }
+    other.isolate_ = nullptr;
+    other.handle_.Clear();
+    other.prevent_garbage_collection_count_ = 0;
+  }
+  V8cUserObjectHolder& operator=(V8cUserObjectHolder&& other) {
     isolate_ = other.isolate_;
     handle_.Set(isolate_, other.v8_value());
+    prevent_garbage_collection_count_ = other.prevent_garbage_collection_count_;
+    if (prevent_garbage_collection_count_ == 0) {
+      handle_.SetWeak();
+    }
+    other.isolate_ = nullptr;
+    other.handle_.Clear();
+    other.prevent_garbage_collection_count_ = 0;
     return *this;
+  }
+
+  bool EqualTo(const BaseClass& other) const override {
+    v8::HandleScope handle_scope(isolate_);
+    const V8cUserObjectHolder* v8c_other =
+        base::polymorphic_downcast<const V8cUserObjectHolder*>(&other);
+    return v8_value() == v8c_other->v8_value();
+  }
+
+  void TraceMembers(Tracer* tracer) override {
+    if (!handle_.IsEmpty()) {
+      handle_.Get().RegisterExternalReference(isolate_);
+    }
   }
 
   void RegisterOwner(Wrappable* owner) override {
@@ -90,29 +121,22 @@ class V8cUserObjectHolder
     }
   }
 
+  const typename V8cUserObjectType::BaseType* GetScriptValue() const override {
+    return handle_.IsEmpty() ? nullptr : &handle_;
+  }
+
   scoped_ptr<BaseClass> MakeCopy() const override {
     v8::HandleScope handle_scope(isolate_);
     return make_scoped_ptr<BaseClass>(
         new V8cUserObjectHolder(isolate_, v8_value()));
   }
 
-  bool EqualTo(const BaseClass& other) const override {
-    v8::HandleScope handle_scope(isolate_);
-    const V8cUserObjectHolder* v8c_other =
-        base::polymorphic_downcast<const V8cUserObjectHolder*>(&other);
-    return v8_value() == v8c_other->v8_value();
-  }
-
-  const typename V8cUserObjectType::BaseType* GetScriptValue() const override {
-    return handle_.IsEmpty() ? nullptr : &handle_;
-  }
-
   v8::Local<v8::Value> v8_value() const { return handle_.NewLocal(isolate_); }
 
  private:
-  v8::Isolate* isolate_;
-  V8cUserObjectType handle_;
-  int prevent_garbage_collection_count_;
+  v8::Isolate* isolate_ = nullptr;
+  V8cUserObjectType handle_{};
+  int prevent_garbage_collection_count_ = 0;
 };
 
 }  // namespace v8c

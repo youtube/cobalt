@@ -107,7 +107,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     PipelineWindow window, WebMediaPlayerClient* client,
     WebMediaPlayerDelegate* delegate,
     DecoderBuffer::Allocator* buffer_allocator,
-    const scoped_refptr<ShellVideoFrameProvider>& video_frame_provider,
     const scoped_refptr<MediaLog>& media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
@@ -116,7 +115,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       client_(client),
       delegate_(delegate),
       buffer_allocator_(buffer_allocator),
-      video_frame_provider_(video_frame_provider),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       media_log_(media_log),
       incremented_externally_allocated_memory_(false),
@@ -125,6 +123,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       suppress_destruction_errors_(false),
       drm_system_(NULL) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::WebMediaPlayerImpl");
+
+  video_frame_provider_ = new VideoFrameProvider();
 
   DLOG_IF(ERROR, s_instance)
       << "More than one WebMediaPlayerImpl has been created.";
@@ -136,7 +136,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   pipeline_thread_.Start();
   pipeline_ = Pipeline::Create(window, pipeline_thread_.message_loop_proxy(),
-                               media_log_);
+                               media_log_, video_frame_provider_);
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
@@ -561,8 +561,7 @@ unsigned WebMediaPlayerImpl::GetVideoDecodedByteCount() const {
   return stats.video_bytes_decoded;
 }
 
-scoped_refptr<ShellVideoFrameProvider>
-WebMediaPlayerImpl::GetVideoFrameProvider() {
+scoped_refptr<VideoFrameProvider> WebMediaPlayerImpl::GetVideoFrameProvider() {
   return video_frame_provider_;
 }
 

@@ -25,6 +25,7 @@
 #include "base/threading/thread.h"
 #include "base/timer.h"
 #include "cobalt/account/account_manager.h"
+#include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
 #include "cobalt/base/on_screen_keyboard_blurred_event.h"
@@ -180,6 +181,11 @@ class BrowserModule {
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
+#if SB_HAS(CAPTIONS)
+  void OnCaptionSettingsChanged(
+      const base::AccessibilityCaptionSettingsChangedEvent* event);
+#endif  // SB_HAS(CAPTIONS)
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -464,6 +470,9 @@ class BrowserModule {
   // The splash screen cache.
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
+  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
+  bool on_screen_keyboard_show_called_ = false;
+
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
   // web module will ultimately produce a render tree that can be passed
@@ -517,8 +526,6 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
-
-  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;

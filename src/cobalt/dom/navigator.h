@@ -40,8 +40,9 @@ namespace dom {
 class Navigator : public script::Wrappable {
  public:
   Navigator(const std::string& user_agent, const std::string& language,
-            scoped_refptr<cobalt::media_session::MediaSession> media_session,
-            script::ScriptValueFactory* script_value_factory);
+      scoped_refptr<cobalt::media_session::MediaSession> media_session,
+      scoped_refptr<cobalt::dom::captions::SystemCaptionSettings> captions,
+      script::ScriptValueFactory* script_value_factory);
 
   // Web API: NavigatorID
   const std::string& user_agent() const;

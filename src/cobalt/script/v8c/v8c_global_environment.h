@@ -27,7 +27,6 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
-#include "cobalt/script/v8c/interface_data.h"
 #include "cobalt/script/v8c/v8c_heap_tracer.h"
 #include "cobalt/script/v8c/wrapper_factory.h"
 #include "v8/include/libplatform/libplatform.h"
@@ -94,21 +93,23 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   ScriptValueFactory* script_value_factory() override;
 
-  // Evaluates any automatically included Javascript for the environment.
-  void EvaluateAutomatics();
-
   v8::Isolate* isolate() const { return isolate_; }
   v8::Local<v8::Context> context() const {
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 
-  InterfaceData* GetInterfaceData(int key) {
-    DCHECK_GE(key, 0);
-    if (key >= cached_interface_data_.size()) {
-      cached_interface_data_.resize(key + 1);
-    }
-    return &cached_interface_data_[key];
-  }
+  // Check whether we have interface data loaded for interface key |key|.
+  bool HasInterfaceData(int key) const;
+
+  // Get interface data for |key|.  Attempting to get interface data for a key
+  // that does not have any is a usage error.  Check |HasInterfaceData| first.
+  v8::Local<v8::FunctionTemplate> GetInterfaceData(int key) const;
+
+  // Register interface data (which is just |function_template|) for key
+  // |key|.  Attempting to add interface data for a key that already has
+  // interface data is a usage error.
+  void AddInterfaceData(int key,
+                        v8::Local<v8::FunctionTemplate> function_template);
 
   WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
 
@@ -143,6 +144,12 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
     int count;
   };
 
+  v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
+      const scoped_refptr<SourceCode>& source_code, bool mute_errors);
+
+  // Evaluates any automatically included Javascript for the environment.
+  void EvaluateAutomatics();
+
   // Where we store ourselves as embedder private data in our corresponding
   // |v8::Isolate|.
   static const int kIsolateDataIndex = 1;
@@ -155,7 +162,10 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   v8::Global<v8::Object> global_object_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
 
-  std::vector<InterfaceData> cached_interface_data_;
+  // Data that is cached on a per-interface basis. Note that we can get to
+  // everything (the function instance, the prototype template, and the
+  // instance template) from just the function template.
+  std::vector<v8::Eternal<v8::FunctionTemplate>> cached_interface_data_;
 
   // TODO: Should be scoped_ptr, fix headers/sources template mess.
   V8cScriptValueFactory* script_value_factory_;

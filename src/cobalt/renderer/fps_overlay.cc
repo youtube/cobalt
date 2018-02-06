@@ -49,7 +49,7 @@ scoped_refptr<render_tree::Node> ConvertLinesToOverlay(
   // together.
   float y_offset = kTextMarginInPixels;
   render_tree::CompositionNode::Builder text_builder;
-  for (auto line : lines) {
+  for (const auto& line : lines) {
     scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
         resource_provider->CreateGlyphBuffer(line, font);
     math::RectF bounds(glyph_buffer->GetBounds());

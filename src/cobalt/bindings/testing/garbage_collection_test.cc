@@ -14,7 +14,6 @@
 
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/garbage_collection_test_interface.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -99,6 +98,31 @@ TEST_F(GarbageCollectionTest, ReachableObjectsKeptAlive) {
 #if !defined(ENGINE_USES_CONSERVATIVE_ROOTING)
   ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 2);
 #endif
+}
+
+TEST_F(GarbageCollectionTest, ReachableScriptValuesKeptAlive) {
+  // Ensure that platform objects attached to |Wrappable|s as script values
+  // survive GC.
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+
+  const char script[] = R"(
+      const root = new InterfaceWithAny();
+      (() => {
+        const gcti = new GarbageCollectionTestInterface();
+        gcti.bicycle = 7;
+        root.setAny(gcti);
+      })();
+  )";
+  EXPECT_TRUE(EvaluateScript(script));
+
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+
+  CollectGarbage();
+
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("root.getAny().bicycle;", &result));
+  EXPECT_STREQ("7", result.c_str());
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
 }
 
 TEST_F(GarbageCollectionTest, JSObjectRetainsCustomProperty) {

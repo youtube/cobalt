@@ -57,6 +57,31 @@ class MozjsUserObjectHolder
     DCHECK(!persistent_root_);
   }
 
+  bool EqualTo(const BaseClass& other) const override {
+    const MozjsUserObjectHolder* mozjs_other =
+        base::polymorphic_downcast<const MozjsUserObjectHolder*>(&other);
+    if (!handle_) {
+      return !mozjs_other->handle_;
+    } else if (!mozjs_other->handle_) {
+      return false;
+    }
+
+    DCHECK(handle_);
+    DCHECK(mozjs_other->handle_);
+
+    JS::RootedValue value1(context_, js_value());
+    JS::RootedValue value2(context_, mozjs_other->js_value());
+    return util::IsSameGcThing(context_, value1, value2);
+  }
+
+  void TraceMembers(Tracer* tracer) override {
+    if (handle_) {
+      MozjsTracer* mozjs_tracer =
+          base::polymorphic_downcast<MozjsTracer*>(tracer);
+      handle_->Trace(mozjs_tracer->js_tracer());
+    }
+  }
+
   void RegisterOwner(Wrappable* owner) override {
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
@@ -66,9 +91,8 @@ class MozjsUserObjectHolder
     if (!owned_value.isNullOrUndefined() && owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
-      intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->AddReferencedObject(
-          key, owned_value);
+          owner, owned_value);
     }
   }
 
@@ -80,9 +104,8 @@ class MozjsUserObjectHolder
     if (!owned_value.isNullOrUndefined() && owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
-      intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->RemoveReferencedObject(
-          key, owned_value);
+          owner, owned_value);
     }
   }
 
@@ -114,23 +137,6 @@ class MozjsUserObjectHolder
         new MozjsUserObjectHolder(context_, rooted_value));
   }
 
-  bool EqualTo(const BaseClass& other) const override {
-    const MozjsUserObjectHolder* mozjs_other =
-        base::polymorphic_downcast<const MozjsUserObjectHolder*>(&other);
-    if (!handle_) {
-      return !mozjs_other->handle_;
-    } else if (!mozjs_other->handle_) {
-      return false;
-    }
-
-    DCHECK(handle_);
-    DCHECK(mozjs_other->handle_);
-
-    JS::RootedValue value1(context_, js_value());
-    JS::RootedValue value2(context_, mozjs_other->js_value());
-    return util::IsSameGcThing(context_, value1, value2);
-  }
-
   const JS::Value& js_value() const {
     DCHECK(handle_);
     return handle_->value();
@@ -142,9 +148,6 @@ class MozjsUserObjectHolder
   }
 
  private:
-  typedef base::hash_map<const Wrappable*, base::WeakPtr<WrapperPrivate> >
-      WrappableAndPrivateHashMap;
-
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
   int prevent_garbage_collection_count_;

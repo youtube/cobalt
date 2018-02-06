@@ -14,6 +14,11 @@
 
 #include "cobalt/cssom/selector_tree.h"
 
+#include <set>
+
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+#include "cobalt/base/version_compatibility.h"
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 #include "cobalt/cssom/complex_selector.h"
 #include "cobalt/cssom/compound_selector.h"
 #include "cobalt/cssom/css_style_rule.h"
@@ -70,6 +75,110 @@ const SelectorTree::OwnedNodes& SelectorTree::children(
     const Node* node, CombinatorType combinator) {
   return owned_nodes_map_[std::make_pair(node, combinator)];
 }
+
+#if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
+namespace {
+
+// This uses the old CompoundSelector compare logic that had a bug where 'not'
+// pseudo classes with the same prefix would be treated as matching, regardless
+// of their arguments.
+struct PreVersion16CompoundSelectorLessThan {
+  bool operator()(const CompoundSelector* lhs,
+                  const CompoundSelector* rhs) const {
+    const CompoundSelector::SimpleSelectors& lhs_simple_selectors =
+        lhs->simple_selectors();
+    const CompoundSelector::SimpleSelectors& rhs_simple_selectors =
+        rhs->simple_selectors();
+    if (lhs_simple_selectors.size() < rhs_simple_selectors.size()) {
+      return true;
+    }
+    if (lhs_simple_selectors.size() > rhs_simple_selectors.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < lhs_simple_selectors.size(); ++i) {
+      if (lhs_simple_selectors[i]->type() < rhs_simple_selectors[i]->type()) {
+        return true;
+      }
+      if (lhs_simple_selectors[i]->type() > rhs_simple_selectors[i]->type()) {
+        return false;
+      }
+      if (lhs_simple_selectors[i]->prefix() <
+          rhs_simple_selectors[i]->prefix()) {
+        return true;
+      }
+      if (lhs_simple_selectors[i]->prefix() >
+          rhs_simple_selectors[i]->prefix()) {
+        return false;
+      }
+      if (lhs_simple_selectors[i]->text() < rhs_simple_selectors[i]->text()) {
+        return true;
+      }
+      if (lhs_simple_selectors[i]->text() > rhs_simple_selectors[i]->text()) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+};
+
+bool HasNotPseudoClassCompatibilityViolations(
+    const SelectorTree::OwnedNodesMap& owned_nodes_map) {
+  constexpr int kNotPseudoClassCobaltVersionFix = 16;
+  if (base::VersionCompatibility::GetInstance()->GetMinimumVersion() >=
+      kNotPseudoClassCobaltVersionFix) {
+    return false;
+  }
+
+  typedef std::set<CompoundSelector*, PreVersion16CompoundSelectorLessThan>
+      PreVersion16CompoundSelectorLessThanSet;
+
+  // Walk all of the owned nodes looking for multiple compound selectors within
+  // them that are treated as duplicates using the pre-version 16 compound
+  // selector less than logic.
+  PreVersion16CompoundSelectorLessThanSet unsupported_usage_set;
+  for (const auto& owned_nodes_iterator : owned_nodes_map) {
+    PreVersion16CompoundSelectorLessThanSet encountered_set;
+    for (const auto& node_info : owned_nodes_iterator.second) {
+      if (!encountered_set.insert(node_info.first).second) {
+        unsupported_usage_set.insert(node_info.first);
+      }
+    }
+  }
+
+  // Log the cases of unsupported usage.
+  for (const auto& unsupported_usage_iterator : unsupported_usage_set) {
+    const std::string kUnsupportedNotUsageString =
+        "Unsupported :not() pseudo class usage found. Multiple negation pseudo "
+        "classes with the same prefix but different arguments are not "
+        "supported in versions of Cobalt <= 15. Offending selectors: '";
+
+    std::string selectors_string;
+    const CompoundSelector::SimpleSelectors& simple_selectors =
+        unsupported_usage_iterator->simple_selectors();
+    for (const auto& simple_selector : simple_selectors) {
+      selectors_string += simple_selector->prefix().c_str();
+      if (simple_selector->type() == kPseudoClass &&
+          simple_selector->GetContainedCompoundSelector() != NULL) {
+        selectors_string += "not(...)";
+      } else {
+        selectors_string += simple_selector->text().c_str();
+      }
+    }
+
+    base::VersionCompatibility::GetInstance()->ReportViolation(
+        kUnsupportedNotUsageString + selectors_string);
+  }
+  return !unsupported_usage_set.empty();
+}
+
+}  // namespace
+
+bool SelectorTree::ValidateVersionCompatibility() const {
+  return !HasNotPseudoClassCompatibilityViolations(owned_nodes_map_);
+}
+#endif  // defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
 
 SelectorTree::Node* SelectorTree::GetOrCreateNodeForComplexSelector(
     ComplexSelector* complex_selector) {

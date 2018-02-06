@@ -92,8 +92,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     // case. Just choose the first interface in the flattened members that
     // matches.
 
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    v8::Local<v8::Object> object = value->ToObject(context).ToLocalChecked();
+    v8::Local<v8::Object> object = value.As<v8::Object>();
 
     V8cGlobalEnvironment* global_environment =
         V8cGlobalEnvironment::GetFromIsolate(isolate);
@@ -285,8 +284,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     // case. Just choose the first interface in the flattened members that
     // matches.
 
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    v8::Local<v8::Object> object = value->ToObject(context).ToLocalChecked();
+    v8::Local<v8::Object> object = value.As<v8::Object>();
 
     V8cGlobalEnvironment* global_environment =
         V8cGlobalEnvironment::GetFromIsolate(isolate);
@@ -528,8 +526,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     // case. Just choose the first interface in the flattened members that
     // matches.
 
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    v8::Local<v8::Object> object = value->ToObject(context).ToLocalChecked();
+    v8::Local<v8::Object> object = value.As<v8::Object>();
 
     V8cGlobalEnvironment* global_environment =
         V8cGlobalEnvironment::GetFromIsolate(isolate);

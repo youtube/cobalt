@@ -73,6 +73,11 @@ const char kMemoryTracker[] = "memory_tracker";
 const char kMemoryTrackerHelp[] =
     "Enables memory tracking by installing the memory tracker on startup.";
 
+const char kMinCompatibilityVersion[] = "min_compatibility_version";
+const char kMinCompatibilityVersionHelp[] =
+    "The minimum version of Cobalt that will be checked during compatibility "
+    "validations.";
+
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
     "Set the minimum logging level: info|warning|error|fatal.";
@@ -165,6 +170,15 @@ const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 const char kDisableJavaScriptJitHelp[] =
     "Specifies that javascript jit should be disabled.";
 
+const char kEnableMapToMeshRectanglar[] = "enable_map_to_mesh_rectangular";
+const char kEnableMapToMeshRectanglarHelp[] =
+    "If toggled and map-to-mesh is supported on this platform, this allows it "
+    "to accept the 'rectangular' keyword. Useful to get rectangular stereo "
+    "video on platforms that do not support stereoscopy natively, letting the "
+    "client apply a stereo mesh projection (one that differs for each eye).";
+
+// If toggled, framerate statistics will be printed to stdout after each
+// animation completes, or after a maximum number of frames has been collected.
 const char kFPSPrint[] = "fps_stdout";
 const char kFPSPrintHelp[] =
     "If toggled, framerate statistics will be printed to stdout after each "
@@ -310,6 +324,7 @@ std::string HelpMessage() {
         {kFakeMicrophone, kFakeMicrophoneHelp},
         {kIgnoreCertificateErrors, kIgnoreCertificateErrorsHelp},
         {kInputFuzzer, kInputFuzzerHelp}, {kMemoryTracker, kMemoryTrackerHelp},
+        {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
         {kMinLogLevel, kMinLogLevelHelp},
         {kNullAudioStreamer, kNullAudioStreamerHelp},
         {kNullSavegame, kNullSavegameHelp},
@@ -328,6 +343,7 @@ std::string HelpMessage() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
+        {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
         {kFPSPrint, kFPSPrintHelp}, {kFPSOverlay, kFPSOverlayHelp},
         {kHelp, kHelpHelp},
         {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},

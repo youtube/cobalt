@@ -45,6 +45,8 @@ extern const char kInputFuzzer[];
 extern const char kInputFuzzerHelp[];
 extern const char kMemoryTracker[];
 extern const char kMemoryTrackerHelp[];
+extern const char kMinCompatibilityVersion[];
+extern const char kMinCompatibilityVersionHelp[];
 extern const char kMinLogLevel[];
 extern const char kMinLogLevelHelp[];
 extern const char kNullAudioStreamer[];
@@ -85,6 +87,7 @@ extern const char kWebDriverPortHelp[];
 
 extern const char kDisableJavaScriptJit[];
 extern const char kDisableJavaScriptJitHelp[];
+extern const char kEnableMapToMeshRectanglar[];
 extern const char kFPSPrint[];
 extern const char kFPSPrintHelp[];
 extern const char kFPSOverlay[];

@@ -34,9 +34,11 @@ namespace mozjs {
 class MozjsValueHandle : public ValueHandle {
  public:
   typedef ValueHandle BaseType;
+
   JSObject* handle() const { return handle_.GetObject(); }
   const JS::Value& value() const { return handle_.GetValue(); }
   bool WasCollected() const { return handle_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { handle_.Trace(js_tracer); }
 
  private:
   MozjsValueHandle(JSContext* context, JS::HandleValue value)

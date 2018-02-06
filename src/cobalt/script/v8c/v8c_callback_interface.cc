@@ -23,36 +23,27 @@ namespace v8c {
 // Helper class to get the actual callable object from a v8::Object
 // implementing a callback interface.
 // Returns true if a callable was found, and false if not.
-v8::MaybeLocal<v8::Object> GetCallableForCallbackInterface(
+v8::MaybeLocal<v8::Function> GetCallableForCallbackInterface(
     v8::Isolate* isolate, v8::Local<v8::Object> implementing_object,
-    const char* property_name) {
+    v8::Local<v8::String> key) {
   DCHECK(!implementing_object.IsEmpty());
-  DCHECK(property_name);
 
-  if (implementing_object->IsCallable()) {
-    return implementing_object;
+  if (implementing_object->IsFunction()) {
+    return implementing_object.As<v8::Function>();
   }
 
-  v8::MaybeLocal<v8::Value> maybe_property_value = implementing_object->Get(
-      isolate->GetCurrentContext(),
-      v8::String::NewFromUtf8(isolate, property_name,
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked());
+  v8::MaybeLocal<v8::Value> maybe_property_value =
+      implementing_object->Get(isolate->GetCurrentContext(), key);
   v8::Local<v8::Value> property_value;
   if (!maybe_property_value.ToLocal(&property_value)) {
     return {};
   }
 
-  if (!property_value->IsObject()) {
-    return {};
-  }
-  v8::Local<v8::Object> property_object =
-      v8::Local<v8::Object>::Cast(property_value);
-  if (!property_object->IsCallable()) {
+  if (!property_value->IsFunction()) {
     return {};
   }
 
-  return property_object;
+  return property_value.As<v8::Function>();
 }
 
 }  // namespace v8c

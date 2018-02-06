@@ -64,11 +64,6 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
       sample_type_(kSbMediaAudioSampleTypeFloat32),
       stream_ended_(false) {
   SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
-  decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
-      drm_system_);
-  decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
-  callback_scheduler_.reset(new CallbackScheduler());
 }
 
 AudioDecoder::~AudioDecoder() {
@@ -87,6 +82,11 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   output_cb_ = output_cb;
+  decoder_impl_ = AbstractWin32AudioDecoder::Create(
+      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
+      drm_system_);
+  decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
+  callback_scheduler_.reset(new CallbackScheduler());
 }
 
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,

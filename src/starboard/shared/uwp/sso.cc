@@ -56,7 +56,20 @@ namespace shared {
 namespace uwp {
 
 concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
+    const std::string& url, bool prompt);
+
+concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
     const std::string& url) {
+  return TryToFetchSsoToken(url, false);
+}
+
+concurrency::task<WebTokenRequestResult^> TryToFetchSsoTokenAndPrompt(
+    const std::string& url) {
+  return TryToFetchSsoToken(url, true);
+}
+
+concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
+    const std::string& url, bool prompt) {
   if (SbFileExists(GetSsoRejectionFilePath().c_str())) {
     concurrency::task_completion_event<WebTokenRequestResult^> result;
     result.set(nullptr);
@@ -65,7 +78,7 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
   return concurrency::create_task(
       WebAuthenticationCoreManager::FindAccountProviderAsync(
           sbwin32::stringToPlatformString(kXboxLiveAccountProviderId)))
-  .then([url](concurrency::task<WebAccountProvider^> previous_task) {
+  .then([url, prompt](concurrency::task<WebAccountProvider^> previous_task) {
     WebAccountProvider^ xbox_provider = nullptr;
     try {
       xbox_provider = previous_task.get();
@@ -83,7 +96,7 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
 
     bool main_thread = sbuwp::GetDispatcher()->HasThreadAccess;
 
-    if (main_thread) {
+    if (main_thread && prompt) {
       return concurrency::create_task(
           WebAuthenticationCoreManager::RequestTokenAsync(request));
     } else {
@@ -118,10 +131,10 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
       case WebTokenRequestStatus::UserInteractionRequired: {
         concurrency::task_completion_event<WebTokenRequestResult^> completion;
         RunInMainThreadAsync([url, completion]() {
-          // When we run TryToFetchSsoToken in the main thread,
+          // When we run TryToFetchSsoTokenAndPrompt in the main thread,
           // we'll always ask for user input via RequestTokenAsync, which
           // never returns this case.
-          TryToFetchSsoToken(url)
+          TryToFetchSsoTokenAndPrompt(url)
           .then([completion](concurrency::task<WebTokenRequestResult^> result) {
             try {
               completion.set(result.get());

@@ -2276,6 +2276,10 @@ bool Scanner::DetectPropertyValueToken(const TrivialStringPiece& name,
         *property_value_token = kTransparentToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(name.begin, cssom::kRectangularKeywordName)) {
+        *property_value_token = kRectangularToken;
+        return true;
+      }
       return false;
 
     case 12:

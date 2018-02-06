@@ -17,6 +17,8 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 
+#include "cobalt/base/accessibility_caption_settings_changed_event.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/captions/caption_character_edge_style.h"
 #include "cobalt/dom/captions/caption_color.h"
 #include "cobalt/dom/captions/caption_font_family.h"
@@ -179,7 +181,10 @@ CaptionState ToCobaltCaptionState(SbAccessibilityCaptionState state) {
 
 #endif  // SB_HAS(CAPTIONS)
 
-SystemCaptionSettings::SystemCaptionSettings() {}
+void SystemCaptionSettings::OnCaptionSettingsChanged() {
+  DispatchEventAndRunCallback(base::Tokens::change(),
+                              base::Closure(base::Bind(base::DoNothing)));
+}
 
 base::optional<std::string> SystemCaptionSettings::background_color() {
 #if SB_HAS(CAPTIONS)

@@ -19,6 +19,7 @@
 #define COBALT_NETWORK_LIB_EXPORTED_USER_AGENT_H_
 
 #include "starboard/export.h"
+#include "starboard/system.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +31,19 @@ extern "C" {
 // if the suffix could not be set, in which case nothing will be apended to the
 // UA string.
 SB_EXPORT_PLATFORM bool CbLibUserAgentSetPlatformNameSuffix(const char* suffix);
+
+// Sets the device type reported in the UA string. If |type| is not a
+// valid device type, the default value for this platform (as per starboard) is
+// kept and the function returns false.
+SB_EXPORT_PLATFORM bool CbLibUserAgentSetDeviceTypeOverride(
+    SbSystemDeviceType type);
+
+// Set the reported device brand and model names. The maximum length of
+// |value| is 512 bytes including null terminator (which is required). If
+// |value| is null, the property is reset to its default value for this
+// platform. Returns true if the value was set or reset successfully.
+SB_EXPORT_PLATFORM bool CbLibUserAgentSetBrandNameOverride(const char* value);
+SB_EXPORT_PLATFORM bool CbLibUserAgentSetModelNameOverride(const char* value);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -37,7 +37,8 @@ class SbSocketResolveTest
 const void* kNull = NULL;
 
 // A random host name to use to test DNS resolution.
-const char* kTestHostName = "www.yahoo.com";
+const char kTestHostName[] = "www.yahoo.com";
+const char kLocalhost[] = "localhost";
 
 #define LOG_ADDRESS(i) "In returned address #" << (i)
 
@@ -51,6 +52,24 @@ TEST_F(SbSocketResolveTest, SunnyDay) {
     EXPECT_TRUE(address.type == kSbSocketAddressTypeIpv4 ||
                 address.type == kSbSocketAddressTypeIpv6)
         << LOG_ADDRESS(i);
+    EXPECT_FALSE(IsUnspecified(&address)) << LOG_ADDRESS(i);
+  }
+
+  SbSocketFreeResolution(resolution);
+}
+
+TEST_P(SbSocketResolveTest, Localhost) {
+  SbSocketResolution* resolution =
+      SbSocketResolve(kLocalhost, GetResolveFilter());
+  ASSERT_NE(kNull, resolution);
+  EXPECT_LT(0, resolution->address_count);
+  EXPECT_NE(kNull, resolution->addresses);
+  for (int i = 0; i < resolution->address_count; ++i) {
+    const SbSocketAddress& address = resolution->addresses[i];
+    EXPECT_TRUE(address.type == kSbSocketAddressTypeIpv4 ||
+                address.type == kSbSocketAddressTypeIpv6)
+        << LOG_ADDRESS(i);
+    EXPECT_TRUE(IsLocalhost(&address)) << LOG_ADDRESS(i);
     EXPECT_FALSE(IsUnspecified(&address)) << LOG_ADDRESS(i);
   }
 

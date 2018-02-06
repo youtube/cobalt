@@ -241,6 +241,10 @@ BrowserModule::BrowserModule(const GURL& url,
       network_module_(&storage_manager_, event_dispatcher_,
                       options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
+          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
@@ -265,10 +269,6 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
-          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       has_resumed_(true, false),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
       timeout_polling_thread_(kTimeoutPollingThreadName),
@@ -333,8 +333,8 @@ BrowserModule::BrowserModule(const GURL& url,
         base::Bind(&CreateExtensionInterface);
   }
 
-#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
+#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
     OnFuzzerToggle(std::string());
   }
@@ -366,6 +366,10 @@ BrowserModule::BrowserModule(const GURL& url,
       options_.web_module_options.javascript_engine_options));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  if (command_line->HasSwitch(switches::kEnableMapToMeshRectanglar)) {
+    options_.web_module_options.enable_map_to_mesh_rectangular = true;
+  }
 
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
   // Synchronously construct our WebModule object.
@@ -644,10 +648,16 @@ void BrowserModule::OnRenderTreeProduced(
     return;
   }
 
-  if (splash_screen_ && !splash_screen_->ShutdownSignaled()) {
-    splash_screen_->Shutdown();
+  if (splash_screen_) {
+    if (on_screen_keyboard_show_called_) {
+      // Hide the splash screen as quickly as possible.
+      DestroySplashScreen(base::TimeDelta());
+    } else if (!splash_screen_->ShutdownSignaled()) {
+      splash_screen_->Shutdown();
+    }
   }
   if (application_state_ == base::kApplicationStatePreloading) {
+    layout_results.on_rasterized_callback.Run();
     return;
   }
 
@@ -769,7 +779,9 @@ void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject shown events to the main WebModule.
+  on_screen_keyboard_show_called_ = true;
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardShownEvent(event->ticket());
   }
@@ -777,6 +789,7 @@ void BrowserModule::OnOnScreenKeyboardShown(
 
 void BrowserModule::OnOnScreenKeyboardHidden(
     const base::OnScreenKeyboardHiddenEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject hidden events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardHiddenEvent(event->ticket());
@@ -785,6 +798,7 @@ void BrowserModule::OnOnScreenKeyboardHidden(
 
 void BrowserModule::OnOnScreenKeyboardFocused(
     const base::OnScreenKeyboardFocusedEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject focused events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardFocusedEvent(event->ticket());
@@ -793,12 +807,22 @@ void BrowserModule::OnOnScreenKeyboardFocused(
 
 void BrowserModule::OnOnScreenKeyboardBlurred(
     const base::OnScreenKeyboardBlurredEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject blurred events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardBlurredEvent(event->ticket());
   }
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
+#if SB_HAS(CAPTIONS)
+void BrowserModule::OnCaptionSettingsChanged(
+    const base::AccessibilityCaptionSettingsChangedEvent* /*event*/) {
+  if (web_module_) {
+    web_module_->InjectCaptionSettingsChangedEvent();
+  }
+}
+#endif  // SB_HAS(CAPTIONS)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {

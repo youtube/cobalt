@@ -28,24 +28,21 @@ ReferencedObjectMap::ReferencedObjectMap(JSContext* context)
     : context_(context) {}
 
 // Add/Remove a reference from a WrapperPrivate to a JSValue.
-void ReferencedObjectMap::AddReferencedObject(intptr_t key,
+void ReferencedObjectMap::AddReferencedObject(const Wrappable* wrappable,
                                               JS::HandleValue referee) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!referee.isNullOrUndefined());
   DCHECK(referee.isGCThing());
   referenced_objects_.insert(
-      std::make_pair(key, WeakHeapObject(context_, referee)));
+      std::make_pair(wrappable, WeakHeapObject(context_, referee)));
 }
 
-void ReferencedObjectMap::RemoveReferencedObject(intptr_t key,
+void ReferencedObjectMap::RemoveReferencedObject(const Wrappable* wrappable,
                                                  JS::HandleValue referee) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  std::pair<ReferencedObjectMultiMap::iterator,
-            ReferencedObjectMultiMap::iterator> pair_range =
-      referenced_objects_.equal_range(key);
-  for (ReferencedObjectMultiMap::iterator it = pair_range.first;
-       it != pair_range.second; ++it) {
+  auto pair_range = referenced_objects_.equal_range(wrappable);
+  for (auto it = pair_range.first; it != pair_range.second; ++it) {
     JS::RootedValue element(context_, it->second.GetValue());
     if (util::IsSameGcThing(context_, referee, element)) {
       // There may be multiple mappings between a specific owner and a JS
@@ -58,24 +55,20 @@ void ReferencedObjectMap::RemoveReferencedObject(intptr_t key,
 }
 
 void ReferencedObjectMap::TraceReferencedObjects(JSTracer* trace,
-                                                 intptr_t key) {
+                                                 const Wrappable* wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  std::pair<ReferencedObjectMultiMap::iterator,
-            ReferencedObjectMultiMap::iterator> pair_range =
-      referenced_objects_.equal_range(key);
-  for (ReferencedObjectMultiMap::iterator it = pair_range.first;
-       it != pair_range.second; ++it) {
+  auto pair_range = referenced_objects_.equal_range(wrappable);
+  for (auto it = pair_range.first; it != pair_range.second; ++it) {
     it->second.Trace(trace);
   }
 }
 
 void ReferencedObjectMap::RemoveNullReferences() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  for (ReferencedObjectMultiMap::iterator it = referenced_objects_.begin();
-       it != referenced_objects_.end();
+  for (auto it = referenced_objects_.begin(); it != referenced_objects_.end();
        /*Incremented in the loop */) {
     if (it->second.WasCollected()) {
-      ReferencedObjectMultiMap::iterator erase_iterator = it++;
+      auto erase_iterator = it++;
       referenced_objects_.erase(erase_iterator);
     } else {
       DCHECK(it->second.IsGcThing());
