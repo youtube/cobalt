@@ -57,7 +57,6 @@ class VideoDecoder
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
   SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
-  size_t GetMaxNumberOfCachedFrames() const override;
 
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override;

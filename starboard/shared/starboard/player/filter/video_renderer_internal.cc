@@ -137,8 +137,8 @@ bool VideoRenderer::IsEndOfStreamPlayed() const {
 bool VideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   ScopedLock lock(mutex_);
-  return frames_.size() < decoder_->GetMaxNumberOfCachedFrames() &&
-         !end_of_stream_written_ && need_more_input_;
+  return frames_.size() < kMaxCachedFrames && !end_of_stream_written_ &&
+         need_more_input_;
 }
 
 bool VideoRenderer::IsSeekingInProgress() const {

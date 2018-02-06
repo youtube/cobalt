@@ -66,15 +66,15 @@ struct CreateDecodeTargetContext {
 scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
     const GUID& input_guid, const GUID& output_guid,
     const IMFDXGIDeviceManager* device_manager) {
-  scoped_ptr<MediaTransform> media_transform(new MediaTransform(decoder_guid));
+  scoped_ptr<MediaTransform> transform(new MediaTransform(decoder_guid));
 
-  media_transform->EnableInputThrottle(true);
-  media_transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
-                               ULONG_PTR(device_manager));
+  transform->EnableInputThrottle(true);
+  transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
+                         ULONG_PTR(device_manager));
 
   // Tell the decoder to allocate resources for the maximum resolution in
   // order to minimize hitching on resolution changes.
-  ComPtr<IMFAttributes> attributes = media_transform->GetAttributes();
+  ComPtr<IMFAttributes> attributes = transform->GetAttributes();
   CheckResult(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1));
 
   ComPtr<IMFMediaType> input_type;
@@ -91,11 +91,11 @@ scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
                                    kMaxDecodeTargetWidth,
                                    kMaxDecodeTargetHeight));
   }
-  media_transform->SetInputType(input_type);
+  transform->SetInputType(input_type);
 
-  media_transform->SetOutputTypeBySubType(output_guid);
+  transform->SetOutputTypeBySubType(output_guid);
 
-  return media_transform.Pass();
+  return transform.Pass();
 }
 
 class VideoFrameImpl : public VideoFrame {
@@ -188,10 +188,6 @@ size_t VideoDecoder::GetPrerollFrameCount() const {
   return kMaxOutputSamples;
 }
 
-size_t VideoDecoder::GetMaxNumberOfCachedFrames() const {
-  return kMaxOutputSamples;
-}
-
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                               const ErrorCB& error_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
@@ -238,7 +234,6 @@ void VideoDecoder::Reset() {
   thread_lock_.Release();
   outputs_reset_lock_.Release();
 
-  decoder_status_cb_(kReleaseAllFrames, nullptr);
   decoder_->Reset();
 }
 
