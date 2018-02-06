@@ -17,7 +17,7 @@
 
 {
   'variables': {
-    'has_platform_tests%' : '<!(python ../build/file_exists.py <(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp)',
+    'has_platform_tests%' : '<!(python -c "import os.path; print os.path.isfile(\'<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp\') & 1 | 0")',
   },
   'targets': [
     {
@@ -35,7 +35,7 @@
         '<(DEPTH)/starboard/starboard.gyp:*',
       ],
       'conditions': [
-        ['has_platform_tests=="True"', {
+        ['has_platform_tests==1', {
           'dependencies': [
             '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
           ],
