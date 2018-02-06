@@ -171,7 +171,6 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       paused_(true),
       seeking_(false),
       controls_(false),
-      last_time_update_event_wall_time_(0),
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
       processing_media_player_callback_(0),
       media_source_url_(std::string(kMediaSourceUrlProtocol) + ':' +
@@ -1197,20 +1196,14 @@ void HTMLMediaElement::StopPeriodicTimers() {
 }
 
 void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
-  double now = base::Time::Now().ToDoubleT();
-  double time_delta = now - last_time_update_event_wall_time_;
-
-  // throttle the periodic events
-  if (periodic_event && time_delta < kMaxTimeupdateEventFrequency) {
-    return;
-  }
-
   // Some media engines make multiple "time changed" callbacks at the same time,
   // but we only want one event at a given time so filter here
   float movie_time = current_time(NULL);
   if (movie_time != last_time_update_event_movie_time_) {
+    if (!periodic_event && playback_progress_timer_.IsRunning()) {
+      playback_progress_timer_.Reset();
+    }
     ScheduleOwnEvent(base::Tokens::timeupdate());
-    last_time_update_event_wall_time_ = now;
     last_time_update_event_movie_time_ = movie_time;
   }
 }
