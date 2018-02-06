@@ -117,6 +117,9 @@
 //   Please see the comment in system.h for more details.
 #define SB_ALLOW_DISABLE_RESUME_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version for supporting the kSbKeyMicrophone keycode
+#define SB_MICROPHONE_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
