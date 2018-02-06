@@ -245,6 +245,11 @@ typedef enum SbKey {
   kSbKeyMediaAudioTrack = 0x3001,
 #endif  // SB_API_VERSION >= 6
 
+#if SB_API_VERSION >= SB_MICROPHONE_KEY_CODE_API_VERSION
+  // A button that will trigger voice input.
+  kSbKeyMicrophone = 0x3002,
+#endif  // SB_API_VERSION >= SB_MICROPHONE_KEY_CODE_API_VERSION
+
   // Mouse buttons, starting with the left mouse button.
   kSbKeyMouse1 = 0x7000,
   kSbKeyMouse2 = 0x7001,
