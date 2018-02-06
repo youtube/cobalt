@@ -5,6 +5,42 @@
  * found in the LICENSE file.
  */
 
+#include "SkColorSpace_Base.h"
+#include "SkColorSpaceXform_Base.h"
+
+#if defined(COBALT)
+
+// This functionality was removed from Cobalt, since it would generate a lot of
+// instructions, that are not used.  This function uses up 1.5 MB of binary size
+// when loaded into memory, and increased Cobalt's footprint by ~5%.
+
+#include <starboard/log.h>
+
+void SkColorSpaceXform_Base::BuildDstGammaTables(unsigned char const**, unsigned char*, SkColorSpace_XYZ const*,
+                                                 bool) {
+  SB_NOTREACHED();
+}
+
+std::unique_ptr<SkColorSpaceXform> SkColorSpaceXform_Base::New(SkColorSpace*, SkColorSpace*,
+                                                               SkTransferFunctionBehavior) {
+  SB_NOTREACHED();
+  return nullptr;
+}
+
+bool SkColorSpaceXform::apply(SkColorSpaceXform::ColorFormat, void*, SkColorSpaceXform::ColorFormat,
+                              void const*, int, SkAlphaType) const {
+  SB_NOTREACHED();
+  return false;
+}
+
+bool SkColorSpaceXform::Apply(SkColorSpace*, SkColorSpaceXform::ColorFormat, void*, SkColorSpace*,
+                              SkColorSpaceXform::ColorFormat, void const*, int, SkColorSpaceXform::AlphaOp) {
+  SB_NOTREACHED();
+  return false;
+}
+
+#else
+
 #include "SkColorPriv.h"
 #include "SkColorSpace_A2B.h"
 #include "SkColorSpace_Base.h"
@@ -1327,3 +1363,5 @@ std::unique_ptr<SkColorSpaceXform> SlowIdentityXform(SkColorSpace_XYZ* space) {
     return std::unique_ptr<SkColorSpaceXform>(new SkColorSpaceXform_XYZ<kNone_ColorSpaceMatch>
             (space, SkMatrix::I(), space, SkTransferFunctionBehavior::kRespect));
 }
+
+#endif  // defined(COBALT)
