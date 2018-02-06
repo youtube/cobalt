@@ -471,6 +471,7 @@ class BrowserModule {
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
   scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
+  bool on_screen_keyboard_show_called_ = false;
 
   // Sets up everything to do with web page management, from loading and
   // parsing the web page and all referenced files to laying it out.  The
