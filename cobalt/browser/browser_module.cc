@@ -648,8 +648,13 @@ void BrowserModule::OnRenderTreeProduced(
     return;
   }
 
-  if (splash_screen_ && !splash_screen_->ShutdownSignaled()) {
-    splash_screen_->Shutdown();
+  if (splash_screen_) {
+    if (on_screen_keyboard_show_called_) {
+      // Hide the splash screen as quickly as possible.
+      DestroySplashScreen(base::TimeDelta());
+    } else if (!splash_screen_->ShutdownSignaled()) {
+      splash_screen_->Shutdown();
+    }
   }
   if (application_state_ == base::kApplicationStatePreloading) {
     layout_results.on_rasterized_callback.Run();
@@ -774,7 +779,9 @@ void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(
     const base::OnScreenKeyboardShownEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject shown events to the main WebModule.
+  on_screen_keyboard_show_called_ = true;
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardShownEvent(event->ticket());
   }
@@ -782,6 +789,7 @@ void BrowserModule::OnOnScreenKeyboardShown(
 
 void BrowserModule::OnOnScreenKeyboardHidden(
     const base::OnScreenKeyboardHiddenEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject hidden events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardHiddenEvent(event->ticket());
@@ -790,6 +798,7 @@ void BrowserModule::OnOnScreenKeyboardHidden(
 
 void BrowserModule::OnOnScreenKeyboardFocused(
     const base::OnScreenKeyboardFocusedEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject focused events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardFocusedEvent(event->ticket());
@@ -798,6 +807,7 @@ void BrowserModule::OnOnScreenKeyboardFocused(
 
 void BrowserModule::OnOnScreenKeyboardBlurred(
     const base::OnScreenKeyboardBlurredEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject blurred events to the main WebModule.
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardBlurredEvent(event->ticket());
