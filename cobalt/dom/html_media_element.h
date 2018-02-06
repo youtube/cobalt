@@ -302,8 +302,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   bool seeking_;
   bool controls_;
 
-  // The last time a timeupdate event was sent (wall clock).
-  double last_time_update_event_wall_time_;
   // The last time a timeupdate event was sent in movie time.
   double last_time_update_event_movie_time_;
 
