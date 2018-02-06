@@ -23,16 +23,7 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider() {
 #if SB_HAS(BLITTER)
   decoder_target_provider_.device = kSbBlitterInvalidDevice;
 #elif SB_HAS(GLES2)
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  SB_CHECK(EGL_NO_DISPLAY != display_);
-  eglInitialize(display_, NULL, NULL);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-
-  decoder_target_provider_.egl_display = display_;
-  // TODO: Set a valid context.
+  decoder_target_provider_.egl_display = NULL;
   decoder_target_provider_.egl_context = NULL;
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
@@ -47,10 +38,6 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 #if SB_HAS(GLES2)
   functor_queue_.Wake();
   SbThreadJoin(decode_target_context_thread_, NULL);
-  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglTerminate(display_);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
 #endif  // SB_HAS(GLES2)
 }
 

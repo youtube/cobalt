@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 
+#include <cinttypes>
+
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -37,14 +39,13 @@ using ::testing::StrictMock;
 ::testing::AssertionResult AlmostEqual(SbMediaTime left, SbMediaTime right) {
   // Use 1 millisecond as epsilon.
   const SbMediaTime kEpsilon = kSbMediaTimeSecond / 1000;
-  SbMediaTime diff = left > right ? left - right : right - left;
 
-  if (diff <= kEpsilon)
+  if (std::llabs(left - right) <= kEpsilon)
     return ::testing::AssertionSuccess();
   else
     return ::testing::AssertionFailure()
            << left << " is not almost equal to " << right
-           << " with a difference of " << diff;
+           << " with a difference of " << std::llabs(left - right);
 }
 
 class MockMonotonicSystemTimeProvider : public MonotonicSystemTimeProvider {

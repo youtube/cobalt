@@ -70,6 +70,12 @@ class VideoRenderer {
  private:
   typedef std::list<scoped_refptr<VideoFrame>> Frames;
 
+  // Set a soft limit for the max video frames we can cache so we can:
+  // 1. Avoid using too much memory.
+  // 2. Have the frame cache full to simulate the state that the renderer can
+  //    no longer accept more data.
+  static const size_t kMaxCachedFrames = 12;
+
   void OnDecoderStatus(VideoDecoder::Status status,
                        const scoped_refptr<VideoFrame>& frame);
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
