@@ -18,12 +18,6 @@
 
 #include "third_party/skia/include/core/SkPaint.h"
 
-namespace {
-
-const uint32 kEstimatedBytesPerGlyph = 256;
-
-}  // namespace
-
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
@@ -43,7 +37,7 @@ render_tree::TypefaceId SkiaTypeface::GetId() const {
 }
 
 uint32 SkiaTypeface::GetEstimatedSizeInBytes() const {
-  return typeface_->countGlyphs() * kEstimatedBytesPerGlyph;
+  return static_cast<uint32>(typeface_->GetStreamLength());
 }
 
 scoped_refptr<render_tree::Font> SkiaTypeface::CreateFontWithSize(

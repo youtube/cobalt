@@ -71,7 +71,7 @@ class LayoutManager {
   void Suspend();
   void Resume();
 
-  bool IsNewRenderTreePending() const;
+  bool IsRenderTreePending() const;
 
  private:
   class Impl;

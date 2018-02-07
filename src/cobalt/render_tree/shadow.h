@@ -32,6 +32,11 @@ struct Shadow {
          const ColorRGBA& color)
       : offset(offset), blur_sigma(blur_sigma), color(color) {}
 
+  bool operator==(const Shadow& other) const {
+    return offset == other.offset && blur_sigma == other.blur_sigma &&
+           color == other.color;
+  }
+
   // Since the blur parameters represent standard deviations, most of the
   // blur is contained within 3 of them, so report that as the extent of the
   // blur.

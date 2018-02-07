@@ -211,6 +211,10 @@ void RecordImage(scoped_refptr<render_tree::Image>* image_pointer,
   *image_pointer = static_image->image();
 }
 
+void DecodeError(const std::string& error) {
+  LOG(ERROR) << error;
+}
+
 }  // namespace
 
 bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
@@ -233,7 +237,7 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
 
     ImageDecoder image_decoder(
         resource_provider_, base::Bind(&RecordImage, &next_frame_image),
-        ImageDecoder::ErrorCallback(), ImageDecoder::kImageTypeWebP);
+        base::Bind(&DecodeError), ImageDecoder::kImageTypeWebP);
     image_decoder.DecodeChunk(
         reinterpret_cast<const char*>(webp_iterator.fragment.bytes),
         webp_iterator.fragment.size);

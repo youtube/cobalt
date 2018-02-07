@@ -624,7 +624,7 @@ void WebModule::Impl::InjectKeyboardEvent(
 
   web_module_stat_tracker_->OnEndInjectEvent(
       window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsNewRenderTreePending());
+      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -657,7 +657,7 @@ void WebModule::Impl::OnRanAnimationFrameCallbacks() {
   // Notify the stat tracker that the animation frame callbacks have finished.
   // This may end the current event being tracked.
   web_module_stat_tracker_->OnRanAnimationFrameCallbacks(
-      layout_manager_->IsNewRenderTreePending());
+      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::OnRenderTreeProduced(

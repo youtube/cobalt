@@ -27,6 +27,10 @@ class OpacityFilter {
  public:
   explicit OpacityFilter(float opacity) { set_opacity(opacity); }
 
+  bool operator==(const OpacityFilter& other) const {
+    return opacity_ == other.opacity_;
+  }
+
   void set_opacity(float opacity) {
     DCHECK_LE(0.0f, opacity);
     DCHECK_GE(1.0f, opacity);

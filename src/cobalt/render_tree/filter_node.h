@@ -51,6 +51,13 @@ class FilterNode : public Node {
 
     math::RectF GetBounds() const;
 
+    bool operator==(const Builder& other) const {
+      return source == other.source && opacity_filter == other.opacity_filter &&
+             viewport_filter == other.viewport_filter &&
+             blur_filter == other.blur_filter &&
+             map_to_mesh_filter == other.map_to_mesh_filter;
+    }
+
     // The source tree, which will be used as the input to the filters specified
     // in this FilterNode.
     scoped_refptr<render_tree::Node> source;

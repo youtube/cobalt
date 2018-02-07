@@ -53,6 +53,11 @@ struct Border {
   Border(const BorderSide& left, const BorderSide& right, const BorderSide& top,
          const BorderSide& bottom);
 
+  bool operator==(const Border& other) const {
+    return left == other.left && right == other.right && top == other.top &&
+           bottom == other.bottom;
+  }
+
   BorderSide left;
   BorderSide right;
   BorderSide top;

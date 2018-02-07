@@ -63,6 +63,9 @@ class CValCollectionTimerStats {
     start_time_ = base::TimeTicks();
   }
 
+  // Stops any started timer and this sample is ignored.
+  void Cancel() { start_time_ = base::TimeTicks(); }
+
   // Flush the collection. This causes |CValCollectionStats| to update its stats
   // and clear the entries.
   void Flush() { entry_stats_.Flush(); }

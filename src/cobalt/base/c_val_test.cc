@@ -13,7 +13,10 @@
 // limitations under the License.
 
 #include <limits>
+#include <utility>
 
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/simple_thread.h"
 #include "base/time.h"
 #include "cobalt/base/c_val.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -582,6 +585,115 @@ TEST(CValTest, NativeType) {
   cv_int32_t = 15;
 
   EXPECT_EQ(test_hook.value_changed_count_, 1);
+}
+
+namespace {
+// Helper class for the RemoveAndRead test defined below.
+class ReadCValThread : public base::SimpleThread {
+ public:
+  ReadCValThread(const char* test_cval_name, int num_read_cycles,
+                 std::pair<std::string, std::string> valid_values,
+                 base::WaitableEvent* thread_ready_event,
+                 base::WaitableEvent* start_processing_event)
+      : base::SimpleThread("ReadCValThread"),
+        test_cval_name_(test_cval_name),
+        num_read_cycles_(num_read_cycles),
+        valid_values_(valid_values),
+        thread_ready_event_(thread_ready_event),
+        start_processing_event_(start_processing_event) {}
+
+  void Run() OVERRIDE {
+    thread_ready_event_->Signal();
+    start_processing_event_->Wait();
+
+    base::CValManager* cvm = base::CValManager::GetInstance();
+    for (int i = 0; i < num_read_cycles_; ++i) {
+      base::optional<std::string> result =
+          cvm->GetValueAsString(test_cval_name_);
+      if (result) {
+        EXPECT_TRUE(*result == valid_values_.first ||
+                    *result == valid_values_.second);
+      }
+    }
+  }
+
+ private:
+  const char* test_cval_name_;
+  int num_read_cycles_;
+  std::pair<std::string, std::string> valid_values_;
+  base::WaitableEvent* thread_ready_event_;
+  base::WaitableEvent* start_processing_event_;
+};
+
+// Helper class for the RemoveAndRead test defined below.
+class CreateDestroyCValThread : public base::SimpleThread {
+ public:
+  CreateDestroyCValThread(const char* test_cval_name,
+                          int num_create_destroy_cycles,
+                          std::pair<std::string, std::string> valid_values,
+                          base::WaitableEvent* thread_ready_event,
+                          base::WaitableEvent* start_processing_event)
+      : base::SimpleThread("CreateDestroyCValThread"),
+        test_cval_name_(test_cval_name),
+        num_create_destroy_cycles_(num_create_destroy_cycles),
+        valid_values_(valid_values),
+        thread_ready_event_(thread_ready_event),
+        start_processing_event_(start_processing_event) {}
+
+  void Run() OVERRIDE {
+    thread_ready_event_->Signal();
+    start_processing_event_->Wait();
+
+    for (int i = 0; i < num_create_destroy_cycles_; ++i) {
+      base::CVal<std::string> test_cval(test_cval_name_, valid_values_.first,
+                                        "Description");
+      test_cval = valid_values_.second;
+    }
+  }
+
+ private:
+  const char* test_cval_name_;
+  int num_create_destroy_cycles_;
+  std::pair<std::string, std::string> valid_values_;
+  base::WaitableEvent* thread_ready_event_;
+  base::WaitableEvent* start_processing_event_;
+};
+
+}  // namespace
+
+// Tests that we can create and destroy cvals no problem while simultaneously
+// reading from them.  The test creates two threads, a reader thread and a
+// creater/destroyer (and writer) thread.  These both attempt to access the same
+// cval as fast as possible.
+TEST(CValTest, RemoveAndRead) {
+  const char* kTestCValName = "TestCVal";
+  const int kNumReadCycles = 10000;
+  const int kNuMCreateDestroyCycles = 10000;
+  const std::pair<std::string, std::string> valid_values("hello", "66");
+  base::WaitableEvent read_cval_thread_ready(true, false);
+  base::WaitableEvent create_destroy_cval_thread_ready(true, false);
+  base::WaitableEvent start_processing_event(true, false);
+
+  // Create and start both threads.
+  ReadCValThread read_cval_thread(kTestCValName, kNumReadCycles, valid_values,
+                                  &read_cval_thread_ready,
+                                  &start_processing_event);
+  CreateDestroyCValThread create_destroy_cval_thread(
+      kTestCValName, kNuMCreateDestroyCycles, valid_values,
+      &create_destroy_cval_thread_ready, &start_processing_event);
+  read_cval_thread.Start();
+  create_destroy_cval_thread.Start();
+
+  // Wait until both threads are initialized and ready.
+  read_cval_thread_ready.Wait();
+  create_destroy_cval_thread_ready.Wait();
+
+  // Signal for the processing/testing to begin.
+  start_processing_event.Signal();
+
+  // Wait for both threads to complete.
+  read_cval_thread.Join();
+  create_destroy_cval_thread.Join();
 }
 
 }  // namespace base

@@ -29,6 +29,10 @@ class BlurFilter {
   // |blur_sigma| must be non-negative.
   explicit BlurFilter(float blur_sigma) { set_blur_sigma(blur_sigma); }
 
+  bool operator==(const BlurFilter& other) const {
+    return blur_sigma_ == other.blur_sigma_;
+  }
+
   void set_blur_sigma(float blur_sigma) {
     DCHECK_LE(0.0f, blur_sigma);
     blur_sigma_ = blur_sigma;

@@ -45,6 +45,10 @@ class SolidColorBrush : public Brush {
  public:
   explicit SolidColorBrush(const ColorRGBA& color) : color_(color) {}
 
+  bool operator==(const SolidColorBrush& other) const {
+    return color_ == other.color_;
+  }
+
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
 
@@ -67,6 +71,10 @@ struct ColorStop {
   ColorStop() : position(-1) {}
   ColorStop(float position, const ColorRGBA& color)
       : position(position), color(color) {}
+
+  bool operator==(const ColorStop& other) const {
+    return position == other.position && color == other.color;
+  }
 
   float position;
   ColorRGBA color;
@@ -102,12 +110,20 @@ class LinearGradientBrush : public Brush {
                       const ColorRGBA& source_color,
                       const ColorRGBA& dest_color);
 
+  bool operator==(const LinearGradientBrush& other) const {
+    return data_ == other.data_;
+  }
+
   struct Data {
     Data();
     Data(const math::PointF& source, const math::PointF& dest,
          const ColorStopList& color_stops);
     Data(const math::PointF& source, const math::PointF& dest);
 
+    bool operator==(const Data& other) const {
+      return source_ == other.source_ && dest_ == other.dest_ &&
+             color_stops_ == other.color_stops_;
+    }
     math::PointF source_;
     math::PointF dest_;
 
@@ -167,6 +183,11 @@ class RadialGradientBrush : public Brush {
                       float radius_y, const ColorRGBA& source_color,
                       const ColorRGBA& dest_color);
 
+  bool operator==(const RadialGradientBrush& other) const {
+    return center_ == other.center_ && radius_x_ == other.radius_x_ &&
+           radius_y_ == other.radius_y_ && color_stops_ == other.color_stops_;
+  }
+
   // A type-safe branching.
   void Accept(BrushVisitor* visitor) const OVERRIDE;
 
@@ -191,6 +212,36 @@ class RadialGradientBrush : public Brush {
 };
 
 scoped_ptr<Brush> CloneBrush(const Brush* brush);
+
+class EqualsBrushVisitor : public BrushVisitor {
+ public:
+  explicit EqualsBrushVisitor(Brush* brush_a)
+      : brush_a_(brush_a), result_(false) {}
+
+  bool result() const { return result_; }
+
+  void Visit(const SolidColorBrush* solid_color_brush) OVERRIDE {
+    result_ =
+        brush_a_->GetTypeId() == base::GetTypeId<SolidColorBrush>() &&
+        *static_cast<const SolidColorBrush*>(brush_a_) == *solid_color_brush;
+  }
+
+  void Visit(const LinearGradientBrush* linear_gradient_brush) OVERRIDE {
+    result_ = brush_a_->GetTypeId() == base::GetTypeId<LinearGradientBrush>() &&
+              *static_cast<const LinearGradientBrush*>(brush_a_) ==
+                  *linear_gradient_brush;
+  }
+
+  void Visit(const RadialGradientBrush* radial_gradient_brush) OVERRIDE {
+    result_ = brush_a_->GetTypeId() == base::GetTypeId<RadialGradientBrush>() &&
+              *static_cast<const RadialGradientBrush*>(brush_a_) ==
+                  *radial_gradient_brush;
+  }
+
+ private:
+  Brush* brush_a_;
+  bool result_;
+};
 
 }  // namespace render_tree
 }  // namespace cobalt

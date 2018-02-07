@@ -34,6 +34,10 @@ class MatrixTransformNode : public Node {
     Builder(const scoped_refptr<Node>& source, const math::Matrix3F& transform)
         : source(source), transform(transform) {}
 
+    bool operator==(const Builder& other) const {
+      return source == other.source && transform == other.transform;
+    }
+
     // The subtree that will be rendered with |transform| applied to it.
     scoped_refptr<Node> source;
 

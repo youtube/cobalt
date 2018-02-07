@@ -47,6 +47,12 @@ class MapToMeshFilter {
  public:
   struct Builder {
     Builder() {}
+    bool operator==(const Builder& other) const {
+      return resolution_matched_meshes_ == other.resolution_matched_meshes_ &&
+             left_eye_default_mesh_ == other.left_eye_default_mesh_ &&
+             right_eye_default_mesh_ == other.right_eye_default_mesh_;
+    }
+
     void SetDefaultMeshes(
         const scoped_refptr<render_tree::Mesh>& left_eye_mesh,
         const scoped_refptr<render_tree::Mesh>& right_eye_mesh) {
@@ -104,6 +110,10 @@ class MapToMeshFilter {
       // This stereo mode implies there are two meshes.
       DCHECK(right_eye_mesh());
     }
+  }
+
+  bool operator==(const MapToMeshFilter& other) const {
+    return stereo_mode_ == other.stereo_mode_ && data_ == other.data_;
   }
 
   StereoMode stereo_mode() const { return stereo_mode_; }

@@ -36,6 +36,12 @@ class ImageNode : public Node {
             const math::RectF& destination_rect,
             const math::Matrix3F& local_transform);
 
+    bool operator==(const Builder& other) const {
+      return source == other.source &&
+             destination_rect == other.destination_rect &&
+             local_transform == other.local_transform;
+    }
+
     // A source of pixels. May be smaller or larger than layed out image.
     // The class does not own the image, it merely refers it from a resource
     // pool.
