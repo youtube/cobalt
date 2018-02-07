@@ -20,6 +20,10 @@
     'arm_thumb': 0,
     'arm_neon': 0,
     'arm_fpu': 'vfpv3-d16',
+    'linker_flags': [
+      '-Wl,--no-keep-memory',
+    ],
+
   },
 
   'target_defaults': {
