@@ -18,10 +18,17 @@
 #include <functional>
 
 #include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/mutex.h"
 #include "starboard/queue.h"
 #include "starboard/thread.h"
+
+// SB_HAS() is available after starboard/configuration.h is included.
+#if SB_HAS(GLES2)
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
+#endif  // SB_HAS(GLES2)
 
 namespace starboard {
 namespace testing {
@@ -69,11 +76,13 @@ class FakeGraphicsContextProvider {
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
       SbDecodeTargetGlesContextRunnerTarget target_function,
       void* target_function_context);
+
+  EGLDisplay display_;
+  Queue<std::function<void()>> functor_queue_;
+  SbThread decode_target_context_thread_;
 #endif  // SB_HAS(GLES2)
 
 #if SB_HAS(BLITTER) || SB_HAS(GLES2)
-  Queue<std::function<void()>> functor_queue_;
-  SbThread decode_target_context_thread_;
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 #endif  // SB_HAS(BLITTER) || SB_HAS(GLES2)
 };
