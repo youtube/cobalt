@@ -14,6 +14,19 @@
 
 #include "starboard/testing/fake_graphics_context_provider.h"
 
+#if defined(ADDRESS_SANITIZER)
+// By default, Leak Sanitizer and Address Sanitizer is expected to exist
+// together. However, this is not true for all platforms.
+// HAS_LEAK_SANTIZIER=0 explicitly removes the Leak Sanitizer from code.
+#ifndef HAS_LEAK_SANITIZER
+#define HAS_LEAK_SANITIZER 1
+#endif  // HAS_LEAK_SANITIZER
+#endif  // defined(ADDRESS_SANITIZER)
+
+#if HAS_LEAK_SANITIZER
+#include <sanitizer/lsan_interface.h>
+#endif  // HAS_LEAK_SANITIZER
+
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -23,7 +36,24 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider() {
 #if SB_HAS(BLITTER)
   decoder_target_provider_.device = kSbBlitterInvalidDevice;
 #elif SB_HAS(GLES2)
-  decoder_target_provider_.egl_display = NULL;
+  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SB_CHECK(EGL_NO_DISPLAY != display_);
+
+#if HAS_LEAK_SANITIZER
+  __lsan_disable();
+#endif  // HAS_LEAK_SANITIZER
+  eglInitialize(display_, NULL, NULL);
+#if HAS_LEAK_SANITIZER
+  __lsan_enable();
+#endif  // HAS_LEAK_SANITIZER
+
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+
+  decoder_target_provider_.egl_display = display_;
+  // TODO: Set a valid context.
   decoder_target_provider_.egl_context = NULL;
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
@@ -38,6 +68,10 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 #if SB_HAS(GLES2)
   functor_queue_.Wake();
   SbThreadJoin(decode_target_context_thread_, NULL);
+  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  eglTerminate(display_);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
 #endif  // SB_HAS(GLES2)
 }
 
