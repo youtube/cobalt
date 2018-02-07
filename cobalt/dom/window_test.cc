@@ -64,7 +64,9 @@ class WindowTest : public ::testing::Test {
             base::Closure() /* ran_animation_frame_callbacks */,
             base::Closure() /* window_close */,
             base::Closure() /* window_minimize */,
-            stub_media_module_->system_window(), NULL, NULL)) {}
+            stub_media_module_->system_window(), NULL, NULL,
+            dom::Window::OnStartDispatchEventCallback(),
+            dom::Window::OnStopDispatchEventCallback())) {}
 
   ~WindowTest() OVERRIDE {}
 

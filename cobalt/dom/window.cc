@@ -74,38 +74,41 @@ namespace {
 const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
 }  // namespace
 
-Window::Window(int width, int height, cssom::CSSParser* css_parser,
-               Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
-               render_tree::ResourceProvider** resource_provider,
-               loader::image::AnimatedImageTracker* animated_image_tracker,
-               loader::image::ImageCache* image_cache,
-               loader::image::ReducedCacheCapacityManager*
-                   reduced_image_cache_capacity_manager,
-               loader::font::RemoteTypefaceCache* remote_typeface_cache,
-               loader::mesh::MeshCache* mesh_cache,
-               LocalStorageDatabase* local_storage_database,
-               media::CanPlayTypeHandler* can_play_type_handler,
-               media::WebMediaPlayerFactory* web_media_player_factory,
-               script::ExecutionState* execution_state,
-               script::ScriptRunner* script_runner,
-               script::ScriptValueFactory* script_value_factory,
-               MediaSource::Registry* media_source_registry,
-               DomStatTracker* dom_stat_tracker, const GURL& url,
-               const std::string& user_agent, const std::string& language,
-               const base::Callback<void(const GURL&)> navigation_callback,
-               const base::Callback<void(const std::string&)>& error_callback,
-               network_bridge::CookieJar* cookie_jar,
-               const network_bridge::PostSender& post_sender,
-               const std::string& default_security_policy,
-               CspEnforcementType csp_enforcement_mode,
-               const base::Closure& csp_policy_changed_callback,
-               const base::Closure& ran_animation_frame_callbacks_callback,
-               const base::Closure& window_close_callback,
-               const base::Closure& window_minimize_callback,
-               system_window::SystemWindow* system_window,
-               const scoped_refptr<input::InputPoller>& input_poller,
-               const scoped_refptr<MediaSession>& media_session,
-               int csp_insecure_allowed_token, int dom_max_element_depth)
+Window::Window(
+    int width, int height, cssom::CSSParser* css_parser, Parser* dom_parser,
+    loader::FetcherFactory* fetcher_factory,
+    render_tree::ResourceProvider** resource_provider,
+    loader::image::AnimatedImageTracker* animated_image_tracker,
+    loader::image::ImageCache* image_cache,
+    loader::image::ReducedCacheCapacityManager*
+        reduced_image_cache_capacity_manager,
+    loader::font::RemoteTypefaceCache* remote_typeface_cache,
+    loader::mesh::MeshCache* mesh_cache,
+    LocalStorageDatabase* local_storage_database,
+    media::CanPlayTypeHandler* can_play_type_handler,
+    media::WebMediaPlayerFactory* web_media_player_factory,
+    script::ExecutionState* execution_state,
+    script::ScriptRunner* script_runner,
+    script::ScriptValueFactory* script_value_factory,
+    MediaSource::Registry* media_source_registry,
+    DomStatTracker* dom_stat_tracker, const GURL& url,
+    const std::string& user_agent, const std::string& language,
+    const base::Callback<void(const GURL&)> navigation_callback,
+    const base::Callback<void(const std::string&)>& error_callback,
+    network_bridge::CookieJar* cookie_jar,
+    const network_bridge::PostSender& post_sender,
+    const std::string& default_security_policy,
+    CspEnforcementType csp_enforcement_mode,
+    const base::Closure& csp_policy_changed_callback,
+    const base::Closure& ran_animation_frame_callbacks_callback,
+    const base::Closure& window_close_callback,
+    const base::Closure& window_minimize_callback,
+    system_window::SystemWindow* system_window,
+    const scoped_refptr<input::InputPoller>& input_poller,
+    const scoped_refptr<MediaSession>& media_session,
+    const OnStartDispatchEventCallback& on_start_dispatch_event_callback,
+    const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
+    int csp_insecure_allowed_token, int dom_max_element_depth)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
@@ -116,8 +119,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           remote_typeface_cache, mesh_cache, dom_stat_tracker, language)),
       performance_(new Performance(new base::MinimumResolutionClock(
           new base::SystemMonotonicClock(),
-              base::TimeDelta::FromMicroseconds(
-                  kPerformanceTimerMinResolutionInMicroseconds)))),
+          base::TimeDelta::FromMicroseconds(
+              kPerformanceTimerMinResolutionInMicroseconds)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -151,7 +154,9 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
       window_minimize_callback_(window_minimize_callback),
-      system_window_(system_window) {
+      system_window_(system_window),
+      on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
+      on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback) {
 #if defined(ENABLE_TEST_RUNNER)
   test_runner_ = new TestRunner();
 #endif  // ENABLE_TEST_RUNNER
@@ -429,6 +434,18 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
 void Window::SetSynchronousLayoutCallback(
     const base::Closure& synchronous_layout_callback) {
   document_->set_synchronous_layout_callback(synchronous_layout_callback);
+}
+
+void Window::OnStartDispatchEvent(const scoped_refptr<dom::Event>& event) {
+  if (!on_start_dispatch_event_callback_.is_null()) {
+    on_start_dispatch_event_callback_.Run(event);
+  }
+}
+
+void Window::OnStopDispatchEvent() {
+  if (!on_stop_dispatch_event_callback_.is_null()) {
+    on_stop_dispatch_event_callback_.Run();
+  }
 }
 
 void Window::TraceMembers(script::Tracer* tracer) {

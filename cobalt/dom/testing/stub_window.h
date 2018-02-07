@@ -63,8 +63,9 @@ class StubWindow {
         base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         base::Closure() /* window_close */,
-        base::Closure() /* window_minimize */,
-        NULL, NULL, NULL);
+        base::Closure() /* window_minimize */, NULL, NULL, NULL,
+        dom::Window::OnStartDispatchEventCallback(),
+        dom::Window::OnStopDispatchEventCallback());
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 

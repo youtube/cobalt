@@ -226,6 +226,9 @@ class WebModule::Impl {
     }
   }
 
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStopDispatchEvent();
+
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
@@ -499,6 +502,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.window_close_callback, data.window_minimize_callback,
       data.system_window_, data.options.input_poller,
       media_session_client_->GetMediaSession(),
+      base::Bind(&WebModule::Impl::OnStartDispatchEvent,
+                 base::Unretained(this)),
+      base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
   DCHECK(window_);
 
@@ -614,17 +620,11 @@ void WebModule::Impl::InjectKeyboardEvent(
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
       new dom::KeyboardEvent(event));
 
-  web_module_stat_tracker_->OnStartInjectEvent(keyboard_event);
-
   if (element) {
     element->DispatchEvent(keyboard_event);
   } else {
     window_->InjectEvent(keyboard_event);
   }
-
-  web_module_stat_tracker_->OnEndInjectEvent(
-      window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::ExecuteJavascript(
@@ -751,6 +751,17 @@ void WebModule::Impl::InjectCustomWindowAttributes(
         iter->first,
         iter->second.Run(window_, &mutation_observer_task_manager_));
   }
+}
+
+void WebModule::Impl::OnStartDispatchEvent(
+    const scoped_refptr<dom::Event>& event) {
+  web_module_stat_tracker_->OnStartDispatchEvent(event);
+}
+
+void WebModule::Impl::OnStopDispatchEvent() {
+  web_module_stat_tracker_->OnStopDispatchEvent(
+      window_->HasPendingAnimationFrameCallbacks(),
+      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::SuspendLoaders() {

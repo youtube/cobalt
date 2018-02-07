@@ -36,6 +36,7 @@
 #include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/window.h"
 #if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -102,6 +103,16 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   // The event is now being dispatched. Track it in the global stats.
   GlobalStats::GetInstance()->StartJavaScriptEvent();
 
+  scoped_refptr<Window> window;
+  if (IsInDocument()) {
+    DCHECK(node_document());
+    window = node_document()->default_view();
+  }
+
+  if (window) {
+    window->OnStartDispatchEvent(event);
+  }
+
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
   for (scoped_refptr<Node> current = this->parent_node(); current != NULL;
@@ -136,6 +147,10 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   }
 
   event->set_event_phase(Event::kNone);
+
+  if (window) {
+    window->OnStopDispatchEvent();
+  }
 
   // The event has completed being dispatched. Stop tracking it in the global
   // stats.
