@@ -25,6 +25,8 @@ import threading
 import time
 
 import _env  # pylint: disable=unused-import
+
+from starboard.android.shared import sdk_utils
 from starboard.tools import abstract_launcher
 
 _APP_PACKAGE_NAME = 'foo.cobalt.coat'
@@ -46,6 +48,13 @@ _CROW_COMMANDLINE = ['/***REMOVED***/teams/mobile_eng_prod/crow/crow.par',
                      '--noenable_g3_monitor']
 
 _DEV_NULL = open('/dev/null')
+
+_ADB = os.path.join(sdk_utils.GetSdkPath(), 'platform-tools', 'adb')
+
+_RUNTIME_PERMISSIONS = [
+    'android.permission.GET_ACCOUNTS',
+    'android.permission.RECORD_AUDIO',
+]
 
 
 def TargetOsPathJoin(*path_elements):
@@ -84,7 +93,7 @@ class AdbCommandBuilder(object):
 
   def Build(self, *args):
     """Builds an 'adb' commandline with the given args."""
-    result = ['adb']
+    result = [_ADB]
     if self.device_id:
       result.append('-s')
       result.append(self.device_id)
@@ -151,7 +160,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
-    p = subprocess.Popen(['adb', 'devices'], stderr=_DEV_NULL,
+    p = subprocess.Popen([_ADB, 'devices'], stderr=_DEV_NULL,
                          stdout=subprocess.PIPE, close_fds=True)
     result = p.stdout.readlines()[1:-1]
     p.wait()
@@ -239,6 +248,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Send the wakeup key to ensure daydream isn't running, otherwise Activity
     # Manager may get in a loop running the test over and over again.
     self._CheckCallAdb('shell', 'input', 'keyevent', 'KEY_WAKEUP')
+
+    # Grant runtime permissions to avoid prompts during testing.
+    for permission in _RUNTIME_PERMISSIONS:
+      self._CheckCallAdb('shell', 'pm', 'grant', _APP_PACKAGE_NAME, permission)
 
     done_queue = Queue.Queue()
     am_monitor = AdbAmMonitorWatcher(self.adb_builder, done_queue)
