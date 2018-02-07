@@ -331,4 +331,13 @@
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
     ],
   },
+  'conditions': [
+    ['gl_type != "none"', {
+      'target_defaults': {
+        'include_dirs': [
+          '<(DEPTH)/third_party/khronos',
+        ],
+      }
+    }]
+  ],
 }
