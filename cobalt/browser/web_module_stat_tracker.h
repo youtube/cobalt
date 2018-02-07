@@ -34,7 +34,7 @@ namespace browser {
 class WebModuleStatTracker : public base::StopWatchOwner {
  public:
   WebModuleStatTracker(const std::string& name,
-                       bool should_track_injected_events);
+                       bool should_track_dispatched_events);
   ~WebModuleStatTracker();
 
   dom::DomStatTracker* dom_stat_tracker() const {
@@ -45,15 +45,15 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     return layout_stat_tracker_.get();
   }
 
-  // |OnStartInjectEvent| starts event stat tracking if
-  // |should_track_injected_events_| is true. Otherwise, it does nothing.
-  void OnStartInjectEvent(const scoped_refptr<dom::Event>& event);
+  // |OnStartDispatchEvent| starts event stat tracking if
+  // |should_track_dispatched_events_| is true. Otherwise, it does nothing.
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
 
-  // |OnEndInjectEvent| notifies the event stat tracking that the event has
-  // finished being injected. If no animation frame callbacks and also no render
-  // tree is pending, it also ends tracking of the event.
-  void OnEndInjectEvent(bool are_animation_frame_callbacks_pending,
-                        bool is_new_render_tree_pending);
+  // |OnStopDispatchEvent| notifies the event stat tracking that the event has
+  // finished being dispatched. If no animation frame callbacks and also no
+  // render tree is pending, it also ends tracking of the event.
+  void OnStopDispatchEvent(bool are_animation_frame_callbacks_pending,
+                           bool is_new_render_tree_pending);
 
   // |OnRanAnimationFrameCallbacks| ends stat tracking for the current event
   // if no render tree is pending.
@@ -81,7 +81,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   enum StopWatchType {
     kStopWatchTypeEvent,
-    kStopWatchTypeInjectEvent,
+    kStopWatchTypeDispatchEvent,
     kNumStopWatchTypes,
   };
 
@@ -110,7 +110,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
     // Duration-related
     base::CVal<base::TimeDelta, base::CValPublic> duration_total;
-    base::CVal<base::TimeDelta, base::CValPublic> duration_dom_inject_event;
+    base::CVal<base::TimeDelta, base::CValPublic> duration_dom_dispatch_event;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_dom_run_animation_frame_callbacks;
     base::CVal<base::TimeDelta, base::CValPublic>
