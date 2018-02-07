@@ -206,18 +206,14 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
+  set_bounds_z_index_ = z_index;
+  set_bounds_rect_ = rect;
+
   if (state_ == kSuspended) {
-    pending_set_bounds_z_index_ = z_index;
-    pending_set_bounds_rect_ = rect;
     return;
   }
 
-  pending_set_bounds_z_index_ = base::nullopt_t();
-  pending_set_bounds_rect_ = base::nullopt_t();
-
-  DCHECK(SbPlayerIsValid(player_));
-  SbPlayerSetBounds(player_, z_index, rect.x(), rect.y(), rect.width(),
-                    rect.height());
+  UpdateBounds_Locked();
 }
 
 void StarboardPlayer::PrepareForSeek() {
@@ -366,16 +362,9 @@ void StarboardPlayer::Resume() {
 
   CreatePlayer();
 
-  {
-    base::AutoLock auto_lock(lock_);
-    state_ = kResuming;
-  }
-
-  if (pending_set_bounds_z_index_ && pending_set_bounds_rect_) {
-    SetBounds(*pending_set_bounds_z_index_, *pending_set_bounds_rect_);
-    pending_set_bounds_z_index_ = base::nullopt_t();
-    pending_set_bounds_rect_ = base::nullopt_t();
-  }
+  base::AutoLock auto_lock(lock_);
+  state_ = kResuming;
+  UpdateBounds_Locked();
 }
 
 namespace {
@@ -454,14 +443,10 @@ void StarboardPlayer::CreatePlayer() {
   }
   ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-
   set_bounds_helper_->SetPlayer(this);
 
-  if (pending_set_bounds_z_index_ && pending_set_bounds_rect_) {
-    SetBounds(*pending_set_bounds_z_index_, *pending_set_bounds_rect_);
-    pending_set_bounds_z_index_ = base::nullopt_t();
-    pending_set_bounds_rect_ = base::nullopt_t();
-  }
+  base::AutoLock auto_lock(lock_);
+  UpdateBounds_Locked();
 }
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
@@ -470,6 +455,19 @@ SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
 
 SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
   return output_mode_;
+}
+
+void StarboardPlayer::UpdateBounds_Locked() {
+  lock_.AssertAcquired();
+  DCHECK(SbPlayerIsValid(player_));
+
+  if (!set_bounds_z_index_ || !set_bounds_rect_) {
+    return;
+  }
+
+  auto& rect = *set_bounds_rect_;
+  SbPlayerSetBounds(player_, *set_bounds_z_index_, rect.x(), rect.y(),
+                    rect.width(), rect.height());
 }
 
 void StarboardPlayer::ClearDecoderBufferCache() {
