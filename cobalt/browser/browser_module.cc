@@ -782,6 +782,9 @@ void BrowserModule::OnOnScreenKeyboardShown(
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Only inject shown events to the main WebModule.
   on_screen_keyboard_show_called_ = true;
+  if (splash_screen_ && splash_screen_->ShutdownSignaled()) {
+    DestroySplashScreen(base::TimeDelta());
+  }
   if (web_module_) {
     web_module_->InjectOnScreenKeyboardShownEvent(event->ticket());
   }
