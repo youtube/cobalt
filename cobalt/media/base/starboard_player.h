@@ -154,6 +154,8 @@ class StarboardPlayer {
   void WriteNextBufferFromCache(DemuxerStream::Type type);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+  void UpdateBounds_Locked();
+
   void ClearDecoderBufferCache();
 
   void OnDecoderStatus(SbPlayer player, SbMediaType type,
@@ -206,15 +208,14 @@ class StarboardPlayer {
   bool paused_;
   bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
-  // If |SetBounds| is called while we are in a suspended state, then the
-  // |z_index| and |rect| that we are passed will be saved to here, and then
-  // immediately set on the new player that we construct when we are resumed.
-  base::optional<int> pending_set_bounds_z_index_;
-  base::optional<gfx::Rect> pending_set_bounds_rect_;
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
   base::Lock lock_;
+
+  // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
+  base::optional<int> set_bounds_z_index_;
+  base::optional<gfx::Rect> set_bounds_rect_;
   State state_;
   SbPlayer player_;
   uint32 cached_video_frames_decoded_;
