@@ -62,14 +62,14 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     audio_header_ = *audio_header;
 
 #if SB_API_VERSION >= 6
-  if (audio_header_.audio_specific_config_size > 0) {
-    audio_specific_config_.reset(
-        new int8_t[audio_header_.audio_specific_config_size]);
-    audio_header_.audio_specific_config = audio_specific_config_.get();
-    SbMemoryCopy(audio_specific_config_.get(),
-                 audio_header_.audio_specific_config,
-                 audio_header_.audio_specific_config_size);
-  }
+    if (audio_header_.audio_specific_config_size > 0) {
+      audio_specific_config_.reset(
+          new int8_t[audio_header_.audio_specific_config_size]);
+      SbMemoryCopy(audio_specific_config_.get(),
+                   audio_header->audio_specific_config,
+                   audio_header->audio_specific_config_size);
+      audio_header_.audio_specific_config = audio_specific_config_.get();
+    }
 #endif  // SB_API_VERSION >= 6
   }
 
