@@ -302,6 +302,9 @@ class WebModule::Impl {
   // Initializes the ResourceProvider and dependent resources.
   void SetResourceProvider(render_tree::ResourceProvider* resource_provider);
 
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStopDispatchEvent();
+
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
@@ -611,6 +614,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.window_close_callback, data.window_minimize_callback,
       data.options.on_screen_keyboard_bridge, data.options.camera_3d,
       media_session_client_->GetMediaSession(),
+      base::Bind(&WebModule::Impl::OnStartDispatchEvent,
+                 base::Unretained(this)),
+      base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -620,8 +626,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #else
       dom::Window::kClockTypeSystemTime,
 #endif
-      splash_screen_cache_callback,
-      system_caption_settings_);
+      splash_screen_cache_callback, system_caption_settings_);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -735,17 +740,11 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
   DCHECK(is_running_);
   DCHECK(window_);
 
-  web_module_stat_tracker_->OnStartInjectEvent(event);
-
   if (element) {
     element->DispatchEvent(event);
   } else {
     window_->InjectEvent(event);
   }
-
-  web_module_stat_tracker_->OnEndInjectEvent(
-      window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsRenderTreePending());
 }
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
@@ -1028,6 +1027,17 @@ void WebModule::Impl::SetResourceProvider(
     // task will be to perform a full re-layout.
     layout_manager_->Resume();
   }
+}
+
+void WebModule::Impl::OnStartDispatchEvent(
+    const scoped_refptr<dom::Event>& event) {
+  web_module_stat_tracker_->OnStartDispatchEvent(event);
+}
+
+void WebModule::Impl::OnStopDispatchEvent() {
+  web_module_stat_tracker_->OnStopDispatchEvent(
+      window_->HasPendingAnimationFrameCallbacks(),
+      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::Start(render_tree::ResourceProvider* resource_provider) {
