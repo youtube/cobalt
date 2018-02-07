@@ -61,7 +61,9 @@ class WindowTest : public ::testing::Test {
             base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */, NULL, NULL)) {}
+            base::Closure() /* window_minimize */, NULL, NULL,
+            dom::Window::OnStartDispatchEventCallback(),
+            dom::Window::OnStopDispatchEventCallback())) {}
 
   ~WindowTest() OVERRIDE {}
 

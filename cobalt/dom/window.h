@@ -98,11 +98,10 @@ class Window : public EventTarget,
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
   typedef WindowTimers::TimerCallback TimerCallback;
-  typedef base::Callback<scoped_ptr<loader::Decoder>(
-      HTMLElementContext*, const scoped_refptr<Document>&,
-      const base::SourceLocation&, const base::Closure&,
-      const base::Callback<void(const std::string&)>&)>
-      HTMLDecoderCreatorCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+      OnStartDispatchEventCallback;
+  typedef base::Callback<void()> OnStopDispatchEventCallback;
+
   // Callback that will be called when window.close() is called.  The
   // base::TimeDelta parameter will contain the document's timeline time when
   // close() was called.
@@ -148,6 +147,9 @@ class Window : public EventTarget,
       const base::Closure& window_minimize_callback,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
+      const OnStartDispatchEventCallback&
+          start_tracking_dispatch_event_callback,
+      const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
@@ -335,6 +337,9 @@ class Window : public EventTarget,
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content);
 
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStopDispatchEvent();
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -395,6 +400,9 @@ class Window : public EventTarget,
   const base::Closure window_minimize_callback_;
 
   CacheCallback splash_screen_cache_callback_;
+
+  OnStartDispatchEventCallback on_start_dispatch_event_callback_;
+  OnStopDispatchEventCallback on_stop_dispatch_event_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };
