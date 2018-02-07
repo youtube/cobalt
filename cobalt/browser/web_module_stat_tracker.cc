@@ -56,7 +56,7 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
 
 WebModuleStatTracker::~WebModuleStatTracker() { EndCurrentEvent(false); }
 
-void WebModuleStatTracker::OnStartInjectEvent(
+void WebModuleStatTracker::OnStartDispatchEvent(
     const scoped_refptr<dom::Event>& event) {
   if (!should_track_event_stats_) {
     return;
@@ -90,23 +90,23 @@ void WebModuleStatTracker::OnStartInjectEvent(
     layout_stat_tracker_->OnStartEvent();
 
     stop_watch_durations_[kStopWatchTypeEvent] = base::TimeDelta();
-    stop_watch_durations_[kStopWatchTypeInjectEvent] = base::TimeDelta();
+    stop_watch_durations_[kStopWatchTypeDispatchEvent] = base::TimeDelta();
 
     stop_watches_[kStopWatchTypeEvent].Start();
-    stop_watches_[kStopWatchTypeInjectEvent].Start();
+    stop_watches_[kStopWatchTypeDispatchEvent].Start();
   }
 }
 
-void WebModuleStatTracker::OnEndInjectEvent(
+void WebModuleStatTracker::OnStopDispatchEvent(
     bool are_animation_frame_callbacks_pending,
     bool is_new_render_tree_pending) {
-  // If the injection isn't currently being timed, then this event injection
+  // If the dispatch isn't currently being timed, then this event dispatch
   // isn't being tracked. Simply return.
-  if (!stop_watches_[kStopWatchTypeInjectEvent].IsCounting()) {
+  if (!stop_watches_[kStopWatchTypeDispatchEvent].IsCounting()) {
     return;
   }
 
-  stop_watches_[kStopWatchTypeInjectEvent].Stop();
+  stop_watches_[kStopWatchTypeDispatchEvent].Stop();
 
   if (!are_animation_frame_callbacks_pending && !is_new_render_tree_pending) {
     EndCurrentEvent(false);
@@ -190,12 +190,12 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
       duration_total(StringPrintf("Event.Duration.%s", name.c_str()),
                      base::TimeDelta(),
                      "Total duration of the event (in microseconds). This is "
-                     "the time elapsed from the event injection until the "
+                     "the time elapsed from the event dispatch until the "
                      "render tree is produced."),
-      duration_dom_inject_event(
-          StringPrintf("Event.Duration.%s.DOM.InjectEvent", name.c_str()),
+      duration_dom_dispatch_event(
+          StringPrintf("Event.Duration.%s.DOM.DispatchEvent", name.c_str()),
           base::TimeDelta(),
-          "Injection duration, which includes JS, for event (in "
+          "Dispatch duration, which includes JS, for event (in "
           "microseconds). This does not include subsequent DOM and Layout "
           "processing."),
       duration_dom_run_animation_frame_callbacks(
@@ -295,8 +295,8 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
 
   // Update event durations
   event_stats->duration_total = stop_watch_durations_[kStopWatchTypeEvent];
-  event_stats->duration_dom_inject_event =
-      stop_watch_durations_[kStopWatchTypeInjectEvent];
+  event_stats->duration_dom_dispatch_event =
+      stop_watch_durations_[kStopWatchTypeDispatchEvent];
   event_stats->duration_dom_run_animation_frame_callbacks =
       dom_stat_tracker_->GetStopWatchTypeDuration(
           dom::DomStatTracker::kStopWatchTypeRunAnimationFrameCallbacks);
@@ -366,7 +366,7 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       << "\"DurTotalUs\":"
       << stop_watch_durations_[kStopWatchTypeEvent].InMicroseconds() << ", "
       << "\"DurDomInjectEventUs\":"
-      << stop_watch_durations_[kStopWatchTypeInjectEvent].InMicroseconds()
+      << stop_watch_durations_[kStopWatchTypeDispatchEvent].InMicroseconds()
       << ", "
       << "\"DurDomRunAnimationFrameCallbacksUs\":"
       << dom_stat_tracker_
