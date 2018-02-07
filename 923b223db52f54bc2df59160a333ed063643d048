@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7d3a72f0_d76fb139",
+        "filename": "src/starboard/contrib/creator/shared/gyp_configuration.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 35,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-02-07T19:50:45Z",
+      "side": 1,
+      "message": "I just noticed that (a) you need an \"import logging\" above",
+      "revId": "923b223db52f54bc2df59160a333ed063643d048",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
