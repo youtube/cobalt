@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "nb/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
