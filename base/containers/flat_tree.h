@@ -10,6 +10,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "base/cpp14oncpp11.h"
 #include "base/template_util.h"
 
 namespace base {
@@ -939,7 +940,16 @@ template <class... Args>
 auto flat_tree<Key, Value, GetKeyFromValue, KeyCompare>::unsafe_emplace(
     const_iterator position,
     Args&&... args) -> iterator {
+#if defined(STARBOARD)
+  // On some compilers, such as gcc 4.8, std::vector::emplace()'s first
+  // argument is an "iterator", not a "const_iterator" as the specification
+  // dictates it should be.
+  iterator non_const_position =
+      begin() + std::distance<const_iterator>(begin(), position);
+  return impl_.body_.emplace(non_const_position, std::forward<Args>(args)...);
+#else
   return impl_.body_.emplace(position, std::forward<Args>(args)...);
+#endif  // defined(STARBOARD)
 }
 
 template <class Key, class Value, class GetKeyFromValue, class KeyCompare>

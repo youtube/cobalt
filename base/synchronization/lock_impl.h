@@ -10,11 +10,15 @@
 #include "base/macros.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/mutex.h"
+#else
 #if defined(OS_WIN)
 #include "base/win/windows_types.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <errno.h>
 #include <pthread.h>
+#endif
 #endif
 
 namespace base {
@@ -25,10 +29,14 @@ namespace internal {
 // should instead use Lock.
 class BASE_EXPORT LockImpl {
  public:
+#if defined(STARBOARD)
+  using NativeHandle = SbMutex;
+#else
 #if defined(OS_WIN)
   using NativeHandle = CHROME_SRWLOCK;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   using NativeHandle = pthread_mutex_t;
+#endif
 #endif
 
   LockImpl();
@@ -61,6 +69,12 @@ class BASE_EXPORT LockImpl {
   DISALLOW_COPY_AND_ASSIGN(LockImpl);
 };
 
+#if defined(STARBOARD)
+void LockImpl::Unlock() {
+  bool result = SbMutexRelease(&native_handle_);
+  DCHECK(result);
+}
+#else
 #if defined(OS_WIN)
 void LockImpl::Unlock() {
   ::ReleaseSRWLockExclusive(reinterpret_cast<PSRWLOCK>(&native_handle_));
@@ -70,6 +84,7 @@ void LockImpl::Unlock() {
   int rv = pthread_mutex_unlock(&native_handle_);
   DCHECK_EQ(rv, 0) << ". " << strerror(rv);
 }
+#endif
 #endif
 
 }  // namespace internal

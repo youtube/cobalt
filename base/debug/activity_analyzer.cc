@@ -133,6 +133,7 @@ std::unique_ptr<GlobalActivityAnalyzer> GlobalActivityAnalyzer::CreateWithFile(
 }
 #endif  // !defined(OS_NACL)
 
+#if !defined(STARBOARD)
 // static
 std::unique_ptr<GlobalActivityAnalyzer>
 GlobalActivityAnalyzer::CreateWithSharedMemory(
@@ -156,6 +157,7 @@ GlobalActivityAnalyzer::CreateWithSharedMemoryHandle(
     return nullptr;
   return CreateWithSharedMemory(std::move(shm));
 }
+#endif  // !defined(STARBOARD)
 
 int64_t GlobalActivityAnalyzer::GetFirstProcess() {
   PrepareAllAnalyzers();

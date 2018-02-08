@@ -87,9 +87,11 @@ class BASE_EXPORT FileProxy : public SupportsWeakPtr<FileProxy> {
 
   File TakeFile();
 
+#if !defined(STARBOARD)
   // Returns a new File object that is a duplicate of the underlying |file_|.
   // See the comment at File::Duplicate for caveats.
   File DuplicateFile();
+#endif
 
   PlatformFile GetPlatformFile() const;
 

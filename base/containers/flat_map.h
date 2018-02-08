@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/containers/flat_tree.h"
+#include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/template_util.h"
 
@@ -148,7 +149,7 @@ struct GetKeyFromValuePairFirst {
 //   bool operator>=(const flat_map&, const flat_map);
 //   bool operator<=(const flat_map&, const flat_map);
 //
-template <class Key, class Mapped, class Compare = std::less<>>
+template <class Key, class Mapped, class Compare = std::less<void>>
 class flat_map : public ::base::internal::flat_tree<
                      Key,
                      std::pair<Key, Mapped>,

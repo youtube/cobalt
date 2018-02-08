@@ -17,6 +17,8 @@
 #include "base/sequence_checker.h"
 #include "base/sequenced_task_runner.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 // This class lets you register interest in changes on a FilePath.
@@ -106,5 +108,7 @@ class BASE_EXPORT FilePathWatcher {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_FILES_FILE_PATH_WATCHER_H_

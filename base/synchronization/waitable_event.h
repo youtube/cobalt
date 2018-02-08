@@ -23,7 +23,11 @@
 #include "base/mac/scoped_mach_port.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#elif defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
 #include <list>
 #include <utility>
 

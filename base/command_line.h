@@ -31,16 +31,20 @@ class FilePath;
 
 class BASE_EXPORT CommandLine {
  public:
+#if defined(STARBOARD)
+  using StringType = std::string;
+#else
 #if defined(OS_WIN)
   // The native command line string type.
   using StringType = string16;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   using StringType = std::string;
 #endif
+#endif
 
   using CharType = StringType::value_type;
   using StringVector = std::vector<StringType>;
-  using SwitchMap = std::map<std::string, StringType, std::less<>>;
+  using SwitchMap = std::map<std::string, StringType>;
 
   // A constructor for CommandLines that only carry switches and arguments.
   enum NoProgram { NO_PROGRAM };

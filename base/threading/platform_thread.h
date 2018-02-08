@@ -16,6 +16,9 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#else
 #if defined(OS_WIN)
 #include "base/win/windows_types.h"
 #elif defined(OS_FUCHSIA)
@@ -26,10 +29,14 @@
 #include <pthread.h>
 #include <unistd.h>
 #endif
+#endif
 
 namespace base {
 
 // Used for logging. Always an integer value.
+#if defined(STARBOARD)
+typedef SbThreadId PlatformThreadId;
+#else
 #if defined(OS_WIN)
 typedef DWORD PlatformThreadId;
 #elif defined(OS_FUCHSIA)
@@ -38,6 +45,7 @@ typedef zx_handle_t PlatformThreadId;
 typedef mach_port_t PlatformThreadId;
 #elif defined(OS_POSIX)
 typedef pid_t PlatformThreadId;
+#endif
 #endif
 
 // Used for thread checking and debugging.
@@ -50,12 +58,22 @@ typedef pid_t PlatformThreadId;
 // to distinguish a new thread from an old, dead thread.
 class PlatformThreadRef {
  public:
+#if defined(STARBOARD)
+  typedef SbThread RefType;
+#else
 #if defined(OS_WIN)
   typedef DWORD RefType;
 #else  //  OS_POSIX
   typedef pthread_t RefType;
 #endif
+<<<<<<< HEAD
   constexpr PlatformThreadRef() : id_(0) {}
+=======
+#endif
+  PlatformThreadRef()
+      : id_(0) {
+  }
+>>>>>>> Initial pass at starboardization of base.
 
   explicit constexpr PlatformThreadRef(RefType id) : id_(id) {}
 
@@ -75,10 +93,14 @@ class PlatformThreadRef {
 // Used to operate on threads.
 class PlatformThreadHandle {
  public:
+#if defined(STARBOARD)
+  typedef SbThread Handle;
+#else
 #if defined(OS_WIN)
   typedef void* Handle;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   typedef pthread_t Handle;
+#endif
 #endif
 
   constexpr PlatformThreadHandle() : handle_(0) {}

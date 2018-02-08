@@ -263,6 +263,7 @@ class BASE_EXPORT File {
   // Returns some basic information for the given file.
   bool GetInfo(Info* info);
 
+#if !defined(STARBOARD)
 #if !defined(OS_FUCHSIA)  // Fuchsia's POSIX API does not support file locking.
 
   // Attempts to take an exclusive write lock on the file. Returns immediately
@@ -291,6 +292,7 @@ class BASE_EXPORT File {
   Error Unlock();
 
 #endif  // !defined(OS_FUCHSIA)
+#endif  // !defined(STARBOARD)
 
   // Returns a new object referencing this file for use within the current
   // process. Handling of FLAG_DELETE_ON_CLOSE varies by OS. On POSIX, the File
@@ -336,10 +338,14 @@ class BASE_EXPORT File {
   bool DeleteOnClose(bool delete_on_close);
 #endif
 
+#if defined(STARBOARD)
+  static Error OSErrorToFileError(SbSystemError sb_error);
+#else
 #if defined(OS_WIN)
   static Error OSErrorToFileError(DWORD last_error);
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   static Error OSErrorToFileError(int saved_errno);
+#endif
 #endif
 
   // Gets the last global error (errno or GetLastError()) and converts it to the
@@ -372,6 +378,10 @@ class BASE_EXPORT File {
   Error error_details_;
   bool created_;
   bool async_;
+
+#if defined(STARBOARD)
+  bool append_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(File);
 };

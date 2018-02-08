@@ -15,6 +15,7 @@ namespace i18n {
 FixedPatternStringSearchIgnoringCaseAndAccents::
 FixedPatternStringSearchIgnoringCaseAndAccents(const string16& find_this)
     : find_this_(find_this) {
+#if !defined(UCONFIG_NO_COLLATION)
   // usearch_open requires a valid string argument to be searched, even if we
   // want to set it by usearch_setText afterwards. So, supplying a dummy text.
   const string16& dummy = find_this_;
@@ -35,10 +36,25 @@ FixedPatternStringSearchIgnoringCaseAndAccents::
 ~FixedPatternStringSearchIgnoringCaseAndAccents() {
   if (search_)
     usearch_close(search_);
+#endif  // !defined(UCONFIG_NO_COLLATION)
 }
 
 bool FixedPatternStringSearchIgnoringCaseAndAccents::Search(
     const string16& in_this, size_t* match_index, size_t* match_length) {
+#if defined(UCONFIG_NO_COLLATION)
+  // If collation is not used, and this function is called, try to do the most
+  // correct thing possible (basic substring search).
+  std::string::size_type index = in_this.find(find_this_);
+  if (index == string16::npos) {
+    return false;
+  } else {
+    if (match_index)
+      *match_index = index;
+    if (match_length)
+      *match_length = find_this_.size();
+    return true;
+  }
+#else
   UErrorCode status = U_ZERO_ERROR;
   usearch_setText(search_, in_this.data(), in_this.size(), &status);
 
@@ -65,6 +81,7 @@ bool FixedPatternStringSearchIgnoringCaseAndAccents::Search(
   if (match_length)
     *match_length = static_cast<size_t>(usearch_getMatchedLength(search_));
   return true;
+#endif
 }
 
 bool StringSearchIgnoringCaseAndAccents(const string16& find_this,

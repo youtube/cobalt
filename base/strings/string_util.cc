@@ -701,7 +701,7 @@ struct CharacterMatcher {
     return input.find_first_of(find_any_of_these.data(), pos,
                                find_any_of_these.length());
   }
-  constexpr size_t MatchSize() { return 1; }
+  constexpr size_t MatchSize() const { return 1; }
 };
 
 enum class ReplaceType { REPLACE_ALL, REPLACE_FIRST };

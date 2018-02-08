@@ -19,6 +19,8 @@
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class DictionaryValue;
@@ -303,5 +305,7 @@ class BASE_EXPORT HistogramBase {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_HISTOGRAM_BASE_H_

@@ -25,6 +25,13 @@ namespace base {
 // ProcessHandle is a platform specific type which represents the underlying OS
 // handle to a process.
 // ProcessId is a number which identifies the process in the OS.
+#if defined(STARBOARD)
+typedef uint32_t ProcessHandle;
+typedef uint32_t ProcessId;
+const ProcessHandle kNullProcessHandle = 0;
+const ProcessId kNullProcessId = 0;
+#define CrPRIdPid "d"
+#else
 #if defined(OS_WIN)
 typedef HANDLE ProcessHandle;
 typedef DWORD ProcessId;
@@ -51,6 +58,7 @@ const ProcessId kNullProcessId = 0;
 #define CrPRIdPid "ld"
 #else
 #define CrPRIdPid "d"
+#endif
 #endif
 
 // Returns the id of the current process.

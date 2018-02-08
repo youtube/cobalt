@@ -83,6 +83,11 @@ typedef PlatformTest PathServiceTest;
 // correct value while returning false.)
 TEST_F(PathServiceTest, Get) {
   for (int key = PATH_START + 1; key < PATH_END; ++key) {
+#if defined(STARBOARD)
+    if (key == DIR_CURRENT || key == DIR_USER_DESKTOP) {
+      continue;
+    }
+#else
 #if defined(OS_ANDROID)
     if (key == FILE_MODULE || key == DIR_USER_DESKTOP ||
         key == DIR_HOME)
@@ -95,6 +100,7 @@ TEST_F(PathServiceTest, Get) {
       continue;  // Fuchsia doesn't implement DIR_USER_DESKTOP, FILE_MODULE and
                  // DIR_MODULE.
 #endif
+#endif  // defined(STARBOARD)
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #if defined(OS_WIN)

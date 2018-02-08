@@ -149,16 +149,24 @@ class PickleIterator;
 // pathnames on different platforms.
 class BASE_EXPORT FilePath {
  public:
+<<<<<<< HEAD
 #if defined(OS_WIN)
   // On Windows, for Unicode-aware applications, native pathnames are wchar_t
   // arrays encoded in UTF-16.
   typedef std::wstring StringType;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#if defined(STARBOARD)
+  typedef std::string StringType;
+#else
+#if defined(OS_POSIX)
+>>>>>>> Initial pass at starboardization of base.
   // On most platforms, native pathnames are char arrays, and the encoding
   // may or may not be specified.  On Mac OS X, native pathnames are encoded
   // in UTF-8.
   typedef std::string StringType;
 #endif  // OS_WIN
+#endif
 
   typedef BasicStringPiece<StringType> StringPieceType;
   typedef StringType::value_type CharType;
@@ -462,6 +470,24 @@ BASE_EXPORT std::ostream& operator<<(std::ostream& out,
 
 }  // namespace base
 
+<<<<<<< HEAD
+=======
+// Macros for string literal initialization of FilePath::CharType[], and for
+// using a FilePath::CharType[] in a printf-style format string.
+#if defined(STARBOARD)
+#define FILE_PATH_LITERAL(x) x
+#define PRFilePath "s"
+#else
+#if defined(OS_POSIX)
+#define FILE_PATH_LITERAL(x) x
+#define PRFilePath "s"
+#elif defined(OS_WIN)
+#define FILE_PATH_LITERAL(x) L ## x
+#define PRFilePath "ls"
+#endif  // OS_WIN
+#endif
+
+>>>>>>> Initial pass at starboardization of base.
 namespace std {
 
 template <>

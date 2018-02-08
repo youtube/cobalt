@@ -7,6 +7,10 @@
 #include "base/process/memory.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 namespace base {
 
 // Defined in memory_win.cc for Windows.
@@ -45,7 +49,11 @@ bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   if (!UncheckedMalloc(alloc_size, result))
     return false;
 
+#if defined(STARBOARD)
+  SbMemorySet(*result, 0, alloc_size);
+#else
   memset(*result, 0, alloc_size);
+#endif
   return true;
 }
 

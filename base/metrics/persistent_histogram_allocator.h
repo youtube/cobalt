@@ -17,6 +17,8 @@
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class BucketRanges;
@@ -501,5 +503,7 @@ class BASE_EXPORT GlobalHistogramAllocator
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_HISTOGRAM_PERSISTENCE_H_

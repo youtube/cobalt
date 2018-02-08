@@ -26,7 +26,7 @@ std::wstring SysUTF8ToWide(StringPiece utf8) {
   return out;
 }
 
-#if defined(SYSTEM_NATIVE_UTF8) || defined(OS_ANDROID)
+#if defined(SYSTEM_NATIVE_UTF8) || defined(OS_ANDROID) || defined(STARBOARD)
 // TODO(port): Consider reverting the OS_ANDROID when we have wcrtomb()
 // support and a better understanding of what calls these routines.
 

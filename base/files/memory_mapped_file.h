@@ -17,6 +17,8 @@
 #include <windows.h>
 #endif
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class FilePath;
@@ -134,5 +136,7 @@ class BASE_EXPORT MemoryMappedFile {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_FILES_MEMORY_MAPPED_FILE_H_

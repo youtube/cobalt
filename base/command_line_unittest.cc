@@ -208,7 +208,11 @@ TEST(CommandLineTest, GetArgumentsString) {
   CommandLine::StringType expected_third_arg(UTF8ToUTF16(kThirdArgName));
   CommandLine::StringType expected_fourth_arg(UTF8ToUTF16(kFourthArgName));
   CommandLine::StringType expected_fifth_arg(UTF8ToUTF16(kFifthArgName));
+<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#elif defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   CommandLine::StringType expected_first_arg(kFirstArgName);
   CommandLine::StringType expected_second_arg(kSecondArgName);
   CommandLine::StringType expected_third_arg(kThirdArgName);

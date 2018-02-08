@@ -15,6 +15,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "base/cpp14oncpp11.h"
 #include "base/numerics/safe_conversions.h"
 
 // Where available use builtin math overflow support on Clang and GCC.
@@ -224,7 +225,7 @@ struct ResultType {
   /* Assignment arithmetic operator implementation from CLASS##Numeric. */     \
   template <typename L>                                                        \
   template <typename R>                                                        \
-  constexpr CLASS##Numeric<L>& CLASS##Numeric<L>::operator CMP_OP(             \
+  CONSTEXPR CLASS##Numeric<L>& CLASS##Numeric<L>::operator CMP_OP(             \
       const R rhs) {                                                           \
     return MathOp<CLASS##OP_NAME##Op>(rhs);                                    \
   }                                                                            \

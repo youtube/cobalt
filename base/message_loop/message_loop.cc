@@ -23,9 +23,29 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 
+#if defined(STARBOARD)
+#include "base/message_loop/message_pump_io_starboard.h"
+#include "base/message_loop/message_pump_ui_starboard.h"
+#else
 #if defined(OS_MACOSX)
 #include "base/message_loop/message_pump_mac.h"
 #endif
+<<<<<<< HEAD
+=======
+#if defined(OS_POSIX) && !defined(OS_IOS) && !defined(OS_FUCHSIA)
+#include "base/message_loop/message_pump_libevent.h"
+#endif
+#if defined(OS_FUCHSIA)
+#include "base/message_loop/message_pump_fuchsia.h"
+#endif
+#if defined(OS_ANDROID)
+#include "base/message_loop/message_pump_android.h"
+#endif
+#if defined(USE_GLIB)
+#include "base/message_loop/message_pump_glib.h"
+#endif
+#endif
+>>>>>>> Initial pass at starboardization of base.
 
 namespace base {
 

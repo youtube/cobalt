@@ -80,10 +80,12 @@ string16 FormatDouble(double number, int fractional_digits) {
   return i18n::UnicodeStringToString16(ustr);
 }
 
+#if !defined(STARBOARD)
 string16 FormatPercent(int number) {
   return i18n::MessageFormatter::FormatWithNumberedArgs(
       ASCIIToUTF16("{0,number,percent}"), static_cast<double>(number) / 100.0);
 }
+#endif  // !defined(STARBOARD)
 
 namespace testing {
 
