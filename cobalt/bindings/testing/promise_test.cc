@@ -55,6 +55,7 @@ TEST_F(PromiseTest, ResolveVoidPromise) {
   scoped_ptr<VoidPromiseValue> promise =
       global_environment_->script_value_factory()->CreateBasicPromise<void>();
   VoidPromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnVoidPromise()).WillOnce(Return(promise.get()));
 
   EXPECT_TRUE(
@@ -63,6 +64,7 @@ TEST_F(PromiseTest, ResolveVoidPromise) {
 
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Resolve();
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kFulfilled);
 }
 
 TEST_F(PromiseTest, RejectVoidPromise) {
@@ -70,6 +72,7 @@ TEST_F(PromiseTest, RejectVoidPromise) {
   scoped_ptr<VoidPromiseValue> promise =
       global_environment_->script_value_factory()->CreateBasicPromise<void>();
   VoidPromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnVoidPromise()).WillOnce(Return(promise.get()));
 
   EXPECT_TRUE(
@@ -78,6 +81,7 @@ TEST_F(PromiseTest, RejectVoidPromise) {
 
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Reject();
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kRejected);
 }
 
 TEST_F(PromiseTest, RejectWithExceptionObject) {
@@ -85,6 +89,7 @@ TEST_F(PromiseTest, RejectWithExceptionObject) {
   scoped_ptr<VoidPromiseValue> promise =
       global_environment_->script_value_factory()->CreateBasicPromise<void>();
   VoidPromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnVoidPromise()).WillOnce(Return(promise.get()));
 
   EXPECT_TRUE(
@@ -100,6 +105,7 @@ TEST_F(PromiseTest, RejectWithExceptionObject) {
       new ExceptionObjectInterface());
   EXPECT_CALL(*exception_object, message()).WillOnce(Return("apple"));
   reference.value().Reject(exception_object);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kRejected);
 }
 
 TEST_F(PromiseTest, RejectWithSimpleException) {
@@ -107,6 +113,7 @@ TEST_F(PromiseTest, RejectWithSimpleException) {
   scoped_ptr<VoidPromiseValue> promise =
       global_environment_->script_value_factory()->CreateBasicPromise<void>();
   VoidPromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnVoidPromise()).WillOnce(Return(promise.get()));
 
   EXPECT_TRUE(
@@ -119,6 +126,7 @@ TEST_F(PromiseTest, RejectWithSimpleException) {
                      "promise.catch(onReject)\n"));
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Reject(script::kTypeError);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kRejected);
 }
 
 TEST_F(PromiseTest, BooleanPromise) {
@@ -126,6 +134,7 @@ TEST_F(PromiseTest, BooleanPromise) {
   scoped_ptr<BooleanPromiseValue> promise =
       global_environment_->script_value_factory()->CreateBasicPromise<bool>();
   BooleanPromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnBooleanPromise())
       .WillOnce(Return(promise.get()));
 
@@ -139,6 +148,7 @@ TEST_F(PromiseTest, BooleanPromise) {
                      "promise.then(onFulfill)\n"));
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Resolve(true);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kFulfilled);
 }
 
 TEST_F(PromiseTest, StringPromise) {
@@ -147,6 +157,7 @@ TEST_F(PromiseTest, StringPromise) {
       global_environment_->script_value_factory()
           ->CreateBasicPromise<std::string>();
   StringPromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnStringPromise())
       .WillOnce(Return(promise.get()));
 
@@ -160,6 +171,7 @@ TEST_F(PromiseTest, StringPromise) {
                      "promise.then(onFulfill)\n"));
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Resolve("banana");
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kFulfilled);
 }
 
 TEST_F(PromiseTest, InterfacePromise) {
@@ -168,6 +180,7 @@ TEST_F(PromiseTest, InterfacePromise) {
       global_environment_->script_value_factory()
           ->CreateInterfacePromise<scoped_refptr<ArbitraryInterface> >();
   InterfacePromiseValue::StrongReference reference(*promise);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kPending);
   EXPECT_CALL(test_mock(), ReturnInterfacePromise())
       .WillOnce(Return(promise.get()));
 
@@ -183,6 +196,7 @@ TEST_F(PromiseTest, InterfacePromise) {
   EXPECT_CALL(*result.get(), ArbitraryFunction());
   EXPECT_CALL(test_mock(), OnSuccess());
   reference.value().Resolve(result);
+  EXPECT_EQ(reference.value().State(), script::PromiseState::kFulfilled);
 }
 
 }  // namespace testing
