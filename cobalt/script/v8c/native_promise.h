@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_V8C_NATIVE_PROMISE_H_
 #define COBALT_SCRIPT_V8C_NATIVE_PROMISE_H_
 
+#include "base/logging.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
@@ -64,10 +65,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
       : isolate_(isolate), ScopedPersistent(isolate, resolver) {}
 
   void Resolve(const ResolveType& value) const override {
-    if (this->IsEmpty()) {
-      return;
-    }
-
+    DCHECK(!this->IsEmpty());
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -81,10 +79,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Reject() const override {
-    if (this->IsEmpty()) {
-      return;
-    }
-
+    DCHECK(!this->IsEmpty());
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -96,10 +91,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Reject(SimpleExceptionType exception) const override {
-    if (this->IsEmpty()) {
-      return;
-    }
-
+    DCHECK(!this->IsEmpty());
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -112,10 +104,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   void Reject(const scoped_refptr<ScriptException>& result) const override {
-    if (this->IsEmpty()) {
-      return;
-    }
-
+    DCHECK(!this->IsEmpty());
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
@@ -129,6 +118,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
   }
 
   v8::Local<v8::Promise> promise() const {
+    DCHECK(!this->IsEmpty());
     return v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_))
         ->GetPromise();
   }

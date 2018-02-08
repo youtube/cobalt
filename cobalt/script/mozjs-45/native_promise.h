@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_NATIVE_PROMISE_H_
 #define COBALT_SCRIPT_MOZJS_45_NATIVE_PROMISE_H_
 
+#include "base/logging.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
@@ -75,13 +76,11 @@ class NativePromise : public Promise<T> {
   JSObject* promise() const { return promise_resolver_->GetPromise(); }
 
   void Resolve(const ResolveType& value) const override {
-    JS::RootedObject promise_wrapper(context_,
-                                     promise_resolver_->get().GetObject());
-    if (!promise_wrapper) {
-      return;
-    }
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
-    JSAutoCompartment auto_compartment(context_, promise_wrapper);
+    JSAutoCompartment auto_compartment(context_, promise_resolver);
     JS::RootedValue converted_value(context_);
     ToJSValue(context_, value, &converted_value);
     promise_resolver_->Resolve(converted_value);
@@ -90,9 +89,7 @@ class NativePromise : public Promise<T> {
   void Reject() const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
-    if (!promise_resolver) {
-      return;
-    }
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, promise_resolver);
     promise_resolver_->Reject(JS::UndefinedHandleValue);
@@ -101,9 +98,7 @@ class NativePromise : public Promise<T> {
   void Reject(SimpleExceptionType exception) const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
-    if (!promise_resolver) {
-      return;
-    }
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, promise_resolver);
     JS::RootedValue error_result(context_);
@@ -115,9 +110,7 @@ class NativePromise : public Promise<T> {
   void Reject(const scoped_refptr<ScriptException>& result) const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
-    if (!promise_resolver) {
-      return;
-    }
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, promise_resolver);
     JS::RootedValue converted_result(context_);
