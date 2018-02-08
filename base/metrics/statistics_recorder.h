@@ -29,6 +29,8 @@
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class BucketRanges;
@@ -298,5 +300,7 @@ class BASE_EXPORT StatisticsRecorder {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_STATISTICS_RECORDER_H_

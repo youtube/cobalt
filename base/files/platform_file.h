@@ -8,6 +8,10 @@
 #include "base/files/scoped_file.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif
+
 #if defined(OS_WIN)
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_types.h"
@@ -19,6 +23,11 @@
 
 namespace base {
 
+#if defined(STARBOARD)
+using PlatformFile = SbFile;
+using ScopedPlatformFile = ::base::ScopedFD;
+constexpr PlatformFile kInvalidPlatformFile = kSbFileInvalid;
+#else
 #if defined(OS_WIN)
 
 using PlatformFile = HANDLE;
@@ -36,6 +45,7 @@ using ScopedPlatformFile = ::base::ScopedFD;
 
 constexpr PlatformFile kInvalidPlatformFile = -1;
 
+#endif
 #endif
 
 }  // namespace

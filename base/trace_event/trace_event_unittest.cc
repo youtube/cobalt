@@ -1857,8 +1857,10 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
 
       std::string expected_name = StringPrintf("Thread %d", j);
       EXPECT_TRUE(item->GetString("ph", &tmp) && tmp == "M");
+#if !defined(STARBOARD)
       EXPECT_TRUE(item->GetInteger("pid", &tmp_int) &&
                   tmp_int == static_cast<int>(base::GetCurrentProcId()));
+#endif
       // If the thread name changes or the tid gets reused, the name will be
       // a comma-separated list of thread names, so look for a substring.
       EXPECT_TRUE(item->GetString("args.name", &tmp) &&

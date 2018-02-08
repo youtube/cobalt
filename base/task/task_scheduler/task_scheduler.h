@@ -111,8 +111,10 @@ class BASE_EXPORT TaskScheduler : public TaskExecutor {
       const InitParams& init_params,
       SchedulerWorkerObserver* scheduler_worker_observer = nullptr) = 0;
 
+#if !defined(STARBOARD)
   // Returns a vector of all histograms available in this task scheduler.
   virtual std::vector<const HistogramBase*> GetHistograms() const = 0;
+#endif  // !defined(STARBOARD)
 
   // Synchronously shuts down the scheduler. Once this is called, only tasks
   // posted with the BLOCK_SHUTDOWN behavior will be run. When this returns:

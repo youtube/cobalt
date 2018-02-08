@@ -37,12 +37,26 @@
 #include "base/mac/foundation_util.h"
 #endif
 
+<<<<<<< HEAD
 #if defined(OS_FUCHSIA)
 #include "base/base_paths_fuchsia.h"
+=======
+#if defined(STARBOARD)
+#include "starboard/client_porting/icu_init/icu_init.h"
+>>>>>>> Initial pass at starboardization of base.
 #endif
 
 namespace base {
 namespace i18n {
+
+#if defined(STARBOARD)
+
+bool InitializeICU() {
+  SbIcuInit();
+  return true;
+}
+
+#else
 
 #if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_SHARED
 #define ICU_UTIL_DATA_SYMBOL "icudt" U_ICU_VERSION_SHORT "_dat"
@@ -253,6 +267,8 @@ bool InitializeICUFromRawMemory(const uint8_t* raw_memory) {
 
 #endif  // ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
 
+#endif  // !defined(STARBOARD)
+
 bool InitializeICU() {
 #if DCHECK_IS_ON()
   DCHECK(!g_check_called_once || !g_called_once);
@@ -324,9 +340,11 @@ bool InitializeICU() {
 #endif  // !defined(OS_NACL)
 
 void AllowMultipleInitializeCallsForTesting() {
+#if !defined(STARBOARD)
 #if DCHECK_IS_ON() && !defined(OS_NACL)
   g_check_called_once = false;
 #endif
+#endif  // defined(STARBOARD)
 }
 
 }  // namespace i18n

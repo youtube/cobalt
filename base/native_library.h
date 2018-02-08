@@ -14,6 +14,8 @@
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
+#if !defined(STARBOARD)
+
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(OS_MACOSX)
@@ -115,4 +117,5 @@ BASE_EXPORT std::string GetLoadableModuleName(StringPiece name);
 
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_NATIVE_LIBRARY_H_

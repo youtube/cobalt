@@ -321,7 +321,11 @@ TEST_F(FilePathTest, Append) {
     // handle the case when AppendASCII is passed UTF8
 #if defined(OS_WIN)
     std::string ascii = WideToUTF8(leaf);
+<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#elif defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
     std::string ascii = leaf;
 #endif
     observed_str = root.AppendASCII(ascii);
@@ -1129,11 +1133,13 @@ TEST_F(FilePathTest, ReferencesParent) {
 TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
   const struct UTF8TestData cases[] = {
     { FPL("foo.txt"), "foo.txt" },
+#if !defined(STARBOARD)
     // "aeo" with accents. Use http://0xcc.net/jsescape/ to decode them.
     { FPL("\u00E0\u00E8\u00F2.txt"), "\xC3\xA0\xC3\xA8\xC3\xB2.txt" },
     // Full-width "ABC".
     { FPL("\uFF21\uFF22\uFF23.txt"),
       "\xEF\xBC\xA1\xEF\xBC\xA2\xEF\xBC\xA3.txt" },
+#endif
   };
 
 #if !defined(SYSTEM_NATIVE_UTF8) && defined(OS_LINUX)

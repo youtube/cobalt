@@ -10,6 +10,16 @@
 #include "base/macros.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/file.h"
+#include "starboard/log.h"
+#include "starboard/mutex.h"
+#include "starboard/system.h"
+#include "starboard/time.h"
+typedef SbFile FileHandle;
+typedef SbMutex MutexHandle;
+#else
 #if defined(OS_WIN)
 #include <io.h>
 #include <windows.h>
@@ -75,6 +85,7 @@ typedef HANDLE MutexHandle;
 typedef FILE* FileHandle;
 typedef pthread_mutex_t* MutexHandle;
 #endif
+#endif  // defined(STARBOARD)
 
 #include <algorithm>
 #include <cstring>
@@ -166,6 +177,9 @@ LogMessageHandlerFunction log_message_handler = nullptr;
 // Helper functions to wrap platform differences.
 
 int32_t CurrentProcessId() {
+#if defined(STARBOARD)
+  return 0;
+#else
 #if defined(OS_WIN)
   return GetCurrentProcessId();
 #elif defined(OS_FUCHSIA)
@@ -176,9 +190,13 @@ int32_t CurrentProcessId() {
 #elif defined(OS_POSIX)
   return getpid();
 #endif
+#endif
 }
 
 uint64_t TickCount() {
+#if defined(STARBOARD)
+  return static_cast<uint64_t>(SbTimeGetMonotonicNow());
+#else
 #if defined(OS_WIN)
   return GetTickCount();
 #elif defined(OS_FUCHSIA)
@@ -199,9 +217,13 @@ uint64_t TickCount() {
 
   return absolute_micro;
 #endif
+#endif
 }
 
 void DeleteFilePath(const PathString& log_name) {
+#if defined(STARBOARD)
+  SbFileDelete(log_name.c_str());
+#else
 #if defined(OS_WIN)
   DeleteFile(log_name.c_str());
 #elif defined(OS_NACL)
@@ -211,9 +233,20 @@ void DeleteFilePath(const PathString& log_name) {
 #else
 #error Unsupported platform
 #endif
+#endif
 }
 
 PathString GetDefaultLogFile() {
+#if defined(STARBOARD)
+  // On Starboard, we politely ask for the log directory, like a civilized
+  // platform.
+  char path[SB_FILE_MAX_PATH + 1];
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path,
+                  SB_ARRAY_SIZE_INT(path));
+  PathString log_file = path;
+  log_file += SB_FILE_SEP_STRING "debug.log";
+  return log_file;
+#else
 #if defined(OS_WIN)
   // On Windows we use the same path as the exe.
   wchar_t module_name[MAX_PATH];
@@ -228,6 +261,7 @@ PathString GetDefaultLogFile() {
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   // On other platforms we just use the current directory.
   return PathString("debug.log");
+#endif
 #endif
 }
 
@@ -264,7 +298,17 @@ class LoggingLock {
  private:
   static void LockLogging() {
     if (lock_log_file == LOCK_LOG_FILE) {
+<<<<<<< HEAD
       pthread_mutex_lock(&log_mutex);
+=======
+#if defined(STARBOARD)
+      SbMutexAcquire(&log_mutex);
+#else
+#if defined(OS_POSIX)
+      pthread_mutex_lock(&log_mutex);
+#endif
+#endif
+>>>>>>> Initial pass at starboardization of base.
     } else {
       // use the lock
       log_lock->Lock();
@@ -273,7 +317,17 @@ class LoggingLock {
 
   static void UnlockLogging() {
     if (lock_log_file == LOCK_LOG_FILE) {
+<<<<<<< HEAD
       pthread_mutex_unlock(&log_mutex);
+=======
+#if defined(STARBOARD)
+      SbMutexRelease(&log_mutex);
+#else
+#if defined(OS_POSIX)
+      pthread_mutex_unlock(&log_mutex);
+#endif
+#endif
+>>>>>>> Initial pass at starboardization of base.
     } else {
       log_lock->Unlock();
     }
@@ -286,7 +340,17 @@ class LoggingLock {
 
   // When we don't use a lock, we are using a global mutex. We need to do this
   // because LockFileEx is not thread safe.
+<<<<<<< HEAD
   static pthread_mutex_t log_mutex;
+=======
+#if defined(STARBOARD)
+  static SbMutex log_mutex;
+#else
+#if defined(OS_POSIX)
+  static pthread_mutex_t log_mutex;
+#endif
+#endif
+>>>>>>> Initial pass at starboardization of base.
 
   static bool initialized;
   static LogLockingState lock_log_file;
@@ -299,7 +363,17 @@ base::internal::LockImpl* LoggingLock::log_lock = nullptr;
 // static
 LogLockingState LoggingLock::lock_log_file = LOCK_LOG_FILE;
 
+<<<<<<< HEAD
 pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
+=======
+#if defined(STARBOARD)
+SbMutex LoggingLock::log_mutex = SB_MUTEX_INITIALIZER;
+#else
+#if defined(OS_POSIX)
+pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+#endif
+>>>>>>> Initial pass at starboardization of base.
 
 #endif  // OS_POSIX || OS_FUCHSIA
 
@@ -316,7 +390,23 @@ bool InitializeLogFileHandle() {
     g_log_file_name = new PathString(GetDefaultLogFile());
   }
 
+#if defined(STARBOARD)
+  // This seems to get called a lot with an empty filename, at least in
+  // base_unittests.
+  if (g_log_file_name->empty()) {
+    return false;
+  }
+#endif
+
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
+#if defined(STARBOARD)
+    g_log_file = SbFileOpen(g_log_file_name->c_str(),
+                          kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
+    if (!SbFileIsValid(g_log_file))
+      return false;
+
+    SbFileSeek(g_log_file, kSbFileFromEnd, 0);
+#else
 #if defined(OS_WIN)
     // The FILE_APPEND_DATA access mask ensures that the file is atomically
     // appended to across accesses from multiple threads.
@@ -360,18 +450,23 @@ bool InitializeLogFileHandle() {
 #else
 #error Unsupported platform
 #endif
+#endif
   }
 
   return true;
 }
 
 void CloseFile(FileHandle log) {
+#if defined(STARBOARD)
+  SbFileClose(log);
+#else
 #if defined(OS_WIN)
   CloseHandle(log);
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   fclose(log);
 #else
 #error Unsupported platform
+#endif
 #endif
 }
 
@@ -382,6 +477,24 @@ void CloseLogFileUnlocked() {
   CloseFile(g_log_file);
   g_log_file = nullptr;
 }
+
+#if defined(STARBOARD)
+SbLogPriority LogLevelToStarboardLogPriority(int level) {
+  switch (level) {
+    case LOG_INFO:
+      return kSbLogPriorityInfo;
+    case LOG_WARNING:
+      return kSbLogPriorityWarning;
+    case LOG_ERROR:
+      return kSbLogPriorityError;
+    case LOG_FATAL:
+      return kSbLogPriorityFatal;
+    default:
+      NOTREACHED() << "Unrecognized log level.";
+      return kSbLogPriorityInfo;
+  }
+}
+#endif  // defined(STARBOARD)
 
 }  // namespace
 
@@ -451,6 +564,11 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
 
 void SetMinLogLevel(int level) {
   g_min_log_level = std::min(LOG_FATAL, level);
+
+#if defined(STARBOARD)
+  starboard::logging::SetMinLogLevel(
+      LogLevelToStarboardLogPriority(std::min(LOG_FATAL, level)));
+#endif
 }
 
 int GetMinLogLevel() {
@@ -604,6 +722,9 @@ LogMessage::~LogMessage() {
   }
 
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
+#if defined(STARBOARD)
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+#else
 #if defined(OS_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif defined(OS_MACOSX)
@@ -774,12 +895,17 @@ LogMessage::~LogMessage() {
 #endif
     ignore_result(fwrite(str_newline.data(), str_newline.size(), 1, stderr));
     fflush(stderr);
+#endif
   } else if (severity_ >= kAlwaysPrintErrorLevel) {
+#if defined(STARBOARD)
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+#else
     // When we're only outputting to a log file, above a certain log level, we
     // should still output to stderr so that we can better detect and diagnose
     // problems with unit tests, especially on the buildbots.
     ignore_result(fwrite(str_newline.data(), str_newline.size(), 1, stderr));
     fflush(stderr);
+#endif
   }
 
   // write to log file
@@ -796,6 +922,18 @@ LogMessage::~LogMessage() {
     LoggingLock logging_lock;
 #endif
     if (InitializeLogFileHandle()) {
+#if defined(STARBOARD)
+      SbFileSeek(g_log_file, kSbFileFromEnd, 0);
+      int written = 0;
+      while (written < str_newline.length()) {
+        int result = SbFileWrite(g_log_file, &(str_newline.c_str()[written]),
+                                 str_newline.length() - written);
+        if (result < 0) {
+          break;
+        }
+        written += result;
+      }
+#else
 #if defined(OS_WIN)
       DWORD num_written;
       WriteFile(g_log_file,
@@ -810,15 +948,18 @@ LogMessage::~LogMessage() {
 #else
 #error Unsupported platform
 #endif
+#endif
     }
   }
 
   if (severity_ == LOG_FATAL) {
+#if !defined(STARBOARD)
     // Write the log message to the global activity tracker, if running.
     base::debug::GlobalActivityTracker* tracker =
         base::debug::GlobalActivityTracker::Get();
     if (tracker)
       tracker->RecordLogMessage(str_newline);
+#endif  // !defined(STARBOARD)
 
     // Ensure the first characters of the string are on the stack so they
     // are contained in minidumps for diagnostic purposes.
@@ -876,6 +1017,7 @@ void LogMessage::Init(const char* file, int line) {
   if (g_log_thread_id)
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (g_log_timestamp) {
+<<<<<<< HEAD
 #if defined(OS_WIN)
     SYSTEMTIME local_time;
     GetLocalTime(&local_time);
@@ -891,6 +1033,23 @@ void LogMessage::Init(const char* file, int line) {
             << local_time.wMilliseconds
             << ':';
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#if defined(STARBOARD)
+    EzTimeT t = EzTimeTGetNow(NULL);
+    struct EzTimeExploded local_time = {0};
+    EzTimeTExplodeLocal(&t, &local_time);
+    struct EzTimeExploded* tm_time = &local_time;
+    stream_ << std::setfill('0')
+            << std::setw(2) << 1 + tm_time->tm_mon
+            << std::setw(2) << tm_time->tm_mday
+            << '/'
+            << std::setw(2) << tm_time->tm_hour
+            << std::setw(2) << tm_time->tm_min
+            << std::setw(2) << tm_time->tm_sec
+            << ':';
+#else
+#if defined(OS_POSIX)
+>>>>>>> Initial pass at starboardization of base.
     timeval tv;
     gettimeofday(&tv, nullptr);
     time_t t = tv.tv_sec;
@@ -909,6 +1068,7 @@ void LogMessage::Init(const char* file, int line) {
             << ':';
 #else
 #error Unsupported platform
+#endif
 #endif
   }
   if (g_log_tickcount)
@@ -931,13 +1091,36 @@ typedef DWORD SystemErrorCode;
 #endif
 
 SystemErrorCode GetLastSystemErrorCode() {
+#if defined(STARBOARD)
+  return SbSystemGetLastError();
+#else
 #if defined(OS_WIN)
   return ::GetLastError();
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   return errno;
 #endif
+#endif
 }
 
+<<<<<<< HEAD
+=======
+#if defined(STARBOARD)
+BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
+  const int kErrorMessageBufferSize = 256;
+  char msgbuf[kErrorMessageBufferSize];
+  
+  if (SbSystemGetErrorString(error_code, msgbuf, kErrorMessageBufferSize) > 0) {
+    // Messages returned by system end with line breaks.
+    return base::CollapseWhitespaceASCII(msgbuf, true) +
+           base::StringPrintf(" (%d)", error_code);
+  } else {
+    return base::StringPrintf("Error (%d) while retrieving error. (%d)",
+                              GetLastSystemErrorCode(), error_code);
+  }
+}
+#else
+#if defined(OS_WIN)
+>>>>>>> Initial pass at starboardization of base.
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #if defined(OS_WIN)
   const int kErrorMessageBufferSize = 256;
@@ -956,9 +1139,27 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
   return base::safe_strerror(error_code) +
          base::StringPrintf(" (%d)", error_code);
 #endif  // defined(OS_WIN)
+<<<<<<< HEAD
 }
+=======
+#endif  // defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
 
+#if defined(STARBOARD)
+StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
+                                                   int line,
+                                                   LogSeverity severity,
+                                                   SystemErrorCode err)
+    : err_(err), log_message_(file, line, severity) {}
 
+StarboardErrorLogMessage::~StarboardErrorLogMessage() {
+  stream() << ": " << SystemErrorCodeToString(err_);
+  // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
+  // field) and use Alias in hopes that it makes it into crash dumps.
+  SystemErrorCode last_error = err_;
+  base::debug::Alias(&last_error);
+}
+#else
 #if defined(OS_WIN)
 Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
                                            int line,
@@ -992,6 +1193,7 @@ ErrnoLogMessage::~ErrnoLogMessage() {
   base::debug::Alias(&last_error);
 }
 #endif  // defined(OS_WIN)
+#endif  // defined(STARBOARD)
 
 void CloseLogFile() {
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
@@ -1002,6 +1204,13 @@ void CloseLogFile() {
 
 void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
+#if defined(STARBOARD)
+    SbLogRaw(message);
+    const size_t message_len = strlen(message);
+    if (message_len > 0 && message[message_len - 1] != '\n') {
+      SbLogRaw("\n");
+    }
+#else
     size_t bytes_written = 0;
     const size_t message_len = strlen(message);
     int rv;
@@ -1025,6 +1234,7 @@ void RawLog(int level, const char* message) {
         }
       } while (rv != 1);
     }
+#endif  // defined(STARBOARD)
   }
 
   if (level == LOG_FATAL)
@@ -1053,6 +1263,8 @@ BASE_EXPORT void LogErrorNotReached(const char* file, int line) {
 
 }  // namespace logging
 
+#if !defined(STARBOARD)  // This is implemented already in Starboard.
 std::ostream& std::operator<<(std::ostream& out, const wchar_t* wstr) {
   return out << (wstr ? base::WideToUTF8(wstr) : std::string());
 }
+#endif  // !defined(STARBOARD)

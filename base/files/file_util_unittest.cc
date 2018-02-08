@@ -185,7 +185,7 @@ class ReparsePoint {
 #endif
 
 // Fuchsia doesn't support file permissions.
-#if !defined(OS_FUCHSIA)
+#if !defined(OS_FUCHSIA) && !defined(STARBOARD)
 #if defined(OS_POSIX)
 // Provide a simple way to change the permissions bits on |path| in tests.
 // ASSERT failures will return, but not stop the test.  Caller should wrap
@@ -314,6 +314,7 @@ std::wstring ReadTextFile(const FilePath& filename) {
   return std::wstring(contents);
 }
 
+#if !defined(STARBOARD)
 // Sets |is_inheritable| to indicate whether or not |stream| is set up to be
 // inerhited into child processes (i.e., HANDLE_FLAG_INHERIT is set on the
 // underlying handle on Windows, or FD_CLOEXEC is not set on the underlying file
@@ -337,6 +338,7 @@ void GetIsInheritable(FILE* stream, bool* is_inheritable) {
 #error Not implemented
 #endif
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, FileAndDirectorySize) {
   // Create three files of 20, 30 and 3 chars (utf8). ComputeDirectorySize
@@ -366,6 +368,7 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
 }
 
+#if !defined(STARBOARD)
 TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   // Create a directory under the test dir.  Because we create it,
   // we know it is not a link.
@@ -518,6 +521,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
   ASSERT_FALSE(NormalizeFilePath(to_sub_a.Append(FPL("file.txt")),
                                             &normalized_path));
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, DevicePathToDriveLetter) {
   // Get a drive letter.
@@ -1224,7 +1228,7 @@ TEST_F(FileUtilTest, CopyFileExecutablePermission) {
 
 #endif  // defined(OS_POSIX)
 
-#if !defined(OS_FUCHSIA)
+#if !defined(OS_FUCHSIA) && !defined(STARBOARD)
 
 TEST_F(FileUtilTest, CopyFileACL) {
   // While FileUtilTest.CopyFile asserts the content is correctly copied over,
@@ -1487,6 +1491,7 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
 #endif
 }
 
+#if !defined(STARBOARD)
 TEST_F(FileUtilTest, MoveFileNew) {
   // Create a file
   FilePath file_name_from =
@@ -1921,7 +1926,11 @@ TEST_F(FileUtilTest, CopyDirectoryWithTrailingSeparators) {
 #if defined(OS_WIN)
   FilePath from_path =
       temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Copy_From_Subdir\\\\\\"));
+<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#elif defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   FilePath from_path =
       temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Copy_From_Subdir///"));
 #endif
@@ -1985,6 +1994,7 @@ TEST_F(FileUtilTest, CopyDirectoryWithNonRegularFiles) {
   EXPECT_FALSE(PathExists(symlink_name_to));
   EXPECT_FALSE(PathExists(fifo_name_to));
 }
+<<<<<<< HEAD
 
 TEST_F(FileUtilTest, CopyDirectoryExclFileOverSymlink) {
   // Create a directory.
@@ -2149,6 +2159,10 @@ TEST_F(FileUtilTest, CopyDirectoryExclFileOverFifo) {
   EXPECT_FALSE(CopyDirectoryExcl(dir_name_from, dir_name_to, false));
 }
 #endif  // defined(OS_POSIX)
+=======
+#endif  // !defined(OS_FUCHSIA) && defined(OS_POSIX)
+#endif  // !defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
 
 TEST_F(FileUtilTest, CopyFile) {
   // Create a directory
@@ -2208,6 +2222,7 @@ TEST_F(FileUtilTest, CopyFile) {
   EXPECT_TRUE(IsDirectoryEmpty(dest_dir));
 }
 
+#if !defined(STARBOARD)
 // file_util winds up using autoreleased objects on the Mac, so this needs
 // to be a PlatformTest.
 typedef PlatformTest ReadOnlyFileUtilTest;
@@ -2302,6 +2317,7 @@ TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
   EXPECT_FALSE(TextContentsEqual(original_file, empty1_file));
   EXPECT_TRUE(TextContentsEqual(blank_line_file, blank_line_crlf_file));
 }
+#endif  // !defined(STARBOARD)
 
 // We don't need equivalent functionality outside of Windows.
 #if defined(OS_WIN)
@@ -2365,6 +2381,7 @@ TEST_F(FileUtilTest, GetTempDirTest) {
 }
 #endif  // OS_WIN
 
+#if !defined(STARBOARD)
 // Test that files opened by OpenFile are not set up for inheritance into child
 // procs.
 TEST_F(FileUtilTest, OpenFileNoInheritance) {
@@ -2391,6 +2408,7 @@ TEST_F(FileUtilTest, OpenFileNoInheritance) {
     ASSERT_TRUE(DeleteFile(file_path, false));
   }
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, CreateTemporaryFileTest) {
   FilePath temp_files[3];
@@ -2405,6 +2423,7 @@ TEST_F(FileUtilTest, CreateTemporaryFileTest) {
     EXPECT_TRUE(DeleteFile(temp_files[i], false));
 }
 
+#if !defined(STARBOARD)
 TEST_F(FileUtilTest, CreateAndOpenTemporaryFileTest) {
   FilePath names[3];
   FILE* fps[3];
@@ -2475,6 +2494,7 @@ TEST_F(FileUtilTest, GetShmemTempDirTest) {
   EXPECT_TRUE(DirectoryExists(dir));
 }
 #endif
+#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, GetHomeDirTest) {
 #if !defined(OS_ANDROID)  // Not implemented on Android.
@@ -2493,7 +2513,11 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 #if defined(OS_WIN)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir\\tree\\likely\\doesnt\\exist\\"));
+<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#elif defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir/tree/likely/doesnt/exist/"));
 #endif
@@ -2651,6 +2675,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c4.HasFile(file2_abs));
   EXPECT_EQ(4, c4.size());
 
+#if !defined(STARBOARD)
   // Enumerate with a pattern.
   FileEnumerator f5(temp_dir_.GetPath(), true, FILES_AND_DIRECTORIES,
                     FPL("dir*"));
@@ -2661,6 +2686,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c5.HasFile(dir2inner));
   EXPECT_TRUE(c5.HasFile(dir2innerfile));
   EXPECT_EQ(5, c5.size());
+#endif
 
 #if defined(OS_WIN)
   {
@@ -3258,6 +3284,7 @@ TEST_F(FileUtilTest, TouchFile) {
   ASSERT_TRUE(Time::FromString("Tue, 15 Nov 1994, 12:45:26 GMT",
               &modification_time));
 
+#if !defined(STARBOARD)
   ASSERT_TRUE(TouchFile(foobar, access_time, modification_time));
   File::Info file_info;
   ASSERT_TRUE(GetFileInfo(foobar, &file_info));
@@ -3268,6 +3295,7 @@ TEST_F(FileUtilTest, TouchFile) {
 #endif
   EXPECT_EQ(modification_time.ToInternalValue(),
             file_info.last_modified.ToInternalValue());
+#endif  // !defined(STARBOARD)
 }
 
 TEST_F(FileUtilTest, IsDirectoryEmpty) {

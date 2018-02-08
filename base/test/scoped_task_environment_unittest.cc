@@ -311,10 +311,12 @@ INSTANTIATE_TEST_CASE_P(
     MainThreadMockTime,
     ScopedTaskEnvironmentTest,
     ::testing::Values(ScopedTaskEnvironment::MainThreadType::MOCK_TIME));
+#if !defined(STARBOARD)
 INSTANTIATE_TEST_CASE_P(
     MainThreadUI,
     ScopedTaskEnvironmentTest,
     ::testing::Values(ScopedTaskEnvironment::MainThreadType::UI));
+#endif  // !defined(STARBOARD)
 INSTANTIATE_TEST_CASE_P(
     MainThreadIO,
     ScopedTaskEnvironmentTest,

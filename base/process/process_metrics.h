@@ -36,6 +36,8 @@
 #include "base/win/windows_types.h"
 #endif
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 // Full declaration is in process_metrics_iocounters.h.
@@ -598,4 +600,5 @@ BASE_EXPORT MachVMRegionResult GetBasicInfo(mach_port_t task,
 
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_PROCESS_PROCESS_METRICS_H_

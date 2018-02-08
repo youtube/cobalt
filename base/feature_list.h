@@ -17,6 +17,8 @@
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class FieldTrial;
@@ -306,5 +308,7 @@ class BASE_EXPORT FeatureList {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_FEATURE_LIST_H_

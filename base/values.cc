@@ -659,6 +659,7 @@ bool Value::Equals(const Value* other) const {
   return *this == *other;
 }
 
+#if !defined(STARBOARD)
 size_t Value::EstimateMemoryUsage() const {
   switch (type_) {
     case Type::STRING:
@@ -673,6 +674,7 @@ size_t Value::EstimateMemoryUsage() const {
       return 0;
   }
 }
+#endif
 
 void Value::InternalMoveConstructFrom(Value&& that) {
   type_ = that.type_;
@@ -750,7 +752,7 @@ DictionaryValue::DictionaryValue(DictStorage&& in_dict) noexcept
 
 bool DictionaryValue::HasKey(StringPiece key) const {
   DCHECK(IsStringUTF8(key));
-  auto current_entry = dict_.find(key);
+  auto current_entry = dict_.find(std::string(key));
   DCHECK((current_entry == dict_.end()) || current_entry->second);
   return current_entry != dict_.end();
 }

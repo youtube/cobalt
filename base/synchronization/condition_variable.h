@@ -104,6 +104,10 @@ class BASE_EXPORT ConditionVariable {
 
  private:
 
+#if defined(STARBOARD)
+  SbConditionVariable condition_;
+  SbMutex* user_mutex_;
+#else
 #if defined(OS_WIN)
   CHROME_CONDITION_VARIABLE cv_;
   CHROME_SRWLOCK* const srwlock_;
@@ -111,8 +115,14 @@ class BASE_EXPORT ConditionVariable {
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
 #endif
+#endif
 
+<<<<<<< HEAD
 #if DCHECK_IS_ON()
+=======
+#if DCHECK_IS_ON() && \
+    (defined(OS_WIN) || defined(OS_POSIX) || defined(STARBOARD))
+>>>>>>> Initial pass at starboardization of base.
   base::Lock* const user_lock_;  // Needed to adjust shadow lock state on wait.
 #endif
 

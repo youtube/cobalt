@@ -421,10 +421,14 @@ FilePath FilePath::InsertBeforeExtension(StringPieceType suffix) const {
 FilePath FilePath::InsertBeforeExtensionASCII(StringPiece suffix)
     const {
   DCHECK(IsStringASCII(suffix));
+#if defined(STARBOARD)
+  return InsertBeforeExtension(suffix);
+#else
 #if defined(OS_WIN)
   return InsertBeforeExtension(ASCIIToUTF16(suffix));
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   return InsertBeforeExtension(suffix);
+#endif
 #endif
 }
 
@@ -524,10 +528,14 @@ FilePath FilePath::Append(const FilePath& component) const {
 
 FilePath FilePath::AppendASCII(StringPiece component) const {
   DCHECK(base::IsStringASCII(component));
+#if defined(STARBOARD)
+  return Append(component);
+#else
 #if defined(OS_WIN)
   return Append(ASCIIToUTF16(component));
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   return Append(component);
+#endif
 #endif
 }
 
@@ -586,6 +594,7 @@ bool FilePath::ReferencesParent() const {
   return false;
 }
 
+<<<<<<< HEAD
 #if defined(OS_WIN)
 
 string16 FilePath::LossyDisplayName() const {
@@ -618,6 +627,9 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
 
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 
+=======
+#if defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
 // See file_path.h for a discussion of the encoding of paths on POSIX
 // platforms.  These encoding conversion functions are not quite correct.
 

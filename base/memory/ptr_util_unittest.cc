@@ -37,4 +37,41 @@ TEST(PtrUtilTest, WrapUnique) {
   EXPECT_EQ(0u, DeleteCounter::count());
 }
 
+<<<<<<< HEAD
+=======
+TEST(PtrUtilTest, MakeUniqueScalar) {
+  auto s = std::make_unique<std::string>();
+  EXPECT_EQ("", *s);
+
+  auto s2 = std::make_unique<std::string>("test");
+  EXPECT_EQ("test", *s2);
+}
+
+TEST(PtrUtilTest, MakeUniqueScalarWithMoveOnlyType) {
+  using MoveOnly = std::unique_ptr<std::string>;
+  auto p = std::make_unique<MoveOnly>(std::make_unique<std::string>("test"));
+  EXPECT_EQ("test", **p);
+}
+
+TEST(PtrUtilTest, MakeUniqueArray) {
+  EXPECT_EQ(0u, DeleteCounter::count());
+#if __cplusplus < 201402L
+  auto a = std::unique_ptr<DeleteCounter[]>(new DeleteCounter[5]);
+#else
+  auto a = std::make_unique<DeleteCounter[]>(5);
+#endif
+  EXPECT_EQ(5u, DeleteCounter::count());
+  a.reset();
+  EXPECT_EQ(0u, DeleteCounter::count());
+}
+
+#if 0
+// TODO(dcheng): Move this into a nocompile test.
+TEST(PtrUtilTest, MakeUniqueArrayWithKnownBounds) {
+  auto a = std::make_unique<DeleteCounter[1]>();
+  auto b = std::make_unique<DeleteCounter[1]>(1);
+}
+#endif
+
+>>>>>>> Initial pass at starboardization of base.
 }  // namespace base

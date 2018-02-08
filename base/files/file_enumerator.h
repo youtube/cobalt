@@ -17,12 +17,16 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#else
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_set>
+#endif
 #endif
 
 namespace base {
@@ -68,11 +72,16 @@ class BASE_EXPORT FileEnumerator {
    private:
     friend class FileEnumerator;
 
+#if defined(STARBOARD)
+    FilePath filename_;
+    SbFileInfo sb_info_;
+#else
 #if defined(OS_WIN)
     WIN32_FIND_DATA find_data_;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
     struct stat stat_;
     FilePath filename_;
+#endif
 #endif
   };
 
@@ -145,12 +154,25 @@ class BASE_EXPORT FileEnumerator {
 
   bool IsPatternMatched(const FilePath& src) const;
 
+#if defined(STARBOARD)
+  std::vector<FileInfo> ReadDirectory(const FilePath& source);
+
+  // The files in the current directory
+  std::vector<FileInfo> directory_entries_;
+
+  // The next entry to use from the directory_entries_ vector
+  size_t current_directory_entry_;
+#else
 #if defined(OS_WIN)
   // True when find_data_ is valid.
   bool has_find_data_ = false;
   WIN32_FIND_DATA find_data_;
   HANDLE find_handle_ = INVALID_HANDLE_VALUE;
+<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#elif defined(OS_POSIX) || defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   // The files in the current directory
   std::vector<FileInfo> directory_entries_;
 
@@ -161,6 +183,8 @@ class BASE_EXPORT FileEnumerator {
   // The next entry to use from the directory_entries_ vector
   size_t current_directory_entry_;
 #endif
+#endif
+
   FilePath root_path_;
   const bool recursive_;
   const int file_type_;

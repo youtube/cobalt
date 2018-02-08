@@ -24,6 +24,8 @@ bool PathProvider(int key, FilePath* result);
 
 #if defined(OS_WIN)
 bool PathProviderWin(int key, FilePath* result);
+#elif defined(STARBOARD)
+bool PathProviderStarboard(int key, FilePath* result);
 #elif defined(OS_MACOSX)
 bool PathProviderMac(int key, FilePath* result);
 #elif defined(OS_ANDROID)
@@ -94,6 +96,18 @@ Provider base_provider_android = {
 };
 #endif
 
+#if defined(STARBOARD)
+Provider base_provider_starboard = {
+  base::PathProviderStarboard,
+  &base_provider,
+#ifndef NDEBUG
+  base::PATH_STARBOARD_START,
+  base::PATH_STARBOARD_END,
+#endif
+  true
+};
+#endif
+
 #if defined(OS_FUCHSIA)
 Provider base_provider_fuchsia = {PathProviderFuchsia, &base_provider,
 #ifndef NDEBUG
@@ -134,6 +148,8 @@ struct PathData {
     providers = &base_provider_fuchsia;
 #elif defined(OS_POSIX)
     providers = &base_provider_posix;
+#elif defined(OS_STARBOARD)
+    providers = &base_provider_starboard;
 #endif
   }
 };
@@ -183,8 +199,14 @@ bool PathService::Get(int key, FilePath* result) {
   DCHECK_GE(key, DIR_CURRENT);
 
   // special case the current directory because it can never be cached
-  if (key == DIR_CURRENT)
+  if (key == DIR_CURRENT) {
+#if defined(STARBOARD)
+    NOTREACHED() << "DIR_CURRENT not supported in Starboard.";
+    return false;
+#else
     return GetCurrentDirectory(result);
+#endif
+  }
 
   Provider* provider = nullptr;
   {
@@ -257,11 +279,13 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   }
 
   // We need to have an absolute path.
+#if !defined(OS_STARBOARD)
   if (!is_absolute) {
     file_path = MakeAbsoluteFilePath(file_path);
     if (file_path.empty())
       return false;
   }
+#endif
   DCHECK(file_path.IsAbsolute());
 
   AutoLock scoped_lock(path_data->lock);
