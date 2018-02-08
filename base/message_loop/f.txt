@@ -1,0 +1,5 @@
+/usr/local/google/home/aabtop/goma/gomacc
+]0;Building /usr/local/google/home/aabtop/src/cobalt_rebase -j2000 linux-x64x11_debug base_unittests -k0 -nBuilding /usr/local/google/home/aabtop/src/cobalt_rebase -j2000 linux-x64x11_debug base_unittests -k0 -n
+[1/3] CXX obj/base/trace_event/base.trace_event_memory_overhead.cc.o
+[2/3] AR obj/base/libbase.a
+[3/3] LINK base_unittests

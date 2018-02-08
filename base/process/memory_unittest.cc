@@ -160,6 +160,7 @@ class OutOfMemoryDeathTest : public OutOfMemoryTest {
 #endif
 };
 
+#if !defined(STARBOARD)
 TEST_F(OutOfMemoryDeathTest, New) {
   ASSERT_EXIT({
       SetUpInDeathAssert();
@@ -201,6 +202,7 @@ TEST_F(OutOfMemoryDeathTest, AlignedAlloc) {
       value_ = base::AlignedAlloc(test_size_, 8);
     }, testing::ExitedWithCode(kExitCode), kOomRegex);
 }
+#endif  // !defined(STARBOARD)
 
 // POSIX does not define an aligned realloc function.
 #if defined(OS_WIN)
@@ -237,7 +239,7 @@ TEST_F(OutOfMemoryDeathTest, NewHandlerGeneratesUnhandledException) {
 
 // OS X and Android have no 2Gb allocation limit.
 // See https://crbug.com/169327.
-#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(STARBOARD)
 TEST_F(OutOfMemoryDeathTest, SecurityNew) {
   ASSERT_EXIT({
       SetUpInDeathAssert();
@@ -289,7 +291,7 @@ TEST_F(OutOfMemoryDeathTest, SecurityAlignedRealloc) {
     }, testing::ExitedWithCode(kExitCode), kOomRegex);
 }
 #endif  // defined(OS_WIN)
-#endif  // !defined(OS_MACOSX) && !defined(OS_ANDROID)
+#endif  // !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(STARBOARD)
 
 #if defined(OS_LINUX)
 

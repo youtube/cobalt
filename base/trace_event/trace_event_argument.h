@@ -61,7 +61,9 @@ class BASE_EXPORT TracedValue : public ConvertableToTraceFormat {
   // ConvertableToTraceFormat implementation.
   void AppendAsTraceFormat(std::string* out) const override;
 
+#if !defined(STARBOARD)
   void EstimateTraceMemoryOverhead(TraceEventMemoryOverhead* overhead) override;
+#endif
 
   // DEPRECATED: do not use, here only for legacy reasons. These methods causes
   // a copy-and-translation of the base::Value into the equivalent TracedValue.

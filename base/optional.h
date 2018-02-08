@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/template_util.h"
 #include "base/thread_annotations.h"
@@ -577,6 +578,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
     return *this;
   }
 
+<<<<<<< HEAD
   constexpr const T* operator->() const {
     DCHECK(storage_.is_populated_);
     return &storage_.value_;
@@ -585,6 +587,16 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
   constexpr T* operator->() {
     DCHECK(storage_.is_populated_);
     return &storage_.value_;
+=======
+  CONSTEXPR const T* operator->() const {
+    DCHECK(!storage_.is_null_);
+    return &value();
+  }
+
+  CONSTEXPR T* operator->() {
+    DCHECK(!storage_.is_null_);
+    return &value();
+>>>>>>> Initial pass at starboardization of base.
   }
 
   constexpr const T& operator*() const & {
@@ -592,25 +604,34 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
     return storage_.value_;
   }
 
+<<<<<<< HEAD
   constexpr T& operator*() & {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
+=======
+  CONSTEXPR T& operator*() & { return value(); }
+>>>>>>> Initial pass at starboardization of base.
 
   constexpr const T&& operator*() const && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
+<<<<<<< HEAD
   constexpr T&& operator*() && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
+=======
+  CONSTEXPR T&& operator*() && { return std::move(value()); }
+>>>>>>> Initial pass at starboardization of base.
 
   constexpr explicit operator bool() const { return storage_.is_populated_; }
 
   constexpr bool has_value() const { return storage_.is_populated_; }
 
+<<<<<<< HEAD
   constexpr T& value() & {
     CHECK(storage_.is_populated_);
     return storage_.value_;
@@ -628,6 +649,25 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 
   constexpr const T&& value() const && {
     CHECK(storage_.is_populated_);
+=======
+  CONSTEXPR T& value() & {
+    DCHECK(!storage_.is_null_);
+    return storage_.value_;
+  }
+
+  CONSTEXPR const T& value() const & {
+    DCHECK(!storage_.is_null_);
+    return storage_.value_;
+  }
+
+  CONSTEXPR T&& value() && {
+    DCHECK(!storage_.is_null_);
+    return std::move(storage_.value_);
+  }
+
+  CONSTEXPR const T&& value() const && {
+    DCHECK(!storage_.is_null_);
+>>>>>>> Initial pass at starboardization of base.
     return std::move(storage_.value_);
   }
 

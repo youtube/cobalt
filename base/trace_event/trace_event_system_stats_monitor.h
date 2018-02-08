@@ -64,11 +64,13 @@ class BASE_EXPORT TraceEventSystemStatsMonitor
   DISALLOW_COPY_AND_ASSIGN(TraceEventSystemStatsMonitor);
 };
 
+#if !defined(STARBOARD)
 // Converts system memory profiling stats in |input| to
 // trace event compatible JSON and appends to |output|. Visible for testing.
 BASE_EXPORT void AppendSystemProfileAsTraceFormat(const SystemMetrics&
                                                   system_stats,
                                                   std::string* output);
+#endif  // !defined(STARBOARD)
 
 }  // namespace trace_event
 }  // namespace base

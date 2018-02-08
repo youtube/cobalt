@@ -200,6 +200,12 @@ class RepeatingTimerTester {
 // that |did_run_a| would be signaled in that test if it wasn't for the
 // deletion.
 void RunTest_OneShotTimers(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   WaitableEvent did_run_a(WaitableEvent::ResetPolicy::MANUAL,
@@ -216,6 +222,12 @@ void RunTest_OneShotTimers(MessageLoop::Type message_loop_type) {
 }
 
 void RunTest_OneShotTimers_Cancel(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   WaitableEvent did_run_a(WaitableEvent::ResetPolicy::MANUAL,
@@ -237,6 +249,12 @@ void RunTest_OneShotTimers_Cancel(MessageLoop::Type message_loop_type) {
 }
 
 void RunTest_OneShotSelfDeletingTimer(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   OneShotSelfDeletingTimerTester f;
@@ -246,6 +264,12 @@ void RunTest_OneShotSelfDeletingTimer(MessageLoop::Type message_loop_type) {
 
 void RunTest_RepeatingTimer(MessageLoop::Type message_loop_type,
                             const TimeDelta& delay) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   RepeatingTimerTester f(nullptr, delay);
@@ -255,6 +279,12 @@ void RunTest_RepeatingTimer(MessageLoop::Type message_loop_type,
 
 void RunTest_RepeatingTimer_Cancel(MessageLoop::Type message_loop_type,
                                    const TimeDelta& delay) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   WaitableEvent did_run_a(WaitableEvent::ResetPolicy::MANUAL,
@@ -291,6 +321,12 @@ class DelayTimerTarget {
 };
 
 void RunTest_DelayTimer_NoCall(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   // If Delay is never called, the timer shouldn't go off.
@@ -306,6 +342,12 @@ void RunTest_DelayTimer_NoCall(MessageLoop::Type message_loop_type) {
 }
 
 void RunTest_DelayTimer_OneCall(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   DelayTimerTarget target;
@@ -335,6 +377,12 @@ struct ResetHelper {
 };
 
 void RunTest_DelayTimer_Reset(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   // If Delay is never called, the timer shouldn't go off.
@@ -366,6 +414,12 @@ class DelayTimerFatalTarget {
 };
 
 void RunTest_DelayTimer_Deleted(MessageLoop::Type message_loop_type) {
+#if defined(STARBOARD)
+  if (message_loop_type == MessageLoop::TYPE_UI) {
+    return;
+  }
+#endif
+
   MessageLoop loop(message_loop_type);
 
   DelayTimerFatalTarget target;

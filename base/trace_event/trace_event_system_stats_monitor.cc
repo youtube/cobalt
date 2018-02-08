@@ -23,6 +23,7 @@ namespace trace_event {
 
 namespace {
 
+#if !defined(STARBOARD)
 /////////////////////////////////////////////////////////////////////////////
 // Holds profiled system stats until the tracing system needs to serialize it.
 class SystemStatsHolder : public base::trace_event::ConvertableToTraceFormat {
@@ -48,6 +49,8 @@ class SystemStatsHolder : public base::trace_event::ConvertableToTraceFormat {
 void SystemStatsHolder::GetSystemProfilingStats() {
   system_stats_ = SystemMetrics::Sample();
 }
+
+#endif  // !defined(STARBOARD)
 
 }  // namespace
 
@@ -104,6 +107,9 @@ void TraceEventSystemStatsMonitor::StartProfiling() {
 
 // If system tracing is enabled, dumps a profile to the tracing system.
 void TraceEventSystemStatsMonitor::DumpSystemStats() {
+#if defined(STARBOARD)
+  NOTREACHED();
+#else
   std::unique_ptr<SystemStatsHolder> dump_holder(new SystemStatsHolder());
   dump_holder->GetSystemProfilingStats();
 
@@ -111,6 +117,7 @@ void TraceEventSystemStatsMonitor::DumpSystemStats() {
       TRACE_DISABLED_BY_DEFAULT("system_stats"),
       "base::TraceEventSystemStatsMonitor::SystemStats", this,
       std::move(dump_holder));
+#endif
 }
 
 void TraceEventSystemStatsMonitor::StopProfiling() {
@@ -121,12 +128,14 @@ bool TraceEventSystemStatsMonitor::IsTimerRunningForTest() const {
   return dump_timer_.IsRunning();
 }
 
+#if !defined(STARBOARD)
 void AppendSystemProfileAsTraceFormat(const SystemMetrics& system_metrics,
                                       std::string* output) {
   std::string tmp;
   base::JSONWriter::Write(*system_metrics.ToValue(), &tmp);
   *output += tmp;
 }
+#endif  // !defined(STARBOARD)
 
 }  // namespace trace_event
 }  // namespace base

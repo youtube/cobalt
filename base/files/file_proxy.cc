@@ -276,9 +276,11 @@ File FileProxy::TakeFile() {
   return std::move(file_);
 }
 
+#if !defined(STARBOARD)
 File FileProxy::DuplicateFile() {
   return file_.Duplicate();
 }
+#endif
 
 PlatformFile FileProxy::GetPlatformFile() const {
   return file_.GetPlatformFile();

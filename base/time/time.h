@@ -63,6 +63,10 @@
 #include "base/numerics/safe_math.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/time.h"
+#endif
+
 #if defined(OS_FUCHSIA)
 #include <zircon/types.h>
 #endif
@@ -177,7 +181,15 @@ class BASE_EXPORT TimeDelta {
     return delta_ == std::numeric_limits<int64_t>::min();
   }
 
+<<<<<<< HEAD
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#if defined(OS_STARBOARD)
+  SbTime ToSbTime() const;
+#endif
+
+#if defined(OS_POSIX)
+>>>>>>> Initial pass at starboardization of base.
   struct timespec ToTimeSpec() const;
 #endif
 
@@ -569,6 +581,11 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromJsTime(double ms_since_epoch);
   double ToJsTime() const;
 
+#if defined(STARBOARD)
+  static Time FromSbTime(SbTime t);
+  SbTime ToSbTime() const;
+#endif
+
   // Converts to/from Java convention for times, a number of milliseconds since
   // the epoch. Because the Java format has less resolution, converting to Java
   // time is a lossy operation.
@@ -856,7 +873,14 @@ constexpr TimeDelta TimeDelta::FromDouble(double value) {
 // static
 constexpr TimeDelta TimeDelta::FromProduct(int64_t value,
                                            int64_t positive_value) {
+<<<<<<< HEAD
   DCHECK(positive_value > 0);  // NOLINT, DCHECK_GT isn't constexpr.
+=======
+#if !defined(STARBOARD)
+  // C++11 doesn't like DCHECKs inside of constexpr.
+  DCHECK(positive_value > 0);
+#endif  // !defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   return value > std::numeric_limits<int64_t>::max() / positive_value
              ? Max()
              : value < std::numeric_limits<int64_t>::min() / positive_value
@@ -987,6 +1011,13 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
 
   // Returns true if ThreadTicks::Now() is supported on this system.
   static bool IsSupported() WARN_UNUSED_RESULT {
+#if defined(STARBOARD)
+#if SB_HAS(TIME_THREAD_NOW)
+    return true;
+#else
+    return false;
+#endif
+#else
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     (defined(OS_MACOSX) && !defined(OS_IOS)) || defined(OS_ANDROID) ||  \
     defined(OS_FUCHSIA)
@@ -995,6 +1026,7 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
     return IsSupportedWin();
 #else
     return false;
+#endif
 #endif
   }
 

@@ -24,6 +24,10 @@
 #include "base/template_util.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+#endif
+
 //
 // Optional message capabilities
 // -----------------------------
@@ -165,10 +169,14 @@ enum LoggingDestination {
   // On Windows, use a file next to the exe; on POSIX platforms, where
   // it may not even be possible to locate the executable on disk, use
   // stderr.
+#if defined(STARBOARD)
+  LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG,
+#else
 #if defined(OS_WIN)
   LOG_DEFAULT = LOG_TO_FILE,
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG,
+#endif
 #endif
 };
 
@@ -439,6 +447,11 @@ const LogSeverity LOG_0 = LOG_ERROR;
   LAZY_STREAM(VLOG_STREAM(verbose_level), \
       VLOG_IS_ON(verbose_level) && (condition))
 
+#if defined (STARBOARD)
+#define VPLOG_STREAM(verbose_level) \
+  ::logging::StarboardErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
+    ::logging::GetLastSystemErrorCode()).stream()
+#else
 #if defined (OS_WIN)
 #define VPLOG_STREAM(verbose_level) \
   ::logging::Win32ErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
@@ -447,6 +460,7 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define VPLOG_STREAM(verbose_level) \
   ::logging::ErrnoLogMessage(__FILE__, __LINE__, -verbose_level, \
     ::logging::GetLastSystemErrorCode()).stream()
+#endif
 #endif
 
 #define VPLOG(verbose_level) \
@@ -462,6 +476,10 @@ const LogSeverity LOG_0 = LOG_ERROR;
   LOG_IF(FATAL, !(ANALYZER_ASSUME_TRUE(condition))) \
       << "Assert failed: " #condition ". "
 
+#if defined(STARBOARD)
+#define PLOG_STREAM(severity) \
+  COMPACT_GOOGLE_LOG_EX_ ## severity(StarboardErrorLogMessage, \
+      ::logging::GetLastSystemErrorCode()).stream()
 #if defined(OS_WIN)
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(Win32ErrorLogMessage, \
@@ -470,6 +488,7 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(ErrnoLogMessage, \
       ::logging::GetLastSystemErrorCode()).stream()
+#endif
 #endif
 
 #define PLOG(severity)                                          \
@@ -1039,10 +1058,14 @@ class LogMessageVoidify {
   void operator&(std::ostream&) { }
 };
 
+#if defined(STARBOARD)
+typedef SbSystemError SystemErrorCode;
+#else
 #if defined(OS_WIN)
 typedef unsigned long SystemErrorCode;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 typedef int SystemErrorCode;
+#endif
 #endif
 
 // Alias for ::GetLastError() on Windows and errno on POSIX. Avoids having to
@@ -1050,6 +1073,27 @@ typedef int SystemErrorCode;
 BASE_EXPORT SystemErrorCode GetLastSystemErrorCode();
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code);
 
+#if defined(STARBOARD)
+// Appends a formatted system message of the GetLastError() type.
+class BASE_EXPORT StarboardErrorLogMessage {
+ public:
+  StarboardErrorLogMessage(const char* file,
+                           int line,
+                           LogSeverity severity,
+                           SystemErrorCode err);
+
+  // Appends the error message before destructing the encapsulated class.
+  ~StarboardErrorLogMessage();
+
+  std::ostream& stream() { return log_message_.stream(); }
+
+ private:
+  SystemErrorCode err_;
+  LogMessage log_message_;
+
+  DISALLOW_COPY_AND_ASSIGN(StarboardErrorLogMessage);
+};
+#else
 #if defined(OS_WIN)
 // Appends a formatted system message of the GetLastError() type.
 class BASE_EXPORT Win32ErrorLogMessage {
@@ -1091,6 +1135,7 @@ class BASE_EXPORT ErrnoLogMessage {
   DISALLOW_COPY_AND_ASSIGN(ErrnoLogMessage);
 };
 #endif  // OS_WIN
+#endif  // STARBOARD
 
 // Closes the log file explicitly if open.
 // NOTE: Since the log file is opened as necessary by the action of logging
@@ -1121,6 +1166,7 @@ BASE_EXPORT std::wstring GetLogFileFullPath();
 
 }  // namespace logging
 
+#if !defined(STARBOARD)  // This is implemented already in Starboard.
 // Note that "The behavior of a C++ program is undefined if it adds declarations
 // or definitions to namespace std or to a namespace within namespace std unless
 // otherwise specified." --C++11[namespace.std]
@@ -1141,6 +1187,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
 }  // namespace std
+#endif  // !defined(STARBOARD)
 
 // The NOTIMPLEMENTED() macro annotates codepaths which have not been
 // implemented yet. If output spam is a serious concern,

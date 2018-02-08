@@ -13,9 +13,13 @@
 #include <type_traits>
 #include <utility>
 
+<<<<<<< HEAD
 #include "base/containers/checked_iterators.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
+=======
+#include "base/cpp14oncpp11.h"
+>>>>>>> Initial pass at starboardization of base.
 
 namespace base {
 
@@ -426,9 +430,31 @@ constexpr size_t span<T, Extent>::extent;
 
 // [span.comparison], span comparison operators
 // Relational operators. Equality is a element-wise comparison.
+<<<<<<< HEAD
 template <typename T, size_t X, typename U, size_t Y>
 constexpr bool operator==(span<T, X> lhs, span<U, Y> rhs) noexcept {
+=======
+template <typename T>
+CONSTEXPR bool operator==(const span<T>& lhs, const span<T>& rhs) noexcept {
+#if __cplusplus < 201402L
+  // With GNU at least, there exists an implementation of std::equal that is
+  // replaced in C++14.
+  {
+    auto a = lhs.cbegin();
+    auto b = rhs.cbegin();
+    while (a != lhs.cend() && b != rhs.cend()) {
+      if (*a != *b) {
+        return false;
+      }
+      ++a;
+      ++b;
+    }
+    return a == lhs.cend() && b == rhs.cend();
+  }
+#else
+>>>>>>> Initial pass at starboardization of base.
   return std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend());
+#endif
 }
 
 template <typename T, size_t X, typename U, size_t Y>

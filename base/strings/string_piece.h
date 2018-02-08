@@ -28,6 +28,7 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/strings/char_traits.h"
 #include "base/strings/string16.h"
@@ -238,16 +239,24 @@ template <typename STRING_TYPE> class BasicStringPiece {
     return ptr_[length_ - 1];
   }
 
+<<<<<<< HEAD
   constexpr void remove_prefix(size_type n) {
     CHECK(n <= length_);
+=======
+  CONSTEXPR void remove_prefix(size_type n) {
+>>>>>>> Initial pass at starboardization of base.
     ptr_ += n;
     length_ -= n;
   }
 
+<<<<<<< HEAD
   constexpr void remove_suffix(size_type n) {
     CHECK(n <= length_);
     length_ -= n;
   }
+=======
+  CONSTEXPR void remove_suffix(size_type n) { length_ -= n; }
+>>>>>>> Initial pass at starboardization of base.
 
   constexpr int compare(BasicStringPiece x) const noexcept {
     int r = CharTraits<value_type>::compare(

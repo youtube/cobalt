@@ -13,6 +13,8 @@
 #include "build/build_config.h"
 #include "testing/platform_test.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class CommandLine;
@@ -142,5 +144,7 @@ class MultiProcessTest : public PlatformTest {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TEST_MULTIPROCESS_TEST_H_

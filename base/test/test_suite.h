@@ -83,9 +83,11 @@ class TestSuite {
 
   bool initialized_command_line_ = false;
 
+#if !defined(STARBOARD)
   test::ScopedFeatureList scoped_feature_list_;
 
   XmlUnitTestResultPrinter* printer_ = nullptr;
+#endif  // !defined(STARBOARD)
 
   std::unique_ptr<logging::ScopedLogAssertHandler> assert_handler_;
 

@@ -36,6 +36,8 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_local_storage.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 struct PendingTask;
@@ -906,6 +908,7 @@ class BASE_EXPORT GlobalActivityTracker {
                                     int stack_depth,
                                     int64_t process_id);
 
+#if !defined(STARBOARD)
   // Like above but internally creates an allocator using a shared-memory
   // segment. The segment must already be mapped into the local memory space.
   static bool CreateWithSharedMemory(std::unique_ptr<SharedMemory> shm,
@@ -920,6 +923,7 @@ class BASE_EXPORT GlobalActivityTracker {
                                            uint64_t id,
                                            StringPiece name,
                                            int stack_depth);
+#endif  // !defined(STARBOARD)
 
   // Gets the global activity-tracker or null if none exists.
   static GlobalActivityTracker* Get() {
@@ -1362,4 +1366,5 @@ class BASE_EXPORT ScopedProcessWaitActivity
 }  // namespace debug
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_DEBUG_ACTIVITY_TRACKER_H_

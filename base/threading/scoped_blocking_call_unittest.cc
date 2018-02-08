@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/cpp14oncpp11.h"
 #include "base/macros.h"
 #include "base/test/gtest_util.h"
 #include "testing/gmock/include/gmock/gmock.h"

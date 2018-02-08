@@ -12,6 +12,8 @@
 #include "base/files/scoped_file.h"
 #include "base/macros.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 // The file descriptor store is used to associate file descriptors with keys
@@ -69,5 +71,7 @@ class BASE_EXPORT FileDescriptorStore {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_FILE_DESCRIPTOR_STORE_H_

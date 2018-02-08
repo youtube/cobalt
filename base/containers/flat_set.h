@@ -128,7 +128,7 @@ namespace base {
 //   bool operator>=(const flat_set&, const flat_set);
 //   bool operator<=(const flat_set&, const flat_set);
 //
-template <class Key, class Compare = std::less<>>
+template <class Key, class Compare = std::less<void>>
 using flat_set = typename ::base::internal::flat_tree<
     Key,
     Key,

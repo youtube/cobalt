@@ -13,6 +13,8 @@
 #include "base/base_export.h"
 #include "base/macros.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class RefCountedString;
@@ -91,5 +93,7 @@ class BASE_EXPORT TraceEventMemoryOverhead {
 
 }  // namespace trace_event
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TRACE_EVENT_TRACE_EVENT_MEMORY_OVERHEAD_H_

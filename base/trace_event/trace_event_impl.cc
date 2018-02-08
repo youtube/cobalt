@@ -195,6 +195,7 @@ void TraceEvent::UpdateDuration(const TimeTicks& now,
     thread_duration_ = thread_now - thread_timestamp_;
 }
 
+#if !defined(STARBOARD)
 void TraceEvent::EstimateTraceMemoryOverhead(
     TraceEventMemoryOverhead* overhead) {
   overhead->Add(TraceEventMemoryOverhead::kTraceEvent, sizeof(*this));
@@ -207,6 +208,7 @@ void TraceEvent::EstimateTraceMemoryOverhead(
       convertable_values_[i]->EstimateTraceMemoryOverhead(overhead);
   }
 }
+#endif
 
 // static
 void TraceEvent::AppendValueAsJSON(unsigned char type,

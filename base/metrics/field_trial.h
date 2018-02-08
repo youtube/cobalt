@@ -82,6 +82,8 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class FieldTrialList;
@@ -801,4 +803,5 @@ class BASE_EXPORT FieldTrialList {
 
 }  // namespace base
 
+#endif  // #if !defined(STARBOARD)
 #endif  // BASE_METRICS_FIELD_TRIAL_H_

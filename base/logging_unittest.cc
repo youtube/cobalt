@@ -719,12 +719,14 @@ namespace nested_test {
                                              const Streamable&) {
     return out << "Streamable";
   }
+#if !defined(STARBOARD)
   TEST_F(LoggingTest, StreamingWstringFindsCorrectOperator) {
     std::wstring wstr = L"Hello World";
     std::ostringstream ostr;
     ostr << wstr;
     EXPECT_EQ("Hello World", ostr.str());
   }
+#endif  // !defined(STARBOARD)
 }  // namespace nested_test
 
 #if DCHECK_IS_CONFIGURABLE

@@ -18,6 +18,8 @@
 #include "base/metrics/histogram_samples.h"
 #include "base/synchronization/lock.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class HistogramSamples;
@@ -104,5 +106,7 @@ class BASE_EXPORT SparseHistogram : public HistogramBase {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_SPARSE_HISTOGRAM_H_

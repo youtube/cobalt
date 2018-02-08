@@ -162,10 +162,18 @@ bool WaitableEvent::TimedWait(const TimeDelta& wait_delta) {
 }
 
 bool WaitableEvent::TimedWaitUntil(const TimeTicks& end_time) {
+<<<<<<< HEAD
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
       BlockingType::MAY_BLOCK);
+=======
+  internal::AssertBaseSyncPrimitivesAllowed();
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+
+#if !defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   // Record the event that this thread is blocking upon (for hang diagnosis).
   base::debug::ScopedEventWaitActivity event_activity(this);
+#endif  // !defined(STARBOARD)
 
   const bool finite_time = !end_time.is_max();
 
@@ -238,10 +246,16 @@ cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
 size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
                                size_t count) {
   DCHECK(count) << "Cannot wait on no events";
+<<<<<<< HEAD
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
       BlockingType::MAY_BLOCK);
+=======
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+#if !defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.
   // Record an event (the first) that this thread is blocking upon.
   base::debug::ScopedEventWaitActivity event_activity(raw_waitables[0]);
+#endif  // !defined(STARBOARD)
 
   // We need to acquire the locks in a globally consistent order. Thus we sort
   // the array of waitables by address. We actually sort a pairs so that we can

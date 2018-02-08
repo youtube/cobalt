@@ -14,6 +14,9 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/strings/stringprintf.h"
+#if defined(STARBOARD)
+#include "base/test/time_helpers.h"
+#endif  // defined(STARBOARD)
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
@@ -151,6 +154,8 @@ TEST_F(TimeTest, TimeT) {
   EXPECT_EQ(0, Time::FromTimeT(0).ToInternalValue());
 }
 
+#if !defined(STARBOARD)
+
 // Test conversions to/from time_t and exploding/unexploding (utc time).
 TEST_F(TimeTest, UTCTimeT) {
   // C library time and exploded time.
@@ -229,6 +234,8 @@ TEST_F(TimeTest, LocalTimeT) {
   time_t now_t_2 = our_time_2.ToTimeT();
   EXPECT_EQ(now_t_1, now_t_2);
 }
+
+#endif  // !defined(STARBOARD)
 
 // Test conversions to/from javascript time.
 TEST_F(TimeTest, JsTime) {
@@ -311,6 +318,22 @@ TEST_F(TimeTest, LocalMidnight) {
   EXPECT_EQ(0, exploded.millisecond);
 }
 
+#if defined(STARBOARD)
+TEST_F(TimeTest, ParseTimeTest1) {
+  Time now = Time::Now();
+
+  Time parsed_time;
+  std::string formatted = base::test::time_helpers::TimeFormatUTC(now);
+  EXPECT_TRUE(Time::FromUTCString(formatted.c_str(), &parsed_time));
+  EXPECT_GE(1, (now - parsed_time).InSecondsF());
+  EXPECT_GE(1, (parsed_time - now).InSecondsF());
+
+  formatted = base::test::time_helpers::TimeFormatLocal(now);
+  EXPECT_TRUE(Time::FromString(formatted.c_str(), &parsed_time));
+  EXPECT_GE(1, (now - parsed_time).InSecondsF());
+  EXPECT_GE(1, (parsed_time - now).InSecondsF());
+}
+#else  // !defined(STARBOARD)
 TEST_F(TimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);
@@ -329,6 +352,7 @@ TEST_F(TimeTest, ParseTimeTest1) {
   EXPECT_TRUE(Time::FromString(time_buf, &parsed_time));
   EXPECT_EQ(current_time, parsed_time.ToTimeT());
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(TimeTest, DayOfWeekSunday) {
   Time time;

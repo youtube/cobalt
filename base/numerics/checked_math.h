@@ -117,25 +117,25 @@ class CheckedNumeric {
 
   // Prototypes for the supported arithmetic operator overloads.
   template <typename Src>
-  constexpr CheckedNumeric& operator+=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator+=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator-=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator-=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator*=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator*=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator/=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator/=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator%=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator%=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator<<=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator<<=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator>>=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator>>=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator&=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator&=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator|=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator|=(const Src rhs);
   template <typename Src>
-  constexpr CheckedNumeric& operator^=(const Src rhs);
+  CONSTEXPR CheckedNumeric& operator^=(const Src rhs);
 
   constexpr CheckedNumeric operator-() const {
     // The negation of two's complement int min is int min, so we simply
@@ -200,23 +200,23 @@ class CheckedNumeric {
         SafeUnsignedAbs(state_.value()), state_.is_valid());
   }
 
-  constexpr CheckedNumeric& operator++() {
+  CONSTEXPR CheckedNumeric& operator++() const {
     *this += 1;
     return *this;
   }
 
-  constexpr CheckedNumeric operator++(int) {
+  CONSTEXPR CheckedNumeric operator++(int) const {
     CheckedNumeric value = *this;
     *this += 1;
     return value;
   }
 
-  constexpr CheckedNumeric& operator--() {
+  CONSTEXPR CheckedNumeric& operator--() const {
     *this -= 1;
     return *this;
   }
 
-  constexpr CheckedNumeric operator--(int) {
+  CONSTEXPR CheckedNumeric operator--(int) const {
     CheckedNumeric value = *this;
     *this -= 1;
     return value;
@@ -227,7 +227,7 @@ class CheckedNumeric {
   template <template <typename, typename, typename> class M,
             typename L,
             typename R>
-  static constexpr CheckedNumeric MathOp(const L lhs, const R rhs) {
+  static CONSTEXPR CheckedNumeric MathOp(const L lhs, const R rhs) {
     using Math = typename MathWrapper<M, L, R>::math;
     T result = 0;
     bool is_valid =
@@ -238,7 +238,7 @@ class CheckedNumeric {
 
   // Assignment arithmetic operations.
   template <template <typename, typename, typename> class M, typename R>
-  constexpr CheckedNumeric& MathOp(const R rhs) {
+  CONSTEXPR CheckedNumeric& MathOp(const R rhs) {
     using Math = typename MathWrapper<M, T, R>::math;
     T result = 0;  // Using T as the destination saves a range check.
     bool is_valid = state_.is_valid() && Wrapper<R>::is_valid(rhs) &&
