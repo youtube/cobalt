@@ -1,6 +1,6 @@
 # MIPS support
 
-starboard/creator directory contains port of Cobalt for Creator CI20 platform:
+starboard/contrib/creator directory contains port of Cobalt for Creator CI20 platform:
 https://creatordev.io/ci20.html
 
 
