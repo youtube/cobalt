@@ -15,6 +15,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
+#include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
@@ -22,7 +23,11 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
   starboard::shared::x11::ApplicationX11 application;
-  int result = application.Run(argc, argv);
+  int result = 0;
+  {
+    starboard::shared::starboard::LinkReceiver receiver(&application);
+    result = application.Run(argc, argv);
+  }
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
