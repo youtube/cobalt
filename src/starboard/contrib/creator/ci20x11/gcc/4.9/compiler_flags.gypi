@@ -72,6 +72,8 @@
       '-Wno-narrowing',
       # Do not remove null this checks.
       '-fno-delete-null-pointer-checks',
+      '-Wno-unused-result',
+      '-Wno-unknown-pragmas',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {

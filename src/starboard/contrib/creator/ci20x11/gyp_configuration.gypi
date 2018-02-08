@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'gl_type': 'system_gles2',
+  },
   'target_defaults': {
     'default_configuration': 'creator-ci20x11_debug',
     'configurations': {
@@ -33,6 +36,7 @@
 
   'includes': [
     'libraries.gypi',
+    '../shared/compiler_flags.gypi',
     '../shared/gyp_configuration.gypi',
   ],
 }
