@@ -201,6 +201,26 @@ void PromiseWrapper::Reject(JS::HandleValue value) const {
   }
 }
 
+PromiseState PromiseWrapper::State() const {
+  JS::RootedObject promise(context_, GetPromise());
+  DCHECK(promise);
+  JS::RootedValue state_value(context_);
+  JS_GetProperty(context_, promise, "_state", &state_value);
+  DCHECK(state_value.isInt32());
+  int state = state_value.toInt32();
+  switch (state) {
+    case 0:
+      return PromiseState::kPending;
+    case 1:
+      return PromiseState::kFulfilled;
+    case 2:
+      return PromiseState::kRejected;
+    default:
+      NOTREACHED();
+  }
+  return PromiseState::kRejected;
+}
+
 PromiseWrapper::PromiseWrapper(JSContext* context,
                                JS::HandleValue promise_wrapper)
     : context_(context), weak_promise_wrapper_(context, promise_wrapper) {

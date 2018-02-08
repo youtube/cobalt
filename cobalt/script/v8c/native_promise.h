@@ -62,15 +62,16 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
                                 PromiseResultUndefined, T>::type;
 
   NativePromise(v8::Isolate* isolate, v8::Local<v8::Value> resolver)
-      : isolate_(isolate), ScopedPersistent(isolate, resolver) {}
+      : isolate_(isolate), ScopedPersistent(isolate, resolver) {
+    DCHECK(resolver->IsPromise());
+  }
 
   void Resolve(const ResolveType& value) const override {
     DCHECK(!this->IsEmpty());
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
-    v8::Local<v8::Promise::Resolver> promise_resolver =
-        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Local<v8::Value> converted_value;
     ToJSValue(isolate_, value, &converted_value);
     v8::Maybe<bool> reject_result =
@@ -83,8 +84,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
-    v8::Local<v8::Promise::Resolver> promise_resolver =
-        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Maybe<bool> reject_result =
         promise_resolver->Reject(context, v8::Undefined(isolate_));
     DCHECK(reject_result.FromJust());
@@ -95,8 +95,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
-    v8::Local<v8::Promise::Resolver> promise_resolver =
-        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Local<v8::Value> error_result = CreateErrorObject(isolate_, exception);
     v8::Maybe<bool> reject_result =
         promise_resolver->Reject(context, error_result);
@@ -108,8 +107,7 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
 
-    v8::Local<v8::Promise::Resolver> promise_resolver =
-        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Promise::Resolver> promise_resolver = this->resolver();
     v8::Local<v8::Value> converted_result;
     ToJSValue(isolate_, result, &converted_result);
     v8::Maybe<bool> reject_result =
@@ -117,14 +115,35 @@ class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
     DCHECK(reject_result.FromJust());
   }
 
+  PromiseState State() const override {
+    DCHECK(!this->IsEmpty());
+    EntryScope entry_scope(isolate_);
+
+    v8::Promise::PromiseState v8_promise_state = this->promise()->State();
+    switch (v8_promise_state) {
+      case v8::Promise::kPending:
+        return PromiseState::kPending;
+      case v8::Promise::kFulfilled:
+        return PromiseState::kFulfilled;
+      case v8::Promise::kRejected:
+        return PromiseState::kRejected;
+    }
+    NOTREACHED();
+    return PromiseState::kRejected;
+  }
+
   v8::Local<v8::Promise> promise() const {
     DCHECK(!this->IsEmpty());
-    return v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_))
-        ->GetPromise();
+    return resolver()->GetPromise();
   }
 
  private:
   v8::Isolate* isolate_;
+
+  v8::Local<v8::Promise::Resolver> resolver() const {
+    DCHECK(!this->IsEmpty());
+    return this->Get().Get(isolate_).template As<v8::Promise::Resolver>();
+  }
 };
 
 template <typename T>
