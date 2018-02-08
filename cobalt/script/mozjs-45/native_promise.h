@@ -118,6 +118,15 @@ class NativePromise : public Promise<T> {
     promise_resolver_->Reject(converted_result);
   }
 
+  PromiseState State() const {
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    DCHECK(promise_resolver);
+    JSAutoRequest auto_request(context_);
+    JSAutoCompartment auto_compartment(context_, promise_resolver);
+    return promise_resolver_->State();
+  }
+
  private:
   JSContext* context_;
   base::optional<PromiseWrapper> promise_resolver_;
