@@ -27,6 +27,14 @@ namespace script {
 // exposed to code outside of engine specific script implementations.
 struct PromiseResultUndefined {};
 
+// See [[PromiseState]] in
+// https://tc39.github.io/ecma262/#sec-properties-of-promise-instances
+enum class PromiseState {
+  kPending,
+  kFulfilled,
+  kRejected,
+};
+
 // Interface for interacting with a JavaScript Promise object that is resolved
 // or rejected from native code.
 template <typename T>
@@ -41,6 +49,10 @@ class Promise {
   virtual void Reject() const = 0;
   virtual void Reject(SimpleExceptionType exception) const = 0;
   virtual void Reject(const scoped_refptr<ScriptException>& result) const = 0;
+
+  // Returns the value of the [[PromiseState]] field.
+  virtual PromiseState State() const = 0;
+
   virtual ~Promise() {}
 };
 
