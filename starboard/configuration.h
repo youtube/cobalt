@@ -119,6 +119,10 @@
 // SbWindowOnScreenKeyboardSuggestionsSupported().
 #define SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce new potential starboard/file.h error code value,
+// kSbFileErrorIO to match for example "EIO" on posix platforms.
+#define SB_FILE_ERROR_IO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
