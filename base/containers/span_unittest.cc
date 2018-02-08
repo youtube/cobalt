@@ -900,10 +900,38 @@ TEST(SpanTest, ReverseIterator) {
   static constexpr int kArray[] = {1, 6, 1, 8, 0};
   constexpr span<const int> span(kArray);
 
+#if __cplusplus < 201402L
+  // With GNU at least, there exists an implementation of std::equal that is
+  // replaced in C++14.
+  {
+    auto a = std::rbegin(kArray);
+    auto b = span.rbegin();
+    while (a != std::rend(kArray) && b != span.rend()) {
+      EXPECT_EQ(*a, *b);
+      ++a;
+      ++b;
+    }
+    EXPECT_EQ(std::rend(kArray), a);
+    EXPECT_EQ(span.rend(), b);
+  }
+
+  {
+    auto a = std::crbegin(kArray);
+    auto b = span.crbegin();
+    while (a != std::crend(kArray) && b != span.crend()) {
+      EXPECT_EQ(*a, *b);
+      ++a;
+      ++b;
+    }
+    EXPECT_EQ(std::crend(kArray), a);
+    EXPECT_EQ(span.crend(), b);
+  }
+#else
   EXPECT_TRUE(std::equal(std::rbegin(kArray), std::rend(kArray), span.rbegin(),
                          span.rend()));
   EXPECT_TRUE(std::equal(std::crbegin(kArray), std::crend(kArray),
                          span.crbegin(), span.crend()));
+#endif
 }
 
 TEST(SpanTest, Equality) {

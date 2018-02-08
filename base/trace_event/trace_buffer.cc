@@ -103,6 +103,7 @@ class TraceBufferRingBuffer : public TraceBuffer {
     return nullptr;
   }
 
+#if !defined(STARBOARD)
   void EstimateTraceMemoryOverhead(
       TraceEventMemoryOverhead* overhead) override {
     overhead->Add(TraceEventMemoryOverhead::kTraceBuffer, sizeof(*this));
@@ -114,6 +115,7 @@ class TraceBufferRingBuffer : public TraceBuffer {
       chunks_[chunk_index]->EstimateTraceMemoryOverhead(overhead);
     }
   }
+#endif
 
  private:
   bool QueueIsEmpty() const { return queue_head_ == queue_tail_; }
@@ -215,6 +217,7 @@ class TraceBufferVector : public TraceBuffer {
     return nullptr;
   }
 
+#if !defined(STARBOARD)
   void EstimateTraceMemoryOverhead(
       TraceEventMemoryOverhead* overhead) override {
     const size_t chunks_ptr_vector_allocated_size =
@@ -232,6 +235,7 @@ class TraceBufferVector : public TraceBuffer {
         chunk->EstimateTraceMemoryOverhead(overhead);
     }
   }
+#endif
 
  private:
   size_t in_flight_chunk_count_;
@@ -253,7 +257,9 @@ void TraceBufferChunk::Reset(uint32_t new_seq) {
     chunk_[i].Reset();
   next_free_ = 0;
   seq_ = new_seq;
+#if !defined(STARBOARD)
   cached_overhead_estimate_.reset();
+#endif
 }
 
 TraceEvent* TraceBufferChunk::AddTraceEvent(size_t* event_index) {
@@ -262,6 +268,7 @@ TraceEvent* TraceBufferChunk::AddTraceEvent(size_t* event_index) {
   return &chunk_[*event_index];
 }
 
+#if !defined(STARBOARD)
 void TraceBufferChunk::EstimateTraceMemoryOverhead(
     TraceEventMemoryOverhead* overhead) {
   if (!cached_overhead_estimate_) {
@@ -299,6 +306,7 @@ void TraceBufferChunk::EstimateTraceMemoryOverhead(
 
   overhead->Update(*cached_overhead_estimate_);
 }
+#endif
 
 TraceResultBuffer::OutputCallback
 TraceResultBuffer::SimpleOutput::GetCallback() {

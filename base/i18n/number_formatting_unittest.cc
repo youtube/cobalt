@@ -94,6 +94,7 @@ TEST(NumberFormattingTest, FormatDouble) {
   }
 }
 
+#if !defined(STARBOARD)
 TEST(NumberFormattingTest, FormatPercent) {
   static const struct {
     int64_t number;
@@ -137,6 +138,7 @@ TEST(NumberFormattingTest, FormatPercent) {
               FormatPercent(cases[i].number));
   }
 }
+#endif  // !defined(STARBOARD)
 
 }  // namespace
 }  // namespace base

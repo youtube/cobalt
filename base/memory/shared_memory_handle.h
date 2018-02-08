@@ -5,6 +5,9 @@
 #ifndef BASE_MEMORY_SHARED_MEMORY_HANDLE_H_
 #define BASE_MEMORY_SHARED_MEMORY_HANDLE_H_
 
+// Starboard doesn't curretly support multiple processes or shared memory.
+#if !defined(STARBOARD)
+
 #include <stddef.h>
 
 #include "base/unguessable_token.h"
@@ -237,4 +240,5 @@ class BASE_EXPORT SharedMemoryHandle {
 
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_MEMORY_SHARED_MEMORY_HANDLE_H_

@@ -474,12 +474,16 @@ BASE_EXPORT string16 ReplaceStringPlaceholders(const string16& format_string,
 
 }  // namespace base
 
+#if defined(STARBOARD)
+#include "base/strings/string_util_starboard.h"
+#else
 #if defined(OS_WIN)
 #include "base/strings/string_util_win.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/strings/string_util_posix.h"
 #else
 #error Define string operations appropriately for your platform
+#endif
 #endif
 
 #endif  // BASE_STRINGS_STRING_UTIL_H_

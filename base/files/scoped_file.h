@@ -14,6 +14,10 @@
 #include "base/scoped_generic.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif
+
 namespace base {
 
 namespace internal {
@@ -27,6 +31,7 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 };
 #endif
 
+#if !defined(STARBOARD)
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
   inline void operator()(FILE* x) const {
@@ -34,12 +39,31 @@ struct ScopedFILECloser {
       fclose(x);
   }
 };
+#endif
 
+#if defined(STARBOARD)
+struct BASE_EXPORT ScopedSbFileCloseTraits {
+  static SbFile InvalidValue() {
+    return kSbFileInvalid;
+  }
+  static void Free(SbFile file) {
+    SbFileClose(file);
+  }
+};
+#endif
 }  // namespace internal
 
 // -----------------------------------------------------------------------------
 
+<<<<<<< HEAD
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
+=======
+#if defined(STARBOARD)
+using ScopedFD = ScopedGeneric<SbFile, internal::ScopedSbFileCloseTraits>;
+#endif
+
+#if defined(OS_POSIX)
+>>>>>>> Initial pass at starboardization of base.
 // A low-level Posix file descriptor closer class. Use this when writing
 // platform-specific code, especially that does non-file-like things with the
 // FD (like sockets).
@@ -54,8 +78,10 @@ struct ScopedFILECloser {
 typedef ScopedGeneric<int, internal::ScopedFDCloseTraits> ScopedFD;
 #endif
 
+#if !defined(STARBOARD)
 // Automatically closes |FILE*|s.
 typedef std::unique_ptr<FILE, internal::ScopedFILECloser> ScopedFILE;
+#endif
 
 }  // namespace base
 

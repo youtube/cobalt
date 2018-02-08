@@ -56,7 +56,23 @@ class EnvironmentImpl : public Environment {
 
  private:
   bool GetVarImpl(StringPiece variable_name, std::string* result) {
+<<<<<<< HEAD
 #if defined(OS_WIN)
+=======
+#if defined(STARBOARD)
+    // Environment variables are not supported on Starboard.
+    return false;
+#else
+#if defined(OS_POSIX)
+    const char* env_value = getenv(variable_name.data());
+    if (!env_value)
+      return false;
+    // Note that the variable may be defined but empty.
+    if (result)
+      *result = env_value;
+    return true;
+#elif defined(OS_WIN)
+>>>>>>> Initial pass at starboardization of base.
     DWORD value_length =
         ::GetEnvironmentVariable(UTF8ToWide(variable_name).c_str(), nullptr, 0);
     if (value_length == 0)
@@ -77,10 +93,21 @@ class EnvironmentImpl : public Environment {
       *result = env_value;
     return true;
 #endif
+#endif
   }
 
   bool SetVarImpl(StringPiece variable_name, const std::string& new_value) {
+<<<<<<< HEAD
 #if defined(OS_WIN)
+=======
+#if defined(STARBOARD)
+    return false;
+#else
+#if defined(OS_POSIX)
+    // On success, zero is returned.
+    return !setenv(variable_name.data(), new_value.c_str(), 1);
+#elif defined(OS_WIN)
+>>>>>>> Initial pass at starboardization of base.
     // On success, a nonzero value is returned.
     return !!SetEnvironmentVariable(UTF8ToWide(variable_name).c_str(),
                                     UTF8ToWide(new_value).c_str());
@@ -88,19 +115,32 @@ class EnvironmentImpl : public Environment {
     // On success, zero is returned.
     return !setenv(variable_name.data(), new_value.c_str(), 1);
 #endif
+#endif
   }
 
   bool UnSetVarImpl(StringPiece variable_name) {
+<<<<<<< HEAD
 #if defined(OS_WIN)
+=======
+#if defined(STARBOARD)
+    return false;
+#else
+#if defined(OS_POSIX)
+    // On success, zero is returned.
+    return !unsetenv(variable_name.data());
+#elif defined(OS_WIN)
+>>>>>>> Initial pass at starboardization of base.
     // On success, a nonzero value is returned.
     return !!SetEnvironmentVariable(UTF8ToWide(variable_name).c_str(), nullptr);
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
     // On success, zero is returned.
     return !unsetenv(variable_name.data());
 #endif
+#endif
   }
 };
 
+#if !defined(STARBOARD)
 // Parses a null-terminated input string of an environment block. The key is
 // placed into the given string, and the total length of the line, including
 // the terminating null, is returned.
@@ -117,6 +157,7 @@ size_t ParseEnvLine(const NativeEnvironmentString::value_type* input,
     cur++;
   return cur + 1;
 }
+#endif
 
 }  // namespace
 

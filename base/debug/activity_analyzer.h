@@ -14,6 +14,8 @@
 #include "base/base_export.h"
 #include "base/debug/activity_tracker.h"
 
+#if defined(STARBOARD)
+
 namespace base {
 namespace debug {
 
@@ -148,6 +150,7 @@ class BASE_EXPORT GlobalActivityAnalyzer {
       const FilePath& file_path);
 #endif  // !defined(OS_NACL)
 
+#if !defined(STARBOARD)
   // Like above but accesses an allocator in a mapped shared-memory segment.
   static std::unique_ptr<GlobalActivityAnalyzer> CreateWithSharedMemory(
       std::unique_ptr<SharedMemory> shm);
@@ -157,6 +160,7 @@ class BASE_EXPORT GlobalActivityAnalyzer {
   static std::unique_ptr<GlobalActivityAnalyzer> CreateWithSharedMemoryHandle(
       const SharedMemoryHandle& handle,
       size_t size);
+#endif  // !defined(STARBOARD)
 
   // Iterates over all known valid processes and returns their PIDs or zero
   // if there are no more. Calls to GetFirstProcess() will perform a global
@@ -258,5 +262,7 @@ class BASE_EXPORT GlobalActivityAnalyzer {
 
 }  // namespace debug
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_DEBUG_ACTIVITY_ANALYZER_H_

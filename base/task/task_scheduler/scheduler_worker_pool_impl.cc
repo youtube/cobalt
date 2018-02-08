@@ -165,11 +165,20 @@ SchedulerWorkerPoolImpl::SchedulerWorkerPoolImpl(
       priority_hint_(priority_hint),
       lock_(shared_priority_queue_.container_lock()),
       idle_workers_stack_cv_for_testing_(lock_.CreateConditionVariable()),
+<<<<<<< HEAD:task/task_scheduler/scheduler_worker_pool_impl.cc
       // Mimics the UMA_HISTOGRAM_LONG_TIMES macro.
       detach_duration_histogram_(Histogram::FactoryTimeGet(
           JoinString({kDetachDurationHistogramPrefix, histogram_label,
                       kPoolNameSuffix},
                      ""),
+=======
+      join_for_testing_returned_(WaitableEvent::ResetPolicy::MANUAL,
+                                 WaitableEvent::InitialState::NOT_SIGNALED)
+#if !defined(STARBOARD)
+      // Mimics the UMA_HISTOGRAM_LONG_TIMES macro.
+      , detach_duration_histogram_(Histogram::FactoryTimeGet(
+          kDetachDurationHistogramPrefix + name_ + kPoolNameSuffix,
+>>>>>>> Initial pass at starboardization of base.:task_scheduler/scheduler_worker_pool_impl.cc
           TimeDelta::FromMilliseconds(1),
           TimeDelta::FromHours(1),
           50,
@@ -196,6 +205,7 @@ SchedulerWorkerPoolImpl::SchedulerWorkerPoolImpl(
           1,
           100,
           50,
+<<<<<<< HEAD:task/task_scheduler/scheduler_worker_pool_impl.cc
           HistogramBase::kUmaTargetedHistogramFlag)),
       // Mimics the UMA_HISTOGRAM_COUNTS_100 macro. A SchedulerWorkerPool is
       // expected to run between zero and a few tens of workers.
@@ -213,6 +223,11 @@ SchedulerWorkerPoolImpl::SchedulerWorkerPoolImpl(
   DCHECK(!histogram_label.empty());
   DCHECK(!pool_label_.empty());
 }
+=======
+          HistogramBase::kUmaTargetedHistogramFlag))
+#endif  // !defined(STARBOARD)
+{}
+>>>>>>> Initial pass at starboardization of base.:task_scheduler/scheduler_worker_pool_impl.cc
 
 void SchedulerWorkerPoolImpl::Start(
     const SchedulerWorkerPoolParams& params,
@@ -279,12 +294,14 @@ void SchedulerWorkerPoolImpl::OnCanScheduleSequence(
   WakeUpOneWorker();
 }
 
+#if !defined(STARBOARD)
 void SchedulerWorkerPoolImpl::GetHistograms(
     std::vector<const HistogramBase*>* histograms) const {
   histograms->push_back(detach_duration_histogram_);
   histograms->push_back(num_tasks_between_waits_histogram_);
   histograms->push_back(num_workers_histogram_);
 }
+#endif  // !defined(STARBOARD)
 
 int SchedulerWorkerPoolImpl::GetMaxConcurrentNonBlockedTasksDeprecated() const {
 #if DCHECK_IS_ON()
@@ -459,6 +476,21 @@ SchedulerWorkerPoolImpl::SchedulerWorkerDelegateImpl::GetWork(
     if (is_on_idle_workers_stack) {
       if (CanCleanupLockRequired(worker))
         CleanupLockRequired(worker);
+<<<<<<< HEAD:task/task_scheduler/scheduler_worker_pool_impl.cc
+=======
+
+      // Since we got here from timing out from the WaitableEvent rather than
+      // waking up and completing tasks, we expect to have completed 0 tasks
+      // since waiting.
+      //
+      // TODO(crbug.com/756898): Do not log this histogram when waking up due to
+      // timeout.
+      DCHECK_EQ(num_tasks_since_last_wait_, 0U);
+#if !defined(STARBOARD)
+      outer_->num_tasks_between_waits_histogram_->Add(
+          num_tasks_since_last_wait_);
+#endif  // !defined(STARBOARD)
+>>>>>>> Initial pass at starboardization of base.:task_scheduler/scheduler_worker_pool_impl.cc
       return nullptr;
     }
 
@@ -601,7 +633,9 @@ void SchedulerWorkerPoolImpl::SchedulerWorkerDelegateImpl::CleanupLockRequired(
   DCHECK_CALLED_ON_VALID_THREAD(worker_thread_checker_);
 
   outer_->lock_.AssertAcquired();
+#if !defined(STARBOARD)
   outer_->num_tasks_before_detach_histogram_->Add(num_tasks_since_last_detach_);
+#endif  // !defined(STARBOARD)
   outer_->cleanup_timestamps_.push(TimeTicks::Now());
   worker->Cleanup();
   outer_->RemoveFromIdleWorkersStackLockRequired(worker);
@@ -629,7 +663,9 @@ void SchedulerWorkerPoolImpl::SchedulerWorkerDelegateImpl::
   // returns nullptr, the SchedulerWorker will perform a wait on its
   // WaitableEvent, so we record how many tasks were ran since the last wait
   // here.
+#if !defined(STARBOARD)
   outer_->num_tasks_between_waits_histogram_->Add(num_tasks_since_last_wait_);
+#endif  // !defined(STARBOARD)
   num_tasks_since_last_wait_ = 0;
   outer_->AddToIdleWorkersStackLockRequired(worker);
 }
@@ -902,8 +938,10 @@ SchedulerWorkerPoolImpl::CreateRegisterAndStartSchedulerWorkerLockRequired() {
   DCHECK_LE(workers_.size(), max_tasks_);
 
   if (!cleanup_timestamps_.empty()) {
+#if !defined(STARBOARD)
     detach_duration_histogram_->AddTime(TimeTicks::Now() -
                                         cleanup_timestamps_.top());
+#endif  // !defined(STARBOARD)
     cleanup_timestamps_.pop();
   }
   return worker.get();

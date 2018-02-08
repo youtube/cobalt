@@ -7,6 +7,8 @@
 #ifndef BASE_PROCESS_LAUNCH_H_
 #define BASE_PROCESS_LAUNCH_H_
 
+#if !defined(STARBOARD)
+
 #include <stddef.h>
 
 #include <string>
@@ -393,4 +395,5 @@ BASE_EXPORT pid_t ForkWithFlags(unsigned long flags, pid_t* ptid, pid_t* ctid);
 
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_PROCESS_LAUNCH_H_

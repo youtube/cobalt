@@ -169,11 +169,13 @@ void InitializeLogging() {
 
 }  // namespace
 
+#if !defined(STARBOARD)
 int RunUnitTestsUsingBaseTestSuite(int argc, char **argv) {
   TestSuite test_suite(argc, argv);
   return LaunchUnitTests(argc, argv,
                          Bind(&TestSuite::Run, Unretained(&test_suite)));
 }
+#endif
 
 TestSuite::TestSuite(int argc, char** argv) {
   PreInitialize();
@@ -260,6 +262,7 @@ void TestSuite::AddTestLauncherResultPrinter() {
     return;
   }
 
+#if !defined(STARBOARD)
   printer_ = new XmlUnitTestResultPrinter;
   CHECK(printer_->Initialize(output_path))
       << "Output path is " << output_path.AsUTF8Unsafe()
@@ -267,6 +270,7 @@ void TestSuite::AddTestLauncherResultPrinter() {
   testing::TestEventListeners& listeners =
       testing::UnitTest::GetInstance()->listeners();
   listeners.Append(printer_);
+#endif
 }
 
 // Don't add additional code to this method.  Instead add it to
@@ -329,6 +333,7 @@ void TestSuite::UnitTestAssertHandler(const char* file,
   }
 #endif  // defined(OS_ANDROID)
 
+#if !defined(STARBOARD)
   // XmlUnitTestResultPrinter inherits gtest format, where assert has summary
   // and message. In GTest, summary is just a logged text, and message is a
   // logged text, concatenated with stack trace of assert.
@@ -338,10 +343,15 @@ void TestSuite::UnitTestAssertHandler(const char* file,
     const std::string stack_trace_str = summary_str + stack_trace.as_string();
     printer_->OnAssert(file, line, summary_str, stack_trace_str);
   }
+#endif
 
+#if defined(STARBOARD)
+  SbSystemRequestStop(1);
+#else
   // The logging system actually prints the message before calling the assert
   // handler. Just exit now to avoid printing too many stack traces.
   _exit(1);
+#endif
 }
 
 #if defined(OS_WIN)
@@ -426,7 +436,9 @@ void TestSuite::Initialize() {
       command_line->GetSwitchValueASCII(switches::kDisableFeatures);
   enabled += ",TestFeatureForBrowserTest1";
   disabled += ",TestFeatureForBrowserTest2";
+#if !defined(STARBOARD)
   scoped_feature_list_.InitFromCommandLine(enabled, disabled);
+#endif
 
   // The enable-features and disable-features flags were just slurped into a
   // FeatureList, so remove them from the command line. Tests should enable and

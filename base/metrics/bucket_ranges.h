@@ -29,6 +29,8 @@
 #include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class BASE_EXPORT BucketRanges {
@@ -102,5 +104,7 @@ BASE_EXPORT extern const uint32_t kCrcTable[256];
 uint32_t Crc32(uint32_t sum, HistogramBase::Sample value);
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_BUCKET_RANGES_H_

@@ -78,6 +78,7 @@ BASE_EXPORT bool DeleteFile(const FilePath& path, bool recursive);
 BASE_EXPORT bool DeleteFileAfterReboot(const FilePath& path);
 #endif
 
+#if !defined(OS_STARBOARD)
 // Moves the given path, whether it's a file or a directory.
 // If a simple rename is not possible, such as in the case where the paths are
 // on different volumes, this will attempt to copy and delete. Returns
@@ -94,6 +95,7 @@ BASE_EXPORT bool Move(const FilePath& from_path, const FilePath& to_path);
 BASE_EXPORT bool ReplaceFile(const FilePath& from_path,
                              const FilePath& to_path,
                              File::Error* error);
+#endif  // !defined(STARBOARD)
 
 // Copies a single file. Use CopyDirectory() to copy directories.
 // This function fails if either path contains traversal components ('..').
@@ -117,6 +119,7 @@ BASE_EXPORT bool ReplaceFile(const FilePath& from_path,
 //   read permissions. i.e. Always 0644.
 BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 
+#if !defined(STARBOARD)
 // Copies the given path, and optionally all subdirectories and their contents
 // as well.
 //
@@ -129,6 +132,7 @@ BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 BASE_EXPORT bool CopyDirectory(const FilePath& from_path,
                                const FilePath& to_path,
                                bool recursive);
+#endif  // !defined(STARBOARD)
 
 // Like CopyDirectory() except trying to overwrite an existing file will not
 // work and will return false.
@@ -151,10 +155,12 @@ BASE_EXPORT bool DirectoryExists(const FilePath& path);
 BASE_EXPORT bool ContentsEqual(const FilePath& filename1,
                                const FilePath& filename2);
 
+#if !defined(STARBOARD)
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
 BASE_EXPORT bool TextContentsEqual(const FilePath& filename1,
                                    const FilePath& filename2);
+#endif
 
 // Reads the file at |path| into |contents| and returns true on success and
 // false on error.  For security reasons, a |path| containing path traversal
@@ -274,6 +280,7 @@ BASE_EXPORT bool CreateTemporaryFile(FilePath* path);
 BASE_EXPORT bool CreateTemporaryFileInDir(const FilePath& dir,
                                           FilePath* temp_file);
 
+#if !defined(STARBOARD)
 // Create and open a temporary file.  File is opened for read/write.
 // The full path is placed in |path|.
 // Returns a handle to the opened file or NULL if an error occurred.
@@ -282,6 +289,7 @@ BASE_EXPORT FILE* CreateAndOpenTemporaryFile(FilePath* path);
 // Similar to CreateAndOpenTemporaryFile, but the file is created in |dir|.
 BASE_EXPORT FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir,
                                                   FilePath* path);
+#endif
 
 // Create a new directory. If prefix is provided, the new directory name is in
 // the format of prefixyyyy.
@@ -311,6 +319,7 @@ BASE_EXPORT bool CreateDirectory(const FilePath& full_path);
 // Returns the file size. Returns true on success.
 BASE_EXPORT bool GetFileSize(const FilePath& file_path, int64_t* file_size);
 
+#if !defined(STARBOARD)
 // Sets |real_path| to |path| with symbolic links and junctions expanded.
 // On windows, make sure the path starts with a lettered drive.
 // |path| must reference a file.  Function will fail if |path| points to
@@ -318,6 +327,7 @@ BASE_EXPORT bool GetFileSize(const FilePath& file_path, int64_t* file_size);
 // fail if |path| is a junction or symlink that points to an empty file,
 // or if |real_path| would be longer than MAX_PATH characters.
 BASE_EXPORT bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
+#endif
 
 #if defined(OS_WIN)
 
@@ -341,6 +351,7 @@ BASE_EXPORT bool IsLink(const FilePath& file_path);
 // Returns information about the given file path.
 BASE_EXPORT bool GetFileInfo(const FilePath& file_path, File::Info* info);
 
+#if !defined(OS_STARBOARD)
 // Sets the time of the last access and the time of the last modification.
 BASE_EXPORT bool TouchFile(const FilePath& path,
                            const Time& last_accessed,
@@ -361,6 +372,7 @@ BASE_EXPORT FILE* FileToFILE(File file, const char* mode);
 // Truncates an open file to end at the location of the current file pointer.
 // This is a cross-platform analog to Windows' SetEndOfFile() function.
 BASE_EXPORT bool TruncateFile(FILE* file);
+#endif  // !defined(STARBOARD)
 
 // Reads at most the given number of bytes from the file into the buffer.
 // Returns the number of read bytes, or -1 on error.

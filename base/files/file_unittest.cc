@@ -93,6 +93,7 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_OK, file.error_details());
   }
 
+#if !defined(STARBOARD)
   {
     // Create a delete-on-close file.
     file_path = temp_dir.GetPath().AppendASCII("create_file_2");
@@ -105,8 +106,10 @@ TEST(FileTest, Create) {
   }
 
   EXPECT_FALSE(base::PathExists(file_path));
+#endif  // !defined(STARBOARD)
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, SelfSwap) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -116,6 +119,7 @@ TEST(FileTest, SelfSwap) {
   std::swap(file, file);
   EXPECT_TRUE(file.IsValid());
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileTest, Async) {
   base::ScopedTempDir temp_dir;
@@ -123,18 +127,28 @@ TEST(FileTest, Async) {
   FilePath file_path = temp_dir.GetPath().AppendASCII("create_file");
 
   {
+#if defined(STARBOARD)
+    File file(file_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_ASYNC
+                         | base::File::FLAG_READ);
+#else
     File file(file_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_ASYNC);
+#endif
     EXPECT_TRUE(file.IsValid());
     EXPECT_TRUE(file.async());
   }
 
   {
+#if defined(STARBOARD)
+    File file(file_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ);
+#else
     File file(file_path, base::File::FLAG_OPEN_ALWAYS);
+#endif
     EXPECT_TRUE(file.IsValid());
     EXPECT_FALSE(file.async());
   }
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, DeleteOpenFile) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -161,6 +175,7 @@ TEST(FileTest, DeleteOpenFile) {
   same_file.Close();
   EXPECT_FALSE(base::PathExists(file_path));
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileTest, ReadWrite) {
   base::ScopedTempDir temp_dir;
@@ -497,6 +512,7 @@ TEST(FileTest, Seek) {
   EXPECT_EQ(kOffset, file.Seek(base::File::FROM_END, -kOffset));
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, Duplicate) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -539,6 +555,7 @@ TEST(FileTest, DuplicateDeleteOnClose) {
   file2.Close();
   ASSERT_FALSE(base::PathExists(file_path));
 }
+#endif  // !defined(STARBOARD)
 
 #if defined(OS_WIN)
 // Flakily times out on Windows, see http://crbug.com/846276.
@@ -639,6 +656,7 @@ TEST(FileTest, DeleteThenRevoke) {
   ASSERT_TRUE(base::PathExists(file_path));
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, IrrevokableDeleteOnClose) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -686,6 +704,7 @@ TEST(FileTest, IrrevokableDeleteOnCloseOther) {
   file.Close();
   ASSERT_FALSE(base::PathExists(file_path));
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileTest, DeleteWithoutPermission) {
   base::ScopedTempDir temp_dir;
@@ -702,6 +721,7 @@ TEST(FileTest, DeleteWithoutPermission) {
   ASSERT_TRUE(base::PathExists(file_path));
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, UnsharedDeleteOnClose) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -721,6 +741,7 @@ TEST(FileTest, UnsharedDeleteOnClose) {
   file.Close();
   ASSERT_TRUE(base::PathExists(file_path));
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileTest, NoDeleteOnCloseWithMappedFile) {
   base::ScopedTempDir temp_dir;

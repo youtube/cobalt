@@ -28,6 +28,8 @@
 #include "base/file_descriptor_posix.h"
 #endif
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class BASE_EXPORT SyncSocket {
@@ -157,5 +159,7 @@ __declspec(selectany)
 #endif
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_SYNC_SOCKET_H_

@@ -1601,8 +1601,11 @@ TEST_P(MessageLoopTypedTest, MAYBE_MetricsOnlyFromUILoops) {
 INSTANTIATE_TEST_CASE_P(,
                         MessageLoopTypedTest,
                         ::testing::Values(MessageLoop::TYPE_DEFAULT,
-                                          MessageLoop::TYPE_IO,
-                                          MessageLoop::TYPE_UI),
+                                          MessageLoop::TYPE_IO
+#if !defined(STARBOARD)
+                                          , MessageLoop::TYPE_UI
+#endif
+                                          ),
                         MessageLoopTypedTest::ParamInfoToString);
 
 #if defined(OS_WIN)

@@ -563,6 +563,7 @@ void TracedValue::AppendAsTraceFormat(std::string* out) const {
   DCHECK(state_stack.empty());
 }
 
+#if !defined(STARBOARD)
 void TracedValue::EstimateTraceMemoryOverhead(
     TraceEventMemoryOverhead* overhead) {
   overhead->Add(TraceEventMemoryOverhead::kTracedValue,
@@ -571,6 +572,7 @@ void TracedValue::EstimateTraceMemoryOverhead(
                 /* resident size */
                 pickle_.size());
 }
+#endif
 
 }  // namespace trace_event
 }  // namespace base

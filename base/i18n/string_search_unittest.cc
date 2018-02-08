@@ -16,6 +16,8 @@
 namespace base {
 namespace i18n {
 
+#if !defined(UCONFIG_NO_COLLATION)
+
 // Note on setting default locale for testing: The current default locale on
 // the Mac trybot is en_US_POSIX, with which primary-level collation strength
 // string search is case-sensitive, when normally it should be
@@ -223,6 +225,8 @@ TEST(StringSearchTest, FixedPatternMultipleSearch) {
   if (locale_is_posix)
     SetICUDefaultLocale(default_locale.data());
 }
+
+#endif  // !defined(UCONFIG_NO_COLLATION)
 
 }  // namespace i18n
 }  // namespace base

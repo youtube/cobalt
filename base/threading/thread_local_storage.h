@@ -12,10 +12,14 @@
 #include "base/macros.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#else
 #if defined(OS_WIN)
 #include "base/win/windows_types.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <pthread.h>
+#endif
 #endif
 
 namespace heap_profiling {
@@ -50,6 +54,11 @@ class ThreadLocalStorageTestInternal;
 class BASE_EXPORT PlatformThreadLocalStorage {
  public:
 
+#if defined(STARBOARD)
+  typedef SbThreadLocalKey TLSKey;
+  static constexpr SbThreadLocalKey TLS_KEY_OUT_OF_INDEXES =
+      kSbThreadLocalKeyInvalid;
+#else
 #if defined(OS_WIN)
   typedef unsigned long TLSKey;
   enum : unsigned { TLS_KEY_OUT_OF_INDEXES = TLS_OUT_OF_INDEXES };
@@ -60,6 +69,7 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   // such a key, but if it is returned (i.e., the OS tries to allocate it) we
   // will just request another key.
   enum { TLS_KEY_OUT_OF_INDEXES = 0x7FFFFFFF };
+#endif
 #endif
 
   // The following methods need to be supported on each OS platform, so that
@@ -76,10 +86,14 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   static void FreeTLS(TLSKey key);
   static void SetTLSValue(TLSKey key, void* value);
   static void* GetTLSValue(TLSKey key) {
+#if defined(STARBOARD)
+    return SbThreadGetLocalValue(key);
+#else
 #if defined(OS_WIN)
     return TlsGetValue(key);
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
     return pthread_getspecific(key);
+#endif
 #endif
   }
 
@@ -91,6 +105,9 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   // Destructors may end up being called multiple times on a terminating
   // thread, as other destructors may re-set slots that were previously
   // destroyed.
+#if defined(STARBOARD)
+  static void OnThreadExit(void* value);
+#else
 #if defined(OS_WIN)
   // Since Windows which doesn't support TLS destructor, the implementation
   // should use GetTLSValue() to retrieve the value of TLS slot.
@@ -100,6 +117,7 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   // GetTLSValue() to retrieve the value of slot as it has already been reset
   // in Posix.
   static void OnThreadExit(void* value);
+#endif
 #endif
 };
 

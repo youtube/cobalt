@@ -77,8 +77,18 @@ bool GetIOAllowed() {
 // to run a Task with |traits|.
 // Note: ExecutionMode is verified inside TestTaskFactory.
 void VerifyTaskEnvironment(const TaskTraits& traits) {
+<<<<<<< HEAD:task/task_scheduler/task_scheduler_impl_unittest.cc
   EXPECT_EQ(CanUseBackgroundPriorityForSchedulerWorker() &&
                     traits.priority() == TaskPriority::BEST_EFFORT
+=======
+#if !defined(STARBOARD)
+  const bool supports_background_priority =
+      Lock::HandlesMultipleThreadPriorities() &&
+      PlatformThread::CanIncreaseCurrentThreadPriority();
+
+  EXPECT_EQ(supports_background_priority &&
+                    traits.priority() == TaskPriority::BACKGROUND
+>>>>>>> Initial pass at starboardization of base.:task_scheduler/task_scheduler_impl_unittest.cc
                 ? ThreadPriority::BACKGROUND
                 : ThreadPriority::NORMAL,
             PlatformThread::GetCurrentThreadPriority());
@@ -112,6 +122,7 @@ void VerifyTaskEnvironment(const TaskTraits& traits) {
   }
   EXPECT_EQ(traits.may_block(),
             current_thread_name.find("Blocking") != std::string::npos);
+#endif  // !defined(STARBOARD)
 }
 
 void VerifyTaskEnvironmentAndSignalEvent(const TaskTraits& traits,
@@ -208,17 +219,23 @@ std::vector<TraitsExecutionModePair> GetTraitsExecutionModePairs() {
 class TaskSchedulerImplTest
     : public testing::TestWithParam<TraitsExecutionModePair> {
  protected:
-  TaskSchedulerImplTest() : scheduler_("Test"), field_trial_list_(nullptr) {}
+  TaskSchedulerImplTest() : scheduler_("Test")
+#if !defined(STARBOARD)
+      , field_trial_list_(nullptr)
+#endif
+  {}
 
   void EnableAllTasksUserBlocking() {
     constexpr char kFieldTrialName[] = "BrowserScheduler";
     constexpr char kFieldTrialTestGroup[] = "DummyGroup";
     std::map<std::string, std::string> variation_params;
     variation_params["AllTasksUserBlocking"] = "true";
+#if !defined(STARBOARD)
     base::AssociateFieldTrialParams(kFieldTrialName, kFieldTrialTestGroup,
                                     variation_params);
     base::FieldTrialList::CreateFieldTrial(kFieldTrialName,
                                            kFieldTrialTestGroup);
+#endif
   }
 
   void set_scheduler_worker_observer(
@@ -253,9 +270,14 @@ class TaskSchedulerImplTest
   TaskSchedulerImpl scheduler_;
 
  private:
+#if !defined(STARBOARD)
   base::FieldTrialList field_trial_list_;
+<<<<<<< HEAD:task/task_scheduler/task_scheduler_impl_unittest.cc
   SchedulerWorkerObserver* scheduler_worker_observer_ = nullptr;
   bool did_tear_down_ = false;
+=======
+#endif
+>>>>>>> Initial pass at starboardization of base.:task_scheduler/task_scheduler_impl_unittest.cc
 
   DISALLOW_COPY_AND_ASSIGN(TaskSchedulerImplTest);
 };

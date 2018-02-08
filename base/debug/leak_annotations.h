@@ -19,6 +19,15 @@
 // ANNOTATE_LEAKING_OBJECT_PTR(X): the heap object referenced by pointer X will
 // be annotated as a leak.
 
+#if defined(STARBOARD)
+#ifdef ADDRESS_SANITIZER
+#ifndef LEAK_SANITIZER
+// Default is that Leak Sanitizer exists whenever Address Sanitizer does.
+#define LEAK_SANITIZER 1
+#endif
+#endif
+#endif  // defined(STARBOARD)
+
 #if defined(LEAK_SANITIZER) && !defined(OS_NACL)
 
 #include <sanitizer/lsan_interface.h>

@@ -147,6 +147,7 @@ TEST(LockTest, TryLock) {
   lock.Release();
 }
 
+#if !defined(STARBOARD)
 TEST(LockTest, TryTrackedLock) {
   // Enable the activity tracker.
   debug::GlobalActivityTracker::CreateWithLocalMemory(64 << 10, 0, "", 3, 0);
@@ -187,6 +188,7 @@ TEST(LockTest, TryTrackedLock) {
   lock.Release();
   debug::GlobalActivityTracker::ReleaseForTesting();
 }
+#endif  // !defined(STARBOARD)
 
 // Tests that locks actually exclude -------------------------------------------
 

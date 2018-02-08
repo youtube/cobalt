@@ -251,9 +251,11 @@ TraceLog::ThreadLocalEventBuffer::ThreadLocalEventBuffer(TraceLog* trace_log)
   MessageLoop* message_loop = MessageLoop::current();
   message_loop->AddDestructionObserver(this);
 
+#if !defined(STARBOARD)
   // This is to report the local memory usage when memory-infra is enabled.
   MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "ThreadLocalEventBuffer", ThreadTaskRunnerHandle::Get());
+#endif
 
   AutoLock lock(trace_log->lock_);
   trace_log->thread_message_loops_.insert(message_loop);
@@ -262,7 +264,10 @@ TraceLog::ThreadLocalEventBuffer::ThreadLocalEventBuffer(TraceLog* trace_log)
 TraceLog::ThreadLocalEventBuffer::~ThreadLocalEventBuffer() {
   CheckThisIsCurrentBuffer();
   MessageLoop::current()->RemoveDestructionObserver(this);
+
+#if !defined(STARBOARD)
   MemoryDumpManager::GetInstance()->UnregisterDumpProvider(this);
+#endif
 
   {
     AutoLock lock(trace_log_->lock_);
@@ -303,6 +308,9 @@ void TraceLog::ThreadLocalEventBuffer::WillDestroyCurrentMessageLoop() {
 
 bool TraceLog::ThreadLocalEventBuffer::OnMemoryDump(const MemoryDumpArgs& args,
                                                     ProcessMemoryDump* pmd) {
+#if defined(STARBOARD)
+  return true;
+#else
   if (!chunk_)
     return true;
   std::string dump_base_name = StringPrintf(
@@ -311,6 +319,7 @@ bool TraceLog::ThreadLocalEventBuffer::OnMemoryDump(const MemoryDumpArgs& args,
   chunk_->EstimateTraceMemoryOverhead(&overhead);
   overhead.DumpInto(dump_base_name.c_str(), pmd);
   return true;
+#endif
 }
 
 void TraceLog::ThreadLocalEventBuffer::FlushWhileLocked() {
@@ -383,10 +392,12 @@ TraceLog::TraceLog()
       filter_factory_for_testing_(nullptr) {
   CategoryRegistry::Initialize();
 
+#if !defined(STARBOARD)
 #if defined(OS_NACL)  // NaCl shouldn't expose the process id.
   SetProcessID(0);
 #else
   SetProcessID(static_cast<int>(GetCurrentProcId()));
+#endif
 #endif
 
 // Linux renderer processes and Android O processes are not allowed to read
@@ -400,9 +411,14 @@ TraceLog::TraceLog()
 
   logged_events_.reset(CreateTraceBuffer());
 
+#if !defined(STARBOARD)
   MemoryDumpManager::GetInstance()->RegisterDumpProvider(this, "TraceLog",
                                                          nullptr);
+<<<<<<< HEAD
   g_trace_log_for_testing = this;
+=======
+#endif
+>>>>>>> Initial pass at starboardization of base.
 }
 
 TraceLog::~TraceLog() = default;
@@ -430,6 +446,9 @@ void TraceLog::InitializeThreadLocalEventBufferIfSupported() {
 
 bool TraceLog::OnMemoryDump(const MemoryDumpArgs& args,
                             ProcessMemoryDump* pmd) {
+#if defined(STARBOARD)
+  return true;
+#else
   // TODO(ssid): Use MemoryDumpArgs to create light dumps when requested
   // (crbug.com/499731).
   TraceEventMemoryOverhead overhead;
@@ -445,6 +464,7 @@ bool TraceLog::OnMemoryDump(const MemoryDumpArgs& args,
   overhead.AddSelf();
   overhead.DumpInto("tracing/main_trace_log", pmd);
   return true;
+#endif
 }
 
 const unsigned char* TraceLog::GetCategoryGroupEnabled(
@@ -1605,6 +1625,7 @@ void TraceLog::AddMetadataEventsWhileLocked() {
                                 process_name_);
   }
 
+<<<<<<< HEAD
   TimeDelta process_uptime = TRACE_TIME_NOW() - process_creation_time_;
   AddMetadataEventWhileLocked(current_thread_id, "process_uptime_seconds",
                               "uptime", process_uptime.InSeconds());
@@ -1619,6 +1640,20 @@ void TraceLog::AddMetadataEventsWhileLocked() {
     AddMetadataEventWhileLocked(current_thread_id, "chrome_library_module",
                                 "id", buildid.value());
   }
+=======
+// See https://crbug.com/726484 for Fuchsia.
+#if !defined(STARBOARD)
+#if !defined(OS_NACL) && !defined(OS_IOS) && !defined(OS_FUCHSIA)
+  Time process_creation_time = CurrentProcessInfo::CreationTime();
+  if (!process_creation_time.is_null()) {
+    TimeDelta process_uptime = Time::Now() - process_creation_time;
+    InitializeMetadataEvent(
+        AddEventToThreadSharedChunkWhileLocked(nullptr, false),
+        current_thread_id, "process_uptime_seconds", "uptime",
+        process_uptime.InSeconds());
+  }
+#endif  // !defined(OS_NACL) && !defined(OS_IOS) && !defined(OS_FUCHSIA)
+>>>>>>> Initial pass at starboardization of base.
 #endif
 
   if (!process_labels_.empty()) {
@@ -1782,11 +1817,13 @@ void TraceLog::SetTraceBufferForTesting(
   logged_events_ = std::move(trace_buffer);
 }
 
+#if !defined(STARBOARD)
 void ConvertableToTraceFormat::EstimateTraceMemoryOverhead(
     TraceEventMemoryOverhead* overhead) {
   overhead->Add(TraceEventMemoryOverhead::kConvertableToTraceFormat,
                 sizeof(*this));
 }
+#endif
 
 }  // namespace trace_event
 }  // namespace base

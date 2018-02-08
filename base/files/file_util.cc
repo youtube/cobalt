@@ -84,6 +84,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   return true;
 }
 
+#if !defined(STARBOARD)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
   std::ifstream file2(filename2.value().c_str(), std::ios::in);
@@ -123,6 +124,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
+#endif  // !defined(STARBOARD)
 #endif  // !defined(OS_NACL_NONSFI)
 
 bool ReadFileToStringWithMaxSize(const FilePath& path,
@@ -132,11 +134,52 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
+
+#if defined(STARBOARD)
+  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!file.IsValid()) {
+    return false;
+  }
+
+  // Use a smaller buffer than in Chromium so we don't run out of stack space.
+  const size_t kBufferSize = 1 << 12;
+  char buf[kBufferSize];
+  size_t len;
+  size_t size = 0;
+  bool read_status = true;
+
+  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) >
+         0) {
+    if (contents) {
+      contents->append(buf, std::min(len, max_size - size));
+    }
+
+    if ((max_size - size) < len) {
+      read_status = false;
+      break;
+    }
+
+    size += len;
+  }
+
+  read_status = read_status && file.IsValid();
+  return read_status;
+#else
   FILE* file = OpenFile(path, "rb");
   if (!file) {
     return false;
   }
 
+<<<<<<< HEAD
+=======
+  const size_t kBufferSize = 1 << 16;
+
+  std::unique_ptr<char[]> buf(new char[kBufferSize]);
+  size_t len;
+  size_t size = 0;
+  bool read_status = true;
+
+>>>>>>> Initial pass at starboardization of base.
   // Many files supplied in |path| have incorrect size (proc files etc).
   // Hence, the file is read sequentially as opposed to a one-shot read, using
   // file size as a hint for chunk size if available.
@@ -186,6 +229,7 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
   }
 
   return read_status;
+#endif
 }
 
 bool ReadFileToString(const FilePath& path, std::string* contents) {
@@ -202,6 +246,7 @@ bool IsDirectoryEmpty(const FilePath& dir_path) {
   return false;
 }
 
+#if !defined(STARBOARD)
 FILE* CreateAndOpenTemporaryFile(FilePath* path) {
   FilePath directory;
   if (!GetTempDir(&directory))
@@ -209,6 +254,7 @@ FILE* CreateAndOpenTemporaryFile(FilePath* path) {
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
 }
+#endif  // !defined(STARBOARD)
 
 bool CreateDirectory(const FilePath& full_path) {
   return CreateDirectoryAndGetError(full_path, nullptr);
@@ -222,6 +268,7 @@ bool GetFileSize(const FilePath& file_path, int64_t* file_size) {
   return true;
 }
 
+#if !defined(STARBOARD)
 bool TouchFile(const FilePath& path,
                const Time& last_accessed,
                const Time& last_modified) {
@@ -239,6 +286,7 @@ bool TouchFile(const FilePath& path,
 
   return file.SetTimes(last_accessed, last_modified);
 }
+#endif  // !defined(STARBOARD)
 #endif  // !defined(OS_NACL_NONSFI)
 
 bool CloseFile(FILE* file) {
@@ -248,6 +296,7 @@ bool CloseFile(FILE* file) {
 }
 
 #if !defined(OS_NACL_NONSFI)
+#if !defined(STARBOARD)
 bool TruncateFile(FILE* file) {
   if (file == nullptr)
     return false;
@@ -265,6 +314,7 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
+#endif  // !defined(STARBOARD)
 
 int GetUniquePathNumber(const FilePath& path,
                         const FilePath::StringType& suffix) {
