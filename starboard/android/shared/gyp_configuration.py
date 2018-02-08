@@ -103,7 +103,11 @@ class PlatformConfig(PlatformConfiguration):
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
           'SbCharIsSignedTest.SunnyDay',
+
+          # SbPlayer tests fail because VideoWindow is not set in tests.
           'SbPlayerTest.Audioless',
+          'SbPlayerTest.SunnyDay',
+
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
