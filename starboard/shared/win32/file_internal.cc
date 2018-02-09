@@ -41,7 +41,7 @@ bool IsPathNormalized(const std::wstring& string) {
   return string.find(kUnixSepW) == std::wstring::npos;
 }
 
-std::string NormalizePathSeperator(std::string str) {
+std::string NormalizePathSeparator(std::string str) {
   size_t start_pos = 0;
   while ((start_pos = str.find(kUnixSep, start_pos)) != std::string::npos) {
     str.replace(start_pos, sizeof(kUnixSep) - 1, kWin32Sep);
@@ -50,7 +50,7 @@ std::string NormalizePathSeperator(std::string str) {
   return str;
 }
 
-std::wstring NormalizePathSeperator(std::wstring str) {
+std::wstring NormalizePathSeparator(std::wstring str) {
   size_t start_pos = 0;
   while ((start_pos = str.find(kUnixSepW, start_pos)) != std::wstring::npos) {
     str.replace(start_pos, sizeof(kUnixSepW) / 2 - 1, kWin32SepW);
@@ -76,7 +76,7 @@ std::wstring NormalizeWin32Path(std::string str) {
 }
 
 std::wstring NormalizeWin32Path(std::wstring str) {
-  return NormalizePathSeperator(str);
+  return NormalizePathSeparator(str);
 }
 
 HANDLE OpenFileOrDirectory(const char* path,
