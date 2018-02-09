@@ -137,8 +137,24 @@ SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 // kSbEventOnScreenKeyboardInvalidTicket.
 #define kSbEventOnScreenKeyboardInvalidTicket (-1)
 
+// Defines a rectangle via a point |(x, y)| and a size |(width, height)|. This
+// structure is used as output for SbWindowGetOnScreenKeyboardRect.
+typedef struct SbWindowRect {
+  float x;
+  float y;
+  float width;
+  float height;
+} SbWindowRect;
+
 // Determine if the on screen keyboard is shown.
 SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
+
+// Get the rectangle of the on screen keyboard in screen pixel coordinates.
+// Return |true| if successful. Return |false| if the on screen keyboard is not
+// showing. If the function returns |false|, then |rect| will not have been
+// modified.
+SB_EXPORT bool SbWindowGetOnScreenKeyboardRect(SbWindow window,
+                                               SbWindowRect* rect);
 
 // Notify the system that |keepFocus| has been set for the OnScreenKeyboard.
 // |keepFocus| true indicates that the user may not navigate focus off of the
