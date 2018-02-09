@@ -229,6 +229,13 @@ if (!defined(fallback_splash_screen_url)) {
   fallback_splash_screen_url = "none"
 }
 
+# The path to a splash screen to copy into content/data/web which can be
+# accessed via a file URL starting with
+# "file:///cobalt/browser/splash_screen/". If "", no file is copied.
+if (!defined(cobalt_splash_screen_file)) {
+  cobalt_splash_screen_file = ""
+}
+
 # Cache parameters
 
 # The following set of parameters define how much memory is reserved for
@@ -547,9 +554,6 @@ if (!defined(enable_about_scheme)) {
 }
 if (!defined(enable_fake_microphone)) {
   enable_fake_microphone = _copy_test_data
-}
-if (!defined(enable_file_scheme)) {
-  enable_file_scheme = _copy_test_data
 }
 if (!defined(enable_network_logging)) {
   enable_network_logging = _copy_test_data
