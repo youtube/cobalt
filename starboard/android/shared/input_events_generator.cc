@@ -610,6 +610,10 @@ void PossiblySynthesizeHatKeyEvents(HatAxis axis,
 
 bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
                                            Events* events) {
+  if (!input_events_filter_.ShouldProcessKeyEvent(android_event)) {
+    return false;
+  }
+
   SbInputEventType type;
   switch (AKeyEvent_getAction(android_event)) {
     case AKEY_EVENT_ACTION_DOWN:

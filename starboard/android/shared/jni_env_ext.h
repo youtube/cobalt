@@ -184,6 +184,20 @@ struct JniEnvExt : public JNIEnv {
     return result;                                                             \
   }                                                                            \
                                                                                \
+  _jtype GetStatic##_jname##FieldOrAbort(const char* class_name,               \
+                                         const char* name, const char* sig) {  \
+    jclass clazz = FindClassExtOrAbort(class_name);                            \
+    return GetStatic##_jname##FieldOrAbort(clazz, name, sig);                  \
+  }                                                                            \
+                                                                               \
+  _jtype GetStatic##_jname##FieldOrAbort(jclass clazz, const char* name,       \
+                                         const char* sig) {                    \
+    _jtype result = GetStatic##_jname##Field(                                  \
+        clazz, GetStaticFieldIDOrAbort(clazz, name, sig));                     \
+    AbortOnException();                                                        \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
   _jtype Call##_jname##MethodOrAbort(jobject obj, const char* name,            \
                                      const char* sig, ...) {                   \
     va_list argp;                                                              \
@@ -306,6 +320,22 @@ struct JniEnvExt : public JNIEnv {
     AbortOnException();
     DeleteLocalRef(clazz);
     va_end(argp);
+  }
+
+  jstring GetStringFieldOrAbort(jobject obj, const char* name) {
+    return static_cast<jstring>(
+        GetObjectFieldOrAbort(obj, name, "Ljava/lang/String;"));
+  }
+
+  jstring GetStaticStringFieldOrAbort(const char* class_name,
+                                      const char* name) {
+    return static_cast<jstring>(
+        GetStaticObjectFieldOrAbort(class_name, name, "Ljava/lang/String;"));
+  }
+
+  jstring GetStaticStringFieldOrAbort(jclass clazz, const char* name) {
+    return static_cast<jstring>(
+        GetStaticObjectFieldOrAbort(clazz, name, "Ljava/lang/String;"));
   }
 
 // Convenience method to create a j[Type]Array from raw, native data. It is

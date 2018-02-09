@@ -85,6 +85,8 @@
         'file_truncate.cc',
         'file_write.cc',
         'get_home_directory.cc',
+        'input_events_filter.cc',
+        'input_events_filter.h',
         'input_events_generator.cc',
         'input_events_generator.h',
         'jni_env_ext.cc',
