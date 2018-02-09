@@ -36,7 +36,7 @@ void CopyPixelData(uint8_t* destination,
     // If the pitches are equal, we can do the entire copy in one memcpy().
     SbMemoryCopy(destination, source, destination_pitch * num_rows);
   } else {
-    // If the pitches are not equal, we must memcpy each row seperately.
+    // If the pitches are not equal, we must memcpy each row separately.
     for (int i = 0; i < num_rows; ++i) {
       SbMemoryCopy(destination + i * destination_pitch,
                    source + i * source_pitch, bytes_per_row);
