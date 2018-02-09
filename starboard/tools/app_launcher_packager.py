@@ -23,15 +23,16 @@ that the app launcher can be run independent of the Cobalt source tree.
 
 import argparse
 import os
-import platform
 import shutil
 import sys
 import threading
 
+import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
 from paths import THIRD_PARTY_ROOT
 sys.path.append(THIRD_PARTY_ROOT)
 import jinja2
+import starboard.tools.platform
 
 
 def _MakeDir(d):
@@ -106,8 +107,9 @@ def WritePlatformsInfo(repo_root, dest_root):
   dest_dir = current_dir.replace(repo_root, dest_root)
 
   platforms_map = {}
-  for p in platform.GetAll():
-    platform_path = platform.Get(p).path.replace(repo_root, dest_root)
+  for p in starboard.tools.platform.GetAll():
+    platform_path = os.path.relpath(
+        starboard.tools.platform.Get(p).path, repo_root)
     platforms_map[p] = platform_path
 
   template = jinja2.Template(
