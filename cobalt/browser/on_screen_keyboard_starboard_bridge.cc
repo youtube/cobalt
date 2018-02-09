@@ -47,6 +47,19 @@ bool OnScreenKeyboardStarboardBridge::IsShown() const {
   return SbWindowIsOnScreenKeyboardShown(sb_window_provider_.Run());
 }
 
+scoped_refptr<dom::DOMRect> OnScreenKeyboardStarboardBridge::Rect() const {
+  // Delay providing the SbWindow until as late as possible.
+  SbWindowRect sb_window_rect = SbWindowRect();
+  if (!SbWindowGetOnScreenKeyboardRect(sb_window_provider_.Run(),
+                                       &sb_window_rect)) {
+    return nullptr;
+  }
+  scoped_refptr<dom::DOMRect> rect =
+      new dom::DOMRect(sb_window_rect.x, sb_window_rect.y, sb_window_rect.width,
+                       sb_window_rect.height);
+  return rect;
+}
+
 bool OnScreenKeyboardStarboardBridge::IsValidTicket(int ticket) const {
   return ticket != kSbEventOnScreenKeyboardInvalidTicket;
 }

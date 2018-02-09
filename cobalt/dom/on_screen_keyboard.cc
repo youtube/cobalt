@@ -130,6 +130,10 @@ void OnScreenKeyboard::set_oninput(
 
 bool OnScreenKeyboard::shown() const { return bridge_->IsShown(); }
 
+scoped_refptr<DOMRect> OnScreenKeyboard::rect() const {
+  return bridge_->Rect();
+}
+
 void OnScreenKeyboard::set_keep_focus(bool keep_focus) {
   keep_focus_ = keep_focus;
   bridge_->SetKeepFocus(keep_focus);
