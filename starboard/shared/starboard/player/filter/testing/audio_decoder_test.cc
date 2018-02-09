@@ -84,13 +84,6 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
                                std::bind(&AudioDecoderTest::OnError, this));
   }
 
- protected:
-  enum Event { kConsumed, kOutput, kError };
-
-  void OnConsumed() {
-    ScopedLock scoped_lock(event_queue_mutex_);
-    event_queue_.push_back(kConsumed);
-  }
   void OnOutput() {
     ScopedLock scoped_lock(event_queue_mutex_);
     event_queue_.push_back(kOutput);
@@ -98,6 +91,14 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
   void OnError() {
     ScopedLock scoped_lock(event_queue_mutex_);
     event_queue_.push_back(kError);
+  }
+
+ protected:
+  enum Event { kConsumed, kOutput, kError };
+
+  void OnConsumed() {
+    ScopedLock scoped_lock(event_queue_mutex_);
+    event_queue_.push_back(kConsumed);
   }
 
   void WaitForNextEvent(Event* event) {
@@ -231,6 +232,27 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
   scoped_refptr<InputBuffer> last_input_buffer_;
   scoped_refptr<DecodedAudio> last_decoded_audio_;
 };
+
+TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
+  const int kDecodersToCreate = 3;
+
+  PlayerComponents::AudioParameters audio_parameters = {
+      dmp_reader_.audio_codec(), dmp_reader_.audio_header(),
+      kSbDrmSystemInvalid, &job_queue_};
+
+  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+  scoped_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];
+  scoped_ptr<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
+
+  for (int i = 0; i < kDecodersToCreate; ++i) {
+    components->CreateAudioComponents(audio_parameters, &audio_decoders[i],
+                                      &audio_renderer_sinks[i]);
+    ASSERT_TRUE(audio_decoders[i]);
+
+    audio_decoders[i]->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
+                                  std::bind(&AudioDecoderTest::OnError, this));
+  }
+}
 
 TEST_P(AudioDecoderTest, SingleInput) {
   ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));

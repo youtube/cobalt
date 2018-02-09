@@ -130,6 +130,33 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
         std::bind(&VideoDecoderTest::OnError, this));
   }
 
+  void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
+    SB_UNREFERENCED_PARAMETER(draw_frame_cb);
+  }
+
+  void OnDecoderStatusUpdate(VideoDecoder::Status status,
+                             const scoped_refptr<VideoFrame>& frame) {
+    ScopedLock scoped_lock(mutex_);
+    // TODO: Ensure that this is only called during dtor or Reset().
+    if (status == VideoDecoder::kReleaseAllFrames) {
+      SB_DCHECK(!frame);
+      event_queue_.clear();
+      decoded_frames_.clear();
+      return;
+    } else if (status == VideoDecoder::kNeedMoreInput) {
+      event_queue_.push_back(Event(kNeedMoreInput, frame));
+    } else if (status == VideoDecoder::kBufferFull) {
+      event_queue_.push_back(Event(kBufferFull, frame));
+    } else {
+      event_queue_.push_back(Event(kError, frame));
+    }
+  }
+
+  void OnError() {
+    ScopedLock scoped_lock(mutex_);
+    event_queue_.push_back(Event(kError, NULL));
+  }
+
  protected:
   enum Status {
     kNeedMoreInput = VideoDecoder::kNeedMoreInput,
@@ -152,10 +179,6 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   // |true| when calling this callback.  The callback can set it to false to
   // stop further processing.
   typedef std::function<void(const Event&, bool* continue_process)> EventCB;
-
-  void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
-    SB_UNREFERENCED_PARAMETER(draw_frame_cb);
-  }
 
   void WaitForNextEvent(
       Event* event,
@@ -316,6 +339,8 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     outstanding_inputs_.clear();
   }
 
+  JobQueue job_queue_;
+
   Mutex mutex_;
   std::deque<Event> event_queue_;
 
@@ -328,31 +353,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
 
  private:
-  void OnDecoderStatusUpdate(VideoDecoder::Status status,
-                             const scoped_refptr<VideoFrame>& frame) {
-    ScopedLock scoped_lock(mutex_);
-    // TODO: Ensure that this is only called during dtor or Reset().
-    if (status == VideoDecoder::kReleaseAllFrames) {
-      SB_DCHECK(!frame);
-      event_queue_.clear();
-      decoded_frames_.clear();
-      return;
-    } else if (status == VideoDecoder::kNeedMoreInput) {
-      event_queue_.push_back(Event(kNeedMoreInput, frame));
-    } else if (status == VideoDecoder::kBufferFull) {
-      event_queue_.push_back(Event(kBufferFull, frame));
-    } else {
-      event_queue_.push_back(Event(kError, frame));
-    }
-  }
-
-  void OnError() {
-    ScopedLock scoped_lock(mutex_);
-    event_queue_.push_back(Event(kError, NULL));
-  }
-
   SbPlayerPrivate player_;
-  JobQueue job_queue_;
   scoped_ptr<VideoRenderAlgorithm> video_render_algorithm_;
   scoped_refptr<VideoRendererSink> video_renderer_sink_;
 
@@ -388,6 +389,63 @@ TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
     SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
     EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
     fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+  }
+}
+
+TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
+  // Create three more decoders for each supported combinations.
+  const int kDecodersToCreate = 3;
+
+  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+
+  SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+  SbMediaVideoCodec kVideoCodecs[] = {
+      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecVp10,  kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+
+  for (auto output_mode : kOutputModes) {
+    for (auto video_codec : kVideoCodecs) {
+      if (VideoDecoder::OutputModeSupported(output_mode, video_codec,
+                                            kSbDrmSystemInvalid)) {
+        SbPlayerPrivate players[kDecodersToCreate];
+        scoped_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
+        scoped_ptr<VideoRenderAlgorithm>
+            video_render_algorithms[kDecodersToCreate];
+        scoped_refptr<VideoRendererSink>
+            video_renderer_sinks[kDecodersToCreate];
+
+        for (int i = 0; i < kDecodersToCreate; ++i) {
+          PlayerComponents::VideoParameters video_parameters = {
+              &players[i],
+              dmp_reader_.video_codec(),
+              kSbDrmSystemInvalid,
+              &job_queue_,
+              output_mode,
+              fake_graphics_context_provider_.decoder_target_provider()};
+
+          components->CreateVideoComponents(
+              video_parameters, &video_decoders[i], &video_render_algorithms[i],
+              &video_renderer_sinks[i]);
+          ASSERT_TRUE(video_decoders[i]);
+
+          video_renderer_sinks[i]->SetRenderCB(
+              std::bind(&VideoDecoderTest::Render, this, _1));
+
+          video_decoders[i]->Initialize(
+              std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
+              std::bind(&VideoDecoderTest::OnError, this));
+
+          if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+            SbDecodeTarget decode_target =
+                video_decoders[i]->GetCurrentDecodeTarget();
+            EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
+            fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+          }
+        }
+      }
+    }
   }
 }
 
