@@ -16,7 +16,7 @@
 """Functionality to enumerate and represent starboard ports."""
 
 import os
-
+import _env
 from starboard.tools import environment
 
 # The name->platform path mapping.
