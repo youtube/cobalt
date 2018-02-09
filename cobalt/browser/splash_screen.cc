@@ -22,7 +22,11 @@ namespace browser {
 
 // Static
 const char SplashScreen::Options::kDefaultSplashScreenURL[] =
-    "h5vcc-embedded://splash_screen.html";
+#if defined(COBALT_USE_YOUTUBE_SPLASH_SCREEN)
+  "h5vcc-embedded://youtube_splash_screen.html";
+#else
+  "h5vcc-embedded://black_splash_screen.html";
+#endif  // COBALT_USE_YOUTUBE_SPLASH_SCREEN
 
 SplashScreen::SplashScreen(
     const WebModule::OnRenderTreeProducedCallback&
