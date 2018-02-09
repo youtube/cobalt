@@ -87,11 +87,11 @@ int GetRemoteDebuggingPort() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kRemoteDebuggingPort)) {
-    const std::string switchValue =
+    std::string switch_value =
         command_line->GetSwitchValueASCII(switches::kRemoteDebuggingPort);
-    if (!base::StringToInt(switchValue, &remote_debugging_port)) {
+    if (!base::StringToInt(switch_value, &remote_debugging_port)) {
       DLOG(ERROR) << "Invalid port specified for remote debug server: "
-                  << switchValue
+                  << switch_value
                   << ". Using default port: " << kDefaultRemoteDebuggingPort;
       remote_debugging_port = kDefaultRemoteDebuggingPort;
     }
@@ -285,17 +285,17 @@ base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
     return base::nullopt;
   }
 
-  const std::string switchValue =
+  std::string switch_value =
       command_line->GetSwitchValueASCII(browser::switches::kViewport);
-  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switchValue);
+  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switch_value);
   if (parsed_ints.size() < 1) {
     return base::nullopt;
   }
 
   const ParsedIntValue parsed_width = parsed_ints[0];
   if (parsed_width.error_) {
-    DLOG(ERROR) << "Invalid value specified for viewport width: " << switchValue
-                << ". Using default viewport size.";
+    DLOG(ERROR) << "Invalid value specified for viewport width: "
+                << switch_value << ". Using default viewport size.";
     return base::nullopt;
   }
 
@@ -317,7 +317,7 @@ base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
 
   if (parsed_height_ptr->error_) {
     DLOG(ERROR) << "Invalid value specified for viewport height: "
-                << switchValue << ". Using default viewport size.";
+                << switch_value << ". Using default viewport size.";
     return base::nullopt;
   }
 
