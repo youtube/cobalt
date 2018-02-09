@@ -50,6 +50,9 @@ code for review before merging changes into the Cobalt master tree.
   1. Ensure you or your company have signed the appropriate CLA (see "Before You
      Contribute" above).
   1. Rebase your changes down into a single git commit.
+  1. Run `git clang-format HEAD~` to apply default C++ formatting rules,
+     followed by `git commit -a --amend` to squash any formatting changes
+     into your commit.
   1. Run `git cl upload` to upload the review to
      [Cobalt's Gerrit instance](https://cobalt-review.googlesource.com/).
   1. Someone from the maintainers team will review the code, putting up comments
