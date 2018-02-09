@@ -94,12 +94,12 @@ class TablePrinterImpl {
   // ex: "|________|________|"
   std::string MakeRowDelimiter() const;
 
-  // Follows a data row to provide verticle space before a TopSeperatorRow().
+  // Follows a data row to provide verticle space before a TopSeparatorRow().
   // ex: "|        |        |"
-  std::string MakeTopSeperatorRowAbove() const;
+  std::string MakeTopSeparatorRowAbove() const;
 
   // ex: " _________________ "
-  std::string MakeTopSeperatorRow() const;
+  std::string MakeTopSeparatorRow() const;
 
   const std::vector<size_t>& column_sizes_;
   const TablePrinter::Color text_color_;
@@ -120,9 +120,9 @@ std::string TablePrinterImpl::ToString(const Table& rows,
 
   std::stringstream output_ss;
   output_ss << printer.MakeHeaderRow(rows[0]) << "\n";
-  output_ss << printer.MakeTopSeperatorRow() << "\n";
+  output_ss << printer.MakeTopSeparatorRow() << "\n";
 
-  std::string seperator_row_above = printer.MakeTopSeperatorRowAbove();
+  std::string separator_row_above = printer.MakeTopSeparatorRowAbove();
   std::string row_delimiter = printer.MakeRowDelimiter();
 
   // Print body.
@@ -131,7 +131,7 @@ std::string TablePrinterImpl::ToString(const Table& rows,
 
     const std::string row_string = printer.MakeDataRow(row);
 
-    output_ss << seperator_row_above << "\n";
+    output_ss << separator_row_above << "\n";
     output_ss << row_string << "\n";
     output_ss << row_delimiter << "\n";
   }
@@ -265,7 +265,7 @@ std::string TablePrinterImpl::MakeRowDelimiter() const {
   return output;
 }
 
-std::string TablePrinterImpl::MakeTopSeperatorRow() const {
+std::string TablePrinterImpl::MakeTopSeparatorRow() const {
   std::stringstream ss;
   for (size_t i = 0; i < column_sizes_.size(); ++i) {
     if (i == 0) {
@@ -283,7 +283,7 @@ std::string TablePrinterImpl::MakeTopSeperatorRow() const {
   return output;
 }
 
-std::string TablePrinterImpl::MakeTopSeperatorRowAbove() const {
+std::string TablePrinterImpl::MakeTopSeparatorRowAbove() const {
   std::stringstream ss;
   for (size_t i = 0; i < column_sizes_.size(); ++i) {
     ss << "|";
