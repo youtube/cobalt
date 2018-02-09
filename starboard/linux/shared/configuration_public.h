@@ -278,6 +278,9 @@
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
 
+// Allow playing audioless video.
+#define SB_HAS_AUDIOLESS_VIDEO 1
+
 // --- Decoder-only Params ---
 
 // Specifies how media buffers must be aligned on this platform as some
