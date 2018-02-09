@@ -84,7 +84,7 @@ TEST_F(SbPlayerTest, SunnyDay) {
   }
 }
 
-#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#if SB_HAS(AUDIOLESS_VIDEO)
 TEST_F(SbPlayerTest, Audioless) {
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
@@ -112,7 +112,7 @@ TEST_F(SbPlayerTest, Audioless) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#endif  // SB_HAS(AUDIOLESS_VIDEO)
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
