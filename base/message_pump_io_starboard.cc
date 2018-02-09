@@ -196,15 +196,7 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     if (!keep_running_)
       break;
 
-    // Let's play catchup on all delayed work before we loop.  This fixes bug
-    // #5534709 by processing a large number of short delayed tasks quickly
-    // before looping back to process non-delayed tasks (like paint).
-    bool did_delayed_work = false;
-    do {
-      did_delayed_work = delegate->DoDelayedWork(&delayed_work_time_);
-      did_work |= did_delayed_work;
-    } while (did_delayed_work && keep_running_);
-
+    did_work |= delegate->DoDelayedWork(&delayed_work_time_);
     if (!keep_running_)
       break;
 
