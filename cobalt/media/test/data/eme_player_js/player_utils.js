@@ -127,7 +127,7 @@ PlayerUtils.registerEMEEventListeners = function(player) {
     config.videoCapabilities = [{contentType: 'video/webm; codecs="vp9"'}];
   } else {
     // Some tests (e.g. mse_different_containers.html) specify audio and
-    // video codecs seperately.
+    // video codecs separately.
     if (player.testConfig.videoFormat == 'ENCRYPTED_MP4' ||
         player.testConfig.videoFormat == 'CLEAR_MP4') {
       config.videoCapabilities =

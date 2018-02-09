@@ -1166,11 +1166,11 @@ void DrawSolidRoundedRectBorderByEdge(
     const math::RectF& content_rect,
     const render_tree::RoundedCorners& inner_rounded_corners,
     const render_tree::Border& border) {
-  // Render each border edge seperately using SkCanvas::clipPath() to clip out
+  // Render each border edge separately using SkCanvas::clipPath() to clip out
   // each edge's region from the overall RRect.
   // Divide the area into 4 trapezoids, each represented by 4 points that
   // encompass the clipped out region for a border edge (including the rounded
-  // corners). Draw within each clipped out region seperately.
+  // corners). Draw within each clipped out region separately.
   //       A ___________ B
   //        |\_________/|
   //        ||E       F||
