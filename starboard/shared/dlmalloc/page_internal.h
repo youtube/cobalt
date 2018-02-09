@@ -120,7 +120,7 @@ void* SbPageMapUntracked(size_t size_bytes, int flags, const char* name);
 // Unmap |size_bytes| of physical pages starting from |virtual_address|,
 // returning true on success. After this, [virtual_address, virtual_address +
 // size_bytes) will not be read/writable. SbUnmap() can unmap multiple
-// contiguous regions that were mapped with seperate calls to
+// contiguous regions that were mapped with separate calls to
 // SbPageMap(). E.g. if one call to SbPageMap(0x1000) returns (void*)0xA000 and
 // another call to SbPageMap(0x1000) returns (void*)0xB000, SbPageUnmap(0xA000,
 // 0x2000) should free both.
