@@ -34,6 +34,24 @@
       "revId": "923b223db52f54bc2df59160a333ed063643d048",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "35bb90d9_a1736772",
+        "filename": "src/starboard/contrib/creator/shared/gyp_configuration.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 35,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-02-09T22:56:55Z",
+      "side": 1,
+      "message": "and \"sys\" as well",
+      "parentUuid": "7d3a72f0_d76fb139",
+      "revId": "923b223db52f54bc2df59160a333ed063643d048",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
     }
   ]
 }
