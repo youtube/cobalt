@@ -199,6 +199,7 @@ v8.log
 /third_party/jasmine
 /third_party/jsoncpp/source
 /third_party/jsr-305/src
+/third_party/khronos
 /third_party/leveldatabase/src
 /third_party/leveldb
 /third_party/libexif/sources
