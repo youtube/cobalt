@@ -71,7 +71,7 @@
 // Minimum API version for supporting system-level closed caption settings.
 #define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version for supporting audioless video playback.
+// Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
@@ -565,6 +565,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if SB_HAS(CAPTIONS) && \
     (SB_API_VERSION < SB_ACCESSIBILITY_CAPTIONS_API_VERSION)
 #error "SB_HAS_CAPTIONS not supported in this API version."
+#endif
+
+#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#define SB_HAS_AUDIOLESS_VIDEO 1
 #endif
 
 // --- Derived Configuration -------------------------------------------------
