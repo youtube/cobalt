@@ -21,6 +21,11 @@ interface OnScreenKeyboard : EventTarget {
   Promise<void> focus();
   Promise<void> blur();
   readonly attribute boolean shown;
+
+  // If the keyboard is shown, return bounding rectangle in screen pixel
+  // coordinates, otherwise return NULL.
+  readonly attribute DOMRect? rect;
+
   // If the keyboard should keep focus, preventing focus from moving away from
   // the keyboard due to user input.
   attribute boolean keepFocus;

@@ -44,6 +44,8 @@ class OnScreenKeyboardStarboardBridge : public dom::OnScreenKeyboardBridge {
 
   bool IsShown() const override;
 
+  scoped_refptr<dom::DOMRect> Rect() const override;
+
   bool IsValidTicket(int ticket) const override;
 
   void SetKeepFocus(bool keep_focus) override;

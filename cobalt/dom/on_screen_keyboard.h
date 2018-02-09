@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/window.h"
@@ -76,6 +77,9 @@ class OnScreenKeyboard : public EventTarget {
 
   // If the keyboard is shown.
   bool shown() const;
+
+  // The rectangle of the keyboard in screen pixel coordinates.
+  scoped_refptr<DOMRect> rect() const;
 
   void set_keep_focus(bool keep_focus);
   bool keep_focus() const { return keep_focus_; }
