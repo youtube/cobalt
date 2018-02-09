@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/formats/webm/webm_colour_parser.h"
 #include "cobalt/media/formats/webm/webm_parser.h"
@@ -20,7 +21,7 @@ class EncryptionScheme;
 class VideoDecoderConfig;
 
 // Helper class used to parse a Video element inside a TrackEntry element.
-class WebMVideoClient : public WebMParserClient {
+class MEDIA_EXPORT WebMVideoClient : public WebMParserClient {
  public:
   explicit WebMVideoClient(const scoped_refptr<MediaLog>& media_log);
   ~WebMVideoClient() override;
@@ -41,6 +42,8 @@ class WebMVideoClient : public WebMParserClient {
                         VideoDecoderConfig* config);
 
  private:
+  friend class WebMVideoClientTest;
+
   // WebMParserClient implementation.
   WebMParserClient* OnListStart(int id) override;
   bool OnListEnd(int id) override;
