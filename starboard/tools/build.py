@@ -296,7 +296,8 @@ def _LoadPlatformConfig(platform_name):
     logging.debug('Loading platform configuration for "%s".', platform_name)
     if platform.IsValid(platform_name):
       platform_path = platform.Get(platform_name).path
-      module_path = os.path.join(platform_path, 'gyp_configuration.py')
+      module_path = os.path.join(paths.REPOSITORY_ROOT, platform_path,
+                                 'gyp_configuration.py')
       if not _ModuleLoaded('platform_module', module_path):
         platform_module = imp.load_source('platform_module', module_path)
       else:
