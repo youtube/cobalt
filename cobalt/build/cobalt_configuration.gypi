@@ -220,6 +220,10 @@
     # The URL of default build time splash screen - see
     #   cobalt/doc/splash_screen.md for information about this.
     'fallback_splash_screen_url%': 'none',
+    # The path to a splash screen to copy into content/data/web which can be
+    # accessed via a file URL starting with
+    # "file:///cobalt/browser/splash_screen/". If '', no file is copied.
+    'cobalt_splash_screen_file%': '',
 
     # Some platforms have difficulty linking snapshot_app_stats
     'build_snapshot_app_stats%': 1,
@@ -568,11 +572,6 @@
           'DIAL_SERVER',
         ],
       }],
-      ['enable_file_scheme == 1', {
-        'defines': [
-          'COBALT_ENABLE_FILE_SCHEME',
-        ],
-      }],
       ['enable_spdy == 0', {
         'defines': [
           'COBALT_DISABLE_SPDY',
@@ -591,7 +590,6 @@
         'cobalt_copy_debug_console': 1,
         'enable_about_scheme': 1,
         'enable_fake_microphone': 1,
-        'enable_file_scheme': 1,
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
@@ -603,7 +601,6 @@
         'cobalt_copy_debug_console': 0,
         'enable_about_scheme': 0,
         'enable_fake_microphone': 0,
-        'enable_file_scheme': 0,
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
