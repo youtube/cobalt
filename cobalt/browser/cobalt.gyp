@@ -44,6 +44,11 @@
             '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_debug_console',
           ],
         }],
+        ['cobalt_splash_screen_file != ""', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/splash_screen/splash_screen.gyp:copy_splash_screen',
+          ],
+        }],
       ],
     },
 
