@@ -74,7 +74,7 @@ PrintTool::PrintTool() : cvals_map_(new CvalsMap) {}
 PrintTool::~PrintTool() {}
 
 void PrintTool::Run(Params* params) {
-  const std::string kSeperator =
+  const std::string kSeparator =
       "--------------------------------------------------";
 
   while (!params->finished()) {
@@ -117,12 +117,12 @@ void PrintTool::Run(Params* params) {
     ss << "TimeNow " << params->TimeInMinutesString()
        << " (minutes):" << kNewLine << kNewLine;
 
-    ss << kSeperator << kNewLine;
+    ss << kSeparator << kNewLine;
     nb::analytics::MemoryStats memstats =
         nb::analytics::GetProcessMemoryStats();
 
     F::PrintRow(&ss, "MALLOC STAT", "IN USE BYTES", "");
-    ss << kSeperator << kNewLine;
+    ss << kSeparator << kNewLine;
     F::PrintRow(&ss, "Total CPU Reserved",
                 NumberFormatWithCommas(memstats.total_cpu_memory), "");
 
@@ -135,11 +135,11 @@ void PrintTool::Run(Params* params) {
     F::PrintRow(&ss, "Total GPU Used",
                 NumberFormatWithCommas(memstats.used_gpu_memory), "");
 
-    ss << kSeperator << kNewLine << kNewLine;
+    ss << kSeparator << kNewLine << kNewLine;
 
-    ss << kSeperator << kNewLine;
+    ss << kSeparator << kNewLine;
     F::PrintRow(&ss, "MEMORY REGION", "IN USE BYTES", "NUM ALLOCS");
-    ss << kSeperator << kNewLine;
+    ss << kSeparator << kNewLine;
 
     for (MapIt it = output.begin(); it != output.end(); ++it) {
       const AllocationGroup* group = it->second;
@@ -171,7 +171,7 @@ void PrintTool::Run(Params* params) {
                 NumberFormatWithCommas(total_bytes),
                 NumberFormatWithCommas(num_allocs));
 
-    ss << kSeperator << kNewLine;
+    ss << kSeparator << kNewLine;
     ss << kNewLine << kNewLine;
 
     params->logger()->Output(ss.str().c_str());
