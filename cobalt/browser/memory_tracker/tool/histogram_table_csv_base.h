@@ -98,16 +98,16 @@ class HistogramTableCSVBase {
   }
 
   std::string ToString() const {
-    const char kSeperator[] = "//////////////////////////////////////////////";
+    const char kSeparator[] = "//////////////////////////////////////////////";
     std::stringstream ss;
-    ss << kSeperator << kNewLine;
+    ss << kSeparator << kNewLine;
     if (title_.size()) {
       ss << "// CSV of " << title_ << kNewLine;
     }
     for (size_t i = 0; i < NumberOfRows(); ++i) {
       ss << StringifyRow(i);
     }
-    ss << kSeperator;
+    ss << kSeparator;
     return ss.str();
   }
 
