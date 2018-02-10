@@ -54,7 +54,9 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
-WebModuleStatTracker::~WebModuleStatTracker() { EndCurrentEvent(false); }
+WebModuleStatTracker::~WebModuleStatTracker() {
+  EndCurrentEvent(base::TimeTicks());
+}
 
 void WebModuleStatTracker::OnStartDispatchEvent(
     const scoped_refptr<dom::Event>& event) {
@@ -109,26 +111,34 @@ void WebModuleStatTracker::OnStopDispatchEvent(
   stop_watches_[kStopWatchTypeDispatchEvent].Stop();
 
   if (!are_animation_frame_callbacks_pending && !is_new_render_tree_pending) {
-    EndCurrentEvent(false);
+    EndCurrentEvent(base::TimeTicks());
   }
 }
 
 void WebModuleStatTracker::OnRanAnimationFrameCallbacks(
     bool is_new_render_tree_pending) {
   if (!is_new_render_tree_pending) {
-    EndCurrentEvent(false);
+    EndCurrentEvent(base::TimeTicks());
   }
 }
 
-void WebModuleStatTracker::OnRenderTreeProduced() { EndCurrentEvent(true); }
+void WebModuleStatTracker::OnRenderTreeProduced(
+    const base::TimeTicks& produced_time) {
+  EndCurrentEvent(produced_time);
+}
 
 void WebModuleStatTracker::OnRenderTreeRasterized(
-    const base::TimeTicks& on_rasterize_time) {
+    const base::TimeTicks& produced_time,
+    const base::TimeTicks& rasterized_time) {
+  // Check for any events that have a pending rasterization. If the rasterized
+  // render tree was not produced prior to the event's produced render tree,
+  // then it is the rasterization associated with the event.
   for (const auto& event_stats : event_stats_list_) {
-    if (event_stats->is_render_tree_rasterization_pending) {
-      event_stats->is_render_tree_rasterization_pending = false;
+    if (!event_stats->pending_rasterization_produced_time_.is_null() &&
+        produced_time >= event_stats->pending_rasterization_produced_time_) {
       event_stats->duration_renderer_rasterize_render_tree_delay =
-          on_rasterize_time - event_stats->start_time;
+          rasterized_time - event_stats->start_time;
+      event_stats->pending_rasterization_produced_time_ = base::TimeTicks();
     }
   }
 }
@@ -239,8 +249,7 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
                        name.c_str()),
           base::TimeDelta(),
           "The delay from the event starting until its render tree is first "
-          "rasterized (in microseconds)."),
-      is_render_tree_rasterization_pending(false) {
+          "rasterized (in microseconds).") {
 }
 
 bool WebModuleStatTracker::IsStopWatchEnabled(int /*id*/) const { return true; }
@@ -250,7 +259,8 @@ void WebModuleStatTracker::OnStopWatchStopped(int id,
   stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
 }
 
-void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
+void WebModuleStatTracker::EndCurrentEvent(
+    const base::TimeTicks& render_tree_produced_time) {
   if (current_event_type_ == kEventTypeInvalid) {
     dom_stat_tracker_->OnEndEvent();
     layout_stat_tracker_->OnEndEvent();
@@ -263,7 +273,7 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
 
   EventStats* event_stats = event_stats_list_[current_event_type_];
   event_stats->start_time = event_start_time_;
-  event_stats->produced_render_tree = was_render_tree_produced;
+  event_stats->produced_render_tree = !render_tree_produced_time.is_null();
 
   // Update event counts
   event_stats->count_dom_html_elements_created =
@@ -335,7 +345,8 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   std::ostringstream oss;
   oss << "{"
       << "\"StartTime\":" << event_start_time_.ToInternalValue() << ", "
-      << "\"ProducedRenderTree\":" << was_render_tree_produced << ", "
+      << "\"ProducedRenderTree\":" << !render_tree_produced_time.is_null()
+      << ", "
       << "\"CntDomEventListeners\":"
       << dom::GlobalStats::GetInstance()->GetNumEventListeners() << ", "
       << "\"CntDomNodes\":" << dom::GlobalStats::GetInstance()->GetNumNodes()
@@ -411,9 +422,7 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   // (if a render tree was produced).
   event_stats->duration_renderer_rasterize_render_tree_delay =
       base::TimeDelta();
-  if (was_render_tree_produced) {
-    event_stats->is_render_tree_rasterization_pending = true;
-  }
+  event_stats->pending_rasterization_produced_time_ = render_tree_produced_time;
 
   current_event_type_ = kEventTypeInvalid;
 

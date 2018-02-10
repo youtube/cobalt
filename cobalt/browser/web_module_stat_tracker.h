@@ -60,10 +60,11 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   void OnRanAnimationFrameCallbacks(bool is_new_render_tree_pending);
 
   // |OnRenderTreeProduced| ends stat tracking for the current event.
-  void OnRenderTreeProduced();
+  void OnRenderTreeProduced(const base::TimeTicks& produced_time);
 
   // |OnRenderTreeRasterized| ends stat tracking for the current event.
-  void OnRenderTreeRasterized(const base::TimeTicks& on_rasterize_time);
+  void OnRenderTreeRasterized(const base::TimeTicks& produced_time,
+                              const base::TimeTicks& rasterized_time);
 
   // Returns whether or not an event-based render tree has been produced but not
   // yet rasterized.
@@ -134,9 +135,9 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_renderer_rasterize_render_tree_delay;
 
-    // Whether or not the first rasterization for the render tree produced by
-    // the event is pending.
-    bool is_render_tree_rasterization_pending;
+    // The time that the event's render tree was produced. It allowing the event
+    // to identify the first rasterization that includes the tree.
+    base::TimeTicks pending_rasterization_produced_time_;
   };
 
   // From base::StopWatchOwner
@@ -145,7 +146,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   // End the current event if one is active. This triggers an update of all
   // |EventStats| for the event.
-  void EndCurrentEvent(bool was_render_tree_produced);
+  void EndCurrentEvent(const base::TimeTicks& render_tree_produced_time);
 
   static std::string GetEventTypeName(EventType event_type);
 
