@@ -77,7 +77,6 @@ _SDKMANAGER_TOOL = os.path.join(_SDK_PATH, 'tools', 'bin', 'sdkmanager')
 # Maps the Android ABI to the architecture name of the toolchain.
 _TOOLS_ABI_ARCH_MAP = {
     'x86'        : 'x86',
-    'x86_64'     : 'x86_64',
     'armeabi'    : 'arm',
     'armeabi-v7a': 'arm',
     'arm64-v8a'  : 'arm64',
