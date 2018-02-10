@@ -269,13 +269,17 @@ class WebModule::Impl {
   void OnRenderTreeProduced(const LayoutResults& layout_results);
 
   // Called by the Renderer on the Renderer thread when it rasterizes a render
-  // tree with this callback attached.
+  // tree with this callback attached. It includes the time the render tree was
+  // produced.
   void OnRenderTreeRasterized(
-      scoped_refptr<base::MessageLoopProxy> web_module_message_loop);
+      scoped_refptr<base::MessageLoopProxy> web_module_message_loop,
+      const base::TimeTicks& produced_time);
 
   // WebModule thread handling of the OnRenderTreeRasterized() callback. It
-  // includes the time that the rasterization callback was initially received.
-  void ProcessOnRenderTreeRasterized(const base::TimeTicks& on_rasterize_time);
+  // includes the time that the render tree was produced and the time that the
+  // render tree was rasterized.
+  void ProcessOnRenderTreeRasterized(const base::TimeTicks& produced_time,
+                                     const base::TimeTicks& rasterized_time);
 
   void OnCspPolicyChanged();
 
@@ -313,6 +317,9 @@ class WebModule::Impl {
 
   // Simple flag used for basic error checking.
   bool is_running_;
+
+  // The most recent time that a new render tree was produced.
+  base::TimeTicks last_render_tree_produced_time_;
 
   // Whether or not a render tree has been produced but not yet rasterized.
   base::CVal<bool, base::CValPublic> is_render_tree_rasterization_pending_;
@@ -859,13 +866,17 @@ void WebModule::Impl::OnRenderTreeProduced(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
 
+  last_render_tree_produced_time_ = base::TimeTicks::Now();
   is_render_tree_rasterization_pending_ = true;
-  web_module_stat_tracker_->OnRenderTreeProduced();
+
+  web_module_stat_tracker_->OnRenderTreeProduced(
+      last_render_tree_produced_time_);
 
   LayoutResults layout_results_with_callback(
       layout_results.render_tree, layout_results.layout_time,
       base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
-                 base::Unretained(this), base::MessageLoopProxy::current()));
+                 base::Unretained(this), base::MessageLoopProxy::current(),
+                 last_render_tree_produced_time_));
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
@@ -875,17 +886,23 @@ void WebModule::Impl::OnRenderTreeProduced(
 }
 
 void WebModule::Impl::OnRenderTreeRasterized(
-    scoped_refptr<base::MessageLoopProxy> web_module_message_loop) {
+    scoped_refptr<base::MessageLoopProxy> web_module_message_loop,
+    const base::TimeTicks& produced_time) {
   web_module_message_loop->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::ProcessOnRenderTreeRasterized,
-                            base::Unretained(this), base::TimeTicks::Now()));
+                            base::Unretained(this), produced_time,
+                            base::TimeTicks::Now()));
 }
 
 void WebModule::Impl::ProcessOnRenderTreeRasterized(
-    const base::TimeTicks& on_rasterize_time) {
+    const base::TimeTicks& produced_time,
+    const base::TimeTicks& rasterized_time) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  web_module_stat_tracker_->OnRenderTreeRasterized(on_rasterize_time);
-  is_render_tree_rasterization_pending_ = false;
+  web_module_stat_tracker_->OnRenderTreeRasterized(produced_time,
+                                                   rasterized_time);
+  if (produced_time >= last_render_tree_produced_time_) {
+    is_render_tree_rasterization_pending_ = false;
+  }
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
