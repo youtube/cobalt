@@ -22,8 +22,6 @@ cmake_minimum_required(VERSION 3.4.1)
 # Map Android ABI to Cobalt architecture
 if(ANDROID_ABI STREQUAL x86)
   set(COBALT_ARCH x86)
-elseif(ANDROID_ABI STREQUAL x86_64)
-  set(COBALT_ARCH x64)
 elseif(ANDROID_ABI STREQUAL armeabi-v7a)
   set(COBALT_ARCH arm)
 elseif(ANDROID_ABI STREQUAL arm64-v8a)
