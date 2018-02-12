@@ -33,9 +33,8 @@ namespace browser {
 // thread use. It also owns the |DomStatTracker| and |LayoutStatTracker|.
 class WebModuleStatTracker : public base::StopWatchOwner {
  public:
-  WebModuleStatTracker(const std::string& name,
+  WebModuleStatTracker(const std::string& web_module_name,
                        bool should_track_dispatched_events);
-  ~WebModuleStatTracker();
 
   dom::DomStatTracker* dom_stat_tracker() const {
     return dom_stat_tracker_.get();
@@ -81,7 +80,6 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   };
 
   enum StopWatchType {
-    kStopWatchTypeEvent,
     kStopWatchTypeDispatchEvent,
     kNumStopWatchTypes,
   };
@@ -89,22 +87,24 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   struct EventStats {
     explicit EventStats(const std::string& name);
 
-    base::TimeTicks start_time;
     base::CVal<bool, base::CValPublic> produced_render_tree;
 
     // Count-related
-    base::CVal<int, base::CValPublic> count_dom_html_elements_created;
-    base::CVal<int, base::CValPublic> count_dom_html_elements_destroyed;
-    base::CVal<int, base::CValPublic> count_dom_html_elements_added;
-    base::CVal<int, base::CValPublic> count_dom_html_elements_removed;
+    base::CVal<int, base::CValPublic> count_dom_html_element;
+    base::CVal<int, base::CValPublic> count_dom_html_element_created;
+    base::CVal<int, base::CValPublic> count_dom_html_element_destroyed;
+    base::CVal<int, base::CValPublic> count_dom_html_element_document;
+    base::CVal<int, base::CValPublic> count_dom_html_element_document_added;
+    base::CVal<int, base::CValPublic> count_dom_html_element_document_removed;
     base::CVal<int, base::CValPublic> count_dom_update_matching_rules;
     base::CVal<int, base::CValPublic> count_dom_update_computed_style;
     base::CVal<int, base::CValPublic>
         count_dom_generate_html_element_computed_style;
     base::CVal<int, base::CValPublic>
         count_dom_generate_pseudo_element_computed_style;
-    base::CVal<int, base::CValPublic> count_layout_boxes_created;
-    base::CVal<int, base::CValPublic> count_layout_boxes_destroyed;
+    base::CVal<int, base::CValPublic> count_layout_box;
+    base::CVal<int, base::CValPublic> count_layout_box_created;
+    base::CVal<int, base::CValPublic> count_layout_box_destroyed;
     base::CVal<int, base::CValPublic> count_layout_update_size;
     base::CVal<int, base::CValPublic> count_layout_render_and_animate;
     base::CVal<int, base::CValPublic> count_layout_update_cross_references;
@@ -123,6 +123,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
         duration_layout_update_used_sizes;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_layout_render_and_animate;
+    base::CVal<base::TimeDelta, base::CValPublic> duration_renderer_rasterize;
 
 #if defined(ENABLE_WEBDRIVER)
     // A string containing all of the event's values, excluding post-event
@@ -130,14 +131,6 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     // and is only enabled with it.
     base::CVal<std::string> value_dictionary;
 #endif  // ENABLE_WEBDRIVER
-
-    // Post-event delay-related
-    base::CVal<base::TimeDelta, base::CValPublic>
-        duration_renderer_rasterize_render_tree_delay;
-
-    // The time that the event's render tree was produced. It allowing the event
-    // to identify the first rasterization that includes the tree.
-    base::TimeTicks pending_rasterization_produced_time_;
   };
 
   // From base::StopWatchOwner
@@ -146,28 +139,30 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   // End the current event if one is active. This triggers an update of all
   // |EventStats| for the event.
-  void EndCurrentEvent(const base::TimeTicks& render_tree_produced_time);
+  void EndCurrentEvent(base::TimeTicks end_time);
 
   static std::string GetEventTypeName(EventType event_type);
+
+  const std::string name_;
+  const bool should_track_event_stats_;
 
   // Web module owns the dom and layout stat trackers.
   scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
   scoped_ptr<layout::LayoutStatTracker> layout_stat_tracker_;
 
   // Event-related
-  const bool should_track_event_stats_;
+  base::CVal<bool> event_is_processing_;
+
   EventType current_event_type_;
+  base::TimeTicks current_event_start_time_;
+  base::TimeTicks current_event_render_tree_produced_time_;
+
   // Each individual |EventType| has its own entry in the vector.
   ScopedVector<EventStats> event_stats_list_;
 
   // Stop watch-related
   std::vector<base::StopWatch> stop_watches_;
   std::vector<base::TimeDelta> stop_watch_durations_;
-
-  std::string name_;
-
-  base::CVal<bool> event_is_processing_;
-  base::TimeTicks event_start_time_;
 };
 
 }  // namespace browser
