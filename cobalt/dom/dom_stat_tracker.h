@@ -37,14 +37,6 @@ class DomStatTracker : public base::StopWatchOwner {
   explicit DomStatTracker(const std::string& name);
   ~DomStatTracker();
 
-  // Event-related
-  void OnStartEvent();
-  void OnEndEvent();
-
-  void OnHtmlVideoElementPlaying();
-  void OnHtmlScriptElementExecuted();
-
-  // Periodic count-related
   void OnHtmlElementCreated();
   void OnHtmlElementDestroyed();
   void OnHtmlElementInsertedIntoDocument();
@@ -53,35 +45,42 @@ class DomStatTracker : public base::StopWatchOwner {
   void OnUpdateComputedStyle();
   void OnGenerateHtmlElementComputedStyle();
   void OnGeneratePseudoElementComputedStyle();
+  void OnHtmlScriptElementExecuted();
+  void OnHtmlVideoElementPlaying();
 
-  int html_elements_count() const { return html_elements_count_; }
-  int document_html_elements_count() const {
-    return document_html_elements_count_;
-  }
+  // This function updates the CVals from the periodic values and then clears
+  // those values.
+  void FlushPeriodicTracking();
 
-  int html_elements_created_count() const {
-    return html_elements_created_count_;
+  // Event-related
+  void StartTrackingEvent();
+  void StopTrackingEvent();
+
+  int EventCountHtmlElement() const;
+  int EventCountHtmlElementDocument() const;
+  int event_count_html_element_created() const {
+    return event_count_html_element_created_;
   }
-  int html_elements_destroyed_count() const {
-    return html_elements_destroyed_count_;
+  int event_count_html_element_destroyed() const {
+    return event_count_html_element_destroyed_;
   }
-  int html_elements_added_to_document_count() const {
-    return html_elements_inserted_into_document_count_;
+  int event_count_html_element_document_added() const {
+    return event_count_html_element_document_added_;
   }
-  int html_elements_removed_from_document_count() const {
-    return html_elements_removed_from_document_count_;
+  int event_count_html_element_document_removed() const {
+    return event_count_html_element_document_removed_;
   }
-  int update_matching_rules_count() const {
-    return update_matching_rules_count_;
+  int event_count_update_matching_rules() const {
+    return event_count_update_matching_rules_;
   }
-  int update_computed_style_count() const {
-    return update_computed_style_count_;
+  int event_count_update_computed_style() const {
+    return event_count_update_computed_style_;
   }
-  int generate_html_element_computed_style_count() const {
-    return generate_html_element_computed_style_count_;
+  int event_count_generate_html_element_computed_style() const {
+    return event_count_generate_html_element_computed_style_;
   }
-  int generate_pseudo_element_computed_style_count() const {
-    return generate_pseudo_element_computed_style_count_;
+  int event_count_generate_pseudo_element_computed_style() const {
+    return event_count_generate_pseudo_element_computed_style_;
   }
 
   base::TimeDelta GetStopWatchTypeDuration(StopWatchType type) const;
@@ -91,35 +90,37 @@ class DomStatTracker : public base::StopWatchOwner {
   bool IsStopWatchEnabled(int id) const override;
   void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) override;
 
-  // This function updates the CVals from the periodic values and then clears
-  // those values.
-  void FlushPeriodicTracking();
-
   // Count cvals that are updated when the periodic tracking is flushed.
-  base::CVal<int, base::CValPublic> html_elements_count_;
-  base::CVal<int, base::CValPublic> document_html_elements_count_;
+  base::CVal<int, base::CValPublic> count_html_element_;
+  base::CVal<int, base::CValPublic> count_html_element_document_;
 
-  // Event-related
-  bool is_event_active_;
-
-  // Tracking of videos produced by an event.
-  base::StopWatch event_video_start_delay_stop_watch_;
-  base::CVal<base::TimeDelta, base::CValPublic> event_video_start_delay_;
+  // Periodic counts. The counts are cleared after the CVals are updated in
+  // |FlushPeriodicTracking|.
+  int count_html_element_created_;
+  int count_html_element_destroyed_;
+  int count_html_element_document_added_;
+  int count_html_element_document_removed_;
 
   // Count of HtmlScriptElement::Execute() calls and time of last call.
   base::CVal<int> script_element_execute_count_;
   base::CVal<int64> script_element_execute_time_;
 
-  // Periodic counts. The counts are cleared after the CVals are updated in
-  // |FlushPeriodicTracking|.
-  int html_elements_created_count_;
-  int html_elements_destroyed_count_;
-  int html_elements_inserted_into_document_count_;
-  int html_elements_removed_from_document_count_;
-  int update_matching_rules_count_;
-  int update_computed_style_count_;
-  int generate_html_element_computed_style_count_;
-  int generate_pseudo_element_computed_style_count_;
+  // Event-related
+  bool is_tracking_event_;
+  int event_initial_count_html_element_;
+  int event_initial_count_html_element_document_;
+  int event_count_html_element_created_;
+  int event_count_html_element_destroyed_;
+  int event_count_html_element_document_added_;
+  int event_count_html_element_document_removed_;
+  int event_count_update_matching_rules_;
+  int event_count_update_computed_style_;
+  int event_count_generate_html_element_computed_style_;
+  int event_count_generate_pseudo_element_computed_style_;
+
+  // Tracking of videos produced by an event.
+  base::StopWatch event_video_start_delay_stop_watch_;
+  base::CVal<base::TimeDelta, base::CValPublic> event_video_start_delay_;
 
   // Stop watch-related.
   std::vector<base::TimeDelta> stop_watch_durations_;
