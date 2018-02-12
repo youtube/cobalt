@@ -65,6 +65,7 @@ libfreetype6
 libfreetype6-dev
 libgbm1
 libgbm-dev
+libgcc-4.8-dev
 libgconf-2-4
 libgconf2-dev
 libgcrypt11-dev
@@ -169,6 +170,7 @@ libsrtp0-dev
 libssl1.0.0
 libssl-dev
 libstdc++6
+libstdc++-4.8-dev
 libsystemd0
 libsqlite3-0
 libsqlite3-dev
