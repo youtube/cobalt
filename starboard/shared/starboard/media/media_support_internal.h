@@ -41,6 +41,9 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int64_t bitrate,
                                        int fps);
 
+SB_EXPORT bool IsVp9HwDecoderSupported();
+SB_EXPORT bool IsVp9GPUDecoderSupported();
+
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
 // returns |false|.
