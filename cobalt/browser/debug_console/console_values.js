@@ -23,7 +23,7 @@ function ConsoleValues() {
       'Cobalt Memory.CPU Memory.MainWebModule Memory.JS Memory.Font ' +
       'Count.MainWebModule.ImageCache.Resource ' +
       'Count.MainWebModule.DOM.HtmlElement Count.MainWebModule.Layout.Box ' +
-      'Event.Count.MainWebModule.KeyDown.DOM.HtmlElement.Added ' +
+      'Event.Count.MainWebModule.KeyDown.DOM.HtmlElement.Document.Added ' +
       'Event.Count.MainWebModule.KeyDown.Layout.Box.Created ' +
       'Event.Count.MainWebModule.KeyDown.Layout.Box.Destroyed ' +
       'Event.Duration.MainWebModule.DOM.VideoStartDelay ' +
