@@ -20,6 +20,8 @@
     'uwp_incompatible_win32': [
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
+      '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
+      '<(DEPTH)/starboard/shared/win32/decode_target_internal.h',
       '<(DEPTH)/starboard/shared/win32/dialog.cc',
       '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
       '<(DEPTH)/starboard/shared/win32/log_file_impl.cc',
@@ -27,6 +29,8 @@
       '<(DEPTH)/starboard/shared/win32/log_raw.cc',
       '<(DEPTH)/starboard/shared/win32/log_raw_format.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_audio_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
       '<(DEPTH)/starboard/shared/win32/playready_license.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
       '<(DEPTH)/starboard/shared/win32/system_clear_platform_error.cc',
@@ -66,8 +70,6 @@
       '<(DEPTH)/starboard/shared/win32/audio_decoder_thread.h',
       '<(DEPTH)/starboard/shared/win32/audio_transform.cc',
       '<(DEPTH)/starboard/shared/win32/audio_transform.h',
-      '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
-      '<(DEPTH)/starboard/shared/win32/decode_target_internal.h',
       '<(DEPTH)/starboard/shared/win32/decrypting_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/decrypting_decoder.h',
       '<(DEPTH)/starboard/shared/win32/dx_context_video_decoder.cc',
@@ -76,11 +78,9 @@
       '<(DEPTH)/starboard/shared/win32/media_common.h',
       '<(DEPTH)/starboard/shared/win32/media_foundation_utils.cc',
       '<(DEPTH)/starboard/shared/win32/media_foundation_utils.h',
-      '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_transform.cc',
       '<(DEPTH)/starboard/shared/win32/media_transform.h',
-      '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
       '<(DEPTH)/starboard/shared/win32/video_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/video_decoder.h',
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.cc',
@@ -412,7 +412,6 @@
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
         '<@(starboard_platform_dependent_files)',
-
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
