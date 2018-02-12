@@ -21,10 +21,11 @@ from starboard.tools.toolchain import clangxx
 from starboard.tools.toolchain import cp
 from starboard.tools.toolchain import touch
 
+
 class CreatorCI20X11Configuration(shared_configuration.CreatorConfiguration):
   """Starboard Creator X11 platform configuration."""
 
-  def __init__(self, platform_name="creator-ci20x11"):
+  def __init__(self, platform_name='creator-ci20x11'):
     super(CreatorCI20X11Configuration, self).__init__(platform_name)
 
   def GetTargetToolchain(self):
@@ -50,6 +51,7 @@ class CreatorCI20X11Configuration(shared_configuration.CreatorConfiguration):
   def GetTestFilters(self):
     filters = super(CreatorCI20X11Configuration, self).GetTestFilters()
     return filters
+
 
 def CreatePlatformConfig():
   return CreatorCI20X11Configuration()

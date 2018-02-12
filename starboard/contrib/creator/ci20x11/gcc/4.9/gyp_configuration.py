@@ -13,10 +13,12 @@
 # limitations under the License.
 """Starboard Creator CI20 X11 gcc 4.9 platform configuration."""
 
+import logging
 import os
 
 from starboard.contrib.creator.shared import gyp_configuration as shared_configuration
 from starboard.tools.testing import test_filter
+
 
 class PlatformConfig(shared_configuration.CreatorConfiguration):
   """Starboard Creator platform configuration."""
@@ -26,9 +28,13 @@ class PlatformConfig(shared_configuration.CreatorConfiguration):
 
   def GetVariables(self, configuration):
     variables = super(PlatformConfig, self).GetVariables(configuration)
-    variables.update({'clang': 0,})
+    variables.update({
+        'clang': 0,
+    })
     toolchain_lib_path = os.path.join(self.toolchain_dir, 'lib')
-    variables.update({'toolchain_lib_path': toolchain_lib_path,})
+    variables.update({
+        'toolchain_lib_path': toolchain_lib_path,
+    })
     return variables
 
   def GetEnvironmentVariables(self):
@@ -49,20 +55,19 @@ class PlatformConfig(shared_configuration.CreatorConfiguration):
   def GetTestFilters(self):
     filters = super(PlatformConfig, self).GetTestFilters()
     filters.extend([
-        # test fails when built with GCC 4.9, issue was fixed in later versions of GCC
-        test_filter.TestFilter(
-            'nplb', 'SbAlignTest.AlignAsStackVariable'),
+        # test fails when built with GCC 4.9, issue was fixed
+        # in later versions of GCC
+        test_filter.TestFilter('nplb', 'SbAlignTest.AlignAsStackVariable'),
         # tests fail also on x86
-        test_filter.TestFilter(
-            'nplb', 'SbSystemSymbolizeTest.SunnyDay'),
-        test_filter.TestFilter(
-            'nplb', 'SbSystemGetStackTest.SunnyDayStackDirection'),
-        test_filter.TestFilter(
-            'nplb', 'SbSystemGetStackTest.SunnyDay'),
-        test_filter.TestFilter(
-            'nplb', 'SbSystemGetStackTest.SunnyDayShortStack'),
+        test_filter.TestFilter('nplb', 'SbSystemSymbolizeTest.SunnyDay'),
+        test_filter.TestFilter('nplb',
+                               'SbSystemGetStackTest.SunnyDayStackDirection'),
+        test_filter.TestFilter('nplb', 'SbSystemGetStackTest.SunnyDay'),
+        test_filter.TestFilter('nplb',
+                               'SbSystemGetStackTest.SunnyDayShortStack'),
     ])
     return filters
+
 
 def CreatePlatformConfig():
   try:

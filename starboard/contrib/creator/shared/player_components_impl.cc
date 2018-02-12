@@ -86,7 +86,7 @@ class PlayerComponentsImpl : public PlayerComponents {
   }
 };
 
-} // namespace
+}  // namespace
 
 // static
 scoped_ptr<PlayerComponents> PlayerComponents::Create() {
