@@ -700,10 +700,10 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
             loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
         mesh_projection->GetMesh(
             loader::mesh::MeshProjection::kRightEyeCollection));
-
-    filter_node =
-        new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
   }
+
+  filter_node =
+      new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
 
 #if !SB_HAS(VIRTUAL_REALITY)
   // Attach a 3D camera to the map-to-mesh node, so the rendering of its
