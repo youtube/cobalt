@@ -21,6 +21,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/layout_tests/test_parser.h"
+#include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/renderer/render_tree_pixel_tester.h"
