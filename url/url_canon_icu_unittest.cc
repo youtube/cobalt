@@ -47,11 +47,13 @@ TEST(URLCanonIcuTest, ICUCharsetConverter) {
     {L"\x4f60\x597d", "utf-8", "\xe4\xbd\xa0\xe5\xa5\xbd"},
       // Non-BMP UTF-8.
     {L"!\xd800\xdf00!", "utf-8", "!\xf0\x90\x8c\x80!"},
+#if !defined(STARBOARD)
       // Big5
     {L"\x4f60\x597d", "big5", "\xa7\x41\xa6\x6e"},
       // Unrepresentable character in the destination set.
     {L"hello\x4f60\x06de\x597dworld", "big5",
       "hello\xa7\x41%26%231758%3B\xa6\x6eworld"},
+#endif
   };
 
   for (size_t i = 0; i < arraysize(icu_cases); i++) {
@@ -99,6 +101,7 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
   } query_cases[] = {
       // Regular ASCII case in some different encodings.
     {"foo=bar", L"foo=bar", "utf-8", "?foo=bar"},
+#if !defined(STARBOARD)
     {"foo=bar", L"foo=bar", "shift_jis", "?foo=bar"},
     {"foo=bar", L"foo=bar", "gb2312", "?foo=bar"},
       // Chinese input/output
@@ -110,6 +113,7 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
       // "?q=&#20320;"
     {"q=Chinese\xef\xbc\xa7", L"q=Chinese\xff27", "iso-8859-1",
       "?q=Chinese%26%2365319%3B"},
+#endif
   };
 
   for (size_t i = 0; i < arraysize(query_cases); i++) {
