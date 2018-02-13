@@ -32,6 +32,7 @@
 #include "cobalt/script/mozjs-45/util/stack_trace_helpers.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/public/Initialization.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 #include "third_party/mozjs-45/js/src/jsfun.h"
 #include "third_party/mozjs-45/js/src/jsobj.h"
@@ -57,6 +58,7 @@
 namespace cobalt {
 namespace script {
 namespace mozjs {
+
 namespace {
 
 // Class definition for global object with no bindings.
@@ -119,7 +121,28 @@ ProxyHandler::IndexedPropertyHooks MozjsStubHandler::indexed_property_hooks = {
 };
 
 static base::LazyInstance<MozjsStubHandler> proxy_handler;
+
 }  // namespace
+
+// static
+MozjsGlobalEnvironment* MozjsGlobalEnvironment::GetFromContext(
+    JSContext* context) {
+  MozjsGlobalEnvironment* global_proxy =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  DCHECK(global_proxy);
+  return global_proxy;
+}
+
+// static
+bool MozjsGlobalEnvironment::CheckEval(JSContext* context) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  MozjsGlobalEnvironment* global_environment = GetFromContext(context);
+  DCHECK(global_environment);
+  if (!global_environment->report_eval_.is_null()) {
+    global_environment->report_eval_.Run();
+  }
+  return global_environment->eval_enabled_;
+}
 
 MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
     : context_(NULL),
@@ -324,7 +347,7 @@ void MozjsGlobalEnvironment::AllowGarbageCollection(
   auto it = kept_alive_objects_.find(wrappable.get());
   DCHECK(it != kept_alive_objects_.end());
   it->second.count--;
-  DCHECK(it->second.count >= 0);
+  DCHECK_GE(it->second.count, 0);
   if (it->second.count == 0) {
     kept_alive_objects_.erase(it);
   }
@@ -389,11 +412,60 @@ ScriptValueFactory* MozjsGlobalEnvironment::script_value_factory() {
   return script_value_factory_.get();
 }
 
+// static
+void MozjsGlobalEnvironment::TraceFunction(JSTracer* tracer, void* data) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(data);
+  if (global_environment->global_object_proxy_) {
+    JS_CallObjectTracer(tracer, &global_environment->global_object_proxy_,
+                        "MozjsGlobalEnvironment");
+  }
+
+  for (auto& interface_data : global_environment->cached_interface_data_) {
+    if (interface_data.prototype) {
+      JS_CallObjectTracer(tracer, &interface_data.prototype,
+                          "MozjsGlobalEnvironment");
+    }
+    if (interface_data.interface_object) {
+      JS_CallObjectTracer(tracer, &interface_data.interface_object,
+                          "MozjsGlobalEnvironment");
+    }
+  }
+
+  auto& kept_alive_objects_ = global_environment->kept_alive_objects_;
+  for (auto& pair : kept_alive_objects_) {
+    auto& counted_heap_object = pair.second;
+    DCHECK_GT(counted_heap_object.count, 0);
+    JS_CallObjectTracer(tracer, &counted_heap_object.heap_object,
+                        "MozjsGlobalEnvironment");
+  }
+}
+
 void MozjsGlobalEnvironment::EvaluateAutomatics() {
   EvaluateEmbeddedScript(
       MozjsEmbeddedResources::promise_min_js,
       sizeof(MozjsEmbeddedResources::promise_min_js),
       "promise.min.js");
+  // Store the |Promise| (currently the only polyfill that needs to be
+  // accessed from native code) implemented there in our own handle (as
+  // opposed to fetching it from the global object everytime we need it), in
+  // order to defend ourselves from application JavaScript modifying
+  // |window.Promise| later.
+  {
+    DCHECK(!stored_promise_constructor_);
+    JS::RootedObject global_object(
+        context_, js::GetProxyTargetObject(global_object_proxy_));
+    JSAutoRequest auto_request(context_);
+    JSAutoCompartment auto_compartment(context_, global_object);
+    JS::RootedValue promise_constructor_property(context_);
+    bool result = JS_GetProperty(context_, global_object, "Promise",
+                                 &promise_constructor_property);
+    DCHECK(result);
+    DCHECK(promise_constructor_property.isObject());
+    stored_promise_constructor_ = JS::PersistentRootedObject(
+        context_, &promise_constructor_property.toObject());
+    DCHECK(stored_promise_constructor_);
+  }
   EvaluateEmbeddedScript(
       MozjsEmbeddedResources::byte_length_queuing_strategy_js,
       sizeof(MozjsEmbeddedResources::byte_length_queuing_strategy_js),
@@ -446,14 +518,6 @@ void MozjsGlobalEnvironment::EndGarbageCollection() {
   if (garbage_collection_count_ == 0) {
     visited_traceables_.clear();
   }
-}
-
-MozjsGlobalEnvironment* MozjsGlobalEnvironment::GetFromContext(
-    JSContext* context) {
-  MozjsGlobalEnvironment* global_proxy =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  DCHECK(global_proxy);
-  return global_proxy;
 }
 
 void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
@@ -529,44 +593,6 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
                << error_report.line_number << ":" << error_report.column_number
                << ": " << error_report.message;
   }
-}
-
-void MozjsGlobalEnvironment::TraceFunction(JSTracer* tracer, void* data) {
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(data);
-  if (global_environment->global_object_proxy_) {
-    JS_CallObjectTracer(tracer, &global_environment->global_object_proxy_,
-                        "MozjsGlobalEnvironment");
-  }
-
-  for (auto& interface_data : global_environment->cached_interface_data_) {
-    if (interface_data.prototype) {
-      JS_CallObjectTracer(tracer, &interface_data.prototype,
-                          "MozjsGlobalEnvironment");
-    }
-    if (interface_data.interface_object) {
-      JS_CallObjectTracer(tracer, &interface_data.interface_object,
-                          "MozjsGlobalEnvironment");
-    }
-  }
-
-  auto& kept_alive_objects_ = global_environment->kept_alive_objects_;
-  for (auto& pair : kept_alive_objects_) {
-    auto& counted_heap_object = pair.second;
-    DCHECK(counted_heap_object.count > 0);
-    JS_CallObjectTracer(tracer, &counted_heap_object.heap_object,
-                        "MozjsGlobalEnvironment");
-  }
-}
-
-bool MozjsGlobalEnvironment::CheckEval(JSContext* context) {
-  TRACK_MEMORY_SCOPE("Javascript");
-  MozjsGlobalEnvironment* global_environment = GetFromContext(context);
-  DCHECK(global_environment);
-  if (!global_environment->report_eval_.is_null()) {
-    global_environment->report_eval_.Run();
-  }
-  return global_environment->eval_enabled_;
 }
 
 }  // namespace mozjs
