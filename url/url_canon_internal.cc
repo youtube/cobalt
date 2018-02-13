@@ -4,11 +4,20 @@
 
 #include "url/url_canon_internal.h"
 
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#ifndef EINVAL
+#define EINVAL 22
+#endif
+#define snprintf SbStringFormatF
+#else
 #include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
 
 #include <cstdio>
+#endif
+
 #include <string>
 
 #include "base/strings/utf_string_conversion_utils.h"
