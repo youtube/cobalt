@@ -10,8 +10,12 @@
 // template bloat because everything is inlined when anybody calls any of our
 // functions.
 
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#else
 #include <stddef.h>
 #include <stdlib.h>
+#endif
 
 #include "base/logging.h"
 #include "url/url_canon.h"
@@ -402,7 +406,7 @@ bool CanonicalizePartialPath(const base::char16* spec,
                              int path_begin_in_output,
                              CanonOutput* output);
 
-#ifndef WIN32
+#if !defined(WIN32) || defined(STARBOARD)
 
 // Implementations of Windows' int-to-string conversions
 URL_EXPORT int _itoa_s(int value, char* buffer, size_t size_in_chars,
@@ -424,7 +428,11 @@ inline int _itow_s(int value, base::char16 (&buffer)[N], int radix) {
 // _strtoui64 and strtoull behave the same
 inline unsigned long long _strtoui64(const char* nptr,
                                      char** endptr, int base) {
+#if defined(STARBOARD)
+  return SbStringParseUInt64(nptr, endptr, base);
+#else
   return strtoull(nptr, endptr, base);
+#endif
 }
 
 #endif  // WIN32

@@ -463,9 +463,13 @@ void GURL::Swap(GURL* other) {
 }
 
 size_t GURL::EstimateMemoryUsage() const {
+#if defined(STARBOARD)
+  return 0;
+#else
   return base::trace_event::EstimateMemoryUsage(spec_) +
          base::trace_event::EstimateMemoryUsage(inner_url_) +
          (parsed_.inner_parsed() ? sizeof(url::Parsed) : 0);
+#endif
 }
 
 std::ostream& operator<<(std::ostream& out, const GURL& url) {
