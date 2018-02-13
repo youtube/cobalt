@@ -157,11 +157,13 @@ class SourceBuffer : public dom::EventTarget {
   void RemoveMediaTracks();
 
   const TrackDefault* GetTrackDefault(
-      const std::string& trackType, const std::string& byteStreamTrackID) const;
-  std::string DefaultTrackLabel(const std::string& trackType,
-                                const std::string& byteStreamTrackID) const;
-  std::string DefaultTrackLanguage(const std::string& trackType,
-                                   const std::string& byteStreamTrackID) const;
+      const std::string& track_type,
+      const std::string& byte_stream_track_id) const;
+  std::string DefaultTrackLabel(const std::string& track_type,
+                                const std::string& byte_stream_track_id) const;
+  std::string DefaultTrackLanguage(
+      const std::string& track_type,
+      const std::string& byte_stream_track_id) const;
 
   const std::string id_;
   media::ChunkDemuxer* chunk_demuxer_;

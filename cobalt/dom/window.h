@@ -188,7 +188,7 @@ class Window : public EventTarget,
   scoped_refptr<cssom::CSSStyleDeclaration> GetComputedStyle(
       const scoped_refptr<Element>& elt);
   scoped_refptr<cssom::CSSStyleDeclaration> GetComputedStyle(
-      const scoped_refptr<Element>& elt, const std::string& pseudoElt);
+      const scoped_refptr<Element>& elt, const std::string& pseudo_elt);
 
   // Web API: Timing control for script-based animations (partial interface)
   //   https://www.w3.org/TR/animation-timing/#Window-interface-extensions
