@@ -44,10 +44,14 @@ namespace {
 
 #include "net/http/transport_security_state_ct_policies.inc"
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 #include "net/http/transport_security_state_static.h"  // nogncheck
 // Points to the active transport security state source.
 const TransportSecurityStateSource* const kDefaultHSTSSource = &kHSTSSource;
+#else
+const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
+#endif
 #else
 const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
 #endif
@@ -349,11 +353,13 @@ class HSTSPreloadDecoder : public net::extras::PreloadDecoder {
 };
 
 bool DecodeHSTSPreload(const std::string& search_hostname, PreloadResult* out) {
+#if !defined(STARBOARD)
 #if !BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   if (g_hsts_source == nullptr)
     return false;
 #endif
   bool found = false;
+#endif  // !defined(STARBOARD)
 
   // Ensure that |search_hostname| is a valid hostname before
   // processing.
@@ -1184,6 +1190,10 @@ bool TransportSecurityState::GetStaticDomainState(const std::string& host,
                                                   PKPState* pkp_result) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+#if defined(STARBOARD)
+  NOTIMPLEMENTED();
+  return false;
+#else
   if (!IsBuildTimely())
     return false;
 
@@ -1228,6 +1238,7 @@ bool TransportSecurityState::GetStaticDomainState(const std::string& host,
   }
 
   return true;
+#endif
 }
 
 bool TransportSecurityState::GetSTSState(const std::string& host,

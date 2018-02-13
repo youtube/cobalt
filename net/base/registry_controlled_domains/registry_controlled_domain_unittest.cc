@@ -7,7 +7,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 #include "url/origin.h"
-#include "url/url_features.h"
 
 namespace {
 
@@ -67,12 +66,14 @@ size_t PermissiveGetHostRegistryLength(base::StringPiece host) {
 }
 
 // Only called when using ICU (avoids unused static function error).
+#if !defined(STARBOARD)
 #if !BUILDFLAG(USE_PLATFORM_ICU_ALTERNATIVES)
 size_t PermissiveGetHostRegistryLength(base::StringPiece16 host) {
   return PermissiveGetHostRegistryLength(host, EXCLUDE_UNKNOWN_REGISTRIES,
                                          EXCLUDE_PRIVATE_REGISTRIES);
 }
 #endif
+#endif  // #if !defined(STARBOARD)
 
 size_t GetCanonicalHostRegistryLength(const std::string& host,
                                       UnknownRegistryFilter unknown_filter) {
@@ -596,6 +597,7 @@ TEST_F(RegistryControlledDomainTest, Permissive) {
   EXPECT_EQ(4U, PermissiveGetHostRegistryLength("Www.Googl%45%2e%4Ap"));
 
 // IDN cases (not supported when not linking ICU).
+#if !defined(STARBOARD)
 #if !BUILDFLAG(USE_PLATFORM_ICU_ALTERNATIVES)
   EXPECT_EQ(10U, PermissiveGetHostRegistryLength("foo.xn--fiqs8s"));
   EXPECT_EQ(11U, PermissiveGetHostRegistryLength("foo.xn--fiqs8s."));
@@ -622,6 +624,7 @@ TEST_F(RegistryControlledDomainTest, Permissive) {
   EXPECT_EQ(3U, PermissiveGetHostRegistryLength(
                     base::WideToUTF16(L"Www.Google\xFF0E\xFF2A\xFF50\xFF0E")));
 #endif
+#endif  // #if !defined(STARBOARD)
 }
 
 }  // namespace registry_controlled_domains

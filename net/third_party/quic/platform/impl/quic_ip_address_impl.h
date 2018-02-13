@@ -34,7 +34,9 @@ class QUIC_EXPORT_PRIVATE QuicIpAddressImpl {
 
   bool IsInitialized() const;
   IpAddressFamily address_family() const;
+#if !defined(STARBOARD)
   int AddressFamilyToInt() const;
+#endif
   std::string ToPackedString() const;
   std::string ToString() const;
   QuicIpAddressImpl Normalized() const;

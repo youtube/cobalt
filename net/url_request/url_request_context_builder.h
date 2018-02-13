@@ -29,7 +29,9 @@
 #include "base/memory/ref_counted.h"
 #include "base/task/task_traits.h"
 #include "build/build_config.h"
+#if !defined(STARBOARD)
 #include "build/buildflag.h"
+#endif
 #include "net/base/net_export.h"
 #include "net/base/network_delegate.h"
 #include "net/base/proxy_delegate.h"

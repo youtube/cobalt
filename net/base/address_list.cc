@@ -13,6 +13,11 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/log/net_log_capture_mode.h"
 
+#if defined(STARBOARD)
+#include "base/lazy_instance.h"
+#include "base/command_line.h"
+#endif
+
 namespace net {
 
 namespace {
@@ -61,6 +66,62 @@ AddressList AddressList::CreateFromIPAddressList(
   return list;
 }
 
+#if defined(STARBOARD)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
+namespace {
+const char kResolveOnlyIpv6[] = "resolve_only_ipv6";
+const char kResolveOnlyIpv4[] = "resolve_only_ipv4";
+
+struct ResolveFilterFlags {
+  ResolveFilterFlags();
+
+  bool resolve_only_ipv6;
+  bool resolve_only_ipv4;
+};
+
+base::LazyInstance<ResolveFilterFlags>::Leaky g_resolve_filter_flags =
+    LAZY_INSTANCE_INITIALIZER;
+
+ResolveFilterFlags::ResolveFilterFlags() {
+  resolve_only_ipv6 =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(kResolveOnlyIpv6);
+  resolve_only_ipv4 =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(kResolveOnlyIpv4);
+  DCHECK(!(resolve_only_ipv6 && resolve_only_ipv4));
+}
+
+}  // namespace
+
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
+// static
+AddressList AddressList::CreateFromSbSocketResolution(
+    const SbSocketResolution* resolution) {
+  DCHECK(resolution);
+  AddressList list;
+
+  for (int i = 0; i < resolution->address_count; ++i) {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+    SbSocketAddressType address_type = resolution->addresses[i].type;
+    ResolveFilterFlags& flags = g_resolve_filter_flags.Get();
+    if ((flags.resolve_only_ipv6 && address_type != kSbSocketAddressTypeIpv6) ||
+        (flags.resolve_only_ipv4 && address_type != kSbSocketAddressTypeIpv4)) {
+      continue;
+    }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+    IPEndPoint end_point;
+    if (end_point.FromSbSocketAddress(&resolution->addresses[i])) {
+      list.push_back(end_point);
+      continue;
+    }
+
+    DLOG(WARNING) << "Failure to convert resolution address #" << i;
+  }
+
+  return list;
+}
+#else   // defined(STARBOARD)
 // static
 AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   DCHECK(head);
@@ -77,6 +138,7 @@ AddressList AddressList::CreateFromAddrinfo(const struct addrinfo* head) {
   }
   return list;
 }
+#endif  // defined(STARBOARD)
 
 // static
 AddressList AddressList::CopyWithPort(const AddressList& list, uint16_t port) {

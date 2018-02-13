@@ -65,6 +65,7 @@ IpAddressFamily QuicIpAddressImpl::address_family() const {
   return IpAddressFamily::IP_UNSPEC;
 }
 
+#if !defined(STARBOARD)
 int QuicIpAddressImpl::AddressFamilyToInt() const {
   switch (ip_address_.size()) {
     case net::IPAddress::kIPv4AddressSize:
@@ -76,6 +77,7 @@ int QuicIpAddressImpl::AddressFamilyToInt() const {
       return AF_UNSPEC;
   }
 }
+#endif
 
 string QuicIpAddressImpl::ToPackedString() const {
   return net::IPAddressToPackedString(ip_address_);

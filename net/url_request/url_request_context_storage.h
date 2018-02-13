@@ -9,7 +9,9 @@
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#if !defined(STARBOARD)
 #include "build/buildflag.h"
+#endif
 #include "net/base/net_export.h"
 #include "net/net_buildflags.h"
 

@@ -25,7 +25,9 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#if !defined(STARBOARD)
 #include "build/buildflag.h"
+#endif
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"

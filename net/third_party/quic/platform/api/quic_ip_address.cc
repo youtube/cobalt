@@ -41,9 +41,11 @@ IpAddressFamily QuicIpAddress::address_family() const {
   return impl_.address_family();
 }
 
+#if !defined(STARBOARD)
 int QuicIpAddress::AddressFamilyToInt() const {
   return impl_.AddressFamilyToInt();
 }
+#endif
 
 QuicString QuicIpAddress::ToPackedString() const {
   return impl_.ToPackedString();

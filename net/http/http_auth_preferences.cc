@@ -27,7 +27,7 @@ bool HttpAuthPreferences::NegotiateEnablePort() const {
   return negotiate_enable_port_;
 }
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 bool HttpAuthPreferences::NtlmV2Enabled() const {
   return ntlm_v2_enabled_;
 }

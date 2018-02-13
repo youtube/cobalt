@@ -215,6 +215,30 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
   return std::make_unique<SystemTrustStoreFuchsia>();
 }
 
+#elif defined(STARBOARD)
+
+// Starboard does not currently provide support for system trust store access,
+// so we indicate that it should not be used.
+class SystemTrustStoreStarboard : public BaseSystemTrustStore {
+ public:
+  SystemTrustStoreStarboard() {
+    if (TestRootCerts::HasInstance()) {
+      trust_store_.AddTrustStore(
+          TestRootCerts::GetInstance()->test_trust_store());
+    }
+  }
+
+  bool UsesSystemTrustStore() const override { return false; }
+
+  bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
+    return false;
+  }
+};
+
+std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
+  return std::make_unique<SystemTrustStoreStarboard>();
+}
+
 #else
 
 class DummySystemTrustStore : public BaseSystemTrustStore {

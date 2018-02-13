@@ -652,10 +652,12 @@ void TCPSocketPosix::ConnectCompleted(CompletionOnceCallback callback, int rv) {
 }
 
 int TCPSocketPosix::HandleConnectCompleted(int rv) {
+  SbSocketError socket_error = connect_socket_error_;
+  connect_socket_error_ = kSbSocketOk;
   // Log the end of this attempt (and any OS error it threw).
   if (rv != OK) {
     net_log_.EndEvent(NetLogEventType::TCP_CONNECT_ATTEMPT,
-                      NetLog::IntCallback("os_error", errno));
+                      NetLog::IntCallback("sb_socket_error", errno));
     tag_ = SocketTag();
   } else {
     net_log_.EndEvent(NetLogEventType::TCP_CONNECT_ATTEMPT);

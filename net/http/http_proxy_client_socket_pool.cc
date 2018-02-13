@@ -53,6 +53,9 @@ static const int kHttpProxyConnectJobTimeoutInSeconds = 30;
 // "NetAdaptiveProxyConnectionTimeout". If the value of the parameter is
 // unavailable, then |default_value| is available.
 int32_t GetInt32Param(const std::string& param_name, int32_t default_value) {
+#if defined(STARBOARD)
+  return default_value;
+#else
   int32_t param;
   if (!base::StringToInt(base::GetFieldTrialParamValue(
                              "NetAdaptiveProxyConnectionTimeout", param_name),
@@ -60,6 +63,7 @@ int32_t GetInt32Param(const std::string& param_name, int32_t default_value) {
     return default_value;
   }
   return param;
+#endif
 }
 
 }  // namespace

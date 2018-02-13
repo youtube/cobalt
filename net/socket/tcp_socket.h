@@ -13,6 +13,8 @@
 #include "net/socket/tcp_socket_win.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "net/socket/tcp_socket_posix.h"
+#elif defined(STARBOARD)
+#include "net/socket/tcp_socket_starboard.h"
 #endif
 
 namespace net {
@@ -27,6 +29,8 @@ namespace net {
 typedef TCPSocketWin TCPSocket;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 typedef TCPSocketPosix TCPSocket;
+#elif defined(STARBOARD)
+typedef TCPSocketStarboard TCPSocket;
 #endif
 
 // Check if TCP FastOpen is supported by the OS.

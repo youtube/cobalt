@@ -18,6 +18,7 @@ QuicSocketAddressImpl::QuicSocketAddressImpl(QuicIpAddressImpl address,
                                              uint16_t port)
     : socket_address_(address.ip_address(), port) {}
 
+#if !defined(STARBOARD)
 QuicSocketAddressImpl::QuicSocketAddressImpl(
     const struct sockaddr_storage& saddr) {
   if (saddr.ss_family == AF_INET) {
@@ -34,6 +35,7 @@ QuicSocketAddressImpl::QuicSocketAddressImpl(const struct sockaddr& saddr) {
   QUIC_BUG << "QuicSocketAddressImpl(const struct sockaddr& saddr) is not "
               "implemented.";
 }
+#endif
 
 bool operator==(const QuicSocketAddressImpl& lhs,
                 const QuicSocketAddressImpl& rhs) {
@@ -59,6 +61,7 @@ string QuicSocketAddressImpl::ToString() const {
   return socket_address_.ToString();
 }
 
+#if !defined(STARBOARD)
 int QuicSocketAddressImpl::FromSocket(int fd) {
   net::SockaddrStorage storage;
   if (getsockname(fd, storage.addr, &storage.addr_len) != 0 ||
@@ -68,6 +71,7 @@ int QuicSocketAddressImpl::FromSocket(int fd) {
 
   return 0;
 }
+#endif
 
 QuicSocketAddressImpl QuicSocketAddressImpl::Normalized() const {
   QUIC_BUG << "QuicSocketAddressImpl::Normalized() is not implemented.";
@@ -82,6 +86,7 @@ uint16_t QuicSocketAddressImpl::port() const {
   return socket_address_.port();
 }
 
+#if !defined(STARBOARD)
 sockaddr_storage QuicSocketAddressImpl::generic_address() const {
   sockaddr_storage raw_address;
   socklen_t address_len = sizeof(raw_address);
@@ -89,5 +94,6 @@ sockaddr_storage QuicSocketAddressImpl::generic_address() const {
       reinterpret_cast<struct sockaddr*>(&raw_address), &address_len));
   return raw_address;
 }
+#endif
 
 }  // namespace quic

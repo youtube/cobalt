@@ -10,11 +10,13 @@ namespace quic {
 QuicSocketAddress::QuicSocketAddress(QuicIpAddress address, uint16_t port)
     : impl_(address.impl(), port) {}
 
+#if !defined(STARBOARD)
 QuicSocketAddress::QuicSocketAddress(const struct sockaddr_storage& saddr)
     : impl_(saddr) {}
 
 QuicSocketAddress::QuicSocketAddress(const struct sockaddr& saddr)
     : impl_(saddr) {}
+#endif
 
 QuicSocketAddress::QuicSocketAddress(const QuicSocketAddressImpl& impl)
     : impl_(impl) {}
@@ -35,9 +37,11 @@ QuicString QuicSocketAddress::ToString() const {
   return impl_.ToString();
 }
 
+#if !defined(STARBOARD)
 int QuicSocketAddress::FromSocket(int fd) {
   return impl_.FromSocket(fd);
 }
+#endif
 
 QuicSocketAddress QuicSocketAddress::Normalized() const {
   return QuicSocketAddress(impl_.Normalized());
@@ -51,8 +55,10 @@ uint16_t QuicSocketAddress::port() const {
   return impl_.port();
 }
 
+#if !defined(STARBOARD)
 sockaddr_storage QuicSocketAddress::generic_address() const {
   return impl_.generic_address();
 }
+#endif
 
 }  // namespace quic
