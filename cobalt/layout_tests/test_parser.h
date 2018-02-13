@@ -26,16 +26,6 @@
 namespace cobalt {
 namespace layout_tests {
 
-// Returns the root directory that all test input can be found in (e.g.
-// the HTML files that define the tests, and the PNG/TXT files that define
-// the expected output).
-FilePath GetTestInputRootDirectory();
-
-// Returns the root directory that all output will be placed within.  Output
-// is generated when rebaselining test expected output, or when test details
-// have been chosen to be output.
-FilePath GetTestOutputRootDirectory();
-
 // Final parsed information about an individual Layout Test entry.
 struct TestInfo {
   TestInfo(const FilePath& base_file_path, const GURL& url,
