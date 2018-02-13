@@ -47,17 +47,18 @@ bool OnScreenKeyboardStarboardBridge::IsShown() const {
   return SbWindowIsOnScreenKeyboardShown(sb_window_provider_.Run());
 }
 
-scoped_refptr<dom::DOMRect> OnScreenKeyboardStarboardBridge::Rect() const {
+scoped_refptr<dom::DOMRect>
+OnScreenKeyboardStarboardBridge::BoundingRect() const {
   // Delay providing the SbWindow until as late as possible.
   SbWindowRect sb_window_rect = SbWindowRect();
-  if (!SbWindowGetOnScreenKeyboardRect(sb_window_provider_.Run(),
-                                       &sb_window_rect)) {
+  if (!SbWindowGetOnScreenKeyboardBoundingRect(sb_window_provider_.Run(),
+                                               &sb_window_rect)) {
     return nullptr;
   }
-  scoped_refptr<dom::DOMRect> rect =
+  scoped_refptr<dom::DOMRect> bounding_rect =
       new dom::DOMRect(sb_window_rect.x, sb_window_rect.y, sb_window_rect.width,
                        sb_window_rect.height);
-  return rect;
+  return bounding_rect;
 }
 
 bool OnScreenKeyboardStarboardBridge::IsValidTicket(int ticket) const {

@@ -24,7 +24,7 @@ interface OnScreenKeyboard : EventTarget {
 
   // If the keyboard is shown, return bounding rectangle in screen pixel
   // coordinates, otherwise return NULL.
-  readonly attribute DOMRect? rect;
+  readonly attribute DOMRect? boundingRect;
 
   // If the keyboard should keep focus, preventing focus from moving away from
   // the keyboard due to user input.

@@ -31,7 +31,7 @@ class OnScreenKeyboardBridge {
   virtual void Focus(int ticket) = 0;
   virtual void Blur(int ticket) = 0;
   virtual bool IsShown() const = 0;
-  virtual scoped_refptr<DOMRect> Rect() const = 0;
+  virtual scoped_refptr<DOMRect> BoundingRect() const = 0;
   virtual void SetKeepFocus(bool keep_focus) = 0;
   virtual bool IsValidTicket(int ticket) const = 0;
 };
