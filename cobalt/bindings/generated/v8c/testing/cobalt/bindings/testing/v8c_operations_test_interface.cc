@@ -921,7 +921,7 @@ void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallba
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments
-  TypeTraits<bool >::ConversionType optional_arg;
+  TypeTraits<bool >::ConversionType optionalArg;
   // Variadic argument
   TypeTraits<std::vector<std::string> >::ConversionType strings;
   size_t num_set_arguments = 0;
@@ -931,7 +931,7 @@ void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallba
                 optional_value0,
                 kNoConversionFlags,
                 &exception_state,
-                &optional_arg);
+                &optionalArg);
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -970,7 +970,7 @@ void variadicStringArgumentsAfterOptionalArgumentMethod(const v8::FunctionCallba
       break;
     case 2:
       {
-          impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
+          impl->VariadicStringArgumentsAfterOptionalArgument(optionalArg, strings);
           result_value = v8::Undefined(isolate);
       }
       break;

@@ -44,4 +44,4 @@
 };
 
 callback LogMessageCallback = void(long severity, DOMString file, long line,
-                                   long message_start, DOMString message);
+                                   long messageStart, DOMString message);

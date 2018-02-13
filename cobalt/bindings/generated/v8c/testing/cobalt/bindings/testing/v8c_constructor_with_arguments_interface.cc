@@ -106,7 +106,7 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
   TypeTraits<int32_t >::ConversionType arg1;
   TypeTraits<bool >::ConversionType arg2;
   // Optional arguments with default values
-  TypeTraits<std::string >::ConversionType default_arg =
+  TypeTraits<std::string >::ConversionType defaultArg =
       "default";
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
@@ -133,7 +133,7 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
                 optional_value0,
                 kNoConversionFlags,
                 &exception_state,
-                &default_arg);
+                &defaultArg);
     if (exception_state.is_exception_set()) {
       return;
     }
@@ -144,7 +144,7 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   scoped_refptr<ConstructorWithArgumentsInterface> new_object =
-      new ConstructorWithArgumentsInterface(arg1, arg2, default_arg);
+      new ConstructorWithArgumentsInterface(arg1, arg2, defaultArg);
   v8::Local<v8::Value> result_value;
   ToJSValue(isolate, new_object, &result_value);
   DCHECK(result_value->IsObject());
