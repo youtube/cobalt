@@ -7,6 +7,10 @@
 
 #include "net/base/net_export.h"
 
+#if defined(STARBOARD)
+#include "starboard/socket.h"
+#endif
+
 namespace net {
 
 class IPAddress;
@@ -37,8 +41,13 @@ typedef int HostResolverFlags;
 // Returns AddressFamily for |address|.
 NET_EXPORT AddressFamily GetAddressFamily(const IPAddress& address);
 
+#if defined(STARBOARD)
+NET_EXPORT SbSocketAddressType ConvertAddressFamily(
+    AddressFamily address_family);
+#else
 // Maps the given AddressFamily to either AF_INET, AF_INET6 or AF_UNSPEC.
 NET_EXPORT int ConvertAddressFamily(AddressFamily address_family);
+#endif
 
 }  // namespace net
 

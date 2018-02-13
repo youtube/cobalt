@@ -904,6 +904,8 @@ TEST(CanonicalCookieTest, TestSetCreationDate) {
   EXPECT_EQ(now, cookie.CreationDate());
 }
 
+#if !defined(STARBOARD)
+
 TEST(CanonicalCookieTest, TestPrefixHistograms) {
   base::HistogramTester histograms;
   const char kCookiePrefixHistogram[] = "Cookie.CookiePrefix";
@@ -953,6 +955,8 @@ TEST(CanonicalCookieTest, TestPrefixHistograms) {
   histograms.ExpectBucketCount(kCookiePrefixBlockedHistogram,
                                CanonicalCookie::COOKIE_PREFIX_SECURE, 1);
 }
+
+#endif  // !defined(STARBOARD)
 
 TEST(CanonicalCookieTest, BuildCookieLine) {
   std::vector<std::unique_ptr<CanonicalCookie>> cookies;

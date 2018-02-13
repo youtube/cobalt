@@ -67,7 +67,7 @@ void ParseUrl(base::StringPiece url,
 std::unique_ptr<MockWrite[]> ChopWriteFrame(
     const spdy::SpdySerializedFrame& frame,
     int num_chunks) {
-  auto chunks = std::make_unique<MockWrite[]>(num_chunks);
+  auto chunks = std::unique_ptr<MockWrite[]>(new MockWrite[num_chunks]);
   int chunk_size = frame.size() / num_chunks;
   for (int index = 0; index < num_chunks; index++) {
     const char* ptr = frame.data() + (index * chunk_size);
@@ -149,7 +149,7 @@ spdy::SpdySerializedFrame CombineFrames(
   for (const auto* frame : frames) {
     total_size += frame->size();
   }
-  auto data = std::make_unique<char[]>(total_size);
+  auto data = std::unique_ptr<char[]>(new char[total_size]);
   char* ptr = data.get();
   for (const auto* frame : frames) {
     memcpy(ptr, frame->data(), frame->size());

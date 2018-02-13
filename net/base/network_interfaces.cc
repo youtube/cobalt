@@ -43,6 +43,10 @@ NetworkInterface::~NetworkInterface() = default;
 ScopedWifiOptions::~ScopedWifiOptions() = default;
 
 std::string GetHostName() {
+#if defined(STARBOARD)
+  NOTIMPLEMENTED();
+  return "";
+#else
 #if defined(OS_NACL)
   NOTIMPLEMENTED();
   return std::string();
@@ -60,6 +64,7 @@ std::string GetHostName() {
   }
   return std::string(buffer);
 #endif  // !defined(OS_NACL)
+#endif  // defined(STARBOARD)
 }
 
 }  // namespace net

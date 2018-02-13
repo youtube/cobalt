@@ -15,6 +15,8 @@
 #include "net/base/net_export.h"
 #include "net/log/net_log.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 class Value;
 class FilePath;
@@ -152,5 +154,7 @@ class NET_EXPORT FileNetLogObserver : public NetLog::ThreadSafeObserver {
 };
 
 }  // namespace net
+
+#endif  // !defined(STARBOARD)
 
 #endif  // NET_LOG_FILE_NET_LOG_OBSERVER_H_

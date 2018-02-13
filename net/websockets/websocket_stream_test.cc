@@ -1572,6 +1572,8 @@ TEST_P(WebSocketStreamCreateDigestAuthTest, DigestPasswordInUrl) {
   EXPECT_EQ(101, response_info_->headers->response_code());
 }
 
+// TODO: User Metrics Actions (UMA) might not be supported in Starboard. Verify
+// that this test does not need that.
 TEST_P(WebSocketMultiProtocolStreamCreateTest, Incomplete) {
   base::HistogramTester histogram_tester;
 
@@ -1638,6 +1640,7 @@ TEST_P(WebSocketMultiProtocolStreamCreateTest, Http2StreamReset) {
                WebSocketHandshakeStreamBase::HandshakeResult::HTTP2_FAILED)));
   }
 }
+#endif  // !defined(STARBOARD)
 
 TEST_P(WebSocketStreamCreateTest, HandleErrConnectionClosed) {
   base::HistogramTester histogram_tester;

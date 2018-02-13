@@ -2373,7 +2373,13 @@ void SpdySession::SendInitialData() {
       spdy::kHttp2ConnectionHeaderPrefixSize + settings_frame->size();
   if (send_window_update)
     initial_frame_size += window_update_frame->size();
+#if defined(STARBOARD)
+  // Work-around for no C++14 support.
+  auto initial_frame_data =
+      std::unique_ptr<char[]>(new char[initial_frame_size]);
+#else
   auto initial_frame_data = std::make_unique<char[]>(initial_frame_size);
+#endif
   size_t offset = 0;
 
   memcpy(initial_frame_data.get() + offset, spdy::kHttp2ConnectionHeaderPrefix,

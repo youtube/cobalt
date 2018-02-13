@@ -16,8 +16,10 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddressImpl {
   QuicSocketAddressImpl() = default;
   explicit QuicSocketAddressImpl(const net::IPEndPoint& addr);
   QuicSocketAddressImpl(QuicIpAddressImpl address, uint16_t port);
+#if !defined(STARBOARD)
   explicit QuicSocketAddressImpl(const struct sockaddr_storage& saddr);
   explicit QuicSocketAddressImpl(const struct sockaddr& saddr);
+#endif
   QuicSocketAddressImpl(const QuicSocketAddressImpl& other) = default;
   QuicSocketAddressImpl& operator=(const QuicSocketAddressImpl& other) =
       default;
@@ -29,13 +31,17 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddressImpl {
 
   bool IsInitialized() const;
   std::string ToString() const;
+#if !defined(STARBOARD)
   int FromSocket(int fd);
+#endif
   QuicSocketAddressImpl Normalized() const;
 
   QuicIpAddressImpl host() const;
   uint16_t port() const;
 
+#if !defined(STARBOARD)
   sockaddr_storage generic_address() const;
+#endif
   const net::IPEndPoint& socket_address() const { return socket_address_; }
 
  private:

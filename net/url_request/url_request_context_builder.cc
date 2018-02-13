@@ -175,16 +175,19 @@ class ContainerURLRequestContext final : public URLRequestContext {
   URLRequestContextStorage* storage() {
     return &storage_;
   }
-
+#if !defined(STARBOARD)
   void set_transport_security_persister(
       std::unique_ptr<TransportSecurityPersister>
           transport_security_persister) {
     transport_security_persister_ = std::move(transport_security_persister);
   }
+#endif
 
  private:
   URLRequestContextStorage storage_;
+#if !defined(STARBOARD)
   std::unique_ptr<TransportSecurityPersister> transport_security_persister_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(ContainerURLRequestContext);
 };
@@ -486,6 +489,7 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
 
   storage->set_transport_security_state(
       std::make_unique<TransportSecurityState>());
+#if !defined(STARBOARD)
   if (!transport_security_persister_path_.empty()) {
     // Use a low priority because saving this should not block anything
     // user-visible. Block shutdown to ensure it does get persisted to disk,
@@ -500,6 +504,7 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
             context->transport_security_state(),
             transport_security_persister_path_, task_runner));
   }
+#endif  // !defined(STARBOARD)
 
   if (http_server_properties_) {
     storage->set_http_server_properties(std::move(http_server_properties_));
