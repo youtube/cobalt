@@ -1,1 +1,1 @@
-youtube-2015-q3-initial-layout:1920x1080, file:///cobalt/layout_tests/benchmarks/youtube-2015-q3/index.html
+youtube-2015-q3-initial-layout:1920x1080
