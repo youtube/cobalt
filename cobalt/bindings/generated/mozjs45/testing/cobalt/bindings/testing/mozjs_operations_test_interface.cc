@@ -1302,7 +1302,7 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
   OperationsTestInterface* impl =
       wrapper_private->wrappable<OperationsTestInterface>().get();
   // Optional arguments
-  TypeTraits<bool >::ConversionType optional_arg;
+  TypeTraits<bool >::ConversionType optionalArg;
   // Variadic argument
   TypeTraits<std::vector<std::string> >::ConversionType strings;
   size_t num_set_arguments = 0;
@@ -1313,7 +1313,7 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
                 optional_value0,
                 kNoConversionFlags,
                 &exception_state,
-                &optional_arg);
+                &optionalArg);
     if (exception_state.is_exception_set()) {
       return false;
     }
@@ -1354,7 +1354,7 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
       break;
     case 2:
       {
-          impl->VariadicStringArgumentsAfterOptionalArgument(optional_arg, strings);
+          impl->VariadicStringArgumentsAfterOptionalArgument(optionalArg, strings);
           result_value.set(JS::UndefinedHandleValue);
           return !exception_state.is_exception_set();
       }

@@ -83,8 +83,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 
   scoped_refptr<TimeRanges> buffered() const;
   void Load();
-  std::string CanPlayType(const std::string& mimeType);
-  std::string CanPlayType(const std::string& mimeType,
+  std::string CanPlayType(const std::string& mime_type);
+  std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system);
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
