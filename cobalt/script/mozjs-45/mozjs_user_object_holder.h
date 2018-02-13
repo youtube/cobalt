@@ -151,7 +151,7 @@ class MozjsUserObjectHolder
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
   int prevent_garbage_collection_count_;
-  base::optional<JS::Value> persistent_root_;
+  base::optional<JS::PersistentRootedValue> persistent_root_;
 };
 
 }  // namespace mozjs
