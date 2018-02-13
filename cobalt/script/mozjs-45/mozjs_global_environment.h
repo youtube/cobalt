@@ -47,6 +47,13 @@ class WeakHandle;
 class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
+  static MozjsGlobalEnvironment* GetFromContext(JSContext* context);
+
+  // This will be called every time an attempt is made to use eval() and
+  // friends. If it returns false, then the ReportErrorHandler will be fired
+  // with an error that eval() is disabled.
+  static bool CheckEval(JSContext* context);
+
   explicit MozjsGlobalEnvironment(JSRuntime* runtime);
   ~MozjsGlobalEnvironment() override;
 
@@ -114,6 +121,13 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
     return environment_settings_;
   }
 
+  void GetStoredPromiseConstructor(
+      JS::MutableHandleObject out_promise_constructor) {
+    DCHECK(stored_promise_constructor_);
+    out_promise_constructor.set(*stored_promise_constructor_);
+    DCHECK(out_promise_constructor);
+  }
+
   void SetGlobalObjectProxyAndWrapper(
       JS::HandleObject global_object_proxy,
       const scoped_refptr<Wrappable>& wrappable);
@@ -130,13 +144,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void BeginGarbageCollection();
   void EndGarbageCollection();
-
-  static MozjsGlobalEnvironment* GetFromContext(JSContext* context);
-
-  // This will be called every time an attempt is made to use eval() and
-  // friends. If it returns false, then the ReportErrorHandler will be fired
-  // with an error that eval() is disabled.
-  static bool CheckEval(JSContext* context);
 
   void ReportError(const char* message, JSErrorReport* report);
 
@@ -156,7 +163,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
     int count;
   };
 
-  // Evaluates any automatically included Javascript for the environment.
+  static void TraceFunction(JSTracer* trace, void* data);
+
+  // Evaluates any automatically included JavaScript for the environment.
   void EvaluateAutomatics();
 
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
@@ -165,8 +174,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
                               const char* filename);
-
-  static void TraceFunction(JSTracer* trace, void* data);
 
   base::ThreadChecker thread_checker_;
   JSContext* context_;
@@ -183,6 +190,13 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
   base::hash_set<Traceable*> visited_traceables_;
+
+  // Store the result of "Promise" immediately after evaluating the
+  // promise polyfill in order to defend against application JavaScript
+  // changing it to something else later.  Note that this should be removed if
+  // we ever rebase to a SpiderMonkey version >= 50, as that is when native
+  // promises were added to it.
+  base::optional<JS::PersistentRootedObject> stored_promise_constructor_;
 
   // If non-NULL, the error message from the ReportErrorHandler will get
   // assigned to this instead of being printed.
