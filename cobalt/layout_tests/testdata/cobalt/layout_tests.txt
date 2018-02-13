@@ -2,7 +2,6 @@
 100-nested-elements
 block-and-inline-block-display
 changing-css-text-triggers-layout
-cobalt-oxide, file:///cobalt/browser/testdata/cobalt-oxide/cobalt-oxide.html
 console-trace-should-not-crash
 divs-with-background-color-and-text
 fixed-width-divs-with-background-color
