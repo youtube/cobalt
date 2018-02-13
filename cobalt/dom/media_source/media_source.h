@@ -128,7 +128,7 @@ class MediaSource : public EventTarget {
  private:
   void SetReadyState(MediaSourceReadyState ready_state);
   bool IsUpdating() const;
-  void ScheduleEvent(base::Token eventName);
+  void ScheduleEvent(base::Token event_name);
 
   media::ChunkDemuxer* chunk_demuxer_;
   MediaSourceReadyState ready_state_;
