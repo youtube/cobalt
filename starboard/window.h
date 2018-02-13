@@ -153,8 +153,9 @@ SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
 // Return |true| if successful. Return |false| if the on screen keyboard is not
 // showing. If the function returns |false|, then |rect| will not have been
 // modified.
-SB_EXPORT bool SbWindowGetOnScreenKeyboardRect(SbWindow window,
-                                               SbWindowRect* rect);
+SB_EXPORT
+bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window,
+                                             SbWindowRect* bounding_rect);
 
 // Notify the system that |keepFocus| has been set for the OnScreenKeyboard.
 // |keepFocus| true indicates that the user may not navigate focus off of the
