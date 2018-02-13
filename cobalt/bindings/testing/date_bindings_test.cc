@@ -70,23 +70,6 @@ TEST_F(DateBindingsTest, NiceDates) {
   EXPECT_STREQ("Invalid Date", result.c_str());
 }
 
-TEST_F(DateBindingsTest, EpocDates) {
-  std::string result;
-  // Set date to POSIX EPOC Jan 1, 1970 00:00:00 (month is 0-based)
-  EXPECT_TRUE(EvaluateScript("test.setDate(new Date(1970, 0))", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
-  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Thu Jan 01 1970 00:00:00",
-                      result.c_str());
-
-  // Set date to WIN32 EPOC Jan 1, 1601 00:00:00 (month is 0-based)
-  EXPECT_TRUE(EvaluateScript("test.setDate(new Date(1601, 0))", &result))
-      << result;
-  EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
-  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Mon Jan 01 1601 00:00:00",
-                      result.c_str());
-}
-
 }  // namespace
 }  // namespace testing
 }  // namespace bindings
