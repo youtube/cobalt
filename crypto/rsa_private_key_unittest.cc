@@ -10,6 +10,10 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 namespace {
 
 const uint8_t kTestPrivateKeyInfo[] = {
