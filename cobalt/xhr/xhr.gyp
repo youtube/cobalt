@@ -67,7 +67,6 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'xhr',
-        'xhr_copy_test_data',
 
         # TODO: Remove the dependency below, it works around the fact that
         #       ScriptValueFactory has non-virtual method CreatePromise().
@@ -84,23 +83,6 @@
         'executable_name': 'xhr_test',
       },
       'includes': [ '../../starboard/build/deploy.gypi' ],
-    },
-
-    {
-      'target_name': 'xhr_copy_test_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'xhr_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/xhr/testdata/',
-            ],
-            'output_dir': 'cobalt/xhr/testdata/',
-          },
-          'includes': [ '../build/copy_test_data.gypi' ],
-        },
-      ],
     },
   ],
 }
