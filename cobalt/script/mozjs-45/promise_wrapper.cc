@@ -15,12 +15,15 @@
 #include "cobalt/script/mozjs-45/promise_wrapper.h"
 
 #include "base/logging.h"
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "third_party/mozjs-45/js/src/jsfun.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
+
 namespace {
+
 enum ReservedSlots {
   kResolveFunction,
   kRejectFunction,
@@ -106,19 +109,11 @@ JSObject* CreateExecutorArgument(JSContext* context,
 }
 
 // Get the Promise constructor from the global object.
-JSObject* GetPromiseConstructor(JSContext* context,
-                                JS::HandleObject global_object) {
-  JS::RootedValue promise_constructor_property(context);
-  bool result = JS_GetProperty(context, global_object, "Promise",
-                               &promise_constructor_property);
-  DCHECK(result);
-  if (!promise_constructor_property.isObject() ||
-      !JS_ObjectIsFunction(context, &promise_constructor_property.toObject())) {
-    DLOG(ERROR) << "\"Promise\" property is not a function.";
-    return NULL;
-  }
-
-  return &promise_constructor_property.toObject();
+void GetPromiseConstructor(JSContext* context,
+                           JS::MutableHandleObject out_promise_constructor) {
+  MozjsGlobalEnvironment* global_environment =
+      MozjsGlobalEnvironment::GetFromContext(context);
+  global_environment->GetStoredPromiseConstructor(out_promise_constructor);
 }
 
 void Settle(JSContext* context, JS::HandleValue result,
@@ -140,15 +135,12 @@ void Settle(JSContext* context, JS::HandleValue result,
 }
 }  // namespace
 
-JSObject* PromiseWrapper::Create(JSContext* context,
-                                 JS::HandleObject global_object) {
+JSObject* PromiseWrapper::Create(JSContext* context) {
   // Get the Promise constructor.
-  JS::RootedObject constructor(context,
-                               GetPromiseConstructor(context, global_object));
-  if (!constructor) {
-    DLOG(ERROR) << "Failed to find Promise constructor.";
-    return NULL;
-  }
+  JS::RootedObject constructor(context);
+  GetPromiseConstructor(context, &constructor);
+  DCHECK(constructor);
+
   // Create a new NativePromise JS object, and bind it to the NativeExecutor
   // function.
   JS::RootedObject promise_wrapper(context, CreateNativePromise(context));
@@ -163,10 +155,8 @@ JSObject* PromiseWrapper::Create(JSContext* context,
   args[0].set(JS::ObjectOrNullValue(executor));
   JS::RootedObject promise_object(context);
   promise_object = JS_New(context, constructor, args);
-  if (!promise_object) {
-    DLOG(ERROR) << "Failed to create a new Promise.";
-    return NULL;
-  }
+  DCHECK(promise_object);
+
   // Maintain a handle to the promise object on the NativePromise.
   JS::RootedValue promise_value(context);
   promise_value.setObject(*promise_object);

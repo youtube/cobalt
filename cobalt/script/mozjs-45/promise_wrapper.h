@@ -31,7 +31,7 @@ class PromiseWrapper {
  public:
   // Creates a new JS object that wraps a new Promise, created using the
   // Promise constructor on |global_object|. Returns NULL on failure.
-  static JSObject* Create(JSContext* context, JS::HandleObject global_object);
+  static JSObject* Create(JSContext* context);
 
   PromiseWrapper(JSContext* context, JS::HandleValue promise_wrapper);
 
