@@ -253,7 +253,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 }
 
 scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
-    const scoped_refptr<Element>& elt, const std::string& pseudoElt) {
+    const scoped_refptr<Element>& elt, const std::string& pseudo_elt) {
   // The getComputedStyle(elt, pseudoElt) method must run these steps:
   // https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle
 
@@ -272,8 +272,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 3. If pseudoElt is as an ASCII case-insensitive match for either
     // ':before' or '::before' let obj be the ::before pseudo-element of elt.
-    if (LowerCaseEqualsASCII(pseudoElt, ":before") ||
-        LowerCaseEqualsASCII(pseudoElt, "::before")) {
+    if (LowerCaseEqualsASCII(pseudo_elt, ":before") ||
+        LowerCaseEqualsASCII(pseudo_elt, "::before")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kBeforePseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -282,8 +282,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 4. If pseudoElt is as an ASCII case-insensitive match for either ':after'
     // or '::after' let obj be the ::after pseudo-element of elt.
-    if (LowerCaseEqualsASCII(pseudoElt, ":after") ||
-        LowerCaseEqualsASCII(pseudoElt, "::after")) {
+    if (LowerCaseEqualsASCII(pseudo_elt, ":after") ||
+        LowerCaseEqualsASCII(pseudo_elt, "::after")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kAfterPseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()

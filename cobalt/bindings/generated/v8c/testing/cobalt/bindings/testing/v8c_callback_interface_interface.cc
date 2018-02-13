@@ -202,18 +202,18 @@ void registerCallbackMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   // Non-optional arguments
-  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
+  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callbackInterface;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,
               non_optional_value0,
               kNoConversionFlags,
-              &exception_state, &callback_interface);
+              &exception_state, &callbackInterface);
   if (exception_state.is_exception_set()) {
     return;
   }
 
-  impl->RegisterCallback(callback_interface);
+  impl->RegisterCallback(callbackInterface);
   result_value = v8::Undefined(isolate);
 
 }

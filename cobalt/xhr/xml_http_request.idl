@@ -42,20 +42,20 @@
     // TODO: Upgrade to void send(optional (Document or BodyInit)? body = null);
     //       See https://xhr.spec.whatwg.org/#interface-xmlhttprequest.
     [RaisesException] void send(
-        optional (DOMString or ArrayBufferView or ArrayBuffer)? request_body);
+        optional (DOMString or ArrayBufferView or ArrayBuffer)? requestBody);
     void abort();
 
     // FetchAPI: replacement for "send" when fetch functionality is needed.
     [RaisesException] void fetch(
-        FetchUpdateCallback fetch_callback, FetchModeCallback mode_callback,
-        (DOMString or ArrayBufferView or ArrayBuffer)? request_body);
+        FetchUpdateCallback fetchCallback, FetchModeCallback modeCallback,
+        (DOMString or ArrayBufferView or ArrayBuffer)? requestBody);
 
     // response
     readonly attribute unsigned short status;
     readonly attribute DOMString statusText;
     DOMString? getResponseHeader(DOMString header);
     DOMString getAllResponseHeaders();
-    [RaisesException] void overrideMimeType(DOMString mime_type);
+    [RaisesException] void overrideMimeType(DOMString mimeType);
     [RaisesException=Setter] attribute DOMString responseType;
     // TODO: Use a union type for all the possible response types.
     [RaisesException] readonly attribute (DOMString or ArrayBuffer) response;
@@ -74,4 +74,4 @@ typedef EventListener? EventHandler;
 // FetchAPI: custom callback to allow progressive updates.
 callback FetchUpdateCallback = void(Uint8Array data);
 // FetchAPI: custom callback to distinguish between mode.
-callback FetchModeCallback = void(boolean is_cors_mode);
+callback FetchModeCallback = void(boolean isCorsMode);

@@ -23,7 +23,7 @@ interface Camera3D {
   const unsigned long DOM_CAMERA_YAW = 0x02;
 
   void createKeyMapping(long keyCode, unsigned long cameraAxis,
-                        float degrees_per_second);
+                        float degreesPerSecond);
   void clearKeyMapping(long keyCode);
   void clearAllKeyMappings();
 
