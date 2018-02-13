@@ -10,7 +10,7 @@
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
 
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(STARBOARD)
 #include "mojo/core/embedder/embedder.h"  // nogncheck
 #endif
 

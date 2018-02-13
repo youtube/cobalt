@@ -10,6 +10,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/third_party/mozilla/url_parse.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 // Interesting IE file:isms...
 //
 //  file:/foo/bar              file:///foo/bar
