@@ -79,7 +79,7 @@ class OnScreenKeyboard : public EventTarget {
   bool shown() const;
 
   // The rectangle of the keyboard in screen pixel coordinates.
-  scoped_refptr<DOMRect> rect() const;
+  scoped_refptr<DOMRect> bounding_rect() const;
 
   void set_keep_focus(bool keep_focus);
   bool keep_focus() const { return keep_focus_; }
