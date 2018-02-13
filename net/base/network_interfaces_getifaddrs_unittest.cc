@@ -14,6 +14,9 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
+// Starboard platforms do not have socklen_t defined.
+#if !defined(STARBOARD)
+
 namespace net {
 namespace {
 
@@ -178,3 +181,5 @@ TEST(NetworkInterfacesTest, IfaddrsToNetworkInterfaceList) {
 
 }  // namespace
 }  // namespace net
+
+#endif  // !defined(STARBOARD)

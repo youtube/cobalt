@@ -24,8 +24,41 @@
 #include "net/base/winsock_util.h"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/memory.h"
+#endif
+
 namespace net {
 
+#if defined(STARBOARD)
+bool GetIPAddressFromSbSocketAddress(const SbSocketAddress* address,
+                                     const unsigned char** out_address_data,
+                                     size_t* out_address_len,
+                                     uint16_t* out_port) {
+  DCHECK(address);
+  DCHECK(out_address_data);
+  DCHECK(out_address_len);
+  if (out_port) {
+    *out_port = address->port;
+  }
+
+  *out_address_data = address->address;
+  switch (address->type) {
+    case kSbSocketAddressTypeIpv4:
+      *out_address_len = IPAddress::kIPv4AddressSize;
+      break;
+    case kSbSocketAddressTypeIpv6:
+      *out_address_len = IPAddress::kIPv6AddressSize;
+      break;
+
+    default:
+      NOTREACHED();
+      break;
+  }
+
+  return true;
+}
+#else  // defined(STARBOARD)
 namespace {
 
 // By definition, socklen_t is large enough to hold both sizes.
@@ -80,6 +113,8 @@ bool GetIPAddressFromSockAddr(const struct sockaddr* sock_addr,
 
 }  // namespace
 
+#endif  // defined(STARBOARD)
+
 IPEndPoint::IPEndPoint() : port_(0) {}
 
 IPEndPoint::~IPEndPoint() = default;
@@ -96,6 +131,7 @@ AddressFamily IPEndPoint::GetFamily() const {
   return GetAddressFamily(address_);
 }
 
+#if !defined(STARBOARD)
 int IPEndPoint::GetSockAddrFamily() const {
   switch (address_.size()) {
     case IPAddress::kIPv4AddressSize:
@@ -107,7 +143,54 @@ int IPEndPoint::GetSockAddrFamily() const {
       return AF_UNSPEC;
   }
 }
+#endif  // !defined(STARBOARD)
 
+#if defined(STARBOARD)
+// static
+IPEndPoint IPEndPoint::GetForAllInterfaces(int port) {
+  // Directly construct the 0.0.0.0 address with the given port.
+  IPAddress address(0, 0, 0, 0);
+  return IPEndPoint(address, port);
+}
+
+bool IPEndPoint::ToSbSocketAddress(SbSocketAddress* out_address) const {
+  DCHECK(out_address);
+  out_address->port = port_;
+  SbMemorySet(out_address->address, 0, sizeof(out_address->address));
+  switch (GetFamily()) {
+    case ADDRESS_FAMILY_IPV4:
+      out_address->type = kSbSocketAddressTypeIpv4;
+      SbMemoryCopy(&out_address->address, address_.bytes().data(),
+                   IPAddress::kIPv4AddressSize);
+      break;
+    case ADDRESS_FAMILY_IPV6:
+      out_address->type = kSbSocketAddressTypeIpv6;
+      SbMemoryCopy(&out_address->address, address_.bytes().data(),
+                   IPAddress::kIPv6AddressSize);
+      break;
+    default:
+      NOTREACHED();
+      return false;
+  }
+  return true;
+}
+
+bool IPEndPoint::FromSbSocketAddress(const SbSocketAddress* address) {
+  DCHECK(address);
+
+  const uint8_t* address_data;
+  size_t address_len;
+  uint16_t port;
+  if (!GetIPAddressFromSbSocketAddress(address, &address_data, &address_len,
+                                       &port)) {
+    return false;
+  }
+
+  address_ = net::IPAddress(address_data, address_len);
+  port_ = port;
+  return true;
+}
+#else  // defined(STARBOARD)
 bool IPEndPoint::ToSockAddr(struct sockaddr* address,
                             socklen_t* address_length) const {
   DCHECK(address);
@@ -160,6 +243,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
   port_ = port;
   return true;
 }
+#endif  // defined(STARBOARD)
 
 std::string IPEndPoint::ToString() const {
   return IPAddressToStringWithPort(address_, port_);

@@ -167,6 +167,8 @@ TEST(FilenameUtilTest, IsSafePortableRelativePath) {
   }
 }
 
+#if !defined(STARBOARD)
+
 TEST(FilenameUtilTest, FileURLConversion) {
   // a list of test file names and the corresponding URLs
   const FileCase round_trip_cases[] = {
@@ -332,6 +334,7 @@ TEST(FilenameUtilTest, FileURLConversion) {
   // Test that if a file URL is malformed, we get a failure
   EXPECT_FALSE(FileURLToFilePath(GURL("filefoobar"), &output));
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FilenameUtilTest, GenerateSafeFileName) {
   const struct {

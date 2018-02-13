@@ -17,6 +17,8 @@
 
 #include "net/base/net_export.h"
 
+#if !defined(STARBOARD)
+
 namespace net {
 
 // Convenience struct for when you need a |struct sockaddr|.
@@ -31,5 +33,7 @@ struct NET_EXPORT SockaddrStorage {
 };
 
 }  // namespace net
+
+#endif  // !defined(STARBOARD)
 
 #endif  // NET_BASE_SOCKADDR_STORAGE_H_

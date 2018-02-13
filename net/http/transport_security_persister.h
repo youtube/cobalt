@@ -43,6 +43,8 @@
 #include "net/base/net_export.h"
 #include "net/http/transport_security_state.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 class SequencedTaskRunner;
 }
@@ -142,5 +144,7 @@ class NET_EXPORT TransportSecurityPersister
 };
 
 }  // namespace net
+
+#endif  // !defined(STARBOARD)
 
 #endif  // NET_HTTP_TRANSPORT_SECURITY_PERSISTER_H_

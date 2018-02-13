@@ -27,4 +27,6 @@ class NET_EXPORT SSLKeyLogger {
 
 }  // namespace net
 
+#endif  // !defined(STARBOARD)
+
 #endif  // NET_SSL_SSL_KEY_LOGGER_H_

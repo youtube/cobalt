@@ -13,6 +13,10 @@
 #include "url/url_features.h"
 #include "mojo/core/embedder/embedder.h"  // nogncheck
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+#endif
+
 using net::internal::ClientSocketPoolBaseHelper;
 
 namespace {
@@ -47,7 +51,11 @@ bool VerifyBuildIsTimely() {
 
 }  // namespace
 
+#if defined(STARBOARD)
+int TestSuiteRun(int argc, char** argv) {
+#else
 int main(int argc, char** argv) {
+#endif
   if (!VerifyBuildIsTimely())
     return 1;
 
@@ -60,3 +68,7 @@ int main(int argc, char** argv) {
       argc, argv, base::Bind(&NetTestSuite::Run,
                              base::Unretained(&test_suite)));
 }
+
+#if defined(STARBOARD)
+STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
+#endif

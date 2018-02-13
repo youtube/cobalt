@@ -648,6 +648,9 @@ TEST_F(SequencedSocketDataTest, SingleSyncWriteTooEarly) {
   set_expect_eof(false);
 }
 
+// This tests rely on a specific version of gtest being available which is
+// not guaranteed.
+#if !defined(STARBOARD)
 TEST_F(SequencedSocketDataTest, SingleSyncWriteTooSmall) {
   MockWrite writes[] = {
       MockWrite(SYNCHRONOUS, kMsg1, kLen1, 0),
@@ -689,6 +692,7 @@ TEST_F(SequencedSocketDataTest, SingleSyncWriteTooSmall) {
 
   set_expect_eof(false);
 }
+#endif
 
 TEST_F(SequencedSocketDataTest, SingleSyncPartialWrite) {
   MockWrite writes[] = {

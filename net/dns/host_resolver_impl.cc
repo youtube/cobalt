@@ -134,6 +134,7 @@ const char kOSErrorsForGetAddrinfoHistogramName[] =
     "Net.OSErrorsForGetAddrinfo";
 #endif
 
+#if !defined(STARBOARD)
 // Gets a list of the likely error codes that getaddrinfo() can return
 // (non-exhaustive). These are the error codes that we will track via
 // a histogram.
@@ -182,6 +183,7 @@ std::vector<int> GetAllGetAddrinfoOSErrors() {
 
   return base::CustomHistogram::ArrayToCustomEnumRanges(os_errors);
 }
+#endif  // !defined(STARBOARD)
 
 enum DnsResolveStatus {
   RESOLVE_STATUS_DNS_SUCCESS = 0,
@@ -1033,9 +1035,11 @@ class HostResolverImpl::ProcTask {
       UMA_HISTOGRAM_ENUMERATION("DNS.AttemptFirstFailure", attempt_number, 100);
     }
 
+#if !defined(STARBOARD)
     UMA_HISTOGRAM_CUSTOM_ENUMERATION(kOSErrorsForGetAddrinfoHistogramName,
                                      std::abs(os_error),
                                      GetAllGetAddrinfoOSErrors());
+#endif
   }
 
   static void RecordAttemptHistograms(const base::TimeTicks& start_time,

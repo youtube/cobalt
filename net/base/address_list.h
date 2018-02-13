@@ -15,7 +15,11 @@
 #include "net/base/net_export.h"
 #include "net/log/net_log_parameters_callback.h"
 
+#if defined(STARBOARD)
+#include "starboard/socket.h"
+#else
 struct addrinfo;
+#endif
 
 namespace net {
 
@@ -36,8 +40,14 @@ class NET_EXPORT AddressList {
   static AddressList CreateFromIPAddressList(const IPAddressList& addresses,
                                              const std::string& canonical_name);
 
+#if defined(STARBOARD)
+  // Copies the data from |resolution| into an AddressList.
+  static AddressList CreateFromSbSocketResolution(
+      const SbSocketResolution* resolution);
+#else
   // Copies the data from |head| and the chained list into an AddressList.
   static AddressList CreateFromAddrinfo(const struct addrinfo* head);
+#endif
 
   // Returns a copy of |list| with port on each element set to |port|.
   static AddressList CopyWithPort(const AddressList& list, uint16_t port);

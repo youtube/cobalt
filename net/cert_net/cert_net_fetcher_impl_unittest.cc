@@ -321,6 +321,8 @@ TEST_F(CertNetFetcherImplTest, ContentDisposition) {
   VerifySuccess("-downloadable.js-\n", request.get());
 }
 
+// Caching is disabled on Starboard.
+#if !defined(STARBOARD)
 // Verifies that a cachable request will be served from the HTTP cache the
 // second time it is requested.
 TEST_F(CertNetFetcherImplTest, Cache) {
@@ -350,6 +352,7 @@ TEST_F(CertNetFetcherImplTest, Cache) {
 
   EXPECT_EQ(2, NumCreatedRequests());
 }
+#endif  // !defined(STARBOARD)
 
 // Verify that the maximum response body constraints are enforced by fetching a
 // resource that is larger than the limit.

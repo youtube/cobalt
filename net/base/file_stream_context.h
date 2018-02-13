@@ -53,7 +53,7 @@ class IOBuffer;
 
 #if defined(OS_WIN)
 class FileStream::Context : public base::MessagePumpForIO::IOHandler {
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 class FileStream::Context {
 #endif
  public:
@@ -66,7 +66,7 @@ class FileStream::Context {
   Context(base::File file, const scoped_refptr<base::TaskRunner>& task_runner);
 #if defined(OS_WIN)
   ~Context() override;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   ~Context();
 #endif
 
@@ -106,6 +106,10 @@ class FileStream::Context {
     IOResult();
     IOResult(int64_t result, logging::SystemErrorCode os_error);
     static IOResult FromOSError(logging::SystemErrorCode os_error);
+#if defined(STARBOARD)
+    static IOResult FromFileError(
+        base::File::Error file_error, logging::SystemErrorCode os_error);
+#endif
 
     int64_t result;
     logging::SystemErrorCode os_error;  // Set only when result < 0.
@@ -205,7 +209,7 @@ class FileStream::Context {
   // the ReadFile API.
   void ReadAsyncResult(BOOL read_file_ret, DWORD bytes_read, DWORD os_error);
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   // ReadFileImpl() is a simple wrapper around read() that handles EINTR
   // signals and calls RecordAndMapError() to map errno to net error codes.
   IOResult ReadFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);

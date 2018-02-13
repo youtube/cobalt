@@ -12,6 +12,9 @@
 #include "net/base/sys_addrinfo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+// Starboard does not define sockaddr or other types from <sys/socket.h>.
+#if !defined(STARBOARD)
+
 namespace net {
 namespace {
 
@@ -138,3 +141,5 @@ TEST(AddressListTest, CreateFromIPAddressList) {
 
 }  // namespace
 }  // namespace net
+
+#endif  // !defined(STARBOARD)

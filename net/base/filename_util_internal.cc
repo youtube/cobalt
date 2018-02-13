@@ -209,7 +209,7 @@ bool FilePathToString16(const base::FilePath& path, base::string16* converted) {
 #if defined(OS_WIN)
   *converted = path.value();
   return true;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   std::string component8 = path.AsUTF8Unsafe();
   return !component8.empty() &&
          base::UTF8ToUTF16(component8.c_str(), component8.size(), converted);

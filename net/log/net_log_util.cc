@@ -293,6 +293,7 @@ std::unique_ptr<base::DictionaryValue> GetNetConstants() {
   // value for compatibility.
   constants_dict->Set("clientInfo", std::make_unique<base::DictionaryValue>());
 
+#if !defined(STARBOARD)
   // Add a list of active field experiments.
   {
     base::FieldTrial::ActiveGroups active_groups;
@@ -306,6 +307,7 @@ std::unique_ptr<base::DictionaryValue> GetNetConstants() {
     constants_dict->Set("activeFieldTrialGroups",
                         std::move(field_trial_groups));
   }
+#endif  // !defined(STARBOARD)
 
   return constants_dict;
 }
