@@ -28,7 +28,7 @@ class NET_EXPORT HttpAuthPreferences {
 
   virtual bool NegotiateDisableCnameLookup() const;
   virtual bool NegotiateEnablePort() const;
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   virtual bool NtlmV2Enabled() const;
 #endif
 #if defined(OS_ANDROID)
@@ -45,7 +45,7 @@ class NET_EXPORT HttpAuthPreferences {
     negotiate_enable_port_ = negotiate_enable_port;
   }
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   void set_ntlm_v2_enabled(bool ntlm_v2_enabled) {
     ntlm_v2_enabled_ = ntlm_v2_enabled;
   }
@@ -66,7 +66,7 @@ class NET_EXPORT HttpAuthPreferences {
   bool negotiate_disable_cname_lookup_ = false;
   bool negotiate_enable_port_ = false;
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   bool ntlm_v2_enabled_ = true;
 #endif
 

@@ -23,6 +23,8 @@ namespace net {
 
 namespace {
 
+#if !defined(STARBOARD)
+
 // Retuns the port field of the |sockaddr|.
 const uint16_t* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                          socklen_t address_len) {
@@ -49,6 +51,8 @@ int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
     return -1;
   return base::NetToHost16(*port_field);
 }
+
+#endif  // !defined(STARBOARD)
 
 struct TestData {
   std::string host;
@@ -105,6 +109,7 @@ TEST_F(IPEndPointTest, Copy) {
   }
 }
 
+#if !defined(STARBOARD)
 TEST_F(IPEndPointTest, ToFromSockAddr) {
   uint16_t port = 0;
   for (const auto& test : tests) {
@@ -148,6 +153,8 @@ TEST_F(IPEndPointTest, FromSockAddrBufTooSmall) {
   struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
   EXPECT_FALSE(ip_endpoint.FromSockAddr(sockaddr, sizeof(addr) - 1));
 }
+
+#endif  // !defined(STARBOARD)
 
 TEST_F(IPEndPointTest, Equality) {
   uint16_t port = 0;

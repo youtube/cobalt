@@ -2700,6 +2700,7 @@ TEST_F(SSLClientSocketTest, EVCertStatusRemovedForNonCompliantCert) {
   EXPECT_TRUE(result.cert_status & CERT_STATUS_CT_COMPLIANCE_FAILED);
 }
 
+#if !defined(STARBOARD)
 // Test that when an EV certificate does not conform to the CT policy and its EV
 // status is removed, the corresponding histogram is recorded correctly.
 TEST_F(SSLClientSocketTest, NonCTCompliantEVHistogram) {
@@ -2779,6 +2780,7 @@ TEST_F(SSLClientSocketTest, CTCompliantEVHistogram) {
       kHistogramName,
       static_cast<int>(ct::CTPolicyCompliance::CT_POLICY_COMPLIES_VIA_SCTS), 1);
 }
+#endif  // !defined(STARBOARD)
 
 // Tests that OCSP stapling is requested, as per Certificate Transparency (RFC
 // 6962).
@@ -3612,6 +3614,7 @@ TEST_F(SSLClientSocketTest, CTIsRequired) {
   EXPECT_TRUE(sock_->IsConnected());
 }
 
+#if !defined(STARBOARD)
 // Test that the CT compliance status is recorded in a histogram.
 TEST_F(SSLClientSocketTest, CTComplianceStatusHistogram) {
   const char kHistogramName[] =
@@ -3811,6 +3814,7 @@ TEST_F(SSLClientSocketTest, CTRequiredHistogramNonCompliant) {
       kHistogramName,
       static_cast<int>(ct::CTPolicyCompliance::CT_POLICY_NOT_ENOUGH_SCTS), 1);
 }
+#endif  // !defined(STARBOARD)
 
 // Test that when CT is required (in this case, by an Expect-CT opt-in) but the
 // connection is not compliant, the relevant flag is set on the SSLInfo.
@@ -3880,6 +3884,7 @@ TEST_F(SSLClientSocketTest, CTRequirementsFlagMet) {
   EXPECT_TRUE(ssl_info.ct_policy_compliance_required);
 }
 
+#if !defined(STARBOARD)
 // Test that when CT is required (in this case, by a CT delegate), the CT
 // required histogram is not recorded for a locally installed root.
 TEST_F(SSLClientSocketTest, CTRequiredHistogramNonCompliantLocalRoot) {
@@ -3926,6 +3931,7 @@ TEST_F(SSLClientSocketTest, CTRequiredHistogramNonCompliantLocalRoot) {
 
   histograms.ExpectTotalCount(kHistogramName, 0);
 }
+#endif  // !defined(STARBOARD)
 
 // Test that when CT is required (in this case, by an Expect-CT opt-in), the
 // absence of CT information is a socket error.

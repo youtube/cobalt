@@ -43,6 +43,7 @@ std::unique_ptr<base::Value> NetLogIPEndPointCallback(
   return std::move(dict);
 }
 
+#if !defined(STARBOARD)
 std::unique_ptr<base::Value> NetLogSourceAddressCallback(
     const struct sockaddr* net_address,
     socklen_t address_len,
@@ -54,6 +55,7 @@ std::unique_ptr<base::Value> NetLogSourceAddressCallback(
   dict->SetString("source_address", ipe.ToString());
   return std::move(dict);
 }
+#endif
 
 }  // namespace
 
@@ -72,10 +74,12 @@ NetLogParametersCallback CreateNetLogIPEndPointCallback(
   return base::Bind(&NetLogIPEndPointCallback, address);
 }
 
+#if !defined(STARBOARD)
 NetLogParametersCallback CreateNetLogSourceAddressCallback(
     const struct sockaddr* net_address,
     socklen_t address_len) {
   return base::Bind(&NetLogSourceAddressCallback, net_address, address_len);
 }
+#endif
 
 }  // namespace net

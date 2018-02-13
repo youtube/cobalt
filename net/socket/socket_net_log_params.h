@@ -27,11 +27,13 @@ NetLogParametersCallback CreateNetLogHostPortPairCallback(
 NetLogParametersCallback CreateNetLogIPEndPointCallback(
     const IPEndPoint* address);
 
+#if !defined(STARBOARD)
 // Creates a NetLog callback for the source sockaddr on connect events.
 // |net_address| must remain valid for the lifetime of the returned callback.
 NetLogParametersCallback CreateNetLogSourceAddressCallback(
     const struct sockaddr* net_address,
     socklen_t address_len);
+#endif
 
 }  // namespace net
 

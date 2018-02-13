@@ -296,6 +296,7 @@ TEST_F(TCPSocketTest, AdoptConnectedSocket) {
   EXPECT_THAT(connect_callback.GetResult(connect_result), IsOk());
 }
 
+#if !defined(STARBOARD)
 // Test Accept() for AdoptUnconnectedSocket.
 TEST_F(TCPSocketTest, AcceptForAdoptedUnconnectedSocket) {
   SocketDescriptor existing_socket =
@@ -312,6 +313,7 @@ TEST_F(TCPSocketTest, AcceptForAdoptedUnconnectedSocket) {
 
   TestAcceptAsync();
 }
+#endif
 
 // Accept two connections simultaneously.
 TEST_F(TCPSocketTest, Accept2Connections) {

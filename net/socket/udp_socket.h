@@ -11,6 +11,8 @@
 #include "net/socket/udp_socket_win.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "net/socket/udp_socket_posix.h"
+#elif defined(STARBOARD)
+#include "net/socket/udp_socket_starboard.h"
 #endif
 
 namespace net {
@@ -39,6 +41,8 @@ namespace net {
 typedef UDPSocketWin UDPSocket;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 typedef UDPSocketPosix UDPSocket;
+#elif defined(STARBOARD)
+typedef UDPSocketStarboard UDPSocket;
 #endif
 
 }  // namespace net

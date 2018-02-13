@@ -55,15 +55,19 @@ URLRequestContext::URLRequestContext()
       enable_brotli_(false),
       check_cleartext_permitted_(false),
       name_("unknown") {
+#if !defined(STARBOARD)
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, "URLRequestContext", base::ThreadTaskRunnerHandle::Get());
+#endif
 }
 
 URLRequestContext::~URLRequestContext() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AssertNoURLRequests();
+#if !defined(STARBOARD)
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
+#endif
 }
 
 void URLRequestContext::CopyFrom(const URLRequestContext* other) {

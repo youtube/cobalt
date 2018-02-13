@@ -11,6 +11,9 @@
 #if defined(OS_WIN)
 #include <winsock2.h>
 #endif  // OS_WIN
+#if defined(OS_STARBOARD)
+#include "starboard/socket.h"
+#endif
 
 namespace net {
 
@@ -20,12 +23,16 @@ const SocketDescriptor kInvalidSocket = INVALID_SOCKET;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 typedef int SocketDescriptor;
 const SocketDescriptor kInvalidSocket = -1;
+#elif defined(STARBOARD)
+typedef SbSocket SocketDescriptor;
 #endif
 
+#if !defined(STARBOARD)
 // Creates  socket. See WSASocket/socket documentation of parameters.
 SocketDescriptor NET_EXPORT CreatePlatformSocket(int family,
                                                  int type,
                                                  int protocol);
+#endif
 
 }  // namespace net
 

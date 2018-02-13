@@ -39,7 +39,9 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
 
   bool IsInitialized() const;
   IpAddressFamily address_family() const;
+#if !defined(STARBOARD)
   int AddressFamilyToInt() const;
+#endif
   // Returns the address as a sequence of bytes in network-byte-order. IPv4 will
   // be 6 bytes. IPv6 will be 18 bytes.
   QuicString ToPackedString() const;

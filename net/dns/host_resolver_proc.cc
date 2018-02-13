@@ -15,6 +15,10 @@
 #include "net/dns/dns_reloader.h"
 #include "net/dns/dns_util.h"
 
+#if defined(STARBOARD)
+#include "starboard/socket.h"
+#endif
+
 #if defined(OS_OPENBSD)
 #define AI_ADDRCONFIG 0
 #endif
@@ -23,6 +27,7 @@ namespace net {
 
 namespace {
 
+#if !defined(STARBOARD)
 bool IsAllLocalhostOfOneFamily(const struct addrinfo* ai) {
   bool saw_v4_localhost = false;
   bool saw_v6_localhost = false;
@@ -55,6 +60,7 @@ bool IsAllLocalhostOfOneFamily(const struct addrinfo* ai) {
 
   return saw_v4_localhost != saw_v6_localhost;
 }
+#endif  // !defined(STARBOARD)
 
 }  // namespace
 
@@ -120,6 +126,39 @@ HostResolverProc* HostResolverProc::GetDefault() {
   return default_proc_;
 }
 
+#if defined(STARBOARD)
+int SystemHostResolverCall(const std::string& host,
+                           AddressFamily address_family,
+                           HostResolverFlags host_resolver_flags,
+                           AddressList* addrlist,
+                           int* os_error) {
+  if (os_error)
+    *os_error = 0;
+
+  int filter = kSbSocketResolveFilterNone;
+  switch (address_family) {
+    case ADDRESS_FAMILY_IPV4:
+      filter |= kSbSocketResolveFilterIpv4;
+      break;
+    case ADDRESS_FAMILY_IPV6:
+      filter |= kSbSocketResolveFilterIpv6;
+      break;
+    case ADDRESS_FAMILY_UNSPECIFIED:
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
+
+  SbSocketResolution* resolution = SbSocketResolve(host.c_str(), filter);
+  if (!resolution)
+    return ERR_NAME_RESOLUTION_FAILED;
+
+  *addrlist = AddressList::CreateFromSbSocketResolution(resolution);
+  SbSocketFreeResolution(resolution);
+  return OK;
+}
+#else
 int SystemHostResolverCall(const std::string& host,
                            AddressFamily address_family,
                            HostResolverFlags host_resolver_flags,
@@ -257,6 +296,7 @@ int SystemHostResolverCall(const std::string& host,
   freeaddrinfo(ai);
   return OK;
 }
+#endif
 
 SystemHostResolverProc::SystemHostResolverProc() : HostResolverProc(NULL) {}
 
