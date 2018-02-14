@@ -658,11 +658,26 @@ bool MessageLoopForUI::IsAborted() {
   return static_cast<MessagePumpForUI*>(pump_.get())->IsAborted();
 }
 
+<<<<<<< HEAD
 void MessageLoopForUI::QuitWhenIdle(base::OnceClosure callback) {
   static_cast<MessagePumpForUI*>(pump_.get())
       ->QuitWhenIdle(std::move(callback));
 }
 #endif  // defined(OS_ANDROID)
+=======
+#if defined(STARBOARD)
+bool MessageLoopForIO::Watch(SbSocket socket,
+                             bool persistent,
+                             int mode,
+                             SocketWatcher* controller,
+                             Watcher* delegate) {
+  return ToPumpIO(pump_.get())->Watch(
+      socket, persistent, mode, controller, delegate);
+}
+
+#else
+#if !defined(OS_NACL_SFI)
+>>>>>>> Enable more widely-used functionality.
 
 #if defined(OS_WIN)
 void MessageLoopForUI::EnableWmQuit() {
@@ -684,5 +699,10 @@ MessageLoopCurrentForIO MessageLoopForIO::current() {
 bool MessageLoopForIO::IsCurrent() {
   return MessageLoopCurrentForIO::IsSet();
 }
+<<<<<<< HEAD
+=======
+#endif
+#endif  // defined(STARBOARD)
+>>>>>>> Enable more widely-used functionality.
 
 }  // namespace base

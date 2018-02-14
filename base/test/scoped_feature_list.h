@@ -14,8 +14,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/metrics/field_trial.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 namespace test {
 
@@ -122,7 +120,5 @@ class ScopedFeatureList final {
 
 }  // namespace test
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TEST_SCOPED_FEATURE_LIST_H_

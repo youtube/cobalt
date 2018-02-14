@@ -156,6 +156,7 @@ void TraceEventMemoryOverhead::Update(const TraceEventMemoryOverhead& other) {
   }
 }
 
+#if !defined(STARBOARD)
 void TraceEventMemoryOverhead::DumpInto(const char* base_name,
                                         ProcessMemoryDump* pmd) const {
   for (uint32_t i = 0; i < kLast; i++) {
@@ -174,6 +175,7 @@ void TraceEventMemoryOverhead::DumpInto(const char* base_name,
                    MemoryAllocatorDump::kUnitsObjects, count_and_size.count);
   }
 }
+#endif
 
 }  // namespace trace_event
 }  // namespace base

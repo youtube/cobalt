@@ -321,7 +321,7 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
       mem_type_(memory.type),
       mem_size_(static_cast<uint32_t>(size)),
       mem_page_(static_cast<uint32_t>((page_size ? page_size : size))),
-#if defined(OS_NACL)
+#if defined(OS_NACL) || defined(STARBOARD)
       vm_page_size_(4096U),  // SysInfo is not built for NACL.
 #else
       vm_page_size_(SysInfo::VMAllocationGranularity()),
@@ -349,12 +349,18 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
   // Ensure that memory segment is of acceptable size.
   CHECK(IsMemoryAcceptable(memory.base, size, page_size, readonly));
 
+  // The |is_lock_free| function has been found to require additional library
+  // linkage that we'd like to avoid on Starboard platforms.  Additionally we
+  // don't support multi-process applications on Starboard currently, so this
+  // code will not be used.
+#if !defined(STARBOARD)
   // These atomics operate inter-process and so must be lock-free. The local
   // casts are to make sure it can be evaluated at compile time to a constant.
   CHECK(((SharedMetadata*)nullptr)->freeptr.is_lock_free());
   CHECK(((SharedMetadata*)nullptr)->flags.is_lock_free());
   CHECK(((BlockHeader*)nullptr)->next.is_lock_free());
   CHECK(corrupt_.is_lock_free());
+#endif  // !defined(STARBOARD)
 
   if (shared_meta()->cookie != kGlobalCookie) {
     if (readonly) {
@@ -961,6 +967,7 @@ PersistentMemoryAllocator::Memory
 LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size) {
   void* address;
 
+#if !defined(STARBOARD)
 #if defined(OS_WIN)
   address =
       ::VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -980,6 +987,7 @@ LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size) {
 #else
 #error This architecture is not (yet) supported.
 #endif
+#endif  // !defined(STARBOARD)
 
   // As a last resort, just allocate the memory from the heap. This will
   // achieve the same basic result but the acquired memory has to be
@@ -1001,6 +1009,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
   }
 
   DCHECK_EQ(MEM_VIRTUAL, type);
+#if !defined(STARBOARD)
 #if defined(OS_WIN)
   BOOL success = ::VirtualFree(memory, 0, MEM_DECOMMIT);
   DCHECK(success);
@@ -1010,10 +1019,12 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
 #else
 #error This architecture is not (yet) supported.
 #endif
+#endif  // !defined(STARBOARD)
 }
 
 
 //----- SharedPersistentMemoryAllocator ----------------------------------------
+#if !defined(STARBOARD)
 
 SharedPersistentMemoryAllocator::SharedPersistentMemoryAllocator(
     std::unique_ptr<SharedMemory> memory,
@@ -1036,9 +1047,10 @@ bool SharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
     const SharedMemory& memory) {
   return IsMemoryAcceptable(memory.memory(), memory.mapped_size(), 0, false);
 }
+#endif  // !defined(STARBOARD)
 
 
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(STARBOARD)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 FilePersistentMemoryAllocator::FilePersistentMemoryAllocator(

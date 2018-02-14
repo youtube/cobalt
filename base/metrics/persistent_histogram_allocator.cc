@@ -674,7 +674,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
       std::make_unique<LocalPersistentMemoryAllocator>(size, id, name))));
 }
 
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(STARBOARD)
 // static
 bool GlobalHistogramAllocator::CreateWithFile(
     const FilePath& file_path,
@@ -868,6 +868,7 @@ bool GlobalHistogramAllocator::CreateSpareFileInDir(const FilePath& dir,
 }
 #endif  // !defined(OS_NACL)
 
+#if !defined(STARBOARD)
 // static
 void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
     const SharedMemoryHandle& handle,
@@ -883,6 +884,7 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryHandle(
       std::make_unique<SharedPersistentMemoryAllocator>(
           std::move(shm), 0, StringPiece(), /*readonly=*/false))));
 }
+#endif
 
 // static
 void GlobalHistogramAllocator::Set(
@@ -936,7 +938,7 @@ const FilePath& GlobalHistogramAllocator::GetPersistentLocation() const {
 }
 
 bool GlobalHistogramAllocator::WriteToPersistentLocation() {
-#if defined(OS_NACL)
+#if defined(OS_NACL) || defined(STARBOARD)
   // NACL doesn't support file operations, including ImportantFileWriter.
   NOTREACHED();
   return false;
@@ -963,7 +965,7 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
 void GlobalHistogramAllocator::DeletePersistentLocation() {
   memory_allocator()->SetMemoryState(PersistentMemoryAllocator::MEMORY_DELETED);
 
-#if defined(OS_NACL)
+#if defined(OS_NACL) || defined(STARBOARD)
   NOTREACHED();
 #else
   if (persistent_location_.empty())

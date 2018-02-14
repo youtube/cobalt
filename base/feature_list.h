@@ -17,8 +17,6 @@
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class FieldTrial;
@@ -109,10 +107,12 @@ class BASE_EXPORT FeatureList {
   void InitializeFromCommandLine(const std::string& enable_features,
                                  const std::string& disable_features);
 
+#if !defined(STARBOARD)
   // Initializes feature overrides through the field trial allocator, which
   // we're using to store the feature names, their override state, and the name
   // of the associated field trial.
   void InitializeFromSharedMemory(PersistentMemoryAllocator* allocator);
+#endif  // !defined(STARBOARD)
 
   // Specifies whether a feature override enables or disables the feature.
   enum OverrideState {
@@ -126,6 +126,7 @@ class BASE_EXPORT FeatureList {
   bool IsFeatureOverriddenFromCommandLine(const std::string& feature_name,
                                           OverrideState state) const;
 
+#if !defined(STARBOARD)
   // Associates a field trial for reporting purposes corresponding to the
   // command-line setting the feature state to |for_overridden_state|. The trial
   // will be activated when the state of the feature is first queried. This
@@ -148,6 +149,7 @@ class BASE_EXPORT FeatureList {
 
   // Loops through feature overrides and serializes them all into |allocator|.
   void AddFeaturesToAllocator(PersistentMemoryAllocator* allocator);
+#endif  // !defined(STARBOARD)
 
   // Returns comma-separated lists of feature names (in the same format that is
   // accepted by InitializeFromCommandLine()) corresponding to features that
@@ -171,9 +173,11 @@ class BASE_EXPORT FeatureList {
   // struct, which is checked in builds with DCHECKs enabled.
   static bool IsEnabled(const Feature& feature);
 
+#if !defined(STARBOARD)
   // Returns the field trial associated with the given |feature|. Must only be
   // called after the singleton instance has been registered via SetInstance().
   static FieldTrial* GetFieldTrial(const Feature& feature);
+#endif  // !defined(STARBOARD)
 
   // Splits a comma-separated string containing feature names into a vector. The
   // resulting pieces point to parts of |input|.
@@ -220,6 +224,7 @@ class BASE_EXPORT FeatureList {
     // The overridden enable (on/off) state of the feature.
     const OverrideState overridden_state;
 
+#if !defined(STARBOARD)
     // An optional associated field trial, which will be activated when the
     // state of the feature is queried for the first time. Weak pointer to the
     // FieldTrial object that is owned by the FieldTrialList singleton.
@@ -237,6 +242,9 @@ class BASE_EXPORT FeatureList {
     // |field_trial| is not null, it implies that |overridden_state| comes from
     // the trial, so |overridden_by_field_trial| will be set to true.
     OverrideEntry(OverrideState overridden_state, FieldTrial* field_trial);
+#else  // !defined(STARBOARD)
+    OverrideEntry(OverrideState overridden_state);
+#endif  // !defined(STARBOARD)
   };
 
   // Finalizes the initialization state of the FeatureList, so that no further
@@ -249,11 +257,13 @@ class BASE_EXPORT FeatureList {
   // Requires the FeatureList to have already been fully initialized.
   bool IsFeatureEnabled(const Feature& feature);
 
+#if !defined(STARBOARD)
   // Returns the field trial associated with the given |feature|. This is
   // invoked by the public FeatureList::GetFieldTrial() static function on the
   // global singleton. Requires the FeatureList to have already been fully
   // initialized.
   base::FieldTrial* GetAssociatedFieldTrial(const Feature& feature);
+#endif  // !defined(STARBOARD)
 
   // For each feature name in comma-separated list of strings |feature_list|,
   // registers an override with the specified |overridden_state|. Also, will
@@ -262,6 +272,7 @@ class BASE_EXPORT FeatureList {
   void RegisterOverridesFromCommandLine(const std::string& feature_list,
                                         OverrideState overridden_state);
 
+#if !defined(STARBOARD)
   // Registers an override for feature |feature_name|. The override specifies
   // whether the feature should be on or off (via |overridden_state|), which
   // will take precedence over the feature's default state. If |field_trial| is
@@ -272,6 +283,10 @@ class BASE_EXPORT FeatureList {
   void RegisterOverride(StringPiece feature_name,
                         OverrideState overridden_state,
                         FieldTrial* field_trial);
+#else  // !defined(STARBOARD)
+  void RegisterOverride(StringPiece feature_name,
+                        OverrideState overridden_state);
+#endif  // !defined(STARBOARD)
 
   // Implementation of GetFeatureOverrides() with a parameter that specifies
   // whether only command-line enabled overrides should be emitted. See that
@@ -308,7 +323,5 @@ class BASE_EXPORT FeatureList {
 };
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_FEATURE_LIST_H_
