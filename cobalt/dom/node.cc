@@ -164,7 +164,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   event->set_event_phase(Event::kNone);
 
   if (window) {
-    window->OnStopDispatchEvent();
+    window->OnStopDispatchEvent(event);
   }
 
   // The event has completed being dispatched. Stop tracking it in the global

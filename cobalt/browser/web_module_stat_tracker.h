@@ -49,10 +49,11 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // |should_track_dispatched_events_| is true. Otherwise, it does nothing.
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
 
-  // |OnStopDispatchEvent| notifies the event stat tracking that the event has
-  // finished being dispatched. If no animation frame callbacks and also no
-  // render tree is pending, it also ends tracking of the event.
-  void OnStopDispatchEvent(bool are_animation_frame_callbacks_pending,
+  // |OnStopDispatchEvent| notifies the event stat tracking that |event| has
+  // finished being dispatched. If this is the event currently being tracked
+  // and nothing is pending, then it also ends tracking of the event.
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event,
+                           bool are_animation_frame_callbacks_pending,
                            bool is_new_render_tree_pending);
 
   // |OnRanAnimationFrameCallbacks| ends stat tracking for the current event
@@ -140,6 +141,10 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // Event-related
   const bool should_track_event_stats_;
   EventType current_event_type_;
+  // Raw pointer to the current event. This is used to verify that the event in
+  // |OnStopDispatchEvent| is the dispatched event being tracked.
+  dom::Event* current_event_dispatched_event_;
+
   // Each individual |EventType| has its own entry in the vector.
   ScopedVector<EventStats> event_stats_;
 

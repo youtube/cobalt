@@ -34,6 +34,7 @@ WebModuleStatTracker::WebModuleStatTracker(const std::string& name,
       layout_stat_tracker_(new layout::LayoutStatTracker(name)),
       should_track_event_stats_(should_track_event_stats),
       current_event_type_(kEventTypeInvalid),
+      current_event_dispatched_event_(NULL),
       name_(name),
       event_is_processing_(StringPrintf("Event.%s.IsProcessing", name.c_str()),
                            false, "Nonzero when an event is being processed.") {
@@ -85,6 +86,7 @@ void WebModuleStatTracker::OnStartDispatchEvent(
   if (current_event_type_ != kEventTypeInvalid) {
     event_is_processing_ = true;
     event_start_time_ = base::TimeTicks::Now();
+    current_event_dispatched_event_ = event;
 
     dom_stat_tracker_->OnStartEvent();
     layout_stat_tracker_->OnStartEvent();
@@ -98,14 +100,15 @@ void WebModuleStatTracker::OnStartDispatchEvent(
 }
 
 void WebModuleStatTracker::OnStopDispatchEvent(
+    const scoped_refptr<dom::Event>& event,
     bool are_animation_frame_callbacks_pending,
     bool is_new_render_tree_pending) {
-  // If the dispatch isn't currently being timed, then this event dispatch
-  // isn't being tracked. Simply return.
-  if (!stop_watches_[kStopWatchTypeDispatchEvent].IsCounting()) {
+  // Verify that this dispatched event is the one currently being tracked.
+  if (event != current_event_dispatched_event_) {
     return;
   }
 
+  current_event_dispatched_event_ = NULL;
   stop_watches_[kStopWatchTypeDispatchEvent].Stop();
 
   if (!are_animation_frame_callbacks_pending && !is_new_render_tree_pending) {
