@@ -101,7 +101,8 @@ class Window : public EventTarget {
       HTMLDecoderCreatorCallback;
   typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
       OnStartDispatchEventCallback;
-  typedef base::Callback<void()> OnStopDispatchEventCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+      OnStopDispatchEventCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
   Window(
@@ -287,7 +288,7 @@ class Window : public EventTarget {
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
-  void OnStopDispatchEvent();
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
 
   DEFINE_WRAPPABLE_TYPE(Window);
 
