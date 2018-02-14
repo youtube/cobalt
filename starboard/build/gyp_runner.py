@@ -199,6 +199,7 @@ class GypRunner(object):
         'host_os': _GetHostOS(),
         'starboard_path': os.path.relpath(platform.Get(platform_name).path,
                                           source_tree_dir),
+        'starboard_platform_name': platform_name,
     }
 
     _AppendVariables(common_variables, self.common_args)
