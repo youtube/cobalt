@@ -106,7 +106,8 @@ class Window : public EventTarget,
   typedef WindowTimers::TimerCallback TimerCallback;
   typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
       OnStartDispatchEventCallback;
-  typedef base::Callback<void()> OnStopDispatchEventCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+      OnStopDispatchEventCallback;
 
   // Callback that will be called when window.close() is called.  The
   // base::TimeDelta parameter will contain the document's timeline time when
@@ -351,7 +352,7 @@ class Window : public EventTarget,
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
 
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
-  void OnStopDispatchEvent();
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
 
   DEFINE_WRAPPABLE_TYPE(Window);
   void TraceMembers(script::Tracer* tracer) override;
