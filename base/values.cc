@@ -659,7 +659,6 @@ bool Value::Equals(const Value* other) const {
   return *this == *other;
 }
 
-#if !defined(STARBOARD)
 size_t Value::EstimateMemoryUsage() const {
   switch (type_) {
     case Type::STRING:
@@ -674,7 +673,6 @@ size_t Value::EstimateMemoryUsage() const {
       return 0;
   }
 }
-#endif
 
 void Value::InternalMoveConstructFrom(Value&& that) {
   type_ = that.type_;

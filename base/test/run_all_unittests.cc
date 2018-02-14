@@ -5,9 +5,10 @@
 #include "base/bind.h"
 #include "base/test/test_suite.h"
 #include "build/build_config.h"
-#include "starboard/client_porting/wrap_main/wrap_main.h"
 
 #if defined(STARBOARD)
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+
 
 int TestSuiteRun(int argc, char** argv) {
   return base::TestSuite(argc, argv).Run();

@@ -364,11 +364,9 @@ class BASE_EXPORT Value {
   // TODO(crbug.com/646113): Delete this and migrate callsites.
   bool Equals(const Value* other) const;
 
-#if !defined(STARBOARD)
   // Estimates dynamic memory usage.
   // See base/trace_event/memory_usage_estimator.h for more info.
   size_t EstimateMemoryUsage() const;
-#endif
 
  protected:
   // TODO(crbug.com/646113): Make these private once DictionaryValue and

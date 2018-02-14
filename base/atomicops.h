@@ -144,6 +144,9 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 }  // namespace subtle
 }  // namespace base
 
+#if defined(STARBOARD)
+#  include "base/atomicops_internals_starboard.h"
+#else
 #if defined(OS_WIN)
 // TODO(jfb): Try to use base/atomicops_internals_portable.h everywhere.
 // https://crbug.com/559247.
@@ -151,6 +154,7 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #else
 #  include "base/atomicops_internals_portable.h"
 #endif
+#endif  // defined(STARBOARD)
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.

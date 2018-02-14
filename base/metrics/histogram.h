@@ -84,8 +84,6 @@
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class BooleanHistogram;
@@ -608,7 +606,5 @@ class BASE_EXPORT CustomHistogram : public Histogram {
 };
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_HISTOGRAM_H_
