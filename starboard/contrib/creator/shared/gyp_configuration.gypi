@@ -56,6 +56,8 @@
       '-Wl,--wrap=malloc_usable_size',
       '-Wl,--wrap=malloc_stats_fast',
       '-Wl,--wrap=__cxa_demangle',
+      '-Wl,--wrap=eglGetDisplay',
+      '-Wl,--wrap=eglTerminate',
     ],
   },
 
