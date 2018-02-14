@@ -1,24 +1,30 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <!-- Programmatically converted from a WebKit Reftest, please forgive resulting idiosyncracies.-->
-    <title>report-cross-origin-no-cookies</title>
     <script src="/resources/testharness.js"></script>
     <script src="/resources/testharnessreport.js"></script>
-    <script src="../support/logTest.sub.js?logs=[]"></script>
-    <script src="../support/alertAssert.sub.js?alerts=[]"></script>
-    <!-- enforcing policy:
-img-src 'none'; report-uri http://www1.{{host}}:{{ports[http][0]}}/content-security-policy/support/report.py?op=put&reportID=; script-src 'self' 'unsafe-inline' http://www1.{{host}}:{{ports[http][0]}}; connect-src 'self';
--->
-    <script src="http://www1.{{host}}:{{ports[http][0]}}/content-security-policy/blink-contrib/resources/set-cookie.js"></script>
+    <title>Cookies are not sent on cross origin violation reports</title>
+    <!-- CSP headers
+         Content-Security-Policy: script-src 'unsafe-inline' 'self'; img-src 'none'; report-uri http://{{domains[www1]}}:{{ports[http][0]}}/content-security-policy/support/report.py?op=put&reportID=$id
+         -->
 </head>
-
 <body>
-    <!-- This image will generate a CSP violation report. -->
-    <img src="resources/abe.png">
-    <div id="log"></div>
-    <script async defer src="../support/checkReport.sub.js?reportExists=true&amp;reportField=violated-directive&amp;reportValue=img-src%20&apos;none&apos;&amp;noCookies=true"></script>
-</body>
+<script>
+  var test = async_test("Image should not load");
+  fetch(
+    "/cookies/resources/set-cookie.py?name=cspViolationReportCookie1&path=" + encodeURIComponent("{{domains[www1]}}:{{ports[http][0]}}/"),
+    {mode: 'no-cors', credentials: 'include'})
+  .then(() => {
+    // This image will generate a CSP violation report.
+    const img = new Image();
+    img.onerror = test.step_func_done();
+    img.onload = test.unreached_func("Should not have loaded the image");
 
+    img.src = "../support/fail.png";
+    document.body.appendChild(img);
+  });
+</script>
+<script async defer src='../support/checkReport.sub.js?reportField=violated-directive&reportValue=img-src%20%27none%27&noCookies=true'></script>
+
+</body>
 </html>
