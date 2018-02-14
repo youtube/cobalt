@@ -65,6 +65,7 @@ libfreetype6
 libfreetype6-dev
 libgbm1
 libgbm-dev
+libgcc-4.8-dev
 libgconf-2-4
 libgconf2-dev
 libgcrypt11-dev
