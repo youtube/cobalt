@@ -611,6 +611,8 @@ TEST(LocalPersistentMemoryAllocatorTest, CreationTest) {
 
 //----- SharedPersistentMemoryAllocator ----------------------------------------
 
+#if !defined(STARBOARD)
+
 TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   SharedMemoryHandle shared_handle_1;
   SharedMemoryHandle shared_handle_2;
@@ -717,8 +719,9 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_EQ(0, data[3]);
 }
 
+#endif  // !defined(STARBOARD)
 
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(STARBOARD)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 TEST(FilePersistentMemoryAllocatorTest, CreationTest) {

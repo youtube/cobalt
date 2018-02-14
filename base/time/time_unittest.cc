@@ -4,8 +4,11 @@
 
 #include "base/time/time.h"
 
+#if !defined(STARBOARD)
 #include <stdint.h>
 #include <time.h>
+#endif
+
 #include <limits>
 #include <string>
 
@@ -96,6 +99,14 @@ TEST(TimeTestOutOfBounds, FromExplodedOutOfBoundsTime) {
 class TimeTest : public testing::Test {
  protected:
   void SetUp() override {
+#if defined(OS_STARBOARD)
+    // Since we don't have access to mktime, let's use time_helpers to do the
+    // same thing in a portable way.
+    comparison_time_local_ = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZoneLocal);
+    comparison_time_pdt_ = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZonePacific);
+#else   // defined(OS_STARBOARD)
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -118,6 +129,7 @@ class TimeTest : public testing::Test {
 
     // time_t representation of 15th Oct 2007 12:45:00 PDT
     comparison_time_pdt_ = Time::FromTimeT(1192477500);
+#endif
   }
 
   Time comparison_time_local_;

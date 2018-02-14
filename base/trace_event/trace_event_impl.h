@@ -49,9 +49,8 @@ class BASE_EXPORT ConvertableToTraceFormat {
   // appended.
   virtual void AppendAsTraceFormat(std::string* out) const = 0;
 
-#if !defined(STARBOARD)
-  virtual void EstimateTraceMemoryOverhead(TraceEventMemoryOverhead* overhead);
-#endif
+  virtual void EstimateTraceMemoryOverhead(TraceEventMemoryOverhead* overhead) {
+  };
 
   std::string ToString() const {
     std::string result;
@@ -110,9 +109,7 @@ class BASE_EXPORT TraceEvent {
 
   void UpdateDuration(const TimeTicks& now, const ThreadTicks& thread_now);
 
-#if !defined(STARBOARD)
   void EstimateTraceMemoryOverhead(TraceEventMemoryOverhead* overhead);
-#endif
 
   // Serialize event data to JSON
   void AppendAsJSON(

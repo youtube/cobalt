@@ -10,7 +10,6 @@
 
 #include "base/buildflag.h"
 
-#define BUILDFLAG_INTERNAL_USE_ALLOCATOR_SHIM() (1)
+#define BUILDFLAG_INTERNAL_USE_ALLOCATOR_SHIM() (0)
 
 #endif  // BASE_ALLOCATOR_FEATURES_H_
-                                                                                

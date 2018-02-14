@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if defined(STARBOARD)
+#include "base/test/time_helpers.h"
+#else
 #include <stdint.h>
 #include <time.h>
+#endif
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
@@ -28,6 +32,12 @@ PRTime comparison_time_2 = INT64_C(1373275692441381);   // represented as GMT
 class PRTimeTest : public testing::Test {
  protected:
   void SetUp() override {
+#if defined(OS_STARBOARD)
+    Time local_time = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZoneLocal);
+    comparison_time_local_ =
+        (local_time - Time::UnixEpoch()).ToInternalValue();
+#else
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -63,6 +73,7 @@ class PRTimeTest : public testing::Test {
         mktime(&local_comparison_tm_2) * Time::kMicrosecondsPerSecond;
     ASSERT_GT(comparison_time_local_2_, 0);
     comparison_time_local_2_ += microseconds;
+#endif
   }
 
   PRTime comparison_time_local_;
@@ -215,6 +226,7 @@ TEST_F(PRTimeTest, ParseTimeTest15) {
   EXPECT_EQ(comparison_time_2-1, parsed_time);
 }
 
+#if !defined(STARBOARD)
 // Fractional seconds, local timezone.
 TEST_F(PRTimeTest, ParseTimeTest16) {
   PRTime parsed_time = 0;
@@ -223,6 +235,7 @@ TEST_F(PRTimeTest, ParseTimeTest16) {
   EXPECT_EQ(PR_SUCCESS, result);
   EXPECT_EQ(comparison_time_local_2_, parsed_time);
 }
+#endif
 
 // "Z" (=GMT) timezone.
 TEST_F(PRTimeTest, ParseTimeTest17) {

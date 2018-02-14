@@ -14,10 +14,9 @@
 #include "base/memory/shared_memory.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "base/process/process_handle.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
-
-#if !defined(STARBOARD)
 
 namespace base {
 
@@ -351,7 +350,7 @@ class BASE_EXPORT GlobalHistogramAllocator
   // specified |size| taken from the heap.
   static void CreateWithLocalMemory(size_t size, uint64_t id, StringPiece name);
 
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(STARBOARD)
   // Create a global allocator by memory-mapping a |file|. If the file does
   // not exist, it will be created with the specified |size|. If the file does
   // exist, the allocator will use and add to its contents, ignoring the passed
@@ -431,12 +430,14 @@ class BASE_EXPORT GlobalHistogramAllocator
                                    StringPiece name);
 #endif
 
+#if !defined(STARBOARD)
   // Create a global allocator using a block of shared memory accessed
   // through the given |handle| and |size|. The allocator takes ownership
   // of the handle and closes it upon destruction, though the memory will
   // continue to live if other processes have access to it.
   static void CreateWithSharedMemoryHandle(const SharedMemoryHandle& handle,
                                            size_t size);
+#endif
 
   // Sets a GlobalHistogramAllocator for globally storing histograms in
   // a space that can be persisted or shared between processes. There is only
@@ -503,7 +504,5 @@ class BASE_EXPORT GlobalHistogramAllocator
 };
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_HISTOGRAM_PERSISTENCE_H_
