@@ -610,9 +610,9 @@ void Window::OnStartDispatchEvent(const scoped_refptr<dom::Event>& event) {
   }
 }
 
-void Window::OnStopDispatchEvent() {
+void Window::OnStopDispatchEvent(const scoped_refptr<dom::Event>& event) {
   if (!on_stop_dispatch_event_callback_.is_null()) {
-    on_stop_dispatch_event_callback_.Run();
+    on_stop_dispatch_event_callback_.Run(event);
   }
 }
 
