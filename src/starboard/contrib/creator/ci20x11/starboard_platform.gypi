@@ -19,6 +19,7 @@
       '<(DEPTH)/starboard/contrib/creator/ci20x11/atomic_public.h',
       '<(DEPTH)/starboard/contrib/creator/ci20x11/configuration_public.h',
       '<(DEPTH)/starboard/contrib/creator/ci20x11/main.cc',
+      '<(DEPTH)/starboard/contrib/creator/ci20x11/egl_workaround.cc',
       '<(DEPTH)/starboard/contrib/creator/ci20x11/system_get_property.cc',
       '<(DEPTH)/starboard/shared/starboard/link_receiver.cc',
       '<(DEPTH)/starboard/shared/x11/application_x11.cc',
