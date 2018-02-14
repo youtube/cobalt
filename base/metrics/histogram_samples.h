@@ -15,8 +15,6 @@
 #include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class Pickle;
@@ -265,7 +263,5 @@ class BASE_EXPORT SingleSampleIterator : public SampleCountIterator {
 };
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_HISTOGRAM_SAMPLES_H_

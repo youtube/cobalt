@@ -167,6 +167,7 @@ TEST_P(SparseHistogramTest, AddCount_LargeCountsDontOverflow) {
   }
 }
 
+#if !defined(STARBOARD)
 TEST_P(SparseHistogramTest, MacroBasicTest) {
   UmaHistogramSparse("Sparse", 100);
   UmaHistogramSparse("Sparse", 200);
@@ -206,6 +207,8 @@ TEST_P(SparseHistogramTest, MacroInLoopTest) {
   EXPECT_STREQ(histograms[0]->histogram_name(), "Sparse0");
   EXPECT_STREQ(histograms[1]->histogram_name(), "Sparse1");
 }
+
+#endif  // !defined(STARBOARD)
 
 TEST_P(SparseHistogramTest, Serialize) {
   std::unique_ptr<SparseHistogram> histogram(NewSparseHistogram("Sparse"));

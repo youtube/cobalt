@@ -27,7 +27,8 @@
 namespace base {
 
 MessagePumpIOStarboard::SocketWatcher::SocketWatcher()
-    : socket_(kSbSocketInvalid),
+    : interests_(kSbSocketWaiterInterestNone),
+      socket_(kSbSocketInvalid),
       pump_(NULL),
       watcher_(NULL),
       weak_factory_(this) {}
@@ -39,6 +40,11 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
 }
 
 bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
+  if (!SbSocketIsValid(socket_)) {
+    // If this watcher is not watching anything, no-op and return success.
+    return true;
+  }
+
   SbSocket socket = Release();
   bool result = true;
   if (SbSocketIsValid(socket)) {
@@ -47,6 +53,7 @@ bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
   }
   pump_ = NULL;
   watcher_ = NULL;
+  interests_ = kSbSocketWaiterInterestNone;
   return result;
 }
 
@@ -146,7 +153,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   controller->Init(socket, persistent);
   controller->set_watcher(delegate);
   controller->set_pump(this);
-
+  controller->set_interests(interests);
   return true;
 }
 
@@ -165,7 +172,6 @@ void MessagePumpIOStarboard::RemoveIOObserver(IOObserver* obs) {
 // Reentrant!
 void MessagePumpIOStarboard::Run(Delegate* delegate) {
   TRACK_MEMORY_SCOPE("MessageLoop");
-  DCHECK(keep_running_) << "Quit must have been called outside of Run!";
   AutoReset<bool> auto_reset_in_run(&in_run_, true);
 
   for (;;) {

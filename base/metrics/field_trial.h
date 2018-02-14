@@ -82,7 +82,19 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+namespace base {
+
+class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {};
+
+class BASE_EXPORT FieldTrialList {
+ public:
+  static std::string FindFullName(const std::string& trial_name) {
+    return std::string();
+  }
+};
+}  // namespace base
+#else
 
 namespace base {
 
@@ -803,5 +815,5 @@ class BASE_EXPORT FieldTrialList {
 
 }  // namespace base
 
-#endif  // #if !defined(STARBOARD)
+#endif  // #if defined(STARBOARD)
 #endif  // BASE_METRICS_FIELD_TRIAL_H_

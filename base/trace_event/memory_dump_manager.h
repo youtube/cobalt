@@ -24,6 +24,8 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 class SequencedTaskRunner;
@@ -263,5 +265,7 @@ class BASE_EXPORT MemoryDumpManager {
 
 }  // namespace trace_event
 }  // namespace base
+
+#endif  // #if !defined(STARBOARD)
 
 #endif  // BASE_TRACE_EVENT_MEMORY_DUMP_MANAGER_H_

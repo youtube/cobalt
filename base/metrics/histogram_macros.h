@@ -11,7 +11,42 @@
 #include "base/metrics/histogram_macros_local.h"
 #include "base/time/time.h"
 
+#if defined(STARBOARD)
 
+#define UMA_HISTOGRAM_ENUMERATION(name, sample, enum_size)
+#define UMA_HISTOGRAM_BOOLEAN(name, sample)
+#define UMA_HISTOGRAM_EXACT_LINEAR(name, sample, value_max)
+#define UMA_HISTOGRAM_PERCENTAGE(name, percent_as_int)
+#define UMA_HISTOGRAM_COUNTS_100(name, sample)
+#define UMA_HISTOGRAM_COUNTS_1000(name, sample)
+#define UMA_HISTOGRAM_COUNTS_10000(name, sample)
+#define UMA_HISTOGRAM_COUNTS_100000(name, sample)
+#define UMA_HISTOGRAM_COUNTS_1M(name, sample)
+#define UMA_HISTOGRAM_COUNTS_10M(name, sample)
+#define UMA_HISTOGRAM_CUSTOM_COUNTS(name, sample, min, max, bucket_count)
+#define UMA_HISTOGRAM_TIMES(name, sample)
+#define UMA_HISTOGRAM_MEDIUM_TIMES(name, sample)
+#define UMA_HISTOGRAM_LONG_TIMES(name, sample)
+#define UMA_HISTOGRAM_LONG_TIMES_100(name, sample)
+#define UMA_HISTOGRAM_CUSTOM_TIMES(name, sample, min, max, bucket_count)
+#define SCOPED_UMA_HISTOGRAM_TIMER(name)
+#define SCOPED_UMA_HISTOGRAM_LONG_TIMER(name)
+#define UMA_HISTOGRAM_MEMORY_KB(name, sample)
+#define UMA_HISTOGRAM_MEMORY_LARGE_MB(name, sample)
+#define UMA_STABILITY_HISTOGRAM_COUNTS_100(name, sample)
+#define UMA_STABILITY_HISTOGRAM_CUSTOM_COUNTS( \
+            name, sample, min, max, bucket_count)
+#define UMA_STABILITY_HISTOGRAM_ENUMERATION(name, sample, enum_max)
+#define UMA_HISTOGRAM_SPARSE_SLOWLY(name, sample)
+#define STATIC_HISTOGRAM_POINTER_GROUP(constant_histogram_name, index,        \
+                                       constant_maximum,                      \
+                                       histogram_add_method_invocation,       \
+                                       histogram_factory_get_invocation)
+#define UMA_HISTOGRAM_COUNTS(name, sample)
+#define UMA_HISTOGRAM_MEMORY_MB(name, sample)
+#define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges)
+
+#else  // defined(STARBOARD)
 // Macros for efficient use of histograms.
 //
 // For best practices on deciding when to emit to a histogram and what form
@@ -378,5 +413,7 @@
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample),                          \
         base::CustomHistogram::FactoryGet(name, custom_ranges,                 \
             base::HistogramBase::kUmaTargetedHistogramFlag))
+
+#endif  // defined(STARBOARD)
 
 #endif  // BASE_METRICS_HISTOGRAM_MACROS_H_

@@ -71,8 +71,13 @@
 #include "base/third_party/nspr/prtime.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#define PRTIME_USE_BASE_TIME
+#include "base/time/time.h"
+#else
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
+#endif
 
 /*
  * The COUNT_LEAPS macro counts the number of leap years passed by
@@ -123,6 +128,42 @@ static const PRInt8 nDays[2][12] = {
     {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 };
 
+#if defined(PRTIME_USE_BASE_TIME)
+// Implodes |exploded| using base::Time's implosion methods. |is_local| states
+// whether to ignore the time zone params and just interpret as a local time, as
+// opposed to treating like a UTC exploded time and then adjusting by the TZ
+// params.
+static PRTime BaseImplode(const PRExplodedTime* exploded, bool is_local) {
+  static const PRTime kSecondsToMicroseconds = static_cast<PRTime>(1000000);
+  base::Time::Exploded base_exploded;
+  base_exploded.year = exploded->tm_year;
+  base_exploded.month = exploded->tm_month + 1;
+  base_exploded.day_of_week = 0;
+  base_exploded.day_of_month = exploded->tm_mday;
+  base_exploded.hour = exploded->tm_hour;
+  base_exploded.minute = exploded->tm_min;
+  base_exploded.second = exploded->tm_sec;
+  base_exploded.millisecond = 0;
+  base::Time base_time;
+  if (is_local) {
+    bool result = base::Time::FromLocalExploded(base_exploded, &base_time);
+    DCHECK(result);
+  } else {
+    bool result = base::Time::FromUTCExploded(base_exploded, &base_time);
+    DCHECK(result);
+  }
+  PRTime result = static_cast<PRTime>(
+      (base_time - base::Time::UnixEpoch()).InMicroseconds());
+  if (!is_local) {
+    result -= (exploded->tm_params.tp_gmt_offset +
+               exploded->tm_params.tp_dst_offset) *
+              kSecondsToMicroseconds;
+  }
+  result += exploded->tm_usec;
+  return result;
+}
+#endif  // defined(PRTIME_USE_BASE_TIME)
+
 /*
  *------------------------------------------------------------------------
  *
@@ -136,6 +177,9 @@ static const PRInt8 nDays[2][12] = {
 PRTime
 PR_ImplodeTime(const PRExplodedTime *exploded)
 {
+#if defined(PRTIME_USE_BASE_TIME)
+    return BaseImplode(exploded, false /*is_local*/);
+#else
   PRExplodedTime copy;
   PRTime retVal;
   PRInt64 secPerDay, usecPerSec;
@@ -171,6 +215,7 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
   LL_ADD(retVal, retVal, temp);
 
   return retVal;
+#endif  // defined(PRTIME_USE_BASE_TIME)
 }
 
 /*
@@ -1097,10 +1142,13 @@ PR_ParseTimeString(
 
   if (zone_offset == -1)
          {
+
            /* no zone was specified, and we're to assume that everything
              is local. */
+#if !defined(PRTIME_USE_BASE_TIME)
           struct tm localTime;
           time_t secs;
+#endif
 
           PR_ASSERT(result->tm_month > -1 &&
                     result->tm_mday > 0 &&
@@ -1108,6 +1156,10 @@ PR_ParseTimeString(
                     result->tm_min > -1 &&
                     result->tm_sec > -1);
 
+#if defined(PRTIME_USE_BASE_TIME)
+          *result_imploded = BaseImplode(result, true /*is_local*/);
+          return PR_SUCCESS;
+#else  // defined(PRTIME_USE_BASE_TIME)
             /*
              * To obtain time_t from a tm structure representing the local
              * time, we call mktime().  However, we need to see if we are
@@ -1176,6 +1228,7 @@ PR_ParseTimeString(
                 zone_offset = localTime.tm_min
                               + 60 * localTime.tm_hour
                               + 1440 * (localTime.tm_mday - 2);
+#endif  // defined(PRTIME_USE_BASE_TIME)
         }
 
   result->tm_params.tp_gmt_offset = zone_offset * 60;

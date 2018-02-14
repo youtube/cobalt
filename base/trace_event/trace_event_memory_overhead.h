@@ -13,8 +13,6 @@
 #include "base/base_export.h"
 #include "base/macros.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class RefCountedString;
@@ -73,7 +71,9 @@ class BASE_EXPORT TraceEventMemoryOverhead {
   // Adds up and merges all the values from |other| to this instance.
   void Update(const TraceEventMemoryOverhead& other);
 
+#if !defined(STARBOARD)
   void DumpInto(const char* base_name, ProcessMemoryDump* pmd) const;
+#endif
 
  private:
   struct ObjectCountAndSize {
@@ -93,7 +93,5 @@ class BASE_EXPORT TraceEventMemoryOverhead {
 
 }  // namespace trace_event
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TRACE_EVENT_TRACE_EVENT_MEMORY_OVERHEAD_H_
