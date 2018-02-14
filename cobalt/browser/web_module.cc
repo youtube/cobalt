@@ -307,7 +307,7 @@ class WebModule::Impl {
   void SetResourceProvider(render_tree::ResourceProvider* resource_provider);
 
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
-  void OnStopDispatchEvent();
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
@@ -1051,9 +1051,10 @@ void WebModule::Impl::OnStartDispatchEvent(
   web_module_stat_tracker_->OnStartDispatchEvent(event);
 }
 
-void WebModule::Impl::OnStopDispatchEvent() {
+void WebModule::Impl::OnStopDispatchEvent(
+    const scoped_refptr<dom::Event>& event) {
   web_module_stat_tracker_->OnStopDispatchEvent(
-      window_->HasPendingAnimationFrameCallbacks(),
+      event, window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsRenderTreePending());
 }
 
