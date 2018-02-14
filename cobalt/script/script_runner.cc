@@ -93,7 +93,7 @@ std::string ScriptRunnerImpl::Execute(
   }
   std::string result;
   if (!global_environment_->EvaluateScript(source_code, mute_errors, &result)) {
-    DLOG(WARNING) << "Failed to execute JavaScript: " << result;
+    LOG(WARNING) << "Failed to execute JavaScript: " << result;
 #if defined(HANDLE_CORE_DUMP)
     script_runner_log.Get().IncrementFailCount();
 #endif
