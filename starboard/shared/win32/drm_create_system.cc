@@ -23,7 +23,8 @@ SbDrmSystem SbDrmCreateSystem(
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmSessionClosedFunc session_closed_callback) {
   using ::starboard::shared::win32::SbDrmSystemPlayready;
 
   if (SbStringCompareAll(key_system, "com.youtube.playready") != 0) {
@@ -33,5 +34,6 @@ SbDrmSystem SbDrmCreateSystem(
 
   return new SbDrmSystemPlayready(context, update_request_callback,
                                   session_updated_callback,
-                                  key_statuses_changed_callback);
+                                  key_statuses_changed_callback,
+                                  session_closed_callback);
 }

@@ -14,6 +14,7 @@
 
 #include "starboard/shared/win32/drm_system_playready.h"
 
+#include <algorithm>
 #include <cctype>
 #include <sstream>
 #include <vector>
@@ -21,11 +22,9 @@
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/mutex.h"
+#include "starboard/once.h"
 #include "starboard/string.h"
-
-namespace starboard {
-namespace shared {
-namespace win32 {
 
 namespace {
 
@@ -66,25 +65,54 @@ std::string GetHexRepresentation(const T& value) {
   return GetHexRepresentation(&value, sizeof(T));
 }
 
+class ActiveDrmSystems {
+ public:
+  ::starboard::Mutex mutex_;
+  std::vector<starboard::shared::win32::SbDrmSystemPlayready*> active_systems_;
+};
+
+SB_ONCE_INITIALIZE_FUNCTION(ActiveDrmSystems, GetActiveDrmSystems);
+
 }  // namespace
+
+namespace starboard {
+namespace shared {
+namespace win32 {
+
+void DrmSystemOnUwpResume() {
+  ::starboard::ScopedLock lock(GetActiveDrmSystems()->mutex_);
+  for (SbDrmSystemPlayready* item : GetActiveDrmSystems()->active_systems_) {
+    item->OnUwpResume();
+  }
+}
 
 SbDrmSystemPlayready::SbDrmSystemPlayready(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback)
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmSessionClosedFunc session_closed_callback)
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
+      session_closed_callback_(session_closed_callback),
       current_session_id_(1) {
   SB_DCHECK(session_update_request_callback);
   SB_DCHECK(session_updated_callback);
   SB_DCHECK(key_statuses_changed_callback);
+  SB_DCHECK(session_closed_callback);
+
+  ScopedLock lock(GetActiveDrmSystems()->mutex_);
+  GetActiveDrmSystems()->active_systems_.push_back(this);
 }
 
 SbDrmSystemPlayready::~SbDrmSystemPlayready() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+  ScopedLock lock(GetActiveDrmSystems()->mutex_);
+  auto& active_systems = GetActiveDrmSystems()->active_systems_;
+  active_systems.erase(std::remove(
+      active_systems.begin(), active_systems.end(), this));
 }
 
 void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
@@ -283,6 +311,13 @@ scoped_refptr<SbDrmSystemPlayready::License> SbDrmSystemPlayready::GetLicense(
   }
 
   return NULL;
+}
+
+void SbDrmSystemPlayready::OnUwpResume() {
+  for (auto& item : successful_requests_) {
+    session_closed_callback_(this, context_,
+        item.first.data(), static_cast<int>(item.first.size()));
+  }
 }
 
 std::string SbDrmSystemPlayready::GenerateAndAdvanceSessionId() {
