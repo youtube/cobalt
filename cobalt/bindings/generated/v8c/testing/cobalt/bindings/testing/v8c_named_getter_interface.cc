@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -91,7 +92,7 @@ void NamedPropertyGetterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
@@ -124,7 +125,7 @@ void NamedPropertyQueryCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrapperObject(object);
   if (!wrapper_private) {
@@ -138,19 +139,22 @@ void NamedPropertyQueryCallback(
   if (!result) {
     return;
   }
+
   // https://heycam.github.io/webidl/#LegacyPlatformObjectGetOwnProperty
+  int properties = v8::None;
   // 2.7. If |O| implements an interface with a named property setter, then set
   //      desc.[[Writable]] to true, otherwise set it to false.
   // 2.8. If |O| implements an interface with the
   //      [LegacyUnenumerableNamedProperties] extended attribute, then set
   //      desc.[[Enumerable]] to false, otherwise set it to true.
-  info.GetReturnValue().Set(v8::DontEnum | v8::ReadOnly);
+
+  info.GetReturnValue().Set(properties);
 }
 
 void NamedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrapperObject(object);
   if (!wrapper_private) {
@@ -171,7 +175,7 @@ void NamedPropertySetterCallback(
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
@@ -193,6 +197,7 @@ void NamedPropertySetterCallback(
 
   impl->NamedSetter(property_name, native_value);
   result_value = v8::Undefined(isolate);
+  info.GetReturnValue().Set(value);
   DCHECK(!exception_state.is_exception_set());
 }
 
@@ -200,7 +205,7 @@ void NamedPropertyDeleterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
@@ -219,7 +224,10 @@ void NamedPropertyDeleterCallback(
 
   impl->NamedDeleter(property_name);
   result_value = v8::Undefined(isolate);
-  DCHECK(!exception_state.is_exception_set());
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+  info.GetReturnValue().Set(true);
 }
 
 
@@ -230,11 +238,11 @@ void NamedPropertyDeleterCallback(
 
 void namedDeleterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NamedGetterInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNamedGetterInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -276,11 +284,11 @@ void namedDeleterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void namedGetterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NamedGetterInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNamedGetterInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -328,11 +336,11 @@ void namedGetterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void namedSetterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NamedGetterInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNamedGetterInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -458,16 +466,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, namedDeleterMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "namedDeleter"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -491,16 +499,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, namedGetterMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "namedGetter"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -524,16 +532,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, namedSetterMethod);
     method_template->RemovePrototype();
     method_template->SetLength(2);
-    prototype_template->Set(
-        NewInternalString(isolate, "namedSetter"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -551,6 +559,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "NamedGetterInterface"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
 
   {
     v8::NamedPropertyHandlerConfiguration named_property_handler_configuration = {

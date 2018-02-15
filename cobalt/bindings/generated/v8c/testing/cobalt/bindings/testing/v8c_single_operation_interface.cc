@@ -58,9 +58,7 @@ base::optional<int32_t > V8cSingleOperationInterface::HandleCallback(
   base::optional<int32_t > cobalt_return_value;
 
   DCHECK(isolate_);
-  if (this->IsEmpty()) {
-    goto done;
-  }
+  DCHECK(!this->IsEmpty());
   {
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();

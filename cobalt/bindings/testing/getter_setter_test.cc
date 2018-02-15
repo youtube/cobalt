@@ -16,6 +16,7 @@
 #include "cobalt/bindings/testing/anonymous_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/anonymous_named_getter_interface.h"
 #include "cobalt/bindings/testing/anonymous_named_indexed_getter_interface.h"
+#include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/derived_getter_setter_interface.h"
 #include "cobalt/bindings/testing/indexed_getter_interface.h"
@@ -35,6 +36,7 @@ namespace bindings {
 namespace testing {
 
 namespace {
+
 // Use this fixture to create a new MockT object with a BaseClass wrapper, and
 // bind the wrapper to the javascript variable "test".
 template <class MockT>
@@ -50,6 +52,8 @@ class GetterSetterBindingsTestBase : public BindingsTestBase {
   const scoped_refptr<MockT> test_mock_;
 };
 
+typedef GetterSetterBindingsTestBase<ArbitraryInterface>
+    GetterSetterBindingsTest;
 typedef GetterSetterBindingsTestBase<AnonymousIndexedGetterInterface>
     AnonymousIndexedGetterBindingsTest;
 typedef GetterSetterBindingsTestBase<AnonymousNamedIndexedGetterInterface>
@@ -79,7 +83,42 @@ class NamedPropertiesEnumerator {
  private:
   int num_properties_;
 };
+
 }  // namespace
+
+TEST_F(GetterSetterBindingsTest, GetterCanHandleAllValueTypes) {
+  const char* script = R"EOF(
+      const getter = Object.getOwnPropertyDescriptor(
+          ArbitraryInterface.prototype, "arbitraryProperty").get;
+      [null, undefined, false, 0, "", {}, Symbol("")]
+        .map(value => {
+          try { getter.call(value); }
+          catch (ex) { return ex.toString().startsWith("TypeError"); }
+          return false;
+        })
+        .every(result => result);
+  )EOF";
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(GetterSetterBindingsTest, SetterCanHandleAllValueTypes) {
+  const char* script = R"EOF(
+      const setter = Object.getOwnPropertyDescriptor(
+          ArbitraryInterface.prototype, "arbitraryProperty").set;
+      [null, undefined, false, 0, "", {}, Symbol("")]
+        .map(value => {
+          try { setter.call(value); }
+          catch (ex) { return ex.toString().startsWith("TypeError"); }
+          return false;
+        })
+        .every(result => result);
+  )EOF";
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_STREQ("true", result.c_str());
+}
 
 TEST_F(IndexedGetterBindingsTest, IndexedGetter) {
   ON_CALL(test_mock(), length()).WillByDefault(Return(10));
@@ -447,42 +486,6 @@ TEST_F(DerivedGetterSetterBindingsTest, NamedSetterDoesNotShadowProperties) {
 
   EXPECT_CALL(test_mock(), set_property_on_base_class(true));
   EXPECT_TRUE(EvaluateScript("test[\"propertyOnBaseClass\"] = true;", &result));
-  EXPECT_STREQ("true", result.c_str());
-}
-
-TEST_F(DerivedGetterSetterBindingsTest,
-       GetterCanHandleAllJavaScriptValueTypes) {
-  const char* script = R"EOF(
-      const getter = Object.getOwnPropertyDescriptor(
-          ArbitraryInterface.prototype, "arbitraryProperty").get;
-      [null, undefined, false, 0, "", {}, Symbol("")]
-        .map(value => {
-          try { getter.call(value); }
-          catch (ex) { return ex.toString().startsWith("TypeError"); }
-          return false;
-        })
-        .every(result => result);
-  )EOF";
-  std::string result;
-  EXPECT_TRUE(EvaluateScript(script, &result));
-  EXPECT_STREQ("true", result.c_str());
-}
-
-TEST_F(DerivedGetterSetterBindingsTest,
-       SetterCanHandleAllJavaScriptValueTypes) {
-  const char* script = R"EOF(
-      const setter = Object.getOwnPropertyDescriptor(
-          ArbitraryInterface.prototype, "arbitraryProperty").set;
-      [null, undefined, false, 0, "", {}, Symbol("")]
-        .map(value => {
-          try { setter.call(value); }
-          catch (ex) { return ex.toString().startsWith("TypeError"); }
-          return false;
-        })
-        .every(result => result);
-  )EOF";
-  std::string result;
-  EXPECT_TRUE(EvaluateScript(script, &result));
   EXPECT_STREQ("true", result.c_str());
 }
 
