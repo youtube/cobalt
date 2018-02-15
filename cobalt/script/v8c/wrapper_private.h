@@ -54,6 +54,10 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   // further information.
   static const int kInternalFieldCount = 2;
 
+  // Start at 1009 out of paranoia that we will collide with V8 looking for
+  // Blink specific class ids in the future.
+  static const int kClassId = 1009;
+
   WrapperPrivate() = delete;
   WrapperPrivate(v8::Isolate* isolate,
                  const scoped_refptr<Wrappable>& wrappable,
@@ -64,9 +68,11 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
                                               nullptr);
     wrapper_.SetWeak(this, &WrapperPrivate::Callback,
                      v8::WeakCallbackType::kParameter);
+    wrapper_.SetWrapperClassId(kClassId);
   }
   ~WrapperPrivate() {
     DCHECK(wrapper_.IsNearDeath());
+    DCHECK_EQ(ref_count_, 0);
     wrapper_.ClearWeak();
     wrapper_.Reset();
   }
@@ -83,6 +89,28 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   Wrappable* raw_wrappable() const { return wrappable_.get(); }
 
   v8::Local<v8::Object> wrapper() const { return wrapper_.Get(isolate_); }
+
+  void IncrementRefCount() {
+    DCHECK_GE(ref_count_, 0);
+    ref_count_++;
+    wrapper_.ClearWeak();
+  }
+
+  void DecrementRefCount() {
+    DCHECK_GT(ref_count_, 0);
+    if (--ref_count_ == 0) {
+      wrapper_.SetWeak(this, &WrapperPrivate::Callback,
+                       v8::WeakCallbackType::kParameter);
+    }
+  }
+
+  // This should only be called for the special case of shutdown, where we
+  // want to keep nothing alive and run all finalizers.
+  void ForceWeakForShutDown() {
+    ref_count_ = 0;
+    wrapper_.SetWeak(this, &WrapperPrivate::Callback,
+                     v8::WeakCallbackType::kParameter);
+  }
 
  private:
   // For the time being, we only use a single internal field, which stores a
@@ -104,6 +132,7 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   v8::Isolate* isolate_;
   scoped_refptr<Wrappable> wrappable_;
   v8::Global<v8::Object> wrapper_;
+  int ref_count_ = 0;
 
   DISALLOW_COPY_AND_ASSIGN(WrapperPrivate);
 };
