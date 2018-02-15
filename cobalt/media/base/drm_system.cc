@@ -20,19 +20,32 @@
 namespace cobalt {
 namespace media {
 
-#if SB_HAS(DRM_KEY_STATUSES)
 DrmSystem::Session::Session(
-    DrmSystem* drm_system,
-    SessionUpdateKeyStatusesCallback update_key_statuses_callback)
-    : drm_system_(drm_system),
-      update_key_statuses_callback_(update_key_statuses_callback),
-      closed_(false) {
-  DCHECK(!update_key_statuses_callback_.is_null());
-}
-#else   // SB_HAS(DRM_KEY_STATUSES)
-DrmSystem::Session::Session(DrmSystem* drm_system)
-    : drm_system_(drm_system), closed_(false) {}
+    DrmSystem* drm_system
+#if SB_HAS(DRM_KEY_STATUSES)
+    ,
+    SessionUpdateKeyStatusesCallback update_key_statuses_callback
+#if SB_HAS(DRM_SESSION_CLOSED)
+    ,
+    SessionClosedCallback session_closed_callback
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 #endif  // SB_HAS(DRM_KEY_STATUSES)
+    )
+    : drm_system_(drm_system),
+#if SB_HAS(DRM_KEY_STATUSES)
+      update_key_statuses_callback_(update_key_statuses_callback),
+#if SB_HAS(DRM_SESSION_CLOSED)
+      session_closed_callback_(session_closed_callback),
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+      closed_(false) {
+#if SB_HAS(DRM_KEY_STATUSES)
+  DCHECK(!update_key_statuses_callback_.is_null());
+#if SB_HAS(DRM_SESSION_CLOSED)
+  DCHECK(!session_closed_callback_.is_null());
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+}
 
 DrmSystem::Session::~Session() {
   if (id_ && !closed_) {
@@ -80,6 +93,10 @@ DrmSystem::DrmSystem(const char* key_system)
 #if SB_HAS(DRM_KEY_STATUSES)
                                             ,
                                             OnSessionKeyStatusesChangedFunc
+#if SB_HAS(DRM_SESSION_CLOSED)
+                                            ,
+                                            OnSessionClosedFunc
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 #endif  // SB_HAS(DRM_KEY_STATUSES)
                                             )),  // NOLINT(whitespace/parens)
       message_loop_(MessageLoop::current()),
@@ -92,17 +109,26 @@ DrmSystem::DrmSystem(const char* key_system)
 
 DrmSystem::~DrmSystem() { SbDrmDestroySystem(wrapped_drm_system_); }
 
-#if SB_HAS(DRM_KEY_STATUSES)
 scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession(
-    SessionUpdateKeyStatusesCallback session_update_key_statuses_callback) {
-  return make_scoped_ptr(
-      new Session(this, session_update_key_statuses_callback));
-}
-#else   // SB_HAS(DRM_KEY_STATUSES)
-scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession() {
-  return make_scoped_ptr(new Session(this));
-}
+#if SB_HAS(DRM_KEY_STATUSES)
+    SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
+#if SB_HAS(DRM_SESSION_CLOSED)
+    ,
+    SessionClosedCallback session_closed_callback
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 #endif  // SB_HAS(DRM_KEY_STATUSES)
+    ) {  // NOLINT(whitespace/parens)
+  return make_scoped_ptr(new Session(this
+#if SB_HAS(DRM_KEY_STATUSES)
+                                     ,
+                                     session_update_key_statuses_callback
+#if SB_HAS(DRM_SESSION_CLOSED)
+                                     ,
+                                     session_closed_callback
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+                                     ));  // NOLINT(whitespace/parens)
+}
 
 void DrmSystem::GenerateSessionUpdateRequest(
     Session* session, const std::string& type, const uint8_t* init_data,
@@ -243,6 +269,22 @@ void DrmSystem::OnSessionKeyStatusChanged(
 }
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 
+#if SB_HAS(DRM_SESSION_CLOSED)
+void DrmSystem::OnSessionClosed(const std::string& session_id) {
+  // Find the session by ID.
+  IdToSessionMap::iterator session_iterator =
+      id_to_session_map_.find(session_id);
+  if (session_iterator == id_to_session_map_.end()) {
+    LOG(ERROR) << "Unknown session id: " << session_id << ".";
+    return;
+  }
+  Session* session = session_iterator->second;
+
+  session->session_closed_callback().Run();
+  id_to_session_map_.erase(session_iterator);
+}
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
+
 // static
 void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
     SbDrmSystem wrapped_drm_system, void* context, int ticket,
@@ -316,6 +358,27 @@ void DrmSystem::OnSessionKeyStatusesChangedFunc(
                  session_id_copy, key_ids_copy, key_statuses_copy));
 }
 #endif  // SB_HAS(DRM_KEY_STATUSES)
+
+#if SB_HAS(DRM_SESSION_CLOSED)
+// static
+void DrmSystem::OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
+                                    void* context, const void* session_id,
+                                    int session_id_size) {
+  DCHECK(context);
+  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
+  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+
+  DCHECK(session_id != NULL);
+
+  std::string session_id_copy =
+      std::string(static_cast<const char*>(session_id),
+                  static_cast<const char*>(session_id) + session_id_size);
+
+  drm_system->message_loop_->PostTask(
+      FROM_HERE, base::Bind(&DrmSystem::OnSessionClosed, drm_system->weak_this_,
+                            session_id_copy));
+}
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 
 }  // namespace media
 }  // namespace cobalt
