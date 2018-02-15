@@ -45,6 +45,9 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                               const std::vector<SbDrmKeyStatus>& key_statuses)>
       SessionUpdateKeyStatusesCallback;
 #endif  // SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_SESSION_CLOSED)
+  typedef base::Callback<void()> SessionClosedCallback;
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 
   // Flyweight that provides RAII semantics for sessions.
   // Most of logic is implemented by |DrmSystem| and thus sessions must be
@@ -93,6 +96,10 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
             ,
             SessionUpdateKeyStatusesCallback update_key_statuses_callback
 #endif          // SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_SESSION_CLOSED)
+            ,
+            SessionClosedCallback session_closed_callback
+#endif          // SB_HAS(SESSION_CLOSED)
             );  // NOLINT(whitespace/parens)
     void set_id(const std::string& id) { id_ = id; }
     const SessionUpdateRequestGeneratedCallback&
@@ -105,15 +112,23 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
       return update_key_statuses_callback_;
     }
 #endif  // SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_SESSION_CLOSED)
+    const SessionClosedCallback& session_closed_callback() const {
+      return session_closed_callback_;
+    }
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
 
     DrmSystem* const drm_system_;
+#if SB_HAS(DRM_KEY_STATUSES)
+    SessionUpdateKeyStatusesCallback update_key_statuses_callback_;
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_SESSION_CLOSED)
+    SessionClosedCallback session_closed_callback_;
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
     bool closed_;
     base::optional<std::string> id_;
     // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
     SessionUpdateRequestGeneratedCallback update_request_generated_callback_;
-#if SB_HAS(DRM_KEY_STATUSES)
-    SessionUpdateKeyStatusesCallback update_key_statuses_callback_;
-#endif  // SB_HAS(DRM_KEY_STATUSES)
 
     friend class DrmSystem;
 
@@ -129,6 +144,10 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #if SB_HAS(DRM_KEY_STATUSES)
       SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
 #endif    // SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_SESSION_CLOSED)
+      ,
+      SessionClosedCallback session_closed_callback
+#endif    // SB_HAS(DRM_SESSION_CLOSED)
       );  // NOLINT(whitespace/parens)
 
  private:
@@ -174,7 +193,9 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
       const std::string& session_id, const std::vector<std::string>& key_ids,
       const std::vector<SbDrmKeyStatus>& key_statuses);
 #endif  // SB_HAS(DRM_KEY_STATUSES)
-
+#if SB_HAS(DRM_SESSION_CLOSED)
+  void OnSessionClosed(const std::string& session_id);
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
   // Called on any thread, parameters need to be copied immediately.
   static void OnSessionUpdateRequestGeneratedFunc(
       SbDrmSystem wrapped_drm_system, void* context, int ticket,
@@ -191,6 +212,12 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
       const SbDrmKeyStatus* key_statuses);
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 
+#if SB_HAS(DRM_SESSION_CLOSED)
+  static void OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
+                                  void* context,
+                                  const void* session_id,
+                                  int session_id_size);
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
   const SbDrmSystem wrapped_drm_system_;
   MessageLoop* const message_loop_;
 
