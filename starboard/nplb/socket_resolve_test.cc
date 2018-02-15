@@ -37,7 +37,7 @@ class SbSocketResolveTest
 const void* kNull = NULL;
 
 // A random host name to use to test DNS resolution.
-const char kTestHostName[] = "www.yahoo.com";
+const char kTestHostName[] = "www.example.com";
 const char kLocalhost[] = "localhost";
 
 #define LOG_ADDRESS(i) "In returned address #" << (i)
