@@ -42,8 +42,6 @@ class V8cExceptionState : public ExceptionState {
 
   bool is_exception_set() const { return is_exception_set_; }
 
-  void ReThrow(v8::TryCatch* try_catch);
-
  private:
   base::ThreadChecker thread_checker_;
 

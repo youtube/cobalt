@@ -40,6 +40,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -102,7 +103,7 @@ void NamedPropertyGetterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ nonstatic_function_prologue(impl_class) }}
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   if (!impl->CanQueryNamedProperty(property_name)) {
@@ -123,26 +124,38 @@ void NamedPropertyQueryCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ get_impl_class_instance(impl_class) }}
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   bool result = impl->CanQueryNamedProperty(property_name);
   if (!result) {
     return;
   }
+
   // https://heycam.github.io/webidl/#LegacyPlatformObjectGetOwnProperty
+  int properties = v8::None;
   // 2.7. If |O| implements an interface with a named property setter, then set
   //      desc.[[Writable]] to true, otherwise set it to false.
+{% if named_property_setter %}
+{% else %}
+  properties |= v8::ReadOnly;
+{% endif %}
   // 2.8. If |O| implements an interface with the
   //      [LegacyUnenumerableNamedProperties] extended attribute, then set
   //      desc.[[Enumerable]] to false, otherwise set it to true.
-  info.GetReturnValue().Set(v8::DontEnum | v8::ReadOnly);
+{% if has_legacy_unenumerable_named_properties %}
+  // TODO: Note that this is never true at the moment, as Cobalt's IDLs and
+  // IDL compiler do not support this.
+  properties |= v8::DontEnum;
+{% endif %}
+
+  info.GetReturnValue().Set(properties);
 }
 
 void NamedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ get_impl_class_instance(impl_class) }}
   v8::Local<v8::Array> array = v8::Array::New(isolate);
   V8cPropertyEnumerator property_enumerator(isolate, &array);
@@ -158,7 +171,7 @@ void NamedPropertySetterCallback(
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ nonstatic_function_prologue(impl_class) }}
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   TypeTraits<{{named_property_setter.type}}>::ConversionType native_value;
@@ -171,6 +184,7 @@ void NamedPropertySetterCallback(
                         named_property_setter.name, ["property_name", "native_value"],
                         named_property_setter.raises_exception,
                         named_property_setter.call_with) }}
+  info.GetReturnValue().Set(value);
   DCHECK(!exception_state.is_exception_set());
 }
 {% endif %}
@@ -180,7 +194,7 @@ void NamedPropertyDeleterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ nonstatic_function_prologue(impl_class) }}
   std::string property_name = *v8::String::Utf8Value(isolate, property);
   if (!impl->CanQueryNamedProperty(property_name)) {
@@ -190,7 +204,10 @@ void NamedPropertyDeleterCallback(
                         named_property_deleter.name, ["property_name"],
                         named_property_deleter.raises_exception,
                         named_property_deleter.call_with) }}
-  DCHECK(!exception_state.is_exception_set());
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+  info.GetReturnValue().Set(true);
 }
 {% endif %}
 
@@ -200,7 +217,7 @@ void IndexedPropertyGetterCallback(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ nonstatic_function_prologue(impl_class) }}
   if (index >= impl->length()) {
     // |index| is out of bounds, so return undefined.
@@ -223,7 +240,7 @@ void IndexedPropertyDescriptorCallback(
 void IndexedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ get_impl_class_instance(impl_class) }}
   const uint32_t length = impl->length();
   v8::Local<v8::Array> array = v8::Array::New(isolate, length);
@@ -249,7 +266,7 @@ void IndexedPropertySetterCallback(
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ nonstatic_function_prologue(impl_class) }}
   if (index >= impl->length()) {
     return;
@@ -276,7 +293,7 @@ void IndexedPropertyDeleterCallback(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ nonstatic_function_prologue(impl_class) }}
   if (index >= impl->length()) {
     return;
@@ -320,14 +337,10 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 {% if attribute.is_constructor_attribute %}
 // Nothing for {{attribute}}.  We will just give them the v8::FunctionTemplate.
 {% else %}
-{% if attribute.is_static %}
-void {{attribute.idl_name}}StaticAttributeGetter(
-{% else %}
 void {{attribute.idl_name}}AttributeGetter(
-{% endif %}
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 {% if attribute.is_static %}
 {{ static_function_prologue() -}}
@@ -337,26 +350,23 @@ void {{attribute.idl_name}}AttributeGetter(
 {{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class) }}
 {% endif %}
+
 {{ call_cobalt_function(impl_class, attribute.type,
                         attribute.getter_function_name, [],
                         attribute.raises_exception, attribute.call_with,
                         attribute.is_static) }}
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 {% if attribute.has_setter %}
-{% if attribute.is_static %}
-void {{attribute.idl_name}}StaticAttributeSetter(
-{% else %}
 void {{attribute.idl_name}}AttributeSetter(
-{% endif %}
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
 {% if attribute.is_static %}
 {{ static_function_prologue() }}
@@ -401,10 +411,9 @@ void {{operation.idl_name}}{{boundFunctionSuffix}}(const v8::FunctionCallbackInf
 {% endfor %}
 
 {% if stringifier %}
-void Stringifier(v8::Local<v8::String> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+void Stringifier(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state(isolate);
 
   {{ check_if_object_implements_interface() }}
@@ -583,8 +592,15 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
 {% if not attribute.is_constructor_attribute %}
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, {{attribute.idl_name}}AttributeGetter);
+{% if attribute.has_setter %}
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, {{attribute.idl_name}}AttributeSetter);
+{% else %}
+    v8::Local<v8::FunctionTemplate> setter;
+{% endif %}
 
     // The location of the property is determined as follows:
 {% if attribute.is_static %}
@@ -594,48 +610,22 @@ void InitializeTemplate(v8::Isolate* isolate) {
 
     // If the attribute is a static attribute, then there is a single
     // corresponding property and it exists on the interface's interface object.
-    function_template->SetNativeDataProperty(
-        name,
-        {{attribute.idl_name}}StaticAttributeGetter,
-{% if attribute.has_setter %}
-        {{attribute.idl_name}}StaticAttributeSetter,
-{% else %}
-        0
-{% endif %}
-        v8::Local<v8::Value>(),
-        attributes);
-
+    function_template->
 {% elif attribute.is_unforgeable or is_global_interface %}
     // Otherwise, if the attribute is unforgeable on the interface or if the
     // interface was declared with the [Global] extended attribute, then the
     // property exists on every object that implements the interface.
-    instance_template->SetAccessor(
-        name,
-        {{attribute.idl_name}}AttributeGetter,
-{% if attribute.has_setter %}
-        {{attribute.idl_name}}AttributeSetter,
-{% else %}
-        0,
-{% endif %}
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
-
+    instance_template->
 {% else %}
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        {{attribute.idl_name}}AttributeGetter,
-{% if attribute.has_setter %}
-        {{attribute.idl_name}}AttributeSetter,
-{% else %}
-        0,
+    prototype_template->
 {% endif %}
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
-{% endif %}
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
 {% else %} {#- not attribute.is_constructor_attribute #}
     {
@@ -687,41 +677,27 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, {{operation.idl_name}}{{"Static" if operation.is_static else ""}}Method);
+    method_template->RemovePrototype();
+    method_template->SetLength({{operation.length}});
+
     // The location of the property is determined as follows:
 {% if operation.is_static %}
     // If the operation is static, then the property exists on the interface
     // object.
-    v8::Local<v8::FunctionTemplate> method_template =
-        v8::FunctionTemplate::New(isolate, {{operation.idl_name}}StaticMethod);
-    method_template->RemovePrototype();
-    method_template->SetLength({{operation.length}});
-    function_template->Set(
-        NewInternalString(isolate, "{{operation.idl_name}}"),
-        method_template);
-
+    function_template->
 {% elif operation.is_unforgeable or is_global_interface %}
     // Otherwise, if the operation is unforgeable on the interface or if the
     // interface was declared with the [Global] extended attribute, then the
     // property exists on every object that implements the interface.
-    v8::Local<v8::FunctionTemplate> method_template =
-        v8::FunctionTemplate::New(isolate, {{operation.idl_name}}Method);
-    method_template->RemovePrototype();
-    method_template->SetLength({{operation.length}});
-    instance_template->Set(
-        NewInternalString(isolate, "{{operation.idl_name}}"),
-        method_template);
-
+    instance_template->
 {% else %}
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    v8::Local<v8::FunctionTemplate> method_template =
-        v8::FunctionTemplate::New(isolate, {{operation.idl_name}}Method);
-    method_template->RemovePrototype();
-    method_template->SetLength({{operation.length}});
-    prototype_template->Set(
-        NewInternalString(isolate, "{{operation.idl_name}}"),
-        method_template);
+    prototype_template->
 {% endif %}
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -743,6 +719,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "{{interface_name}}"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+{% if stringifier %}
+  {
+    v8::Local<v8::String> name = NewInternalString(isolate, "toString");
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, Stringifier);
+    prototype_template->Set(
+      NewInternalString(isolate, "toString"),
+      method_template);
+  }
+{% endif %}
 
 {% if named_property_getter %}
   {
@@ -840,6 +826,8 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   context_.Reset(isolate_, context);
   v8::Context::Scope context_scope(context);
 
+  global_wrappable_ = global_interface;
+
   DCHECK(!environment_settings_);
   DCHECK(environment_settings);
   environment_settings_ = environment_settings;
@@ -863,6 +851,7 @@ void V8cGlobalEnvironment::CreateGlobalObject(
 #endif  // defined({{interface.conditional}})
 {% endif %}
 {% endfor %}
+
 }
 
 }  // namespace v8c

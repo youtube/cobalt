@@ -15,11 +15,13 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_HEAP_TRACER_H_
 #define COBALT_SCRIPT_V8C_V8C_HEAP_TRACER_H_
 
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "cobalt/script/v8c/isolate_fellowship.h"
+#include "cobalt/script/v8c/scoped_persistent.h"
 #include "cobalt/script/wrappable.h"
 #include "v8/include/v8-platform.h"
 #include "v8/include/v8.h"
@@ -35,28 +37,31 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
 
   void RegisterV8References(
       const std::vector<std::pair<void*, void*>>& embedder_fields) override;
-  void TracePrologue() override {}
+  void TracePrologue() override;
   bool AdvanceTracing(double deadline_in_ms,
                       AdvanceTracingActions actions) override;
-  void TraceEpilogue() override {
-    DCHECK(frontier_.empty());
-    visited_.clear();
-  }
-  void EnterFinalPause() override {}
-  void AbortTracing() override {
-    LOG(WARNING) << "Tracing aborted.";
-    frontier_.clear();
-    visited_.clear();
-  }
-  size_t NumberOfWrappersToTrace() override { return frontier_.size(); }
+  void TraceEpilogue() override;
+  void EnterFinalPause() override;
+  void AbortTracing() override;
+  size_t NumberOfWrappersToTrace() override;
 
   void Trace(Traceable* traceable) override;
 
+  void AddReferencedObject(Wrappable* owner,
+                           ScopedPersistent<v8::Value>* value);
+  void RemoveReferencedObject(Wrappable* owner,
+                              ScopedPersistent<v8::Value>* value);
+
  private:
+  void MaybeAddToFrontier(Traceable* traceable);
+
   v8::Isolate* const isolate_;
   v8::Platform* const platform_ = IsolateFellowship::GetInstance()->platform;
+
   std::vector<Traceable*> frontier_;
   std::unordered_set<Traceable*> visited_;
+  std::unordered_multimap<Wrappable*, ScopedPersistent<v8::Value>*>
+      reference_map_;
 };
 
 }  // namespace v8c

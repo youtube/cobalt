@@ -25,11 +25,6 @@ namespace {
 typedef InterfaceBindingsTest<ArbitraryInterface> GetOwnPropertyDescriptorTest;
 }  // namespace
 
-// TODO:  This test is expected to succeed on SpiderMonkey 24 and fail on
-// SpiderMonkey 45 due to an improper proxy handler implementation.  See
-// "cobalt/script/mozjs-45/proxy_handler.h" for more details.  The override of
-// |getOwnPropertyDescriptor| should not call |getPropertyDescriptor|, however
-// currently does as a temporary fix for other tests.
 TEST_F(GetOwnPropertyDescriptorTest,
        DoesNotHaveArbitraryPropertyPropertyDescriptor) {
   std::string result;
@@ -43,12 +38,12 @@ TEST_F(GetOwnPropertyDescriptorTest,
 
 TEST_F(GetOwnPropertyDescriptorTest, GetPropertyDescriptorFromPrototype) {
   std::string result;
-  EvaluateScript(
-      "var descriptor = "
-      "Object.getOwnPropertyDescriptor(ArbitraryInterface.prototype, "
-      "\"arbitraryProperty\")",
-      &result);
-  EXPECT_EQ(result, "undefined");
+  const char script[] = R"(
+    var descriptor =
+        Object.getOwnPropertyDescriptor(ArbitraryInterface.prototype,
+                                        "arbitraryProperty");
+  )";
+  EXPECT_TRUE(EvaluateScript(script, &result));
   EvaluateScript("descriptor.configurable", &result);
   EXPECT_EQ(result, "true");
   EvaluateScript("descriptor.enumerable", &result);

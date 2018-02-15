@@ -18,7 +18,6 @@
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/native_promise.h"
-#include "cobalt/script/v8c/v8c_global_environment.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {

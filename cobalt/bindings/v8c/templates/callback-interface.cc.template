@@ -57,9 +57,7 @@ namespace {{component}} {
 {% endif %}
 
   DCHECK(isolate_);
-  if (this->IsEmpty()) {
-    goto done;
-  }
+  DCHECK(!this->IsEmpty());
   {
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
