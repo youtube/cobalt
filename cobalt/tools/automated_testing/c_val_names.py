@@ -9,12 +9,12 @@ def count_dom_active_java_script_events():
   return 'Count.DOM.ActiveJavaScriptEvents'
 
 
-def count_dom_html_elements_document():
+def count_dom_html_element():
+  return 'Count.MainWebModule.DOM.HtmlElement'
+
+
+def count_dom_html_element_document():
   return 'Count.MainWebModule.DOM.HtmlElement.Document'
-
-
-def count_dom_html_elements_total():
-  return 'Count.MainWebModule.DOM.HtmlElement.Total'
 
 
 def count_dom_html_script_element_execute():
