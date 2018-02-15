@@ -41,6 +41,11 @@ MediaKeySession::MediaKeySession(
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
                      base::AsWeakPtr(this))
 #endif  // SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_SESSION_CLOSED)
+          ,
+          base::Bind(&MediaKeySession::OnSessionClosed,
+                     base::AsWeakPtr(this))
+#endif  // SB_HAS(DRM_SESSION_CLOSED)
               )),  // NOLINT(whitespace/parens)
       script_value_factory_(script_value_factory),
       uninitialized_(true),
@@ -216,7 +221,7 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Close() {
   closed_callback_.Run(this);
 
   // 5.3.1. Run the Session Closed algorithm on the session.
-  OnClosed();
+  OnSessionClosed();
 
   // 5.3.2. Resolve promise.
   promise_reference.value().Resolve();
@@ -373,7 +378,7 @@ void MediaKeySession::OnSessionUpdateKeyStatuses(
 }
 
 // See https://www.w3.org/TR/encrypted-media/#session-closed.
-void MediaKeySession::OnClosed() {
+void MediaKeySession::OnSessionClosed() {
   // 2. Run the Update Key Statuses algorithm on the session, providing an empty
   //    sequence.
   //
