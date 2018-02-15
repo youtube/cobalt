@@ -89,16 +89,6 @@ void V8cExceptionState::SetSimpleExceptionVA(SimpleExceptionType type,
   is_exception_set_ = true;
 }
 
-void V8cExceptionState::ReThrow(v8::TryCatch* try_catch) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(!is_exception_set_);
-  DCHECK(try_catch);
-  DCHECK(try_catch->HasCaught());
-
-  is_exception_set_ = true;
-  try_catch->ReThrow();
-}
-
 }  // namespace v8c
 }  // namespace script
 }  // namespace cobalt
