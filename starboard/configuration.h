@@ -74,6 +74,12 @@
 // Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where DRM session closed callback is required.
+//   Add a callback to SbDrmCreateSystem that allows a DRM system to
+//   signal that a DRM session has closed from the Starboard layer.
+//   Previously, DRM sessions could only be closed from the application layer.
+#define SB_DRM_SESSION_CLOSED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -551,6 +557,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_DRM_KEY_STATUSES 1
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 #endif  // SB_API_VERSION >= 6
+
+#if SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+#if defined(SB_HAS_DRM_SESSION_CLOSED)
+#if !SB_HAS(DRM_SESSION_CLOSED)
+#error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
+#endif  // !SB_HAS(DRM_SESSION_CLOSED)
+#else   // defined(SB_HAS_DRM_SESSION_CLOSED)
+#define SB_HAS_DRM_SESSION_CLOSED 1
+#endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
 
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
