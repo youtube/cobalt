@@ -61,9 +61,6 @@ class V8cEngine : public JavaScriptEngine {
 
   scoped_ptr<V8cHeapTracer> v8c_heap_tracer_;
 
-  // The amount of externally allocated memory since last forced GC.
-  size_t accumulated_extra_memory_cost_;
-
   // Used to handle javascript errors.
   ErrorHandler error_handler_;
 

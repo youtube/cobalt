@@ -29,8 +29,78 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-V8cEngine::V8cEngine(const Options& options)
-    : accumulated_extra_memory_cost_(0), options_(options) {
+namespace {
+
+void VisitWeakHandlesForMinorGC(v8::Isolate* isolate) {
+  class V8cPersistentHandleVisitor : public v8::PersistentHandleVisitor {
+   public:
+    void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
+                               uint16_t class_id) override {
+      DCHECK(value);
+      value->MarkActive();
+    }
+  } visitor;
+  isolate->VisitWeakHandles(&visitor);
+}
+
+size_t UsedHeapSize(v8::Isolate* isolate) {
+  v8::HeapStatistics heap_statistics;
+  isolate->GetHeapStatistics(&heap_statistics);
+  return heap_statistics.used_heap_size();
+}
+
+void GCPrologueCallback(v8::Isolate* isolate, v8::GCType type,
+                        v8::GCCallbackFlags) {
+  switch (type) {
+    case v8::kGCTypeScavenge:
+      TRACE_EVENT_BEGIN1("cobalt::script", "MinorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate));
+      VisitWeakHandlesForMinorGC(isolate);
+      break;
+    case v8::kGCTypeMarkSweepCompact:
+      TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate), "type", "atomic pause");
+      break;
+    case v8::kGCTypeIncrementalMarking:
+      TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate), "type", "incremental marking");
+      break;
+    case v8::kGCTypeProcessWeakCallbacks:
+      TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate), "type", "weak processing");
+      break;
+    default:
+      NOTREACHED();
+  }
+}
+
+void GCEpilogueCallback(v8::Isolate* isolate, v8::GCType type,
+                        v8::GCCallbackFlags) {
+  switch (type) {
+    case v8::kGCTypeScavenge:
+      TRACE_EVENT_END1("cobalt::script", "MinorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    case v8::kGCTypeMarkSweepCompact:
+      TRACE_EVENT_END1("cobalt::script", "MajorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    case v8::kGCTypeIncrementalMarking:
+      TRACE_EVENT_END1("cobalt::script", "MajorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    case v8::kGCTypeProcessWeakCallbacks:
+      TRACE_EVENT_END1("cobalt::script", "MajorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    default:
+      NOTREACHED();
+  }
+}
+
+}  // namespace
+
+V8cEngine::V8cEngine(const Options& options) : options_(options) {
   TRACE_EVENT0("cobalt::script", "V8cEngine::V8cEngine()");
 
   auto* isolate_fellowship = IsolateFellowship::GetInstance();
@@ -59,15 +129,14 @@ V8cEngine::V8cEngine(const Options& options)
 
   v8c_heap_tracer_.reset(new V8cHeapTracer(isolate_));
   isolate_->SetEmbedderHeapTracer(v8c_heap_tracer_.get());
+
+  isolate_->AddGCPrologueCallback(GCPrologueCallback);
+  isolate_->AddGCEpilogueCallback(GCEpilogueCallback);
 }
 
 V8cEngine::~V8cEngine() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::~V8cEngine");
   DCHECK(thread_checker_.CalledOnValidThread());
-
-  // This next GC is to GC everything (mostly for ASan), so we actually don't
-  // want our wrappers and wrappables to stay alive.
-  isolate_->SetEmbedderHeapTracer(nullptr);
 
   // Send a low memory notification to V8 in order to force a garbage
   // collection before shut down.  This is required to run weak callbacks that
@@ -94,14 +163,7 @@ void V8cEngine::CollectGarbage() {
 
 void V8cEngine::ReportExtraMemoryCost(size_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  accumulated_extra_memory_cost_ += bytes;
-
-  const bool do_collect_garbage =
-      accumulated_extra_memory_cost_ > options_.gc_threshold_bytes;
-  if (do_collect_garbage) {
-    accumulated_extra_memory_cost_ = 0;
-    CollectGarbage();
-  }
+  NOTIMPLEMENTED();
 }
 
 bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
