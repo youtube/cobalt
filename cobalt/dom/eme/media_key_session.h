@@ -78,7 +78,7 @@ class MediaKeySession : public EventTarget {
   void OnSessionUpdateKeyStatuses(
       const std::vector<std::string>& key_ids,
       const std::vector<SbDrmKeyStatus>& key_statuses);
-  void OnClosed();
+  void OnSessionClosed();
 
   EventQueue event_queue_;
 
