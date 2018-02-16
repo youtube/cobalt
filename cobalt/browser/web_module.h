@@ -218,6 +218,8 @@ class WebModule : public LifecycleObserver {
       OnRenderTreeProducedCallback;
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
   typedef dom::Window::CloseCallback CloseCallback;
+  typedef base::Callback<void(const script::HeapStatistics&)>
+      JavaScriptHeapStatisticsCallback;
 
   WebModule(const GURL& initial_url,
             base::ApplicationState initial_application_state,
@@ -312,6 +314,14 @@ class WebModule : public LifecycleObserver {
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
   void ReduceMemory();
+
+  // Post a task that gets the current |script::HeapStatistics| for our
+  // |JavaScriptEngine| to the web module thread, and then passes that to
+  // |callback|.  Note that |callback| will be called on the main web module
+  // thread.  It is the responsibility of |callback| to get back to its
+  // intended thread should it want to.
+  void RequestJavaScriptHeapStatistics(
+      const JavaScriptHeapStatisticsCallback& callback);
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and

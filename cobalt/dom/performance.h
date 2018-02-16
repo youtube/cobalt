@@ -43,8 +43,6 @@ class Performance : public script::Wrappable {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  ~Performance() override;
-
   scoped_refptr<PerformanceTiming> timing_;
   scoped_refptr<MemoryInfo> memory_;
 
