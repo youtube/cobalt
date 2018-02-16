@@ -109,7 +109,7 @@ void ReadFileToString(const char* pathname, std::string* string_out) {
   EXPECT_TRUE(pathname);
   EXPECT_TRUE(string_out);
   FilePath file_path;
-  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &file_path));
   file_path = file_path.Append(pathname);
   EXPECT_TRUE(file_util::ReadFileToString(file_path, string_out));
   const char* data = string_out->c_str();

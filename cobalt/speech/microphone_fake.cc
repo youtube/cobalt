@@ -74,7 +74,7 @@ MicrophoneFake::MicrophoneFake(const Options& options)
       file_paths_.push_back(options.file_path.value());
     } else {
       FilePath audio_files_path;
-      CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &audio_files_path));
+      CHECK(PathService::Get(base::DIR_TEST_DATA, &audio_files_path));
       audio_files_path = audio_files_path.Append(FILE_PATH_LITERAL("cobalt"))
                              .Append(FILE_PATH_LITERAL("speech"))
                              .Append(FILE_PATH_LITERAL("testdata"));

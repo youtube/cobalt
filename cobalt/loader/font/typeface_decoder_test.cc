@@ -96,7 +96,7 @@ void MockTypefaceDecoder::ExpectCallWithError(const std::string& message) {
 
 FilePath GetTestTypefacePath(const char* file_name) {
   FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("loader"))
       .Append(FILE_PATH_LITERAL("testdata"))

@@ -27,9 +27,9 @@ namespace layout_tests {
 namespace {
 
 // Returns the relative path to Cobalt layout tests.  This can be appended
-// to either base::DIR_SOURCE_ROOT to get the input directory or
+// to either base::DIR_TEST_DATA to get the input directory or
 // base::DIR_COBALT_TEST_OUT to get the output directory.
-FilePath GetDirSourceRootRelativePath() {
+FilePath GetTestDirRelativePath() {
   return FilePath(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("layout_tests"));
 }
@@ -37,15 +37,15 @@ FilePath GetDirSourceRootRelativePath() {
 }  // namespace
 
 FilePath GetTestInputRootDirectory() {
-  FilePath dir_source_root;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root));
-  return dir_source_root.Append(GetDirSourceRootRelativePath());
+  FilePath dir_test_data;
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &dir_test_data));
+  return dir_test_data.Append(GetTestDirRelativePath());
 }
 
 FilePath GetTestOutputRootDirectory() {
   FilePath dir_cobalt_test_out;
   PathService::Get(cobalt::paths::DIR_COBALT_TEST_OUT, &dir_cobalt_test_out);
-  return dir_cobalt_test_out.Append(GetDirSourceRootRelativePath());
+  return dir_cobalt_test_out.Append(GetTestDirRelativePath());
 }
 
 LogFilter::LogFilter() {
