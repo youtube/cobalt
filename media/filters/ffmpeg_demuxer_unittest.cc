@@ -164,7 +164,7 @@ class FFmpegDemuxerTest : public testing::Test {
     CHECK(!data_source_);
 
     FilePath file_path;
-    EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+    EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &file_path));
 
     file_path = file_path.Append(FILE_PATH_LITERAL("media"))
         .Append(FILE_PATH_LITERAL("test"))
