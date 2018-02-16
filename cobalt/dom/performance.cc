@@ -36,7 +36,5 @@ void Performance::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(memory_);
 }
 
-Performance::~Performance() {}
-
 }  // namespace dom
 }  // namespace cobalt

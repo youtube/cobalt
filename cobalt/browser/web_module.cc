@@ -242,6 +242,8 @@ class WebModule::Impl {
   void Resume(render_tree::ResourceProvider* resource_provider);
 
   void ReduceMemory();
+  void GetJavaScriptHeapStatistics(
+      const JavaScriptHeapStatisticsCallback& callback);
 
   void LogScriptError(const base::SourceLocation& source_location,
                       const std::string& error_message);
@@ -1152,6 +1154,16 @@ void WebModule::Impl::ReduceMemory() {
   }
 }
 
+void WebModule::Impl::GetJavaScriptHeapStatistics(
+    const JavaScriptHeapStatisticsCallback& callback) {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::Impl::GetJavaScriptHeapStatistics()");
+  DCHECK(thread_checker_.CalledOnValidThread());
+  script::HeapStatistics heap_statistics =
+      javascript_engine_->GetHeapStatistics();
+  callback.Run(heap_statistics);
+}
+
 void WebModule::Impl::LogScriptError(
     const base::SourceLocation& source_location,
     const std::string& error_message) {
@@ -1645,6 +1657,16 @@ void WebModule::ReduceMemory() {
   message_loop()->PostBlockingTask(FROM_HERE,
                                    base::Bind(&WebModule::Impl::ReduceMemory,
                                               base::Unretained(impl_.get())));
+}
+
+void WebModule::RequestJavaScriptHeapStatistics(
+    const JavaScriptHeapStatisticsCallback& callback) {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
+
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::GetJavaScriptHeapStatistics,
+                            base::Unretained(impl_.get()), callback));
 }
 
 }  // namespace browser

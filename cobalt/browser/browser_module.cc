@@ -253,6 +253,11 @@ BrowserModule::BrowserModule(const GURL& url,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
                           "The last time the window.OnLoad event fired."),
+      javascript_reserved_memory_(
+          "Memory.JS", 0,
+          "The total memory that is reserved by the JavaScript engine, which "
+          "includes both parts that have live JavaScript values, as well as "
+          "preallocated space for future values."),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
           kFuzzerToggleCommand,
@@ -1312,6 +1317,11 @@ void BrowserModule::CheckMemory(
                                      used_gpu_memory);
 }
 
+void BrowserModule::UpdateJavaScriptHeapStatistics() {
+  web_module_->RequestJavaScriptHeapStatistics(base::Bind(
+      &BrowserModule::GetHeapStatisticsCallback, base::Unretained(this)));
+}
+
 void BrowserModule::OnRendererSubmissionRasterized() {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnRendererSubmissionRasterized()");
@@ -1618,6 +1628,17 @@ void BrowserModule::ApplyAutoMemSettings() {
         math::Size(skia_glyph_atlas_texture_dimensions.width(),
                    skia_glyph_atlas_texture_dimensions.height());
   }
+}
+
+void BrowserModule::GetHeapStatisticsCallback(
+    const script::HeapStatistics& heap_statistics) {
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::GetHeapStatisticsCallback,
+                              base::Unretained(this), heap_statistics));
+    return;
+  }
+  javascript_reserved_memory_ = heap_statistics.total_heap_size;
 }
 
 void BrowserModule::SubmitCurrentRenderTreeToRenderer() {

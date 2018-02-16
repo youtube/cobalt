@@ -18,6 +18,6 @@
 [
   NoInterfaceObject,
 ] interface MemoryInfo {
-  readonly attribute unsigned long totalJSHeapSize;
-  readonly attribute unsigned long usedJSHeapSize;
+  [CallWith=EnvironmentSettings] readonly attribute unsigned long totalJSHeapSize;
+  [CallWith=EnvironmentSettings] readonly attribute unsigned long usedJSHeapSize;
 };
