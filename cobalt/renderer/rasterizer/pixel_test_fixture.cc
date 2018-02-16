@@ -70,7 +70,7 @@ FilePath GetTestOutputDirectory() {
 // be found in. Files should be placed in this location by the build process.
 FilePath GetTestInputDirectory() {
   FilePath in_file_dir;
-  PathService::Get(base::DIR_SOURCE_ROOT, &in_file_dir);
+  PathService::Get(base::DIR_TEST_DATA, &in_file_dir);
   return in_file_dir.Append(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("renderer"))
       .Append(FILE_PATH_LITERAL("rasterizer"))
