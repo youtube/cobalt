@@ -70,16 +70,6 @@ int64_t MemoryAllocatorReporter::GetCurrentBytesAllocated() {
   return current_bytes_allocated_;
 }
 
-void MemoryAllocatorReporter::UpdateMappedBytes(int64_t bytes) {
-  starboard::ScopedLock lock(mutex_);
-  current_bytes_mapped_ += bytes;
-}
-
-int64_t MemoryAllocatorReporter::GetCurrentBytesMapped() {
-  starboard::ScopedLock lock(mutex_);
-  return current_bytes_mapped_;
-}
-
 // static
 MemoryAllocatorReporter* MemoryAllocatorReporter::Get() {
   SbOnce(&s_instance_control, &Initialize);

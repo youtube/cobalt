@@ -44,18 +44,14 @@ class MemoryAllocatorReporter {
   static MemoryAllocatorReporter* Get();
 
   MemoryAllocatorReporter()
-      : current_bytes_allocated_(0), current_bytes_mapped_(0) {}
+      : current_bytes_allocated_(0) {}
 
   void UpdateAllocatedBytes(int64_t bytes);
   int64_t GetCurrentBytesAllocated();
 
-  void UpdateMappedBytes(int64_t bytes);
-  int64_t GetCurrentBytesMapped();
-
  private:
   starboard::Mutex mutex_;
   int64_t current_bytes_allocated_;
-  int64_t current_bytes_mapped_;
 };
 
 #endif /* MemoryAllocatorReporter_h */
