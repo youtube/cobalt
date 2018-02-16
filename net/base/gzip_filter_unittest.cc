@@ -62,7 +62,7 @@ class GZipUnitTest : public PlatformTest {
 
     // Get the path of source data file.
     FilePath file_path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+    PathService::Get(base::DIR_TEST_DATA, &file_path);
     file_path = file_path.AppendASCII("net");
     file_path = file_path.AppendASCII("data");
     file_path = file_path.AppendASCII("filter_unittests");

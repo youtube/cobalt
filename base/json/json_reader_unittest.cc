@@ -529,7 +529,7 @@ TEST(JSONReaderTest, Reading) {
 
 TEST(JSONReaderTest, ReadFromFile) {
   FilePath path;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
+  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &path));
   path = path.Append(FILE_PATH_LITERAL("base"))
              .Append(FILE_PATH_LITERAL("data"))
              .Append(FILE_PATH_LITERAL("json"));

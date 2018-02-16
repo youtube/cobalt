@@ -63,6 +63,21 @@ bool PathProviderStarboard(int key, FilePath *result) {
     }
 #endif  // ENABLE_DIR_SOURCE_ROOT_ACCESS
 
+#if defined(ENABLE_TEST_DATA)
+    case base::DIR_TEST_DATA: {
+      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
+                                     SB_ARRAY_SIZE_INT(path));
+      DCHECK(success);
+      if (success) {
+        // Append "test" to match the output of copy_test_data.gypi
+        *result = FilePath(path).Append(FILE_PATH_LITERAL("test"));
+        return true;
+      }
+      DLOG(ERROR) << "DIR_TEST_DATA not defined.";
+      return false;
+    }
+#endif  // ENABLE_TEST_DATA
+
     case base::DIR_CACHE: {
       bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path,
                                      SB_ARRAY_SIZE_INT(path));

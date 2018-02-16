@@ -107,7 +107,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
 
   void OpenFile(const std::string& name) {
     FilePath path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.AppendASCII("media")
         .AppendASCII("test")
         .AppendASCII("data")
