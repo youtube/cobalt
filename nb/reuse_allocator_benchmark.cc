@@ -68,10 +68,12 @@ std::string ReadFileContent(const std::string& pathname) {
 void LoadAllocationPlayback(std::vector<AllocationCommand>* commands,
                             const std::string& filename) {
   char buffer[SB_FILE_MAX_NAME * 16];
-  bool result = SbSystemGetPath(kSbSystemPathSourceDirectory, buffer,
+  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, buffer,
                                 SB_ARRAY_SIZE(buffer));
   SB_DCHECK(result);
   std::string path_name = buffer;
+  path_name += SB_FILE_SEP_CHAR;
+  path_name += "test";
   path_name += SB_FILE_SEP_CHAR;
   path_name += "nb";
   path_name += SB_FILE_SEP_CHAR;
