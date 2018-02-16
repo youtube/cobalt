@@ -27,6 +27,12 @@ namespace script {
 
 class GlobalEnvironment;
 
+// https://webplatform.github.io/docs/apis/timing/properties/memory/
+struct HeapStatistics {
+  size_t total_heap_size;
+  size_t used_heap_size;
+};
+
 class JavaScriptEngine {
  public:
   struct Options {
@@ -51,12 +57,6 @@ class JavaScriptEngine {
   static scoped_ptr<JavaScriptEngine> CreateEngine(
       const Options& options = Options());
 
-  // Updates the memory usage and returns the total memory that is reserved
-  // across all of the engines. This includes the part that is actually
-  // occupied by JavaScript objects, and the part that is not yet.
-  // This function is defined per-implementation.
-  static size_t UpdateMemoryStatsAndReturnReserved();
-
   // Create a new JavaScript global object proxy.
   virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() = 0;
 
@@ -73,6 +73,11 @@ class JavaScriptEngine {
 
   // Adjusts the memory threshold to force garbage collection.
   virtual void SetGcThreshold(int64_t bytes) = 0;
+
+  // Get the current |HeapStatistics| measurements for this engine.  Note that
+  // engines will implement this to the best of their ability, but will likely
+  // be unable to provide perfectly accurate values.
+  virtual HeapStatistics GetHeapStatistics() = 0;
 
  protected:
   virtual ~JavaScriptEngine() {}

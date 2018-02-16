@@ -1002,10 +1002,6 @@ Application::CValStats::CValStats()
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
                       "Total CPU memory allocated via the app's allocators."),
-      js_reserved_memory("Memory.JS", 0,
-                         "The total memory that is reserved by the engine, "
-                         "including the part that is actually occupied by "
-                         "JS objects, and the part that is not yet."),
       app_start_time("Time.Cobalt.Start",
                      base::StartupTimer::StartTime().ToInternalValue(),
                      "Start time of the application in microseconds."),
@@ -1087,8 +1083,7 @@ void Application::UpdatePeriodicStats() {
     *c_val_stats_.used_gpu_memory = *used_gpu_memory;
   }
 
-  c_val_stats_.js_reserved_memory =
-      script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved();
+  browser_module_->UpdateJavaScriptHeapStatistics();
 
   browser_module_->CheckMemory(used_cpu_memory, used_gpu_memory);
 }
