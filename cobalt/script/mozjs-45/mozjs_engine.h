@@ -34,8 +34,9 @@ class MozjsEngine : public JavaScriptEngine {
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() override;
   void CollectGarbage() override;
   void ReportExtraMemoryCost(size_t bytes) override;
-  bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
+  bool RegisterErrorHandler(ErrorHandler handler) override;
   void SetGcThreshold(int64_t bytes) override;
+  HeapStatistics GetHeapStatistics() override;
 
  private:
   static bool ContextCallback(JSContext* context, unsigned context_op,

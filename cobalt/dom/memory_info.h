@@ -26,17 +26,16 @@ namespace dom {
 //   https://docs.webplatform.org/wiki/apis/timing/properties/memory
 class MemoryInfo : public script::Wrappable {
  public:
-  MemoryInfo() {}
+  MemoryInfo() = default;
 
-  uint32 total_js_heap_size() const;
-
-  uint32 used_js_heap_size() const;
+  uint32 total_js_heap_size(
+      script::EnvironmentSettings* environment_settings) const;
+  uint32 used_js_heap_size(
+      script::EnvironmentSettings* environment_settings) const;
 
   DEFINE_WRAPPABLE_TYPE(MemoryInfo);
 
  private:
-  ~MemoryInfo() override {}
-
   DISALLOW_COPY_AND_ASSIGN(MemoryInfo);
 };
 

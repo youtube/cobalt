@@ -44,6 +44,7 @@ class V8cEngine : public JavaScriptEngine {
   void ReportExtraMemoryCost(size_t bytes) override;
   bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
   void SetGcThreshold(int64_t bytes) override;
+  HeapStatistics GetHeapStatistics() override;
 
   v8::Isolate* isolate() const { return isolate_; }
   V8cHeapTracer* heap_tracer() const { return v8c_heap_tracer_.get(); }

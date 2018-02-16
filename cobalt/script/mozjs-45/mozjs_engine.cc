@@ -66,45 +66,6 @@ js::DOMProxyShadowsResult DOMProxyShadowsCheck(JSContext* context,
   return js::DoesntShadow;
 }
 
-class EngineStats {
- public:
-  EngineStats();
-
-  static EngineStats* GetInstance() {
-    return Singleton<EngineStats,
-                     StaticMemorySingletonTraits<EngineStats> >::get();
-  }
-
-  void EngineCreated() { ++engine_count_; }
-  void EngineDestroyed() { --engine_count_; }
-
-  size_t UpdateMemoryStatsAndReturnReserved() {
-    // Accessing CVals triggers a lock, so rely on local variables when
-    // possible to avoid unecessary locking.
-    size_t allocated_memory =
-        MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
-    size_t mapped_memory =
-        MemoryAllocatorReporter::Get()->GetCurrentBytesMapped();
-
-    allocated_memory_ = allocated_memory;
-    mapped_memory_ = mapped_memory;
-
-    return allocated_memory + mapped_memory;
-  }
-
- private:
-  base::CVal<int> engine_count_;
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> allocated_memory_;
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> mapped_memory_;
-};
-
-EngineStats::EngineStats()
-    : engine_count_("Count.JS.Engine", 0,
-                    "Total JavaScript engine registered."),
-      allocated_memory_("Memory.JS.AllocatedMemory", 0,
-                        "JS memory occupied by the Mozjs allocator."),
-      mapped_memory_("Memory.JS.MappedMemory", 0, "JS mapped memory.") {}
-
 // Pretend we always preserve wrappers since we never call
 // SetPreserveWrapperCallback anywhere else. This is necessary for
 // TryPreserveReflector called by WeakMap to not crash. Disabling
@@ -185,13 +146,10 @@ MozjsEngine::MozjsEngine(const Options& options)
   js::SetPreserveWrapperCallback(runtime_, DummyPreserveWrapperCallback);
 
   JS_SetErrorReporter(runtime_, ReportErrorHandler);
-
-  EngineStats::GetInstance()->EngineCreated();
 }
 
 MozjsEngine::~MozjsEngine() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  EngineStats::GetInstance()->EngineDestroyed();
   JS_DestroyRuntime(runtime_);
 }
 
@@ -219,13 +177,24 @@ void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   }
 }
 
-bool MozjsEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
+bool MozjsEngine::RegisterErrorHandler(ErrorHandler handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   error_handler_ = handler;
   return true;
 }
 
 void MozjsEngine::SetGcThreshold(int64_t bytes) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   runtime_->gc.setMaxMallocBytes(static_cast<size_t>(bytes));
+}
+
+HeapStatistics MozjsEngine::GetHeapStatistics() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  // There is unfortunately no easy way to get used vs total in SpiderMonkey,
+  // so just return total bytes allocated for both.
+  size_t bytes_allocated =
+      MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
+  return {bytes_allocated, bytes_allocated};
 }
 
 // static
@@ -285,12 +254,6 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(options));
-}
-
-// static
-size_t JavaScriptEngine::UpdateMemoryStatsAndReturnReserved() {
-  return mozjs::EngineStats::GetInstance()
-      ->UpdateMemoryStatsAndReturnReserved();
 }
 
 }  // namespace script
