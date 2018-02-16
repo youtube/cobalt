@@ -19,7 +19,7 @@ const base::FilePath::CharType kTestDataPath[] =
 
 base::FilePath GetTestDataFilePath(const std::string& name) {
   base::FilePath file_path;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &file_path));
   return file_path.Append(GetTestDataPath()).AppendASCII(name);
 }
 

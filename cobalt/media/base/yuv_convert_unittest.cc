@@ -54,7 +54,7 @@ static void ReadData(const base::FilePath::CharType* filename,
   data->reset(new uint8_t[expected_size]);
 
   base::FilePath path;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &path));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &path));
   path = path.Append(FILE_PATH_LITERAL("media"))
              .Append(FILE_PATH_LITERAL("test"))
              .Append(FILE_PATH_LITERAL("data"))
@@ -376,7 +376,7 @@ TEST(YUVConvertTest, RGB32ToYUV) {
 
   // Read YUV reference data from file.
   base::FilePath yuv_url;
-  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
+  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &yuv_url));
   yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
                 .Append(FILE_PATH_LITERAL("test"))
                 .Append(FILE_PATH_LITERAL("data"))
@@ -430,7 +430,7 @@ TEST(YUVConvertTest, RGB32ToYUV) {
 TEST(YUVConvertTest, DownScaleYUVToRGB32WithRect) {
   // Read YUV reference data from file.
   base::FilePath yuv_url;
-  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
+  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &yuv_url));
   yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
                 .Append(FILE_PATH_LITERAL("test"))
                 .Append(FILE_PATH_LITERAL("data"))

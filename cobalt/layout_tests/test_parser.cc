@@ -29,15 +29,15 @@ namespace layout_tests {
 namespace {
 
 // Returns the relative path to Cobalt layout tests.  This can be appended
-// to either base::DIR_SOURCE_ROOT to get the input directory or
+// to either base::DIR_TEST_DATA to get the input directory or
 // base::DIR_COBALT_TEST_OUT to get the output directory.
-FilePath GetDirSourceRootRelativePath() {
+FilePath GetTestDirRelativePath() {
   return FilePath(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("layout_tests"));
 }
 
 GURL GetURLFromBaseFilePath(const FilePath& base_file_path) {
-  return GURL("file:///" + GetDirSourceRootRelativePath().value() + "/" +
+  return GURL("file:///" + GetTestDirRelativePath().value() + "/" +
               base_file_path.AddExtension("html").value());
 }
 

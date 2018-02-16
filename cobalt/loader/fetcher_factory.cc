@@ -56,7 +56,11 @@ std::string ClipUrl(const GURL& url, size_t length) {
     return spec;
   }
 
-  return spec.substr(0, length - 5) + "[...]";
+  size_t remain = length - 5;
+  size_t head = remain / 2;
+  size_t tail = remain - head;
+
+  return spec.substr(0, head) + "[...]" + spec.substr(spec.size() - tail);
 }
 
 }  // namespace
@@ -100,7 +104,7 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
 scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin, Fetcher::Handler* handler) {
-  DLOG(INFO) << "Fetching: " << ClipUrl(url, 60);
+  DLOG(INFO) << "Fetching: " << ClipUrl(url, 80);
 
   if (!url.is_valid()) {
     std::stringstream error_message;

@@ -106,7 +106,7 @@ std::vector<SpriteInfo> CreateSpriteInfos() {
 scoped_refptr<Image> GetTestImage(ResourceProvider* resource_provider) {
   // Load a test image from disk.
   FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return DecodePNGToRenderTreeImage(
       data_directory.Append(FILE_PATH_LITERAL("test"))
           .Append(FILE_PATH_LITERAL("scenes"))

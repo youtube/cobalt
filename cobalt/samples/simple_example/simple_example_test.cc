@@ -71,7 +71,7 @@ TEST_F(SimpleExampleTest, MultiplyZeroAndAddNumbers) {
 
 TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
   FilePath data_dir;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
+  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("cobalt"))
                  .Append(FILE_PATH_LITERAL("samples"))
                  .Append(FILE_PATH_LITERAL("testdata"))
@@ -119,7 +119,7 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
 
 TEST_F(SimpleExampleTest, PrintData) {
   FilePath data_dir;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &data_dir));
+  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &data_dir));
   data_dir = data_dir.Append(FILE_PATH_LITERAL("cobalt"))
                  .Append(FILE_PATH_LITERAL("samples"))
                  .Append(FILE_PATH_LITERAL("testdata"));
