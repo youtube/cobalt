@@ -167,7 +167,7 @@ class PacPerfSuiteRunner {
   // Read the PAC script from disk and initialize the proxy resolver with it.
   void LoadPacScriptIntoResolver(const std::string& script_name) {
     FilePath path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.AppendASCII("net");
     path = path.AppendASCII("data");
     path = path.AppendASCII("proxy_resolver_perftest");

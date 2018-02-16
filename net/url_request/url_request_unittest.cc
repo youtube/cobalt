@@ -717,7 +717,7 @@ TEST_F(URLRequestTest, InvalidUrlTest) {
 #if defined(OS_WIN)
 TEST_F(URLRequestTest, ResolveShortcutTest) {
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("net");
   app_path = app_path.AppendASCII("data");
   app_path = app_path.AppendASCII("url_request_unittest");
@@ -784,7 +784,7 @@ TEST_F(URLRequestTest, FileDirCancelTest) {
   TestDelegate d;
   {
     FilePath file_path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+    PathService::Get(base::DIR_TEST_DATA, &file_path);
     file_path = file_path.Append(FILE_PATH_LITERAL("net"));
     file_path = file_path.Append(FILE_PATH_LITERAL("data"));
 
@@ -807,7 +807,7 @@ TEST_F(URLRequestTest, FileDirRedirectNoCrash) {
   // redirects does not crash.  See http://crbug.com/18686.
 
   FilePath path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(FILE_PATH_LITERAL("net"));
   path = path.Append(FILE_PATH_LITERAL("data"));
   path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
@@ -3151,7 +3151,7 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     ScopedVector<UploadElementReader> element_readers;
 
     FilePath path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.Append(FILE_PATH_LITERAL("net"));
     path = path.Append(FILE_PATH_LITERAL("data"));
     path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
@@ -3423,7 +3423,7 @@ TEST_F(URLRequestTestHTTP, DeferredRedirect) {
     EXPECT_EQ(URLRequestStatus::SUCCESS, req.status().status());
 
     FilePath path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.Append(FILE_PATH_LITERAL("net"));
     path = path.Append(FILE_PATH_LITERAL("data"));
     path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
@@ -4906,7 +4906,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPGetTestAnonymous) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
@@ -4935,7 +4935,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPGetTest) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
@@ -4967,7 +4967,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongPassword) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
@@ -4997,7 +4997,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongPasswordRestart) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   // Set correct login credentials. The delegate will be asked for them when
@@ -5030,7 +5030,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongUser) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
@@ -5060,7 +5060,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongUserRestart) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   // Set correct login credentials. The delegate will be asked for them when
@@ -5093,7 +5093,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCacheURLCredentials) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
 
   scoped_ptr<TestDelegate> d(new TestDelegate);
@@ -5143,7 +5143,7 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCacheLoginBoxCredentials) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
 
   scoped_ptr<TestDelegate> d(new TestDelegate);

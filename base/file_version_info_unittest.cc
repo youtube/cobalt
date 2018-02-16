@@ -17,7 +17,7 @@ namespace {
 #if defined(OS_WIN)
 FilePath GetTestDataPath() {
   FilePath path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.AppendASCII("base");
   path = path.AppendASCII("data");
   path = path.AppendASCII("file_version_info_unittest");
