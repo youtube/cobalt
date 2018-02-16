@@ -21,7 +21,7 @@
 namespace {
 FilePath GetBenchmarkImagePath() {
   FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("test"))
                        .Append(FILE_PATH_LITERAL("png_utils"))
                        .Append(FILE_PATH_LITERAL("png_benchmark_image.png"));
@@ -52,7 +52,7 @@ TRACE_EVENT_BENCHMARK2(
     "PNGFileReadContext::DecodeImageTo()",
         cobalt::trace_event::IN_SCOPE_DURATION) {
   FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
 
   const int kIterationCount = 20;
   for (int i = 0; i < kIterationCount; ++i) {

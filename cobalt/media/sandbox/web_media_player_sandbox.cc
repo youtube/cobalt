@@ -57,7 +57,7 @@ FilePath ResolvePath(const char* path) {
   FilePath result(path);
   if (!result.IsAbsolute()) {
     FilePath content_path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &content_path);
+    PathService::Get(base::DIR_TEST_DATA, &content_path);
     CHECK(content_path.IsAbsolute());
     result = content_path.Append(result);
   }
