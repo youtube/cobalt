@@ -55,7 +55,7 @@ std::vector<TestInfo> EnumerateTests(bool screen_reader_enabled,
                                      const std::string& subdir) {
   std::vector<TestInfo> infos;
   FilePath root_directory;
-  PathService::Get(base::DIR_SOURCE_ROOT, &root_directory);
+  PathService::Get(base::DIR_TEST_DATA, &root_directory);
   root_directory = root_directory.Append("cobalt")
                        .Append("accessibility")
                        .Append("testdata")

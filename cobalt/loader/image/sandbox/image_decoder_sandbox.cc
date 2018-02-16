@@ -52,7 +52,7 @@ struct ImageDecoderCallback {
 
 std::vector<FilePath> GetImagePaths(const char* extention) {
   FilePath image_path;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &image_path));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &image_path));
   image_path = image_path.Append(FILE_PATH_LITERAL("cobalt"))
                    .Append(FILE_PATH_LITERAL("loader"))
                    .Append(FILE_PATH_LITERAL("testdata"));

@@ -3,6 +3,13 @@
 This document records all notable changes made to Cobalt since the last release.
 
 ## Version 16
+ - **Move test data**
+
+ Static test data is now copied to `content/data/test` instead of
+ `content/dir_source_root`.  Tests looking for the path to this data should use
+ `BasePathKey::DIR_TEST_DATA` instead of `BasePathKey::DIR_SOURCE_ROOT`. Tests
+ in Starboard can find the static data in the `test/` subdirectory of
+ `kSbSystemPathContentDirectory`.
 
  - **Add support for cobalt_media_buffer_max_capacity**
 

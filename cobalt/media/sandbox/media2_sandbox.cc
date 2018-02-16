@@ -55,7 +55,7 @@ std::string LoadFile(const std::string& file_name) {
   FilePath file_path(file_name);
   if (!file_path.IsAbsolute()) {
     FilePath content_path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &content_path);
+    PathService::Get(base::DIR_TEST_DATA, &content_path);
     DCHECK(content_path.IsAbsolute());
     file_path = content_path.Append(file_path);
   }

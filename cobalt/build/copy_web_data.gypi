@@ -45,8 +45,7 @@
 #                       containing the target (e.g. it should be "base" for the
 #                       target in base/base.gyp).
 # It is recommended that input_files and output_dir have similar path, so the
-# directory structure in dir_source_root/ will reflect that in the source
-# folder.
+# directory structure in web/ will reflect that in the source folder.
 
 {
   'includes': [ 'contents_dir.gypi' ],

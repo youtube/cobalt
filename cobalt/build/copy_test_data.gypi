@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # This file is meant to be included into an action to copy test data files into
-# the DIR_SOURCE_ROOT directory, e.g. out/PS3_Debug/content/dir_source_root/.
+# the DIR_TEST_DATA directory, e.g. out/PS3_Debug/content/data/test/.
 #
 # To use this, create a gyp target with the following form:
 # {
@@ -45,8 +45,7 @@
 #                       containing the target (e.g. it should be "base" for the
 #                       target in base/base.gyp).
 # It is recommended that input_files and output_dir have similar path, so the
-# directory structure in dir_source_root/ will reflect that in the source
-# folder.
+# directory structure in test/ will reflect that in the source folder.
 
 {
   'includes': [ 'contents_dir.gypi' ],
@@ -54,12 +53,12 @@
     '<!@pymod_do_main(starboard.build.copy_data --inputs <(input_files))',
   ],
   'outputs': [
-    '<!@pymod_do_main(starboard.build.copy_data -o <(sb_static_contents_output_base_dir)/dir_source_root/<(output_dir) --outputs <(input_files))',
+    '<!@pymod_do_main(starboard.build.copy_data -o <(sb_static_contents_output_data_dir)/test/<(output_dir) --outputs <(input_files))',
   ],
   'action': [
     'python',
     '<(DEPTH)/starboard/build/copy_data.py',
-    '-o', '<(sb_static_contents_output_base_dir)/dir_source_root/<(output_dir)',
+    '-o', '<(sb_static_contents_output_data_dir)/test/<(output_dir)',
     '<@(input_files)',
   ],
 }

@@ -252,9 +252,9 @@ TEST_F(LoaderTest, ValidFileEndToEndTest) {
 
   // Compare the result with that of other API's.
   std::string expected_text;
-  FilePath dir_source_root;
-  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root));
-  EXPECT_TRUE(file_util::ReadFileToString(dir_source_root.Append(file_path),
+  FilePath dir_test_data;
+  EXPECT_TRUE(PathService::Get(base::DIR_TEST_DATA, &dir_test_data));
+  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data.Append(file_path),
                                           &expected_text));
   EXPECT_EQ(expected_text, loaded_text);
 }
