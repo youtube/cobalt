@@ -11,7 +11,7 @@ namespace net {
 
 FilePath GetTestCertsDirectory() {
   FilePath certs_dir;
-  PathService::Get(base::DIR_SOURCE_ROOT, &certs_dir);
+  PathService::Get(base::DIR_TEST_DATA, &certs_dir);
   return certs_dir.Append(FILE_PATH_LITERAL("net/data/ssl/certificates"));
 }
 

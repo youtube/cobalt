@@ -31,6 +31,9 @@ bool ReturnsValidPath(int dir_type) {
   // Some paths might not exist on some platforms in which case confirming
   // |result| is true and !path.empty() is the best we can do.
   bool check_path_exists = true;
+  // With tests using DIR_TEST_DATA, there is no longer a fake source-root.
+  if (dir_type == base::DIR_SOURCE_ROOT)
+    check_path_exists = false;
 #if defined(__LB_SHELL__)
   if (dir_type == base::DIR_USER_DESKTOP)
     check_path_exists = false;
