@@ -750,6 +750,7 @@ DeallocateMappedContent(void* p, size_t length)
 }
 
 #elif defined(STARBOARD)
+#include "memory_allocator_reporter.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
@@ -770,12 +771,14 @@ void* MapAlignedPages(size_t size, size_t alignment) {
     // directly onto the heap.  This change should be safe, considering that
     // stock SpiderMonkey45 code falls back to |_aligned_malloc| when |mmap|
     // is not available.
+    MemoryAllocatorReporter::Get()->UpdateTotalHeapSize(size);
     return SbMemoryAllocateAligned(alignment, size);
 }
 
 void UnmapPages(void* p, size_t size) {
     SB_DCHECK(size <= kSbInt64Max);
-    int64_t size_as_int64_t = static_cast<int64_t>(size);
+    MemoryAllocatorReporter::Get()->UpdateTotalHeapSize(
+        -static_cast<int64_t>(size));
     SbMemoryDeallocateAligned(p);
 }
 
