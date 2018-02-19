@@ -192,9 +192,9 @@ HeapStatistics MozjsEngine::GetHeapStatistics() {
   DCHECK(thread_checker_.CalledOnValidThread());
   // There is unfortunately no easy way to get used vs total in SpiderMonkey,
   // so just return total bytes allocated for both.
-  size_t bytes_allocated =
-      MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
-  return {bytes_allocated, bytes_allocated};
+  size_t total_heap_size =
+      MemoryAllocatorReporter::Get()->GetTotalHeapSize();
+  return {total_heap_size, total_heap_size};
 }
 
 // static
