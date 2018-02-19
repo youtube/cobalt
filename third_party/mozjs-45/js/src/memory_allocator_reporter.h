@@ -43,15 +43,15 @@ class MemoryAllocatorReporter {
  public:
   static MemoryAllocatorReporter* Get();
 
-  MemoryAllocatorReporter()
-      : current_bytes_allocated_(0) {}
+  MemoryAllocatorReporter() : total_heap_size_(0) {}
 
-  void UpdateAllocatedBytes(int64_t bytes);
-  int64_t GetCurrentBytesAllocated();
+  void UpdateTotalHeapSize(int64_t bytes);
+  int64_t GetTotalHeapSize();
 
  private:
   starboard::Mutex mutex_;
-  int64_t current_bytes_allocated_;
+  // The total heap size in bytes.
+  int64_t total_heap_size_;
 };
 
 #endif /* MemoryAllocatorReporter_h */
