@@ -138,7 +138,7 @@ struct MOZ_RAII AutoEnterOOMUnsafeRegion
 static inline void* js_malloc(size_t bytes)
 {
     size_t reservation_bytes = AllocationMetadata::GetReservationBytes(bytes);
-    MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(reservation_bytes);
+    MemoryAllocatorReporter::Get()->UpdateTotalHeapSize(reservation_bytes);
     void* metadata = SbMemoryAllocate(reservation_bytes);
     AllocationMetadata::SetSizeToBaseAddress(metadata, reservation_bytes);
     return AllocationMetadata::GetUserAddressFromBaseAddress(metadata);
@@ -167,7 +167,7 @@ static inline void* js_realloc(void* p, size_t bytes)
       AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata);
   size_t adjusted_size = AllocationMetadata::GetReservationBytes(bytes);
 
-  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(
+  MemoryAllocatorReporter::Get()->UpdateTotalHeapSize(
       static_cast<ssize_t>(adjusted_size - current_size));
   void* new_ptr = SbMemoryReallocate(metadata, adjusted_size);
   AllocationMetadata::SetSizeToBaseAddress(new_ptr, adjusted_size);
@@ -181,7 +181,7 @@ static inline void js_free(void* p)
   }
   AllocationMetadata* metadata =
       AllocationMetadata::GetMetadataFromUserAddress(p);
-  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(-static_cast<ssize_t>(
+  MemoryAllocatorReporter::Get()->UpdateTotalHeapSize(-static_cast<ssize_t>(
       AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata)));
   SbMemoryDeallocate(metadata);
 }
