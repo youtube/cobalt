@@ -140,18 +140,7 @@
       ],
       'dependencies': [
         'nb',
-      ],
-      'actions': [
-        {
-          'action_name': 'reuse_allocator_benchmark_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/nb/testdata/',
-            ],
-            'output_dir': 'nb/testdata',
-          },
-          'includes': ['../starboard/build/copy_test_data.gypi'],
-        }
+        'nb_copy_test_data',
       ],
     },
     {
@@ -164,5 +153,18 @@
         'executable_name': 'reuse_allocator_benchmark',
       },
     },
+
+    {
+      'target_name': 'nb_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/nb/testdata/',
+        ],
+        'content_test_output_subdir': 'nb/testdata',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
+    },
+
   ],
 }
