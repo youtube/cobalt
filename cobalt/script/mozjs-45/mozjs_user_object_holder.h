@@ -147,6 +147,11 @@ class MozjsUserObjectHolder
     return handle_->handle();
   }
 
+  JSContext* context() const {
+    DCHECK(context_);
+    return context_;
+  }
+
  private:
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;

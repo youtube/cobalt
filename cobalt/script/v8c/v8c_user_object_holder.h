@@ -126,6 +126,8 @@ class V8cUserObjectHolder
 
   v8::Local<v8::Value> v8_value() const { return handle_.NewLocal(isolate_); }
 
+  v8::Isolate* isolate() const { return isolate_; }
+
  private:
   v8::Isolate* isolate_ = nullptr;
   V8cUserObjectType handle_{};

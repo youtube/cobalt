@@ -610,7 +610,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 16;
+  const int kInterfaceUniqueId = 17;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
