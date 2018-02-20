@@ -15,6 +15,10 @@
 #ifndef COBALT_SCRIPT_VALUE_HANDLE_H_
 #define COBALT_SCRIPT_VALUE_HANDLE_H_
 
+#include <string>
+#include <unordered_map>
+
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_value.h"
 
 namespace cobalt {
@@ -30,6 +34,18 @@ class ValueHandle {
 };
 
 typedef ScriptValue<ValueHandle> ValueHandleHolder;
+
+// Converts a "simple" object to a map of the object's properties. "Simple"
+// means that the object's property names are strings and its property values
+// must be a boolean, number or string. Note that this is implemented on a per
+// engine basis. The use of this function should be avoided if possible.
+// Eventually, JavaScript values will be exposed, making this function obsolete.
+// Example "simple" object:
+// {'countryCode': 'US'}
+// Example non-"simple" object:
+// {'countryCode': null}
+std::unordered_map<std::string, std::string> ConvertSimpleObjectToMap(
+    const ValueHandleHolder& value, ExceptionState* exception_state);
 
 }  // namespace script
 }  // namespace cobalt
