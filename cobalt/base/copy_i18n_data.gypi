@@ -30,4 +30,10 @@
       'files': ['<@(inputs_i18n)'],
     },
   ],
+
+  'all_dependent_settings': {
+    'variables': {
+      'content_deploy_subdirs': [ 'icu' ]
+    }
+  },
 }

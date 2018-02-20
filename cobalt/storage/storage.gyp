@@ -79,18 +79,13 @@
     {
       'target_name': 'storage_upgrade_copy_test_data',
       'type': 'none',
-      'actions': [
-        {
-          'action_name': 'storage_upgrade_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/storage/upgrade/testdata/',
-            ],
-            'output_dir': 'cobalt/storage/upgrade/testdata/',
-          },
-          'includes': [ '../build/copy_test_data.gypi' ],
-        },
-      ],
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/cobalt/storage/upgrade/testdata/',
+        ],
+        'content_test_output_subdir': 'cobalt/storage/upgrade/testdata/',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
   ],
 }
