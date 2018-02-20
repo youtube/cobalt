@@ -94,22 +94,22 @@
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'simple_example_lib',
+        'simple_example_copy_test_data',
       ],
+    },
 
-      # This section is optional and is only needed if tests are using
-      # external data.
-      'actions': [
-        {
-          'action_name': 'copy_test_data',
-          'variables': {
-            'input_files': [
-              'testdata',
-            ],
-            'output_dir': 'cobalt/samples',
-          },
-          'includes': [ '../../build/copy_test_data.gypi' ],
-        },
-      ],
+    # This target is optional and is only needed if tests are using
+    # external data.
+    {
+      'target_name': 'simple_example_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          'testdata',
+        ],
+        'content_test_output_subdir': 'cobalt/samples',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
 
     # This target will deploy the test and its data to a platform specific

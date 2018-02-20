@@ -98,24 +98,24 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'render_tree_pixel_tester',
+        'renderer_copy_test_data',
       ],
       'conditions': [
         ['enable_map_to_mesh == 1', {
           'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
       ],
-      'actions': [
-        {
-          'action_name': 'renderer_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/renderer/rasterizer/testdata',
-            ],
-            'output_dir': 'cobalt/renderer/rasterizer',
-          },
-          'includes': ['../build/copy_test_data.gypi'],
-        }
-      ],
+    },
+    {
+      'target_name': 'renderer_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/cobalt/renderer/rasterizer/testdata',
+        ],
+        'content_test_output_subdir': 'cobalt/renderer/rasterizer',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
     {
       'target_name': 'renderer_test_deploy',
