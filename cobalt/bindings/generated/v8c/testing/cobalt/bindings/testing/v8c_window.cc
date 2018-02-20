@@ -38,6 +38,7 @@
 #include "cobalt/bindings/testing/constants_interface.h"
 #include "cobalt/bindings/testing/constructor_interface.h"
 #include "cobalt/bindings/testing/constructor_with_arguments_interface.h"
+#include "cobalt/bindings/testing/convert_simple_object_interface.h"
 #include "cobalt/bindings/testing/derived_getter_setter_interface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
 #include "cobalt/bindings/testing/dictionary_interface.h"
@@ -87,6 +88,7 @@
 #include "cobalt/bindings/testing/v8c_constants_interface.h"
 #include "cobalt/bindings/testing/v8c_constructor_interface.h"
 #include "cobalt/bindings/testing/v8c_constructor_with_arguments_interface.h"
+#include "cobalt/bindings/testing/v8c_convert_simple_object_interface.h"
 #include "cobalt/bindings/testing/v8c_derived_getter_setter_interface.h"
 #include "cobalt/bindings/testing/v8c_derived_interface.h"
 #include "cobalt/bindings/testing/v8c_dictionary_interface.h"
@@ -164,6 +166,7 @@ using cobalt::bindings::testing::ConditionalInterface;
 using cobalt::bindings::testing::ConstantsInterface;
 using cobalt::bindings::testing::ConstructorInterface;
 using cobalt::bindings::testing::ConstructorWithArgumentsInterface;
+using cobalt::bindings::testing::ConvertSimpleObjectInterface;
 using cobalt::bindings::testing::DOMStringTestInterface;
 using cobalt::bindings::testing::DerivedGetterSetterInterface;
 using cobalt::bindings::testing::DerivedInterface;
@@ -217,6 +220,7 @@ using cobalt::bindings::testing::V8cConditionalInterface;
 using cobalt::bindings::testing::V8cConstantsInterface;
 using cobalt::bindings::testing::V8cConstructorInterface;
 using cobalt::bindings::testing::V8cConstructorWithArgumentsInterface;
+using cobalt::bindings::testing::V8cConvertSimpleObjectInterface;
 using cobalt::bindings::testing::V8cDOMStringTestInterface;
 using cobalt::bindings::testing::V8cDerivedGetterSetterInterface;
 using cobalt::bindings::testing::V8cDerivedInterface;
@@ -293,7 +297,7 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 53;
+const int kInterfaceUniqueId = 54;
 
 
 
@@ -1054,6 +1058,10 @@ void V8cGlobalEnvironment::CreateGlobalObject(
       ConstructorWithArgumentsInterface::ConstructorWithArgumentsInterfaceWrappableType(),
       base::Bind(V8cConstructorWithArgumentsInterface::CreateWrapper),
       base::Bind(V8cConstructorWithArgumentsInterface::GetTemplate));
+  wrapper_factory_->RegisterWrappableType(
+      ConvertSimpleObjectInterface::ConvertSimpleObjectInterfaceWrappableType(),
+      base::Bind(V8cConvertSimpleObjectInterface::CreateWrapper),
+      base::Bind(V8cConvertSimpleObjectInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       DOMStringTestInterface::DOMStringTestInterfaceWrappableType(),
       base::Bind(V8cDOMStringTestInterface::CreateWrapper),
