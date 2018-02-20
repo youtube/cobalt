@@ -109,21 +109,14 @@
           },
         }],
         ['cobalt_copy_test_data == 1', {
-          'actions': [
-            {
-              'action_name': 'speech_copy_test_data',
-              'variables': {
-                'input_files': [
-                  '<(DEPTH)/cobalt/speech/testdata/',
-                ],
-                'output_dir': 'cobalt/speech/testdata/',
-              },
-              'includes': [ '../build/copy_test_data.gypi' ],
-            },
-          ],
-        }
-
-        ],
+          'variables': {
+            'content_test_input_files': [
+              '<(DEPTH)/cobalt/speech/testdata/',
+            ],
+            'content_test_output_subdir': 'cobalt/speech/testdata/',
+          },
+          'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
+        }],
       ],
     },
   ],

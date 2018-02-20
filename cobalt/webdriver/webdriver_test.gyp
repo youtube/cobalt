@@ -18,19 +18,20 @@
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'webdriver_copy_test_data',
       ],
-      'actions': [
-        {
-          'action_name': 'webdriver_test_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/webdriver/testdata/',
-            ],
-            'output_dir': 'cobalt/webdriver_test',
-          },
-          'includes': ['../build/copy_test_data.gypi'],
-        }
-      ],
+    },
+
+    {
+      'target_name': 'webdriver_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/cobalt/webdriver/testdata/',
+        ],
+        'content_test_output_subdir': 'cobalt/webdriver_test',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
 
     {

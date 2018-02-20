@@ -42,19 +42,20 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+        'layout_copy_test_data',
       ],
-      'actions': [
-        {
-          'action_name': 'layout_tests_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/layout_tests/testdata/',
-            ],
-            'output_dir': 'cobalt/layout_tests',
-          },
-          'includes': ['../build/copy_test_data.gypi'],
-        }
-      ],
+    },
+
+    {
+      'target_name': 'layout_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/cobalt/layout_tests/testdata/',
+        ],
+        'content_test_output_subdir': 'cobalt/layout_tests',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
 
     {
