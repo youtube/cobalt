@@ -45,18 +45,7 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'png_utils',
-      ],
-      'actions': [
-        {
-          'action_name': 'copy_data',
-          'variables': {
-            'input_files': [
-              'png_premultiplied_alpha_test_image.png',
-            ],
-            'output_dir': 'test/png_utils',
-          },
-          'includes': ['../../../build/copy_test_data.gypi'],
-        },
+        'png_utils_copy_test_data',
       ],
     },
     {
@@ -69,19 +58,21 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:run_all_benchmarks',
         'png_utils',
+        'png_utils_copy_test_data',
       ],
-      'actions': [
-        {
-          'action_name': 'copy_data',
-          'variables': {
-            'input_files': [
-              'png_benchmark_image.png',
-            ],
-            'output_dir': 'test/png_utils',
-          },
-          'includes': ['../../../build/copy_test_data.gypi'],
-        },
-      ],
+    },
+
+    {
+      'target_name': 'png_utils_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          'png_benchmark_image.png',
+          'png_premultiplied_alpha_test_image.png',
+        ],
+        'content_test_output_subdir': 'test/png_utils',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
   ],
 }

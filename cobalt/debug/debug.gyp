@@ -83,18 +83,13 @@
     {
       'target_name': 'debug_copy_web_files',
       'type': 'none',
-      'actions': [
-        {
-          'action_name': 'debug_copy_web_files',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/debug/content/',
-            ],
-            'output_dir': 'cobalt/debug',
-          },
-          'includes': [ '../build/copy_web_data.gypi' ],
-        },
-      ],
+      'variables': {
+        'content_web_input_files': [
+          '<(DEPTH)/cobalt/debug/content/',
+        ],
+        'content_web_output_subdir': 'cobalt/debug',
+      },
+      'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
     },
   ],
 }
