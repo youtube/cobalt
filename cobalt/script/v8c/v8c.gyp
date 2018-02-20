@@ -52,6 +52,7 @@
         'v8c_source_code.h',
         'v8c_user_object_holder.h',
         'v8c_value_handle.h',
+        'v8c_value_handle.cc',
         'v8c_wrapper_handle.h',
         'wrapper_factory.cc',
         'wrapper_factory.h',

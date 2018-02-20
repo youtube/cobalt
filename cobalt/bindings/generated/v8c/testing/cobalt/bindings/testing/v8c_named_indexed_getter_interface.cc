@@ -85,7 +85,7 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 33;
+const int kInterfaceUniqueId = 34;
 
 
 void NamedPropertyGetterCallback(
