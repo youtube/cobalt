@@ -26,6 +26,12 @@
 #undef SB_IS_PLAYER_COMPOSITED
 #undef SB_IS_PLAYER_PUNCHED_OUT
 
+// Whether the current platform implements the on screen keyboard interface.
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+// Whether the current platform uses a media player that relies on a URL.
+#define SB_HAS_PLAYER_WITH_URL 0
+
 // Include the X64DIRECTFB Linux configuration.
 #include "starboard/linux/x64directfb/configuration_public.h"
 

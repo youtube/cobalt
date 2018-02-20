@@ -558,6 +558,15 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
 
+#if SB_API_VERSION >= 8
+#if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
+#error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
+#endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
+#if !defined(SB_HAS_PLAYER_WITH_URL)
+#error "Your platform must define SB_HAS_PLAYER_WITH_URL."
+#endif  // !defined(SB_HAS_PLAYER_WITH_URL)
+#endif  // SB_API_VERSION >= 8
+
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
 #endif
