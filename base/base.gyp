@@ -294,6 +294,7 @@
       ],
       'dependencies': [
         'base',
+        'base_copy_test_data',
         'base_i18n',
         'base_static',
         'run_all_unittests',
@@ -306,27 +307,26 @@
       ],
       'variables': {
          # TODO(ajwong): Is there a way to autodetect this?
-        'module_dir': 'base'
+        'module_dir': 'base',
       },
-      'actions': [
-        {
-          'action_name': 'copy_test_data',
-          'variables': {
-            'input_files': [
-              'data/json',
-              'data/file_util_unittest',
-            ],
-            'output_dir': 'base/data',
-          },
-          'includes': [ '../cobalt/build/copy_test_data.gypi' ],
-        },
-      ],
       'msvs_disabled_warnings': [
         # forcing value to bool 'true' or 'false' (performance warning)
         4800,
         # Destructor is explicitly deleted.
         4624,
       ],
+    },
+    {
+      'target_name': 'base_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          'data/json',
+          'data/file_util_unittest',
+        ],
+        'content_test_output_subdir': 'base/data',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
     {
       'target_name': 'test_support_base',
