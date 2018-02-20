@@ -819,6 +819,7 @@
         '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
         'http_server',  # This is needed by dial_http_server in net
         'net',
+        'net_copy_test_data',
         'net_test_support',
       ],
       'sources': [
@@ -1057,18 +1058,6 @@
         'websockets/websocket_net_log_params_unittest.cc',
         'websockets/websocket_throttle_unittest.cc',
       ],
-      'actions': [
-        {
-          'action_name': 'copy_test_data',
-          'variables': {
-            'input_files': [
-              'data',
-            ],
-            'output_dir': 'net',
-          },
-          'includes': [ '../cobalt/build/copy_test_data.gypi' ],
-        },
-      ],
       'conditions': [
         ['enable_spdy == 0', {
           'sources/': [
@@ -1112,6 +1101,17 @@
           ],
         }],
       ],
+    },
+    {
+      'target_name': 'net_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          'data',
+        ],
+        'content_test_output_subdir': 'net',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
     {
       'target_name': 'net_test_support',
