@@ -16,6 +16,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
+#include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -30,6 +31,16 @@ using ::starboard::testing::FakeGraphicsContextProvider;
 
 class SbPlayerTest : public ::testing::Test {
  protected:
+  void SetUp() {
+    SbWindowOptions window_options;
+    SbWindowSetDefaultOptions(&window_options);
+
+    window_ = SbWindowCreate(&window_options);
+    EXPECT_TRUE(SbWindowIsValid(window_));
+  }
+  void TearDown() { SbWindowDestroy(window_); }
+
+  SbWindow window_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
@@ -59,9 +70,9 @@ TEST_F(SbPlayerTest, SunnyDay) {
     }
 
     SbPlayer player = SbPlayerCreate(
-        fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecAac, SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
-        &audio_header, NULL, NULL, NULL, NULL, output_mode,
+        window_, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+        SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header, NULL, NULL,
+        NULL, NULL, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_TRUE(SbPlayerIsValid(player));
 
@@ -88,9 +99,9 @@ TEST_F(SbPlayerTest, Audioless) {
     }
 
     SbPlayer player = SbPlayerCreate(
-        fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecNone, SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
-        NULL, NULL, NULL, NULL, NULL, output_mode,
+        window_, kSbMediaVideoCodecH264, kSbMediaAudioCodecNone,
+        SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, NULL, NULL, NULL, NULL,
+        NULL, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_TRUE(SbPlayerIsValid(player));
 

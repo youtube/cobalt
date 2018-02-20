@@ -23,7 +23,6 @@
 #include "starboard/mutex.h"
 #include "starboard/queue.h"
 #include "starboard/thread.h"
-#include "starboard/window.h"
 
 // SB_HAS() is available after starboard/configuration.h is included.
 #if SB_HAS(GLES2)
@@ -42,7 +41,6 @@ class FakeGraphicsContextProvider {
   FakeGraphicsContextProvider();
   ~FakeGraphicsContextProvider();
 
-  SbWindow window() { return window_; }
   SbDecodeTargetGraphicsContextProvider* decoder_target_provider() {
 #if SB_HAS(BLITTER) || SB_HAS(GLES2)
     return &decoder_target_provider_;
@@ -51,21 +49,15 @@ class FakeGraphicsContextProvider {
 #endif  // SB_HAS(BLITTER) || SB_HAS(GLES2)
   }
 
-#if SB_HAS(GLES2)
+#if SB_HAS(BLITTER) || SB_HAS(GLES2)
   void ReleaseDecodeTarget(SbDecodeTarget decode_target);
-#endif  // SB_HAS(GLES2)
+#endif  // SB_HAS(BLITTER) || SB_HAS(GLES2)
 
  private:
-#if SB_HAS(GLES2)
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
-#endif  // SB_HAS(GLES2)
-
-  void InitializeWindow();
 
 #if SB_HAS(GLES2)
-  void InitializeEGL();
-
   void ReleaseDecodeTargetOnGlesContextThread(
       Mutex* mutex,
       ConditionVariable* condition_variable,
@@ -86,13 +78,9 @@ class FakeGraphicsContextProvider {
       void* target_function_context);
 
   EGLDisplay display_;
-  EGLSurface surface_;
-  EGLContext context_;
   Queue<std::function<void()>> functor_queue_;
   SbThread decode_target_context_thread_;
 #endif  // SB_HAS(GLES2)
-
-  SbWindow window_;
 
 #if SB_HAS(BLITTER) || SB_HAS(GLES2)
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
