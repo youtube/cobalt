@@ -85,7 +85,7 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 22;
+const int kInterfaceUniqueId = 23;
 
 
 
