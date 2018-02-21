@@ -88,12 +88,6 @@
 // Whether the current platform supports thread priorities.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 0
 
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform uses a media player that relies on a URL.
-#define SB_HAS_PLAYER_WITH_URL 0
-
 // Whether the current platform's thread scheduler will automatically balance
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.
