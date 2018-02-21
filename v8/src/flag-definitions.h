@@ -637,8 +637,15 @@ DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
 DEFINE_BOOL(trace_mutator_utilization, false,
             "print mutator utilization, allocation speed, gc speed")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
+#if defined(COBALT)
+// Cobalt's TraceMembers and ScriptValue::*Reference do not currently support
+// incremental tracing.
+DEFINE_BOOL(incremental_marking_wrappers, false,
+            "use incremental marking for marking wrappers")
+#else  // defined(COBALT)
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
+#endif  // defined(COBALT)
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
