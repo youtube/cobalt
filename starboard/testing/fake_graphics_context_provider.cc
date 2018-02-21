@@ -28,39 +28,52 @@
 #endif  // HAS_LEAK_SANITIZER
 
 #include "starboard/configuration.h"
+#include "starboard/memory.h"
 
 namespace starboard {
 namespace testing {
 
-FakeGraphicsContextProvider::FakeGraphicsContextProvider() {
+namespace {
+
+#if SB_HAS(GLES2)
+EGLint const kAttributeList[] = {EGL_RED_SIZE,
+                                 8,
+                                 EGL_GREEN_SIZE,
+                                 8,
+                                 EGL_BLUE_SIZE,
+                                 8,
+                                 EGL_ALPHA_SIZE,
+                                 8,
+                                 EGL_STENCIL_SIZE,
+                                 0,
+                                 EGL_BUFFER_SIZE,
+                                 32,
+                                 EGL_SURFACE_TYPE,
+                                 EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
+                                 EGL_COLOR_BUFFER_TYPE,
+                                 EGL_RGB_BUFFER,
+                                 EGL_CONFORMANT,
+                                 EGL_OPENGL_ES2_BIT,
+                                 EGL_RENDERABLE_TYPE,
+                                 EGL_OPENGL_ES2_BIT,
+                                 EGL_NONE};
+#endif  // SB_HAS(GLES2)
+
+}  // namespace
+
+FakeGraphicsContextProvider::FakeGraphicsContextProvider()
+    :
+#if SB_HAS(GLES2)
+      display_(EGL_NO_DISPLAY),
+      surface_(EGL_NO_SURFACE),
+      context_(EGL_NO_CONTEXT),
+#endif  // SB_HAS(GLES2)
+      window_(kSbWindowInvalid) {
+  InitializeWindow();
 #if SB_HAS(BLITTER)
   decoder_target_provider_.device = kSbBlitterInvalidDevice;
 #elif SB_HAS(GLES2)
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  SB_CHECK(EGL_NO_DISPLAY != display_);
-
-#if HAS_LEAK_SANITIZER
-  __lsan_disable();
-#endif  // HAS_LEAK_SANITIZER
-  eglInitialize(display_, NULL, NULL);
-#if HAS_LEAK_SANITIZER
-  __lsan_enable();
-#endif  // HAS_LEAK_SANITIZER
-
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-  SB_CHECK(EGL_SUCCESS == eglGetError());
-
-  decoder_target_provider_.egl_display = display_;
-  // TODO: Set a valid context.
-  decoder_target_provider_.egl_context = NULL;
-  decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
-  decoder_target_provider_.gles_context_runner_context = this;
-
-  decode_target_context_thread_ = SbThreadCreate(
-      0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true, "dt_context",
-      &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  InitializeEGL();
 #endif  // SB_HAS(BLITTER)
 }
 
@@ -70,9 +83,14 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   SbThreadJoin(decode_target_context_thread_, NULL);
   eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   SB_CHECK(EGL_SUCCESS == eglGetError());
+  eglDestroyContext(display_, context_);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  eglDestroySurface(display_, surface_);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
   eglTerminate(display_);
   SB_CHECK(EGL_SUCCESS == eglGetError());
 #endif  // SB_HAS(GLES2)
+  SbWindowDestroy(window_);
 }
 
 #if SB_HAS(GLES2)
@@ -104,6 +122,95 @@ void FakeGraphicsContextProvider::RunLoop() {
     }
     functor();
   }
+}
+
+#endif  // SB_HAS(GLES2)
+
+void FakeGraphicsContextProvider::InitializeWindow() {
+  SbWindowOptions window_options;
+  SbWindowSetDefaultOptions(&window_options);
+
+  window_ = SbWindowCreate(&window_options);
+  SB_CHECK(SbWindowIsValid(window_));
+}
+
+#if SB_HAS(GLES2)
+void FakeGraphicsContextProvider::InitializeEGL() {
+  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SB_CHECK(EGL_NO_DISPLAY != display_);
+
+#if HAS_LEAK_SANITIZER
+  __lsan_disable();
+#endif  // HAS_LEAK_SANITIZER
+  eglInitialize(display_, NULL, NULL);
+#if HAS_LEAK_SANITIZER
+  __lsan_enable();
+#endif  // HAS_LEAK_SANITIZER
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+
+  // Some EGL drivers can return a first config that doesn't allow
+  // eglCreateWindowSurface(), with no differences in EGLConfig attribute values
+  // from configs that do allow that. To handle that, we have to attempt
+  // eglCreateWindowSurface() until we find a config that succeeds.
+
+  // First, query how many configs match the given attribute list.
+  EGLint num_configs = 0;
+  eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SB_CHECK(0 != num_configs);
+
+  // Allocate space to receive the matching configs and retrieve them.
+  EGLConfig* configs = reinterpret_cast<EGLConfig*>(
+      SbMemoryAllocate(num_configs * sizeof(EGLConfig)));
+  eglChooseConfig(display_, kAttributeList, configs, num_configs, &num_configs);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+
+  EGLNativeWindowType native_window =
+      (EGLNativeWindowType)SbWindowGetPlatformHandle(window_);
+  EGLConfig config = EGLConfig();
+
+  // Find the first config that successfully allow a window surface to be
+  // created.
+  for (int config_number = 0; config_number < num_configs; ++config_number) {
+    config = configs[config_number];
+    surface_ = eglCreateWindowSurface(display_, config, native_window, NULL);
+    if (EGL_SUCCESS == eglGetError())
+      break;
+  }
+  SB_DCHECK(surface_ != EGL_NO_SURFACE);
+
+  SbMemoryDeallocate(configs);
+
+  // Create the GLES2 or GLEX3 Context.
+  EGLint context_attrib_list[] = {
+      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
+  };
+#if defined(GLES3_SUPPORTED)
+  // Attempt to create an OpenGL ES 3.0 context.
+  context_ =
+      eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list);
+#endif
+  if (context_ == EGL_NO_CONTEXT) {
+    // Create an OpenGL ES 2.0 context.
+    context_attrib_list[1] = 2;
+    context_ =
+        eglCreateContext(display_, config, EGL_NO_CONTEXT, context_attrib_list);
+  }
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+  SB_CHECK(context_ != EGL_NO_CONTEXT);
+
+  eglMakeCurrent(display_, surface_, surface_, context_);
+  SB_CHECK(EGL_SUCCESS == eglGetError());
+
+  decoder_target_provider_.egl_display = display_;
+  decoder_target_provider_.egl_context = context_;
+  decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
+  decoder_target_provider_.gles_context_runner_context = this;
+
+  decode_target_context_thread_ = SbThreadCreate(
+      0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true, "dt_context",
+      &FakeGraphicsContextProvider::ThreadEntryPoint, this);
 }
 
 void FakeGraphicsContextProvider::ReleaseDecodeTargetOnGlesContextThread(
