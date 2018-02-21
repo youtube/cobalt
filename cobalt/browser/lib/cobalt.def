@@ -22,10 +22,12 @@ EXPORTS
 
     ; From cobalt/render/rasterizer/lib/exported/graphics.h:
     CbLibGraphicsSetContextCreatedCallback
-    CbLibGraphicsSetBeginRenderFrameCallback
-    CbLibGraphicsSetEndRenderFrameCallback
+    CbLibGraphicsSetRenderFrameCallback
     CbLibGrapicsGetMainTextureHandle
     CbLibGraphicsSetTargetMainTextureSize
+    CbLibGraphicsRenderCobalt
+    CbLibGraphicsCopyBackbuffer
+    CbLibGraphicsSwapBackbuffer
 
     ; From cobalt/render/rasterizer/lib/exported/video.h:
     CbLibVideoSetOnUpdateProjectionTypeAndStereoMode
