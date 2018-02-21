@@ -116,4 +116,12 @@
 #undef SB_HAS_MICROPHONE
 #define SB_HAS_MICROPHONE 1
 
+#if SB_API_VERSION >= 8
+// Whether the current platform implements the on screen keyboard interface.
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+// Whether the current platform uses a media player that relies on a URL.
+#define SB_HAS_PLAYER_WITH_URL 0
+#endif  // SB_API_VERSION >= 8
+
 #endif  // STARBOARD_LINUX_X64X11_CONFIGURATION_PUBLIC_H_
