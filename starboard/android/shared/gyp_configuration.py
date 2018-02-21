@@ -54,10 +54,14 @@ class PlatformConfig(PlatformConfiguration):
     variables = super(PlatformConfig, self).GetVariables(
         configuration, use_clang=1)
     variables.update({
-        'ANDROID_HOME': self.android_home,
-        'NDK_HOME': self.android_ndk_home,
-        'ANDROID_ABI': self.android_abi,
-        'enable_remote_debugging': 0,
+        'ANDROID_HOME':
+            self.android_home,
+        'NDK_HOME':
+            self.android_ndk_home,
+        'ANDROID_ABI':
+            self.android_abi,
+        'enable_remote_debugging':
+            0,
         'include_path_platform_deploy_gypi':
             'starboard/android/shared/platform_deploy.gypi',
     })
@@ -86,8 +90,8 @@ class PlatformConfig(PlatformConfiguration):
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
-    module_path = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), 'launcher.py'))
+    module_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), 'launcher.py'))
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module
 
@@ -103,11 +107,6 @@ class PlatformConfig(PlatformConfiguration):
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
           'SbCharIsSignedTest.SunnyDay',
-
-          # SbPlayer tests fail because VideoWindow is not set in tests.
-          'SbPlayerTest.Audioless',
-          'SbPlayerTest.SunnyDay',
-
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
@@ -132,6 +131,5 @@ class PlatformConfig(PlatformConfiguration):
           'SpeechRecognizerTest.DestroyRecognizerWithoutStopping',
           'SpeechRecognizerTest.StartWithInvalidSpeechRecognizer',
           'SpeechRecognizerTest.StopIsCalledMultipleTimes',
-
       ],
   }
