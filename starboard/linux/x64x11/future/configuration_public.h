@@ -22,12 +22,6 @@
 // API version.
 #define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Whether the current platform implements the on screen keyboard interface.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform uses a media player that relies on a URL.
-#define SB_HAS_PLAYER_WITH_URL 0
-
 // Include the X64X11 Linux configuration.
 #include "starboard/linux/x64x11/configuration_public.h"
 
