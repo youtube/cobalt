@@ -48,9 +48,7 @@ typedef struct CbLibSize {
 } CbLibSize;
 
 typedef void (*CbLibGraphicsContextCreatedCallback)(void* context);
-typedef void (*CbLibGraphicsBeginRenderFrameCallback)(
-    void* context, CbLibRenderContext* host_render_context);
-typedef void (*CbLibGraphicsEndRenderFrameCallback)(void* context);
+typedef void (*CbLibGraphicsRenderFrameCallback)(void* context);
 
 // Sets a callback which will be called from the rasterization thread once the
 // graphics context has been created.
@@ -59,13 +57,10 @@ SB_EXPORT_PLATFORM void CbLibGraphicsSetContextCreatedCallback(
 
 // Sets a callback which will be called as often as the platform can swap
 // buffers from the rasterization thread.
-SB_EXPORT_PLATFORM void CbLibGraphicsSetBeginRenderFrameCallback(
-    void* context, CbLibGraphicsBeginRenderFrameCallback callback);
-
-// Sets a callback which will be called at the end of rendering, after swap
-// buffers has been called.
-SB_EXPORT_PLATFORM void CbLibGraphicsSetEndRenderFrameCallback(
-    void* context, CbLibGraphicsEndRenderFrameCallback callback);
+//
+// All rendering must be performed inside of this callback.
+SB_EXPORT_PLATFORM void CbLibGraphicsSetRenderFrameCallback(
+    void* context, CbLibGraphicsRenderFrameCallback callback);
 
 // Returns the texture ID for the current RenderTree. This should be
 // re-retrieved each frame in the event that the underlying texture has
@@ -82,6 +77,30 @@ SB_EXPORT_PLATFORM intptr_t CbLibGrapicsGetMainTextureHandle();
 // next frame.
 SB_EXPORT_PLATFORM void CbLibGraphicsSetTargetMainTextureSize(
     const CbLibSize& target_render_size);
+
+// Performs all Cobalt-related rendering, including the browser UI and the
+// video if one is playing.
+//
+// This should only be called from the Cobalt rendering thread, inside of a
+// callback set by CbLibGraphicsSetRenderFrameCallback.
+SB_EXPORT_PLATFORM void CbLibGraphicsRenderCobalt();
+
+// Copies the contents of the offscreen backbuffer to the Cobalt system window.
+// Note that this call only copies the contents of the buffer but does not
+// perform any presentation.  You must also call CbLibGraphicsSwapBackbuffer
+// in order to make the contents of the offscreen backbuffer visible!
+//
+// This should only be called from the Cobalt rendering thread, inside of a
+// callback set by CbLibGraphicsSetRenderFrameCallback.
+SB_EXPORT_PLATFORM void CbLibGraphicsCopyBackbuffer(uintptr_t surface,
+                                                    float width_scale);
+
+// Swaps the backbuffer for the Cobalt system window, making a new frame
+// visibile.
+//
+// This should only be called from the Cobalt rendering thread, inside of a
+// callback set by CbLibGraphicsSetRenderFrameCallback.
+SB_EXPORT_PLATFORM void CbLibGraphicsSwapBackbuffer();
 
 #ifdef __cplusplus
 }  // extern "C"
