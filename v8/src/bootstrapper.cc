@@ -2823,6 +2823,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
+  // Use the Cobalt DOM console implementation instead, as Cobalt does not
+  // implement any inspector protocol stuff.
+#if !defined(COBALT)
   {  // -- C o n s o l e
     Handle<String> name = factory->InternalizeUtf8String("console");
     NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
@@ -2888,6 +2891,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewStringFromAsciiChecked("Object"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
+#endif  // !defined(COBALT)
 
 #ifdef V8_INTL_SUPPORT
   {  // -- I n t l
