@@ -137,12 +137,12 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
   } else if (ShouldOverrideDevice()) {
     // When Starboard does not report platform info but we are overriding the
     // device.
-    base::StringAppendF(&user_agent, ", _%s_ (%s, %s)",
-        CreateDeviceTypeString().c_str(),
-        Sanitize(g_brand_name_override_set ?
-            g_brand_name_override : "").c_str(),
-        Sanitize(g_model_name_override_set ?
-            g_model_name_override : "").c_str());
+    base::StringAppendF(
+        &user_agent, ", _%s_/ (%s, %s,)", CreateDeviceTypeString().c_str(),
+        Sanitize(g_brand_name_override_set ? g_brand_name_override : "")
+            .c_str(),
+        Sanitize(g_model_name_override_set ? g_model_name_override : "")
+            .c_str());
   }
 
   if (!aux_field_.empty()) {
