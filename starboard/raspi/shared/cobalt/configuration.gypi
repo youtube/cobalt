@@ -18,6 +18,13 @@
   'variables': {
     'in_app_dial%': 0,
 
+    # The maximum amount of memory that will be used to store media buffers when
+    # video resolution is no larger than 1080p.
+    'cobalt_media_buffer_max_capacity_1080p': 36 * 1024 * 1024,
+    # The maximum amount of memory that will be used to store media buffers when
+    # video resolution is 4k.
+    'cobalt_media_buffer_max_capacity_4k': 65 * 1024 * 1024,
+
     # VideoCore's tiled renderer will do a render for every tile of a render
     # target even if only part of that target was rendered to.  Since the
     # scratch surface cache is designed to choose large offscreen surfaces so
