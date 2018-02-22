@@ -15,9 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_COBALT_FEEDBACK_SERVICE_H_
 #define STARBOARD_ANDROID_SHARED_COBALT_FEEDBACK_SERVICE_H_
 
-#include <string>
-
-#include "cobalt/script/sequence.h"
+#include "cobalt/script/exception_state.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -27,15 +26,13 @@ class FeedbackService : public ::cobalt::script::Wrappable {
  public:
   FeedbackService();
 
-  const void SendFeedbackWithSequence(
-      const bool includeScreenshot,
-      const ::cobalt::script::Sequence<std::string>& productSpecificData) const;
+  void SendFeedback(bool include_screenshot,
+                    const script::ValueHandleHolder& product_specific_data,
+                    script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(FeedbackService);
 
  private:
-  ~FeedbackService() override;
-
   DISALLOW_COPY_AND_ASSIGN(FeedbackService);
 };
 
