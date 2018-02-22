@@ -18,5 +18,11 @@
   'variables': {
     'in_app_dial%': 1,
     'cobalt_media_source_2016': 1,
+    # The maximum amount of memory that will be used to store media buffers when
+    # video resolution is no larger than 1080p.
+    'cobalt_media_buffer_max_capacity_1080p': 36 * 1024 * 1024,
+    # The maximum amount of memory that will be used to store media buffers when
+    # video resolution is 4k.
+    'cobalt_media_buffer_max_capacity_4k': 65 * 1024 * 1024,
   }, # end of variables
 }
