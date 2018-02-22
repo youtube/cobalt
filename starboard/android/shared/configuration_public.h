@@ -395,9 +395,6 @@
 // value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
 
-// Enable MediaKeySession::keyStatuses support.
-#define SB_HAS_DRM_KEY_STATUSES 1
-
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
