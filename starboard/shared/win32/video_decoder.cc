@@ -53,8 +53,13 @@ const int kDecodeTargetCacheSize = 2;
 
 // Allocate decode targets at the maximum size to allow them to be reused for
 // all resolutions. This minimizes hitching during resolution changes.
+#ifdef ENABLE_VP9_8K_SUPPORT
+const int kMaxDecodeTargetWidth = 7680;
+const int kMaxDecodeTargetHeight = 4320;
+#else  // ENABLE_VP9_8K_SUPPORT
 const int kMaxDecodeTargetWidth = 3840;
 const int kMaxDecodeTargetHeight = 2160;
+#endif  // ENABLE_VP9_8K_SUPPOR
 
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.

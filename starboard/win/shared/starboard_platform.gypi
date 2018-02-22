@@ -409,8 +409,11 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
-        # We assume most modern Windows PCs can handle 4k H264.
-        'ENABLE_H264_4K_SUPPORT'
+        # We assume most modern Windows PCs can handle 4k H264 and 8k VP9.
+        # The latter is additionally gated on Media Foundation acceleration
+        # support during runtime anyway.
+        'ENABLE_H264_4K_SUPPORT',
+        'ENABLE_VP9_8K_SUPPORT',
       ],
       'dependencies': [
         'convert_i18n_data',
