@@ -14,18 +14,22 @@
 
 #include "starboard/android/shared/cobalt/feedback_service.h"
 
+#include <string>
+
 namespace cobalt {
 namespace webapi_extension {
 
-FeedbackService::FeedbackService() {}
+FeedbackService::FeedbackService() = default;
 
-const void FeedbackService::SendFeedbackWithSequence(
-    const bool includeScreenshot,
-    const ::cobalt::script::Sequence<std::string>& productSpecificData) const {
-  return;
+void FeedbackService::SendFeedback(
+    bool include_screenshot,
+    const script::ValueHandleHolder& product_specific_data,
+    script::ExceptionState* exception_state) {
+  std::unordered_map<std::string, std::string> product_specific_data_map =
+      script::ConvertSimpleObjectToMap(product_specific_data, exception_state);
+
+  // TODO: Pass to Java.
 }
-
-FeedbackService::~FeedbackService() {}
 
 }  // namespace webapi_extension
 }  // namespace cobalt
