@@ -14,9 +14,7 @@
 
 // The send feedback report service.
 interface FeedbackService {
-  // Send feedback. The productSpecificData sequence's alternating indicies represent an object's
-  // key-value pairs. Note that this implementation should only be used by the sendFeedback
-  // polyfill.
-  void sendFeedbackWithSequence(boolean includeScreenshot, sequence<DOMString> productSpecificData);
+  // Send feedback.
+  [RaisesException] void sendFeedback(boolean includeScreenshot, any productSpecificData);
 };
 
