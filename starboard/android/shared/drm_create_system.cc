@@ -21,7 +21,8 @@ SbDrmSystem SbDrmCreateSystem(
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmSessionClosedFunc) {
   using starboard::android::shared::DrmSystem;
   using starboard::android::shared::IsWidevine;
 
