@@ -66,8 +66,15 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       'css_parser_test': [
           'ScannerTest.ScansUtf8Identifier',
       ],
-      # TODO: Include dir_src_root in the APK assets for layout_tests
-      'layout_tests': [test_filter.FILTER_ALL],
+      'layout_tests': [
+          'ContentSecurityPolicyTests/LayoutTest.LayoutTest/0',
+          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/7',
+          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/9',
+          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/10',
+          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/11',
+          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/12',
+          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/13',
+      ],
       'loader_test': [
           'FileFetcherTest.EmptyFile',
           'FileFetcherTest.ReadWithOffset',
@@ -142,8 +149,9 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'X509CertificateTest.UnescapedSpecialCharacters',
       ],
       'renderer_test': [
-          # TODO: Include dir_src_root in the APK assets for renderer_test
-          'PixelTest.*',
+          'PixelTest.BoxShadowWithInset25pxSpreadAndSameRoundedCorners',
+          'PixelTest.BoxShadowWithInset25pxSpreadAndRoundedCorners',
+          'PixelTest.BoxShadowWithInset25pxSpreadAndIsometricRoundedCorners',
           'StressTest.TooManyTextures',
       ],
       'storage_test': [
@@ -154,7 +162,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'StorageUpgradeTest.UpgradeMalformed',
           'StorageUpgradeTest.UpgradeExtraFields',
       ],
-      # TODO: Include dir_src_root in the APK assets for web_platform_tests
       'web_platform_tests': [test_filter.FILTER_ALL],
       'webdriver_test': [
           'IsDisplayedTest.*',
