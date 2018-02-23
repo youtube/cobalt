@@ -24,6 +24,7 @@ toolchain_folder="x86_64-linux-gnu-${toolchain_name}-${version}"
 binary_path="gcc/bin/g++"
 build_duration="about 40 minutes"
 
+cd $(dirname $0)
 source ../../toolchain_paths.sh
 
 (

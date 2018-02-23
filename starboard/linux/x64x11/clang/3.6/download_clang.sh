@@ -25,6 +25,7 @@ branch="release_36"
 binary_path="llvm/Release+Asserts/bin/clang++"
 build_duration="about 20 minutes"
 
+cd $(dirname $0)
 source ../../toolchain_paths.sh
 
 (
