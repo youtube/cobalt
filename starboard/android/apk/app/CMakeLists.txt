@@ -38,6 +38,14 @@ if(NOT COBALT_PRODUCT_DIR)
   )
 endif()
 
+# If COBALT_CONTENT_DIR isn't set for a particular deploy target use the
+# 'content/data' directory.
+if(NOT COBALT_CONTENT_DIR)
+  set(COBALT_CONTENT_DIR
+      ${COBALT_PRODUCT_DIR}/content/data
+  )
+endif()
+
 # For platform deploy builds, use the -n parameter to skip Cobalt ninja and
 # just copy the .so that was already built and waiting in COBALT_PRODUCT_DIR.
 if(COBALT_PLATFORM_DEPLOY)
@@ -63,7 +71,7 @@ add_custom_command(OUTPUT coat_lib
 add_custom_command(OUTPUT cobalt_content
     DEPENDS coat_lib
     COMMAND ${CMAKE_COMMAND} -E create_symlink
-            ${COBALT_PRODUCT_DIR}/content/data
+            ${COBALT_CONTENT_DIR}
             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../../cobalt_content
 )
 

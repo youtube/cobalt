@@ -23,6 +23,8 @@ ext {
     cobaltTarget = project.hasProperty('cobaltTarget') ? cobaltTarget : DEFAULT_COBALT_TARGET
     cobaltProductDir =
             project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
+    cobaltContentDir =
+            project.hasProperty('cobaltContentDir') ? new File(cobaltContentDir).canonicalPath : ''
 }
 
 println "TARGET: ${cobaltTarget}"
@@ -53,6 +55,7 @@ android {
             cmake {
                 arguments "-DCOBALT_TARGET=${cobaltTarget}"
                 arguments "-DCOBALT_PRODUCT_DIR=${cobaltProductDir}"
+                arguments "-DCOBALT_CONTENT_DIR=${cobaltContentDir}"
                 arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
             }
         }
