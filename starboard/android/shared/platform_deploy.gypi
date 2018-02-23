@@ -24,6 +24,7 @@
       }
     }]
   ],
+  'includes': [ '<(DEPTH)/starboard/build/collect_deploy_content.gypi' ],
   'actions': [
     {
       'action_name': 'build_apk',
@@ -48,6 +49,7 @@
         '--project-cache-dir', '<(GRADLE_FILES_DIR)/cache',
         '-P', 'cobaltBuildAbi=<(ANDROID_ABI)',
         '-P', 'cobaltDeployApk=<(apk)',
+        '-P', 'cobaltContentDir=<(content_deploy_dir)',
         '-P', 'cobaltGradleDir=<(GRADLE_FILES_DIR)',
         '-P', 'cobaltProductDir=<(PRODUCT_DIR)',
         '-P', 'cobaltTarget=<(executable_name)',
@@ -55,5 +57,5 @@
       ],
       'message': 'Building: <(apk)'
     },
-  ]
+  ],
 }
