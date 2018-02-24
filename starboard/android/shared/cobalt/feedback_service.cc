@@ -16,6 +16,9 @@
 
 #include <string>
 
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+
 namespace cobalt {
 namespace webapi_extension {
 
@@ -28,7 +31,31 @@ void FeedbackService::SendFeedback(
   std::unordered_map<std::string, std::string> product_specific_data_map =
       script::ConvertSimpleObjectToMap(product_specific_data, exception_state);
 
-  // TODO: Pass to Java.
+  // TODO: Incorporate the screenshot.
+
+  // Convert the unordered map of product specific data to a hashmap in JNI.
+  starboard::android::shared::JniEnvExt* env =
+      starboard::android::shared::JniEnvExt::Get();
+
+  starboard::android::shared::ScopedLocalJavaRef<jobject>
+      product_specific_data_hash_map(env->NewObjectOrAbort(
+          "java/util/HashMap", "(I)V", product_specific_data_map.size()));
+
+  starboard::android::shared::ScopedLocalJavaRef<jstring> key;
+  starboard::android::shared::ScopedLocalJavaRef<jstring> value;
+
+  for (const auto& data : product_specific_data_map) {
+    key.Reset(env->NewStringUTF(data.first.c_str()));
+    value.Reset(env->NewStringUTF(data.second.c_str()));
+
+    env->CallObjectMethodOrAbort(
+        product_specific_data_hash_map.Get(), "put",
+        "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", key.Get(),
+        value.Get());
+  }
+
+  env->CallStarboardVoidMethodOrAbort("sendFeedback", "(Ljava/util/HashMap;)V",
+                                      product_specific_data_hash_map.Get());
 }
 
 }  // namespace webapi_extension
