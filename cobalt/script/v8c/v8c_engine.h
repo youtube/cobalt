@@ -41,7 +41,7 @@ class V8cEngine : public JavaScriptEngine {
 
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() override;
   void CollectGarbage() override;
-  void ReportExtraMemoryCost(size_t bytes) override;
+  void AdjustAmountOfExternalAllocatedMemory(int64_t bytes) override;
   bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
   void SetGcThreshold(int64_t bytes) override;
   HeapStatistics GetHeapStatistics() override;
