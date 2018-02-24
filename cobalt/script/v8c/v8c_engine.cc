@@ -161,9 +161,9 @@ void V8cEngine::CollectGarbage() {
   isolate_->LowMemoryNotification();
 }
 
-void V8cEngine::ReportExtraMemoryCost(size_t bytes) {
+void V8cEngine::AdjustAmountOfExternalAllocatedMemory(int64_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  NOTIMPLEMENTED();
+  isolate_->AdjustAmountOfExternalAllocatedMemory(bytes);
 }
 
 bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
