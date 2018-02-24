@@ -64,8 +64,9 @@ class JavaScriptEngine {
   virtual void CollectGarbage() = 0;
 
   // Indicate to the JavaScript heap that extra bytes have been allocated by
-  // some Javascript object. This may mean collection needs to happen sooner.
-  virtual void ReportExtraMemoryCost(size_t bytes) = 0;
+  // some Javascript object.  The engine will take advantage of this
+  // information to the best of its ability.
+  virtual void AdjustAmountOfExternalAllocatedMemory(int64_t bytes) = 0;
 
   // Installs an ErrorHandler for listening to JavaScript errors.
   // Returns true if the error handler could be installed. False otherwise.

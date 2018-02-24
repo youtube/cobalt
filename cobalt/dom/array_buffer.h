@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"  // For scoped_array
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -86,6 +87,7 @@ class ArrayBuffer : public script::Wrappable {
   ~ArrayBuffer();
 
   Data data_;
+  script::JavaScriptEngine* javascript_engine_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(ArrayBuffer);
 };

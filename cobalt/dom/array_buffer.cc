@@ -76,7 +76,9 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings, uint32 length)
   if (settings) {
     DOMSettings* dom_settings =
         base::polymorphic_downcast<dom::DOMSettings*>(settings);
-    dom_settings->javascript_engine()->ReportExtraMemoryCost(data_.size());
+    javascript_engine_ = dom_settings->javascript_engine();
+    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
+        static_cast<int64_t>(data_.size()));
   }
 }
 
@@ -88,7 +90,9 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
   if (settings) {
     DOMSettings* dom_settings =
         base::polymorphic_downcast<dom::DOMSettings*>(settings);
-    dom_settings->javascript_engine()->ReportExtraMemoryCost(data_.size());
+    javascript_engine_ = dom_settings->javascript_engine();
+    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
+        static_cast<int64_t>(data_.size()));
   }
 }
 
@@ -102,7 +106,9 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
   if (settings) {
     DOMSettings* dom_settings =
         base::polymorphic_downcast<dom::DOMSettings*>(settings);
-    dom_settings->javascript_engine()->ReportExtraMemoryCost(data_.size());
+    javascript_engine_ = dom_settings->javascript_engine();
+    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
+        static_cast<int64_t>(data_.size()));
   }
 }
 
@@ -132,7 +138,12 @@ void ArrayBuffer::ClampRange(int start, int end, int source_length,
   *clamped_end = end;
 }
 
-ArrayBuffer::~ArrayBuffer() {}
+ArrayBuffer::~ArrayBuffer() {
+  if (javascript_engine_) {
+    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<int64_t>(data_.size()));
+  }
+}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -36,36 +36,35 @@ COMPILE_ASSERT(sizeof(char) == 1, char_should_occupy_one_byte);
 
 }  // namespace
 
-XhrResponseData::XhrResponseData() {
-  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+XhrResponseData::XhrResponseData(script::JavaScriptEngine* javascript_engine)
+    : javascript_engine_(javascript_engine) {
+  IncreaseMemoryUsage();
 }
 
-XhrResponseData::~XhrResponseData() {
-  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
-}
+XhrResponseData::~XhrResponseData() { DecreaseMemoryUsage(); }
 
 void XhrResponseData::Clear() {
-  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  DecreaseMemoryUsage();
   // Use swap to force free the memory allocated.
   std::string dummy;
   data_.swap(dummy);
-  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  IncreaseMemoryUsage();
 }
 
 void XhrResponseData::Reserve(size_t new_capacity_bytes) {
-  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  DecreaseMemoryUsage();
   data_.reserve(new_capacity_bytes);
-  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  IncreaseMemoryUsage();
 }
 
 void XhrResponseData::Append(const uint8* source_data, size_t size_bytes) {
   if (size_bytes == 0) {
     return;
   }
-  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
+  DecreaseMemoryUsage();
   data_.resize(data_.size() + size_bytes);
   memcpy(&data_[data_.size() - size_bytes], source_data, size_bytes);
-  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  IncreaseMemoryUsage();
 }
 
 const uint8* XhrResponseData::data() const {
@@ -74,6 +73,22 @@ const uint8* XhrResponseData::data() const {
 
 uint8* XhrResponseData::data() {
   return data_.empty() ? &s_dummy : reinterpret_cast<uint8*>(&data_[0]);
+}
+
+void XhrResponseData::IncreaseMemoryUsage() {
+  dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
+  if (javascript_engine_) {
+    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
+        static_cast<int64_t>(capacity()));
+  }
+}
+
+void XhrResponseData::DecreaseMemoryUsage() {
+  if (javascript_engine_) {
+    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<int64_t>(capacity()));
+  }
+  dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
 }
 
 }  // namespace xhr

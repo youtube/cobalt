@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "cobalt/script/javascript_engine.h"
 
 namespace cobalt {
 namespace xhr {
@@ -26,7 +27,11 @@ namespace xhr {
 // Used by XMLHttpRequest to construct the response body.
 class XhrResponseData {
  public:
-  XhrResponseData();
+  // In general, |javascript_engine| should not be null, however we need to
+  // allow it to be for tests, since there is (at the time of writing) no fake
+  // |JavaScriptEngine|.
+  explicit XhrResponseData(script::JavaScriptEngine* javascript_engine);
+
   ~XhrResponseData();
 
   // Destroy the data_ and reset the size and capacity to 0.
@@ -45,7 +50,11 @@ class XhrResponseData {
   size_t capacity() const { return data_.capacity(); }
 
  private:
+  void IncreaseMemoryUsage();
+  void DecreaseMemoryUsage();
+
   std::string data_;
+  script::JavaScriptEngine* javascript_engine_ = nullptr;
 };
 
 }  // namespace xhr
