@@ -96,8 +96,7 @@ void ReportErrorHandler(JSContext* context, const char* message,
 
 }  // namespace
 
-MozjsEngine::MozjsEngine(const Options& options)
-    : context_(nullptr), accumulated_extra_memory_cost_(0), options_(options) {
+MozjsEngine::MozjsEngine(const Options& options) : options_(options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   SbOnce(&g_js_init_once_control, CallInitAndRegisterShutDownOnce);
 
@@ -173,14 +172,13 @@ void MozjsEngine::CollectGarbage() {
   JS_GC(runtime_);
 }
 
-void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
+void MozjsEngine::AdjustAmountOfExternalAllocatedMemory(int64_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  accumulated_extra_memory_cost_ += bytes;
-
-  const bool do_collect_garbage =
-      accumulated_extra_memory_cost_ > options_.gc_threshold_bytes;
-  if (do_collect_garbage) {
-    accumulated_extra_memory_cost_ = 0;
+  // |force_gc_heuristic_| is only incremented, never decremented.  See its
+  // declaration in the header for details.
+  force_gc_heuristic_ += (bytes > 0) ? bytes : 0;
+  if (force_gc_heuristic_ > options_.gc_threshold_bytes) {
+    force_gc_heuristic_ = 0;
     CollectGarbage();
   }
 }
@@ -226,7 +224,7 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status,
                              void* data) {
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
   if (status == JSGC_END) {
-    engine->accumulated_extra_memory_cost_ = 0;
+    engine->force_gc_heuristic_ = 0;
   }
   if (!engine->context_) {
     return;

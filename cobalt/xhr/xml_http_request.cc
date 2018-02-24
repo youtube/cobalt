@@ -160,6 +160,7 @@ bool XMLHttpRequest::verbose_ = false;
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
     : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       state_(kUnsent),
+      response_body_(settings_->javascript_engine()),
       response_type_(kDefault),
       timeout_ms_(0),
       method_(net::URLFetcher::GET),
@@ -1059,8 +1060,6 @@ void XMLHttpRequest::AllowGarbageCollection() {
 
   DCHECK_EQ((is_active && has_event_listeners), false);
 
-  settings_->javascript_engine()->ReportExtraMemoryCost(
-      response_body_.capacity());
   settings_->global_environment()->AllowGarbageCollection(
       make_scoped_refptr(this));
 }
