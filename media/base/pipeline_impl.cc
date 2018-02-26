@@ -745,6 +745,25 @@ void PipelineImpl::StartTask(scoped_ptr<FilterCollection> filter_collection,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  // Suspend() can be called from a thread other than the WebModule thread.  In
+  // such case it is possible that Stop() is called before Start() and |state_|
+  // will be set to |kStopping| or |kStopped|.
+  if (state_ == kStopping || state_ == kStopped) {
+    return;
+  }
+
+  // Check for individual state so we have more clue when one of them is hit.
+  CHECK_NE(kInitDemuxer, state_) << "state shouldn't be kInitDemuxer";
+  CHECK_NE(kInitAudioRenderer, state_)
+      << "state shouldn't be kInitAudioRenderer";
+  CHECK_NE(kInitVideoRenderer, state_)
+      << "state shouldn't be kInitVideoRenderer";
+  CHECK_NE(kInitPrerolling, state_) << "state shouldn't be kInitPrerolling";
+  CHECK_NE(kSeeking, state_) << "state shouldn't be kSeeking";
+  CHECK_NE(kStarting, state_) << "state shouldn't be kStarting";
+  CHECK_NE(kStarted, state_) << "state shouldn't be kStarted";
+
   CHECK_EQ(kCreated, state_)
       << "Media pipeline cannot be started more than once";
 
