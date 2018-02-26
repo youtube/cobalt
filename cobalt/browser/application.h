@@ -143,7 +143,7 @@ class Application {
     base::CVal<base::cval::SizeInBytes, base::CValPublic> exe_memory;
 #endif
 
-    base::CVal<int64> app_start_time;
+    base::CVal<int64, base::CValPublic> app_start_time;
     base::CVal<base::TimeDelta, base::CValPublic> app_lifetime;
   };
 

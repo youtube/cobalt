@@ -80,7 +80,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   struct EventStats {
     explicit EventStats(const std::string& name);
 
-    base::CVal<bool, base::CValPublic> produced_render_tree_;
+    base::CVal<int64, base::CValPublic> start_time;
+    base::CVal<bool, base::CValPublic> produced_render_tree;
 
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;
