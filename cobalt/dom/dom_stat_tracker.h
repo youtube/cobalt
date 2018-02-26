@@ -102,8 +102,8 @@ class DomStatTracker : public base::StopWatchOwner {
   int count_html_element_document_removed_;
 
   // Count of HtmlScriptElement::Execute() calls and time of last call.
-  base::CVal<int> script_element_execute_count_;
-  base::CVal<int64> script_element_execute_time_;
+  base::CVal<int, base::CValPublic> script_element_execute_count_;
+  base::CVal<int64, base::CValPublic> script_element_execute_time_;
 
   // Event-related
   bool is_tracking_event_;
