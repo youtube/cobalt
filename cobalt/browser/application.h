@@ -160,7 +160,7 @@ class Application {
     base::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         used_gpu_memory;
 
-    base::CVal<int64> app_start_time;
+    base::CVal<int64, base::CValPublic> app_start_time;
     base::CVal<base::TimeDelta, base::CValPublic> app_lifetime;
   };
 
