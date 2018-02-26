@@ -80,9 +80,6 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       last_did_rasterize_(false),
       last_animations_expired_(true),
       last_stat_tracked_animations_expired_(true),
-      rasterize_periodic_timer_("Renderer.Rasterize.Duration",
-                                kRasterizePeriodicTimerEntriesPerUpdate,
-                                false /*enable_entry_list_c_val*/),
       rasterize_animations_timer_("Renderer.Rasterize.Animations",
                                   kRasterizeAnimationsTimerMaxEntries,
                                   true /*enable_entry_list_c_val*/),
@@ -356,14 +353,6 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
       !last_stat_tracked_animations_expired_ && last_did_rasterize_;
   bool animations_active =
       !are_stat_tracked_animations_expired && did_rasterize;
-
-  // The rasterization is only timed with the periodic timer when the render
-  // tree has changed. This ensures that the frames being timed are consistent
-  // between platforms that submit unchanged trees and those that don't.
-  if (did_rasterize) {
-    rasterize_periodic_timer_.Start(start_time);
-    rasterize_periodic_timer_.Stop(end_time);
-  }
 
   if (last_animations_active || animations_active) {
     // The rasterization is only timed with the animations timer when there are

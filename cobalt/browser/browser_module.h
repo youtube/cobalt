@@ -499,10 +499,10 @@ class BrowserModule {
 
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.
-  base::CVal<int64> navigate_time_;
+  base::CVal<int64, base::CValPublic> navigate_time_;
 
   // The time when the WebModule's Window.onload event is fired.
-  base::CVal<int64> on_load_event_time_;
+  base::CVal<int64, base::CValPublic> on_load_event_time_;
 
   // The total memory that is reserved by the JavaScript engine, which
   // includes both parts that have live JavaScript values, as well as
