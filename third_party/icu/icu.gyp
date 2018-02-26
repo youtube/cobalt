@@ -116,7 +116,7 @@
                 # TODO: ICU data handling should be unified with
                 # the Chromium code.
                 'includes': [
-                  '../../cobalt/build/copy_icu_data.gypi',
+                  '<(DEPTH)/cobalt/build/copy_icu_data.gypi',
                 ],
               }],
               ['OS == "android"', {
@@ -164,7 +164,7 @@
               # TODO: ICU data handling should be unified with
               # the Chromium code.
               'includes': [
-                '../../cobalt/build/copy_icu_data.gypi',
+                '<(DEPTH)/cobalt/build/copy_icu_data.gypi',
               ],
             }],
             [ 'OS == "win" and icu_use_data_file_flag==0', {
