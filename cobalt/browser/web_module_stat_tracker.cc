@@ -126,7 +126,9 @@ void WebModuleStatTracker::OnRanAnimationFrameCallbacks(
 void WebModuleStatTracker::OnRenderTreeProduced() { EndCurrentEvent(true); }
 
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)
-    : produced_render_tree_(
+    : start_time(StringPrintf("Event.Time.%s.Start", name.c_str()), 0,
+          "The time that the event started."),
+      produced_render_tree(
           StringPrintf("Event.%s.ProducedRenderTree", name.c_str()), false,
           "Nonzero when the event produced a render tree."),
       count_dom_html_elements_created(
@@ -249,7 +251,8 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   stop_watches_[kStopWatchTypeEvent].Stop();
 
   EventStats* event_stats = event_stats_[current_event_type_];
-  event_stats->produced_render_tree_ = was_render_tree_produced;
+  event_stats->start_time = event_start_time_.ToInternalValue();
+  event_stats->produced_render_tree = was_render_tree_produced;
 
   // Update event counts
   event_stats->count_dom_html_elements_created =
