@@ -165,7 +165,9 @@ void WebModuleStatTracker::OnRenderTreeRasterized(
 }
 
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)
-    : produced_render_tree(
+    : start_time(StringPrintf("Event.Time.%s.Start", name.c_str()), 0,
+          "The time that the event started."),
+      produced_render_tree(
           StringPrintf("Event.%s.ProducedRenderTree", name.c_str()), false,
           "Nonzero when the event produced a render tree."),
       count_dom_html_element(
@@ -312,6 +314,7 @@ void WebModuleStatTracker::EndCurrentEvent(base::TimeTicks event_end_time) {
           : base::TimeDelta();
 
   EventStats* event_stats = event_stats_list_[current_event_type_];
+  event_stats->start_time = current_event_start_time_.ToInternalValue();
   event_stats->produced_render_tree =
       !current_event_render_tree_produced_time_.is_null();
 
