@@ -235,9 +235,22 @@ void AudioDecoder::InitializeCodec() {
 
   codec_context_->channels = audio_header_.number_of_channels;
   codec_context_->sample_rate = audio_header_.samples_per_second;
-
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
+
+  if (codec_context_->codec_id == AV_CODEC_ID_OPUS &&
+      audio_header_.audio_specific_config_size > 0) {
+    // AV_INPUT_BUFFER_PADDING_SIZE is not defined in ancient avcodec.h.  Use a
+    // large enough padding here explicitly.
+    const int kAvInputBufferPaddingSize = 256;
+    codec_context_->extradata_size = audio_header_.audio_specific_config_size;
+    codec_context_->extradata = static_cast<uint8_t*>(
+        av_malloc(codec_context_->extradata_size + kAvInputBufferPaddingSize));
+    SbMemoryCopy(codec_context_->extradata, audio_header_.audio_specific_config,
+                 codec_context_->extradata_size);
+    SbMemorySet(codec_context_->extradata + codec_context_->extradata_size, 0,
+                kAvInputBufferPaddingSize);
+  }
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
 
@@ -268,13 +281,10 @@ void AudioDecoder::InitializeCodec() {
 void AudioDecoder::TeardownCodec() {
   if (codec_context_) {
     CloseCodec(codec_context_);
-    av_free(codec_context_);
-    codec_context_ = NULL;
+    av_freep(&codec_context_->extradata);
+    av_freep(&codec_context_);
   }
-  if (av_frame_) {
-    av_free(av_frame_);
-    av_frame_ = NULL;
-  }
+  av_freep(&av_frame_);
 }
 
 }  // namespace ffmpeg
