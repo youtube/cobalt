@@ -16,6 +16,7 @@
 
 #include "base/bind.h"
 #include "base/file_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -41,8 +42,8 @@ class TextDecoderCallback {
  public:
   explicit TextDecoderCallback(base::RunLoop* run_loop) : run_loop_(run_loop) {}
 
-  void OnDone(const std::string& text, const Origin&) {
-    text_ = text;
+  void OnDone(const Origin&, scoped_ptr<std::string> text) {
+    text_ = *text;
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
 

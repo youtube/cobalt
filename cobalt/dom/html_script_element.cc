@@ -15,6 +15,7 @@
 #include "cobalt/dom/html_script_element.h"
 
 #include <deque>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
@@ -309,6 +310,8 @@ void HTMLScriptElement::Prepare() {
         PreventGarbageCollection();
         ExecuteExternal();
         AllowGarbageCollection();
+        // Release the content string now that we're finished with it.
+        content_.reset();
       } else {
         // Executing the script block must just consist of firing a simple event
         // named error at the element.
@@ -396,12 +399,12 @@ void HTMLScriptElement::Prepare() {
   }
 }
 
-void HTMLScriptElement::OnSyncLoadingDone(
-    const std::string& content, const loader::Origin& last_url_origin) {
+void HTMLScriptElement::OnSyncLoadingDone(const loader::Origin& last_url_origin,
+                                          scoped_ptr<std::string> content) {
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingDone()");
-  content_ = content;
-  is_sync_load_successful_ = true;
   fetched_last_url_origin_ = last_url_origin;
+  content_ = content.Pass();
+  is_sync_load_successful_ = true;
 }
 
 void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
@@ -411,18 +414,20 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 
 // Algorithm for OnLoadingDone:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
-void HTMLScriptElement::OnLoadingDone(const std::string& content,
-                                      const loader::Origin& last_url_origin) {
+void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
+                                      scoped_ptr<std::string> content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(load_option_ == 4 || load_option_ == 5);
+  DCHECK(content);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
   if (!document_) {
     AllowGarbageCollection();
     return;
   }
-  fetched_last_url_origin_ = last_url_origin;
 
-  content_ = content;
+  fetched_last_url_origin_ = last_url_origin;
+  content_ = content.Pass();
+
   switch (load_option_) {
     case 4: {
       // If the element has a src attribute, does not have an async attribute,
@@ -499,6 +504,13 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content,
       document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
     } break;
   }
+
+  // Release the content string now that we're finished with it.
+  content_.reset();
+
+  // Post a task to release the loader.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
 }
 
 // Algorithm for OnLoadingError:
@@ -543,6 +555,19 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
   // document until the task that is queued by the networking task source
   // once the resource has been fetched (defined above) has been run.
   document_->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+
+  // Post a task to release the loader.
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
+}
+
+void HTMLScriptElement::ExecuteExternal() {
+  DCHECK(content_);
+  Execute(*content_, base::SourceLocation(url_.spec(), 1, 1), true);
+}
+
+void HTMLScriptElement::ExecuteInternal() {
+  Execute(text_content().value(), inline_script_location_, false);
 }
 
 // Algorithm for Execute:
@@ -640,6 +665,12 @@ void HTMLScriptElement::AllowGarbageCollection() {
         ->GetGlobalEnvironment()
         ->AllowGarbageCollection(make_scoped_refptr(this));
   }
+}
+
+void HTMLScriptElement::ReleaseLoader() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(loader_);
+  loader_.reset();
 }
 
 }  // namespace dom
