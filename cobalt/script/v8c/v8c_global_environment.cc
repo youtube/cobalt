@@ -67,6 +67,9 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
   wrapper_factory_.reset(new WrapperFactory(isolate));
   isolate_->SetData(kIsolateDataIndex, this);
   DCHECK(isolate_->GetData(kIsolateDataIndex) == this);
+
+  isolate_->SetAllowCodeGenerationFromStringsCallback(
+      AllowCodeGenerationFromStringsCallback);
 }
 
 V8cGlobalEnvironment::~V8cGlobalEnvironment() {
@@ -195,7 +198,6 @@ void V8cGlobalEnvironment::AllowGarbageCollection(
 
 void V8cGlobalEnvironment::DisableEval(const std::string& message) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  eval_disabled_message_.emplace(message);
 
   EntryScope entry_scope(isolate_);
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
@@ -208,7 +210,6 @@ void V8cGlobalEnvironment::DisableEval(const std::string& message) {
 
 void V8cGlobalEnvironment::EnableEval() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  eval_disabled_message_ = base::nullopt;
 
   EntryScope entry_scope(isolate_);
   v8::Local<v8::Context> context = isolate_->GetCurrentContext();
@@ -293,6 +294,21 @@ V8cGlobalEnvironment::DestructionHelper::~DestructionHelper() {
   isolate_->SetEmbedderHeapTracer(nullptr);
   isolate_->SetData(kIsolateDataIndex, nullptr);
   isolate_->LowMemoryNotification();
+}
+
+// static
+bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+  V8cGlobalEnvironment* global_environment =
+      V8cGlobalEnvironment::GetFromIsolate(context->GetIsolate());
+  DCHECK(global_environment);
+  if (!global_environment->report_eval_.is_null()) {
+    global_environment->report_eval_.Run();
+  }
+  // This callback should only be called while code generation from strings is
+  // not allowed from within V8, so this should always be false.
+  DCHECK_EQ(context->IsCodeGenerationFromStringsAllowed(), false);
+  return context->IsCodeGenerationFromStringsAllowed();
 }
 
 v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
