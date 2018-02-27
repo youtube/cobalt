@@ -58,31 +58,34 @@
       },
       'includes': [ '../../starboard/build/deploy.gypi' ],
     },
-    {
-      'target_name': 'snapshot_app_stats',
-      'type': '<(final_executable_type)',
-      'sources': [
-        'snapshot_app_stats.cc',
-      ],
-      'dependencies': [
-        'cobalt',
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-      ],
-    },
-    {
-      'target_name': 'snapshot_app_stats_deploy',
-      'type': 'none',
-      'dependencies': [
-        'snapshot_app_stats',
-      ],
-      'variables': {
-        'executable_name': 'snapshot_app_stats',
-      },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
-    },
-
   ],
   'conditions': [
+    ['build_snapshot_app_stats', {
+      'targets': [
+        {
+          'target_name': 'snapshot_app_stats',
+          'type': '<(final_executable_type)',
+          'sources': [
+            'snapshot_app_stats.cc',
+          ],
+          'dependencies': [
+            'cobalt',
+            '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+          ],
+        },
+        {
+          'target_name': 'snapshot_app_stats_deploy',
+          'type': 'none',
+          'dependencies': [
+            'snapshot_app_stats',
+          ],
+          'variables': {
+            'executable_name': 'snapshot_app_stats',
+          },
+          'includes': [ '../../starboard/build/deploy.gypi' ],
+        },
+      ]
+    }],
     ['final_executable_type == "shared_library"', {
       'targets': [
         {
