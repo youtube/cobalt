@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -34,14 +35,14 @@ namespace loader {
 class TextDecoder : public Decoder {
  public:
   explicit TextDecoder(
-      base::Callback<void(const std::string&, const loader::Origin&)>
+      base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
           done_callback)
       : done_callback_(done_callback), suspended_(false) {}
   ~TextDecoder() override {}
 
   // This function is used for binding callback for creating TextDecoder.
   static scoped_ptr<Decoder> Create(
-      base::Callback<void(const std::string&, const loader::Origin&)>
+      base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
           done_callback) {
     return scoped_ptr<Decoder>(new TextDecoder(done_callback));
   }
@@ -52,7 +53,10 @@ class TextDecoder : public Decoder {
     if (suspended_) {
       return;
     }
-    text_.append(data, size);
+    if (!text_) {
+      text_.reset(new std::string);
+    }
+    text_->append(data, size);
   }
 
   void DecodeChunkPassed(scoped_ptr<std::string> data) override {
@@ -62,10 +66,10 @@ class TextDecoder : public Decoder {
       return;
     }
 
-    if (text_.empty()) {
-      std::swap(*data, text_);
+    if (!text_) {
+      text_ = data.Pass();
     } else {
-      text_.append(*data);
+      text_->append(*data);
     }
   }
 
@@ -74,11 +78,14 @@ class TextDecoder : public Decoder {
     if (suspended_) {
       return;
     }
-    done_callback_.Run(text_, last_url_origin_);
+    if (!text_) {
+      text_.reset(new std::string);
+    }
+    done_callback_.Run(last_url_origin_, text_.Pass());
   }
   bool Suspend() override {
     suspended_ = true;
-    text_.clear();
+    text_.reset();
     return true;
   }
   void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
@@ -90,11 +97,11 @@ class TextDecoder : public Decoder {
 
  private:
   base::ThreadChecker thread_checker_;
-  std::string text_;
-  base::Callback<void(const std::string&, const loader::Origin&)>
+  base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
       done_callback_;
-  bool suspended_;
   loader::Origin last_url_origin_;
+  scoped_ptr<std::string> text_;
+  bool suspended_;
 };
 
 }  // namespace loader
