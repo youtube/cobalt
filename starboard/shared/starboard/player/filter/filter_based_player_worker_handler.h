@@ -54,7 +54,12 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
             SbPlayer player,
             UpdateMediaTimeCB update_media_time_cb,
             GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb) override;
+            UpdatePlayerStateCB update_player_state_cb
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+            ,
+            UpdatePlayerErrorCB update_player_error_cb
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+            ) override;
   bool Seek(SbMediaTime seek_to_pts, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                    bool* written) override;
@@ -77,6 +82,9 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   UpdateMediaTimeCB update_media_time_cb_ = NULL;
   GetPlayerStateCB get_player_state_cb_ = NULL;
   UpdatePlayerStateCB update_player_state_cb_ = NULL;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  UpdatePlayerErrorCB update_player_error_cb_ = NULL;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;

@@ -34,6 +34,9 @@ SbPlayerPrivate::SbPlayerPrivate(
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void* context,
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
@@ -54,8 +57,12 @@ SbPlayerPrivate::SbPlayerPrivate(
                                player_worker_handler.Pass(),
                                decoder_status_func,
                                player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                               player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                                this,
-                               context)) {}
+                               context)) {
+}
 
 void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   {

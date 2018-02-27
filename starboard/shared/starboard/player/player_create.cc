@@ -46,6 +46,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                        SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                         void* context,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
@@ -85,9 +88,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
 
-  SbPlayer player = new SbPlayerPrivate(
-      audio_codec, duration_pts, sample_deallocate_func, decoder_status_func,
-      player_status_func, context, handler.Pass());
+  SbPlayer player =
+      new SbPlayerPrivate(audio_codec, duration_pts, sample_deallocate_func,
+                          decoder_status_func, player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                          player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+                          context, handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
