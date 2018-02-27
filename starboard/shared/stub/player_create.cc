@@ -23,6 +23,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
                         SbPlayerDecoderStatusFunc /*decoder_status_func*/,
                         SbPlayerStatusFunc /*player_status_func*/,
+                        SbPlayerErrorFunc /*player_error_func*/,
                         void* /*context*/,
                         SbPlayerOutputMode /*output_mode*/,
                         SbDecodeTargetGraphicsContextProvider* /*provider*/) {

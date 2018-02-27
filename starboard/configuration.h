@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version where supporting player error messages is required.
+#define SB_PLAYER_ERROR_MESSAGE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Minimum API version for supporting system-level closed caption settings.
 #define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
@@ -606,6 +609,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
 #define SB_HAS_AUDIOLESS_VIDEO 1
+#endif
+
+#if SB_API_VERSION >= SB_PLAYER_ERROR_MESSAGE_API_VERSION
+#define SB_HAS_PLAYER_ERROR_MESSAGE 1
 #endif
 
 // --- Derived Configuration -------------------------------------------------
