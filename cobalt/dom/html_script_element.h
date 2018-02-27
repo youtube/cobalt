@@ -89,18 +89,14 @@ class HTMLScriptElement : public HTMLElement {
   //
   void Prepare();
 
-  void OnSyncLoadingDone(const std::string& content);
+  void OnSyncLoadingDone(scoped_ptr<std::string> content);
   void OnSyncLoadingError(const std::string& error);
 
-  void OnLoadingDone(const std::string& content);
+  void OnLoadingDone(scoped_ptr<std::string> content);
   void OnLoadingError(const std::string& error);
 
-  void ExecuteExternal() {
-    Execute(content_, base::SourceLocation(url_.spec(), 1, 1), true);
-  }
-  void ExecuteInternal() {
-    Execute(text_content().value(), inline_script_location_, false);
-  }
+  void ExecuteExternal();
+  void ExecuteInternal();
   void Execute(const std::string& content,
                const base::SourceLocation& script_location, bool is_external);
 
@@ -108,6 +104,7 @@ class HTMLScriptElement : public HTMLElement {
       const tracked_objects::Location& location, const base::Token& token);
   void PreventGarbageCollection();
   void AllowGarbageCollection();
+  void ReleaseLoader();
 
   // Whether the script has been started.
   bool is_already_started_;
@@ -131,8 +128,8 @@ class HTMLScriptElement : public HTMLElement {
   bool is_sync_load_successful_;
   // Resolved URL of the script.
   GURL url_;
-  // Content of the script.
-  std::string content_;
+  // Content of the script. Released after Execute is called.
+  scoped_ptr<std::string> content_;
   // Active requests disabling garbage collection.
   int prevent_garbage_collection_count_;
 

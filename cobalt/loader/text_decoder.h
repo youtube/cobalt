@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -32,13 +33,14 @@ namespace loader {
 // results.
 class TextDecoder : public Decoder {
  public:
-  explicit TextDecoder(base::Callback<void(const std::string&)> done_callback)
+  explicit TextDecoder(
+      base::Callback<void(scoped_ptr<std::string>)> done_callback)
       : done_callback_(done_callback), suspended_(false) {}
   ~TextDecoder() OVERRIDE {}
 
   // This function is used for binding callback for creating TextDecoder.
   static scoped_ptr<Decoder> Create(
-      base::Callback<void(const std::string&)> done_callback) {
+      base::Callback<void(scoped_ptr<std::string>)> done_callback) {
     return scoped_ptr<Decoder>(new TextDecoder(done_callback));
   }
 
@@ -48,7 +50,10 @@ class TextDecoder : public Decoder {
     if (suspended_) {
       return;
     }
-    text_.append(data, size);
+    if (!text_) {
+      text_.reset(new std::string);
+    }
+    text_->append(data, size);
   }
 
   void DecodeChunkPassed(scoped_ptr<std::string> data) OVERRIDE {
@@ -58,10 +63,10 @@ class TextDecoder : public Decoder {
       return;
     }
 
-    if (text_.empty()) {
-      std::swap(*data, text_);
+    if (!text_) {
+      text_ = data.Pass();
     } else {
-      text_.append(*data);
+      text_->append(*data);
     }
   }
 
@@ -70,11 +75,14 @@ class TextDecoder : public Decoder {
     if (suspended_) {
       return;
     }
-    done_callback_.Run(text_);
+    if (!text_) {
+      text_.reset(new std::string);
+    }
+    done_callback_.Run(text_.Pass());
   }
   bool Suspend() OVERRIDE {
     suspended_ = true;
-    text_.clear();
+    text_.reset();
     return true;
   }
   void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
@@ -83,8 +91,8 @@ class TextDecoder : public Decoder {
 
  private:
   base::ThreadChecker thread_checker_;
-  std::string text_;
-  base::Callback<void(const std::string&)> done_callback_;
+  base::Callback<void(scoped_ptr<std::string>)> done_callback_;
+  scoped_ptr<std::string> text_;
   bool suspended_;
 };
 
