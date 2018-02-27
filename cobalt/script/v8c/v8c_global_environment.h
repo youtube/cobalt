@@ -132,6 +132,9 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
     v8::Isolate* isolate_;
   };
 
+  static bool AllowCodeGenerationFromStringsCallback(
+      v8::Local<v8::Context> context, v8::Local<v8::String> source);
+
   v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
       const scoped_refptr<SourceCode>& source_code, bool mute_errors);
 
@@ -167,8 +170,8 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   // assigned to this instead of being printed.
   std::string* last_error_message_ = nullptr;
 
-  base::optional<std::string> eval_disabled_message_;
   base::Closure report_eval_;
+
   ReportErrorCallback report_error_callback_;
 };
 
