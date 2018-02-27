@@ -38,6 +38,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
+                        SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
@@ -73,6 +74,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
   return new SbPlayerPrivate(audio_codec, duration_pts, sample_deallocate_func,
-                             decoder_status_func, player_status_func, context,
-                             handler.Pass());
+                             decoder_status_func, player_status_func,
+                             player_error_func, context, handler.Pass());
 }
