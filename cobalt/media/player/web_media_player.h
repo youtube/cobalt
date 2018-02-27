@@ -200,6 +200,7 @@ class WebMediaPlayer {
 class WebMediaPlayerClient {
  public:
   virtual void NetworkStateChanged() = 0;
+  virtual void NetworkError(const std::string&) = 0;
   virtual void ReadyStateChanged() = 0;
   virtual void TimeChanged(bool eos_played) = 0;
   virtual void DurationChanged() = 0;

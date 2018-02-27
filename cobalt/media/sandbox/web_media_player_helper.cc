@@ -40,6 +40,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
  private:
   // WebMediaPlayerClient methods
   void NetworkStateChanged() override {}
+  void NetworkError(const std::string&) override {}
   void ReadyStateChanged() override {}
   void TimeChanged(bool) override {}
   void DurationChanged() override {}

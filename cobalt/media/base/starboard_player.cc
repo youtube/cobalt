@@ -57,6 +57,16 @@ void StarboardPlayer::CallbackHelper::OnPlayerStatus(SbPlayer player,
   }
 }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void StarboardPlayer::CallbackHelper::OnPlayerError(
+    SbPlayer player, SbPlayerError error, const std::string& message) {
+  base::AutoLock auto_lock(lock_);
+  if (player_) {
+    player_->OnPlayerError(player, error, message);
+  }
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+
 void StarboardPlayer::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
   base::AutoLock auto_lock(lock_);
@@ -110,7 +120,7 @@ StarboardPlayer::StarboardPlayer(
                  callback_helper_));
 }
 
-#else  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
 
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
@@ -500,7 +510,11 @@ void StarboardPlayer::CreatePlayerWithUrl(const std::string& url) {
   player_ = SbPlayerCreateWithUrl(
       url.c_str(), window_, SB_PLAYER_NO_DURATION,
       &StarboardPlayer::PlayerStatusCB,
-      &StarboardPlayer::EncryptedMediaInitDataEncounteredCB, this);
+      &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      &StarboardPlayer::PlayerErrorCB,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+      this);
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -540,8 +554,11 @@ void StarboardPlayer::CreatePlayer() {
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
       has_audio ? &audio_header : NULL, &StarboardPlayer::DeallocateSampleCB,
-      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this,
-      output_mode_,
+      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      &StarboardPlayer::PlayerErrorCB,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+      this, output_mode_,
       ShellMediaPlatform::Instance()
           ->GetSbDecodeTargetGraphicsContextProvider());
   DCHECK(SbPlayerIsValid(player_));
@@ -722,6 +739,17 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   host_->OnPlayerStatus(state);
 }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
+                                    const std::string& message) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (player_ != player) {
+    return;
+  }
+  host_->OnPlayerError(error, message);
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -757,6 +785,18 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerStatus,
                             helper->callback_helper_, player, state, ticket));
 }
+
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+// static
+void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
+                                    SbPlayerError error, const char* message) {
+  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  helper->message_loop_->PostTask(
+      FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerError,
+                            helper->callback_helper_, player, error,
+                            message ? std::string(message) : ""));
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 // static
 void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
