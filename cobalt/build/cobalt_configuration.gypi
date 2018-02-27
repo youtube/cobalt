@@ -221,6 +221,9 @@
     #   cobalt/doc/splash_screen.md for information about this.
     'fallback_splash_screen_url%': 'none',
 
+    # Some platforms have difficulty linking snapshot_app_stats
+    'build_snapshot_app_stats%': 1,
+
     # Cache parameters
 
     # The following set of parameters define how much memory is reserved for
