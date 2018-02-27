@@ -21,7 +21,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
-#include "base/time.h"
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
@@ -44,6 +43,8 @@ typedef base::Callback<void(SbDrmSystem)> DrmSystemReadyCB;
 
 // Callback to set an DrmSystemReadyCB.
 typedef base::Callback<void(const DrmSystemReadyCB&)> SetDrmSystemReadyCB;
+
+typedef base::Callback<void(PipelineStatus, const std::string&)> ErrorCB;
 
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
@@ -109,8 +110,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                          encrypted_media_init_data_encountered_cb,
                      const std::string& source_url,
 #endif  // SB_HAS(PLAYER_WITH_URL)
-                     const PipelineStatusCB& ended_cb,
-                     const PipelineStatusCB& error_cb,
+                     const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
