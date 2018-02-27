@@ -43,7 +43,7 @@ TEST(SbPlayerUrlTest, SunnyDay) {
     char url[] = "about:blank";
     SB_DLOG(ERROR) << "Creating player";
     SbPlayer player = SbPlayerCreateWithUrl(url, window, SB_PLAYER_NO_DURATION,
-                                            NULL, NULL, NULL);
+                                            NULL, NULL, NULL, NULL);
 
     EXPECT_TRUE(SbPlayerIsValid(player));
 

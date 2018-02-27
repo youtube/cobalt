@@ -87,7 +87,12 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SbPlayer player,
     UpdateMediaTimeCB update_media_time_cb,
     GetPlayerStateCB get_player_state_cb,
-    UpdatePlayerStateCB update_player_state_cb) {
+    UpdatePlayerStateCB update_player_state_cb
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    ,
+    UpdatePlayerErrorCB update_player_error_cb
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+    ) {
   // This function should only be called once.
   SB_DCHECK(player_worker_ == NULL);
 
@@ -106,6 +111,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
   update_media_time_cb_ = update_media_time_cb;
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  update_player_error_cb_ = update_player_error_cb;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
   SB_DCHECK(player_components);
@@ -199,7 +207,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
-          drm_system_->Decrypt(input_buffer);
+            drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
@@ -232,7 +240,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
-          drm_system_->Decrypt(input_buffer);
+            drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
@@ -348,7 +356,14 @@ void FilterBasedPlayerWorkerHandler::OnError() {
     return;
   }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  if (update_player_error_cb_) {
+    (*player_worker_.*
+     update_player_error_cb_)("FilterBasedPlayerWorkerHandler error.");
+  }
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
   (*player_worker_.*update_player_state_cb_)(kSbPlayerStateError);
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
 // TODO: This should be driven by callbacks instead polling.
