@@ -130,7 +130,7 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
   UNREFERENCED_PARAMETER(resource_url);
   UNREFERENCED_PARAMETER(origin);
   return true;
-#else  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   if (resource_url.SchemeIs("blob")) {
     // Blob resources come from application and is same-origin.
     return true;
@@ -373,7 +373,6 @@ void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
       DOMException::Raise(DOMException::kNotSupportedErr, exception_state);
       break;
     case WebMediaPlayer::kMediaKeyExceptionNoError:
-    default:
       NOTREACHED();
       break;
   }
@@ -961,7 +960,8 @@ void HTMLMediaElement::LoadInternal() {
       media_url = node_document()->url_as_gurl().Resolve(src);
     }
     if (media_url.is_empty()) {
-      MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError);
+      MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError,
+                         "Invalid source.");
       DLOG(WARNING) << "HTMLMediaElement::LoadInternal, invalid 'src' " << src;
       return;
     }
@@ -990,7 +990,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (!url.is_valid()) {
     // Try to filter out invalid urls as GURL::spec() DCHECKs if the url is
     // valid.
-    NoneSupported();
+    NoneSupported("URL is invalid.");
     return;
   }
 
@@ -1000,7 +1000,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     if (!node_document()->csp_delegate()->CanLoad(CspDelegate::kMedia, url,
                                                   false)) {
       DLOG(INFO) << "URL " << url << " is rejected by security policy.";
-      NoneSupported();
+      NoneSupported("URL is rejected by security policy.");
       return;
     }
 
@@ -1016,7 +1016,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
       media_source_url_ = url;
     } else {
-      NoneSupported();
+      NoneSupported("Media source is NULL.");
       return;
     }
   }
@@ -1079,7 +1079,7 @@ void HTMLMediaElement::ClearMediaPlayer() {
   }
 }
 
-void HTMLMediaElement::NoneSupported() {
+void HTMLMediaElement::NoneSupported(const std::string& message) {
   MLOG();
 
   DLOG(WARNING) << "HTMLMediaElement::NoneSupported() error.";
@@ -1094,8 +1094,8 @@ void HTMLMediaElement::NoneSupported() {
 
   // 6.1 - Set the error attribute to a new MediaError object whose code
   // attribute is set to MEDIA_ERR_SRC_NOT_SUPPORTED.
-  error_ = new MediaError(MediaError::kMediaErrSrcNotSupported);
-
+  error_ = new MediaError(MediaError::kMediaErrSrcNotSupported,
+                          message.empty() ? "Source not supported." : message);
   // 6.2 - Forget the media element's media-resource-specific text tracks.
 
   // 6.3 - Set the element's networkState attribute to the kNetworkNoSource
@@ -1108,18 +1108,25 @@ void HTMLMediaElement::NoneSupported() {
   ClearMediaSource();
 }
 
-void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
+void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
+                                          const std::string& message) {
   StopPeriodicTimers();
 
   if (error == WebMediaPlayer::kNetworkStateNetworkError &&
       ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata) {
-    MediaEngineError(new MediaError(MediaError::kMediaErrNetwork));
+    MediaEngineError(new MediaError(
+        MediaError::kMediaErrNetwork,
+        message.empty() ? "Media loading failed with network error."
+                        : message));
   } else if (error == WebMediaPlayer::kNetworkStateDecodeError) {
-    MediaEngineError(new MediaError(MediaError::kMediaErrDecode));
+    MediaEngineError(new MediaError(
+        MediaError::kMediaErrDecode,
+        message.empty() ? "Media loading failed with decode error." : message));
   } else if ((error == WebMediaPlayer::kNetworkStateFormatError ||
               error == WebMediaPlayer::kNetworkStateNetworkError) &&
              load_state_ == kLoadingFromSrcAttr) {
-    NoneSupported();
+    NoneSupported(message.empty() ? "Media loading failed with none supported."
+                                  : message);
   }
 }
 
@@ -1174,8 +1181,9 @@ void HTMLMediaElement::StartPlaybackProgressTimer() {
 
   previous_progress_time_ = base::Time::Now().ToDoubleT();
   playback_progress_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromMilliseconds(
-                     static_cast<int64>(kMaxTimeupdateEventFrequency * 1000)),
+      FROM_HERE,
+      base::TimeDelta::FromMilliseconds(
+          static_cast<int64>(kMaxTimeupdateEventFrequency * 1000)),
       this, &HTMLMediaElement::OnPlaybackProgressTimer);
 }
 
@@ -1317,39 +1325,52 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
 }
 
 void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
-  if (state == WebMediaPlayer::kNetworkStateEmpty) {
-    // Just update the cached state and leave, we can't do anything.
-    network_state_ = kNetworkEmpty;
-    return;
+  switch (state) {
+    case WebMediaPlayer::kNetworkStateEmpty:
+      // Just update the cached state and leave, we can't do anything.
+      network_state_ = kNetworkEmpty;
+      break;
+    case WebMediaPlayer::kNetworkStateIdle:
+      if (network_state_ > kNetworkIdle) {
+        ChangeNetworkStateFromLoadingToIdle();
+      } else {
+        network_state_ = kNetworkIdle;
+      }
+      break;
+    case WebMediaPlayer::kNetworkStateLoading:
+      if (network_state_ < kNetworkLoading ||
+          network_state_ == kNetworkNoSource) {
+        StartProgressEventTimer();
+      }
+      network_state_ = kNetworkLoading;
+      break;
+    case WebMediaPlayer::kNetworkStateLoaded:
+      if (network_state_ != kNetworkIdle) {
+        ChangeNetworkStateFromLoadingToIdle();
+      }
+      break;
+    case WebMediaPlayer::kNetworkStateFormatError:
+    case WebMediaPlayer::kNetworkStateNetworkError:
+    case WebMediaPlayer::kNetworkStateDecodeError:
+      NOTREACHED() << "Passed SetNetworkState an error state";
+      break;
   }
+}
 
-  if (state == WebMediaPlayer::kNetworkStateFormatError ||
-      state == WebMediaPlayer::kNetworkStateNetworkError ||
-      state == WebMediaPlayer::kNetworkStateDecodeError) {
-    MediaLoadingFailed(state);
-    return;
-  }
-
-  if (state == WebMediaPlayer::kNetworkStateIdle) {
-    if (network_state_ > kNetworkIdle) {
-      ChangeNetworkStateFromLoadingToIdle();
-    } else {
-      network_state_ = kNetworkIdle;
-    }
-  }
-
-  if (state == WebMediaPlayer::kNetworkStateLoading) {
-    if (network_state_ < kNetworkLoading ||
-        network_state_ == kNetworkNoSource) {
-      StartProgressEventTimer();
-    }
-    network_state_ = kNetworkLoading;
-  }
-
-  if (state == WebMediaPlayer::kNetworkStateLoaded) {
-    if (network_state_ != kNetworkIdle) {
-      ChangeNetworkStateFromLoadingToIdle();
-    }
+void HTMLMediaElement::SetNetworkError(WebMediaPlayer::NetworkState state,
+                                       const std::string& message) {
+  switch (state) {
+    case WebMediaPlayer::kNetworkStateFormatError:
+    case WebMediaPlayer::kNetworkStateNetworkError:
+    case WebMediaPlayer::kNetworkStateDecodeError:
+      MediaLoadingFailed(state, message);
+      break;
+    case WebMediaPlayer::kNetworkStateEmpty:
+    case WebMediaPlayer::kNetworkStateIdle:
+    case WebMediaPlayer::kNetworkStateLoading:
+    case WebMediaPlayer::kNetworkStateLoaded:
+      NOTREACHED() << "Passed SetNetworkError a non-error state";
+      break;
   }
 }
 
@@ -1576,7 +1597,12 @@ void HTMLMediaElement::ConfigureMediaControls() {
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   MLOG() << error->code();
-  LOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
+  if (error->message().empty()) {
+    LOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
+  } else {
+    LOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code()
+                 << " message: " << error->message();
+  }
 
   // 1 - The user agent should cancel the fetching process.
   StopPeriodicTimers();
@@ -1604,6 +1630,16 @@ void HTMLMediaElement::NetworkStateChanged() {
   }
   BeginProcessingMediaPlayerCallback();
   SetNetworkState(player_->GetNetworkState());
+  EndProcessingMediaPlayerCallback();
+}
+
+void HTMLMediaElement::NetworkError(const std::string& message) {
+  DCHECK(player_);
+  if (!player_) {
+    return;
+  }
+  BeginProcessingMediaPlayerCallback();
+  SetNetworkError(player_->GetNetworkState(), message);
   EndProcessingMediaPlayerCallback();
 }
 
@@ -1770,7 +1806,7 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
       cssom::MapToMeshFunction::ExtractFromFilterList(filter);
 
   return map_to_mesh_filter;
-#else  // defined(ENABLE_MAP_TO_MESH)
+#else   // defined(ENABLE_MAP_TO_MESH)
   // If map-to-mesh is disabled, we never prefer decode-to-texture.
   return false;
 #endif  // defined(ENABLE_MAP_TO_MESH)
@@ -1792,10 +1828,14 @@ std::string ToInitDataTypeString(media::EmeInitDataType init_data_type) {
       return "keyids";
     case media::kEmeInitDataTypeWebM:
       return "webm";
-    default:
+    case media::kEmeInitDataTypeUnknown:
       LOG(WARNING) << "Unknown EME initialization data type.";
       return "";
   }
+  // Some compilers error with "control reaches end of non-void function"
+  // without this.
+  NOTREACHED();
+  return "";
 }
 
 }  // namespace
@@ -1864,10 +1904,6 @@ void HTMLMediaElement::KeyError(const std::string& key_system,
     case kDomainError:
       code = MediaKeyError::kMediaKeyerrDomain;
       break;
-    default:
-      NOTREACHED();
-      code = MediaKeyError::kMediaKeyerrUnknown;
-      break;
   }
   event_queue_.Enqueue(
       new MediaKeyErrorEvent(key_system, session_id, code, system_code));
@@ -1902,7 +1938,7 @@ void HTMLMediaElement::ClearMediaSource() {
     media_source_->Close();
     media_source_ = NULL;
   }
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   SetSourceState(kMediaSourceReadyStateClosed);
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 }
