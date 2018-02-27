@@ -185,10 +185,11 @@ void HTMLLinkElement::Obtain() {
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
 }
 
-void HTMLLinkElement::OnLoadingDone(const std::string& content,
-                                    const loader::Origin& last_url_origin) {
-  TRACK_MEMORY_SCOPE("DOM");
+void HTMLLinkElement::OnLoadingDone(const loader::Origin& last_url_origin,
+                                    scoped_ptr<std::string> content) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(content);
+  TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 
   // Get resource's final destination url from loader.
@@ -196,9 +197,9 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content,
 
   Document* document = node_document();
   if (rel() == "stylesheet") {
-    OnStylesheetLoaded(document, content);
+    OnStylesheetLoaded(document, *content);
   } else if (rel() == "splashscreen") {
-    OnSplashscreenLoaded(document, content);
+    OnSplashscreenLoaded(document, *content);
   } else {
     NOTIMPLEMENTED();
     return;
