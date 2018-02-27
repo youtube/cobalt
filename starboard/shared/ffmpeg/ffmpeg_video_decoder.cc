@@ -404,13 +404,9 @@ void VideoDecoder::InitializeCodec() {
 void VideoDecoder::TeardownCodec() {
   if (codec_context_) {
     CloseCodec(codec_context_);
-    av_free(codec_context_);
-    codec_context_ = NULL;
+    av_freep(&codec_context_);
   }
-  if (av_frame_) {
-    av_free(av_frame_);
-    av_frame_ = NULL;
-  }
+  av_freep(&av_frame_);
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     ScopedLock lock(decode_target_mutex_);
