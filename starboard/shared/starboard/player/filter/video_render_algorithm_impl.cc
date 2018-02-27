@@ -36,9 +36,10 @@ void VideoRenderAlgorithmImpl::Render(
   SB_DCHECK(frames);
   SB_DCHECK(draw_frame_cb);
 
-  if (frames->empty()) {
+  if (frames->empty() || frames->front()->is_end_of_stream()) {
     return;
   }
+
   bool is_audio_playing;
   bool is_audio_eos_played;
   SbMediaTime media_time = media_time_provider->GetCurrentMediaTime(
