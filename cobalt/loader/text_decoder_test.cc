@@ -15,6 +15,7 @@
 #include "cobalt/loader/text_decoder.h"
 
 #include "base/bind.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,8 +24,8 @@ namespace loader {
 namespace {
 
 struct TextDecoderCallback {
-  void Callback(const std::string& value, const Origin& last_url_origin) {
-    text = value;
+  void Callback(const Origin& last_url_origin, scoped_ptr<std::string> value) {
+    text = *value;
     last_url_origin_ = last_url_origin;
   }
   std::string text;

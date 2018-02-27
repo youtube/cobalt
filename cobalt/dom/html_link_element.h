@@ -74,8 +74,8 @@ class HTMLLinkElement : public HTMLElement {
   // From the spec: HTMLLinkElement.
   void Obtain();
 
-  void OnLoadingDone(const std::string& content,
-                     const loader::Origin& last_url_origin);
+  void OnLoadingDone(const loader::Origin& last_url_origin,
+                     scoped_ptr<std::string> content);
   void OnLoadingError(const std::string& error);
   void OnSplashscreenLoaded(Document* document, const std::string& content);
   void OnStylesheetLoaded(Document* document, const std::string& content);
