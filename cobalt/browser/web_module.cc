@@ -456,8 +456,8 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
     }
   }
 
-  void OnMutation() override{};
-  void OnFocusChanged() override{};
+  void OnMutation() override {}
+  void OnFocusChanged() override {}
 
  private:
   ClosureVector loaded_callbacks_;
