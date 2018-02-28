@@ -1529,9 +1529,12 @@ template <MinMaxOrBoth MIN_MAX_OR_BOTH> bool get_scale_factor(SkMatrix::TypeMask
 
 #if defined(COBALT)
         // If |x| and |apluscdiv2| are very large floating point numbers
-        // there might be floating point inaccuracies in calculating the
-        // eigenvalues.
-        if (SkScalarNearlyZero(x/apluscdiv2 - 1)) {
+        // that are close to each other, there might be floating point
+        // inaccuracies in calculating the eigenvalues.
+        const SkScalar kLargeNumber = 1E12;
+        if ((SkScalarAbs(x) > kLargeNumber) &&
+            (SkScalarAbs(apluscdiv2) > kLargeNumber) &&
+            SkScalarNearlyZero(x/apluscdiv2 - 1)) {
           results[0] = 0;
           if (kBoth_MinMaxOrBoth == MIN_MAX_OR_BOTH)  {
             results[1] = 0;
