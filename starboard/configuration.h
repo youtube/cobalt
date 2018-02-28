@@ -84,6 +84,14 @@
 //   Test code looking for its static input files should instead use the `test`
 //   subdirectory in kSbSystemPathContentDirectory.
 #define SB_PATH_SOURCE_DIR_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where kSbSystemPropertyPlatformUuid is removed.
+//   This property was only ever used in platforms using `in_app_dial`.
+//   The only usage of this system property was replaced with a
+//   self-contained mechanism.
+
+#define SB_PROPERTY_UUID_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
