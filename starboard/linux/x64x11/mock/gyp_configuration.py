@@ -24,9 +24,6 @@ class PlatformConfig(platform_configuration.PlatformConfiguration):
 
   def __init__(self, platform):
     super(PlatformConfig, self).__init__(platform)
-    goma_supports_compiler = True
-    self.host_compiler_environment = build.GetHostCompilerEnvironment(
-        clang.GetClangSpecification(), goma_supports_compiler)
 
   def GetBuildFormat(self):
     return 'ninja,qtcreator_ninja'
@@ -42,6 +39,11 @@ class PlatformConfig(platform_configuration.PlatformConfiguration):
     return generator_variables
 
   def GetEnvironmentVariables(self):
+    if not hasattr(self, 'host_compiler_environment'):
+      goma_supports_compiler = True
+      self.host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang.GetClangSpecification(), goma_supports_compiler)
+
     env_variables = self.host_compiler_environment
     env_variables.update({
         'CC': self.host_compiler_environment['CC_host'],

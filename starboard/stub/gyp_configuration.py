@@ -32,14 +32,16 @@ class PlatformConfig(config.base.PlatformConfigBase):
 
   def __init__(self, platform):
     super(PlatformConfig, self).__init__(platform)
-    goma_supports_compiler = True
-    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
-        goma_supports_compiler)
 
   def GetVariables(self, configuration):
     return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)
 
   def GetEnvironmentVariables(self):
+    if not hasattr(self, 'host_compiler_environment'):
+      goma_supports_compiler = True
+      self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
+          goma_supports_compiler)
+
     env_variables = self.host_compiler_environment
     env_variables.update({
         'CC': self.host_compiler_environment['CC_host'],
