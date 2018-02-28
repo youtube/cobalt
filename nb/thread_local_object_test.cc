@@ -16,9 +16,9 @@
 #include <string>
 
 #include "nb/test_thread.h"
-#include "nb/atomic.h"
 #include "nb/thread_local_object.h"
 #include "nb/scoped_ptr.h"
+#include "starboard/atomic.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -30,11 +30,11 @@ namespace {
 struct CountsInstances {
   CountsInstances() { s_instances_.increment(); }
   ~CountsInstances() { s_instances_.decrement(); }
-  static atomic_int32_t s_instances_;
+  static starboard::atomic_int32_t s_instances_;
   static int NumInstances() { return s_instances_.load(); }
   static void ResetNumInstances() { s_instances_.exchange(0); }
 };
-nb::atomic_int32_t CountsInstances::s_instances_(0);
+starboard::atomic_int32_t CountsInstances::s_instances_(0);
 
 // A simple thread that just creates the an object from the supplied
 // ThreadLocalObject<T> and then exits.
