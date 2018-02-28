@@ -171,7 +171,7 @@ class MemoryTrackerImpl : public MemoryTracker {
   AllocationMapType atomic_allocation_map_;
   AtomicStringAllocationGroupMap alloc_group_map_;
 
-  atomic_int64_t total_bytes_allocated_;
+  starboard::atomic_int64_t total_bytes_allocated_;
   ConcurrentPtr<MemoryTrackerDebugCallback> debug_callback_;
 
   // THREAD LOCAL SECTION.

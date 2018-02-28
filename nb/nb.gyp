@@ -95,7 +95,6 @@
             'analytics/memory_tracker_helpers_test.cc',
             'analytics/memory_tracker_impl_test.cc',
             'analytics/memory_tracker_test.cc',
-            'atomic_test.cc',
             'bidirectional_fit_reuse_allocator_test.cc',
             'concurrent_map_test.cc',
             'concurrent_ptr_test.cc',
