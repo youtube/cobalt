@@ -70,19 +70,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       break;
     }
 
-    // dir_source_root is used only by automated tests.
-    // We will assign in to APP_HOME_DIR/files/dir_source_root and
-    // expect any test runner to copy files to that location.
-    case kSbSystemPathSourceDirectory: {
-      if (SbStringCopy(path, g_app_files_dir, kPathSize) >= kPathSize) {
-        return false;
-      }
-      if (SbStringConcat(path, "/dir_source_root", kPathSize) >= kPathSize) {
-        return false;
-      }
-      break;
-    }
-
     case kSbSystemPathTempDirectory: {
       if (SbStringCopy(path, g_app_cache_dir, kPathSize) >= kPathSize) {
         return false;

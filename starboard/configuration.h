@@ -80,6 +80,10 @@
 //   Previously, DRM sessions could only be closed from the application layer.
 #define SB_DRM_SESSION_CLOSED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where kSbSystemPathSourceDirectory is removed.
+//   Test code looking for its static input files should instead use the `test`
+//   subdirectory in kSbSystemPathContentDirectory.
+#define SB_PATH_SOURCE_DIR_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
