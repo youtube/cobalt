@@ -25,6 +25,7 @@
         '<(DEPTH)/starboard/common/test_main.cc',
         'accessibility_get_setting_test.cc',
         'align_test.cc',
+        'atomic_base_test.cc',
         'atomic_test.cc',
         'audio_sink_create_test.cc',
         'audio_sink_destroy_test.cc',
