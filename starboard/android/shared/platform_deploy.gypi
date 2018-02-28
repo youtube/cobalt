@@ -15,6 +15,8 @@
   'variables': {
     'GRADLE_BUILD_TYPE': '<(cobalt_config)',
     'GRADLE_FILES_DIR': '<(PRODUCT_DIR)/gradle/<(executable_name)',
+    'lib': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
+    'apk': '<(PRODUCT_DIR)/<(executable_name).apk',
   },
   'conditions': [
     [ 'cobalt_config == "gold"', {
@@ -28,10 +30,6 @@
   'actions': [
     {
       'action_name': 'build_apk',
-      'variables': {
-        'lib': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
-        'apk': '<(PRODUCT_DIR)/<(executable_name).apk',
-      },
       'inputs': [
         '<(lib)'
       ],
@@ -56,6 +54,19 @@
         'assembleCobalt_<(GRADLE_BUILD_TYPE)',
       ],
       'message': 'Building: <(apk)'
+    },
+    {
+      # Clean the gradle directory to conserve space after we have the APK
+      'action_name': 'delete_gradle_dir',
+      'inputs': [
+        '<(apk)',
+      ],
+      'outputs': [
+        'always_delete_gradle-<(executable_name)',
+      ],
+      'action': [
+        'rm', '-r', '<(GRADLE_FILES_DIR)',
+      ]
     },
   ],
 }
