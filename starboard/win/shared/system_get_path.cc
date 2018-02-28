@@ -111,11 +111,6 @@ bool GetContentPath(char* out_path, int path_size) {
   return GetRelativeDirectory("\\content\\data", out_path, path_size);
 }
 
-bool GetSourceRootPath(char* out_path, int path_size) {
-  return GetRelativeDirectory("\\content\\dir_source_root",
-                              out_path, path_size);
-}
-
 bool GetCachePath(char* out_path, int path_size) {
   return GetRelativeDirectory("\\content\\cache",
                               out_path, path_size);
@@ -168,8 +163,6 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       return GetExecutablePath(out_path, path_size);
     case kSbSystemPathTempDirectory:
       return CreateAndGetTempPath(out_path, path_size);
-    case kSbSystemPathSourceDirectory:
-      return GetSourceRootPath(out_path, path_size);
     case kSbSystemPathCacheDirectory:
       return GetCachePath(out_path, path_size);
     case kSbSystemPathFontConfigurationDirectory:
