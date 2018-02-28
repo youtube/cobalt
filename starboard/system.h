@@ -107,8 +107,10 @@ typedef enum SbSystemPropertyId {
   // User-Agent, say.
   kSbSystemPropertyPlatformName,
 
+#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
+#endif  // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
 
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API
