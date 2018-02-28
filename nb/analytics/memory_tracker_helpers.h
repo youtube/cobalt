@@ -21,16 +21,16 @@
 #include <vector>
 
 #include "nb/analytics/memory_tracker.h"
-#include "nb/atomic.h"
 #include "nb/simple_thread.h"
 #include "nb/std_allocator.h"
 #include "nb/thread_local_boolean.h"
 #include "nb/thread_local_pointer.h"
+#include "starboard/atomic.h"
+#include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
-#include "starboard/log.h"
-#include "starboard/memory.h"
 
 namespace nb {
 namespace analytics {
@@ -70,8 +70,8 @@ class AllocationGroup {
 
  private:
   const std::string name_;
-  nb::atomic_int64_t allocation_bytes_;
-  nb::atomic_int32_t num_allocations_;
+  starboard::atomic_int64_t allocation_bytes_;
+  starboard::atomic_int32_t num_allocations_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(AllocationGroup);
 };

@@ -21,7 +21,6 @@
 #include <iterator>
 #include <sstream>
 
-#include "nb/atomic.h"
 #include "starboard/atomic.h"
 #include "starboard/log.h"
 #include "starboard/time.h"
