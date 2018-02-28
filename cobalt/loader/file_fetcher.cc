@@ -70,12 +70,6 @@ void FileFetcher::BuildSearchPath(const FilePath& extra_search_dir) {
   PathService::Get(paths::DIR_COBALT_WEB_ROOT, &search_dir);
   search_path_.push_back(search_dir);
 
-// We also search DIR_SOURCE_ROOT in non-release builds.
-#if defined(ENABLE_DIR_SOURCE_ROOT_ACCESS)
-  PathService::Get(base::DIR_SOURCE_ROOT, &search_dir);
-  search_path_.push_back(search_dir);
-#endif  // ENABLE_DIR_SOURCE_ROOT_ACCESS
-
 // We also search DIR_TEST_DATA in non-release builds.
 #if defined(ENABLE_TEST_DATA)
   PathService::Get(base::DIR_TEST_DATA, &search_dir);
