@@ -95,6 +95,9 @@ typedef PlatformTest PathServiceTest;
 // correct value while returning false.)
 TEST_F(PathServiceTest, Get) {
   for (int key = base::PATH_START + 1; key < base::PATH_END; ++key) {
+    // With tests using DIR_TEST_DATA, there is no longer a fake source-root.
+    if (key == base::DIR_SOURCE_ROOT)
+      continue;
 #if defined(OS_ANDROID)
     if (key == base::FILE_MODULE || key == base::DIR_USER_DESKTOP)
       continue;  // Android doesn't implement FILE_MODULE and DIR_USER_DESKTOP;
