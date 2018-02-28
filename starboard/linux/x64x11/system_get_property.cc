@@ -36,6 +36,8 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   return true;
 }
 
+#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+
 bool GetPlatformUuid(char* out_value, int value_length) {
   struct ifreq interface;
   struct ifconf config;
@@ -78,6 +80,8 @@ bool GetPlatformUuid(char* out_value, int value_length) {
   return false;
 }
 
+#endif   // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -103,8 +107,10 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyPlatformName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
 
+#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
     case kSbSystemPropertyPlatformUuid:
       return GetPlatformUuid(out_value, value_length);
+#endif  // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__
