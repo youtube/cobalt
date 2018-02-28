@@ -118,10 +118,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyPlatformName:
       return CopyAndroidPlatformName(out_value, value_length);
 
-    case kSbSystemPropertyPlatformUuid:
-      SB_NOTIMPLEMENTED();
-      return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
-
     case kSbSystemPropertySpeechApiKey:
       return false;
     case kSbSystemPropertyUserAgentAuxField: {

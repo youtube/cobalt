@@ -65,7 +65,6 @@ void BasicTest(SbSystemPropertyId id,
 TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyFriendlyName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformName, true, true, __LINE__);
-  BasicTest(kSbSystemPropertyPlatformUuid, true, true, __LINE__);
 
   BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
@@ -121,7 +120,6 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
     kSbSystemPropertyModelYear,
     kSbSystemPropertyNetworkOperatorName,
     kSbSystemPropertyPlatformName,
-    kSbSystemPropertyPlatformUuid,
   };
 
   for (SbSystemPropertyId val : enum_values) {
