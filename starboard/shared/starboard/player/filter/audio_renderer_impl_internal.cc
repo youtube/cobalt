@@ -64,9 +64,14 @@ SbMediaAudioSampleType GetSinkAudioSampleType() {
 
 }  // namespace
 
-AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
-                                     const SbMediaAudioHeader& audio_header)
-    : eos_state_(kEOSNotReceived),
+AudioRendererImpl::AudioRendererImpl(
+    scoped_ptr<AudioDecoder> decoder,
+    const SbMediaAudioHeader& audio_header,
+    size_t max_cached_frames /*= kDefaultMaxCachedFrames*/,
+    size_t max_frames_per_append /* = kDefaultMaxFramesPerAppend*/)
+    : max_cached_frames_(max_cached_frames),
+      max_frames_per_append_(max_frames_per_append),
+      eos_state_(kEOSNotReceived),
       channels_(audio_header.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType()),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
@@ -76,7 +81,7 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
       consume_frames_called_(false),
       seeking_(false),
       seeking_to_pts_(0),
-      frame_buffer_(kMaxCachedFrames * bytes_per_frame_),
+      frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       frames_sent_to_sink_(0),
       pending_decoder_outputs_(0),
       frames_consumed_by_sink_(0),
@@ -89,6 +94,8 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
           Bind(&AudioRendererImpl::ProcessAudioData, this)),
       decoder_needs_full_reset_(false) {
   SB_DCHECK(decoder_ != NULL);
+  SB_DCHECK(max_frames_per_append_ > 0);
+  SB_DCHECK(max_cached_frames_ >= max_frames_per_append_ * 2);
 
   frame_buffers_[0] = &frame_buffer_[0];
 
@@ -316,7 +323,7 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
       channels_, destination_sample_rate, sink_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved,
       reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
-      kMaxCachedFrames, &AudioRendererImpl::UpdateSourceStatusFunc,
+      max_cached_frames_, &AudioRendererImpl::UpdateSourceStatusFunc,
       &AudioRendererImpl::ConsumeFramesFunc, this);
   SB_DCHECK(SbAudioSinkIsValid(audio_sink_));
 
@@ -337,7 +344,7 @@ void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
   if (*is_playing) {
     *frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
                                          frames_consumed_by_sink_.load());
-    *offset_in_frames = frames_consumed_by_sink_.load() % kMaxCachedFrames;
+    *offset_in_frames = frames_consumed_by_sink_.load() % max_cached_frames_;
   } else {
     *frames_in_buffer = *offset_in_frames = 0;
   }
@@ -398,14 +405,15 @@ void AudioRendererImpl::ProcessAudioData() {
 
   // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
   // false.
-  while (AppendAudioToFrameBuffer()) {
+  bool is_frame_buffer_full = false;
+  while (AppendAudioToFrameBuffer(&is_frame_buffer_full)) {
   }
 
   while (pending_decoder_outputs_ > 0) {
     if (time_stretcher_.IsQueueFull()) {
       // There is no room to do any further processing, schedule the function
       // again for a later time.  The delay time is 1/4 of the buffer size.
-      const SbTimeMonotonic delay = kMaxCachedFrames * kSbTimeSecond /
+      const SbTimeMonotonic delay = max_cached_frames_ * kSbTimeSecond /
                                     decoder_->GetSamplesPerSecond() / 4;
       process_audio_data_scheduled_ = true;
       Schedule(process_audio_data_closure_, delay);
@@ -439,7 +447,7 @@ void AudioRendererImpl::ProcessAudioData() {
 
     // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
     // false.
-    while (AppendAudioToFrameBuffer()) {
+    while (AppendAudioToFrameBuffer(&is_frame_buffer_full)) {
     }
   }
 
@@ -449,15 +457,14 @@ void AudioRendererImpl::ProcessAudioData() {
     return;
   }
 
-  int64_t frames_in_buffer =
-      frames_sent_to_sink_.load() - frames_consumed_by_sink_.load();
-  if (kMaxCachedFrames - frames_in_buffer < kFrameAppendUnit &&
-      eos_state_.load() < kEOSSentToSink) {
+  if (is_frame_buffer_full) {
     // There are still audio data not appended so schedule a callback later.
     SbTimeMonotonic delay = 0;
-    if (kMaxCachedFrames - frames_in_buffer < kMaxCachedFrames / 4) {
+    int64_t frames_in_buffer =
+        frames_sent_to_sink_.load() - frames_consumed_by_sink_.load();
+    if (max_cached_frames_ - frames_in_buffer < max_cached_frames_ / 4) {
       int frames_to_delay = static_cast<int>(
-          kMaxCachedFrames / 4 - (kMaxCachedFrames - frames_in_buffer));
+          max_cached_frames_ / 4 - (max_cached_frames_ - frames_in_buffer));
       delay = frames_to_delay * kSbTimeSecond / decoder_->GetSamplesPerSecond();
     }
     process_audio_data_scheduled_ = true;
@@ -465,8 +472,11 @@ void AudioRendererImpl::ProcessAudioData() {
   }
 }
 
-bool AudioRendererImpl::AppendAudioToFrameBuffer() {
+bool AudioRendererImpl::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(is_frame_buffer_full);
+
+  *is_frame_buffer_full = false;
 
   if (seeking_.load() && time_stretcher_.IsQueueFull()) {
     seeking_.store(false);
@@ -479,14 +489,15 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   int frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
                                           frames_consumed_by_sink_.load());
 
-  if (kMaxCachedFrames - frames_in_buffer < kFrameAppendUnit) {
+  if (max_cached_frames_ - frames_in_buffer < max_frames_per_append_) {
+    *is_frame_buffer_full = true;
     return false;
   }
 
-  int offset_to_append = frames_sent_to_sink_.load() % kMaxCachedFrames;
+  int offset_to_append = frames_sent_to_sink_.load() % max_cached_frames_;
 
   scoped_refptr<DecodedAudio> decoded_audio =
-      time_stretcher_.Read(kFrameAppendUnit, playback_rate_.load());
+      time_stretcher_.Read(max_frames_per_append_, playback_rate_.load());
   SB_DCHECK(decoded_audio);
   if (decoded_audio->frames() == 0 && eos_state_.load() == kEOSDecoded) {
     eos_state_.store(kEOSSentToSink);
@@ -500,13 +511,13 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   int frames_to_append = decoded_audio->frames();
   int frames_appended = 0;
 
-  if (frames_to_append > kMaxCachedFrames - offset_to_append) {
+  if (frames_to_append > max_cached_frames_ - offset_to_append) {
     SbMemoryCopy(&frame_buffer_[offset_to_append * bytes_per_frame_],
                  source_buffer,
-                 (kMaxCachedFrames - offset_to_append) * bytes_per_frame_);
-    source_buffer += (kMaxCachedFrames - offset_to_append) * bytes_per_frame_;
-    frames_to_append -= kMaxCachedFrames - offset_to_append;
-    frames_appended += kMaxCachedFrames - offset_to_append;
+                 (max_cached_frames_ - offset_to_append) * bytes_per_frame_);
+    source_buffer += (max_cached_frames_ - offset_to_append) * bytes_per_frame_;
+    frames_to_append -= max_cached_frames_ - offset_to_append;
+    frames_appended += max_cached_frames_ - offset_to_append;
     offset_to_append = 0;
   }
 
