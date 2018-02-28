@@ -172,19 +172,36 @@ class AbstractLauncher(object):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
 
-  def SupportsSuspendResume():
+  def SupportsSuspendResume(self):
     return False
 
+  # The Send*() functions are guaranteed to resolve sequences of calls (e.g.
+  # SendSuspend() followed immediately by SendResume()) in the order that they
+  # are sent.
   def SendResume(self):
-    """Sends resume signal to the launcher's executable."""
+    """Sends resume signal to the launcher's executable.
+
+    Raises:
+      RuntimeError: Resume signal not supported on platform.
+    """
     raise RuntimeError("Resume not supported for this platform.")
 
   def SendSuspend(self):
-    """sends suspend signal to the launcher's executable."""
+    """sends suspend signal to the launcher's executable.
+
+    When implementing this function, please coordinate with other functions
+    sending platform signals(e.g. SendResume()) to ensure Cobalt receives these
+    signals in the same order they are sent.
+
+    Raises:
+      RuntimeError: Suspend signal not supported on platform.
+    """
+
     raise RuntimeError("Suspend not supported for this platform.")
 
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
+
     return self.startup_timeout_seconds
 
   def GetHostAndPortGivenPort(self, port):
