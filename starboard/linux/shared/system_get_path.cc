@@ -138,6 +138,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
       break;
+
     case kSbSystemPathCacheDirectory:
       if (!GetCacheDirectory(path, kPathSize)) {
         return false;
@@ -149,6 +150,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
       break;
+
     case kSbSystemPathDebugOutputDirectory:
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
         return false;
@@ -156,34 +158,26 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (SbStringConcat(path, "/log", kPathSize) >= kPathSize) {
         return false;
       }
-
       SbDirectoryCreate(path);
       break;
-    case kSbSystemPathSourceDirectory:
-      if (!GetExecutableDirectory(path, kPathSize)) {
-        return false;
-      }
-      if (SbStringConcat(path, "/content/dir_source_root", kPathSize) >=
-          kPathSize) {
-        return false;
-      }
-      break;
+
     case kSbSystemPathTempDirectory:
       if (!GetTemporaryDirectory(path, kPathSize)) {
         return false;
       }
-
       SbDirectoryCreate(path);
       break;
+
     case kSbSystemPathTestOutputDirectory:
       return SbSystemGetPath(kSbSystemPathDebugOutputDirectory, out_path,
                              path_size);
+
     case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
 
-  case kSbSystemPathFontConfigurationDirectory:
-  case kSbSystemPathFontDirectory:
-      return false;
+    case kSbSystemPathFontConfigurationDirectory:
+    case kSbSystemPathFontDirectory:
+        return false;
 
     default:
       SB_NOTIMPLEMENTED() << "SbSystemGetPath not implemented for "
