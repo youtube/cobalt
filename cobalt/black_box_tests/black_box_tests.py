@@ -17,6 +17,7 @@ _SERVER_EXIT_TIMEOUT_SECONDS = 30
 # These tests can only be run on platforms whose app launcher can send suspend/
 # resume signals.
 _TESTS_NEEDING_SYSTEM_SIGNAL = [
+    'cancel_sync_loads_when_suspended',
     'preload_font',
     'timer_hit_in_preload',
     'timer_hit_after_preload',

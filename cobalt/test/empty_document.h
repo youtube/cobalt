@@ -34,7 +34,7 @@ class EmptyDocument {
         html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted),
+                              base::kApplicationStateStarted, NULL),
         document_(new dom::Document(&html_element_context_)) {}
 
   dom::Document* document() { return document_.get(); }
