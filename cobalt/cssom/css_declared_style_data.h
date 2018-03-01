@@ -17,10 +17,11 @@
 
 #include <bitset>
 #include <functional>
+#include <map>
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/hash_tables.h"
+#include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
 #include "cobalt/base/unused.h"
 #include "cobalt/cssom/css_declaration_data.h"
@@ -36,7 +37,10 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
  public:
   CSSDeclaredStyleData();
 
-  typedef base::hash_map<PropertyKey, scoped_refptr<PropertyValue> >
+  // NOTE: The array size of base::SmallMap is based on extensive testing. Do
+  // not change it unless additional profiling data justifies it.
+  typedef base::SmallMap<std::map<PropertyKey, scoped_refptr<PropertyValue> >,
+                         8, std::equal_to<PropertyKey> >
       PropertyValues;
 
   // The length attribute must return the number of CSS declarations in the
