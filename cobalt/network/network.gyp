@@ -95,6 +95,11 @@
         'destination': '<(sb_static_contents_output_data_dir)/ssl',
         'files': ['<(static_contents_source_dir)/ssl/certs/'],
       }],
+      'all_dependent_settings': {
+        'variables': {
+          'content_deploy_subdirs': [ 'ssl/certs' ]
+        }
+      },
     },
     {
       'target_name': 'network_test',
