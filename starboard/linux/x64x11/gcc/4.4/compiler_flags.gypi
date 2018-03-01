@@ -47,6 +47,9 @@
       '-O2',
     ],
     'common_compiler_flags': [
+      # Add the target specific include path that is not compatible with gcc
+      # 4.4 default search locations.
+      '-I/usr/include/x86_64-linux-gnu',
       # Default visibility to hidden, to enable dead stripping.
       '-fvisibility=hidden',
       # protobuf uses hash_map.

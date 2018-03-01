@@ -15,6 +15,7 @@
 
 import logging
 import os
+import subprocess
 import sys
 
 # Import the shared Linux platform configuration.
@@ -25,6 +26,7 @@ sys.path.append(
             'shared')))
 # pylint: disable=import-self,g-import-not-at-top
 import gyp_configuration as shared_configuration
+import gyp_utils
 
 
 class PlatformConfig(shared_configuration.PlatformConfig):
@@ -34,16 +36,28 @@ class PlatformConfig(shared_configuration.PlatformConfig):
     super(PlatformConfig, self).__init__(
         platform, asan_enabled_by_default, goma_supports_compiler=False)
 
+    # Run the script that ensures gcc 4.4.7 is installed.
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    subprocess.call(
+        os.path.join(script_path, 'download_gcc.sh'), cwd=script_path)
+
   def GetVariables(self, configuration):
     variables = super(PlatformConfig, self).GetVariables(configuration)
-    variables.update({'clang': 0,})
+    variables.update({
+        'clang': 0,
+    })
     return variables
 
   def GetEnvironmentVariables(self):
     env_variables = super(PlatformConfig, self).GetEnvironmentVariables()
+    toolchain_bin_dir = os.path.join(gyp_utils.GetToolchainsDir(),
+                                     'x86_64-linux-gnu-gcc-4.4.7', 'gcc', 'bin')
     env_variables.update({
-        'CC': 'gcc-4.4',
-        'CXX': 'g++-4.4',
+        'CC':
+            os.path.join(toolchain_bin_dir, 'gcc'),
+        'CXX':
+            'LIBRARY_PATH=/usr/lib/x86_64-linux-gnu ' +
+            os.path.join(toolchain_bin_dir, 'g++'),
     })
     return env_variables
 
