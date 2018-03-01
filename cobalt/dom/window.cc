@@ -125,6 +125,7 @@ Window::Window(
     const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
+    base::WaitableEvent* synchronous_loader_interrupt,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
@@ -144,7 +145,7 @@ Window::Window(
           image_cache, reduced_image_cache_capacity_manager,
           remote_typeface_cache, mesh_cache, dom_stat_tracker,
           font_language_script, initial_application_state,
-          video_playback_rate_multiplier)),
+          synchronous_loader_interrupt, video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
           clock_type == kClockTypeTestRunner

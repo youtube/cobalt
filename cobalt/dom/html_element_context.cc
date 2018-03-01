@@ -57,6 +57,7 @@ HTMLElementContext::HTMLElementContext(
     loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
     const std::string& font_language_script,
     base::ApplicationState initial_application_state,
+    base::WaitableEvent* synchronous_loader_interrupt,
     float video_playback_rate_multiplier)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
@@ -77,6 +78,7 @@ HTMLElementContext::HTMLElementContext(
       font_language_script_(font_language_script),
       page_visibility_state_(initial_application_state),
       video_playback_rate_multiplier_(video_playback_rate_multiplier),
+      synchronous_loader_interrupt_(synchronous_loader_interrupt),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();

@@ -43,6 +43,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -247,6 +248,8 @@ class WebModule::Impl {
   void LogScriptError(const base::SourceLocation& source_location,
                       const std::string& error_message);
 
+  void CancelSynchronousLoads();
+
  private:
   class DocumentLoadedObserver;
 
@@ -441,6 +444,13 @@ class WebModule::Impl {
 
   scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
       system_caption_settings_;
+
+  // This event is used to interrupt the loader when JavaScript is loaded
+  // synchronously.  It is manually reset so that events like Suspend can be
+  // correctly execute, even if there are multiple synchronous loads in queue
+  // before the suspend (or other) event handlers.
+  base::WaitableEvent synchronous_loader_interrupt_ = {
+      true /* manually reset */, false /* initially signaled */};
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -630,7 +640,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStartDispatchEvent,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
-      data.options.provide_screenshot_function,
+      data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -915,6 +925,10 @@ void WebModule::Impl::ProcessOnRenderTreeRasterized(
   }
 }
 
+void WebModule::Impl::CancelSynchronousLoads() {
+  synchronous_loader_interrupt_.Signal();
+}
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 void WebModule::Impl::OnPartialLayoutConsoleCommandReceived(
     const std::string& message) {
@@ -1077,6 +1091,7 @@ void WebModule::Impl::Pause() {
 
 void WebModule::Impl::Unpause() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unpause()");
+  synchronous_loader_interrupt_.Reset();
   SetApplicationState(base::kApplicationStateStarted);
 }
 
@@ -1135,6 +1150,7 @@ void WebModule::Impl::FinishSuspend() {
 
 void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Resume()");
+  synchronous_loader_interrupt_.Reset();
   SetResourceProvider(resource_provider);
   SetApplicationState(base::kApplicationStatePaused);
 }
@@ -1145,6 +1161,7 @@ void WebModule::Impl::ReduceMemory() {
   if (!is_running_) {
     return;
   }
+  synchronous_loader_interrupt_.Reset();
 
   layout_manager_->Purge();
 
@@ -1602,6 +1619,8 @@ void WebModule::Pause() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
+  impl_->CancelSynchronousLoads();
+
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->PostBlockingTask(
@@ -1621,6 +1640,8 @@ void WebModule::Unpause() {
 void WebModule::Suspend() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
+
+  impl_->CancelSynchronousLoads();
 
   // We must block here so that we don't queue the finish until after
   // SuspendLoaders has run to completion, and therefore has already queued any
@@ -1649,6 +1670,8 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
 void WebModule::ReduceMemory() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
+
+  impl_->CancelSynchronousLoads();
 
   // We block here so that we block the Low Memory event handler until we have
   // reduced our memory consumption.

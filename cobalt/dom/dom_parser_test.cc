@@ -51,7 +51,8 @@ DOMParserTest::DOMParserTest()
           NULL /* reduced_image_cache_capacity_manager */,
           NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
           NULL /* dom_stat_tracker */, "" /* language */,
-          base::kApplicationStateStarted),
+          base::kApplicationStateStarted,
+          NULL /* synchronous_loader_interrupt */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {

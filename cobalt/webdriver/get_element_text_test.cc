@@ -43,7 +43,7 @@ class GetElementTextTest : public ::testing::Test {
         html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               dom_stat_tracker_.get(), "",
-                              base::kApplicationStateStarted) {}
+                              base::kApplicationStateStarted, NULL) {}
 
   void SetUp() override {
     dom::Document::Options options;
