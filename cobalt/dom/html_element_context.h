@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
@@ -65,6 +66,7 @@ class HTMLElementContext {
       loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
       const std::string& font_language_script,
       base::ApplicationState initial_application_state,
+      base::WaitableEvent* synchronous_loader_interrupt,
       float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
 
@@ -97,6 +99,10 @@ class HTMLElementContext {
 
   render_tree::ResourceProvider** resource_provider() const {
     return resource_provider_;
+  }
+
+  base::WaitableEvent* synchronous_loader_interrupt() {
+    return synchronous_loader_interrupt_;
   }
 
   loader::image::AnimatedImageTracker* animated_image_tracker() const {
@@ -156,6 +162,7 @@ class HTMLElementContext {
   const std::string font_language_script_;
   page_visibility::PageVisibilityState page_visibility_state_;
   const float video_playback_rate_multiplier_;
+  base::WaitableEvent* synchronous_loader_interrupt_ = nullptr;
 
   base::Thread sync_load_thread_;
   scoped_ptr<HTMLElementFactory> html_element_factory_;

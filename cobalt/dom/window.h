@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/timer.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
@@ -162,6 +163,7 @@ class Window : public EventTarget,
       const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
+      base::WaitableEvent* synchronous_loader_interrupt,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,

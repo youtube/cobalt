@@ -408,6 +408,8 @@ class WebModule : public LifecycleObserver {
 
   void ClearAllIntervalsAndTimeouts();
 
+  void CancelSynchronousLoads();
+
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   void OnPartialLayoutConsoleCommandReceived(const std::string& message);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)

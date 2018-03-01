@@ -26,6 +26,7 @@
 #include "base/observer_list.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
