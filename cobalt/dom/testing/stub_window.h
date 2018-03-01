@@ -61,7 +61,7 @@ class StubWindow {
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
-        dom::ScreenshotManager::ProvideScreenshotFunctionCallback());
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 

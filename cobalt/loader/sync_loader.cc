@@ -33,7 +33,9 @@ class FetcherToDecoderAdapter;
 // decoder creators.
 class LoaderOnThread {
  public:
-  LoaderOnThread() : waitable_event_(false, false) {}
+  LoaderOnThread()
+      : start_waitable_event_(false, false),
+        end_waitable_event_(false, false) {}
 
   // Start() and End() should be called on the same thread, the sychronous load
   // thread, so the member objects are created, execute, and are destroyed,
@@ -44,15 +46,28 @@ class LoaderOnThread {
       base::Callback<void(const std::string&)> error_callback);
   void End();
 
-  void Signal() { waitable_event_.Signal(); }
-  void Wait() { waitable_event_.Wait(); }
+  void SignalStartDone() { start_waitable_event_.Signal(); }
+  void SignalEndDone() { end_waitable_event_.Signal(); }
+
+  void WaitForStart(base::WaitableEvent* interrupt_event) {
+    base::WaitableEvent* event_array[] = {&start_waitable_event_,
+                                          interrupt_event};
+    size_t effective_size = arraysize(event_array);
+    if (!interrupt_event) {
+      --effective_size;
+    }
+    base::WaitableEvent::WaitMany(event_array, effective_size);
+  }
+
+  void WaitForEnd() { end_waitable_event_.Wait(); }
 
  private:
   scoped_ptr<Decoder> decoder_;
   scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
   scoped_ptr<Fetcher> fetcher_;
 
-  base::WaitableEvent waitable_event_;
+  base::WaitableEvent start_waitable_event_;
+  base::WaitableEvent end_waitable_event_;
 };
 
 // This class is responsible for passing chunks of data from fetcher to decoder
@@ -75,12 +90,12 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
-    loader_on_thread_->Signal();
+    loader_on_thread_->SignalStartDone();
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(fetcher);
     error_callback_.Run(error);
-    loader_on_thread_->Signal();
+    loader_on_thread_->SignalStartDone();
   }
 
  private:
@@ -103,7 +118,7 @@ void LoaderOnThread::End() {
   fetcher_.reset();
   fetcher_to_decoder_adaptor_.reset();
   decoder_.reset();
-  Signal();
+  SignalEndDone();
 }
 
 }  // namespace
@@ -113,7 +128,7 @@ void LoaderOnThread::End() {
 //////////////////////////////////////////////////////////////////
 
 void LoadSynchronously(
-    MessageLoop* message_loop,
+    MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
     base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<scoped_ptr<Decoder>()> decoder_creator,
     base::Callback<void(const std::string&)> error_callback) {
@@ -127,12 +142,16 @@ void LoadSynchronously(
       FROM_HERE,
       base::Bind(&LoaderOnThread::Start, base::Unretained(&loader_on_thread),
                  fetcher_creator, decoder_creator, error_callback));
-  loader_on_thread.Wait();
+  loader_on_thread.WaitForStart(interrupt_trigger);
 
   message_loop->PostTask(
       FROM_HERE,
       base::Bind(&LoaderOnThread::End, base::Unretained(&loader_on_thread)));
-  loader_on_thread.Wait();
+
+  // Wait for a different event here, since it is possible that the first
+  // wait was interrupted, and the fetcher completion can still |Signal()|
+  // the start event.
+  loader_on_thread.WaitForEnd();
 }
 
 }  // namespace loader

@@ -62,7 +62,8 @@ class WindowTest : public ::testing::Test {
             base::Closure() /* window_minimize */, NULL, NULL, NULL,
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
-            dom::ScreenshotManager::ProvideScreenshotFunctionCallback())) {}
+            dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
+            NULL)) {}
 
   ~WindowTest() override {}
 

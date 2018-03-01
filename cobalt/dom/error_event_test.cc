@@ -73,7 +73,8 @@ class ErrorEventTest : public ::testing::Test {
             base::Closure() /* window_minimize */, NULL, NULL, NULL,
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
-            dom::ScreenshotManager::ProvideScreenshotFunctionCallback())) {
+            dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
+            NULL)) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     global_environment_->CreateGlobalObject(window_,
