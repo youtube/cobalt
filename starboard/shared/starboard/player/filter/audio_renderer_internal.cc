@@ -68,8 +68,8 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                              scoped_ptr<AudioRendererSink> audio_renderer_sink,
                              const SbMediaAudioHeader& audio_header,
-                             size_t max_cached_frames,
-                             size_t max_frames_per_append)
+                             int max_cached_frames,
+                             int max_frames_per_append)
     : max_cached_frames_(max_cached_frames),
       max_frames_per_append_(max_frames_per_append),
       eos_state_(kEOSNotReceived),
