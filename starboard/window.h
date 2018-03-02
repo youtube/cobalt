@@ -138,7 +138,7 @@ SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 #define kSbEventOnScreenKeyboardInvalidTicket (-1)
 
 // Defines a rectangle via a point |(x, y)| and a size |(width, height)|. This
-// structure is used as output for SbWindowGetOnScreenKeyboardRect.
+// structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.
 typedef struct SbWindowRect {
   float x;
   float y;
