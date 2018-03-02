@@ -92,10 +92,6 @@
         '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/system_get_used_cpu_memory.cc',
-        '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_decoder.cc',
-        '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_decoder.h',
-        '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_common.cc',
-        '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_common.h',
         '<(DEPTH)/starboard/shared/gcc/atomic_gcc.h',
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -376,6 +372,7 @@
         '<(DEPTH)/starboard/common/common.gyp:common',
         '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
         '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+        '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_linked',
         'starboard_base_symbolize',
       ],
       'cflags': [

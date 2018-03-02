@@ -106,7 +106,6 @@
       '-lasound',
       '-lavcodec',
       '-lavformat',
-      '-lavresample',
       '-lavutil',
       '-lEGL',
       '-lGLESv2',
