@@ -22,10 +22,7 @@
 
     'platform_libraries': [
       '-lasound',
-      '-lavcodec',
-      '-lavformat',
-      '-lavresample',
-      '-lavutil',
+      '-ldl',
       '-lpthread',
       '-lrt',
     ],
