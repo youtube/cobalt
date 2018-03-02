@@ -144,7 +144,16 @@ MozjsEngine::MozjsEngine(const Options& options)
     : accumulated_extra_memory_cost_(0), options_(options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   SbOnce(&g_js_init_once_control, CallInitAndRegisterShutDownOnce);
-  runtime_ = JS_NewRuntime(options_.js_options.gc_threshold_bytes);
+
+  // Set the nursery size to half of the GC threshold size. Analysis has shown
+  // that allocating less than this does not reduce the total amount of JS
+  // memory used, and allocating more does not provide performance improvements.
+  constexpr size_t kMinMaxNurseryBytes = 1 * 1024 * 1024;
+  uint32_t max_nursery_bytes =
+      std::max(options_.js_options.gc_threshold_bytes / 2, kMinMaxNurseryBytes);
+
+  runtime_ =
+      JS_NewRuntime(options_.js_options.gc_threshold_bytes, max_nursery_bytes);
   CHECK(runtime_);
 
   // Sets the size of the native stack that should not be exceeded.
