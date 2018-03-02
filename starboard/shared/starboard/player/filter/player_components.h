@@ -75,7 +75,7 @@ class PlayerComponents {
     if (!audio_decoder || !audio_renderer_sink) {
       return scoped_ptr<AudioRenderer>();
     }
-    size_t max_cached_frames, max_frames_per_append;
+    int max_cached_frames, max_frames_per_append;
     GetAudioRendererParams(&max_cached_frames, &max_frames_per_append);
     return make_scoped_ptr(
         new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
@@ -116,8 +116,8 @@ class PlayerComponents {
       scoped_refptr<VideoRendererSink>* video_renderer_sink) = 0;
 
   // Check AudioRenderer ctor for more details on the parameters.
-  virtual void GetAudioRendererParams(size_t* max_cached_frames,
-                                      size_t* max_frames_per_append) const = 0;
+  virtual void GetAudioRendererParams(int* max_cached_frames,
+                                      int* max_frames_per_append) const = 0;
 
  protected:
   PlayerComponents() {}
