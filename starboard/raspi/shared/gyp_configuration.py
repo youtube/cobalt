@@ -39,6 +39,13 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
       sys.exit(1)
     return raspi_home
 
+  def GetBuildFormat(self):
+    """Returns the desired build format."""
+    # The comma means that ninja and qtcreator_ninja will be chained and use the
+    # same input information so that .gyp files will only have to be parsed
+    # once.
+    return 'ninja,qtcreator_ninja'
+
   def GetVariables(self, configuration):
     raspi_home = self._GetRasPiHome()
     sysroot = os.path.realpath(os.path.join(raspi_home, 'sysroot'))
@@ -73,6 +80,13 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   def GetLauncherPath(self):
     """Gets the path to the launcher module for this platform."""
     return os.path.dirname(__file__)
+
+  def GetGeneratorVariables(self, config_name):
+    del config_name
+    generator_variables = {
+        'qtcreator_session_name_prefix': 'cobalt',
+    }
+    return generator_variables
 
   def GetTestFilters(self):
     filters = super(RaspiPlatformConfig, self).GetTestFilters()

@@ -131,10 +131,13 @@ bool FilterBasedPlayerWorkerHandler::Init(
         audio_codec_, audio_header_, drm_system_, job_queue_};
 
     audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
-    audio_renderer_->SetPlaybackRate(playback_rate_);
-    audio_renderer_->SetVolume(volume_);
-    audio_renderer_->Initialize(
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+    SB_DCHECK(audio_renderer_);
+    if (audio_renderer_) {
+      audio_renderer_->SetPlaybackRate(playback_rate_);
+      audio_renderer_->SetVolume(volume_);
+      audio_renderer_->Initialize(
+          std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+    }
   } else {
     media_time_provider_impl_.reset(
         new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
@@ -153,8 +156,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   video_renderer_ = player_components->CreateVideoRenderer(video_parameters,
                                                            media_time_provider);
-  video_renderer_->Initialize(
-      std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+  SB_DCHECK(video_renderer_);
+  if (video_renderer_) {
+    video_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+  }
 
   update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
 
