@@ -223,8 +223,8 @@ class PlayerComponentsImpl : public PlayerComponents {
         video_parameters.player, kVideoSinkRenderInterval);
   }
 
-  void GetAudioRendererParams(size_t* max_cached_frames,
-                              size_t* max_frames_per_append) const override {
+  void GetAudioRendererParams(int* max_cached_frames,
+                              int* max_frames_per_append) const override {
     SB_DCHECK(max_cached_frames);
     SB_DCHECK(max_frames_per_append);
 

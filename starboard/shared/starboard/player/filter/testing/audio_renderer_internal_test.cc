@@ -103,8 +103,8 @@ class AudioRendererTest : public ::testing::Test {
     EXPECT_CALL(*audio_decoder_, Initialize(_, _))
         .WillOnce(SaveArg<0>(&output_cb_));
 
-    const size_t kMaxCachedFrames = 256 * 1024;
-    const size_t kMaxFramesPerAppend = 16384;
+    const int kMaxCachedFrames = 256 * 1024;
+    const int kMaxFramesPerAppend = 16384;
     audio_renderer_.reset(new AudioRenderer(
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
