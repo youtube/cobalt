@@ -58,8 +58,8 @@ class AudioRenderer : public MediaTimeProvider,
   AudioRenderer(scoped_ptr<AudioDecoder> decoder,
                 scoped_ptr<AudioRendererSink> audio_renderer_sink,
                 const SbMediaAudioHeader& audio_header,
-                size_t max_cached_frames,
-                size_t max_frames_per_append);
+                int max_cached_frames,
+                int max_frames_per_append);
   ~AudioRenderer();
 
   void Initialize(const AudioDecoder::ErrorCB& error_cb);
@@ -91,8 +91,8 @@ class AudioRenderer : public MediaTimeProvider,
     kEOSSentToSink
   };
 
-  const size_t max_cached_frames_;
-  const size_t max_frames_per_append_;
+  const int max_cached_frames_;
+  const int max_frames_per_append_;
 
   atomic_bool paused_;
   atomic_bool consume_frames_called_;
