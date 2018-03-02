@@ -16,6 +16,9 @@
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/performance.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/math/size_f.h"
 
 namespace cobalt {
@@ -76,15 +79,18 @@ uint32 HTMLVideoElement::video_height() const {
   return static_cast<uint32>(player()->GetNaturalSize().height());
 }
 
-scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality()
-    const {
-  // TODO: Provide all attributes with valid values.
+scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(
+    script::EnvironmentSettings* environment_settings) const {
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(environment_settings);
+  DCHECK(dom_settings);
+  DCHECK(dom_settings->window());
+  DCHECK(dom_settings->window()->performance());
+
   return new VideoPlaybackQuality(
-      0.,   // creation_time
+      dom_settings->window()->performance()->Now(),
       player() ? static_cast<uint32>(player()->GetDecodedFrameCount()) : 0,
-      player() ? static_cast<uint32>(player()->GetDroppedFrameCount()) : 0,
-      0,    // corrupted_video_frames
-      0.);  // total_frame_delay
+      player() ? static_cast<uint32>(player()->GetDroppedFrameCount()) : 0);
 }
 
 scoped_refptr<VideoFrameProvider> HTMLVideoElement::GetVideoFrameProvider() {
