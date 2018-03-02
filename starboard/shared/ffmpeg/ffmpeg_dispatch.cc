@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/ffmpeg/ffmpeg_common.h"
+// This file implements the FFMPEGDispatch interface with dynamic loading of
+// the libraries.
 
-#include "starboard/log.h"
+#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 
@@ -23,28 +25,21 @@ namespace shared {
 namespace ffmpeg {
 
 namespace {
-
-SbOnceControl ffmpeg_initialization_once = SB_ONCE_INITIALIZER;
-SbMutex codec_mutex = SB_MUTEX_INITIALIZER;
-
+SbMutex g_codec_mutex = SB_MUTEX_INITIALIZER;
 }  // namespace
 
-void InitializeFfmpeg() {
-  bool initialized = SbOnce(&ffmpeg_initialization_once, av_register_all);
-  SB_DCHECK(initialized);
-}
-
-int OpenCodec(AVCodecContext* codec_context, const AVCodec* codec) {
-  SbMutexAcquire(&codec_mutex);
+int FFMPEGDispatch::OpenCodec(AVCodecContext* codec_context,
+                              const AVCodec* codec) {
+  SbMutexAcquire(&g_codec_mutex);
   int result = avcodec_open2(codec_context, codec, NULL);
-  SbMutexRelease(&codec_mutex);
+  SbMutexRelease(&g_codec_mutex);
   return result;
 }
 
-void CloseCodec(AVCodecContext* codec_context) {
-  SbMutexAcquire(&codec_mutex);
+void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
+  SbMutexAcquire(&g_codec_mutex);
   avcodec_close(codec_context);
-  SbMutexRelease(&codec_mutex);
+  SbMutexRelease(&g_codec_mutex);
 }
 
 }  // namespace ffmpeg

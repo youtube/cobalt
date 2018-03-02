@@ -44,7 +44,7 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
 
-    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(new AudioDecoderImpl(
+    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(AudioDecoderImpl::Create(
         audio_parameters.audio_codec, audio_parameters.audio_header));
     if (audio_decoder_impl->is_valid()) {
       audio_decoder->reset(audio_decoder_impl.release());
