@@ -21,6 +21,7 @@
 #include "cobalt/dom/video_playback_quality.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size_f.h"
+#include "cobalt/script/environment_settings.h"
 #if !defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_video_frame_provider.h"
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
@@ -50,7 +51,8 @@ class HTMLVideoElement : public HTMLMediaElement {
   void set_height(uint32 height);
   uint32 video_width() const;
   uint32 video_height() const;
-  scoped_refptr<VideoPlaybackQuality> GetVideoPlaybackQuality() const;
+  scoped_refptr<VideoPlaybackQuality> GetVideoPlaybackQuality(
+      script::EnvironmentSettings* environment_settings) const;
 
   // Custom, not in any spec
   //
