@@ -48,7 +48,7 @@ class PlayerWorker {
     virtual void UpdateDroppedVideoFrames(int dropped_video_frames) = 0;
 
    protected:
-    ~Host() {}
+    virtual ~Host() {}
   };
 
   struct Bounds {
