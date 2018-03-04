@@ -34,7 +34,7 @@ class MediaTimeProvider {
                                           bool* is_eos_played) = 0;
 
  protected:
-  ~MediaTimeProvider() {}
+  virtual ~MediaTimeProvider() {}
 };
 
 }  // namespace filter
