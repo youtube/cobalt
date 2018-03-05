@@ -47,6 +47,16 @@ def _MakeDir(d):
     os.mkdir(d)
 
 
+def _IsOutDir(source_root, d):
+  """Check if d is under source_root/out directory.
+
+  Args:
+    source_root: Absolute path to the root of the files to be copied.
+    d: Directory to be checked.
+  """
+  out_dir = os.path.join(source_root, 'out')
+  return out_dir in d
+
 class FileCopier(threading.Thread):
   """Threaded class to copy a file."""
 
@@ -70,6 +80,9 @@ def CopyPythonFiles(source_root, dest_root):
   """
   copies = {}
   for root, _, files in os.walk(source_root):
+    # Eliminate any locally built files under the out directory.
+    if _IsOutDir(source_root, root):
+      continue
     for f in files:
       if f.endswith('.py'):
         source_file = os.path.join(root, f)
@@ -132,6 +145,7 @@ def main():
 
   CopyPythonFiles(REPOSITORY_ROOT, dest_root)
   WritePlatformsInfo(REPOSITORY_ROOT, dest_root)
+
   return 0
 
 
