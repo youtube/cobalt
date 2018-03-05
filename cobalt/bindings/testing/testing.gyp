@@ -180,13 +180,11 @@
         'stringifier_bindings_test.cc',
         'union_type_bindings_test.cc',
         'unsupported_test.cc',
-        'user_agent_test.cc',
         'variadic_arguments_bindings_test.cc',
       ],
       'defines': [ '<@(bindings_defines)'],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
