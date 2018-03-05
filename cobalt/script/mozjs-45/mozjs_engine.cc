@@ -105,7 +105,8 @@ MozjsEngine::MozjsEngine(const Options& options)
   // that allocating less than this does not reduce the total amount of JS
   // memory used, and allocating more does not provide performance improvements.
   constexpr size_t kMinMaxNurseryBytes = 1 * 1024 * 1024;
-  uint32_t max_nursery_bytes = kMinMaxNurseryBytes;
+  uint32_t max_nursery_bytes =
+      std::max(options_.gc_threshold_bytes / 2, kMinMaxNurseryBytes);
 
   runtime_ = JS_NewRuntime(options_.gc_threshold_bytes, max_nursery_bytes);
   CHECK(runtime_);
