@@ -269,10 +269,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
     run_timer = Timer('running executable')
     try:
       args = ['shell', 'am', 'start']
-      command_line_params = ['--android_log_sleep_time=1000']
+      command_line_params = [
+          '--android_log_sleep_time=1000',
+          '--disable_sign_in',
+      ]
       if self.target_command_line_params:
         command_line_params += self.target_command_line_params
-      args += ['--esa', 'args', ','.join(command_line_params)]
+      args += ['--esa', 'args', "'{}'".format(','.join(command_line_params))]
       args += [_APP_START_INTENT]
 
       self._CheckCallAdb(*args)
@@ -342,4 +345,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
     forward_p.wait()
 
     local_port = CleanLine(forward_p.stdout.readline()).rstrip('\n')
+    sys.stderr.write('ADB forward local port {} '
+                     '=> device port {}\n'.format(local_port, port))
     return socket.gethostbyname('localhost'), local_port
