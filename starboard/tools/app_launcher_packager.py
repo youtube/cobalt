@@ -22,6 +22,7 @@ that the app launcher can be run independent of the Cobalt source tree.
 """
 
 import argparse
+import logging
 import os
 import shutil
 import sys
@@ -57,18 +58,6 @@ def _IsOutDir(source_root, d):
   out_dir = os.path.join(source_root, 'out')
   return out_dir in d
 
-class FileCopier(threading.Thread):
-  """Threaded class to copy a file."""
-
-  def __init__(self, source, dest):
-    threading.Thread.__init__(self)
-    self.source = source
-    self.dest = dest
-
-  def run(self):
-    shutil.copy2(self.source, self.dest)
-
-
 def CopyPythonFiles(source_root, dest_root):
   """Copy all python files to the destination folder.
 
@@ -78,7 +67,8 @@ def CopyPythonFiles(source_root, dest_root):
     source_root: Absolute path to the root of files to be copied.
     dest_root: Destination into which files will be copied.
   """
-  copies = {}
+  logging.info('Searching in ' + source_root + ' for python files.')
+  file_list = []
   for root, _, files in os.walk(source_root):
     # Eliminate any locally built files under the out directory.
     if _IsOutDir(source_root, root):
@@ -87,17 +77,13 @@ def CopyPythonFiles(source_root, dest_root):
       if f.endswith('.py'):
         source_file = os.path.join(root, f)
         dest_file = source_file.replace(source_root, dest_root)
-        copies[source_file] = dest_file
+        file_list.append((source_file, dest_file))
 
-  file_copiers = []
-  for source, dest in copies.iteritems():
+  logging.info('Starting copy of ' + str(len(file_list)) + ' python files.')
+  for (source, dest) in file_list:
     _MakeDir(os.path.dirname(dest))
-    copier = FileCopier(source, dest)
-    file_copiers.append(copier)
-    copier.start()
-
-  for copier in file_copiers:
-    copier.join()
+    shutil.copy2(source, dest)
+  logging.info('Copy of python files finished.')
 
 
 def WritePlatformsInfo(repo_root, dest_root):
@@ -115,6 +101,7 @@ def WritePlatformsInfo(repo_root, dest_root):
     dest_root: Absolute path to the root of the new repository into which
       platforms' information to be written.
   """
+  logging.info('Baking platform info files.')
   current_file = os.path.abspath(__file__)
   current_dir = os.path.dirname(current_file)
   dest_dir = current_dir.replace(repo_root, dest_root)
@@ -129,9 +116,15 @@ def WritePlatformsInfo(repo_root, dest_root):
       open(os.path.join(current_dir, 'platform.py.template')).read())
   with open(os.path.join(dest_dir, 'platform.py'), 'w+') as f:
     template.stream(platforms_map=platforms_map).dump(f, encoding='utf-8')
+  logging.info('Finished baking in platform info files.')
 
 
-def main():
+def CopyAppLauncherTools(repo_root, dest_root):
+  CopyPythonFiles(repo_root, dest_root)
+  WritePlatformsInfo(repo_root, dest_root)
+
+def main(command_args):
+  logging.basicConfig(level=logging.INFO)
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-d',
@@ -139,15 +132,9 @@ def main():
       required=True,
       help='The path to the root of the destination folder into which the'
       'python scripts are packaged.')
-  args = parser.parse_args()
-
-  dest_root = args.destination_root
-
-  CopyPythonFiles(REPOSITORY_ROOT, dest_root)
-  WritePlatformsInfo(REPOSITORY_ROOT, dest_root)
-
+  args = parser.parse_args(command_args)
+  CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
   return 0
 
-
 if __name__ == '__main__':
-  sys.exit(main())
+  sys.exit(main(sys.argv[1:]))
