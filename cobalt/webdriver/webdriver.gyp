@@ -114,6 +114,11 @@
           ],
         },
       ],
+      'all_dependent_settings': {
+        'variables': {
+          'content_deploy_subdirs': [ 'webdriver' ]
+        }
+      },
     },
   ],
 }
