@@ -14,6 +14,7 @@
 """Starboard win32 shared platform configuration for gyp_cobalt."""
 
 import config.base
+import logging
 import os
 import re
 import subprocess
