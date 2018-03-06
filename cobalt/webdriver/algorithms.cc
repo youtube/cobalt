@@ -19,10 +19,7 @@
 #include <functional>
 #include <vector>
 
-#include "base/i18n/case_conversion.h"
-#include "base/string16.h"
 #include "base/string_util.h"
-#include "base/utf_string_conversions.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/string_value.h"
 #include "cobalt/dom/document.h"
@@ -32,6 +29,7 @@
 #include "cobalt/dom/node.h"
 #include "cobalt/dom/node_list.h"
 #include "cobalt/math/rect.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -40,29 +38,87 @@ namespace {
 // Characters that match \s in ECMAScript regular expressions.
 // Note that non-breaking space is at the beginning to simplify definition of
 // kWhitespaceCharsExcludingNonBreakingSpace below.
-const char kWhitespaceChars[] =
-    u8"\u00a0 "
-    u8"\f\n\r\t\v\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
-    u8"\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
-const char* kWhitespaceCharsExcludingNonBreakingSpace = kWhitespaceChars + 1;
+const char32_t kWhitespaceChars[] =
+    U"\u00a0 "
+    U"\f\n\r\t\v\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
+    U"\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
+const char32_t* kWhitespaceCharsExcludingNonBreakingSpace =
+    kWhitespaceChars + 1;
 
 // Defined in https://www.w3.org/TR/webdriver/#text.horizontal
-const char kHorizontalWhitespaceChars[] = u8" \f\t\v\u2028\u2029";
+const char32_t kHorizontalWhitespaceChars[] = U" \f\t\v\u2028\u2029";
 
 // Defined in step 2.1 of the getElementText() algorithm in
 // https://www.w3.org/TR/webdriver/#get-element-text
-const char kZeroWidthSpacesAndFeeds[] = u8"\f\v\u200b\u200e\u200f";
+const char32_t kZeroWidthSpacesAndFeeds[] = U"\f\v\u200b\u200e\u200f";
 
-const char kNonBreakingSpace = '\xa0';
+const char32_t kNonBreakingSpace[] = U"\u00a0";
 
-bool IsHorizontalWhitespace(char c) {
-  DCHECK_NE(c, '\0');
-  return strchr(kHorizontalWhitespaceChars, c) != NULL;
+const char32_t kIcuEndOfString = 0xffff;
+
+bool StringContains(const char32_t* str, char32_t ch) {
+  for (size_t i = 0; str[i] != 0; ++i) {
+    if (ch == str[i]) {
+      return true;
+    }
+  }
+  return false;
 }
 
-bool IsZeroWidthSpaceOrFeed(char c) {
-  DCHECK_NE(c, '\0');
-  return strchr(kZeroWidthSpacesAndFeeds, c) != NULL;
+void RemoveCharacters(icu::UnicodeString* text, const char32_t* characters) {
+  for (int32_t text_offset = 0;;) {
+    char32_t ch = text->char32At(text_offset);
+    if (ch == kIcuEndOfString) {
+      return;
+    }
+    if (StringContains(characters, ch)) {
+      text->remove(text_offset, 1);
+    } else {
+      ++text_offset;
+    }
+  }
+}
+
+void ReplaceCharacters(icu::UnicodeString* text, const char32_t* characters,
+                       char32_t new_character) {
+  for (int32_t text_offset = 0;; ++text_offset) {
+    char32_t ch = text->char32At(text_offset);
+    if (ch == kIcuEndOfString) {
+      return;
+    }
+    if (StringContains(characters, ch)) {
+      text->replace(text_offset, 1, UChar32(new_character));
+    }
+  }
+}
+
+void TrimUnicodeString(icu::UnicodeString* text, const char32_t* characters) {
+  // Trim characters at the end.
+  int32_t original_length = text->length();
+  for (int32_t text_offset = original_length - 1;; --text_offset) {
+    if (text_offset < 0 && original_length > 0) {
+      text->remove();
+    }
+    char32_t ch = text->char32At(text_offset);
+    if (!StringContains(characters, ch)) {
+      ++text_offset;
+      if (text_offset < original_length) {
+        text->remove(text_offset, original_length - text_offset);
+      }
+      break;
+    }
+  }
+
+  // Trim characters at the beginning.
+  for (int32_t text_offset = 0;; ++text_offset) {
+    char32_t ch = text->char32At(text_offset);
+    if (ch == kIcuEndOfString || !StringContains(characters, ch)) {
+      if (text_offset > 0) {
+        text->remove(0, text_offset);
+      }
+      break;
+    }
+  }
 }
 
 bool IsInHeadElement(dom::Element* element) {
@@ -77,44 +133,24 @@ bool IsInHeadElement(dom::Element* element) {
   return IsInHeadElement(parent.get());
 }
 
-// Helper class that can be used as a predicate to std::remove_if.
-// When more than one instance of the character |c| occurs consecutively, the
-// functor will return true for each occurrence of |c| after the first one.
-class MatchConsecutiveCharactersPredicate {
- public:
-  explicit MatchConsecutiveCharactersPredicate(char c)
-      : character_to_match_(c), last_('\0') {}
-  bool operator()(char c) {
-    DCHECK_NE(c, '\0');
-    bool same_char = c == last_;
-    last_ = c;
-    return same_char && c == character_to_match_;
-  }
-
- private:
-  char character_to_match_;
-  char last_;
-};
-
 void CanonicalizeText(const base::optional<std::string>& whitespace_style,
                       const base::optional<std::string>& text_transform,
-                      std::string* text) {
-  // std::remove_if will not resize the std::string, but will return a new end
-  // of the string. Use this iterator instead of text->end() in each step
-  // below, and erase the end of the string at the end.
-  std::string::iterator end = text->end();
-
+                      icu::UnicodeString* text) {
   // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.1 Remove any zero-width spaces (\u200b, \u200e, \u200f), form feeds (\f)
   // or vertical tab feeds (\v) from text.
-  end = std::remove_if(text->begin(), end, IsZeroWidthSpaceOrFeed);
+  RemoveCharacters(text, kZeroWidthSpacesAndFeeds);
 
   // Consecutive sequences of new lines should be compressed to a single new
   // line. Accomplish this by converting all \r chars to \n chars, and then
   // converting sequences of \n chars to a single \n char.
-  std::replace(text->begin(), end, '\r', '\n');
-  MatchConsecutiveCharactersPredicate consecutive_newline_predicate('\n');
-  end = std::remove_if(text->begin(), end, consecutive_newline_predicate);
+  ReplaceCharacters(text, U"\r", '\n');
+
+  const icu::UnicodeString consecutive_newline = UNICODE_STRING_SIMPLE("\n\n");
+  for (int32_t index = text->indexOf(consecutive_newline); index >= 0;
+       index = text->indexOf(consecutive_newline, index)) {
+    text->remove(index, 1);
+  }
 
   // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.3
@@ -123,30 +159,29 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
     // replace each newline (\n) in text with a single space character (\x20).
     if (*whitespace_style == cssom::kNormalKeywordName ||
         *whitespace_style == cssom::kNoWrapKeywordName) {
-      std::replace(text->begin(), end, '\n', ' ');
+      ReplaceCharacters(text, U"\n", ' ');
     }
 
     // If the parent's effective CSS whitespace style is 'pre' or 'pre-wrap'
     // replace each horizontal whitespace character with a non-breaking space
-    // character (\xa0).
+    // character (\u00a0).
     // Otherwise replace each sequence of horizontal whitespace characters
-    // except non-breaking spaces (\xa0) with a single space character.
+    // except non-breaking spaces (\u00a0) with a single space character.
     //
     // Cobalt does not have 'pre-wrap' style, so just check for 'pre'.
     if (*whitespace_style == cssom::kPreKeywordName) {
-      std::replace_if(text->begin(), end, IsHorizontalWhitespace,
-                      kNonBreakingSpace);
+      ReplaceCharacters(text, kHorizontalWhitespaceChars, kNonBreakingSpace[0]);
     } else {
       // Replace all horizontal whitespace characters with ' '.
-      std::replace_if(text->begin(), end, IsHorizontalWhitespace, ' ');
+      ReplaceCharacters(text, kHorizontalWhitespaceChars, ' ');
       // Convert consecutive ' ' characters to a single ' '.
-      MatchConsecutiveCharactersPredicate consecutive_space_predicate(' ');
-      end = std::remove_if(text->begin(), end, consecutive_space_predicate);
+      const icu::UnicodeString consecutive_space = UNICODE_STRING_SIMPLE("  ");
+      for (int32_t index = text->indexOf(consecutive_space); index >= 0;
+           index = text->indexOf(consecutive_space, index)) {
+        text->remove(index, 1);
+      }
     }
   }
-
-  // Trim the original string, since several characters may have been removed.
-  text->erase(end, text->end());
 
   // https://www.w3.org/TR/webdriver/#get-element-text
   // 2.4 Apply the parent's effective CSS text-transform style as per the
@@ -154,11 +189,7 @@ void CanonicalizeText(const base::optional<std::string>& whitespace_style,
   if (text_transform) {
     // Cobalt does not support 'capitalize' and 'lowercase' keywords.
     if (*text_transform == cssom::kUppercaseKeywordName) {
-      // Convert to UTF16 to do i18n safe upper-case conversion.
-      string16 utf16_string;
-      UTF8ToUTF16(text->c_str(), text->length(), &utf16_string);
-      utf16_string = base::i18n::ToUpper(utf16_string.c_str());
-      UTF16ToUTF8(utf16_string.c_str(), utf16_string.length(), text);
+      text->toUpper();
     }
   }
 }
@@ -198,17 +229,17 @@ bool IsBlockLevelElement(dom::Element* element) {
 
 // Return true if there is at least one string in the vector and the last one
 // is non-empty.
-bool LastLineIsNonEmpty(const std::vector<std::string>& lines) {
+bool LastLineIsNonEmpty(const std::vector<icu::UnicodeString>& lines) {
   if (lines.empty()) {
     return false;
   }
-  return !lines.back().empty();
+  return !lines.back().isEmpty();
 }
 
 // Recursive function to build the vector of lines for the text representation
 // of an element.
 void GetElementTextInternal(dom::Element* element,
-                            std::vector<std::string>* lines) {
+                            std::vector<icu::UnicodeString>* lines) {
   // If the element is a: BR element: Push '' to lines and continue.
   if (element->AsHTMLElement() && element->AsHTMLElement()->AsHTMLBRElement()) {
     lines->push_back("");
@@ -239,7 +270,8 @@ void GetElementTextInternal(dom::Element* element,
     if (child->IsText() && is_displayed) {
       // If descendent is a [DOM] text node let text equal the nodeValue
       // property of descendent.
-      std::string text = child->node_value().value_or("");
+      icu::UnicodeString text = icu::UnicodeString::fromUTF8(
+          child->node_value().value_or(""));
       CanonicalizeText(whitespace_style, text_transform_style, &text);
 
       // 2.5 If last(lines) ends with a space character and text starts with a
@@ -248,9 +280,8 @@ void GetElementTextInternal(dom::Element* element,
       if (lines->empty()) {
         lines->push_back(text);
       } else {
-        if (!lines->back().empty() && *(lines->back().rbegin()) == ' ' &&
-            !text.empty() && *(text.begin()) == ' ') {
-          text.erase(0);
+        if (lines->back().endsWith(' ') && text.startsWith(' ')) {
+          text.remove(0, 1);
         }
         lines->back().append(text);
       }
@@ -397,20 +428,27 @@ std::string GetElementText(dom::Element* element) {
 
   // Recursively visit this element and its children to create a vector of lines
   // of text.
-  std::vector<std::string> lines;
+  std::vector<icu::UnicodeString> lines;
   GetElementTextInternal(element, &lines);
 
   // Trim leading and trailing non-breaking space characters in each line in
-  // place.
+  // place. Also replace non-breaking spaces with regular spaces.
   for (size_t i = 0; i < lines.size(); ++i) {
-    TrimString(lines[0], kWhitespaceCharsExcludingNonBreakingSpace,
-               &(lines[0]));
+    TrimUnicodeString(&lines[i], kWhitespaceCharsExcludingNonBreakingSpace);
+    ReplaceCharacters(&lines[i], kNonBreakingSpace, ' ');
   }
+
   // Join the lines, and trim any leading/trailing newlines.
-  std::string joined = JoinString(lines, '\n');
-  TrimString(joined, "\n", &joined);
-  // Convert non-breaking spaces to regular spaces.
-  std::replace(joined.begin(), joined.end(), kNonBreakingSpace, ' ');
+  std::string joined;
+  if (!lines.empty()) {
+    lines[0].toUTF8String(joined);
+    for (size_t i = 1; i < lines.size(); ++i) {
+      joined.append("\n");
+      lines[i].toUTF8String(joined);
+    }
+    TrimString(joined, "\n", &joined);
+  }
+
   return joined;
 }
 
