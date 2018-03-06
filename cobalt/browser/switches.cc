@@ -40,6 +40,10 @@ const char kDisableRasterizerCachingHelp[] =
     "Disables caching of rasterized render tree nodes; caching improves "
     "performance but may result in sub-pixel differences.";
 
+const char kDisableSignIn[] = "disable_sign_in";
+const char kDisableSignInHelp[] =
+    "Disables sign-in on platforms that use H5VCC Account Manager.";
+
 const char kDisableSplashScreenOnReloads[] = "disable_splash_screen_on_reloads";
 const char kDisableSplashScreenOnReloadsHelp[] =
     "Disables the splash screen on reloads; instead it will only appear on the "
@@ -317,6 +321,7 @@ std::string HelpMessage() {
         {kDebugConsoleMode, kDebugConsoleModeHelp},
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
+        {kDisableSignIn, kDisableSignInHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
         {kDisableWebDriver, kDisableWebDriverHelp},
         {kDisableWebmVp9, kDisableWebmVp9Help},
