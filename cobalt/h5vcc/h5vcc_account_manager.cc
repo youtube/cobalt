@@ -14,8 +14,10 @@
 
 #include "cobalt/h5vcc/h5vcc_account_manager.h"
 
+#include "base/command_line.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/browser/switches.h"
 #include "starboard/user.h"
 
 namespace cobalt {
@@ -71,6 +73,14 @@ H5vccAccountManager::~H5vccAccountManager() {
 void H5vccAccountManager::RequestOperationInternal(
     account::UserAuthorizer* user_authorizer, OperationType operation,
     const base::Callback<void(const std::string&, uint64_t)>& post_result) {
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kDisableSignIn)) {
+    post_result.Run(std::string(), 0);
+    return;
+  }
+#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
   SbUser current_user = SbUserGetCurrent();
   DCHECK(SbUserIsValid(current_user));
 
