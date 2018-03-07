@@ -79,6 +79,7 @@
             'window_driver.cc',
             'window_driver.h',
           ],
+          'dependencies': [ 'copy_webdriver_data', ],
           'defines': [ 'ENABLE_WEBDRIVER', ],
           'all_dependent_settings': {
             'defines': [ 'ENABLE_WEBDRIVER', ],
@@ -97,7 +98,6 @@
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/net/net.gyp:http_server',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
-        'copy_webdriver_data',
       ],
     },
     {
@@ -106,13 +106,7 @@
       'copies': [
         {
           'destination': '<(sb_static_contents_output_data_dir)/webdriver',
-          'conditions': [
-            ['enable_webdriver==1', {
-              'files': ['content/webdriver-init.js'],
-            }, {
-              'files': [],
-            }],
-          ],
+          'files': ['content/webdriver-init.js'],
         },
       ],
       'all_dependent_settings': {
