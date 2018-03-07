@@ -16,12 +16,8 @@
 
 #include <android/asset_manager.h>
 
-#include "starboard/android/shared/file_internal.h"
-
 #include "starboard/android/shared/directory_internal.h"
 #include "starboard/shared/iso/impl/directory_get_next.h"
-
-using ::starboard::android::shared::g_app_assets_dir;
 
 bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
   if (directory && directory->asset_dir && out_entry) {
@@ -30,8 +26,7 @@ bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry* out_entry) {
       return false;
     }
     size_t size = SB_ARRAY_SIZE_INT(out_entry->name);
-    SbStringCopy(out_entry->name, g_app_assets_dir, size);
-    SbStringConcat(out_entry->name, file_name, size);
+    SbStringCopy(out_entry->name, file_name, size);
     return true;
   }
 
