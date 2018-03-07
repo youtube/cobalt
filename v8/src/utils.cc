@@ -375,7 +375,7 @@ void MemMove(void* dest, const void* src, size_t size) {
   (*memmove_function)(dest, src, size);
 }
 
-#elif V8_OS_POSIX && V8_HOST_ARCH_ARM
+#elif (V8_OS_POSIX || V8_OS_STARBOARD) && V8_HOST_ARCH_ARM
 void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
                                size_t chars) {
   uint16_t* limit = dest + chars;
@@ -394,7 +394,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     Isolate* isolate, MemCopyUint16Uint8Function stub);
 
-#elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
+#elif (V8_OS_POSIX && V8_OS_STARBOARD) && V8_HOST_ARCH_MIPS
 V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
     &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.

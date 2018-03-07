@@ -290,7 +290,11 @@ class V8_BASE_EXPORT OS {
 class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
+#if V8_OS_STARBOARD
+  typedef SbThreadLocalKey LocalStorageKey;
+#else
   typedef int32_t LocalStorageKey;
+#endif
 
   class Options {
    public:

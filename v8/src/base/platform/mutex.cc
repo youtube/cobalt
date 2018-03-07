@@ -233,6 +233,43 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
+#elif V8_OS_STARBOARD
+
+Mutex::Mutex() {
+  SbMutexCreate(&native_handle_);
+}
+
+Mutex::~Mutex() {
+  SbMutexDestroy(&native_handle_);
+}
+
+void Mutex::Lock() {
+  SbMutexAcquire(&native_handle_);
+}
+
+void Mutex::Unlock() {
+  SbMutexRelease(&native_handle_);
+}
+
+RecursiveMutex::RecursiveMutex() {
+}
+
+RecursiveMutex::~RecursiveMutex() {
+
+}
+
+void RecursiveMutex::Lock() {
+  native_handle_.lock();
+}
+
+void RecursiveMutex::Unlock() {
+  native_handle_.unlock();
+}
+
+bool RecursiveMutex::TryLock() {
+  return native_handle_.try_lock();
+}
+
 #endif  // V8_OS_POSIX
 
 }  // namespace base
