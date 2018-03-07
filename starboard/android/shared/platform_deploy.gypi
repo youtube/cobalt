@@ -26,19 +26,13 @@
       }
     }]
   ],
+  'dependencies': [ '<(DEPTH)/starboard/android/apk/apk.gyp:apk_sources' ],
   'includes': [ '<(DEPTH)/starboard/build/collect_deploy_content.gypi' ],
   'actions': [
     {
       'action_name': 'build_apk',
-      'inputs': [
-        '<(lib)'
-      ],
-      'outputs': [
-        '<(apk)',
-        # We don't have explicit dependencies on the Gradle build's input files
-        # so make this action always dirty by depending on a non-existent file.
-        'always_run_gradle-<(executable_name)',
-      ],
+      'inputs': [ '<(lib)' ],
+      'outputs': [ '<(apk)' ],
       'action': [
         '<(DEPTH)/starboard/android/apk/cobalt-gradle.sh',
         '--sdk', '<(ANDROID_HOME)',
@@ -58,15 +52,9 @@
     {
       # Clean the gradle directory to conserve space after we have the APK
       'action_name': 'delete_gradle_dir',
-      'inputs': [
-        '<(apk)',
-      ],
-      'outputs': [
-        'always_delete_gradle-<(executable_name)',
-      ],
-      'action': [
-        'rm', '-r', '<(GRADLE_FILES_DIR)',
-      ]
+      'inputs': [ '<(apk)' ],
+      'outputs': [ 'always_delete_gradle-<(executable_name)' ],
+      'action': [ 'rm', '-rf', '<(GRADLE_FILES_DIR)' ]
     },
   ],
 }
