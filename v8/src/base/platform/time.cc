@@ -27,6 +27,10 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/time.h"
+#endif
+
 namespace {
 
 #if V8_OS_MACOSX
@@ -413,6 +417,16 @@ struct timeval Time::ToTimeval() const {
   return tv;
 }
 
+#elif V8_OS_STARBOARD
+
+Time Time::Now() {
+  return Time(SbTimeGetNow());
+}
+
+Time Time::NowFromSystemTime() {
+  return Now();
+}
+
 #endif  // V8_OS_WIN
 
 
@@ -620,6 +634,8 @@ TimeTicks TimeTicks::HighResolutionNow() {
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
+#elif V8_OS_STARBOARD
+  ticks = SbTimeGetMonotonicNow();
 #else
 #error platform does not implement TimeTicks::HighResolutionNow.
 #endif  // V8_OS_MACOSX
