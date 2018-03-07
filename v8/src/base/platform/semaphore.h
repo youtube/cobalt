@@ -17,6 +17,10 @@
 #include <semaphore.h>  // NOLINT
 #endif
 
+#if V8_OS_STARBOARD
+#include "starboard/common/semaphore.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -55,6 +59,8 @@ class V8_BASE_EXPORT Semaphore final {
   typedef sem_t NativeHandle;
 #elif V8_OS_WIN
   typedef HANDLE NativeHandle;
+#elif V8_OS_STARBOARD
+  typedef starboard::Semaphore NativeHandle;
 #endif
 
   NativeHandle& native_handle() {

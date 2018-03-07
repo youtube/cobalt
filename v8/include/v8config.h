@@ -56,6 +56,7 @@
 // -----------------------------------------------------------------------------
 // Operating system detection
 //
+//  V8_OS_STARBOARD     - Starboard (platform abstraction layer for the Cobalt project)
 //  V8_OS_ANDROID       - Android
 //  V8_OS_BSD           - BSDish (Mac OS X, Net/Free/Open/DragonFlyBSD)
 //  V8_OS_CYGWIN        - Cygwin
@@ -72,7 +73,9 @@
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 
-#if defined(__ANDROID__)
+#if defined(STARBOARD)
+# define V8_OS_STARBOARD 1
+#elif defined(__ANDROID__)
 # define V8_OS_ANDROID 1
 # define V8_OS_LINUX 1
 # define V8_OS_POSIX 1
