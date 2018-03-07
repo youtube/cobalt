@@ -19,6 +19,7 @@
 import argparse
 import logging
 import os
+import shutil
 import sys
 
 # The name of an environment variable that when set to |'1'|, signals to us that
@@ -53,6 +54,9 @@ def main(argv):
   for subdir in options.subdirs:
     logging.info('+ %s', subdir)
 
+  if os.path.exists(options.output_dir):
+    shutil.rmtree(options.output_dir)
+
   for subdir in options.subdirs:
     src_path = os.path.abspath(
         EscapePath(os.path.join(options.input_dir, subdir)))
@@ -67,8 +71,6 @@ def main(argv):
     # TODO: Add an alternate implementation for win32.
     if not os.path.exists(dst_dir):
       os.makedirs(dst_dir)
-    if os.path.exists(dst_path):
-      os.remove(dst_path)
     os.symlink(rel_path, dst_path)
 
 
