@@ -41,6 +41,9 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       includes.append(shared_gypi_path)
     return includes
 
+  def WebdriverBenchmarksEnabled(self):
+    return True
+
   def GetTestFilters(self):
     filters = super(CobaltAndroidConfiguration, self).GetTestFilters()
     for target, tests in self._FAILING_TESTS.iteritems():
