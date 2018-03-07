@@ -156,6 +156,13 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 namespace v8 {
 namespace sampler {
 
+#if V8_OS_STARBOARD
+class Sampler::PlatformData {
+ public:
+  PlatformData() = default;
+};
+#endif
+
 namespace {
 
 #if defined(USE_SIGNALS)
@@ -662,6 +669,12 @@ void Sampler::DoSample() {
     SampleStack(state);
   }
   ResumeThread(profiled_thread);
+}
+
+#elif V8_OS_STARBOARD
+
+void Sampler::DoSample() {
+  SB_NOTIMPLEMENTED();
 }
 
 #endif  // USE_SIGNALS

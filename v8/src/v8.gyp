@@ -43,12 +43,9 @@
     # TODO: Enable i18n support.
     'v8_enable_i18n_support': 0,
   },
-  # TODO: Remove after starboardization.
   'target_defaults': {
     'defines': [
-      'V8_OS_POSIX=1',
-      'V8_OS_LINUX=1',
-      'V8_TRAP_HANDLER_SUPPORTED=1',
+      'V8_OS_STARBOARD=1',
     ],
    },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
@@ -1753,8 +1750,7 @@
             'wasm/baseline/x64/liftoff-assembler-x64.h',
           ],
         }],
-        # TODO: Remove after starboardization.
-        ['v8_target_arch=="x64" and (OS=="linux" or OS=="starboard")', {
+        ['v8_target_arch=="x64" and OS=="linux"', {
             'sources': ['trap-handler/handler-inside.cc']
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
@@ -1982,7 +1978,7 @@
           },
         }],
         # TODO: Remove after starboardization.
-        ['OS=="linux" or OS=="starboard"', {
+        ['OS=="linux"', {
             'link_settings': {
               'libraries': [
                 '-ldl',
@@ -1999,6 +1995,12 @@
             ],
           }
         ],
+        ['OS=="starboard"', {
+          'sources': [
+            'base/debug/stack_trace_starboard.cc',
+            'base/platform/platform-starboard.cc',
+          ],
+        }],
         ['OS=="android"', {
             'sources': [
               'base/debug/stack_trace_android.cc',
