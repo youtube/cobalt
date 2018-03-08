@@ -278,18 +278,6 @@
     },
 
     {
-      'target_name': 'browser_copy_test_data',
-      'type': 'none',
-      'variables': {
-        'content_test_input_files': [
-          '<(DEPTH)/cobalt/browser/testdata/',
-        ],
-        'content_test_output_subdir': 'cobalt/browser/testdata/',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
-    },
-
-    {
       'target_name': 'browser_copy_debug_console',
       'type': 'none',
       'variables': {
