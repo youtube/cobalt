@@ -34,11 +34,6 @@
             'main.cc',
           ],
         }],
-        ['cobalt_copy_test_data == 1', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
-          ],
-        }],
         ['cobalt_copy_debug_console == 1', {
           'dependencies': [
             '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_debug_console',
@@ -62,6 +57,17 @@
         'executable_name': 'cobalt',
       },
       'includes': [ '../../starboard/build/deploy.gypi' ],
+    },
+
+    {
+      # Convenience target to build cobalt and copy the demos into
+      # content/data/test/cobalt/demos
+      'target_name': 'cobalt_with_demos',
+      'type': 'none',
+      'dependencies': [
+        'cobalt',
+        '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
+      ],
     },
   ],
   'conditions': [
