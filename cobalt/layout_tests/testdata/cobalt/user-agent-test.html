@@ -40,59 +40,38 @@ function generateUserAgentRegexes() {
   // does not support named capture groups, so they are commented out.
   // Additionally, all model names have been replaced with more general regexes.
   // YTTV 2016: Operator_DeviceType_Chipset/Firmware (Brand, Model, Connection)
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // const string = "("/*?P<device>*/"("/*?P<operator>*/"[" + uaFieldChars + "'/]*)_"
-  //    + "("/*?P<type>*/"[" + uaFieldChars + "/]+)_"
-  //    + "("/*?P<chipset>*/"[" + uaFieldChars + "/_]+)) ?/ ?"
-  //    + "[" + uaFieldChars + "_]* "
-  //    + "\\(("/*?P<brand>*/"[" + uaFieldChars + "/_ ]+), ?("/*?P<model>*/"[^,]*), "
-  //    + "?[WIREDLSwiredls\\\\/]*\\)";
-  // output.push(string);
+  const string = "("/*?P<device>*/ + "(" + /*?P<operator>*/"[" + uaFieldChars + "'/]*)_"
+      + "("/*?P<type>*/ + "[" + uaFieldChars + "/]+)_"
+      + "("/*?P<chipset>*/ + "[" + uaFieldChars + "/_]+)) ?/ ?"
+      + "[" + uaFieldChars + "_]* "
+      + "\\(("/*?P<brand>*/ + "[" + uaFieldChars + "/_ ]+), ?("/*?P<model>*/ + "[^,]*), "
+      + "?[WIREDLSwiredls\\/]*\\)";
+  output.push(string);
 
   // TTV 2013: Device/Firmware (Brand, Model, Connection)
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("("/*?P<device>*/"[-_.A-Za-z0-9\\/]+) ?/ ?[-_.A-Za-z0-9\\]* ");
-
-  output.push("\\(("/*?P<brand>*/ + "[-_.A-Za-z0-9\\\\/ ]+), ?("/*?P<model>*/ + "[^,]*), ");
-
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("?[WIREDLSwiredls\\\\/]*\\)");
+  output.push("("/*?P<device>*/ + "[-_.A-Za-z0-9\\/]+) ?/ ?[-_.A-Za-z0-9\\\\]* "
+              + "\\(("/*?P<brand>*/ + "[-_.A-Za-z0-9\\/ ]+), ?("/*?P<model>*/ + "[^,]*), "
+              + "?[WIREDLSwiredls\\/]*\\)");
 
   // YTTV 2012: Vendor Device/Firmware (Model, SKU, Lang, Country)
-  output.push("("/*?P<brand>*/ + "[-_.A-Za-z0-9\\\\/]+) ");
-
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("("/*?P<device>*/"[-_.A-Za-z0-9\\\\]+)/[-_.A-Za-z0-9\\\\/]* \\(("/*?P<model>*/"[^,]*), ");
-
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("?[-_.A-Za-z0-9\\\\/]*,[^,]+,[^)]+\\)");
+  output.push("("/*?P<brand>*/ + "[-_.A-Za-z0-9\\\\/]+) "
+              + "("/*?P<device>*/ + "[-_.A-Za-z0-9\\\\]+)/[-_.A-Za-z0-9\\\\/]* \\(("/*?P<model>*/ + "[^,]*), "
+              + "?[-_.A-Za-z0-9\\\\/]*,[^,]+,[^)]+\\)");
 
   // (REMOVED) Spec:
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("("/*?P<device>*/"[a-zA-Z]+)/[0-9.]+ \\([^;]*; ?("/*?P<brand>*/"[^;]*); ");
-
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("?("/*?P<model>*/"[^;]*);[^;]*;[^;]*;[^)]*\\)");
+  output.push("("/*?P<device>*/ + "[a-zA-Z]+)/[0-9.]+ \\([^;]*; ?("/*?P<brand>*/ + "[^;]*); "
+              + "?("/*?P<model>*/ + "[^;]*);[^;]*;[^;]*;[^)]*\\)");
 
   // (REMOVED) 2012:
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("("/*?P<brand>*/"[G-L]+) Browser/[0-9.]+\\([^;]*; [E-L]+; ");
-
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("?("/*?P<model>*/"[^;]*);[^;]*;[^;]*;\\); [G-L]+ ("/*?P<device>*/"[-_.A-Za-z0-9\\\\/]+) ");
+  output.push("("/*?P<brand>*/ + "[G-L]+) Browser/[0-9.]+\\([^;]*; [E-L]+; "
+              + "?("/*?P<model>*/ + "[^;]*);[^;]*;[^;]*;\\); [G-L]+ ("/*?P<device>*/ + "[-_.A-Za-z0-9\\\\/]+) ");
 
   // (REMOVED)
   // Note: device is more of a firmware version, but model should feasibly always match.
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("("/*?P<brand>*/"[a-zA-Z]+)/("/*?P<model>*/"\\S+) \\(("/*?P<device>*/"[^)]+)\\)");
+  output.push("("/*?P<brand>*/ + "[a-zA-Z]+)/("/*?P<model>*/ + "\\S+) \\(("/*?P<device>*/ + "[^)]+)\\)");
 
-  // (REMOVED)
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("[.A-Za-z0-9\\\\/]+ [a-zA-Z]+/[.0-9]+ ("/*?P<brand>*/"[a-zA-Z]+)[T-V]+/[.0-9]+ ");
-
-  // TODO: The following regex was copy pasted from Python, and is not a valid JavaScript regex.
-  // output.push("model/("/*?P<model>*/"\\S+) ?[-_.A-Za-z0-9\\\\/]* build/[A-Za-z0-9]+");
-
+  output.push("[.A-Za-z0-9\\\\/]+ [a-zA-Z]+/[.0-9]+ ("/*?P<brand>*/ + "[a-zA-Z]+)[T-V]+/[.0-9]+ "
+              + "model/("/*?P<model>*/ + "\\S+) ?[-_.A-Za-z0-9\\\\/]* build/[A-Za-z0-9]+");
   return output;
 }
 
