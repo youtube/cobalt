@@ -97,7 +97,7 @@ void ReadDemuxerStream(DemuxerStream* demuxer_stream) {
 int SandboxMain(int argc, char** argv) {
   if (argc != 3) {
     // Path should be in the form of
-    //     "cobalt/browser/testdata/media-element-demo/dash-video-240p.mp4".
+    //     "cobalt/demos/media-element-demo/dash-video-240p.mp4".
     LOG(ERROR) << "Usage: " << argv[0] << " <audio_path> <video_path>";
     return 1;
   }

@@ -54,8 +54,8 @@
       'dependencies': [
         'media',
         '<(DEPTH)/cobalt/base/base.gyp:base',
-        # Use test data from browser to avoid keeping two copies of video files.
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
+        # Use test data from demos to avoid keeping two copies of video files.
+        '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
@@ -126,8 +126,8 @@
           ],
           'dependencies': [
             '<(DEPTH)/cobalt/base/base.gyp:base',
-            # Use test data from browser to avoid keeping two copies of video files.
-            '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
+            # Use test data from demos to avoid keeping two copies of video files.
+            '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
             '<(DEPTH)/cobalt/loader/loader.gyp:loader',
             '<(DEPTH)/cobalt/media/media.gyp:media',
             '<(DEPTH)/cobalt/network/network.gyp:network',
@@ -169,8 +169,8 @@
           ],
           'dependencies': [
             '<(DEPTH)/cobalt/base/base.gyp:base',
-            # Use test data from browser to avoid keeping two copies of video files.
-            '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_test_data',
+            # Use test data from demos to avoid keeping two copies of video files.
+            '<(DEPTH)/cobalt/demos/demos.gyp:copy_demos',
             '<(DEPTH)/cobalt/loader/loader.gyp:loader',
             '<(DEPTH)/cobalt/media/media.gyp:media',
             '<(DEPTH)/cobalt/network/network.gyp:network',
