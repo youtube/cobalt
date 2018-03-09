@@ -166,12 +166,10 @@ DebugConsole::DebugConsole(
         render_tree_produced_callback,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
-    const script::JavaScriptEngine::Options& javascript_engine_options) {
+    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback) {
   mode_ = GetInitialMode();
 
   WebModule::Options web_module_options;
-  web_module_options.javascript_engine_options = javascript_engine_options;
   web_module_options.name = "DebugConsoleWebModule";
   // The debug console does not load any image assets.
   web_module_options.image_cache_capacity = 0;
