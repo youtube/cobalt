@@ -40,8 +40,14 @@ _ANDROID_NDK_API_LEVEL = '21'
 # Packages to install in the Android SDK.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
+    'build-tools;27.0.3',
+    'cmake;3.6.4111459',
+    'emulator',
     'extras;android;m2repository',
+    'extras;google;m2repository',
+    'lldb;3.0',
     'ndk-bundle',
+    'patcher;v4',
     'platforms;android-27',
     'tools',
 ]
@@ -76,10 +82,10 @@ _SDKMANAGER_TOOL = os.path.join(_SDK_PATH, 'tools', 'bin', 'sdkmanager')
 
 # Maps the Android ABI to the architecture name of the toolchain.
 _TOOLS_ABI_ARCH_MAP = {
-    'x86'        : 'x86',
-    'armeabi'    : 'arm',
+    'x86': 'x86',
+    'armeabi': 'arm',
     'armeabi-v7a': 'arm',
-    'arm64-v8a'  : 'arm64',
+    'arm64-v8a': 'arm64',
 }
 
 
