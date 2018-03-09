@@ -367,8 +367,7 @@ BrowserModule::BrowserModule(const GURL& url,
                  base::Unretained(this)),
       &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
-      options_.web_module_options.javascript_engine_options));
+      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
