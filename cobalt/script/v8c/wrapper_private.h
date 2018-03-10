@@ -28,7 +28,7 @@ namespace v8c {
 // one mapping of such v8::Object and WrapperPrivate instances, and the
 // corresponding |WrapperPrivate| must be destroyed when its |v8::Object| is
 // garbage collected.
-struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
+class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
   // The callback that V8 will run when the |v8::Object| that we live inside
   // of dies.
