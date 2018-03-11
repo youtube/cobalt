@@ -26,7 +26,6 @@ import logging
 import os
 import shutil
 import sys
-import threading
 
 import _env  # pylint: disable=unused-import
 from paths import REPOSITORY_ROOT
@@ -57,6 +56,7 @@ def _IsOutDir(source_root, d):
   """
   out_dir = os.path.join(source_root, 'out')
   return out_dir in d
+
 
 def CopyPythonFiles(source_root, dest_root):
   """Copy all python files to the destination folder.
@@ -123,6 +123,14 @@ def CopyAppLauncherTools(repo_root, dest_root):
   CopyPythonFiles(repo_root, dest_root)
   WritePlatformsInfo(repo_root, dest_root)
 
+  # Create an extra zip file of the app launcher package so that users have
+  # the option of downloading a single file which is much faster, especially
+  # on x20.
+  logging.info('Creating a zip file of the app launcher package.')
+  app_launcher_zip_file = shutil.make_archive('app_launcher', 'zip', dest_root)
+  shutil.move(app_launcher_zip_file, dest_root)
+
+
 def main(command_args):
   logging.basicConfig(level=logging.INFO)
   parser = argparse.ArgumentParser()
@@ -135,6 +143,7 @@ def main(command_args):
   args = parser.parse_args(command_args)
   CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
   return 0
+
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))
