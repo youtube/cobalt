@@ -39,6 +39,9 @@ def main(argv):
   parser.add_argument(
       '-o', dest='output_dir', required=True, help='output directory')
   parser.add_argument(
+      '-s', dest='stamp_file', required=True,
+      help='stamp file to update after the output directory is populated')
+  parser.add_argument(
       'subdirs', metavar='subdirs', nargs='*',
       help='subdirectories within both the input and output directories')
   options = parser.parse_args(argv[1:])
@@ -73,6 +76,9 @@ def main(argv):
       os.makedirs(dst_dir)
     os.symlink(rel_path, dst_path)
 
+  if options.stamp_file:
+    with open(options.stamp_file, 'w') as stamp_file:
+      stamp_file.write('\n'.join(options.subdirs))
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))
