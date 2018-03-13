@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/socket_internal.h"
@@ -29,10 +30,23 @@ SbSocketError SbSocketListen(SbSocket socket) {
   }
 
   SB_DCHECK(socket->socket_fd >= 0);
-  // TODO: Determine if we need to specify a > 0 backlog. It can go up to
-  // SOMAXCONN according to the documentation. Several places in chromium
-  // specify the literal "10" with the comment "maybe dont allow any backlog?"
-  int result = listen(socket->socket_fd, 0);
+  // We set the backlog to SOMAXCONN to ensure that it is above 1, and high
+  // enough that all tests are able to pass.  Some tests will fail on this
+  // because they expect to be able to successfully initiate multiple connects
+  // at once, and then after all connects have been initiated to subsequently
+  // initiate corresponding accepts.
+#if defined(SOMAXCONN)
+  const int kMaxConn = SOMAXCONN;
+#else
+  // Some posix platforms such as FreeBSD do not define SOMAXCONN.
+  // In this case, set the value to an arbitrary number large enough to
+  // satisfy most use-cases and tests, empirically we have found that 128
+  // is sufficient.  All implementations of listen() specify that a backlog
+  // parameter larger than the system max will be silently truncated to the
+  // system's max.
+  const int kMaxConn = 128;
+#endif
+  int result = listen(socket->socket_fd, kMaxConn);
   if (result != 0) {
     return (socket->error = sbposix::TranslateSocketErrno(result));
   }
