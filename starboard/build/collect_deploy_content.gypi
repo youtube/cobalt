@@ -23,6 +23,9 @@
     # Root of the content tree that should be deployed with a given target.
     'content_deploy_dir': '<(sb_static_contents_output_base_dir)/deploy/<(executable_name)',
 
+    # Stamp file that will be updated after the symlink farm is built.
+    'content_deploy_stamp_file': '<(content_deploy_dir).stamp',
+
     # This is a list of relative paths within both input_dir and output_dir,
     # and is named such that GYP does not relativize it. Values are merged in
     # from the all_dependent_settings blocks of gypi files that copy static data
@@ -35,17 +38,17 @@
       'input_dir': '<(sb_static_contents_output_data_dir)',
       'output_dir': '<(content_deploy_dir)',
     },
-    'inputs': [],
-    'outputs': [
-      # This file is never created, so this action always runs.
-      'collect-content-<(executable_name)',
-    ],
+    # Re-collect the content whenever the executable is rebuilt.
+    'inputs': [ '<(executable_file)'],
+    'outputs': [ '<(content_deploy_stamp_file)' ],
     'action': [
       'python',
       '<(DEPTH)/starboard/build/collect_deploy_content.py',
       '-i', '<(input_dir)',
       '-o', '<(output_dir)',
+      '-s', '<(content_deploy_stamp_file)',
       '>@(content_deploy_subdirs)',
     ],
+    'message': 'Collect content: <(executable_name)',
   }],
 }

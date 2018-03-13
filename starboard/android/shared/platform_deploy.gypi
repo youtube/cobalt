@@ -15,7 +15,7 @@
   'variables': {
     'GRADLE_BUILD_TYPE': '<(cobalt_config)',
     'GRADLE_FILES_DIR': '<(PRODUCT_DIR)/gradle/<(executable_name)',
-    'lib': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
+    'executable_file': '<(PRODUCT_DIR)/lib/lib<(executable_name).so',
     'apk': '<(PRODUCT_DIR)/<(executable_name).apk',
   },
   'conditions': [
@@ -31,7 +31,11 @@
   'actions': [
     {
       'action_name': 'build_apk',
-      'inputs': [ '<(lib)' ],
+      'inputs': [
+        '<(executable_file)',
+        '<(PRODUCT_DIR)/gradle/apk_sources.stamp',
+        '<(content_deploy_stamp_file)',
+      ],
       'outputs': [ '<(apk)' ],
       'action': [
         '<(DEPTH)/starboard/android/apk/cobalt-gradle.sh',
@@ -47,14 +51,18 @@
         '-P', 'cobaltTarget=<(executable_name)',
         'assembleCobalt_<(GRADLE_BUILD_TYPE)',
       ],
-      'message': 'Building: <(apk)'
+      'message': 'Build APK: <(apk)',
     },
     {
       # Clean the gradle directory to conserve space after we have the APK
       'action_name': 'delete_gradle_dir',
       'inputs': [ '<(apk)' ],
-      'outputs': [ 'always_delete_gradle-<(executable_name)' ],
-      'action': [ 'rm', '-rf', '<(GRADLE_FILES_DIR)' ]
+      'outputs': [ '<(GRADLE_FILES_DIR).deleted.stamp' ],
+      'action': [
+        'sh', '-c',
+        'rm -rf <(GRADLE_FILES_DIR) && touch <(GRADLE_FILES_DIR).deleted.stamp',
+      ],
+      'message': 'Cleanup Gradle: <(executable_name)',
     },
   ],
 }
