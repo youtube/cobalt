@@ -32,6 +32,8 @@
         'attr.h',
         'audio_track.h',
         'audio_track_list.h',
+        'base64.cc',
+        'base64.h',
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
         'blob.cc',
