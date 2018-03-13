@@ -15,13 +15,14 @@
 
 #include <algorithm>
 
-#include "base/base64.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
+#include "cobalt/dom/base64.h"
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/device_orientation_event.h"
@@ -345,22 +346,24 @@ scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
-  std::string output;
-  if (!base::Base64Encode(string_to_encode, &output)) {
+  TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
+  auto output = ForgivingBase64Encode(string_to_encode);
+  if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
     return std::string();
   }
-  return output;
+  return *output;
 }
 
 std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
                                   script::ExceptionState* exception_state) {
-  std::string output;
-  if (!base::Base64Decode(encoded_string, &output)) {
+  TRACE_EVENT0("cobalt::dom", "Window::Atob()");
+  auto output = ForgivingBase64Decode(encoded_string);
+  if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
     return {};
   }
-  return {output.begin(), output.end()};
+  return *output;
 }
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
