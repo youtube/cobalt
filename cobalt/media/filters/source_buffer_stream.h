@@ -471,6 +471,10 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // appropriately and returns true.  Otherwise returns false.
   bool SetPendingBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
 
+  // Returns the accumulated duration of all ranges.  This is solely used by
+  // garbage collection.
+  base::TimeDelta GetBufferedDurationForGarbageCollection() const;
+
   // Used to report log messages that can help the web developer figure out what
   // is wrong with the content.
   scoped_refptr<MediaLog> media_log_;
