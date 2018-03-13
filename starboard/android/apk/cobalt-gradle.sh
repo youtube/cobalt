@@ -31,13 +31,9 @@ echo "ANDROID_HOME=${ANDROID_HOME}"
 echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
 echo "TASK: ${@: -1}"
 
-# Allow up to 4 parallel gradle builds, distributing among lock files based
-# on a hash of the command and its arguments. Except on buildbot, only run 1
-# gradle build at a time.
-BUCKETS=4
-if [ "${BUILDBOT_BUILDER_NAME}" ]; then
-  BUCKETS=1
-fi
+# Allow parallel gradle builds, as defined by a COBALT_GRADLE_BUILD_COUNT envvar
+# or default to 1 if that's not set (so buildbot only runs 1 gradle at a time).
+BUCKETS=${COBALT_GRADLE_BUILD_COUNT:-1}
 MD5=$(echo "$@" | md5sum)
 LOCKNUM=$(( ${BUCKETS} * 0x${MD5:0:6} / 0x1000000 ))
 
