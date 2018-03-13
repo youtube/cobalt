@@ -33,7 +33,6 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
-#include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
@@ -232,11 +231,6 @@ BrowserModule::BrowserModule(const GURL& url,
                            .PassAs<storage::StorageManager::UpgradeHandler>(),
                        options_.storage_manager_options),
       is_rendered_(false),
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-      array_buffer_allocator_(
-          new ResourceProviderArrayBufferAllocator(GetResourceProvider())),
-      array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
       network_module_(&storage_manager_, event_dispatcher_,
                       options_.network_module_options),
@@ -352,11 +346,6 @@ BrowserModule::BrowserModule(const GURL& url,
       application_state_ == base::kApplicationStatePaused) {
     InitializeSystemWindow();
   } else if (application_state_ == base::kApplicationStatePreloading) {
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-    // Preloading is not supported on platforms that allocate ArrayBuffers on
-    // GPU memory.
-    NOTREACHED();
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
     resource_provider_stub_.emplace(true /*allocate_image_data*/);
   }
 
@@ -498,11 +487,6 @@ void BrowserModule::Navigate(const GURL& url) {
       base::Bind(&BrowserModule::Navigate, base::Unretained(this));
   options.loaded_callbacks.push_back(
       base::Bind(&BrowserModule::OnLoad, base::Unretained(this)));
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-  options.dom_settings_options.array_buffer_allocator =
-      array_buffer_allocator_.get();
-  options.dom_settings_options.array_buffer_cache = array_buffer_cache_.get();
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 #if defined(ENABLE_FAKE_MICROPHONE)
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kFakeMicrophone) ||
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kInputFuzzer)) {
@@ -1500,18 +1484,6 @@ void BrowserModule::SuspendInternal(bool is_start) {
   debug_console_layer_->Reset();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-  // Note that the following function call will leak the GPU memory allocated.
-  // This is because after the renderer_module_ is destroyed it is no longer
-  // safe to release the GPU memory allocated.
-  //
-  // The following code can call reset() to release the allocated memory but the
-  // memory may still be used by XHR and ArrayBuffer.  As this feature is only
-  // used on platform without Resume() support, it is safer to leak the memory
-  // then to release it.
-  dom::ArrayBuffer::Allocator* allocator = array_buffer_allocator_.release();
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-
   if (media_module_) {
     media_module_->Suspend();
   }
@@ -1536,12 +1508,6 @@ void BrowserModule::StartOrResumeInternalPreStateUpdate(bool is_start) {
 
   // Propagate the current screen size.
   UpdateScreenSize();
-
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-  // Start() and Resume() are not supported on platforms that allocate
-  // ArrayBuffers in GPU memory.
-  NOTREACHED();
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 
   if (is_start) {
     FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,

@@ -440,12 +440,6 @@ class BrowserModule {
   // ResourceProvider is created. Only valid in the Preloading state.
   base::optional<render_tree::ResourceProviderStub> resource_provider_stub_;
 
-  // Optional memory allocator used by ArrayBuffer.
-  scoped_ptr<dom::ArrayBuffer::Allocator> array_buffer_allocator_;
-
-  // Optional cache used by ArrayBuffer.
-  scoped_ptr<dom::ArrayBuffer::Cache> array_buffer_cache_;
-
   // Controls all media playback related objects/resources.
   scoped_ptr<media::MediaModule> media_module_;
 
