@@ -41,10 +41,12 @@ SbSocketError SbSocketListen(SbSocket socket) {
     socket->bound_to = SbSocketPrivate::BindTarget::kAny;
   }
 
-  // TODO: Determine if we need to specify a > 0 backlog. It can go up to
-  // SOMAXCONN according to the documentation. Several places in chromium
-  // specify the literal "10" with the comment "maybe dont allow any backlog?"
-  int result = listen(socket->socket_handle, 0);
+  // We set the backlog to SOMAXCONN to ensure that it is above 1, and high
+  // enough that all tests are able to pass.  Some tests will fail on this
+  // because they expect to be able to successfully initiate multiple connects
+  // at once, and then after all connects have been initiated to subsequently
+  // initiate corresponding accepts.
+  int result = listen(socket->socket_handle, SOMAXCONN);
   if (result == SOCKET_ERROR) {
     int last_error = WSAGetLastError();
     SB_LOG(ERROR) << "listen() failed with last_error = " << last_error;
