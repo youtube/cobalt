@@ -51,6 +51,11 @@ const int kMaxGarbageCollectAlgorithmWarningLogs = 20;
 // work or other side-effects.
 const int kMaxStrangeSameTimestampsLogs = 20;
 
+// The maximum duration of all buffered ranges combined before a garbage
+// collection is triggered.  This is to limit the total number of DecoderBuffers
+// that can be accumulated in the system.
+const int kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds = 120000;
+
 // Helper method that returns true if |ranges| is sorted in increasing order,
 // false otherwise.
 bool IsRangeListSorted(const std::list<media::SourceBufferRange*>& ranges) {
@@ -731,10 +736,27 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
     return false;
   }
 
-  // Return if we're under or at the memory limit.
-  if (ranges_size + newDataSize <= memory_limit_) return true;
+  base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
 
-  size_t bytes_to_free = ranges_size + newDataSize - memory_limit_;
+  size_t bytes_to_free = 0;
+
+  // Check if we're under or at the memory/duration limit.
+  if (ranges_size + newDataSize > memory_limit_) {
+    bytes_to_free = ranges_size + newDataSize - memory_limit_;
+  } else if (duration.InMilliseconds() >
+             kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds) {
+    // Estimate the size to free.
+    auto duration_to_free =
+        duration.InMilliseconds() -
+        kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds;
+    bytes_to_free = ranges_size * duration_to_free / duration.InMilliseconds();
+  }
+
+  if (bytes_to_free == 0) {
+    return true;
+  }
+
+  DCHECK_GT(bytes_to_free, 0);
 
   DVLOG(2) << __func__ << " " << GetStreamTypeName()
            << ": Before GC media_time=" << media_time.InSecondsF()
@@ -1832,6 +1854,15 @@ bool SourceBufferStream::SetPendingBuffer(
   pending_buffer_.swap(*out_buffer);
   pending_buffers_complete_ = false;
   return true;
+}
+
+base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
+    const {
+  base::TimeDelta duration;
+  for (auto range : ranges_) {
+    duration += range->GetEndTimestamp() - range->GetStartTimestamp();
+  }
+  return duration;
 }
 
 }  // namespace media
