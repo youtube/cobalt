@@ -94,7 +94,7 @@ VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
   ScopedLocalJavaRef<jobject> j_context(env->CallStarboardObjectMethodOrAbort(
       "getApplicationContext", "()Landroid/content/Context;"));
   j_video_frame_release_time_helper_ =
-      env->NewObjectOrAbort("foo/cobalt/media/VideoFrameReleaseTimeHelper",
+      env->NewObjectOrAbort("dev/cobalt/media/VideoFrameReleaseTimeHelper",
                             "(Landroid/content/Context;)V", j_context.Get());
   j_video_frame_release_time_helper_ =
       env->ConvertLocalRefToGlobalRef(j_video_frame_release_time_helper_);

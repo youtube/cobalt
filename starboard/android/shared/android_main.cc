@@ -195,7 +195,7 @@ extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_foo_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
+jboolean Java_dev_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
@@ -204,7 +204,7 @@ jboolean Java_foo_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_coat_StarboardBridge_nativeInitialize(
+void Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
     JniEnvExt* env, jobject starboard_bridge) {
   JniEnvExt::Initialize(env, starboard_bridge);
 }

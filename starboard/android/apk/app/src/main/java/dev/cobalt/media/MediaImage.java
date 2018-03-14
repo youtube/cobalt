@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/speech_synthesis.h"
+package dev.cobalt.media;
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+import dev.cobalt.util.UsedByNative;
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+/** https://wicg.github.io/mediasession/#dictdef-mediaimage */
+public class MediaImage {
+  public final String src;
+  public final String sizes;
+  public final String type;
 
-void SbSpeechSynthesisCancel() {
-  JniEnvExt* env = JniEnvExt::Get();
-
-  ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallStarboardObjectMethodOrAbort(
-          "getTextToSpeechHelper",
-          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  env->CallVoidMethodOrAbort(j_tts_helper.Get(), "cancel", "()V");
+  @UsedByNative
+  public MediaImage(String src, String sizes, String type) {
+    this.src = src;
+    this.sizes = sizes;
+    this.type = type;
+  }
 }

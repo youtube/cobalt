@@ -29,7 +29,7 @@ struct SbSystemPlatformErrorPrivate {
                                void* user_data)
       : error_obj(NULL), type(type), callback(callback), user_data(user_data) {}
 
-  jobject error_obj;  // global ref to foo.cobalt.PlatformError instance
+  jobject error_obj;  // global ref to dev.cobalt.PlatformError instance
   SbSystemPlatformErrorType type;
   SbSystemPlatformErrorCallback callback;
   void* user_data;
@@ -38,7 +38,7 @@ struct SbSystemPlatformErrorPrivate {
 namespace {
 
 enum {
-  // This must be kept in sync with Java foo.cobalt.PlatformError.ErrorType
+  // This must be kept in sync with Java dev.cobalt.PlatformError.ErrorType
   kJniErrorTypeConnectionError = 0,
 };
 
@@ -63,7 +63,7 @@ SbSystemPlatformError SbSystemRaisePlatformError(
 
   JniEnvExt* env = JniEnvExt::Get();
   jobject error_obj = env->CallStarboardObjectMethodOrAbort(
-      "raisePlatformError", "(IJ)Lfoo/cobalt/coat/PlatformError;",
+      "raisePlatformError", "(IJ)Ldev/cobalt/coat/PlatformError;",
       jni_error_type, reinterpret_cast<jlong>(error_handle));
   error_handle->error_obj = env->NewGlobalRef(error_obj);
 
@@ -76,7 +76,7 @@ void SbSystemClearPlatformError(SbSystemPlatformError handle) {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_coat_PlatformError_onCleared(
+void Java_dev_cobalt_coat_PlatformError_onCleared(
     JNIEnv* env, jobject unused_this, jint jni_response, jlong jni_data) {
   SB_UNREFERENCED_PARAMETER(unused_this);
   SbSystemPlatformError error_handle =

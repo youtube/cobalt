@@ -39,7 +39,7 @@ const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
+Java_dev_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
     JNIEnv* env,
     jobject unused_this,
     jlong native_media_drm_bridge,
@@ -66,7 +66,7 @@ Java_foo_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
+Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
     JniEnvExt* env,
     jobject unused_this,
     jlong native_media_drm_bridge,
@@ -149,8 +149,8 @@ DrmSystem::DrmSystem(
       hdcp_lost_(false) {
   JniEnvExt* env = JniEnvExt::Get();
   j_media_drm_bridge_ = env->CallStaticObjectMethodOrAbort(
-      "foo/cobalt/media/MediaDrmBridge", "create",
-      "(J)Lfoo/cobalt/media/MediaDrmBridge;", reinterpret_cast<jlong>(this));
+      "dev/cobalt/media/MediaDrmBridge", "create",
+      "(J)Ldev/cobalt/media/MediaDrmBridge;", reinterpret_cast<jlong>(this));
   if (!j_media_drm_bridge_) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
     return;
