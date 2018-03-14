@@ -32,7 +32,7 @@ namespace cobalt {
 AndroidUserAuthorizer::AndroidUserAuthorizer() : shutdown_(false) {
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
-      "getUserAuthorizer", "()Lfoo/cobalt/account/UserAuthorizer;");
+      "getUserAuthorizer", "()Ldev/cobalt/account/UserAuthorizer;");
   j_user_authorizer_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }
 
@@ -56,7 +56,7 @@ scoped_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_token(
       env->CallObjectMethodOrAbort(j_user_authorizer_, "authorizeUser",
-                                   "()Lfoo/cobalt/account/AccessToken;"));
+                                   "()Ldev/cobalt/account/AccessToken;"));
   return CreateAccessToken(j_token.Get());
 }
 
@@ -81,7 +81,7 @@ AndroidUserAuthorizer::RefreshAuthorization(SbUser user) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_token(
       env->CallObjectMethodOrAbort(j_user_authorizer_, "refreshAuthorization",
-                                   "()Lfoo/cobalt/account/AccessToken;"));
+                                   "()Ldev/cobalt/account/AccessToken;"));
   return CreateAccessToken(j_token.Get());
 }
 

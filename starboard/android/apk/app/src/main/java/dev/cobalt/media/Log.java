@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/speech_synthesis.h"
+package dev.cobalt.media;
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+/**
+ * Common definitions for logging in the media package.
+ */
+public class Log {
+  public static final String TAG = "starboard_media";
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
-
-void SbSpeechSynthesisCancel() {
-  JniEnvExt* env = JniEnvExt::Get();
-
-  ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallStarboardObjectMethodOrAbort(
-          "getTextToSpeechHelper",
-          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  env->CallVoidMethodOrAbort(j_tts_helper.Get(), "cancel", "()V");
+  private Log() {}
 }

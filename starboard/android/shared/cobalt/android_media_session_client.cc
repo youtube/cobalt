@@ -233,7 +233,7 @@ class AndroidMediaSessionClient : public MediaSessionClient {
       const MediaImageSequence& artwork(media_metadata->artwork());
       if (!artwork.empty()) {
         ScopedLocalJavaRef<jclass> media_image_class(
-            env->FindClassExtOrAbort("foo/cobalt/media/MediaImage"));
+            env->FindClassExtOrAbort("dev/cobalt/media/MediaImage"));
         jmethodID media_image_constructor = env->GetMethodID(
             media_image_class.Get(), "<init>",
             "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
@@ -267,7 +267,7 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     env->CallStarboardVoidMethodOrAbort(
         "updateMediaSession",
         "(IJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-            "[Lfoo/cobalt/media/MediaImage;)V",
+            "[Ldev/cobalt/media/MediaImage;)V",
         playback_state, playback_state_actions,
         j_title.Get(), j_artist.Get(), j_album.Get(), j_artwork.Get());
   }
@@ -293,7 +293,7 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
 using starboard::android::shared::cobalt::AndroidMediaSessionClient;
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_media_CobaltMediaSession_nativeInvokeAction(
+void Java_dev_cobalt_media_CobaltMediaSession_nativeInvokeAction(
     JNIEnv* env,
     jclass unused_clazz,
     jlong action) {
