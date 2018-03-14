@@ -17,11 +17,27 @@
 #include <algorithm>
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+
+namespace {
+
+void ConvertSample(const int16_t* source, float* destination) {
+  *destination = static_cast<float>(*source) / 32768.f;
+}
+
+void ConvertSample(const float* source, int16_t* destination) {
+  float sample = std::max(*source, -1.f);
+  sample = std::min(sample, 1.f);
+  *destination = static_cast<int16_t>(sample * 32767.f);
+}
+
+}  // namespace
 
 DecodedAudio::DecodedAudio()
     : channels_(0),
@@ -66,57 +82,136 @@ void DecodedAudio::SwitchFormatTo(
     return;
   }
 
-  if (storage_type_ != kSbMediaAudioFrameStorageTypeInterleaved ||
-      new_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
-    SB_NOTREACHED();
-    // TODO: Implement switching between other storage type pairs.
+  if (new_storage_type == storage_type_) {
+    SwitchSampleTypeTo(new_sample_type);
     return;
   }
+
+  if (new_sample_type == sample_type_) {
+    SwitchStorageTypeTo(new_storage_type);
+    return;
+  }
+
+  // Both sample types and storage types are different, use the slowest way.
+  size_t new_size =
+      media::GetBytesPerSample(new_sample_type) * frames() * channels();
+  scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
+
+#define InterleavedSampleAddr(start_addr, channel, frame) \
+  (start_addr + (frame * channels() + channel))
+#define PlanarSampleAddr(start_addr, channel, frame) \
+  (start_addr + (channel * frames() + frame))
+#define GetSampleAddr(StorageType, start_addr, channel, frame) \
+  (StorageType##SampleAddr(start_addr, channel, frame))
+#define SwitchTo(OldSampleType, OldStorageType, NewSampleType, NewStorageType) \
+  do {                                                                         \
+    const OldSampleType* old_samples =                                         \
+        reinterpret_cast<OldSampleType*>(buffer_.get());                       \
+    NewSampleType* new_samples =                                               \
+        reinterpret_cast<NewSampleType*>(new_buffer.get());                    \
+                                                                               \
+    for (int channel = 0; channel < channels(); ++channel) {                   \
+      for (int frame = 0; frame < frames(); ++frame) {                         \
+        const OldSampleType* old_sample =                                      \
+            GetSampleAddr(OldStorageType, old_samples, channel, frame);        \
+        NewSampleType* new_sample =                                            \
+            GetSampleAddr(NewStorageType, new_samples, channel, frame);        \
+        ConvertSample(old_sample, new_sample);                                 \
+      }                                                                        \
+    }                                                                          \
+  } while (false)
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16 &&
+      storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32 &&
-      storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
-      new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
-    size_t new_size = sizeof(float) * frames() * channels();
-    scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
+      new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
+    SwitchTo(int16_t, Interleaved, float, Planar);
+  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16 &&
+             storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
+             new_sample_type == kSbMediaAudioSampleTypeFloat32 &&
+             new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
+    SwitchTo(int16_t, Planar, float, Interleaved);
+  } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
+             storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
+             new_sample_type == kSbMediaAudioSampleTypeInt16 &&
+             new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
+    SwitchTo(float, Interleaved, int16_t, Planar);
+  } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
+             storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
+             new_sample_type == kSbMediaAudioSampleTypeInt16 &&
+             new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
+    SwitchTo(float, Planar, int16_t, Interleaved);
+  } else {
+    SB_NOTREACHED();
+  }
+
+  buffer_.swap(new_buffer);
+  sample_type_ = new_sample_type;
+  storage_type_ = new_storage_type;
+  size_ = new_size;
+}
+
+void DecodedAudio::SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type) {
+  size_t new_size =
+      media::GetBytesPerSample(new_sample_type) * frames() * channels();
+  scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
+
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16 &&
+      new_sample_type == kSbMediaAudioSampleTypeFloat32) {
+    const int16_t* old_samples = reinterpret_cast<int16_t*>(buffer_.get());
     float* new_samples = reinterpret_cast<float*>(new_buffer.get());
-    int16_t* old_samples = reinterpret_cast<int16_t*>(buffer_.get());
 
     for (int i = 0; i < frames() * channels(); ++i) {
-      new_samples[i] = static_cast<float>(old_samples[i]) / 32768.f;
+      ConvertSample(old_samples + i, new_samples + i);
     }
-
-    buffer_.swap(new_buffer);
-    sample_type_ = new_sample_type;
-    size_ = new_size;
-
-    return;
-  }
-
-  if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
-      new_sample_type == kSbMediaAudioSampleTypeInt16 &&
-      storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
-      new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
-    size_t new_size = sizeof(int16_t) * frames() * channels();
-    scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
+  } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
+             new_sample_type == kSbMediaAudioSampleTypeInt16) {
+    const float* old_samples = reinterpret_cast<float*>(buffer_.get());
     int16_t* new_samples = reinterpret_cast<int16_t*>(new_buffer.get());
-    float* old_samples = reinterpret_cast<float*>(buffer_.get());
 
     for (int i = 0; i < frames() * channels(); ++i) {
-      float sample = std::max(old_samples[i], -1.f);
-      sample = std::min(sample, 1.f);
-      new_samples[i] = static_cast<int16_t>(sample * 32767.f);
+      ConvertSample(old_samples + i, new_samples + i);
     }
-
-    buffer_.swap(new_buffer);
-    sample_type_ = new_sample_type;
-    size_ = new_size;
-
-    return;
   }
 
-  // TODO: Implement switching between other sample and storage types.
-  SB_NOTREACHED();
+  buffer_.swap(new_buffer);
+  sample_type_ = new_sample_type;
+  size_ = new_size;
+}
+
+void DecodedAudio::SwitchStorageTypeTo(
+    SbMediaAudioFrameStorageType new_storage_type) {
+  scoped_array<uint8_t> new_buffer(new uint8_t[size_]);
+  int bytes_per_sample = media::GetBytesPerSample(sample_type_);
+  uint8_t* old_samples = buffer_.get();
+  uint8_t* new_samples = new_buffer.get();
+
+  if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
+      new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
+    for (int channel = 0; channel < channels(); ++channel) {
+      for (int frame = 0; frame < frames(); ++frame) {
+        uint8_t* old_sample =
+            old_samples + (frame * channels() + channel) * bytes_per_sample;
+        uint8_t* new_sample =
+            new_samples + (channel * frames() + frame) * bytes_per_sample;
+        SbMemoryCopy(new_sample, old_sample, bytes_per_sample);
+      }
+    }
+  } else if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
+             new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
+    for (int channel = 0; channel < channels(); ++channel) {
+      for (int frame = 0; frame < frames(); ++frame) {
+        uint8_t* old_sample =
+            old_samples + (channel * frames() + frame) * bytes_per_sample;
+        uint8_t* new_sample =
+            new_samples + (frame * channels() + channel) * bytes_per_sample;
+        SbMemoryCopy(new_sample, old_sample, bytes_per_sample);
+      }
+    }
+  }
+
+  buffer_.swap(new_buffer);
+  storage_type_ = new_storage_type;
 }
 
 }  // namespace player

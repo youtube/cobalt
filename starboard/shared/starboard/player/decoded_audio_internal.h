@@ -56,6 +56,9 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   void ShrinkTo(size_t new_size);
 
  private:
+  void SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type);
+  void SwitchStorageTypeTo(SbMediaAudioFrameStorageType new_storage_type);
+
   int channels_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
