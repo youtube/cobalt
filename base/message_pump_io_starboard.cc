@@ -28,7 +28,8 @@
 namespace base {
 
 MessagePumpIOStarboard::SocketWatcher::SocketWatcher()
-    : socket_(kSbSocketInvalid),
+    : interests_(kSbSocketWaiterInterestNone),
+      socket_(kSbSocketInvalid),
       pump_(NULL),
       watcher_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
@@ -48,6 +49,7 @@ bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
   }
   pump_ = NULL;
   watcher_ = NULL;
+  interests_ = kSbSocketWaiterInterestNone;
   return result;
 }
 
@@ -147,6 +149,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   controller->Init(socket, persistent);
   controller->set_watcher(delegate);
   controller->set_pump(this);
+  controller->set_interests(interests);
 
   return true;
 }
