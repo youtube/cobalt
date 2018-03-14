@@ -35,14 +35,15 @@ inline bool ResetAndRunIfNotNull(base::Closure* cb) {
   return true;
 }
 
-template <typename Sig, typename ParamType>
-bool ResetAndRunIfNotNull(base::Callback<Sig>* cb, const ParamType& param) {
+template <typename Sig, typename... ParamTypes>
+bool ResetAndRunIfNotNull(base::Callback<Sig>* cb,
+                          const ParamTypes&... params) {
   if (cb->is_null()) {
     return false;
   }
   base::Callback<Sig> ret(*cb);
   cb->Reset();
-  ret.Run(param);
+  ret.Run(params...);
   return true;
 }
 
