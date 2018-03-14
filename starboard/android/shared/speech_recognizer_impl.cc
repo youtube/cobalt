@@ -77,7 +77,7 @@ SbSpeechRecognizerImpl::SbSpeechRecognizerImpl(
     : handler_(*handler), is_started_(false) {
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
-      "getVoiceRecognizer", "()Lfoo/cobalt/coat/VoiceRecognizer;");
+      "getVoiceRecognizer", "()Ldev/cobalt/coat/VoiceRecognizer;");
   j_voice_recognizer_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }
 
@@ -228,7 +228,7 @@ void SbSpeechRecognizerPrivate::DestroySpeechRecognizer(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_coat_VoiceRecognizer_nativeOnSpeechDetected(
+Java_dev_cobalt_coat_VoiceRecognizer_nativeOnSpeechDetected(
     JNIEnv* env,
     jobject jcaller,
     jlong nativeSpeechRecognizerImpl,
@@ -249,7 +249,7 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnSpeechDetected(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_coat_VoiceRecognizer_nativeOnError(
+Java_dev_cobalt_coat_VoiceRecognizer_nativeOnError(
     JNIEnv* env,
     jobject jcaller,
     jlong nativeSpeechRecognizerImpl,
@@ -270,7 +270,7 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnError(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_coat_VoiceRecognizer_nativeOnResults(
+Java_dev_cobalt_coat_VoiceRecognizer_nativeOnResults(
     JniEnvExt* env,
     jobject unused_this,
     jlong nativeSpeechRecognizerImpl,

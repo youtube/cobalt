@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/speech_synthesis.h"
+package dev.cobalt.util;
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+import android.os.Build;
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+/** A simple utility class to detect whether we're running in an emulator or not. */
+public class IsEmulator {
+  private IsEmulator() {}
 
-void SbSpeechSynthesisCancel() {
-  JniEnvExt* env = JniEnvExt::Get();
-
-  ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallStarboardObjectMethodOrAbort(
-          "getTextToSpeechHelper",
-          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  env->CallVoidMethodOrAbort(j_tts_helper.Get(), "cancel", "()V");
+  public static boolean isEmulator() {
+    String qemu = System.getProperty("ro.kernel.qemu", "?");
+    return qemu.equals("1")
+        || Build.HARDWARE.contains("goldfish")
+        || Build.HARDWARE.contains("ranchu");
+  }
 }

@@ -43,7 +43,7 @@ android {
         }
     }
     defaultConfig {
-        applicationId "foo.cobalt.coat"
+        applicationId "dev.cobalt.coat"
         minSdkVersion 21
         targetSdkVersion 27
         versionCode 1

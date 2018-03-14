@@ -32,7 +32,7 @@ SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   return env->CallStaticBooleanMethodOrAbort(
-             "foo/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
+             "dev/cobalt/media/MediaCodecUtil", "hasAudioDecoderFor",
              "(Ljava/lang/String;I)Z", j_mime.Get(),
              static_cast<jint>(bitrate)) == JNI_TRUE;
 }

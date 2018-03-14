@@ -35,7 +35,7 @@ bool SbAccessibilityGetTextToSpeechSettings(
   ScopedLocalJavaRef<jobject> j_tts_helper(
       env->CallStarboardObjectMethodOrAbort(
           "getTextToSpeechHelper",
-          "()Lfoo/cobalt/coat/CobaltTextToSpeechHelper;"));
+          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
   out_setting->is_text_to_speech_enabled =
       env->CallBooleanMethodOrAbort(j_tts_helper.Get(),
           "isScreenReaderEnabled", "()Z");
