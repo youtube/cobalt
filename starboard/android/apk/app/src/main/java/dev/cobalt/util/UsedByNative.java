@@ -12,20 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/speech_synthesis.h"
+package dev.cobalt.util;
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
-
-void SbSpeechSynthesisCancel() {
-  JniEnvExt* env = JniEnvExt::Get();
-
-  ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallStarboardObjectMethodOrAbort(
-          "getTextToSpeechHelper",
-          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  env->CallVoidMethodOrAbort(j_tts_helper.Get(), "cancel", "()V");
-}
+/**
+ * Annotation used for marking methods and fields that are called from native code. Useful for
+ * keeping components that would otherwise be removed by Proguard.
+ */
+@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE, ElementType.CONSTRUCTOR})
+public @interface UsedByNative {}

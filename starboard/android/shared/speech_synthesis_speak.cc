@@ -25,7 +25,7 @@ void SbSpeechSynthesisSpeak(const char* text) {
   ScopedLocalJavaRef<jobject> j_tts_helper(
       env->CallStarboardObjectMethodOrAbort(
           "getTextToSpeechHelper",
-          "()Lfoo/cobalt/coat/CobaltTextToSpeechHelper;"));
+          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
   ScopedLocalJavaRef<jstring> j_text_string(
       env->NewStringStandardUTFOrAbort(text));
   env->CallVoidMethodOrAbort(j_tts_helper.Get(),

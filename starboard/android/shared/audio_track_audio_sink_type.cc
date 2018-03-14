@@ -154,10 +154,10 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_audio_output_manager(
       env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Lfoo/cobalt/media/AudioOutputManager;"));
+          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
   jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
-      "(III)Lfoo/cobalt/media/AudioTrackBridge;",
+      "(III)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_,
       channels_);
   j_audio_track_bridge_ = env->ConvertLocalRefToGlobalRef(j_audio_track_bridge);
@@ -189,10 +189,10 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
     ScopedLocalJavaRef<jobject> j_audio_output_manager(
         env->CallStarboardObjectMethodOrAbort(
             "getAudioOutputManager",
-            "()Lfoo/cobalt/media/AudioOutputManager;"));
+            "()Ldev/cobalt/media/AudioOutputManager;"));
     env->CallVoidMethodOrAbort(
         j_audio_output_manager.Get(), "destroyAudioTrackBridge",
-        "(Lfoo/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge_);
+        "(Ldev/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge_);
     env->DeleteGlobalRef(j_audio_track_bridge_);
     j_audio_track_bridge_ = NULL;
   }

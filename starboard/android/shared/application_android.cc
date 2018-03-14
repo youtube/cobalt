@@ -370,7 +370,7 @@ void ApplicationAndroid::SendKeyboardInject(SbKey key) {
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_foo_cobalt_coat_CobaltA11yHelper_injectKeyEvent(JNIEnv* env,
+Java_dev_cobalt_coat_CobaltA11yHelper_injectKeyEvent(JNIEnv* env,
                                                      jobject unused_clazz,
                                                      jint key) {
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
@@ -389,7 +389,7 @@ bool ApplicationAndroid::OnSearchRequested() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_foo_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
+jboolean Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
     JniEnvExt* env, jobject unused_this) {
   return ApplicationAndroid::Get()->OnSearchRequested();
 }
@@ -404,7 +404,7 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
+void Java_dev_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
     JniEnvExt* env, jobject unused_this, jstring j_url) {
   if (j_url) {
     std::string utf_str = env->GetStringStandardUTFOrAbort(j_url);
@@ -413,7 +413,7 @@ void Java_foo_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_coat_StarboardBridge_nativeStopApp(
+void Java_dev_cobalt_coat_StarboardBridge_nativeStopApp(
     JniEnvExt* env, jobject unused_this, jint error_level) {
   ApplicationAndroid::Get()->Stop(error_level);
 }

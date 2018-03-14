@@ -29,9 +29,9 @@ import _env  # pylint: disable=unused-import
 from starboard.android.shared import sdk_utils
 from starboard.tools import abstract_launcher
 
-_APP_PACKAGE_NAME = 'foo.cobalt.coat'
+_APP_PACKAGE_NAME = 'dev.cobalt.coat'
 
-_APP_START_INTENT = 'foo.cobalt.coat/foo.cobalt.app.MainActivity'
+_APP_START_INTENT = 'dev.cobalt.coat/dev.cobalt.app.MainActivity'
 
 # Matches an "adb shell am monitor" error line.
 _RE_ADB_AM_MONITOR_ERROR = re.compile(r'\*\* ERROR')
