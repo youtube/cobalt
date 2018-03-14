@@ -47,8 +47,7 @@ class MozjsEngine : public JavaScriptEngine {
 
   base::ThreadChecker thread_checker_;
 
-  // Top-level object that represents the Javascript engine. Typically there is
-  // one per process, but it's allowed to have multiple.
+  // Top-level object that represents the JavaScript engine.
   JSRuntime* runtime_;
 
   // The sole context created for this JSRuntime.
@@ -57,7 +56,7 @@ class MozjsEngine : public JavaScriptEngine {
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
 
-  // Used to handle javascript errors.
+  // Used to handle JavaScript errors.
   ErrorHandler error_handler_;
 
   JavaScriptEngine::Options options_;
