@@ -1858,8 +1858,9 @@ bool SourceBufferStream::SetPendingBuffer(
 base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
     const {
   base::TimeDelta duration;
-  for (auto range : ranges_) {
-    duration += range->GetEndTimestamp() - range->GetStartTimestamp();
+  for (RangeList::const_iterator itr = ranges_.begin(); itr != ranges_.end();
+       ++itr) {
+    duration += (*itr)->GetEndTimestamp() - (*itr)->GetStartTimestamp();
   }
   return duration;
 }
