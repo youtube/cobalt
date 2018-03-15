@@ -491,9 +491,6 @@ Token Scanner::Scan(TokenValue* token_value, YYLTYPE* token_location) {
         return ScanFromVerticalBar();
       case kTildeCharacter:
         return ScanFromTilde();
-      default:
-        NOTREACHED();
-        break;
     }
   }
 }

@@ -89,15 +89,11 @@ void InputPollerImpl::UpdateInputEvent(
               input_event->position().x();
           break;
         }
-        default:
-          NOTREACHED();
       }
     } break;
-#if SB_HAS(ON_SCREEN_KEYBOARD)
     case system_window::InputEvent::kInput:
       // Input events (dom::InputEvent) are ignored here.
       break;
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case system_window::InputEvent::kPointerDown:
     case system_window::InputEvent::kPointerUp:
     case system_window::InputEvent::kPointerMove:
@@ -107,8 +103,6 @@ void InputPollerImpl::UpdateInputEvent(
     case system_window::InputEvent::kWheel:
       // Pointer and Wheel events are ignored here.
       break;
-    default:
-      NOTREACHED();
   }
 }
 
