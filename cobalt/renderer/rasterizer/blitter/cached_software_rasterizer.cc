@@ -235,6 +235,7 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
       // This surface may have already been in the cache if it was in there
       // with a different scale.  In that case, replace the old one.
       cache_memory_usage_ -= found->second.GetEstimatedMemoryUsage();
+      SbBlitterDestroySurface(found->second.surface);
       surface_map_.erase(found);
     }
 
