@@ -16,6 +16,14 @@
 
 #include <woff2/decode.h>
 
+#if !defined(STARBOARD)
+#include <cstdio>
+#define VSNPRINTF_OTS std::vsnprintf
+#else
+#include "starboard/client_porting/poem/stdio_poem.h"
+#define VSNPRINTF_OTS vsnprintf
+#endif
+
 // The OpenType Font File
 // http://www.microsoft.com/typography/otspec/otff.htm
 
@@ -959,7 +967,7 @@ bool Table::ShouldSerialize() {
 
 void Table::Message(int level, const char *format, va_list va) {
   char msg[206] = { OTS_UNTAG(m_tag), ':', ' ' };
-  std::vsnprintf(msg + 6, 200, format, va);
+  VSNPRINTF_OTS(msg + 6, 200, format, va);
   m_font->file->context->Message(level, msg);
 }
 
@@ -1053,3 +1061,4 @@ bool OTSContext::Process(OTSStream *output,
 }
 
 }  // namespace ots
+#undef VSNPRINTF_OTS

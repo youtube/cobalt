@@ -12,9 +12,40 @@
 #include <stddef.h>
 #include <cstdarg>
 #include <cstddef>
+
+#if !defined(STARBOARD)
+#include <cstring>
+#define MEMCPY_OTS std::memcpy
+#else
+#include "starboard/memory.h"
+#define MEMCPY_OTS SbMemoryCopy
+#endif
+
+#if defined(STARBOARD)
+#include "starboard/byte_swap.h"
+#define NTOHL_OTS(x) SB_NET_TO_HOST_U32(x)
+#define NTOHS_OTS(x) SB_NET_TO_HOST_U16(x)
+#elif defined(_WIN32)
+#include <stdlib.h>
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;
+typedef unsigned short uint16_t;
+typedef int int32_t;
+typedef unsigned int uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+#define NTOHL_OTS(x) _byteswap_ulong (x)
+#define NTOHS_OTS(x) _byteswap_ushort (x)
+#else
+#include <arpa/inet.h>
+#include <stdint.h>
+#define NTOHL_OTS(x) ntohl (x)
+#define NTOHS_OTS(x) ntohs (x)
+#endif
+
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <limits>
 #include <map>
 
@@ -27,7 +58,7 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 
 namespace ots {
 
-#if !defined(OTS_DEBUG)
+#if defined(STARBOARD) || !defined(OTS_DEBUG)
 #define OTS_FAILURE() false
 #else
 #define OTS_FAILURE() \
@@ -42,7 +73,7 @@ namespace ots {
 // message-less OTS_FAILURE(), so that the current parser will return 'false' as
 // its result (indicating a failure).
 
-#if !defined(OTS_DEBUG)
+#if defined(STARBOARD) || !defined(OTS_DEBUG)
 #define OTS_MESSAGE_(level,otf_,...) \
   (otf_)->context->Message(level,__VA_ARGS__)
 #else
@@ -92,7 +123,7 @@ class Buffer {
       return OTS_FAILURE();
     }
     if (buf) {
-      std::memcpy(buf, buffer_ + offset_, n_bytes);
+      MEMCPY_OTS(buf, buffer_ + offset_, n_bytes);
     }
     offset_ += n_bytes;
     return true;
@@ -111,8 +142,8 @@ class Buffer {
     if (offset_ + 2 > length_) {
       return OTS_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint16_t));
-    *value = ots_ntohs(*value);
+    MEMCPY_OTS(value, buffer_ + offset_, sizeof(uint16_t));
+    *value = NTOHS_OTS(*value);
     offset_ += 2;
     return true;
   }
@@ -136,8 +167,8 @@ class Buffer {
     if (offset_ + 4 > length_) {
       return OTS_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint32_t));
-    *value = ots_ntohl(*value);
+    MEMCPY_OTS(value, buffer_ + offset_, sizeof(uint32_t));
+    *value = NTOHL_OTS(*value);
     offset_ += 4;
     return true;
   }
@@ -150,7 +181,7 @@ class Buffer {
     if (offset_ + 8 > length_) {
       return OTS_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint64_t));
+    MEMCPY_OTS(value, buffer_ + offset_, sizeof(uint64_t));
     offset_ += 8;
     return true;
   }
@@ -335,5 +366,9 @@ struct FontFile {
 };
 
 }  // namespace ots
+
+#undef MEMCPY_OTS
+#undef NTOHL_OTS
+#undef NTOHS_OTS
 
 #endif  // OTS_H_
