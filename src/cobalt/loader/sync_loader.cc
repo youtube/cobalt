@@ -18,6 +18,7 @@
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/timer.h"
 
 namespace cobalt {
 namespace loader {
@@ -64,22 +65,36 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
       base::Callback<void(const std::string&)> error_callback)
       : loader_on_thread_(loader_on_thread),
         decoder_(decoder),
-        error_callback_(error_callback) {}
+        error_callback_(error_callback) {
+    timeout_timer_.Start(
+        FROM_HERE, base::TimeDelta::FromSeconds(kTimeoutInSeconds),
+        base::Bind(&FetcherToDecoderAdapter::Timeout, base::Unretained(this)));
+  }
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
     UNREFERENCED_PARAMETER(fetcher);
+    timeout_timer_.Stop();
     decoder_->DecodeChunk(data, size);
   }
   void OnDone(Fetcher* fetcher) override {
     DCHECK(fetcher);
+    timeout_timer_.Stop();
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
     loader_on_thread_->Signal();
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(fetcher);
+    timeout_timer_.Stop();
     error_callback_.Run(error);
+    loader_on_thread_->Signal();
+  }
+
+ private:
+  void Timeout() {
+    static const std::string kTimeoutError = "LoadSynchronously Timeout";
+    error_callback_.Run(kTimeoutError);
     loader_on_thread_->Signal();
   }
 
@@ -87,6 +102,8 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
   LoaderOnThread* loader_on_thread_;
   Decoder* decoder_;
   base::Callback<void(const std::string&)> error_callback_;
+  base::OneShotTimer<FetcherToDecoderAdapter> timeout_timer_;
+  static const int kTimeoutInSeconds = 30;
 };
 
 void LoaderOnThread::Start(
