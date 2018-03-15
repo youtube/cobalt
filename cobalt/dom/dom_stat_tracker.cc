@@ -33,6 +33,9 @@ DomStatTracker::DomStatTracker(const std::string& name)
       script_element_execute_count_(
           StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
           0, "Count of HTML script element execute calls."),
+      script_element_execute_total_size_(
+          StringPrintf("Memory.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          0, "Total size in bytes of HTML script elements executed."),
       script_element_execute_time_(
           StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
           0, "Time of the last HTML script element execute."),
@@ -118,8 +121,9 @@ void DomStatTracker::OnGeneratePseudoElementComputedStyle() {
   }
 }
 
-void DomStatTracker::OnHtmlScriptElementExecuted() {
+void DomStatTracker::OnHtmlScriptElementExecuted(size_t script_size) {
   ++script_element_execute_count_;
+  script_element_execute_total_size_ += script_size;
   script_element_execute_time_ = base::TimeTicks::Now().ToInternalValue();
 }
 

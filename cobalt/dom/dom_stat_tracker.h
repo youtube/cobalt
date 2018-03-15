@@ -45,7 +45,7 @@ class DomStatTracker : public base::StopWatchOwner {
   void OnUpdateComputedStyle();
   void OnGenerateHtmlElementComputedStyle();
   void OnGeneratePseudoElementComputedStyle();
-  void OnHtmlScriptElementExecuted();
+  void OnHtmlScriptElementExecuted(size_t script_size);
   void OnHtmlVideoElementPlaying();
 
   // This function updates the CVals from the periodic values and then clears
@@ -101,8 +101,11 @@ class DomStatTracker : public base::StopWatchOwner {
   int count_html_element_document_added_;
   int count_html_element_document_removed_;
 
-  // Count of HtmlScriptElement::Execute() calls and time of last call.
+  // Count of HtmlScriptElement::Execute() calls, their total size in bytes, and
+  // the time of last call.
   base::CVal<int, base::CValPublic> script_element_execute_count_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      script_element_execute_total_size_;
   base::CVal<int64, base::CValPublic> script_element_execute_time_;
 
   // Event-related
