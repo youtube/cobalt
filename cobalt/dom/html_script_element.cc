@@ -628,7 +628,7 @@ void HTMLScriptElement::Execute(const std::string& content,
   GlobalStats::GetInstance()->StopJavaScriptEvent();
 
   // Notify the DomStatTracker of the execution.
-  dom_stat_tracker_->OnHtmlScriptElementExecuted();
+  dom_stat_tracker_->OnHtmlScriptElementExecuted(content.size());
 }
 
 void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
