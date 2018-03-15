@@ -29,8 +29,11 @@ FixedNoFreeAllocator::FixedNoFreeAllocator(void* memory_start,
 
 void FixedNoFreeAllocator::Free(void* memory) {
   // Nothing to do here besides ensure that the freed memory belongs to us.
-  SB_DCHECK(memory >= memory_start_);
-  SB_DCHECK(memory < memory_end_);
+  if (memory < memory_start_ || memory >= memory_end_) {
+    SB_NOTREACHED() << "Invalid block to free: |memory| is " << memory
+                    << ", start is " << memory_start_ << ", and end is "
+                    << memory_end_;
+  }
 }
 
 std::size_t FixedNoFreeAllocator::GetCapacity() const {
