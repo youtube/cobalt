@@ -320,7 +320,8 @@ bool Paragraph::IsClosed() const { return is_closed_; }
 Paragraph::BreakPolicy Paragraph::GetBreakPolicyFromWrapOpportunityPolicy(
     WrapOpportunityPolicy wrap_opportunity_policy,
     bool does_style_allow_break_word) {
-  BreakPolicy break_policy;
+  // Initialize here to prevent a potential compiler warning.
+  BreakPolicy break_policy = kBreakPolicyNormal;
   switch (wrap_opportunity_policy) {
     case kWrapOpportunityPolicyNormal:
       break_policy = kBreakPolicyNormal;
@@ -332,9 +333,6 @@ Paragraph::BreakPolicy Paragraph::GetBreakPolicyFromWrapOpportunityPolicy(
       break_policy = does_style_allow_break_word ? kBreakPolicyBreakWord
                                                  : kBreakPolicyNormal;
       break;
-    default:
-      NOTREACHED();
-      break_policy = kBreakPolicyNormal;
   }
   return break_policy;
 }

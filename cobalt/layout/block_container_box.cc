@@ -68,9 +68,6 @@ void BlockContainerBox::UpdateContentWidthAndMargins(
             containing_block_width, maybe_nulled_width, maybe_margin_left,
             maybe_margin_right, maybe_height);
         break;
-      default:
-        NOTREACHED();
-        break;
     }
   }
 }

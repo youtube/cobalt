@@ -92,11 +92,9 @@ scoped_refptr<LengthValue> ProvideAbsoluteLength(
           viewport_size.height() * specified_length->value() / 100.0f,
           kPixelsUnit);
     }
-
-    default:
-      NOTREACHED();
-      return NULL;
   }
+  NOTREACHED();
+  return NULL;
 }
 
 // For values that can be either lengths or percentages, this function will
@@ -384,7 +382,6 @@ void ComputedLineHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -484,7 +481,6 @@ void ComputedMarginOrPaddingEdgeProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -591,7 +587,6 @@ void ComputedPositionOffsetProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -721,7 +716,6 @@ void ComputedHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -846,7 +840,6 @@ void ComputedMaxHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -969,7 +962,6 @@ void ComputedMinHeightProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -1086,7 +1078,6 @@ void ComputedWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -1197,7 +1188,6 @@ void ComputedMinMaxWidthProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -1215,8 +1205,6 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
       case kViewportHeightPercentsAkaVhUnit:
         computed_length_is_negative_ = length_value->value() < 0;
         break;
-      default:
-        NOTREACHED();
     }
   }
 
@@ -1336,9 +1324,6 @@ void ComputedPositionHelper::ComputePosition(
     case 4:
       ComputeThreeOrFourValuesPosition(input_position_builder,
                                        output_position_builder);
-      break;
-    default:
-      NOTREACHED();
       break;
   }
 }
@@ -1515,7 +1500,6 @@ void ComputedPositionHelper::FillPositionBuilderFromOriginAndOffset(
       break;
     }
     case kNone:  // fall-through
-    default:
       NOTREACHED();
       break;
   }
@@ -1615,7 +1599,6 @@ void ComputedBackgroundImageSingleLayerProvider::VisitKeyword(
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
       break;
   }
@@ -1893,7 +1876,6 @@ void ComputedBackgroundSizeSingleValueProvider::VisitKeyword(
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -2143,7 +2125,6 @@ void ComputedShadowProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -2250,7 +2231,6 @@ void ComputedTransformFunctionProvider::VisitTranslate(
                             root_computed_font_size_, viewport_size_),
                         calc_value->percentage_value())));
     } break;
-    default: { NOTREACHED(); }
   }
 }
 
@@ -2353,8 +2333,6 @@ void ComputedTransformOriginProvider::VisitPropertyList(
               property_list_value->value()[2].get()),
           computed_font_size_, root_computed_font_size_, viewport_size_);
       break;
-    default:
-      NOTREACHED();
   }
 
   computed_transform_origin_ =
@@ -2531,7 +2509,6 @@ void ComputedTransformProvider::VisitKeyword(KeywordValue* keyword) {
     case KeywordValue::kTop:
     case KeywordValue::kUppercase:
     case KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -3042,7 +3019,6 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kTextDecorationProperty:
     case kTransitionProperty:
     case kUnicodeRangeProperty:
-    default:
       NOTREACHED();
       break;
   }
