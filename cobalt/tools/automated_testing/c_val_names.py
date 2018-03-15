@@ -81,6 +81,10 @@ def memory_image_cache_resource_loaded():
   return 'Memory.MainWebModule.ImageCache.Resource.Loaded'
 
 
+def memory_dom_html_script_element_execute():
+  return 'Memory.MainWebModule.DOM.HtmlScriptElement.Execute'
+
+
 def rasterize_animations_entry_list():
   return 'Renderer.Rasterize.Animations.EntryList'
 
