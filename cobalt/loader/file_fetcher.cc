@@ -150,7 +150,6 @@ const char* FileFetcher::PlatformFileErrorToString(
     case base::PLATFORM_FILE_ERROR_INVALID_OPERATION:
     case base::PLATFORM_FILE_ERROR_NOT_EMPTY:
     case base::PLATFORM_FILE_ERROR_MAX:
-    default:
       break;
   }
   return kPlatformFileErrorNotDefined;

@@ -841,7 +841,17 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           new base::AccessibilityCaptionSettingsChangedEvent());
       break;
 #endif  // SB_HAS(CAPTIONS)
-    default:
+    // Explicitly list unhandled cases here so that the compiler can give a
+    // warning when a value is added, but not handled.
+    case kSbEventTypeInput:
+#if SB_API_VERSION >= 6
+    case kSbEventTypePreload:
+#endif  // SB_API_VERSION >= 6
+    case kSbEventTypeScheduled:
+    case kSbEventTypeStart:
+    case kSbEventTypeStop:
+    case kSbEventTypeUser:
+    case kSbEventTypeVerticalSync:
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -918,8 +928,29 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->ReduceMemory();
       DLOG(INFO) << "Finished reducing memory usage.";
       break;
+    // All of the remaining event types are unexpected:
+    case kSbEventTypePreload:
 #endif  // SB_API_VERSION >= 6
-    default:
+#if SB_API_VERSION >= 8
+    case kSbEventTypeWindowSizeChanged:
+#endif
+#if SB_HAS(CAPTIONS)
+    case kSbEventTypeAccessibilityCaptionSettingsChanged:
+#endif  // SB_HAS(CAPTIONS)
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+    case kSbEventTypeOnScreenKeyboardBlurred:
+    case kSbEventTypeOnScreenKeyboardFocused:
+    case kSbEventTypeOnScreenKeyboardHidden:
+    case kSbEventTypeOnScreenKeyboardShown:
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+    case kSbEventTypeAccessiblitySettingsChanged:
+    case kSbEventTypeInput:
+    case kSbEventTypeLink:
+    case kSbEventTypeNetworkConnect:
+    case kSbEventTypeNetworkDisconnect:
+    case kSbEventTypeScheduled:
+    case kSbEventTypeUser:
+    case kSbEventTypeVerticalSync:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
