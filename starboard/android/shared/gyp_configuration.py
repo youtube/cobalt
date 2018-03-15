@@ -34,7 +34,6 @@ class PlatformConfig(PlatformConfiguration):
 
     self.android_abi = android_abi
     self.ndk_tools = sdk_utils.GetToolsPath(android_abi)
-    sdk_utils.InstallSdkIfNeeded(android_abi)
 
     self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
     self.android_home = sdk_utils.GetSdkPath()
@@ -75,6 +74,7 @@ class PlatformConfig(PlatformConfiguration):
     return generator_variables
 
   def GetEnvironmentVariables(self):
+    sdk_utils.InstallSdkIfNeeded(self.android_abi)
     env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
     env_variables.update(self.host_compiler_environment)
     # Android builds tend to consume significantly more memory than the
