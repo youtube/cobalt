@@ -83,10 +83,9 @@ const char* Console::GetLevelAsString(Level level) {
       return kLogString;
     case kWarning:
       return kWarningString;
-    default:
-      NOTREACHED();
-      return "";
   }
+  NOTREACHED();
+  return "";
 }
 
 void Console::AddListener(Listener* listener) { listeners_.insert(listener); }

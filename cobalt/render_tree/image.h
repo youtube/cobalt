@@ -49,8 +49,8 @@ inline int BytesPerPixel(PixelFormat pixel_format) {
       return 1;
     case kPixelFormatUV8:
       return 2;
+    case kPixelFormatUYVY:
     case kPixelFormatInvalid:
-    default:
       DLOG(FATAL) << "Unexpected pixel format.";
   }
   return -1;

@@ -72,11 +72,9 @@ class Scope {
         return kLocalString;
       case kWith:
         return kWithString;
-      default: {
-        NOTREACHED();
-        return kLocalString;
-      }
     }
+    NOTREACHED();
+    return kLocalString;
   }
 };
 
