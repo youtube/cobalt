@@ -297,7 +297,7 @@ bool OpenTypeSILF::SILSub::ParsePart(Buffer& table) {
       this->searchPseudo = this->pseudoSelector = this->pseudoShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numPseudo));
+    unsigned floorLog2 = std::floor(log2(this->numPseudo));
     if (this->searchPseudo != 6 * (unsigned)std::pow(2, floorLog2) ||
         this->pseudoSelector != floorLog2 ||
         this->pseudoShift != 6 * this->numPseudo - this->searchPseudo) {
@@ -564,7 +564,7 @@ LookupClass::ParsePart(Buffer& table) {
       this->searchRange = this->entrySelector = this->rangeShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numIDs));
+    unsigned floorLog2 = std::floor(log2(this->numIDs));
     if (this->searchRange != (unsigned)std::pow(2, floorLog2) ||
         this->entrySelector != floorLog2 ||
         this->rangeShift != this->numIDs - this->searchRange) {
@@ -693,7 +693,7 @@ SILPass::ParsePart(Buffer& table, const size_t SILSub_init_offset,
       this->searchRange = this->entrySelector = this->rangeShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(std::log2(this->numRange));
+    unsigned floorLog2 = std::floor(log2(this->numRange));
     if (this->searchRange != 6 * (unsigned)std::pow(2, floorLog2) ||
         this->entrySelector != floorLog2 ||
         this->rangeShift != 6 * this->numRange - this->searchRange) {
