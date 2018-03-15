@@ -188,6 +188,9 @@
         'cflags': ['<@(common_cflags)'],
         'defines': ['<@(common_defines)'],
       },
+      'export_dependent_settings': [
+        'build_include_directory',
+      ],
       'include_dirs': [
         '<(DEPTH)/third_party/mozjs-45/js/src',
         '<@(common_include_dirs)',
