@@ -745,10 +745,11 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
   } else if (duration.InMilliseconds() >
              kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds) {
     // Estimate the size to free.
-    auto duration_to_free =
+    int64 duration_to_free =
         duration.InMilliseconds() -
         kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds;
-    bytes_to_free = ranges_size * duration_to_free / duration.InMilliseconds();
+    bytes_to_free = static_cast<size_t>(ranges_size * duration_to_free /
+                                        duration.InMilliseconds());
   }
 
   if (bytes_to_free == 0) {
