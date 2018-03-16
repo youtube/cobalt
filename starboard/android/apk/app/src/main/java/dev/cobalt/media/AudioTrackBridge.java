@@ -29,11 +29,8 @@ public class AudioTrackBridge {
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private int maxFramePositionSoFar = 0;
-  private int sampleRate = 0;
 
   public AudioTrackBridge(int sampleType, int sampleRate, int channelCount) {
-    this.sampleRate = sampleRate;
-
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -128,11 +125,6 @@ public class AudioTrackBridge {
       // called |getTimestamp| without a timebase.
       // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
       framePosition = (int) audioTimestamp.framePosition;
-      if (framePosition > 0) {
-        long timeElapsedInNanoSecond = System.nanoTime() - audioTimestamp.nanoTime;
-        long framesElapsed = timeElapsedInNanoSecond * sampleRate / 1000000000;
-        framePosition += (int) framesElapsed;
-      }
     } else {
       // Time stamps aren't available for whatever reason, fall back to
       // |getPlaybackHeadPosition|.
