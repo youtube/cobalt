@@ -855,7 +855,7 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   }
 
   if (status != PIPELINE_OK) {
-    OnPipelineError(status);
+    OnPipelineError(status, "Failed pipeline seek.");
     return;
   }
 
@@ -870,14 +870,15 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
 void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   if (status != PIPELINE_OK) {
-    OnPipelineError(status);
+    OnPipelineError(status, "Failed pipeline end. ");
     return;
   }
   const bool eos_played = true;
   GetClient()->TimeChanged(eos_played);
 }
 
-void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
+void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
+                                         const std::string& message) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   if (suppress_destruction_errors_)
@@ -898,28 +899,65 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
       break;
 
     case PIPELINE_ERROR_NETWORK:
+      SetNetworkError(WebMediaPlayer::kNetworkStateNetworkError,
+                      message.empty() ? "Pipeline network error." : message);
+      break;
     case PIPELINE_ERROR_READ:
-      SetNetworkState(WebMediaPlayer::kNetworkStateNetworkError);
+      SetNetworkError(WebMediaPlayer::kNetworkStateNetworkError,
+                      message.empty() ? "Pipeline read error." : message);
       break;
 
     // TODO(vrk): Because OnPipelineInitialize() directly reports the
     // NetworkStateFormatError instead of calling OnPipelineError(), I believe
     // this block can be deleted. Should look into it! (crbug.com/126070)
     case PIPELINE_ERROR_INITIALIZATION_FAILED:
+      SetNetworkError(
+          WebMediaPlayer::kNetworkStateFormatError,
+          message.empty() ? "Pipeline initialization failed." : message);
+      break;
     case PIPELINE_ERROR_COULD_NOT_RENDER:
+      SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
+                      message.empty() ? "Pipeline could not render." : message);
+      break;
     case PIPELINE_ERROR_URL_NOT_FOUND:
+      SetNetworkError(
+          WebMediaPlayer::kNetworkStateFormatError,
+          message.empty() ? "Pipeline error URL not found." : message);
+      break;
     case DEMUXER_ERROR_COULD_NOT_OPEN:
+      SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
+                      message.empty() ? "Demuxer could not open." : message);
+      break;
     case DEMUXER_ERROR_COULD_NOT_PARSE:
+      SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
+                      message.empty() ? "Demuxer could not parse." : message);
+      break;
     case DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
+      SetNetworkError(
+          WebMediaPlayer::kNetworkStateFormatError,
+          message.empty() ? "Demuxer no supported streams." : message);
+      break;
     case DECODER_ERROR_NOT_SUPPORTED:
-      SetNetworkState(WebMediaPlayer::kNetworkStateFormatError);
+      SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
+                      message.empty() ? "Decoder not supported." : message);
       break;
 
     case PIPELINE_ERROR_DECODE:
+      SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
+                      message.empty() ? "Pipeline decode error." : message);
+      break;
     case PIPELINE_ERROR_ABORT:
+      SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
+                      message.empty() ? "Pipeline abort." : message);
+      break;
     case PIPELINE_ERROR_OPERATION_PENDING:
+      SetNetworkError(
+          WebMediaPlayer::kNetworkStateDecodeError,
+          message.empty() ? "Pipeline operation pending." : message);
+      break;
     case PIPELINE_ERROR_INVALID_STATE:
-      SetNetworkState(WebMediaPlayer::kNetworkStateDecodeError);
+      SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
+                      message.empty() ? "Pipeline invalid state." : message);
       break;
 
     case PIPELINE_ERROR_DECRYPT:
@@ -931,12 +969,12 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
           ->Add(1);
       // TODO(xhwang): Change to use NetworkStateDecryptError once it's added in
       // Webkit (see http://crbug.com/124486).
-      SetNetworkState(WebMediaPlayer::kNetworkStateDecodeError);
+      SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
+                      message.empty() ? "Pipeline decrypt error." : message);
       break;
 
     case PIPELINE_STATUS_MAX:
       NOTREACHED() << "PIPELINE_STATUS_MAX isn't a real error!";
-      break;
   }
 }
 
@@ -1081,6 +1119,15 @@ void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
   network_state_ = state;
   // Always notify to ensure client has the latest value.
   GetClient()->NetworkStateChanged();
+}
+
+void WebMediaPlayerImpl::SetNetworkError(WebMediaPlayer::NetworkState state,
+                                         const std::string& message) {
+  DCHECK_EQ(main_loop_, MessageLoop::current());
+  DVLOG(1) << "SetNetworkState: " << state << " message: " << message;
+  network_state_ = state;
+  // Always notify to ensure client has the latest value.
+  GetClient()->NetworkError(message);
 }
 
 void WebMediaPlayerImpl::SetReadyState(WebMediaPlayer::ReadyState state) {
