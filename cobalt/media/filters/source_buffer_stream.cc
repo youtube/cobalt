@@ -51,11 +51,6 @@ const int kMaxGarbageCollectAlgorithmWarningLogs = 20;
 // work or other side-effects.
 const int kMaxStrangeSameTimestampsLogs = 20;
 
-// The maximum duration of all buffered ranges combined before a garbage
-// collection is triggered.  This is to limit the total number of DecoderBuffers
-// that can be accumulated in the system.
-const int kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds = 120000;
-
 // Helper method that returns true if |ranges| is sorted in increasing order,
 // false otherwise.
 bool IsRangeListSorted(const std::list<media::SourceBufferRange*>& ranges) {
@@ -741,14 +736,16 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
   size_t bytes_to_free = 0;
 
   // Check if we're under or at the memory/duration limit.
+  const auto kGcDurationThresholdInMilliseconds =
+      COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS *
+      1000;
+
   if (ranges_size + newDataSize > memory_limit_) {
     bytes_to_free = ranges_size + newDataSize - memory_limit_;
-  } else if (duration.InMilliseconds() >
-             kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds) {
+  } else if (duration.InMilliseconds() > kGcDurationThresholdInMilliseconds) {
     // Estimate the size to free.
     auto duration_to_free =
-        duration.InMilliseconds() -
-        kMaxBufferedDurationBeforeGarbageCollectionInMilliseconds;
+        duration.InMilliseconds() - kGcDurationThresholdInMilliseconds;
     bytes_to_free = ranges_size * duration_to_free / duration.InMilliseconds();
   }
 
