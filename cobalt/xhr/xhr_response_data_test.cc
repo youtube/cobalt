@@ -22,13 +22,13 @@ namespace xhr {
 namespace {
 
 TEST(XhrResponseData, InitialState) {
-  XhrResponseData empty(nullptr);
+  XhrResponseData empty;
   EXPECT_EQ(0u, empty.size());
   EXPECT_TRUE(empty.data() != NULL);
 }
 
 TEST(XhrResponseData, Append) {
-  XhrResponseData data(nullptr);
+  XhrResponseData data;
   uint8 raw_data[64];
   for (int i = 0; i < 64; ++i) {
     raw_data[i] = static_cast<uint8>(i);
@@ -43,7 +43,7 @@ TEST(XhrResponseData, Append) {
 }
 
 TEST(XhrResponseData, Reserve) {
-  XhrResponseData data(nullptr);
+  XhrResponseData data;
   data.Reserve(1);
   EXPECT_LE(1u, data.capacity());
   EXPECT_EQ(0u, data.size());
