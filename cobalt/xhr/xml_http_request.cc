@@ -160,7 +160,6 @@ bool XMLHttpRequest::verbose_ = false;
 XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
     : settings_(base::polymorphic_downcast<dom::DOMSettings*>(settings)),
       state_(kUnsent),
-      response_body_(settings_->javascript_engine()),
       response_type_(kDefault),
       timeout_ms_(0),
       method_(net::URLFetcher::GET),
