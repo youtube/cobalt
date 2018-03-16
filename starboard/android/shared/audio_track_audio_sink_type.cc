@@ -219,12 +219,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   while (!quit_) {
     int playback_head_position = env->CallIntMethodOrAbort(
         j_audio_track_bridge_, "getFramePosition", "()I");
-    playback_head_position =
-        std::max(playback_head_position, last_playback_head_position_);
     int frames_consumed = playback_head_position - last_playback_head_position_;
     last_playback_head_position_ = playback_head_position;
-    frames_consumed = std::min(frames_consumed, written_frames_);
-
     if (frames_consumed != 0) {
       SB_DCHECK(frames_consumed >= 0);
       consume_frame_func_(frames_consumed, context_);
