@@ -165,6 +165,7 @@ v8.log
 /third_party/asan
 /third_party/bidichecker
 /third_party/bison
+/third_party/brotli
 /third_party/cacheinvalidation/src
 /third_party/cdm
 /third_party/ce_cdm
@@ -274,6 +275,7 @@ v8.log
 /third_party/webrtc/internal
 /third_party/webrtc/modules/video_coding/codecs/vp8_internal
 /third_party/wix
+/third_party/woff2
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
 /third_party/yasm/binaries
