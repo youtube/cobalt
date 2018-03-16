@@ -121,7 +121,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   void Start(scoped_ptr<FilterCollection> filter_collection,
              const SetDecryptorReadyCB& decryptor_ready_cb,
              const PipelineStatusCB& ended_cb,
-             const PipelineStatusCB& error_cb,
+             const ErrorCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb) override;
@@ -279,7 +279,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   // message loop.
   void StartTask(scoped_ptr<FilterCollection> filter_collection,
                  const PipelineStatusCB& ended_cb,
-                 const PipelineStatusCB& error_cb,
+                 const ErrorCB& error_cb,
                  const PipelineStatusCB& seek_cb,
                  const BufferingStateCB& buffering_state_cb,
                  const base::Closure& duration_change_cb);
@@ -436,7 +436,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
 
   // Permanent callbacks passed in via Start().
   PipelineStatusCB ended_cb_;
-  PipelineStatusCB error_cb_;
+  ErrorCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
 

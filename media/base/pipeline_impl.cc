@@ -135,7 +135,7 @@ void PipelineImpl::Resume() {
 void PipelineImpl::Start(scoped_ptr<FilterCollection> collection,
                          const SetDecryptorReadyCB& decryptor_ready_cb,
                          const PipelineStatusCB& ended_cb,
-                         const PipelineStatusCB& error_cb,
+                         const ErrorCB& error_cb,
                          const PipelineStatusCB& seek_cb,
                          const BufferingStateCB& buffering_state_cb,
                          const base::Closure& duration_change_cb) {
@@ -687,7 +687,7 @@ void PipelineImpl::OnStopCompleted(PipelineStatus status) {
   }
   if (!error_cb_.is_null()) {
     DCHECK_NE(status_, PIPELINE_OK);
-    base::ResetAndReturn(&error_cb_).Run(status_);
+    base::ResetAndReturn(&error_cb_).Run(status_, "Error in completing stop.");
   }
 }
 
@@ -740,7 +740,7 @@ void PipelineImpl::OnUpdateStatistics(const PipelineStatistics& stats) {
 
 void PipelineImpl::StartTask(scoped_ptr<FilterCollection> filter_collection,
                              const PipelineStatusCB& ended_cb,
-                             const PipelineStatusCB& error_cb,
+                             const ErrorCB& error_cb,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb) {
@@ -1020,5 +1020,4 @@ void PipelineImpl::StartClockIfWaitingForTimeUpdate_Locked() {
   waiting_for_clock_update_ = false;
   clock_->Play();
 }
-
 }  // namespace media
