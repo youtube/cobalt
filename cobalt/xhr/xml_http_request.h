@@ -254,6 +254,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   scoped_ptr<net::URLFetcher> url_fetcher_;
   scoped_refptr<net::HttpResponseHeaders> http_response_headers_;
+  XhrResponseData response_body_;
   scoped_refptr<dom::ArrayBuffer> response_array_buffer_;
   scoped_refptr<XMLHttpRequestUpload> upload_;
 
@@ -278,7 +279,6 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // All members requiring initialization are grouped below.
   dom::DOMSettings* settings_;
   State state_;
-  XhrResponseData response_body_;
   ResponseTypeCode response_type_;
   uint32 timeout_ms_;
   net::URLFetcher::RequestType method_;
