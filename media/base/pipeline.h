@@ -33,6 +33,8 @@ namespace media {
 
 class MediaLog;
 
+typedef base::Callback<void(PipelineStatus, const std::string&)> ErrorCB;
+
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
 // playing.
@@ -89,7 +91,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual void Start(scoped_ptr<FilterCollection> filter_collection,
                      const SetDecryptorReadyCB& decryptor_ready_cb,
                      const PipelineStatusCB& ended_cb,
-                     const PipelineStatusCB& error_cb,
+                     const ErrorCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb) = 0;
