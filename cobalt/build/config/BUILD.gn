@@ -39,6 +39,7 @@ config("compiler_defaults") {
     "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=$cobalt_media_buffer_non_video_budget",
     "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=$cobalt_media_buffer_video_budget_1080p",
     "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=$cobalt_media_buffer_video_budget_4k",
+    "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=$cobalt_media_source_garbage_collection_duration_threshold_in_seconds",
 
     # From common.gypi
     "USE_OPENSSL=1",
