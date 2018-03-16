@@ -18,11 +18,11 @@
 #include <functional>
 #include <vector>
 
-#include "starboard/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -34,6 +34,10 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
+
+// Uncomment the following statement to log the media time stats with deviation
+// when GetCurrentMediaTime() is called.
+// #define SB_LOG_MEDIA_TIME_STATS 1
 
 namespace starboard {
 namespace shared {
@@ -68,9 +72,7 @@ class AudioRenderer : public MediaTimeProvider,
 
   void SetVolume(double volume);
 
-  bool IsEndOfStreamWritten() const {
-    return eos_state_.load() >= kEOSWrittenToDecoder;
-  }
+  bool IsEndOfStreamWritten() const;
   bool IsEndOfStreamPlayed() const;
   bool CanAcceptMoreData() const;
   bool IsSeekingInProgress() const;
@@ -94,20 +96,23 @@ class AudioRenderer : public MediaTimeProvider,
   const int max_cached_frames_;
   const int max_frames_per_append_;
 
-  atomic_bool paused_;
-  atomic_bool consume_frames_called_;
-  atomic_bool seeking_;
+  Mutex mutex_;
+
+  bool paused_;
+  bool consume_frames_called_;
+  bool seeking_;
   SbMediaTime seeking_to_pts_;
+  SbMediaTime last_media_time_;
   AudioFrameTracker audio_frame_tracker_;
 
-  atomic_int64_t frames_sent_to_sink_;
-  atomic_int64_t frames_consumed_by_sink_;
-  atomic_int32_t frames_consumed_by_sink_since_last_get_current_time_;
+  int64_t frames_sent_to_sink_;
+  int64_t frames_consumed_by_sink_;
+  int32_t frames_consumed_by_sink_since_last_get_current_time_;
 
   scoped_ptr<AudioDecoder> decoder_;
 
-  atomic_int64_t frames_consumed_set_at_;
-  atomic_double playback_rate_;
+  int64_t frames_consumed_set_at_;
+  double playback_rate_;
 
   // AudioRendererSink methods
   void GetSourceStatus(int* frames_in_buffer,
@@ -116,8 +121,11 @@ class AudioRenderer : public MediaTimeProvider,
                        bool* is_eos_reached) override;
   void ConsumeFrames(int frames_consumed) override;
 
+  void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
+
   void OnFirstOutput();
   void LogFramesConsumed();
+  bool IsEndOfStreamPlayed_Locked() const;
 
   void OnDecoderConsumed();
   void OnDecoderOutput();
@@ -125,7 +133,7 @@ class AudioRenderer : public MediaTimeProvider,
   void FillResamplerAndTimeStretcher();
   bool AppendAudioToFrameBuffer(bool* is_frame_buffer_full);
 
-  atomic_int32_t eos_state_;
+  EOSState eos_state_;
   const int channels_;
   const SbMediaAudioSampleType sink_sample_type_;
   const int bytes_per_frame_;
@@ -152,6 +160,17 @@ class AudioRenderer : public MediaTimeProvider,
   bool first_input_written_;
 
   scoped_ptr<AudioRendererSink> audio_renderer_sink_;
+  bool is_eos_reached_on_sink_thread_ = false;
+  bool is_playing_on_sink_thread_ = false;
+  int64_t frames_in_buffer_on_sink_thread_ = 0;
+  int64_t offset_in_frames_on_sink_thread_ = 0;
+  int64_t frames_consumed_on_sink_thread_ = 0;
+  SbTime frames_consumed_set_at_on_sink_thread_ = 0;
+
+#if SB_LOG_MEDIA_TIME_STATS
+  SbTime system_and_media_time_offset_ = -1;
+  SbTime max_offset_difference_ = 0;
+#endif  // SB_LOG_MEDIA_TIME_STATS
 };
 
 }  // namespace filter
