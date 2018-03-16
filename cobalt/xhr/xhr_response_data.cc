@@ -36,10 +36,7 @@ COMPILE_ASSERT(sizeof(char) == 1, char_should_occupy_one_byte);
 
 }  // namespace
 
-XhrResponseData::XhrResponseData(script::JavaScriptEngine* javascript_engine)
-    : javascript_engine_(javascript_engine) {
-  IncreaseMemoryUsage();
-}
+XhrResponseData::XhrResponseData() { IncreaseMemoryUsage(); }
 
 XhrResponseData::~XhrResponseData() { DecreaseMemoryUsage(); }
 
@@ -77,17 +74,9 @@ uint8* XhrResponseData::data() {
 
 void XhrResponseData::IncreaseMemoryUsage() {
   dom::GlobalStats::GetInstance()->IncreaseXHRMemoryUsage(capacity());
-  if (javascript_engine_) {
-    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
-        static_cast<int64_t>(capacity()));
-  }
 }
 
 void XhrResponseData::DecreaseMemoryUsage() {
-  if (javascript_engine_) {
-    javascript_engine_->AdjustAmountOfExternalAllocatedMemory(
-        -static_cast<int64_t>(capacity()));
-  }
   dom::GlobalStats::GetInstance()->DecreaseXHRMemoryUsage(capacity());
 }
 
