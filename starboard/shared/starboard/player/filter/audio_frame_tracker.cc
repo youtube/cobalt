@@ -29,28 +29,29 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-void AudioFrameTracker::Reset() {
-  frame_records_.clear();
+AudioFrameTracker::Impl::Impl() : frames_played_adjusted_to_playback_rate_(0) {}
+
+void AudioFrameTracker::Impl::Reset() {
+  while (!frame_records_.empty()) {
+    frame_records_.pop();
+  }
   frames_played_adjusted_to_playback_rate_ = 0;
 }
 
-void AudioFrameTracker::AddFrames(int number_of_frames, double playback_rate) {
+void AudioFrameTracker::Impl::AddFrames(int number_of_frames,
+                                        double playback_rate) {
   SB_DCHECK(playback_rate > 0);
-
-  if (number_of_frames == 0) {
-    return;
-  }
 
   if (frame_records_.empty() ||
       frame_records_.back().playback_rate != playback_rate) {
     FrameRecord record = {number_of_frames, playback_rate};
-    frame_records_.push_back(record);
+    frame_records_.push(record);
   } else {
     frame_records_.back().number_of_frames += number_of_frames;
   }
 }
 
-void AudioFrameTracker::RecordPlayedFrames(int number_of_frames) {
+void AudioFrameTracker::Impl::RecordPlayedFrames(int number_of_frames) {
   while (number_of_frames > 0 && !frame_records_.empty()) {
     FrameRecord& record = frame_records_.front();
     if (record.number_of_frames > number_of_frames) {
@@ -62,33 +63,13 @@ void AudioFrameTracker::RecordPlayedFrames(int number_of_frames) {
       number_of_frames -= record.number_of_frames;
       frames_played_adjusted_to_playback_rate_ +=
           static_cast<int>(record.number_of_frames * record.playback_rate);
-      frame_records_.erase(frame_records_.begin());
+      frame_records_.pop();
     }
   }
-  SB_LOG_IF(ERROR, number_of_frames != 0)
-      << "played frames overflow " << number_of_frames;
 }
 
-int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
-    int number_of_frames) const {
-  auto frames_played = frames_played_adjusted_to_playback_rate_;
-  for (auto& record : frame_records_) {
-    if (number_of_frames == 0) {
-      break;
-    }
-
-    if (record.number_of_frames > number_of_frames) {
-      frames_played +=
-          static_cast<int>(number_of_frames * record.playback_rate);
-      number_of_frames = 0;
-    } else {
-      number_of_frames -= record.number_of_frames;
-      frames_played +=
-          static_cast<int>(record.number_of_frames * record.playback_rate);
-    }
-  }
-
-  return frames_played;
+int64_t AudioFrameTracker::Impl::GetFramesPlayedAdjustedToPlaybackRate() const {
+  return frames_played_adjusted_to_playback_rate_;
 }
 
 }  // namespace filter
