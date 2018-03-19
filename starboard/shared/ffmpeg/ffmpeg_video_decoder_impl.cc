@@ -217,7 +217,7 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
       ffmpeg_->av_init_packet(&packet);
       packet.data = const_cast<uint8_t*>(event.input_buffer->data());
       packet.size = event.input_buffer->size();
-      packet.pts = event.input_buffer->pts();
+      packet.pts = event.input_buffer->timestamp();
       codec_context_->reordered_opaque = packet.pts;
 
       DecodePacket(&packet);

@@ -103,7 +103,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
-  VERBOSE_MEDIA_LOG() << "T1: pts " << input_buffer->pts();
+  VERBOSE_MEDIA_LOG() << "T1: timestamp " << input_buffer->timestamp();
 
   media_decoder_->WriteInputBuffer(input_buffer);
 
@@ -134,7 +134,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
     SB_DCHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
-      VERBOSE_MEDIA_LOG() << "T3: pts " << result->pts();
+      VERBOSE_MEDIA_LOG() << "T3: timestamp " << result->timestamp();
       decoded_audios_.pop();
     }
   }
@@ -219,15 +219,14 @@ void AudioDecoder::ProcessOutputBuffer(
 
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
         audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
-        ConvertMicrosecondsToSbMediaTime(
-            dequeue_output_result.presentation_time_microseconds),
-        size);
+        dequeue_output_result.presentation_time_microseconds, size);
 
     SbMemoryCopy(decoded_audio->buffer(), data, size);
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
-      VERBOSE_MEDIA_LOG() << "T2: pts " << decoded_audios_.front()->pts();
+      VERBOSE_MEDIA_LOG() << "T2: timestamp "
+                          << decoded_audios_.front()->timestamp();
     }
     Schedule(output_cb_);
   }

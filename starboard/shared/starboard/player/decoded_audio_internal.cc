@@ -43,18 +43,18 @@ DecodedAudio::DecodedAudio()
     : channels_(0),
       sample_type_(kSbMediaAudioSampleTypeInt16Deprecated),
       storage_type_(kSbMediaAudioFrameStorageTypeInterleaved),
-      pts_(0),
+      timestamp_(0),
       size_(0) {}
 
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
                            SbMediaAudioFrameStorageType storage_type,
-                           SbMediaTime pts,
+                           SbTime timestamp,
                            size_t size)
     : channels_(channels),
       sample_type_(sample_type),
       storage_type_(storage_type),
-      pts_(pts),
+      timestamp_(timestamp),
       buffer_(new uint8_t[size]),
       size_(size) {}
 

@@ -54,14 +54,17 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
+  SbTime sample_timestamp = SB_MEDIA_TIME_TO_SB_TIME(sample_pts);
+
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerWriteSample(
       player, sample_type, sample_buffers, sample_buffer_sizes,
-      number_of_sample_buffers, sample_pts, video_sample_info, sample_drm_info);
+      number_of_sample_buffers, sample_timestamp, video_sample_info,
+      sample_drm_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
   player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
-                      number_of_sample_buffers, sample_pts, video_sample_info,
-                      sample_drm_info);
+                      number_of_sample_buffers, sample_timestamp,
+                      video_sample_info, sample_drm_info);
 }

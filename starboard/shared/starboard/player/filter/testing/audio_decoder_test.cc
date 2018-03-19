@@ -153,7 +153,8 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
       return;
     }
     if (last_decoded_audio_) {
-      ASSERT_LT(last_decoded_audio_->pts(), local_decoded_audio->pts());
+      ASSERT_LT(last_decoded_audio_->timestamp(),
+                local_decoded_audio->timestamp());
     }
     last_decoded_audio_ = local_decoded_audio;
     *decoded_audio = local_decoded_audio;

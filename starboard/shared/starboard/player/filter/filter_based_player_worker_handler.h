@@ -60,7 +60,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
             UpdatePlayerErrorCB update_player_error_cb
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
             ) override;
-  bool Seek(SbMediaTime seek_to_pts, int ticket) override;
+  bool Seek(SbTime seek_to_time, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                    bool* written) override;
   bool WriteEndOfStream(SbMediaType sample_type) override;

@@ -167,7 +167,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   return true;
 }
 
-bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
+bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   SB_UNREFERENCED_PARAMETER(ticket);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -175,14 +175,14 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
     return false;
   }
 
-  if (seek_to_pts < 0) {
-    SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_pts;
-    seek_to_pts = 0;
+  if (seek_to_time < 0) {
+    SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_time;
+    seek_to_time = 0;
   }
 
   GetMediaTimeProvider()->Pause();
-  video_renderer_->Seek(seek_to_pts);
-  GetMediaTimeProvider()->Seek(seek_to_pts);
+  video_renderer_->Seek(seek_to_time);
+  GetMediaTimeProvider()->Seek(seek_to_time);
   return true;
 }
 
@@ -257,7 +257,8 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         }
       }
       if (media_time_provider_impl_) {
-        media_time_provider_impl_->UpdateVideoDuration(input_buffer->pts());
+        media_time_provider_impl_->UpdateVideoDuration(
+            input_buffer->timestamp());
       }
       video_renderer_->WriteSample(input_buffer);
     }

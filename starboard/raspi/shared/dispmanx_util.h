@@ -146,10 +146,10 @@ class DispmanxElement {
 class DispmanxVideoFrame
     : public starboard::shared::starboard::player::filter::VideoFrame {
  public:
-  DispmanxVideoFrame(SbMediaTime pts,
+  DispmanxVideoFrame(SbTime time,
                      DispmanxYUV420Resource* resource,
                      std::function<void(DispmanxYUV420Resource*)> release_cb)
-      : VideoFrame(pts), resource_(resource), release_cb_(release_cb) {
+      : VideoFrame(time), resource_(resource), release_cb_(release_cb) {
     SB_DCHECK(resource_);
     SB_DCHECK(release_cb_);
   }

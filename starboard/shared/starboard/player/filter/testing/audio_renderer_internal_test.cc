@@ -122,13 +122,13 @@ class AudioRendererTest : public ::testing::Test {
     int frames_written = 0;
 
     while (audio_renderer_->IsSeekingInProgress()) {
-      SbMediaTime pts =
-          frames_written * kSbMediaTimeSecond / kDefaultSamplesPerSecond;
-      scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(pts);
+      SbTime timestamp =
+          frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+      scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
       scoped_refptr<DecodedAudio> decoded_audio =
-          CreateDecodedAudio(pts, kFramesPerBuffer);
+          CreateDecodedAudio(timestamp, kFramesPerBuffer);
       SendDecoderOutput(decoded_audio);
       frames_written += kFramesPerBuffer;
     }
@@ -156,9 +156,8 @@ class AudioRendererTest : public ::testing::Test {
     audio_renderer_->WriteEndOfStream();
     job_queue_.RunUntilIdle();
   }
-
-  void Seek(SbMediaTime seek_to_pts) {
-    audio_renderer_->Seek(seek_to_pts);
+  void Seek(SbTime seek_to_time) {
+    audio_renderer_->Seek(seek_to_time);
     job_queue_.RunUntilIdle();
     EXPECT_TRUE(audio_renderer_->IsSeekingInProgress());
   }
@@ -178,16 +177,16 @@ class AudioRendererTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
 
-  scoped_refptr<InputBuffer> CreateInputBuffer(SbMediaTime pts) {
+  scoped_refptr<InputBuffer> CreateInputBuffer(SbTime timestamp) {
     const int kInputBufferSize = 4;
     return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleCB, NULL, this,
                            SbMemoryAllocate(kInputBufferSize), kInputBufferSize,
-                           pts, NULL, NULL);
+                           timestamp, NULL, NULL);
   }
 
-  scoped_refptr<DecodedAudio> CreateDecodedAudio(SbMediaTime pts, int frames) {
+  scoped_refptr<DecodedAudio> CreateDecodedAudio(SbTime timestamp, int frames) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        kDefaultNumberOfChannels, sample_type_, storage_type_, pts,
+        kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
         frames * kDefaultNumberOfChannels *
             media::GetBytesPerSample(sample_type_));
     SbMemorySet(decoded_audio->buffer(), 0, decoded_audio->size());
@@ -281,7 +280,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbMediaTime media_time =
+  SbTime media_time =
       audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played);
   EXPECT_TRUE(is_playing);
   EXPECT_FALSE(is_eos_played);
@@ -299,7 +298,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = frames_in_buffer / 4;
-  SbMediaTime new_media_time;
+  SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
@@ -359,7 +358,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbMediaTime media_time =
+  SbTime media_time =
       audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played);
 
   int frames_in_buffer;
@@ -376,7 +375,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = frames_in_buffer / 4;
-  SbMediaTime new_media_time;
+  SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
@@ -415,7 +414,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   bool is_playing = false;
   bool is_eos_played = true;
-  SbMediaTime media_time =
+  SbTime media_time =
       audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played);
 
   int frames_in_buffer;
@@ -431,7 +430,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = frames_in_buffer / 4;
-  SbMediaTime new_media_time;
+  SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
@@ -547,14 +546,14 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
   int frames_written = 0;
 
   while (audio_renderer_->IsSeekingInProgress()) {
-    SbMediaTime pts =
-        frames_written * kSbMediaTimeSecond / kDefaultSamplesPerSecond;
-    WriteSample(CreateInputBuffer(pts));
+    SbTime timestamp =
+        frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    WriteSample(CreateInputBuffer(timestamp));
     CallConsumedCB();
-    SendDecoderOutput(CreateDecodedAudio(pts, kFramesPerBuffer / 2));
+    SendDecoderOutput(CreateDecodedAudio(timestamp, kFramesPerBuffer / 2));
     frames_written += kFramesPerBuffer / 2;
-    pts = frames_written * kSbMediaTimeSecond / kDefaultSamplesPerSecond;
-    SendDecoderOutput(CreateDecodedAudio(pts, kFramesPerBuffer / 2));
+    timestamp = frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    SendDecoderOutput(CreateDecodedAudio(timestamp, kFramesPerBuffer / 2));
     frames_written += kFramesPerBuffer / 2;
   }
 
@@ -572,7 +571,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbMediaTime media_time =
+  SbTime media_time =
       audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played);
 
   int frames_in_buffer;
@@ -589,7 +588,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOuputBuffersThanInputBuffers) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = frames_in_buffer / 4;
-  SbMediaTime new_media_time;
+  SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
@@ -634,17 +633,17 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
   int frames_written = 0;
 
   while (audio_renderer_->IsSeekingInProgress()) {
-    SbMediaTime pts =
-        frames_written * kSbMediaTimeSecond / kDefaultSamplesPerSecond;
-    SbMediaTime output_pts = pts;
-    WriteSample(CreateInputBuffer(pts));
+    SbTime timestamp =
+        frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    SbTime output_time = timestamp;
+    WriteSample(CreateInputBuffer(timestamp));
     CallConsumedCB();
     frames_written += kFramesPerBuffer / 2;
-    pts = frames_written * kSbMediaTimeSecond / kDefaultSamplesPerSecond;
-    WriteSample(CreateInputBuffer(pts));
+    timestamp = frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    WriteSample(CreateInputBuffer(timestamp));
     CallConsumedCB();
     frames_written += kFramesPerBuffer / 2;
-    SendDecoderOutput(CreateDecodedAudio(output_pts, kFramesPerBuffer));
+    SendDecoderOutput(CreateDecodedAudio(output_time, kFramesPerBuffer));
   }
 
   WriteEndOfStream();
@@ -659,7 +658,7 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbMediaTime media_time =
+  SbTime media_time =
       audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played);
 
   int frames_in_buffer;
@@ -675,7 +674,7 @@ TEST_F(AudioRendererTest, LessNumberOfOuputBuffersThanInputBuffers) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = frames_in_buffer / 4;
-  SbMediaTime new_media_time;
+  SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
@@ -724,7 +723,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbMediaTime media_time =
+  SbTime media_time =
       audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played);
 
   int frames_in_buffer;
@@ -739,9 +738,9 @@ TEST_F(AudioRendererTest, Seek) {
 
   // Consume frames in multiple batches, so we can test if
   // |GetCurrentMediaTime()| is incrementing in an expected manner.
-  const double seek_time = 0.5 * kSbMediaTimeSecond;
+  const double seek_time = 0.5 * kSbTimeSecond;
   const int frames_to_consume = frames_in_buffer / 10;
-  SbMediaTime new_media_time;
+  SbTime new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 

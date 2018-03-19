@@ -70,17 +70,17 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     const FillType fill_type = kSilence;
 
     if (last_input_buffer_) {
-      SbMediaTime diff = input_buffer->pts() - last_input_buffer_->pts();
+      SbTime diff = input_buffer->timestamp() - last_input_buffer_->timestamp();
       SB_DCHECK(diff >= 0);
       size_t sample_size =
           GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
       size_t size = diff * GetSamplesPerSecond() * sample_size *
-                    audio_header_.number_of_channels / kSbMediaTimeSecond;
+                    audio_header_.number_of_channels / kSbTimeSecond;
       size += size % (sample_size * audio_header_.number_of_channels);
 
       decoded_audios_.push(new DecodedAudio(audio_header_.number_of_channels,
                                             GetSampleType(), GetStorageType(),
-                                            input_buffer->pts(), size));
+                                            input_buffer->timestamp(), size));
 
       if (fill_type == kSilence) {
         SbMemorySet(decoded_audios_.back()->buffer(), 0, size);
@@ -114,7 +114,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
       decoded_audios_.push(new DecodedAudio(
           audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
-          last_input_buffer_->pts(), fake_size));
+          last_input_buffer_->timestamp(), fake_size));
       Schedule(output_cb_);
     }
     decoded_audios_.push(new DecodedAudio());
@@ -173,7 +173,8 @@ class StubVideoDecoder : public VideoDecoder {
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override {
     SB_DCHECK(input_buffer);
-    decoder_status_cb_(kNeedMoreInput, new VideoFrame(input_buffer->pts()));
+    decoder_status_cb_(kNeedMoreInput,
+                       new VideoFrame(input_buffer->timestamp()));
   }
   void WriteEndOfStream() override {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());

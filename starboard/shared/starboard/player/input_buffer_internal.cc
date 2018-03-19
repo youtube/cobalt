@@ -93,7 +93,7 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
                          void* context,
                          const void* sample_buffer,
                          int sample_buffer_size,
-                         SbMediaTime sample_pts,
+                         SbTime sample_timestamp,
                          const SbMediaVideoSampleInfo* video_sample_info,
                          const SbDrmSampleInfo* sample_drm_info)
     : sample_type_(sample_type),
@@ -102,7 +102,7 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
       context_(context),
       data_(static_cast<const uint8_t*>(sample_buffer)),
       size_(sample_buffer_size),
-      pts_(sample_pts) {
+      timestamp_(sample_timestamp) {
   SB_DCHECK(deallocate_sample_func);
   TryToAssignVideoSampleInfo(video_sample_info);
   TryToAssignDrmSampleInfo(sample_drm_info);
@@ -115,14 +115,14 @@ InputBuffer::InputBuffer(SbMediaType sample_type,
                          const void* const* sample_buffers,
                          const int* sample_buffer_sizes,
                          int number_of_sample_buffers,
-                         SbMediaTime sample_pts,
+                         SbTime sample_timestamp,
                          const SbMediaVideoSampleInfo* video_sample_info,
                          const SbDrmSampleInfo* sample_drm_info)
     : sample_type_(sample_type),
       deallocate_sample_func_(deallocate_sample_func),
       player_(player),
       context_(context),
-      pts_(sample_pts) {
+      timestamp_(sample_timestamp) {
   SB_DCHECK(deallocate_sample_func);
   SB_DCHECK(number_of_sample_buffers > 0);
 
@@ -175,7 +175,8 @@ std::string InputBuffer::ToString() const {
   std::stringstream ss;
   ss << "========== " << (has_drm_info_ ? "encrypted " : "clear ")
      << (sample_type_ == kSbMediaTypeAudio ? "audio" : "video")
-     << " sample @ pts: " << pts_ << " in " << size_ << " bytes ==========\n";
+     << " sample @ timestamp: " << timestamp_ << " in " << size_
+     << " bytes ==========\n";
   if (has_video_sample_info_) {
     ss << video_sample_info_.frame_width << " x "
        << video_sample_info_.frame_height << '\n';

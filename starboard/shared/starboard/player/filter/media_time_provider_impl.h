@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 
+#include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
@@ -43,23 +44,22 @@ class MediaTimeProviderImpl : public MediaTimeProvider {
   void SetPlaybackRate(double playback_rate) override;
   void Play() override;
   void Pause() override;
-  void Seek(SbMediaTime seek_to_pts) override;
-  SbMediaTime GetCurrentMediaTime(bool* is_playing,
-                                  bool* is_eos_played) override;
+  void Seek(SbTime seek_to_time) override;
+  SbTime GetCurrentMediaTime(bool* is_playing, bool* is_eos_played) override;
 
   // When video end of stream is reached and the current media time passes the
   // video duration, |is_eos_played| of GetCurrentMediaTime() will return true.
   // When VideoEndOfStreamReached() is called without any prior calls to
-  // UpdateVideoDuration(), the |seek_to_pts_| will be used as video duration.
-  void UpdateVideoDuration(SbMediaTime video_duration);
+  // UpdateVideoDuration(), the |seek_to_time_| will be used as video duration.
+  void UpdateVideoDuration(optional<SbTime> video_duration);
   void VideoEndOfStreamReached();
 
  private:
   // When not NULL, |current_time| will be set to the current monotonic time
   // used to calculate the returned media time.  Note that it is possible that
-  // |current_time| points to |seek_to_pts_set_at_| and the implementation
+  // |current_time| points to |seek_to_time_set_at_| and the implementation
   // should handle this properly.
-  SbMediaTime GetCurrentMediaTime_Locked(SbTimeMonotonic* current_time = NULL);
+  SbTime GetCurrentMediaTime_Locked(SbTimeMonotonic* current_time = NULL);
 
   ThreadChecker thread_checker_;
 
@@ -69,10 +69,10 @@ class MediaTimeProviderImpl : public MediaTimeProvider {
 
   double playback_rate_ = 1.0;
   bool is_playing_ = false;
-  SbMediaTime seek_to_pts_ = 0;
-  SbTimeMonotonic seek_to_pts_set_at_ = SbTimeGetMonotonicNow();
+  SbTime seek_to_time_ = 0;
+  SbTimeMonotonic seek_to_time_set_at_ = SbTimeGetMonotonicNow();
 
-  SbMediaTime video_duration_ = kSbMediaTimeInvalid;
+  optional<SbTime> video_duration_;
   bool is_video_end_of_stream_reached_ = false;
 };
 
