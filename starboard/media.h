@@ -34,6 +34,9 @@ extern "C" {
 // Time represented in 90KHz ticks.
 typedef int64_t SbMediaTime;
 
+#define SB_MEDIA_TIME_TO_SB_TIME(media) (media * 100 / 9)
+#define SB_TIME_TO_SB_MEDIA_TIME(time) (time * 9 / 100)
+
 // Types of media component streams.
 typedef enum SbMediaType {
   // Value used for audio streams.
@@ -474,11 +477,9 @@ typedef struct SbMediaAudioHeader {
 
 // --- Constants -------------------------------------------------------------
 
+// TODO: remove kSbMediaTimeSecond.
 // One second in SbMediaTime (90KHz ticks).
 #define kSbMediaTimeSecond ((SbMediaTime)(90000))
-
-// Use the minimum value of int64_t to indicate an invalid media time.
-#define kSbMediaTimeInvalid ((SbMediaTime)kSbInt64Min)
 
 // --- Functions -------------------------------------------------------------
 

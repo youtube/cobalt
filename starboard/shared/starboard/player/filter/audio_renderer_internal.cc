@@ -80,8 +80,8 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       paused_(true),
       consume_frames_called_(false),
       seeking_(false),
-      seeking_to_pts_(0),
-      last_media_time_(0),
+      seeking_to_time_(0),
+      last_time_(0),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       frames_sent_to_sink_(0),
       pending_decoder_outputs_(0),
@@ -127,7 +127,7 @@ void AudioRenderer::WriteSample(
   SB_DCHECK(can_accept_more_data_);
 
   if (eos_state_ >= kEOSWrittenToDecoder) {
-    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer->pts()
+    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer->timestamp()
                   << " after EOS reached.";
     return;
   }
@@ -224,19 +224,19 @@ void AudioRenderer::SetPlaybackRate(double playback_rate) {
   }
 }
 
-void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
+void AudioRenderer::Seek(SbTime seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(seek_to_pts >= 0);
+  SB_DCHECK(seek_to_time >= 0);
 
   audio_renderer_sink_->Stop();
 
   {
     // Set the following states under a lock first to ensure that from now on
-    // GetCurrentMediaTime() returns |seeking_to_pts_|.
+    // GetCurrentMediaTime() returns |seeking_to_time_|.
     ScopedLock scoped_lock(mutex_);
     eos_state_ = kEOSNotReceived;
-    seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
-    last_media_time_ = seek_to_pts;
+    seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
+    last_time_ = seek_to_time;
     seeking_ = true;
   }
 
@@ -275,13 +275,13 @@ void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   }
 }
 
-SbMediaTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
-                                               bool* is_eos_played) {
+SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
+                                          bool* is_eos_played) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
 
-  SbMediaTime media_time = 0;
-  SbMediaTime now = -1;
+  SbTime media_sb_time = 0;
+  SbTimeMonotonic now = -1;
   SbTimeMonotonic elasped_since_last_set = 0;
   int64_t frames_played = 0;
   int samples_per_second = 1;
@@ -293,7 +293,7 @@ SbMediaTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
     *is_eos_played = IsEndOfStreamPlayed_Locked();
 
     if (seeking_ || !decoder_sample_rate_) {
-      return seeking_to_pts_;
+      return seeking_to_time_;
     }
 
     if (frames_consumed_by_sink_since_last_get_current_time_ > 0) {
@@ -315,34 +315,32 @@ SbMediaTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames);
-    media_time = seeking_to_pts_ +
-                 frames_played * kSbMediaTimeSecond / samples_per_second;
-    if (media_time < last_media_time_) {
-      SB_DLOG(WARNING) << "Audio time runs backwards from " << last_media_time_
-                       << " to " << media_time;
-      media_time = last_media_time_;
+    media_sb_time =
+        seeking_to_time_ + frames_played * kSbTimeSecond / samples_per_second;
+    if (media_sb_time < last_time_) {
+      SB_DLOG(WARNING) << "Audio time runs backwards from " << last_time_
+                       << " to " << media_sb_time;
+      media_sb_time = last_time_;
     }
-    last_media_time_ = media_time;
+    last_time_ = media_sb_time;
   }
 
 #if SB_LOG_MEDIA_TIME_STATS
-  SbTime media_time_as_sb_time =
-      frames_played * kSbTimeSecond / samples_per_second;
   if (system_and_media_time_offset_ < 0 && frames_played > 0) {
-    system_and_media_time_offset_ = now - media_time_as_sb_time;
+    system_and_media_time_offset_ = now - media_sb_time;
   }
   if (system_and_media_time_offset_ > 0) {
-    SbTime offset = now - media_time_as_sb_time;
+    SbTime offset = now - media_sb_time;
     SbTime diff = std::abs(offset - system_and_media_time_offset_);
     max_offset_difference_ = std::max(diff, max_offset_difference_);
     SB_LOG(ERROR) << "Media time stats: (" << now << "-"
                   << frames_consumed_set_at_ << "=" << elasped_since_last_set
-                  << ") => " << frames_played << " => " << media_time_as_sb_time
+                  << ") => " << frames_played << " => " << media_sb_time
                   << "  diff: " << diff << "/" << max_offset_difference_;
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
-  return media_time;
+  return media_sb_time;
 }
 
 void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
@@ -543,7 +541,7 @@ void AudioRenderer::ProcessAudioData() {
       resampled_audio = resampler_->WriteEndOfStream();
     } else {
       // Discard any audio data before the seeking target.
-      if (seeking_ && decoded_audio->pts() < seeking_to_pts_) {
+      if (seeking_ && decoded_audio->timestamp() < seeking_to_time_) {
         continue;
       }
 

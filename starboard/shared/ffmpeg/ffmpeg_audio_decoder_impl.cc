@@ -147,7 +147,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(
   if (decoded_audio_size > 0) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
         codec_context_->channels, GetSampleType(), GetStorageType(),
-        input_buffer->pts(),
+        input_buffer->timestamp(),
         codec_context_->channels * av_frame_->nb_samples *
             starboard::media::GetBytesPerSample(GetSampleType()));
     if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {

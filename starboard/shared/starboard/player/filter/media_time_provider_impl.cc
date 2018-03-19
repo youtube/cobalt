@@ -36,7 +36,7 @@ void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
   }
 
   ScopedLock scoped_lock(mutex_);
-  seek_to_pts_ = GetCurrentMediaTime_Locked(&seek_to_pts_set_at_);
+  seek_to_time_ = GetCurrentMediaTime_Locked(&seek_to_time_set_at_);
   playback_rate_ = playback_rate;
 }
 
@@ -48,7 +48,7 @@ void MediaTimeProviderImpl::Play() {
   }
 
   ScopedLock scoped_lock(mutex_);
-  seek_to_pts_ = GetCurrentMediaTime_Locked(&seek_to_pts_set_at_);
+  seek_to_time_ = GetCurrentMediaTime_Locked(&seek_to_time_set_at_);
   is_playing_ = true;
 }
 
@@ -60,35 +60,37 @@ void MediaTimeProviderImpl::Pause() {
   }
 
   ScopedLock scoped_lock(mutex_);
-  seek_to_pts_ = GetCurrentMediaTime_Locked(&seek_to_pts_set_at_);
+  seek_to_time_ = GetCurrentMediaTime_Locked(&seek_to_time_set_at_);
   is_playing_ = false;
 }
 
-void MediaTimeProviderImpl::Seek(SbMediaTime seek_to_pts) {
+void MediaTimeProviderImpl::Seek(SbTime seek_to_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   ScopedLock scoped_lock(mutex_);
 
-  seek_to_pts_ = seek_to_pts;
-  seek_to_pts_set_at_ = system_time_provider_->GetMonotonicNow();
-  video_duration_ = kSbMediaTimeInvalid;
+  seek_to_time_ = seek_to_time;
+  seek_to_time_set_at_ = system_time_provider_->GetMonotonicNow();
+  video_duration_ = nullopt;
   is_video_end_of_stream_reached_ = false;
 }
 
-SbMediaTime MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
-                                                       bool* is_eos_played) {
+SbTime MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
+                                                  bool* is_eos_played) {
   ScopedLock scoped_lock(mutex_);
 
-  SbMediaTime current = GetCurrentMediaTime_Locked();
+  SbTime current = GetCurrentMediaTime_Locked();
 
   *is_playing = is_playing_;
   *is_eos_played =
-      is_video_end_of_stream_reached_ && current >= video_duration_;
+      is_video_end_of_stream_reached_ &&
+      (!video_duration_.has_engaged() || current >= video_duration_.value());
 
   return current;
 }
 
-void MediaTimeProviderImpl::UpdateVideoDuration(SbMediaTime video_duration) {
+void MediaTimeProviderImpl::UpdateVideoDuration(
+    optional<SbTime> video_duration) {
   ScopedLock scoped_lock(mutex_);
   video_duration_ = video_duration;
 }
@@ -96,12 +98,12 @@ void MediaTimeProviderImpl::UpdateVideoDuration(SbMediaTime video_duration) {
 void MediaTimeProviderImpl::VideoEndOfStreamReached() {
   ScopedLock scoped_lock(mutex_);
   is_video_end_of_stream_reached_ = true;
-  if (video_duration_ == kSbMediaTimeInvalid) {
-    video_duration_ = seek_to_pts_;
+  if (!video_duration_.has_engaged()) {
+    video_duration_ = seek_to_time_;
   }
 }
 
-SbMediaTime MediaTimeProviderImpl::GetCurrentMediaTime_Locked(
+SbTime MediaTimeProviderImpl::GetCurrentMediaTime_Locked(
     SbTimeMonotonic* current_time /*= NULL*/) {
   mutex_.DCheckAcquired();
 
@@ -111,16 +113,14 @@ SbMediaTime MediaTimeProviderImpl::GetCurrentMediaTime_Locked(
     if (current_time) {
       *current_time = now;
     }
-    return seek_to_pts_;
+    return seek_to_time_;
   }
 
-  SbTimeMonotonic elapsed = (now - seek_to_pts_set_at_) * playback_rate_;
-  // Convert |elapsed| in microseconds to SbMediaTime in 90hz.
-  SbMediaTime elapsed_in_media_time = elapsed * 9 / 100;
+  SbTimeMonotonic elapsed = (now - seek_to_time_set_at_) * playback_rate_;
   if (current_time) {
     *current_time = now;
   }
-  return seek_to_pts_ + elapsed_in_media_time;
+  return seek_to_time_ + elapsed;
 }
 
 }  // namespace filter

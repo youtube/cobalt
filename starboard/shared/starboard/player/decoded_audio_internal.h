@@ -36,7 +36,7 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
                SbMediaAudioFrameStorageType storage_type,
-               SbMediaTime pts,
+               SbTime timestamp,
                size_t size);
 
   int channels() const { return channels_; }
@@ -44,7 +44,7 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
 
   bool is_end_of_stream() const { return buffer_ == NULL; }
-  SbMediaTime pts() const { return pts_; }
+  SbTime timestamp() const { return timestamp_; }
   const uint8_t* buffer() const { return buffer_.get(); }
   size_t size() const { return size_; }
 
@@ -63,7 +63,7 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
   // The timestamp of the first audio frame.
-  SbMediaTime pts_;
+  SbTime timestamp_;
   // Use scoped_array<uint8_t> instead of std::vector<uint8_t> to avoid wasting
   // time on setting content to 0.
   scoped_array<uint8_t> buffer_;

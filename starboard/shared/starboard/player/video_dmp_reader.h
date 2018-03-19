@@ -35,7 +35,7 @@ class VideoDmpReader {
  public:
   class AccessUnit {
    public:
-    AccessUnit(SbMediaTime timestamp,
+    AccessUnit(SbTime timestamp,
                const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                std::vector<uint8_t> data)
         : timestamp_(timestamp),
@@ -44,14 +44,14 @@ class VideoDmpReader {
                                ? SbDrmSampleInfoWithSubSampleMapping()
                                : *drm_sample_info),
           data_(std::move(data)) {}
-    SbMediaTime timestamp() const { return timestamp_; }
+    SbTime timestamp() const { return timestamp_; }
     const SbDrmSampleInfo* drm_sample_info() const {
       return drm_sample_info_present_ ? &drm_sample_info_ : NULL;
     }
     const std::vector<uint8_t>& data() const { return data_; }
 
    private:
-    SbMediaTime timestamp_;
+    SbTime timestamp_;
     bool drm_sample_info_present_;
     SbDrmSampleInfoWithSubSampleMapping drm_sample_info_;
     std::vector<uint8_t> data_;
@@ -61,7 +61,7 @@ class VideoDmpReader {
 
   class VideoAccessUnit : public AccessUnit {
    public:
-    VideoAccessUnit(SbMediaTime timestamp,
+    VideoAccessUnit(SbTime timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
                     const SbMediaVideoSampleInfoWithOptionalColorMetadata&

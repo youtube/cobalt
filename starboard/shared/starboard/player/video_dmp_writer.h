@@ -36,7 +36,6 @@ class VideoDmpWriter {
   static void OnPlayerCreate(SbPlayer player,
                              SbMediaVideoCodec video_codec,
                              SbMediaAudioCodec audio_codec,
-                             SbMediaTime duration_pts,
                              SbDrmSystem drm_system,
                              const SbMediaAudioHeader* audio_header);
   static void OnPlayerWriteSample(
@@ -45,7 +44,7 @@ class VideoDmpWriter {
       const void* const* sample_buffers,
       const int* sample_buffer_sizes,
       int number_of_sample_buffers,
-      SbMediaTime sample_pts,
+      SbTime sample_timestamp,
       const SbMediaVideoSampleInfo* video_sample_info,
       const SbDrmSampleInfo* drm_sample_info);
   static void OnPlayerDestroy(SbPlayer player);
@@ -53,13 +52,12 @@ class VideoDmpWriter {
  private:
   void DumpConfigs(SbMediaVideoCodec video_codec,
                    SbMediaAudioCodec audio_codec,
-                   SbMediaTime duration_pts,
                    const SbMediaAudioHeader* audio_header);
   void DumpAccessUnit(SbMediaType sample_type,
                       const void* const* sample_buffers,
                       const int* sample_buffer_sizes,
                       int number_of_sample_buffers,
-                      SbMediaTime sample_pts,
+                      SbTime sample_timestamp,
                       const SbMediaVideoSampleInfo* video_sample_info,
                       const SbDrmSampleInfo* drm_sample_info);
   int WriteToFile(const void* buffer, int size);

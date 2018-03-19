@@ -51,8 +51,7 @@ class VideoFrameImpl : public VideoFrame {
                  MediaCodecBridge* media_codec_bridge)
       : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
                        ? kMediaTimeEndOfStream
-                       : dequeue_output_result.presentation_time_microseconds *
-                             kSbMediaTimeSecond / kSbTimeSecond),
+                       : dequeue_output_result.presentation_time_microseconds),
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false) {
@@ -206,14 +205,14 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 }
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
-  if (first_buffer_received_ && first_buffer_pts_ != 0) {
+  if (first_buffer_received_ && first_buffer_timestamp_ != 0) {
     return kNonInitialPrerollFrameCount;
   }
   return kInitialPrerollFrameCount;
 }
 
 SbTime VideoDecoder::GetPrerollTimeout() const {
-  if (first_buffer_received_ && first_buffer_pts_ != 0) {
+  if (first_buffer_received_ && first_buffer_timestamp_ != 0) {
     return kSbTimeMax;
   }
   return kInitialPrerollTimeout;
@@ -226,7 +225,7 @@ void VideoDecoder::WriteInputBuffer(
 
   if (!first_buffer_received_) {
     first_buffer_received_ = true;
-    first_buffer_pts_ = input_buffer->pts();
+    first_buffer_timestamp_ = input_buffer->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
     // teardown the codec so it can be reinitalized with the new metadata.
@@ -259,7 +258,7 @@ void VideoDecoder::WriteEndOfStream() {
 
   if (!first_buffer_received_) {
     first_buffer_received_ = true;
-    first_buffer_pts_ = 0;
+    first_buffer_timestamp_ = 0;
   }
 
   media_decoder_->WriteEndOfStream();

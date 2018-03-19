@@ -293,7 +293,7 @@ bool MediaDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
-    jlong pts_us = ConvertSbMediaTimeToMicroseconds(input_buffer->pts());
+    jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),

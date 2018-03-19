@@ -26,7 +26,7 @@ namespace player {
 namespace filter {
 
 VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl()
-    : last_frame_pts_(-1), dropped_frames_(0) {}
+    : last_frame_timestamp_(-1), dropped_frames_(0) {}
 
 void VideoRenderAlgorithmImpl::Render(
     MediaTimeProvider* media_time_provider,
@@ -42,7 +42,7 @@ void VideoRenderAlgorithmImpl::Render(
 
   bool is_audio_playing;
   bool is_audio_eos_played;
-  SbMediaTime media_time = media_time_provider->GetCurrentMediaTime(
+  SbTime media_time = media_time_provider->GetCurrentMediaTime(
       &is_audio_playing, &is_audio_eos_played);
 
   // Video frames are synced to the audio timestamp. However, the audio
@@ -62,7 +62,7 @@ void VideoRenderAlgorithmImpl::Render(
   // * Then the frame with timestamp 40 is displayed twice (for sample
   //   timestamps 31 and 40).
   // * Then the frame with timestamp 50 is dropped.
-  const SbMediaTime kMediaTimeThreshold = kSbMediaTimeSecond / 250;
+  const SbTime kMediaTimeThreshold = kSbTimeSecond / 250;
 
   // Favor advancing the frame sooner. This addresses the situation where the
   // audio timestamp query interval is a little shorter than a frame. This
@@ -71,8 +71,8 @@ void VideoRenderAlgorithmImpl::Render(
   // In the above example, this ensures advancement from frame timestamp 20
   // to frame timestamp 30 when the sample time is 19.
   if (is_audio_playing && frames->size() > 1 &&
-      frames->front()->pts() == last_frame_pts_ &&
-      last_frame_pts_ - kMediaTimeThreshold < media_time) {
+      frames->front()->timestamp() == last_frame_timestamp_ &&
+      last_frame_timestamp_ - kMediaTimeThreshold < media_time) {
     frames->pop_front();
   }
 
@@ -86,8 +86,8 @@ void VideoRenderAlgorithmImpl::Render(
   // however, the "early advance" logic from above would force frame 30 to
   // move onto frame 40 on sample timestamp 31.
   while (frames->size() > 1 &&
-         frames->front()->pts() + kMediaTimeThreshold < media_time) {
-    if (frames->front()->pts() != last_frame_pts_) {
+         frames->front()->timestamp() + kMediaTimeThreshold < media_time) {
+    if (frames->front()->timestamp() != last_frame_timestamp_) {
       ++dropped_frames_;
     }
     frames->pop_front();
@@ -100,7 +100,7 @@ void VideoRenderAlgorithmImpl::Render(
   }
 
   if (!frames->front()->is_end_of_stream()) {
-    last_frame_pts_ = frames->front()->pts();
+    last_frame_timestamp_ = frames->front()->timestamp();
     auto status = draw_frame_cb(frames->front(), 0);
     if (status == VideoRendererSink::kReleased) {
       frames->pop_front();
