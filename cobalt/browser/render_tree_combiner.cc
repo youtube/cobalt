@@ -44,6 +44,24 @@ void RenderTreeCombiner::Layer::Submit(
   receipt_time_ = base::TimeTicks::HighResNow();
 }
 
+base::optional<renderer::Submission>
+RenderTreeCombiner::Layer::GetCurrentSubmission() {
+  if (!render_tree_) {
+    return base::nullopt;
+  }
+
+  base::optional<base::TimeDelta> current_time_offset = CurrentTimeOffset();
+  DCHECK(current_time_offset);
+  renderer::Submission submission(render_tree_->render_tree,
+                                  *current_time_offset);
+  submission.timeline_info = render_tree_->timeline_info;
+  submission.on_rasterized_callbacks.assign(
+      render_tree_->on_rasterized_callbacks.begin(),
+      render_tree_->on_rasterized_callbacks.end());
+
+  return submission;
+}
+
 base::optional<base::TimeDelta> RenderTreeCombiner::Layer::CurrentTimeOffset() {
   if (!receipt_time_) {
     return base::nullopt;

@@ -189,7 +189,8 @@ void LayoutBenchmark::Experiment() {
   // results.
   layout_results =
       SnapshotURL(test_info_.url, viewport_size,
-                  renderer_benchmark_runner_.GetResourceProvider());
+                  renderer_benchmark_runner_.GetResourceProvider(),
+                  dom::ScreenshotManager::ProvideScreenshotFunctionCallback());
 
   // Finally run the renderer benchmarks to acquire performance data on
   // rendering.

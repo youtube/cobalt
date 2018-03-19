@@ -33,7 +33,6 @@
     "enable_file_scheme",
     "enable_network_logging",
     "enable_remote_debugging",
-    "enable_screenshot",
     "enable_webdriver",
     "enable_spdy",
     "enable_xhr_header_filtering",

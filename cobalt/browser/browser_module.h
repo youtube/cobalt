@@ -132,16 +132,17 @@ class BrowserModule {
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
-#if defined(ENABLE_SCREENSHOT)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
-  void RequestScreenshotToFile(const FilePath& path,
-                               const base::Closure& done_cb);
+  void RequestScreenshotToFile(
+      const FilePath& path,
+      loader::image::EncodedStaticImage::ImageFormat image_format,
+      const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
   void RequestScreenshotToBuffer(
-      const ScreenShotWriter::PNGEncodeCompleteCallback& screenshot_ready);
-#endif
+      loader::image::EncodedStaticImage::ImageFormat image_format,
+      const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -467,10 +468,8 @@ class BrowserModule {
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
   scoped_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
 
-#if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
   scoped_ptr<ScreenShotWriter> screen_shot_writer_;
-#endif  // defined(ENABLE_SCREENSHOT)
 
   // Keeps track of all messages containing render tree submissions that will
   // ultimately reference the |render_tree_combiner_| and the
@@ -530,10 +529,8 @@ class BrowserModule {
   // Command handler object for setting media module config.
   base::ConsoleCommandManager::CommandHandler set_media_config_command_handler_;
 
-#if defined(ENABLE_SCREENSHOT)
   // Command handler object for screenshot command from the debug console.
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
-#endif  // defined(ENABLE_SCREENSHOT)
 
   base::optional<SuspendFuzzer> suspend_fuzzer_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
