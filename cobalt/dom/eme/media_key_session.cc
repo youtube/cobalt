@@ -250,8 +250,8 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
   // 10.9.4.1. Let message be the request that needs to be processed before
   //           a license request request for the requested license type can be
   //           generated based on the sanitized init data.
-  media_key_message_event_init.set_message(new ArrayBuffer(
-      NULL, ArrayBuffer::kFromHeap, message.Pass(), message_size));
+  media_key_message_event_init.set_message(
+      new ArrayBuffer(NULL, message.Pass(), message_size));
   // 10.9.4.2. Let message type reflect the type of message, either
   //           "license-request" or "individualization-request".
   //
