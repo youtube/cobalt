@@ -627,6 +627,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStartDispatchEvent,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
+      data.options.provide_screenshot_function,
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -649,6 +650,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       global_environment_.get(), &mutation_observer_task_manager_,
       data.options.dom_settings_options));
   DCHECK(environment_settings_);
+
+  window_->SetEnvironmentSettings(environment_settings_.get());
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
 
@@ -1451,9 +1454,9 @@ void WebModule::InjectCaptionSettingsChangedEvent() {
                "WebModule::InjectCaptionSettingsChangedEvent()");
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(FROM_HERE,
-      base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
-                 base::Unretained(impl_.get())));
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
+                            base::Unretained(impl_.get())));
 }
 
 std::string WebModule::ExecuteJavascript(

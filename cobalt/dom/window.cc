@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include "cobalt/dom/window.h"
 
 #include <algorithm>
@@ -45,12 +44,16 @@
 #include "cobalt/dom/performance.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/screen.h"
+#include "cobalt/dom/screenshot.h"
+#include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/dom/storage.h"
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/media_session/media_session_client.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/speech/speech_synthesis.h"
+#include "starboard/file.h"
 
 using cobalt::media_session::MediaSession;
 
@@ -119,6 +122,8 @@ Window::Window(
     const scoped_refptr<MediaSession>& media_session,
     const OnStartDispatchEventCallback& on_start_dispatch_event_callback,
     const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
+    const ScreenshotManager::ProvideScreenshotFunctionCallback&
+        screenshot_function_callback,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
@@ -189,7 +194,8 @@ Window::Window(
                               : NULL),
       splash_screen_cache_callback_(splash_screen_cache_callback),
       on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
-      on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback) {
+      on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback),
+      screenshot_manager_(screenshot_function_callback) {
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
@@ -241,6 +247,26 @@ void Window::Minimize() {
 }
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
+
+script::Handle<ScreenshotManager::InterfacePromise> Window::Screenshot() {
+  scoped_refptr<render_tree::Node> render_tree_root =
+      document_->DoSynchronousLayoutAndGetRenderTree();
+
+  script::Handle<ScreenshotManager::InterfacePromise> promise =
+      html_element_context()
+          ->script_value_factory()
+          ->CreateInterfacePromise<scoped_refptr<dom::ArrayBuffer>>();
+
+  std::unique_ptr<ScreenshotManager::InterfacePromiseValue::Reference>
+      promise_reference(new ScreenshotManager::InterfacePromiseValue::Reference(
+          this, promise));
+
+  screenshot_manager_.Screenshot(
+      loader::image::EncodedStaticImage::ImageFormat::kPNG, render_tree_root,
+      std::move(promise_reference));
+
+  return promise;
+}
 
 scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
     const scoped_refptr<Element>& elt) {
@@ -546,9 +572,13 @@ bool Window::ReportScriptError(const script::ErrorReport& error_report) {
   return error_event->default_prevented();
 }
 
-void Window::SetSynchronousLayoutCallback(
-    const base::Closure& synchronous_layout_callback) {
-  document_->set_synchronous_layout_callback(synchronous_layout_callback);
+void Window::SetSynchronousLayoutCallback(const base::Closure& callback) {
+  document_->set_synchronous_layout_callback(callback);
+}
+
+void Window::SetSynchronousLayoutAndProduceRenderTreeCallback(
+    const SynchronousLayoutAndProduceRenderTreeCallback& callback) {
+  document_->set_synchronous_layout_and_produce_render_tree_callback(callback);
 }
 
 void Window::SetSize(int width, int height, float device_pixel_ratio) {
@@ -634,6 +664,10 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
   tracer->Trace(on_screen_keyboard_);
+}
+
+void Window::SetEnvironmentSettings(script::EnvironmentSettings* settings) {
+  screenshot_manager_.SetEnvironmentSettings(settings);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {
