@@ -167,8 +167,7 @@ void VideoDecoder::RunLoop() {
       while (offset < size) {
         int written = component.WriteData(
             current_buffer->data() + offset, size - offset,
-            OpenMaxComponent::kDataNonEOS,
-            current_buffer->pts() * kSbTimeSecond / kSbMediaTimeSecond);
+            OpenMaxComponent::kDataNonEOS, current_buffer->timestamp());
         SB_DCHECK(written >= 0);
         offset += written;
         if (written == 0) {
@@ -259,9 +258,8 @@ scoped_refptr<VideoDecoder::VideoFrame> VideoDecoder::CreateFrame(
 
     resource->WriteData(buffer->pBuffer);
 
-    SbMediaTime timestamp = ((buffer->nTimeStamp.nHighPart * 0x100000000ull) +
-                             buffer->nTimeStamp.nLowPart) *
-                            kSbMediaTimeSecond / kSbTimeSecond;
+    SbTime timestamp = ((buffer->nTimeStamp.nHighPart * 0x100000000ull) +
+                        buffer->nTimeStamp.nLowPart);
 
     resource_pool_->AddRef();
     frame = new DispmanxVideoFrame(

@@ -45,7 +45,7 @@ class PlayerWorker {
  public:
   class Host {
    public:
-    virtual void UpdateMediaTime(SbMediaTime media_time, int ticket) = 0;
+    virtual void UpdateMediaTime(SbTime media_time, int ticket) = 0;
     virtual void UpdateDroppedVideoFrames(int dropped_video_frames) = 0;
 
    protected:
@@ -63,7 +63,7 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
-    typedef void (PlayerWorker::*UpdateMediaTimeCB)(SbMediaTime media_time);
+    typedef void (PlayerWorker::*UpdateMediaTimeCB)(SbTime media_time);
     typedef SbPlayerState (PlayerWorker::*GetPlayerStateCB)() const;
     typedef void (PlayerWorker::*UpdatePlayerStateCB)(
         SbPlayerState player_state);
@@ -84,7 +84,7 @@ class PlayerWorker {
                       UpdatePlayerErrorCB update_player_error_cb
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                       ) = 0;
-    virtual bool Seek(SbMediaTime seek_to_pts, int ticket) = 0;
+    virtual bool Seek(SbTime seek_to_time, int ticket) = 0;
     virtual bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                              bool* written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
@@ -114,9 +114,9 @@ class PlayerWorker {
                void* context);
   ~PlayerWorker();
 
-  void Seek(SbMediaTime seek_to_pts, int ticket) {
+  void Seek(SbTime seek_to_time, int ticket) {
     job_queue_->Schedule(
-        std::bind(&PlayerWorker::DoSeek, this, seek_to_pts, ticket));
+        std::bind(&PlayerWorker::DoSeek, this, seek_to_time, ticket));
   }
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {
@@ -167,7 +167,7 @@ class PlayerWorker {
   }
 
  private:
-  void UpdateMediaTime(SbMediaTime time);
+  void UpdateMediaTime(SbTime time);
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);
@@ -176,7 +176,7 @@ class PlayerWorker {
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
   void DoInit();
-  void DoSeek(SbMediaTime seek_to_pts, int ticket);
+  void DoSeek(SbTime seek_to_time, int ticket);
   void DoWriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);

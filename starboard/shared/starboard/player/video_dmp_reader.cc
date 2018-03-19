@@ -35,7 +35,7 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
     return 1024;
   }
 
-  SbMediaTime duration =
+  SbTime duration =
       access_units.back().timestamp() - access_units.front().timestamp();
 
   SB_DCHECK(duration > 0);
@@ -45,7 +45,7 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
     total_bitrate += au.data().size();
   }
 
-  return total_bitrate * 8 * kSbMediaTimeSecond / duration;
+  return total_bitrate * 8 * kSbTimeSecond / duration;
 }
 
 static void DeallocateSampleFunc(SbPlayer player,
@@ -143,19 +143,21 @@ void VideoDmpReader::Parse() {
 
   // Guestimate the video fps.
   if (video_access_units_.size() > 1) {
-    SbMediaTime first_pts = video_access_units_.front().timestamp();
-    SbMediaTime second_pts = video_access_units_.back().timestamp();
+    SbTime first_timestamp = video_access_units_.front().timestamp();
+    SbTime second_timestamp = video_access_units_.back().timestamp();
     for (const auto& au : video_access_units_) {
-      if (au.timestamp() != first_pts && au.timestamp() < second_pts) {
-        second_pts = au.timestamp();
+      if (au.timestamp() != first_timestamp &&
+          au.timestamp() < second_timestamp) {
+        second_timestamp = au.timestamp();
       }
     }
-    SB_DCHECK(first_pts < second_pts);
-    video_fps_ = kSbMediaTimeSecond / (second_pts - first_pts);
+    SB_DCHECK(first_timestamp < second_timestamp);
+    video_fps_ = kSbTimeSecond / (second_timestamp - first_timestamp);
   }
 }
 
 VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
+  // TODO: make this read SbTime.
   SbMediaTime timestamp;
   Read(read_cb_, reverse_byte_order_, &timestamp);
 
@@ -172,12 +174,13 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  return AudioAccessUnit(timestamp,
+  return AudioAccessUnit(SB_MEDIA_TIME_TO_SB_TIME(timestamp),
                          drm_sample_info_present ? &drm_sample_info : NULL,
                          std::move(data));
 }
 
 VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
+  // TODO: make this read SbTime.
   SbMediaTime timestamp;
   Read(read_cb_, reverse_byte_order_, &timestamp);
 
@@ -197,7 +200,8 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   SbMediaVideoSampleInfoWithOptionalColorMetadata video_sample_info;
   Read(read_cb_, reverse_byte_order_, &video_sample_info);
 
-  return VideoAccessUnit(timestamp,
+  // TODO: use SbTime here.
+  return VideoAccessUnit(SB_MEDIA_TIME_TO_SB_TIME(timestamp),
                          drm_sample_info_present ? &drm_sample_info : NULL,
                          std::move(data), video_sample_info);
 }

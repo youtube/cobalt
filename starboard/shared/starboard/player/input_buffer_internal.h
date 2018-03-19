@@ -38,7 +38,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
               void* context,
               const void* sample_buffer,
               int sample_buffer_size,
-              SbMediaTime sample_pts,
+              SbTime sample_timestamp,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
   InputBuffer(SbMediaType sample_type,
@@ -48,7 +48,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
               const void* const* sample_buffers,
               const int* sample_buffer_sizes,
               int number_of_sample_buffers,
-              SbMediaTime sample_pts,
+              SbTime sample_timestamp,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
   ~InputBuffer();
@@ -56,7 +56,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   SbMediaType sample_type() const { return sample_type_; }
   const uint8_t* data() const { return data_; }
   int size() const { return size_; }
-  SbMediaTime pts() const { return pts_; }
+  SbTime timestamp() const { return timestamp_; }
   const SbMediaVideoSampleInfo* video_sample_info() const {
     return has_video_sample_info_ ? &video_sample_info_ : NULL;
   }
@@ -79,7 +79,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   void* context_;
   const uint8_t* data_;
   int size_;
-  SbMediaTime pts_;
+  SbTime timestamp_;
   bool has_video_sample_info_;
   SbMediaColorMetadata color_metadata_;
   SbMediaVideoSampleInfo video_sample_info_;

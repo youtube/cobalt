@@ -113,7 +113,7 @@ class VideoDecoder
   scoped_refptr<Sink> sink_;
 
   bool first_buffer_received_;
-  volatile SbMediaTime first_buffer_pts_;
+  volatile SbTime first_buffer_timestamp_;
 };
 
 }  // namespace shared

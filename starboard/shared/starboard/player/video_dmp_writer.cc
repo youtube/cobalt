@@ -98,7 +98,6 @@ VideoDmpWriter::~VideoDmpWriter() {
 void VideoDmpWriter::OnPlayerCreate(SbPlayer player,
                                     SbMediaVideoCodec video_codec,
                                     SbMediaAudioCodec audio_codec,
-                                    SbMediaTime duration_pts,
                                     SbDrmSystem drm_system,
                                     const SbMediaAudioHeader* audio_header) {
   // TODO: Allow dump of drm initialization data
@@ -109,8 +108,7 @@ void VideoDmpWriter::OnPlayerCreate(SbPlayer player,
     return;
   }
   map->Register(player);
-  map->Get(player)->DumpConfigs(video_codec, audio_codec, duration_pts,
-                                audio_header);
+  map->Get(player)->DumpConfigs(video_codec, audio_codec, audio_header);
 }
 
 // static
@@ -120,16 +118,17 @@ void VideoDmpWriter::OnPlayerWriteSample(
     const void* const* sample_buffers,
     const int* sample_buffer_sizes,
     int number_of_sample_buffers,
-    SbMediaTime sample_pts,
+    SbTime sample_timestamp,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* drm_sample_info) {
   PlayerToWriterMap* map = GetOrCreatePlayerToWriterMap();
   if (!map->dump_video_data()) {
     return;
   }
-  map->Get(player)->DumpAccessUnit(
-      sample_type, sample_buffers, sample_buffer_sizes,
-      number_of_sample_buffers, sample_pts, video_sample_info, drm_sample_info);
+  map->Get(player)->DumpAccessUnit(sample_type, sample_buffers,
+                                   sample_buffer_sizes,
+                                   number_of_sample_buffers, sample_timestamp,
+                                   video_sample_info, drm_sample_info);
 }
 
 // static
@@ -143,7 +142,6 @@ void VideoDmpWriter::OnPlayerDestroy(SbPlayer player) {
 
 void VideoDmpWriter::DumpConfigs(SbMediaVideoCodec video_codec,
                                  SbMediaAudioCodec audio_codec,
-                                 SbMediaTime duration_pts,
                                  const SbMediaAudioHeader* audio_header) {
   Write(write_cb_, kRecordTypeAudioConfig);
   Write(write_cb_, audio_codec);
@@ -161,7 +159,7 @@ void VideoDmpWriter::DumpAccessUnit(
     const void* const* sample_buffers,
     const int* sample_buffer_sizes,
     int number_of_sample_buffers,
-    SbMediaTime sample_pts,
+    SbTime sample_timestamp,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* drm_sample_info) {
   SB_DCHECK(number_of_sample_buffers == 1);
@@ -174,7 +172,8 @@ void VideoDmpWriter::DumpAccessUnit(
     SB_NOTREACHED() << sample_type;
   }
 
-  Write(write_cb_, sample_pts);
+  // TODO: make this write SbTime.
+  Write(write_cb_, SB_TIME_TO_SB_MEDIA_TIME(sample_timestamp));
 
   if (drm_sample_info && drm_sample_info->identifier_size == 16 &&
       (drm_sample_info->initialization_vector_size == 8 ||

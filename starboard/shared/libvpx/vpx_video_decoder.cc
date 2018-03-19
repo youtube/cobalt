@@ -206,9 +206,10 @@ void VideoDecoder::DecodeOneBuffer(
 
   SB_DCHECK(context_);
 
-  SbMediaTime pts = input_buffer->pts();
-  vpx_codec_err_t status = vpx_codec_decode(
-      context_.get(), input_buffer->data(), input_buffer->size(), &pts, 0);
+  SbTime timestamp = input_buffer->timestamp();
+  vpx_codec_err_t status =
+      vpx_codec_decode(context_.get(), input_buffer->data(),
+                       input_buffer->size(), &timestamp, 0);
   if (status != VPX_CODEC_OK) {
     SB_DLOG(ERROR) << "vpx_codec_decode() failed, status=" << status;
     ReportError();
@@ -222,7 +223,7 @@ void VideoDecoder::DecodeOneBuffer(
     return;
   }
 
-  if (vpx_image->user_priv != &pts) {
+  if (vpx_image->user_priv != &timestamp) {
     SB_DLOG(ERROR) << "Invalid output timestamp.";
     ReportError();
     return;
@@ -256,7 +257,7 @@ void VideoDecoder::DecodeOneBuffer(
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
       current_frame_width_, current_frame_height_,
-      vpx_image->stride[VPX_PLANE_Y], pts, vpx_image->planes[VPX_PLANE_Y],
+      vpx_image->stride[VPX_PLANE_Y], timestamp, vpx_image->planes[VPX_PLANE_Y],
       vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     UpdateDecodeTarget(frame);

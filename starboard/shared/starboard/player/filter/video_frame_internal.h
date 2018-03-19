@@ -30,16 +30,16 @@ namespace filter {
 // A video frame produced by a video decoder.
 class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
  public:
-  // An invalid media time to indicate end of stream.
-  static const SbMediaTime kMediaTimeEndOfStream = -1;
+  // An invalid media timestamp to indicate end of stream.
+  static const SbTime kMediaTimeEndOfStream = -1;
 
-  explicit VideoFrame(SbMediaTime pts) : pts_(pts) {}
+  explicit VideoFrame(SbTime timestamp) : timestamp_(timestamp) {}
   virtual ~VideoFrame() {}
 
-  bool is_end_of_stream() const { return pts_ == kMediaTimeEndOfStream; }
-  SbMediaTime pts() const {
+  bool is_end_of_stream() const { return timestamp_ == kMediaTimeEndOfStream; }
+  SbTime timestamp() const {
     SB_DCHECK(!is_end_of_stream());
-    return pts_;
+    return timestamp_;
   }
 
   static scoped_refptr<VideoFrame> CreateEOSFrame() {
@@ -47,7 +47,7 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
   }
 
  private:
-  SbMediaTime pts_;
+  SbTime timestamp_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };
