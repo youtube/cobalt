@@ -1,0 +1,72 @@
+ <HEAD>
+ <style>
+    html,body { height: 100% }
+    #blue {
+      height: 50%;
+      width: 128px;
+      background-size: cover;
+      background-color: blue;
+      display: inline-block;
+      margin-left: 25%;
+    }
+    #green {
+      height: 50%;
+      width: 128px;
+      background-size: cover;
+      background-color: green;
+      display: inline-block;
+      margin-right: 25%;
+    }
+    /* Note that the width and height values below were carefully chosen to have
+       a smaller dependency on platform specific texture minification filters.
+       An example of this is on directfb platform (used for testing), where
+       bilinear filtering is not available (when blending is turned on).
+     */
+    #shot {
+      height: 50%;
+      width: 50%;
+    }
+  </style>
+</HEAD>
+<BODY>
+  <div id="blue">
+  </div>
+  <div id="green">
+  </div>
+  <div id="shot">
+  </div>
+<script>
+  if (window.testRunner) {
+    window.testRunner.waitUntilDone();
+  }
+  window.addEventListener('load', (event) => {
+    window.screenshot().then( screen_shot_data => {
+      shot = document.getElementById("shot");
+      var image_blob = new Blob([screen_shot_data.buffer]);
+      var image_url = URL.createObjectURL(image_blob);
+      var image = new Image();
+      // By waiting for the onload event, we can safely ensure that the
+      // screenshot image is decoded, and render to be rendered.
+      image.onload = () => {
+        var shot = document.getElementById('shot');
+        // Put a solid red border around the image to make it easier to
+        // spot manually.
+        shot.style.borderStyle = 'solid';
+        shot.style.borderColor = 'red';
+        // Shrink-to-fit the image onto the div.
+        shot.style.backgroundSize = '100% 100%';
+        shot.style.backgroundImage = 'url(' + image_url + ')';
+        if (window.testRunner) {
+          window.testRunner.notifyDone();
+        }
+      }
+      image.src = image_url;
+    }).catch( () => {
+      console.log('window.screenshot() error occured.');
+      if (window.testRunner) {
+        window.testRunner.notifyDone();
+      }
+    });
+  });
+</script>
+</BODY>

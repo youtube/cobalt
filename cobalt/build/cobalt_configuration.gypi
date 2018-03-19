@@ -480,7 +480,6 @@
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
-      '__LB_SHELL__ENABLE_SCREENSHOT__',
 
       # TODO: Rename to COBALT_LOGGING_ENABLED.
       '__LB_SHELL__FORCE_LOGGING__',
@@ -500,7 +499,6 @@
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
-      '__LB_SHELL__ENABLE_SCREENSHOT__',
       '__LB_SHELL__FORCE_LOGGING__',
       'SK_DEVELOPER',
     ],
@@ -516,7 +514,6 @@
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
       'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
-      '__LB_SHELL__ENABLE_SCREENSHOT__',
     ],
     'defines_gold': [
       'ALLOCATOR_STATS_TRACKING',
@@ -593,7 +590,6 @@
         'enable_fake_microphone': 1,
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
-        'enable_screenshot': 1,
         'enable_webdriver%': 1,
       },
     },
@@ -604,7 +600,6 @@
         'enable_fake_microphone': 0,
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,
-        'enable_screenshot': 0,
         'enable_webdriver': 0,
       },
     }],

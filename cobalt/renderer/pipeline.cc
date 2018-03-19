@@ -201,7 +201,7 @@ void Pipeline::Clear() {
 }
 
 void Pipeline::RasterizeToRGBAPixels(
-    const Submission& render_tree_submission,
+    const scoped_refptr<render_tree::Node>& render_tree_root,
     const RasterizationCompleteCallback& complete) {
   TRACK_MEMORY_SCOPE("Renderer");
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
@@ -210,7 +210,7 @@ void Pipeline::RasterizeToRGBAPixels(
     rasterizer_thread_.message_loop()->PostTask(
         FROM_HERE,
         base::Bind(&Pipeline::RasterizeToRGBAPixels, base::Unretained(this),
-                   CollectAnimations(render_tree_submission), complete));
+                   render_tree_root, complete));
     return;
   }
   // Create a new target that is the same dimensions as the display target.
@@ -218,8 +218,12 @@ void Pipeline::RasterizeToRGBAPixels(
       graphics_context_->CreateDownloadableOffscreenRenderTarget(
           render_target_->GetSize());
 
+  scoped_refptr<render_tree::Node> animate_node =
+      new render_tree::animations::AnimateNode(render_tree_root);
+
+  Submission submission = Submission(animate_node);
   // Rasterize this submission into the newly created target.
-  RasterizeSubmissionToRenderTarget(render_tree_submission, offscreen_target);
+  RasterizeSubmissionToRenderTarget(submission, offscreen_target);
 
   // Load the texture's pixel data into a CPU memory buffer and return it.
   complete.Run(graphics_context_->DownloadPixelDataAsRGBA(offscreen_target),

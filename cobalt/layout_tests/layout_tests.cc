@@ -50,6 +50,26 @@ const char kOutputFailedTestDetails[] = "output-failed-test-details";
 const char kOutputAllTestDetails[] = "output-all-test-details";
 }  // namespace switches
 
+namespace {
+
+void ScreenshotFunction(
+    scoped_refptr<base::MessageLoopProxy> expected_message_loop,
+    renderer::RenderTreePixelTester* pixel_tester,
+    const scoped_refptr<render_tree::Node>& node,
+    const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
+  if (base::MessageLoopProxy::current() != expected_message_loop) {
+    expected_message_loop->PostTask(
+        FROM_HERE, base::Bind(&ScreenshotFunction, expected_message_loop,
+                              pixel_tester, node, callback));
+    return;
+  }
+  scoped_array<uint8_t> image_data = pixel_tester->RasterizeRenderTree(node);
+  const math::Size& image_dimensions = pixel_tester->GetTargetSize();
+  callback.Run(image_data.Pass(), image_dimensions);
+}
+
+}  // namespace
+
 class LayoutTest : public ::testing::TestWithParam<TestInfo> {};
 TEST_P(LayoutTest, LayoutTest) {
   // Output the name of the current input file so that it is visible in test
@@ -86,7 +106,9 @@ TEST_P(LayoutTest, LayoutTest) {
       pixel_tester_options);
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
-      GetParam().url, viewport_size, pixel_tester.GetResourceProvider());
+      GetParam().url, viewport_size, pixel_tester.GetResourceProvider(),
+      base::Bind(&ScreenshotFunction, base::MessageLoopProxy::current(),
+                 base::Unretained(&pixel_tester)));
 
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =
       new render_tree::animations::AnimateNode(layout_results.render_tree);

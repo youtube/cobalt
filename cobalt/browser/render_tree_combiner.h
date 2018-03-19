@@ -53,6 +53,11 @@ class RenderTreeCombiner {
 
     bool HasRenderTree() { return !!render_tree_; }
 
+    // Returns a current submission object that can be passed into a renderer
+    // for rasterization.  If the render tree does not exist, this will
+    // return a base::nullopt.
+    base::optional<renderer::Submission> GetCurrentSubmission();
+
    private:
     friend class RenderTreeCombiner;
 
