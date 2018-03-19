@@ -73,7 +73,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
-  return new SbPlayerPrivate(audio_codec, duration_pts, sample_deallocate_func,
-                             decoder_status_func, player_status_func,
-                             player_error_func, context, handler.Pass());
+  return new SbPlayerPrivate(
+      audio_codec, SB_MEDIA_TIME_TO_SB_TIME(duration_pts),
+      sample_deallocate_func, decoder_status_func, player_status_func,
+      player_error_func, context, handler.Pass());
 }

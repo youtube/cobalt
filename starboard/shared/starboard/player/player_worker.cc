@@ -93,7 +93,7 @@ PlayerWorker::~PlayerWorker() {
   // effects are gone.
 }
 
-void PlayerWorker::UpdateMediaTime(SbMediaTime time) {
+void PlayerWorker::UpdateMediaTime(SbTime time) {
   host_->UpdateMediaTime(time, ticket_);
 }
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
@@ -164,15 +164,14 @@ void PlayerWorker::DoInit() {
   }
 }
 
-void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
+void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
   SB_DCHECK(!error_occurred_);
   SB_DCHECK(ticket_ != ticket);
 
-  SB_DLOG(INFO) << "Try to seek to timestamp "
-                << seek_to_pts / kSbMediaTimeSecond;
+  SB_DLOG(INFO) << "Try to seek to timestamp " << seek_to_time / kSbTimeSecond;
 
   if (write_pending_sample_job_token_.is_valid()) {
     job_queue_->RemoveJobByToken(write_pending_sample_job_token_);
@@ -181,7 +180,7 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
   pending_audio_buffer_ = NULL;
   pending_video_buffer_ = NULL;
 
-  if (!handler_->Seek(seek_to_pts, ticket)) {
+  if (!handler_->Seek(seek_to_time, ticket)) {
     UpdatePlayerError("Failed seek.");
     return;
   }

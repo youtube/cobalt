@@ -84,14 +84,14 @@ std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
 }
 
-AssertionResult AlmostEqualPts(SbMediaTime pts1, SbMediaTime pts2) {
-  const SbMediaTime kEpsilon = kSbMediaTimeSecond / 1000;
-  SbMediaTime diff = pts1 - pts2;
+AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
+  const SbTime kEpsilon = kSbTimeSecond / 1000;
+  SbTime diff = time1 - time2;
   if (-kEpsilon <= diff && diff <= kEpsilon) {
     return AssertionSuccess();
   }
   return AssertionFailure()
-         << "pts " << pts1 << " doesn't match with pts " << pts2;
+         << "time " << time1 << " doesn't match with time " << time2;
 }
 
 class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
@@ -235,7 +235,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     {
       ScopedLock scoped_lock(mutex_);
       need_more_input_ = false;
-      outstanding_inputs_.insert(input_buffer->pts());
+      outstanding_inputs_.insert(input_buffer->timestamp());
     }
 
     video_decoder_->WriteInputBuffer(input_buffer);
@@ -272,11 +272,12 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
       if (event.frame) {
         ASSERT_FALSE(event.frame->is_end_of_stream());
         if (!decoded_frames_.empty()) {
-          ASSERT_LT(decoded_frames_.back()->pts(), event.frame->pts());
+          ASSERT_LT(decoded_frames_.back()->timestamp(),
+                    event.frame->timestamp());
         }
         decoded_frames_.push_back(event.frame);
-        ASSERT_TRUE(
-            AlmostEqualPts(*outstanding_inputs_.begin(), event.frame->pts()));
+        ASSERT_TRUE(AlmostEqualTime(*outstanding_inputs_.begin(),
+                                    event.frame->timestamp()));
         outstanding_inputs_.erase(outstanding_inputs_.begin());
       }
       if (event_cb) {
@@ -313,11 +314,12 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
           ASSERT_TRUE(outstanding_inputs_.empty());
         } else {
           if (!decoded_frames_.empty()) {
-            ASSERT_LT(decoded_frames_.back()->pts(), event.frame->pts());
+            ASSERT_LT(decoded_frames_.back()->timestamp(),
+                      event.frame->timestamp());
           }
           decoded_frames_.push_back(event.frame);
-          ASSERT_TRUE(
-              AlmostEqualPts(*outstanding_inputs_.begin(), event.frame->pts()));
+          ASSERT_TRUE(AlmostEqualTime(*outstanding_inputs_.begin(),
+                                      event.frame->timestamp()));
           outstanding_inputs_.erase(outstanding_inputs_.begin());
         }
       }
@@ -350,7 +352,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   scoped_ptr<VideoDecoder> video_decoder_;
 
   bool need_more_input_ = true;
-  std::set<SbMediaTime> outstanding_inputs_;
+  std::set<SbTime> outstanding_inputs_;
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
 
  private:
@@ -468,7 +470,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
 TEST_P(VideoDecoderTest, SingleInvalidInput) {
   need_more_input_ = false;
   auto input_buffer = dmp_reader_.GetVideoInputBuffer(0);
-  outstanding_inputs_.insert(input_buffer->pts());
+  outstanding_inputs_.insert(input_buffer->timestamp());
   std::vector<uint8_t> content(input_buffer->size(), 0xab);
   // Replace the content with invalid data.
   input_buffer->SetDecryptedContent(content.data(),

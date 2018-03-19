@@ -32,15 +32,6 @@ namespace shared {
 
 const int64_t kSecondInMicroseconds = 1000 * 1000;
 
-inline SbMediaTime ConvertMicrosecondsToSbMediaTime(
-    int64_t time_in_microseconds) {
-  return time_in_microseconds * kSbMediaTimeSecond / kSecondInMicroseconds;
-}
-
-inline int64_t ConvertSbMediaTimeToMicroseconds(SbMediaTime media_time) {
-  return media_time * kSecondInMicroseconds / kSbMediaTimeSecond;
-}
-
 inline bool IsWidevine(const char* key_system) {
   return SbStringCompareAll(key_system, "com.widevine") == 0 ||
          SbStringCompareAll(key_system, "com.widevine.alpha") == 0;

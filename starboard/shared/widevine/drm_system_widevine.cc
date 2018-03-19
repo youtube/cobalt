@@ -233,8 +233,7 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemWidevine::Decrypt(
   }
   input.subsamples = &subsample_entries[0];
   input.num_subsamples = subsample_entries.size();
-  // Convert |pts| in SbMediaTime into |timestamp| in SbTime.
-  input.timestamp = buffer->pts() * kSbTimeSecond / kSbMediaTimeSecond;
+  input.timestamp = buffer->timestamp();
 
   DecryptedBlockImpl output;
   cdm::Status status;

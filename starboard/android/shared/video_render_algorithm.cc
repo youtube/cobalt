@@ -54,14 +54,13 @@ void VideoRenderAlgorithm::Render(
 
     bool is_audio_playing;
     bool is_audio_eos_played;
-    SbMediaTime playback_time = media_time_provider->GetCurrentMediaTime(
+    SbTime playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played);
     if (!is_audio_playing) {
       break;
     }
 
-    jlong early_us = ConvertSbMediaTimeToMicroseconds(frames->front()->pts()) -
-                     ConvertSbMediaTimeToMicroseconds(playback_time);
+    jlong early_us = frames->front()->timestamp() - playback_time;
 
     auto system_time_ns = GetSystemNanoTime();
     auto unadjusted_frame_release_time_ns =
@@ -69,8 +68,7 @@ void VideoRenderAlgorithm::Render(
 
     auto adjusted_release_time_ns =
         video_frame_release_time_helper_.AdjustReleaseTime(
-            ConvertSbMediaTimeToMicroseconds(frames->front()->pts()),
-            unadjusted_frame_release_time_ns);
+            frames->front()->timestamp(), unadjusted_frame_release_time_ns);
 
     early_us = (adjusted_release_time_ns - system_time_ns) /
                kSbTimeNanosecondsPerMicrosecond;

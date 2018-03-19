@@ -55,7 +55,7 @@ class CpuVideoFrame : public VideoFrame {
     const uint8_t* data;
   };
 
-  explicit CpuVideoFrame(SbMediaTime pts) : VideoFrame(pts) {}
+  explicit CpuVideoFrame(SbTime timestamp) : VideoFrame(timestamp) {}
 
   Format format() const { return format_; }
   int width() const { return width_; }
@@ -69,7 +69,7 @@ class CpuVideoFrame : public VideoFrame {
   static scoped_refptr<CpuVideoFrame> CreateYV12Frame(int width,
                                                       int height,
                                                       int pitch_in_bytes,
-                                                      SbMediaTime pts,
+                                                      SbTime timestamp,
                                                       const uint8_t* y,
                                                       const uint8_t* u,
                                                       const uint8_t* v);
