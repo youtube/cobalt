@@ -27,10 +27,6 @@ namespace dom {
 
 class ArrayBuffer : public script::Wrappable {
  public:
-  // To explicitly express that a specific ArrayBuffer should be allocated from
-  // the heap.
-  enum AllocationType { kFromHeap };
-
   // This class manages the internal buffer of an ArrayBuffer.  It deals the
   // fact that the buffer can be allocated from an Allocator or from the heap.
   class Data {
@@ -56,10 +52,7 @@ class ArrayBuffer : public script::Wrappable {
   ArrayBuffer(script::EnvironmentSettings* settings, uint32 length);
   ArrayBuffer(script::EnvironmentSettings* settings, const uint8* data,
               uint32 length);
-  // This is for use by AudioBuffer as we do want to ensure decoded audio data
-  // stay in main memory.
-  ArrayBuffer(script::EnvironmentSettings* settings,
-              AllocationType allocation_type, scoped_array<uint8> data,
+  ArrayBuffer(script::EnvironmentSettings* settings, scoped_array<uint8> data,
               uint32 length);
 
   uint32 byte_length() const { return static_cast<uint32>(data_.size()); }

@@ -97,10 +97,8 @@ ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
 }
 
 ArrayBuffer::ArrayBuffer(script::EnvironmentSettings* settings,
-                         AllocationType allocation_type,
                          scoped_array<uint8> data, uint32 length)
     : data_(data.Pass(), length) {
-  DCHECK_EQ(allocation_type, kFromHeap);
   // TODO: Make EnvironmentSettings mandatory for creating
   // ArrayBuffer in non-testing code.
   if (settings) {
