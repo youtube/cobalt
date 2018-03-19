@@ -12,7 +12,14 @@
   <script>
     // When Content Security Policy is missing, JavaScript eval() should be
     // allowed.
-    assertEqual(4, eval('1+3'));
+    try {
+      assertEqual(4, eval('1+3'));
+    } catch(error) {
+      // Catch the error if any, otherwise the test will exit after timeout.
+      console.log("Calling eval without CSP raised unexpected exception:");
+      console.log(error);
+      notReached();
+    }
     onEndTest();
   </script>
 </body>
