@@ -88,10 +88,11 @@ class RenderTreePixelTester {
 
   render_tree::ResourceProvider* GetResourceProvider() const;
 
- private:
   scoped_array<uint8_t> RasterizeRenderTree(
       const scoped_refptr<cobalt::render_tree::Node>& test_tree) const;
+  const math::Size& GetTargetSize() const { return test_surface_->GetSize(); }
 
+ private:
   scoped_ptr<cobalt::renderer::backend::GraphicsSystem> graphics_system_;
   scoped_ptr<cobalt::renderer::backend::GraphicsContext> graphics_context_;
   scoped_ptr<cobalt::renderer::rasterizer::Rasterizer> rasterizer_;

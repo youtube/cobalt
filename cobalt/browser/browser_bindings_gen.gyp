@@ -136,6 +136,7 @@
         '../dom/pointer_event.idl',
         '../dom/progress_event.idl',
         '../dom/screen.idl',
+        '../dom/screenshot.idl',
         '../dom/security_policy_violation_event.idl',
         '../dom/storage.idl',
         '../dom/storage_event.idl',

@@ -18,7 +18,11 @@
 #include "base/callback.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/string_piece.h"
 #include "base/threading/thread.h"
+#include "cobalt/dom/screenshot_manager.h"
+#include "cobalt/loader/image/image.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/submission.h"
 
@@ -31,55 +35,60 @@ namespace browser {
 // File I/O is performed on a dedicated thread.
 class ScreenShotWriter {
  public:
-  typedef base::Callback<void(scoped_array<uint8>, size_t)>
-      PNGEncodeCompleteCallback;
+  using ImageEncodeCompleteCallback = base::Callback<void(
+      const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>;
 
   // Constructs a new ScreenShotWriter that will create offscreen render targets
   // through |graphics_context|, and submit the most recent Pipeline::Submission
   // to |pipeline| to be rasterized.
   explicit ScreenShotWriter(renderer::Pipeline* pipeline);
 
-  // Creates a PNG at |output_path| from the most recently submitted
-  // Pipeline::Submission. When the PNG has been written to disk, |complete|
+  // Creates a screenshot at |output_path| from the most recently submitted
+  // Pipeline::Submission. When the file has been written to disk, |complete|
   // will be called.
-  void RequestScreenshot(const FilePath& output_path,
-                         const base::Closure& complete);
+  void RequestScreenshotToFile(
+      loader::image::EncodedStaticImage::ImageFormat desired_format,
+      const FilePath& output_path,
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const base::Closure& complete);
 
-  // Creates a screenshot from the most recently submitted Pipeline::Submission
-  // and converts it to a PNG. |callback| will be called with the PNG data and
-  // the number of bytes in the array.
-  void RequestScreenshotToMemory(const PNGEncodeCompleteCallback& callback);
+  // Renders the |render_tree_root| and converts it to the image format that is
+  // requested. |callback| will be called with the image data.
+  void RequestScreenshotToMemory(
+      loader::image::EncodedStaticImage::ImageFormat desired_format,
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const ImageEncodeCompleteCallback& callback);
 
-  // This should be called whenever a new render tree is produced. The render
-  // tree that is submitted here is the one that will be rasterized when a
-  // screenshot is requested.
-  void SetLastPipelineSubmission(const renderer::Submission& submission);
-
-  // Clears the last submission from the pipeline, putting the ScreenShotWriter
-  // into a state similar to when it was first created, where there was no
-  // "last pipeline submission".
-  void ClearLastPipelineSubmission();
+  // Runs callback on screenshot thread.
+  void RequestScreenshotToMemoryUnencoded(
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
  private:
   // Callback function that will be fired from the rasterizer thread when
   // rasterization of |last_submission_| is complete.
   // After converting the |pixel_data| to an in-memory PNG,
   // |encode_complete_callback| will be called.
-  void RasterizationComplete(
-      const PNGEncodeCompleteCallback& encode_complete_callback,
-      scoped_array<uint8> pixel_data, const math::Size& dimensions);
+  void RunOnScreenshotThread(
+      const renderer::Pipeline::RasterizationCompleteCallback& cb,
+      scoped_array<uint8> image_data, const math::Size& image_dimensions);
+
+  void EncodeData(loader::image::EncodedStaticImage::ImageFormat desired_format,
+                  const base::Callback<void(
+                      const scoped_refptr<loader::image::EncodedStaticImage>&)>&
+                      done_encoding_callback,
+                  scoped_array<uint8> pixel_data,
+                  const math::Size& image_dimensions);
 
   // Callback function that will be fired from the RasterizationComplete
-  // callback when PNG encoding is complete.
-  // |write_complete_cb| will be called when |png_data| has been completely
-  // written to |output_path|.
-  void EncodingComplete(const FilePath& output_path,
-                        const base::Closure& write_complete_cb,
-                        scoped_array<uint8> png_data, size_t num_bytes);
+  // callback when image encoding is complete.
+  // |write_complete_cb| will be called when data from |image_data| has been
+  // completely written to |output_path|.
+  void WriteEncodedImageToFile(
+      const FilePath& output_path, const base::Closure& complete_callback,
+      const scoped_refptr<loader::image::EncodedStaticImage>& image_data);
 
   renderer::Pipeline* pipeline_;
-  base::optional<renderer::Submission> last_submission_;
-  base::TimeTicks last_submission_time_;
 
   base::Thread screenshot_thread_;
 };

@@ -77,6 +77,7 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
+        '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',

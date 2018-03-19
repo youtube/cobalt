@@ -343,10 +343,18 @@ class Document : public Node,
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Triggers a synchronous layout.
+  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
   void DoSynchronousLayout();
+
   void set_synchronous_layout_callback(
       const base::Closure& synchronous_layout_callback) {
     synchronous_layout_callback_ = synchronous_layout_callback;
+  }
+  void set_synchronous_layout_and_produce_render_tree_callback(
+      const base::Callback<scoped_refptr<render_tree::Node>()>&
+          synchronous_layout_and_produce_render_tree_callback) {
+    synchronous_layout_and_produce_render_tree_callback_ =
+        synchronous_layout_and_produce_render_tree_callback;
   }
 
   math::Size viewport_size() { return viewport_size_.value_or(math::Size()); }
@@ -493,6 +501,9 @@ class Document : public Node,
   // animations.
   const scoped_refptr<base::Clock> navigation_start_clock_;
   scoped_refptr<DocumentTimeline> default_timeline_;
+
+  base::Callback<scoped_refptr<render_tree::Node>()>
+      synchronous_layout_and_produce_render_tree_callback_;
 
   base::Closure synchronous_layout_callback_;
 

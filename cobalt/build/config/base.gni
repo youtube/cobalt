@@ -573,9 +573,6 @@ if (!defined(enable_network_logging)) {
 if (!defined(enable_remote_debugging)) {
   enable_remote_debugging = _copy_test_data
 }
-if (!defined(enable_screenshot)) {
-  enable_screenshot = _copy_test_data
-}
 if (!defined(enable_webdriver)) {
   enable_webdriver = _copy_test_data
 }

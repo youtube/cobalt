@@ -108,7 +108,6 @@ config("compiler_defaults_debug") {
     "ENABLE_PARTIAL_LAYOUT_CONTROL",
     "ENABLE_TEST_DATA",
     "ENABLE_TEST_RUNNER",
-    "__LB_SHELL__ENABLE_SCREENSHOT__",
     "__LB_SHELL__FORCE_LOGGING__",  # TODO: Rename to COBALT_LOGGING_ENABLED.
     "SK_DEVELOPER",
   ]
@@ -128,7 +127,6 @@ config("compiler_defaults_devel") {
     "ENABLE_PARTIAL_LAYOUT_CONTROL",
     "ENABLE_TEST_DATA",
     "ENABLE_TEST_RUNNER",
-    "__LB_SHELL__ENABLE_SCREENSHOT__",
     "__LB_SHELL__FORCE_LOGGING__",
     "SK_DEVELOPER",
   ]
@@ -147,7 +145,6 @@ config("compiler_defaults_qa") {
     "ENABLE_PARTIAL_LAYOUT_CONTROL",
     "ENABLE_TEST_DATA",
     "ENABLE_TEST_RUNNER",
-    "__LB_SHELL__ENABLE_SCREENSHOT__",
     "NDEBUG",
   ]
 }
