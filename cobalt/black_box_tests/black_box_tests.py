@@ -114,7 +114,8 @@ class BlackBoxTests(object):
 
   def Run(self):
 
-    self._StartTestdataServer()
+    if not self._StartTestdataServer():
+      return 1
     logging.basicConfig(level=logging.DEBUG)
     GetDeviceParams()
     if self.test_name:
@@ -141,8 +142,14 @@ class BlackBoxTests(object):
             os.path.dirname(os.path.realpath(__file__)), 'testdata'),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT)
-    print('Starting HTTP server on port: {}'.format(
-        _DEFAULT_TEST_DATA_SERVER_PORT))
+    if self.default_test_data_server_process.returncode is not None:
+      # If the return code is not None now, server is not running normally.
+      print('can not start default test data server.')
+      return False
+    else:
+      print('Starting HTTP server on port: {}'.format(
+          _DEFAULT_TEST_DATA_SERVER_PORT))
+      return True
 
   def _KillTestdataServer(self):
     """Exit black_box_test_runner with test result."""
