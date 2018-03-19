@@ -120,6 +120,9 @@ def WritePlatformsInfo(repo_root, dest_root):
 
 
 def CopyAppLauncherTools(repo_root, dest_root):
+  if os.path.isdir(dest_root):
+    shutil.rmtree(dest_root)
+
   CopyPythonFiles(repo_root, dest_root)
   WritePlatformsInfo(repo_root, dest_root)
 
@@ -127,8 +130,15 @@ def CopyAppLauncherTools(repo_root, dest_root):
   # the option of downloading a single file which is much faster, especially
   # on x20.
   logging.info('Creating a zip file of the app launcher package.')
-  app_launcher_zip_file = shutil.make_archive('app_launcher', 'zip', dest_root)
-  shutil.move(app_launcher_zip_file, dest_root)
+
+  # Make a zip that has the same name as the dest_root. Then the zip file
+  # and dest_root are guaranteed to be on the same file system under the
+  # same parent, so that moving the zip file to dest_root is optimized.
+  app_launcher_zip_file = shutil.make_archive(dest_root, 'zip', dest_root)
+  dest_zip = os.path.join(dest_root, 'app_launcher.zip')
+  if os.path.isfile(dest_zip):
+    os.unlink(dest_zip)
+  shutil.move(app_launcher_zip_file, dest_zip)
 
 
 def main(command_args):
@@ -138,7 +148,7 @@ def main(command_args):
       '-d',
       '--destination_root',
       required=True,
-      help='The path to the root of the destination folder into which the'
+      help='The path to the root of the destination folder into which the '
       'python scripts are packaged.')
   args = parser.parse_args(command_args)
   CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
