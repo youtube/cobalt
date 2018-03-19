@@ -93,7 +93,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
 
     DecodedAudioPtr data_ptr(
         new DecodedAudio(number_of_channels_, sample_type_, audio_frame_fmt_,
-                         ConvertToMediaTime(win32_timestamp), data_size));
+                         ConvertToSbTime(win32_timestamp), data_size));
 
     std::copy(data, data + data_size, data_ptr->buffer());
 

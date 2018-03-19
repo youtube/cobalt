@@ -105,8 +105,8 @@ scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  VideoFrameImpl(SbMediaTime pts, std::function<void(VideoFrame*)> release_cb)
-      : VideoFrame(pts), release_cb_(release_cb) {
+  VideoFrameImpl(SbTime timestamp, std::function<void(VideoFrame*)> release_cb)
+      : VideoFrame(timestamp), release_cb_(release_cb) {
     SB_DCHECK(release_cb_);
   }
   ~VideoFrameImpl() { release_cb_(this); }
@@ -504,7 +504,7 @@ scoped_refptr<VideoFrame> VideoDecoder::CreateVideoFrame(
   // weak references to the actual sample.
   LONGLONG win32_sample_time = 0;
   CheckResult(sample->GetSampleTime(&win32_sample_time));
-  SbMediaTime sample_time = ConvertToMediaTime(win32_sample_time);
+  SbTime sample_time = ConvertToSbTime(win32_sample_time);
 
   thread_lock_.Acquire();
   thread_outputs_.emplace_back(sample_time, video_area_, sample);
@@ -520,7 +520,7 @@ void VideoDecoder::DeleteVideoFrame(VideoFrame* video_frame) {
   ScopedLock lock(thread_lock_);
   for (auto iter = thread_outputs_.begin(); iter != thread_outputs_.end();
        ++iter) {
-    if (iter->time == video_frame->pts()) {
+    if (iter->time == video_frame->timestamp()) {
       thread_outputs_.erase(iter);
       break;
     }

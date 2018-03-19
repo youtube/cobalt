@@ -23,5 +23,5 @@ void SbPlayerSeek(SbPlayer player, SbMediaTime seek_to_pts, int ticket) {
     return;
   }
 
-  player->Seek(seek_to_pts, ticket);
+  player->Seek(SB_MEDIA_TIME_TO_SB_TIME(seek_to_pts), ticket);
 }

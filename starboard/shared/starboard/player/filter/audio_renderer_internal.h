@@ -81,9 +81,8 @@ class AudioRenderer : public MediaTimeProvider,
   void Play() override;
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
-  void Seek(SbMediaTime seek_to_pts) override;
-  SbMediaTime GetCurrentMediaTime(bool* is_playing,
-                                  bool* is_eos_played) override;
+  void Seek(SbTime seek_to_time) override;
+  SbTime GetCurrentMediaTime(bool* is_playing, bool* is_eos_played) override;
 
  private:
   enum EOSState {
@@ -101,8 +100,8 @@ class AudioRenderer : public MediaTimeProvider,
   bool paused_;
   bool consume_frames_called_;
   bool seeking_;
-  SbMediaTime seeking_to_pts_;
-  SbMediaTime last_media_time_;
+  SbTime seeking_to_time_;
+  SbTime last_time_;
   AudioFrameTracker audio_frame_tracker_;
 
   int64_t frames_sent_to_sink_;
@@ -152,7 +151,7 @@ class AudioRenderer : public MediaTimeProvider,
   JobQueue::JobToken process_audio_data_job_token_;
   std::function<void()> process_audio_data_job_;
 
-  // Our owner will attempt to seek to pts 0 when playback begins.  In
+  // Our owner will attempt to seek to time 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
   // some platforms, so we make an effort to improve playback startup
   // performance by keeping track of whether we already have a fresh decoder,
