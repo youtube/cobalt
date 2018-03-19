@@ -30,6 +30,7 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/lifecycle_observer.h"
+#include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -45,6 +46,7 @@
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
@@ -54,6 +56,7 @@
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -211,6 +214,18 @@ class WebModule : public LifecycleObserver {
 
     // The dom::OnScreenKeyboard forwards calls to this interface.
     dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = NULL;
+
+    // This function takes in a render tree as input, and then calls the 2nd
+    // argument (which is another callback) when the screenshot is available.
+    // The callback's first parameter points to an unencoded image, where the
+    // format is R8G8B8A8 pixels (with no padding at the end of each row),
+    // and the second parameter is the dimensions of the image.
+    // Note that the callback could be called on a different thread, and is not
+    // guaranteed to be called on the caller thread.
+    // By using Callbacks here, it is easier to write tests, and use this
+    // functionality in Cobalt.
+    dom::ScreenshotManager::ProvideScreenshotFunctionCallback
+        provide_screenshot_function;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

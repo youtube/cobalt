@@ -14,6 +14,8 @@ onload_event_fired_even_though_link_file_does_not_exist
 platform-object-user-properties-survive-gc
 positioned-boxes-with-same-z-index-are-processed-in-insertion-order
 relative-font-size
+screenshot
+screenshot-with-animation
 simple-transform-text
 transform-translate-with-em-units
 transform-with-background-color

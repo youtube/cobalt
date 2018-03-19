@@ -88,6 +88,8 @@
         'on_screen_keyboard_starboard_bridge.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
+        'screen_shot_writer.cc',
+        'screen_shot_writer.h',
         'splash_screen.cc',
         'splash_screen.h',
         'splash_screen_cache.cc',
@@ -146,6 +148,7 @@
         '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:overlay_info',
         '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/sso/sso.gyp:sso',
@@ -157,7 +160,6 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/nb/nb.gyp:nb',
         'browser_bindings.gyp:bindings',
-        'screen_shot_writer',
         '<(cobalt_webapi_extension_gyp_target)',
       ],
       # This target doesn't generate any headers, but it exposes generated
@@ -204,34 +206,6 @@
           'defines': [
             'COBALT_MESH_CACHE_SIZE_IN_BYTES=<(mesh_cache_size_in_bytes)',
           ],
-        }],
-      ],
-    },
-
-    {
-      # This target provides functionality for creating screenshots of a
-      # render tree and writing it to disk.
-      'target_name': 'screen_shot_writer',
-      'type': 'static_library',
-      'variables': {
-        # This target includes non-Cobalt code that produces pendantic
-        # warnings as errors.
-        'sb_pedantic_warnings': 0,
-      },
-      'conditions': [
-        ['enable_screenshot==1', {
-          'sources': [
-            'screen_shot_writer.h',
-            'screen_shot_writer.cc',
-          ],
-          'dependencies': [
-            '<(DEPTH)/cobalt/base/base.gyp:base',
-            '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
-            '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
-          ],
-          'all_dependent_settings': {
-            'defines': [ 'ENABLE_SCREENSHOT', ],
-          },
         }],
       ],
     },
