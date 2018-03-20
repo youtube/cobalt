@@ -161,6 +161,7 @@ gl::Error BufferGL::mapRange(ContextImpl *context,
     else
     {
         mStateManager->bindBuffer(DestBufferOperationTarget, mBufferID);
+        ASSERT(mFunctions->mapBufferRange);
         *mapPtr = mFunctions->mapBufferRange(DestBufferOperationTarget, offset, length, access);
     }
 
