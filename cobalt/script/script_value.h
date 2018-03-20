@@ -63,9 +63,9 @@ class ScriptValue : public Traceable {
 
     const T& value() const { return *(referenced_value_->GetScriptValue()); }
 
-    // Return the referenced ScriptValue. This ScriptValue can
-    // be passed back into the JavaScript bindings layer where the referenced
-    // JavaScript object can be extracted from the ScriptValue.
+    // Return the referenced ScriptValue. This ScriptValue can be passed back
+    // into the JavaScript bindings layer where the referenced JavaScript
+    // value can be extracted from the ScriptValue.
     const ScriptValue<T>& referenced_value() const {
       return *(referenced_value_.get());
     }
@@ -83,10 +83,10 @@ class ScriptValue : public Traceable {
   // The Reference class maintains the ownership relationship between a
   // Wrappable and the JavaScript value wrapped by a ScriptValue. This is an
   // RAII object in that creation of a Reference instance will mark the
-  // underlying value as owned by this wrappable, and the underlying object will
-  // be unmarked when this Reference is destructed.  The lifetime of a Reference
-  // must be at least as long as the Wrappable that has been passed into the
-  // constructor.
+  // underlying value as owned by this wrappable, and the underlying value
+  // will be unmarked when this Reference is destructed.  The lifetime of a
+  // Reference must be at least as long as the Wrappable that has been passed
+  // into the constructor.
   class Reference {
    public:
     Reference(Wrappable* wrappable, scoped_ptr<ScriptValue> script_value)
@@ -103,9 +103,9 @@ class ScriptValue : public Traceable {
 
     const T& value() const { return *(referenced_value_->GetScriptValue()); }
 
-    // Return the referenced ScriptValue. This ScriptValue can
-    // be passed back into the JavaScript bindings layer where the referenced
-    // JavaScript object can be extracted from the ScriptValue.
+    // Return the referenced ScriptValue. This ScriptValue can be passed back
+    // into the JavaScript bindings layer where the referenced JavaScript
+    // value can be extracted from the ScriptValue.
     const ScriptValue<T>& referenced_value() const {
       return *(referenced_value_.get());
     }
@@ -120,8 +120,8 @@ class ScriptValue : public Traceable {
   };
 
   // Prevent garbage collection of the ScriptValue. This should be used with
-  // care as it can result in resource leaks if not managed appropriately.
-  // A common use case is to create a StrongReference on the stack when a
+  // care as it can result in resource leaks if not managed appropriately. A
+  // common use case is to create a StrongReference on the stack when a
   // ScriptValue is passed into a function, but a reference to the ScriptValue
   // doesn't need to be retained past the scope of the function.
   class StrongReference {
@@ -140,9 +140,9 @@ class ScriptValue : public Traceable {
 
     const T& value() const { return *(referenced_value_->GetScriptValue()); }
 
-    // Return the referenced ScriptValue. This ScriptValue can
-    // be passed back into the JavaScript bindings layer where the referenced
-    // JavaScript object can be extracted from the ScriptValue.
+    // Return the referenced ScriptValue. This ScriptValue can be passed back
+    // into the JavaScript bindings layer where the referenced JavaScript
+    // value can be extracted from the ScriptValue.
     const ScriptValue<T>& referenced_value() const {
       return *(referenced_value_.get());
     }
@@ -155,14 +155,15 @@ class ScriptValue : public Traceable {
     DISALLOW_COPY_AND_ASSIGN(StrongReference);
   };
 
-  // Return true iff |other| refers to the same underlying JavaScript object.
+  // Return true if and only if |other| refers to the same underlying
+  // JavaScript value.
   virtual bool EqualTo(const ScriptValue& other) const = 0;
 
-  // Returns true if this ScriptValue is referring to a NULL JavaScript object.
+  // Returns true if this ScriptValue is referring to a NULL JavaScript value.
   bool IsNull() const { return GetScriptValue() == NULL; }
 
   // Creates a new ScriptValue that contains a weak reference to the same
-  // underlying JavaScript object. Note that this will not prevent the object
+  // underlying JavaScript value. Note that this will not prevent the value
   // from being garbage collected, one must create a Reference to do that.
   scoped_ptr<ScriptValue> MakeWeakCopy() const {
     return MakeCopy().Pass();
@@ -172,24 +173,25 @@ class ScriptValue : public Traceable {
   virtual ~ScriptValue() {}
 
  private:
-  // Mark/unmark this Wrappable as owning a handle to the underlying JavaScript
-  // object.
+  // Register this Wrappable as owning a handle to the underlying JavaScript
+  // value.
   virtual void RegisterOwner(Wrappable* owner) = 0;
   virtual void DeregisterOwner(Wrappable* owner) = 0;
 
-  // Prevent/Allow garbage collection of the underlying ScriptValue. Calls must
-  // be balanced and are not idempodent. While the number of calls to |Prevent|
-  // are greater than the number of calls to |Allow|, the underlying object
-  // will never be garbage collected.
+  // Prevent/Allow garbage collection of the underlying ScriptValue. Calls
+  // must be balanced and are not idempodent. While the number of calls to
+  // |Prevent| are greater than the number of calls to |Allow|, the underlying
+  // value will never be garbage collected.
   virtual void PreventGarbageCollection() = 0;
   virtual void AllowGarbageCollection() = 0;
 
-  // Return a pointer to the object that wraps the underlying JavaScript object.
+  // Return a pointer to the value that wraps the underlying JavaScript
+  // value.
   virtual const T* GetScriptValue() const = 0;
 
-  // Make a new ScriptValue instance that holds a handle to the same underlying
-  // JavaScript object. This should not be called for a ScriptValue that has a
-  // NULL script object (that is, GetScriptValue() returns NULL).
+  // Make a new ScriptValue instance that holds a handle to the same
+  // underlying JavaScript value. This should not be called for a ScriptValue
+  // that has a NULL script value (that is, GetScriptValue() returns NULL).
   virtual scoped_ptr<ScriptValue> MakeCopy() const = 0;
 
   friend class scoped_ptr<ScriptValue>;
