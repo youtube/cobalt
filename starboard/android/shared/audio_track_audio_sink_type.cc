@@ -217,8 +217,18 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   env->CallVoidMethodOrAbort(j_audio_track_bridge_, "play", "()V");
 
   while (!quit_) {
-    int playback_head_position = env->CallIntMethodOrAbort(
-        j_audio_track_bridge_, "getFramePosition", "()I");
+    ScopedLocalJavaRef<jobject> j_audio_timestamp(
+        env->CallObjectMethodOrAbort(j_audio_track_bridge_, "getAudioTimestamp",
+                                     "()Landroid/media/AudioTimestamp;"));
+
+    int playback_head_position =
+        env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "framePosition", "J");
+    SbTime frames_consumed_at =
+        env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
+        1000;
+
+    SB_DCHECK(playback_head_position >= last_playback_head_position_);
+
     playback_head_position =
         std::max(playback_head_position, last_playback_head_position_);
     int frames_consumed = playback_head_position - last_playback_head_position_;
@@ -227,7 +237,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (frames_consumed != 0) {
       SB_DCHECK(frames_consumed >= 0);
-      consume_frame_func_(frames_consumed, context_);
+      consume_frame_func_(frames_consumed, frames_consumed_at, context_);
       written_frames_ -= frames_consumed;
     }
 
