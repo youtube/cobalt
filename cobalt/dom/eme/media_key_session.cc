@@ -96,20 +96,18 @@ void MediaKeySession::set_onmessage(
 
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
-scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::GenerateRequest(
+script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
     const std::string& init_data_type, const BufferSource& init_data) {
-  scoped_ptr<VoidPromiseValue> promise =
+  script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
 
   // 1. If this object is closed, return a promise rejected with
   //    an InvalidStateError.
   // 2. If this object's uninitialized value is false, return a promise rejected
   //    with an InvalidStateError.
   if (drm_system_session_->is_closed() || !uninitialized_) {
-    promise_reference.value().Reject(
-        new DOMException(DOMException::kInvalidStateErr));
-    return promise.Pass();
+    promise->Reject(new DOMException(DOMException::kInvalidStateErr));
+    return promise;
   }
 
   // 3. Let this object's uninitialized value be false.
@@ -124,8 +122,8 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::GenerateRequest(
   // 5. If initData is an empty array, return a promise rejected with a newly
   //    created TypeError.
   if (init_data_type.empty() || init_data_buffer_size == 0) {
-    promise_reference.value().Reject(script::kTypeError);
-    return promise.Pass();
+    promise->Reject(script::kTypeError);
+    return promise;
   }
 
   // 10.2. The user agent must thoroughly validate the initialization data
@@ -139,30 +137,28 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::GenerateRequest(
       init_data_type, init_data_buffer, init_data_buffer_size,
       base::Bind(&MediaKeySession::OnSessionUpdateRequestGenerated,
                  base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, *promise))),
+                 base::Owned(new VoidPromiseValue::Reference(this, promise))),
       base::Bind(&MediaKeySession::OnSessionUpdateRequestDidNotGenerate,
                  base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, *promise))));
+                 base::Owned(new VoidPromiseValue::Reference(this, promise))));
 
   // 11. Return promise.
-  return promise.Pass();
+  return promise;
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
-scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Update(
+script::Handle<script::Promise<void>> MediaKeySession::Update(
     const BufferSource& response) {
-  scoped_ptr<VoidPromiseValue> promise =
+  script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
 
   // 1. If this object is closed, return a promise rejected with
   //    an InvalidStateError.
   // 2. If this object's callable value is false, return a promise rejected
   //    with an InvalidStateError.
   if (drm_system_session_->is_closed() || !callable_) {
-    promise_reference.value().Reject(
-        new DOMException(DOMException::kInvalidStateErr));
-    return promise.Pass();
+    promise->Reject(new DOMException(DOMException::kInvalidStateErr));
+    return promise;
   }
 
   const uint8* response_buffer;
@@ -172,8 +168,8 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Update(
   // 3. If response is an empty array, return a promise rejected with a newly
   //    created TypeError.
   if (response_buffer_size == 0) {
-    promise_reference.value().Reject(script::kTypeError);
-    return promise.Pass();
+    promise->Reject(script::kTypeError);
+    return promise;
   }
 
   // 6.1. Let sanitized response be a validated and/or sanitized version of
@@ -185,32 +181,30 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Update(
   drm_system_session_->Update(
       response_buffer, response_buffer_size,
       base::Bind(&MediaKeySession::OnSessionUpdated, base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, *promise))),
+                 base::Owned(new VoidPromiseValue::Reference(this, promise))),
       base::Bind(&MediaKeySession::OnSessionDidNotUpdate, base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, *promise))));
+                 base::Owned(new VoidPromiseValue::Reference(this, promise))));
 
   // 7. Return promise.
-  return promise.Pass();
+  return promise;
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-close.
-scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Close() {
-  scoped_ptr<VoidPromiseValue> promise =
+script::Handle<script::Promise<void>> MediaKeySession::Close() {
+  script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
 
   // 2. If session is closed, return a resolved promise.
   if (drm_system_session_->is_closed()) {
-    promise_reference.value().Resolve();
-    return promise.Pass();
+    promise->Resolve();
+    return promise;
   }
 
   // 3. If session's callable value is false, return a promise rejected with
   //    an InvalidStateError.
   if (!callable_) {
-    promise_reference.value().Reject(
-        new DOMException(DOMException::kInvalidStateErr));
-    return promise.Pass();
+    promise->Reject(new DOMException(DOMException::kInvalidStateErr));
+    return promise;
   }
 
   // 5.2. Use CDM to close the key session associated with session.
@@ -224,15 +218,15 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Close() {
   OnSessionClosed();
 
   // 5.3.2. Resolve promise.
-  promise_reference.value().Resolve();
-  return promise.Pass();
+  promise->Resolve();
+  return promise;
 }
 
 void MediaKeySession::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 
+  tracer->Trace(event_queue_);
   tracer->Trace(key_status_map_);
-  event_queue_.TraceMembers(tracer);
 }
 
 // See

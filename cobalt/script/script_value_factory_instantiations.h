@@ -26,9 +26,8 @@ namespace script {
 
 // Explicit template instantiations for all Promise types that will be used
 // in Cobalt.
-#define PROMISE_TEMPLATE_INSTANTIATION(TYPE)        \
-  template scoped_ptr<ScriptValue<Promise<TYPE> > > \
-  ScriptValueFactory::CreatePromise<TYPE>();
+#define PROMISE_TEMPLATE_INSTANTIATION(TYPE) \
+  template Handle<Promise<TYPE>> ScriptValueFactory::CreatePromise<TYPE>();
 
 PROMISE_TEMPLATE_INSTANTIATION(void);
 PROMISE_TEMPLATE_INSTANTIATION(bool);

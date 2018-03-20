@@ -15,6 +15,8 @@
 #ifndef COBALT_SCRIPT_SCRIPT_VALUE_H_
 #define COBALT_SCRIPT_SCRIPT_VALUE_H_
 
+#include <algorithm>
+
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -22,6 +24,9 @@
 
 namespace cobalt {
 namespace script {
+
+template <typename T>
+class Handle;
 
 class Wrappable;
 
@@ -42,44 +47,8 @@ class Wrappable;
 // detached from the rest of the graph of JavaScript GC things, and can safely
 // be garbage collected.
 template <class T>
-class ScriptValue : public Traceable {
+class ScriptValue {
  public:
-  // A reference type for when a |Traceable| owns a |ScriptValue|, and only
-  // wants to keep it alive if the owning object continues to get traced. This
-  // is the preferred reference type in that if you can use it, you should (as
-  // opposed to legacy types |Reference| or |StrongReference|, which predate
-  // the TraceMembers system).
-  class TracedReference : public Traceable {
-   public:
-    explicit TracedReference(scoped_ptr<ScriptValue> script_value)
-        : referenced_value_(script_value.Pass()) {
-      DCHECK(referenced_value_);
-    }
-
-    explicit TracedReference(const ScriptValue& script_value)
-        : referenced_value_(script_value.MakeCopy()) {
-      DCHECK(referenced_value_);
-    }
-
-    const T& value() const { return *(referenced_value_->GetScriptValue()); }
-
-    // Return the referenced ScriptValue. This ScriptValue can be passed back
-    // into the JavaScript bindings layer where the referenced JavaScript
-    // value can be extracted from the ScriptValue.
-    const ScriptValue<T>& referenced_value() const {
-      return *(referenced_value_.get());
-    }
-
-    void TraceMembers(Tracer* tracer) override {
-      tracer->Trace(referenced_value_.get());
-    }
-
-   private:
-    scoped_ptr<ScriptValue> referenced_value_;
-
-    DISALLOW_COPY_AND_ASSIGN(TracedReference);
-  };
-
   // The Reference class maintains the ownership relationship between a
   // Wrappable and the JavaScript value wrapped by a ScriptValue. This is an
   // RAII object in that creation of a Reference instance will mark the
@@ -101,7 +70,14 @@ class ScriptValue : public Traceable {
       referenced_value_->RegisterOwner(owner_);
     }
 
-    const T& value() const { return *(referenced_value_->GetScriptValue()); }
+    Reference(Wrappable* wrappable, const Handle<T>& local)
+        : owner_(wrappable),
+          referenced_value_(local.GetScriptValue()->MakeCopy()) {
+      DCHECK(referenced_value_);
+      referenced_value_->RegisterOwner(owner_);
+    }
+
+    const T& value() const { return *(referenced_value_->GetValue()); }
 
     // Return the referenced ScriptValue. This ScriptValue can be passed back
     // into the JavaScript bindings layer where the referenced JavaScript
@@ -119,48 +95,12 @@ class ScriptValue : public Traceable {
     DISALLOW_COPY_AND_ASSIGN(Reference);
   };
 
-  // Prevent garbage collection of the ScriptValue. This should be used with
-  // care as it can result in resource leaks if not managed appropriately. A
-  // common use case is to create a StrongReference on the stack when a
-  // ScriptValue is passed into a function, but a reference to the ScriptValue
-  // doesn't need to be retained past the scope of the function.
-  class StrongReference {
-   public:
-    explicit StrongReference(scoped_ptr<ScriptValue> script_value)
-        : referenced_value_(script_value.Pass()) {
-      DCHECK(referenced_value_);
-      referenced_value_->PreventGarbageCollection();
-    }
-
-    explicit StrongReference(const ScriptValue& script_value)
-        : referenced_value_(script_value.MakeCopy()) {
-      DCHECK(referenced_value_);
-      referenced_value_->PreventGarbageCollection();
-    }
-
-    const T& value() const { return *(referenced_value_->GetScriptValue()); }
-
-    // Return the referenced ScriptValue. This ScriptValue can be passed back
-    // into the JavaScript bindings layer where the referenced JavaScript
-    // value can be extracted from the ScriptValue.
-    const ScriptValue<T>& referenced_value() const {
-      return *(referenced_value_.get());
-    }
-
-    ~StrongReference() { referenced_value_->AllowGarbageCollection(); }
-
-   private:
-    scoped_ptr<ScriptValue> referenced_value_;
-
-    DISALLOW_COPY_AND_ASSIGN(StrongReference);
-  };
-
   // Return true if and only if |other| refers to the same underlying
   // JavaScript value.
   virtual bool EqualTo(const ScriptValue& other) const = 0;
 
   // Returns true if this ScriptValue is referring to a NULL JavaScript value.
-  bool IsNull() const { return GetScriptValue() == NULL; }
+  bool IsNull() const { return GetValue() == NULL; }
 
   // Creates a new ScriptValue that contains a weak reference to the same
   // underlying JavaScript value. Note that this will not prevent the value
@@ -187,14 +127,96 @@ class ScriptValue : public Traceable {
 
   // Return a pointer to the value that wraps the underlying JavaScript
   // value.
-  virtual const T* GetScriptValue() const = 0;
+  virtual T* GetValue() = 0;
+  virtual const T* GetValue() const = 0;
 
   // Make a new ScriptValue instance that holds a handle to the same
   // underlying JavaScript value. This should not be called for a ScriptValue
   // that has a NULL script value (that is, GetScriptValue() returns NULL).
   virtual scoped_ptr<ScriptValue> MakeCopy() const = 0;
 
+  int reference_count_ = 0;
+
   friend class scoped_ptr<ScriptValue>;
+
+  template <typename F>
+  friend class Handle;
+};
+
+// A handle that references a |ScriptValue|, and manages its garbage
+// collection state via reference counting.  This is the preferred type for
+// receiving, returning, and manipulating |ScriptValue|s.
+template <typename T>
+class Handle {
+ public:
+  // This should only be used by internals, next to where engine specific
+  // |ScriptValue| implementations are constructed.  Calling this from common
+  // code is a usage error.  If you want a new |Local<T>|, then you should
+  // build it from an existing reference, rather than working directly with
+  // the |ScriptValue|.
+  explicit Handle(ScriptValue<T>* script_value) : script_value_(script_value) {
+    DCHECK(script_value_);
+    DCHECK_EQ(script_value_->reference_count_, 0);
+    script_value_->PreventGarbageCollection();
+    script_value_->reference_count_++;
+  }
+  // Intentionally not explicit because bindings' usage of ToJSValue relies on
+  // implicit conversion.
+  Handle(const ScriptValue<T>* script_value)  // NOLINT
+      : Handle(script_value->MakeWeakCopy().release()) {}
+  Handle(const ScriptValue<T>& script_value)  // NOLINT
+      : Handle(script_value.MakeWeakCopy().release()) {}
+  Handle(const typename ScriptValue<T>::Reference& reference)  // NOLINT
+      : Handle(reference.referenced_value().MakeWeakCopy().release()) {}
+
+  Handle(const Handle& other) : script_value_(other.script_value_) {
+    script_value_->PreventGarbageCollection();
+    script_value_->reference_count_++;
+  }
+  Handle& operator=(const Handle& other) {
+    // Increment |other|'s value first to allow for self assignment.
+    if (other.script_value_) {
+      other.script_value_->PreventGarbageCollection();
+      other.script_value_->reference_count_++;
+    }
+    Clear();
+    script_value_ = other.script_value_;
+    return *this;
+  }
+
+  Handle(Handle&& other) : script_value_(other.script_value_) {
+    other.script_value_ = nullptr;
+  }
+  Handle& operator=(Handle&& other) {
+    std::swap(script_value_, other.script_value_);
+    return *this;
+  }
+
+  ~Handle() { Clear(); }
+
+  T* operator*() { return script_value_->GetValue(); }
+  T* operator->() { return script_value_->GetValue(); }
+
+  // These are primarly exposed for internals.  In most cases you don't need
+  // to work with the ScriptValue directly.
+  ScriptValue<T>* GetScriptValue() { return script_value_; }
+  const ScriptValue<T>* GetScriptValue() const { return script_value_; }
+
+  bool IsEmpty() const { return script_value_ == nullptr; }
+
+ private:
+  ScriptValue<T>* script_value_;
+
+  void Clear() {
+    if (script_value_) {
+      script_value_->reference_count_--;
+      script_value_->AllowGarbageCollection();
+      if (script_value_->reference_count_ == 0) {
+        delete script_value_;
+      }
+    }
+    script_value_ = nullptr;
+  }
 };
 
 }  // namespace script

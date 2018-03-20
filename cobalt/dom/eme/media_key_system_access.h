@@ -30,8 +30,7 @@ namespace eme {
 //   https://www.w3.org/TR/encrypted-media/#mediakeysystemaccess-interface
 class MediaKeySystemAccess : public script::Wrappable {
  public:
-  typedef script::ScriptValue<script::Promise<
-      scoped_refptr<script::Wrappable> > > InterfacePromiseValue;
+  using InterfacePromise = script::Promise<scoped_refptr<script::Wrappable>>;
 
   // Custom, not in any spec.
   MediaKeySystemAccess(const std::string& key_system,
@@ -43,7 +42,7 @@ class MediaKeySystemAccess : public script::Wrappable {
   const MediaKeySystemConfiguration& GetConfiguration() const {
     return configuration_;
   }
-  scoped_ptr<InterfacePromiseValue> CreateMediaKeys() const;
+  script::Handle<InterfacePromise> CreateMediaKeys() const;
 
   DEFINE_WRAPPABLE_TYPE(MediaKeySystemAccess);
 

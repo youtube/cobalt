@@ -308,21 +308,21 @@ void HTMLMediaElement::set_onencrypted(
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-htmlmediaelement-setmediakeys.
-scoped_ptr<HTMLMediaElement::VoidPromiseValue> HTMLMediaElement::SetMediaKeys(
+script::Handle<script::Promise<void>> HTMLMediaElement::SetMediaKeys(
     const scoped_refptr<eme::MediaKeys>& media_keys) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SetMediaKeys()");
 
-  scoped_ptr<VoidPromiseValue> promise = node_document()
-                                             ->html_element_context()
-                                             ->script_value_factory()
-                                             ->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
+  script::Handle<script::Promise<void>> promise =
+      node_document()
+          ->html_element_context()
+          ->script_value_factory()
+          ->CreateBasicPromise<void>();
 
   // 1. If mediaKeys and the mediaKeys attribute are the same object, return
   //    a resolved promise.
   if (media_keys_ == media_keys) {
-    promise_reference.value().Resolve();
-    return promise.Pass();
+    promise->Resolve();
+    return promise;
   }
 
   // 5.2. If the mediaKeys attribute is not null:
@@ -352,10 +352,10 @@ scoped_ptr<HTMLMediaElement::VoidPromiseValue> HTMLMediaElement::SetMediaKeys(
   media_keys_ = media_keys;
 
   // 5.6. Resolve promise.
-  promise_reference.value().Resolve();
+  promise->Resolve();
 
   // 6. Return promise.
-  return promise.Pass();
+  return promise;
 }
 
 #else  // defined(COBALT_MEDIA_SOURCE_2016)

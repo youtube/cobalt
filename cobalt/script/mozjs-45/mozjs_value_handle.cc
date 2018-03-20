@@ -27,7 +27,7 @@ std::unordered_map<std::string, std::string> ConvertSimpleObjectToMap(
   const MozjsValueHandleHolder* mozjs_value_handle_holder =
       base::polymorphic_downcast<const MozjsValueHandleHolder*>(&value);
 
-  const ValueHandle* value_handle = mozjs_value_handle_holder->GetScriptValue();
+  const ValueHandle* value_handle = mozjs_value_handle_holder->GetValue();
 
   const MozjsValueHandle* mozjs_value_handle =
       base::polymorphic_downcast<const MozjsValueHandle*>(value_handle);

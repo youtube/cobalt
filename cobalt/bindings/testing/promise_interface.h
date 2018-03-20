@@ -30,16 +30,12 @@ namespace testing {
 
 class PromiseInterface : public script::Wrappable {
  public:
-  typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
-  typedef script::ScriptValue<script::Promise<bool> > BooleanPromiseValue;
-  typedef script::ScriptValue<script::Promise<std::string> > StringPromiseValue;
-  typedef script::ScriptValue<script::Promise<
-      scoped_refptr<script::Wrappable> > > InterfacePromiseValue;
-
-  MOCK_METHOD0(ReturnVoidPromise, const VoidPromiseValue*());
-  MOCK_METHOD0(ReturnBooleanPromise, const BooleanPromiseValue*());
-  MOCK_METHOD0(ReturnStringPromise, const StringPromiseValue*());
-  MOCK_METHOD0(ReturnInterfacePromise, const InterfacePromiseValue*());
+  MOCK_METHOD0(ReturnVoidPromise, script::Handle<script::Promise<void>>());
+  MOCK_METHOD0(ReturnBooleanPromise, script::Handle<script::Promise<bool>>());
+  MOCK_METHOD0(ReturnStringPromise,
+               script::Handle<script::Promise<std::string>>());
+  MOCK_METHOD0(ReturnInterfacePromise,
+               script::Handle<script::Promise<scoped_refptr<Wrappable>>>());
 
   MOCK_METHOD0(OnSuccess, void());
 
