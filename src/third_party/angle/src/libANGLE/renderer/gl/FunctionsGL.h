@@ -786,7 +786,7 @@ class FunctionsGL
     void initializeProcsDesktopGL();
     void initializeProcsGLES();
 
-    virtual void *loadProcAddress(const std::string &function) = 0;
+    virtual void *loadProcAddress(const char * function) = 0;
 };
 
 }
