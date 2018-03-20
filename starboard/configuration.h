@@ -127,6 +127,12 @@
 #define SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbAudioSinkConsumeFramesFunc() can optional take an
+//   absolute timestamp to indicate when the frames are consumed.
+//   Platforms that have the |frames_consumed| updated asynchronously can have
+//   more accurate audio time reporting with this extra parameter.
+//   Please see the comment in audio_sink.h for more details.
+#define SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -653,6 +659,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
 #endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 #endif  // SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
+
+#if SB_API_VERSION >= SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION
+#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API \
+    version SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION or later.
+#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

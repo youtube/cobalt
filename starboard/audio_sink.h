@@ -63,7 +63,15 @@ typedef void (*SbAudioSinkUpdateSourceStatusFunc)(int* frames_in_buffer,
 
 // Callback used to report frames consumed.  The consumed frames will be
 // removed from the source frame buffer to free space for new audio frames.
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+// When |frames_consumed| is updated asynchnously and the last time that it has
+// been updated is known, it can be passed in |frames_consumed_at| so the audio
+// time calculating can be more accurate.
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 typedef void (*SbAudioSinkConsumeFramesFunc)(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                             SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                              void* context);
 
 // Well-defined value for an invalid audio sink.

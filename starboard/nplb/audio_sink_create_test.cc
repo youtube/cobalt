@@ -35,7 +35,12 @@ void UpdateSourceStatusFuncStub(int* frames_in_buffer,
   *is_eos_reached = false;
 }
 
-void ConsumeFramesFuncStub(int frames_consumed, void* context) {}
+void ConsumeFramesFuncStub(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                           SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                           void* context) {
+}
 
 }  // namespace
 
