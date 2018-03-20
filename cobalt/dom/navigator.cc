@@ -209,23 +209,22 @@ base::optional<eme::MediaKeySystemConfiguration> TryGetSupportedConfiguration(
 
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-navigator-requestmediakeysystemaccess.
-scoped_ptr<Navigator::InterfacePromiseValue>
+script::Handle<Navigator::InterfacePromise>
 Navigator::RequestMediaKeySystemAccess(
     const std::string& key_system,
     const script::Sequence<eme::MediaKeySystemConfiguration>&
         supported_configurations) {
-  scoped_ptr<InterfacePromiseValue> promise =
+  script::Handle<InterfacePromise> promise =
       script_value_factory_
-          ->CreateInterfacePromise<scoped_refptr<eme::MediaKeySystemAccess> >();
-  InterfacePromiseValue::StrongReference promise_reference(*promise);
+          ->CreateInterfacePromise<scoped_refptr<eme::MediaKeySystemAccess>>();
 
   // 1. If |keySystem| is the empty string, return a promise rejected
   //    with a newly created TypeError.
   // 2. If |supportedConfigurations| is empty, return a promise rejected
   //    with a newly created TypeError.
   if (key_system.empty() || supported_configurations.empty()) {
-    promise_reference.value().Reject(script::kTypeError);
-    return promise.Pass();
+    promise->Reject(script::kTypeError);
+    return promise;
   }
 
   // 6.3. For each value in |supportedConfigurations|:
@@ -243,15 +242,14 @@ Navigator::RequestMediaKeySystemAccess(
                                         *maybe_supported_configuration,
                                         script_value_factory_));
       // 6.3.3.2. Resolve promise.
-      promise_reference.value().Resolve(media_key_system_access);
-      return promise.Pass();
+      promise->Resolve(media_key_system_access);
+      return promise;
     }
   }
 
   // 6.4. Reject promise with a NotSupportedError.
-  promise_reference.value().Reject(
-      new DOMException(DOMException::kNotSupportedErr));
-  return promise.Pass();
+  promise->Reject(new DOMException(DOMException::kNotSupportedErr));
+  return promise;
 }
 
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)

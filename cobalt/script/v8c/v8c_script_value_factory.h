@@ -29,9 +29,8 @@ class V8cScriptValueFactory : public ScriptValueFactory {
   explicit V8cScriptValueFactory(v8::Isolate* isolate) : isolate_(isolate) {}
 
   template <typename T>
-  scoped_ptr<ScriptValue<Promise<T>>> CreatePromise() {
-    typedef ScriptValue<Promise<T>> ScriptPromiseType;
-    typedef V8cUserObjectHolder<NativePromise<T>> V8cPromiseHolderType;
+  Handle<Promise<T>> CreatePromise() {
+    using V8cPromiseHolderType = V8cUserObjectHolder<NativePromise<T>>;
 
     EntryScope entry_scope(isolate_);
     v8::Local<v8::Context> context = isolate_->GetCurrentContext();
@@ -40,11 +39,11 @@ class V8cScriptValueFactory : public ScriptValueFactory {
         v8::Promise::Resolver::New(context);
     v8::Local<v8::Promise::Resolver> resolver;
     if (!maybe_resolver.ToLocal(&resolver)) {
-      return make_scoped_ptr<ScriptPromiseType>(nullptr);
+      return Handle<Promise<T>>(
+          new V8cPromiseHolderType(isolate_, v8::Null(isolate_)));
     }
 
-    return make_scoped_ptr<ScriptPromiseType>(
-        new V8cPromiseHolderType(isolate_, resolver));
+    return Handle<Promise<T>>(new V8cPromiseHolderType(isolate_, resolver));
   }
 
  private:

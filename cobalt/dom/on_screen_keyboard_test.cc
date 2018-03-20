@@ -35,6 +35,7 @@
 
 namespace cobalt {
 namespace dom {
+
 class MockErrorCallback : public base::Callback<void(const std::string&)> {
  public:
   MOCK_METHOD1(Run, void(const std::string&));
@@ -49,16 +50,13 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
     ShowMock(input_text);
     last_ticket_ = ticket;
     shown_ = true;
-    std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-        promise = LookupPromiseForShowTicket(last_ticket_);
-    ASSERT_TRUE(promise && promise->value().State() ==
-                               cobalt::script::PromiseState::kPending);
+    script::Handle<script::Promise<void>> promise =
+        LookupPromiseForShowTicket(last_ticket_);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kPending);
     DCHECK(window_);
     window_->on_screen_keyboard()->DispatchShowEvent(last_ticket_);
-    ASSERT_TRUE(promise->value().State() ==
-                cobalt::script::PromiseState::kFulfilled);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kFulfilled);
     last_ticket_ = -1;
-    promise.reset();
   }
 
   void Hide(int ticket) override {
@@ -66,46 +64,37 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
     last_ticket_ = ticket;
     shown_ = false;
 
-    std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-        promise = LookupPromiseForHideTicket(last_ticket_);
-    ASSERT_TRUE(promise && promise->value().State() ==
-                               cobalt::script::PromiseState::kPending);
+    script::Handle<script::Promise<void>> promise =
+        LookupPromiseForHideTicket(last_ticket_);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kPending);
     DCHECK(window_);
     window_->on_screen_keyboard()->DispatchHideEvent(last_ticket_);
-    ASSERT_TRUE(promise->value().State() ==
-                cobalt::script::PromiseState::kFulfilled);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kFulfilled);
     last_ticket_ = -1;
-    promise.reset();
   }
 
   void Focus(int ticket) override {
     FocusMock();
     last_ticket_ = ticket;
-    std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-        promise = LookupPromiseForFocusTicket(last_ticket_);
-    ASSERT_TRUE(promise && promise->value().State() ==
-                               cobalt::script::PromiseState::kPending);
+    script::Handle<script::Promise<void>> promise =
+        LookupPromiseForFocusTicket(last_ticket_);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kPending);
     DCHECK(window_);
     window_->on_screen_keyboard()->DispatchFocusEvent(last_ticket_);
-    ASSERT_TRUE(promise->value().State() ==
-                cobalt::script::PromiseState::kFulfilled);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kFulfilled);
     last_ticket_ = -1;
-    promise.reset();
   }
 
   void Blur(int ticket) override {
     BlurMock();
     last_ticket_ = ticket;
-    std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-        promise = LookupPromiseForBlurTicket(last_ticket_);
-    ASSERT_TRUE(promise && promise->value().State() ==
-                               cobalt::script::PromiseState::kPending);
+    script::Handle<script::Promise<void>> promise =
+        LookupPromiseForBlurTicket(last_ticket_);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kPending);
     DCHECK(window_);
     window_->on_screen_keyboard()->DispatchBlurEvent(last_ticket_);
-    ASSERT_TRUE(promise->value().State() ==
-                cobalt::script::PromiseState::kFulfilled);
+    EXPECT_TRUE(promise->State() == cobalt::script::PromiseState::kFulfilled);
     last_ticket_ = -1;
-    promise.reset();
   }
 
   bool IsShown() const override { return shown_; }
@@ -138,61 +127,41 @@ class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
  private:
   // OnScreenKeyboardMockBridge needs to be friends with dom::OnScreenKeyboard
   // to implement these functions.
-  std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-  LookupPromiseForShowTicket(int ticket) {
+  script::Handle<script::Promise<void>> LookupPromiseForShowTicket(int ticket) {
     DCHECK(window_);
-    OnScreenKeyboard::TicketToPromiseMap::const_iterator it =
-        window_->on_screen_keyboard()->ticket_to_show_promise_map_.find(ticket);
-    if (it ==
-        window_->on_screen_keyboard()->ticket_to_show_promise_map_.end()) {
-      return nullptr;
-    }
-    return std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>(
-        new OnScreenKeyboard::VoidPromiseValue::StrongReference(
-            it->second->referenced_value()));
+    const auto& map =
+        window_->on_screen_keyboard()->ticket_to_show_promise_map_;
+    auto it = map.find(ticket);
+    DCHECK(it != map.end());
+    return script::Handle<script::Promise<void>>(*it->second);
   }
 
-  std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-  LookupPromiseForHideTicket(int ticket) {
+  script::Handle<script::Promise<void>> LookupPromiseForHideTicket(int ticket) {
     DCHECK(window_);
-    OnScreenKeyboard::TicketToPromiseMap::const_iterator it =
-        window_->on_screen_keyboard()->ticket_to_hide_promise_map_.find(ticket);
-    if (it ==
-        window_->on_screen_keyboard()->ticket_to_hide_promise_map_.end()) {
-      return nullptr;
-    }
-    return std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>(
-        new OnScreenKeyboard::VoidPromiseValue::StrongReference(
-            it->second->referenced_value()));
+    const auto& map =
+        window_->on_screen_keyboard()->ticket_to_hide_promise_map_;
+    auto it = map.find(ticket);
+    DCHECK(it != map.end());
+    return script::Handle<script::Promise<void>>(*it->second);
   }
 
-  std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-  LookupPromiseForFocusTicket(int ticket) {
+  script::Handle<script::Promise<void>> LookupPromiseForFocusTicket(
+      int ticket) {
     DCHECK(window_);
-    OnScreenKeyboard::TicketToPromiseMap::const_iterator it =
-        window_->on_screen_keyboard()->ticket_to_focus_promise_map_.find(
-            ticket);
-    if (it ==
-        window_->on_screen_keyboard()->ticket_to_focus_promise_map_.end()) {
-      return nullptr;
-    }
-    return std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>(
-        new OnScreenKeyboard::VoidPromiseValue::StrongReference(
-            it->second->referenced_value()));
+    const auto& map =
+        window_->on_screen_keyboard()->ticket_to_focus_promise_map_;
+    auto it = map.find(ticket);
+    DCHECK(it != map.end());
+    return script::Handle<script::Promise<void>>(*it->second);
   }
 
-  std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>
-  LookupPromiseForBlurTicket(int ticket) {
+  script::Handle<script::Promise<void>> LookupPromiseForBlurTicket(int ticket) {
     DCHECK(window_);
-    OnScreenKeyboard::TicketToPromiseMap::const_iterator it =
-        window_->on_screen_keyboard()->ticket_to_blur_promise_map_.find(ticket);
-    if (it ==
-        window_->on_screen_keyboard()->ticket_to_blur_promise_map_.end()) {
-      return nullptr;
-    }
-    return std::unique_ptr<OnScreenKeyboard::VoidPromiseValue::StrongReference>(
-        new OnScreenKeyboard::VoidPromiseValue::StrongReference(
-            it->second->referenced_value()));
+    const auto& map =
+        window_->on_screen_keyboard()->ticket_to_blur_promise_map_;
+    auto it = map.find(ticket);
+    DCHECK(it != map.end());
+    return script::Handle<script::Promise<void>>(*it->second);
   }
 
   bool shown_ = false;

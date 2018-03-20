@@ -57,10 +57,10 @@ class MediaKeySession : public EventTarget {
   void set_onkeystatuseschange(const EventListenerScriptValue& event_listener);
   const EventListenerScriptValue* onmessage() const;
   void set_onmessage(const EventListenerScriptValue& event_listener);
-  scoped_ptr<VoidPromiseValue> GenerateRequest(
+  script::Handle<script::Promise<void>> GenerateRequest(
       const std::string& init_data_type, const BufferSource& init_data);
-  scoped_ptr<VoidPromiseValue> Update(const BufferSource& response);
-  scoped_ptr<VoidPromiseValue> Close();
+  script::Handle<script::Promise<void>> Update(const BufferSource& response);
+  script::Handle<script::Promise<void>> Close();
 
   DEFINE_WRAPPABLE_TYPE(MediaKeySession);
   void TraceMembers(script::Tracer* tracer) override;

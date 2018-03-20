@@ -64,6 +64,7 @@ class DictionaryWithDictionaryMember {
     nested_dictionary_ = value;
   }
 
+
  private:
   bool has_nested_dictionary_;
   TestDictionary nested_dictionary_;
