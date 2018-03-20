@@ -39,8 +39,6 @@ inline void ToJSValue(JSContext* context,
   out_value.setUndefined();
 }
 
-// Shared functionality for NativePromise<T>. Does not implement the Resolve
-// function, since that needs to be specialized for Promise<T>.
 template <typename T>
 class NativePromise : public Promise<T> {
  public:
@@ -155,7 +153,7 @@ inline void ToJSValue(JSContext* context,
 
   const NativePromise<T>* native_promise =
       base::polymorphic_downcast<const NativePromise<T>*>(
-          user_object_holder->GetScriptValue());
+          user_object_holder->GetValue());
 
   DCHECK(native_promise);
   out_value.setObjectOrNull(native_promise->promise());

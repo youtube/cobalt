@@ -81,8 +81,6 @@
         'defines': [
           'ENGINE_SUPPORTS_INDEXED_DELETERS',
           'ENGINE_SUPPORTS_INT64',
-          # TODO: Remove this when exact rooting and generational GC is enabled.
-          'ENGINE_USES_CONSERVATIVE_ROOTING',
         ],
       },
       # V8 always requires JIT.  |cobalt_enable_jit| must be set to true to

@@ -32,20 +32,19 @@ namespace media_capture {
 //   https://www.w3.org/TR/mediacapture-streams/#mediadevices
 class MediaDevices : public script::Wrappable {
  public:
-  using PromiseSequenceMediaInfo =
-      script::ScriptValue<
-          script::Promise<script::Sequence<scoped_refptr<script::Wrappable>>>>;
+  using MediaInfoSequence = script::Sequence<scoped_refptr<script::Wrappable>>;
+  using MediaInfoSequencePromise = script::Promise<MediaInfoSequence>;
 
   explicit MediaDevices(script::ScriptValueFactory* script_value_factory);
 
-  scoped_ptr<PromiseSequenceMediaInfo> EnumerateDevices();
+  script::Handle<MediaInfoSequencePromise> EnumerateDevices();
 
   DEFINE_WRAPPABLE_TYPE(MediaDevices);
 
  private:
   script::ScriptValueFactory* script_value_factory_;
 
-  SB_DISALLOW_COPY_AND_ASSIGN(MediaDevices);
+  DISALLOW_COPY_AND_ASSIGN(MediaDevices);
 };
 
 }  // namespace media_capture
