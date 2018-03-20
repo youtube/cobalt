@@ -28,12 +28,10 @@ namespace mozjs {
 class MozjsScriptValueFactory : public ScriptValueFactory {
  public:
   explicit MozjsScriptValueFactory(MozjsGlobalEnvironment* global_environment);
-  ~MozjsScriptValueFactory() override {}
 
   template <typename T>
-  scoped_ptr<ScriptValue<Promise<T> > > CreatePromise() {
-    typedef ScriptValue<Promise<T> > ScriptPromiseType;
-    typedef MozjsUserObjectHolder<NativePromise<T> > MozjsPromiseHolderType;
+  Handle<Promise<T>> CreatePromise() {
+    using MozjsPromiseHolderType = MozjsUserObjectHolder<NativePromise<T>>;
 
     JSContext* context = global_environment_->context();
     JS::RootedObject global_object(context,
@@ -43,9 +41,8 @@ class MozjsScriptValueFactory : public ScriptValueFactory {
 
     JS::RootedValue promise_wrapper(context);
     promise_wrapper.setObjectOrNull(PromiseWrapper::Create(context));
-    scoped_ptr<ScriptPromiseType> promise(
+    return Handle<Promise<T>>(
         new MozjsPromiseHolderType(context, promise_wrapper));
-    return promise.Pass();
   }
 
  private:

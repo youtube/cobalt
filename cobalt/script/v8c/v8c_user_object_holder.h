@@ -80,12 +80,6 @@ class V8cUserObjectHolder
     return v8_value() == v8c_other->v8_value();
   }
 
-  void TraceMembers(Tracer* tracer) override {
-    if (!handle_.IsEmpty()) {
-      handle_.Get().RegisterExternalReference(isolate_);
-    }
-  }
-
   void RegisterOwner(Wrappable* owner) override {
     V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->AddReferencedObject(
         owner, &handle_);
@@ -114,7 +108,12 @@ class V8cUserObjectHolder
     }
   }
 
-  const typename V8cUserObjectType::BaseType* GetScriptValue() const override {
+  typename V8cUserObjectType::BaseType* GetValue() override {
+    return const_cast<typename V8cUserObjectType::BaseType*>(
+        static_cast<const V8cUserObjectHolder&>(*this).GetValue());
+  }
+
+  const typename V8cUserObjectType::BaseType* GetValue() const override {
     return handle_.IsEmpty() ? nullptr : &handle_;
   }
 

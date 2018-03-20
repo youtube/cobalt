@@ -16,7 +16,9 @@
 
 #include <utility>
 
+#include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/util/algorithm_helpers.h"
+#include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
@@ -28,17 +30,24 @@ ReferencedObjectMap::ReferencedObjectMap(JSContext* context)
     : context_(context) {}
 
 // Add/Remove a reference from a WrapperPrivate to a JSValue.
-void ReferencedObjectMap::AddReferencedObject(const Wrappable* wrappable,
+void ReferencedObjectMap::AddReferencedObject(Wrappable* wrappable,
                                               JS::HandleValue referee) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(!referee.isNullOrUndefined());
   DCHECK(referee.isGCThing());
+
+  // Force a wrapper to get created for |wrappable| in order to ensure it will
+  // get traced by SpiderMonkey, allowing us to find |referee| later.
+  WrapperPrivate* wrapper_private = WrapperPrivate::GetFromWrappable(
+      wrappable, context_,
+      MozjsGlobalEnvironment::GetFromContext(context_)->wrapper_factory());
+
   referenced_objects_.insert(
       std::make_pair(wrappable, WeakHeapObject(context_, referee)));
 }
 
-void ReferencedObjectMap::RemoveReferencedObject(const Wrappable* wrappable,
+void ReferencedObjectMap::RemoveReferencedObject(Wrappable* wrappable,
                                                  JS::HandleValue referee) {
   DCHECK(thread_checker_.CalledOnValidThread());
   auto pair_range = referenced_objects_.equal_range(wrappable);
@@ -55,7 +64,7 @@ void ReferencedObjectMap::RemoveReferencedObject(const Wrappable* wrappable,
 }
 
 void ReferencedObjectMap::TraceReferencedObjects(JSTracer* trace,
-                                                 const Wrappable* wrappable) {
+                                                 Wrappable* wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
   auto pair_range = referenced_objects_.equal_range(wrappable);
   for (auto it = pair_range.first; it != pair_range.second; ++it) {

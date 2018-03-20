@@ -74,14 +74,6 @@ class MozjsUserObjectHolder
     return util::IsSameGcThing(context_, value1, value2);
   }
 
-  void TraceMembers(Tracer* tracer) override {
-    if (handle_) {
-      MozjsTracer* mozjs_tracer =
-          base::polymorphic_downcast<MozjsTracer*>(tracer);
-      handle_->Trace(mozjs_tracer->js_tracer());
-    }
-  }
-
   void RegisterOwner(Wrappable* owner) override {
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
@@ -123,8 +115,12 @@ class MozjsUserObjectHolder
     }
   }
 
-  const typename MozjsUserObjectType::BaseType* GetScriptValue()
-      const override {
+  typename MozjsUserObjectType::BaseType* GetValue() override {
+    return const_cast<typename MozjsUserObjectType::BaseType*>(
+        static_cast<const MozjsUserObjectHolder*>(this)->GetValue());
+  }
+
+  const typename MozjsUserObjectType::BaseType* GetValue() const override {
     return handle_ ? &handle_.value() : NULL;
   }
 

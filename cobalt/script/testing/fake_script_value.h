@@ -27,8 +27,7 @@ class FakeScriptValue : public cobalt::script::ScriptValue<T> {
  public:
   typedef cobalt::script::ScriptValue<T> BaseClass;
 
-  explicit FakeScriptValue(const T* listener)
-      : value_(listener) {}
+  explicit FakeScriptValue(T* listener) : value_(listener) {}
 
   bool EqualTo(const BaseClass& other) const override {
     const FakeScriptValue* other_script_object =
@@ -36,19 +35,18 @@ class FakeScriptValue : public cobalt::script::ScriptValue<T> {
     return value_ == other_script_object->value_;
   }
 
-  void TraceMembers(Tracer*) override {};
-
   void RegisterOwner(script::Wrappable*) override {}
   void DeregisterOwner(script::Wrappable*) override {}
   void PreventGarbageCollection() override {}
   void AllowGarbageCollection() override {}
-  const T* GetScriptValue() const override { return value_; }
+  T* GetValue() override { return value_; }
+  const T* GetValue() const override { return value_; }
   scoped_ptr<BaseClass> MakeCopy() const override {
     return make_scoped_ptr<BaseClass>(new FakeScriptValue(value_));
   }
 
  private:
-  const T* value_;
+  T* value_;
 };
 
 }  // namespace testing

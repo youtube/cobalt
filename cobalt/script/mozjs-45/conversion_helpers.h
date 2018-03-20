@@ -519,7 +519,9 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   exception_state->SetSimpleException(kDoesNotImplementInterface);
 }
 
-// CallbackInterface -> JSValue
+// ScriptValue<T> (where T is a CallbackInterface) -> JSValue
+// Note that there is currently no implementation for ScriptValue<T> where T
+// is not a CallbackInterface.
 template <typename T>
 inline void ToJSValue(JSContext* context,
                       const ScriptValue<T>* callback_interface,
@@ -544,7 +546,7 @@ inline void ToJSValue(JSContext* context,
   // can get the implementing object.
   const MozjsCallbackInterfaceClass* mozjs_callback_interface =
       base::polymorphic_downcast<const MozjsCallbackInterfaceClass*>(
-          user_object_holder->GetScriptValue());
+          user_object_holder->GetValue());
   DCHECK(mozjs_callback_interface);
   out_value.setObjectOrNull(mozjs_callback_interface->handle());
 }
@@ -686,6 +688,23 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   util::IteratorClose(context, iter);
   return;
+}
+
+template <typename T>
+void ToJSValue(JSContext* context,
+               const ScriptValue<Promise<T>>* promise_holder,
+               JS::MutableHandleValue out_value);
+
+template <typename T>
+void ToJSValue(JSContext* context, ScriptValue<Promise<T>>* promise_holder,
+               JS::MutableHandleValue out_value);
+
+// script::Handle<T> -> JSValue
+template <typename T>
+void ToJSValue(JSContext* context, const Handle<T>& handle,
+               JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  ToJSValue(context, handle.GetScriptValue(), out_value);
 }
 
 }  // namespace mozjs

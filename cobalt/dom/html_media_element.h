@@ -95,7 +95,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
     return media_keys_;
   }
   typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
-  scoped_ptr<VoidPromiseValue> SetMediaKeys(
+  script::Handle<script::Promise<void>> SetMediaKeys(
       const scoped_refptr<eme::MediaKeys>& media_keys);
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   void GenerateKeyRequest(

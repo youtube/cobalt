@@ -33,12 +33,11 @@ class ReferencedObjectMap {
  public:
   explicit ReferencedObjectMap(JSContext* context);
 
-  void AddReferencedObject(const Wrappable* wrappable, JS::HandleValue referee);
-  void RemoveReferencedObject(const Wrappable* wrappable,
-                              JS::HandleValue referee);
+  void AddReferencedObject(Wrappable* wrappable, JS::HandleValue referee);
+  void RemoveReferencedObject(Wrappable* wrappable, JS::HandleValue referee);
 
   // Trace all objects referenced from this |wrappable|.
-  void TraceReferencedObjects(JSTracer* trace, const Wrappable* wrappable);
+  void TraceReferencedObjects(JSTracer* trace, Wrappable* wrappable);
 
   // Remove any referenced objects that are NULL. It may be the case that a
   // weak reference to an object was garbage collected, so remove it from the

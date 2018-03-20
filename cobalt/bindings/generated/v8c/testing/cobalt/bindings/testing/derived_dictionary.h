@@ -61,6 +61,7 @@ class DerivedDictionary : public cobalt::bindings::testing::TestDictionary {
     additional_member_ = value;
   }
 
+
  private:
   bool additional_member_;
 };
