@@ -67,9 +67,8 @@ class Navigator : public script::Wrappable {
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
   // Web API: extension defined in Encrypted Media Extensions (16 March 2017).
-  typedef script::ScriptValue<script::Promise<
-      scoped_refptr<script::Wrappable> > > InterfacePromiseValue;
-  scoped_ptr<InterfacePromiseValue> RequestMediaKeySystemAccess(
+  using InterfacePromise = script::Promise<scoped_refptr<script::Wrappable>>;
+  script::Handle<InterfacePromise> RequestMediaKeySystemAccess(
       const std::string& key_system,
       const script::Sequence<eme::MediaKeySystemConfiguration>&
           supported_configurations);

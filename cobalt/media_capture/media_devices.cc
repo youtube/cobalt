@@ -42,19 +42,14 @@ scoped_ptr<speech::Microphone> CreateMicrophone() {
 
 }  // namespace.
 
-using PromiseSequenceMediaInfo = MediaDevices::PromiseSequenceMediaInfo;
-
 MediaDevices::MediaDevices(script::ScriptValueFactory* script_value_factory)
     : script_value_factory_(script_value_factory) {
 }
 
-scoped_ptr<PromiseSequenceMediaInfo> MediaDevices::EnumerateDevices() {
-  scoped_ptr<PromiseSequenceMediaInfo> promise =
-      script_value_factory_->CreateBasicPromise<
-          script::Sequence<scoped_refptr<script::Wrappable>>>();
-
-  MediaDevices::PromiseSequenceMediaInfo::StrongReference promise_reference(
-      *promise);
+script::Handle<MediaDevices::MediaInfoSequencePromise>
+MediaDevices::EnumerateDevices() {
+  script::Handle<MediaInfoSequencePromise> promise =
+      script_value_factory_->CreateBasicPromise<MediaInfoSequence>();
   script::Sequence<scoped_refptr<Wrappable>> output;
   scoped_ptr<speech::Microphone> microphone = CreateMicrophone();
   if (microphone) {
@@ -64,8 +59,8 @@ scoped_ptr<PromiseSequenceMediaInfo> MediaDevices::EnumerateDevices() {
     output.push_back(media_device);
   }
 
-  promise_reference.value().Resolve(output);
-  return promise.Pass();
+  promise->Resolve(output);
+  return promise;
 }
 
 }  // namespace media_capture

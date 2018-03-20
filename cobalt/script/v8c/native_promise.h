@@ -168,7 +168,7 @@ inline void ToJSValue(v8::Isolate* isolate,
           promise_holder);
   const NativePromise<T>* native_promise =
       base::polymorphic_downcast<const NativePromise<T>*>(
-          user_object_holder->GetScriptValue());
+          user_object_holder->GetValue());
   DCHECK(native_promise);
   *out_value = native_promise->promise();
 }

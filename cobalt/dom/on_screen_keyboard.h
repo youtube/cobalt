@@ -39,24 +39,23 @@ class OnScreenKeyboard : public EventTarget {
  public:
   typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
 
-  typedef std::unordered_map<int,
-                             std::unique_ptr<VoidPromiseValue::TracedReference>>
+  typedef std::unordered_map<int, std::unique_ptr<VoidPromiseValue::Reference>>
       TicketToPromiseMap;
 
   OnScreenKeyboard(OnScreenKeyboardBridge* bridge,
                    script::ScriptValueFactory* script_value_factory);
 
   // Shows the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Show();
+  script::Handle<script::Promise<void>> Show();
 
   // Hides the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Hide();
+  script::Handle<script::Promise<void>> Hide();
 
   // Focuses the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Focus();
+  script::Handle<script::Promise<void>> Focus();
 
   // Blurs the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Blur();
+  script::Handle<script::Promise<void>> Blur();
 
   std::string data() const { return data_; }
   void set_data(const std::string& data) { data_ = data; }
@@ -92,7 +91,6 @@ class OnScreenKeyboard : public EventTarget {
   void DispatchBlurEvent(int ticket);
 
   DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
-  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   friend class OnScreenKeyboardMockBridge;
