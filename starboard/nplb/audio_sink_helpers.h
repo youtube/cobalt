@@ -91,14 +91,22 @@ class AudioSinkTestEnvironment {
                             int* offset_in_frames,
                             bool* is_playing,
                             bool* is_eos_reached);
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  void OnConsumeFrames(int frames_consumed, SbTime frames_consumed_at);
+#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void OnConsumeFrames(int frames_consumed);
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
                                      int* offset_in_frames,
                                      bool* is_playing,
                                      bool* is_eos_reached,
                                      void* context);
-  static void ConsumeFramesFunc(int frames_consumed, void* context);
+  static void ConsumeFramesFunc(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                void* context);
   SbAudioSink sink_;
 
   AudioSinkTestFrameBuffers frame_buffers_;

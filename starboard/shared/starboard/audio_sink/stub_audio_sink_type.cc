@@ -118,7 +118,11 @@ void StubAudioSink::AudioThreadFunc() {
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
       SbThreadSleep(frames_to_consume * kSbTimeSecond / sampling_frequency_hz_);
-      consume_frame_func_(frames_to_consume, context_);
+      consume_frame_func_(frames_to_consume,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                          SbTimeGetMonotonicNow(),
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                          context_);
     } else {
       // Wait for five millisecond if we are paused.
       SbThreadSleep(kSbTimeMillisecond * 5);
