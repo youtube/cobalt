@@ -28,12 +28,9 @@ import java.nio.ByteBuffer;
 public class AudioTrackBridge {
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
-  private int maxFramePositionSoFar = 0;
-  private int sampleRate = 0;
+  private long maxFramePositionSoFar = 0;
 
   public AudioTrackBridge(int sampleType, int sampleRate, int channelCount) {
-    this.sampleRate = sampleRate;
-
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -119,34 +116,29 @@ public class AudioTrackBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  private int getFramePosition() {
-    int framePosition;
+  private AudioTimestamp getAudioTimestamp() {
     // TODO: Consider calling with TIMEBASE_MONOTONIC and returning that
     // information to the starboard audio sink.
     if (audioTrack.getTimestamp(audioTimestamp)) {
       // This conversion is safe, as only the lower bits will be set, since we
       // called |getTimestamp| without a timebase.
       // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
-      framePosition = (int) audioTimestamp.framePosition;
-      if (framePosition > 0) {
-        long timeElapsedInNanoSecond = System.nanoTime() - audioTimestamp.nanoTime;
-        long framesElapsed = timeElapsedInNanoSecond * sampleRate / 1000000000;
-        framePosition += (int) framesElapsed;
-      }
+      audioTimestamp.framePosition = (int) audioTimestamp.framePosition;
     } else {
-      // Time stamps aren't available for whatever reason, fall back to
-      // |getPlaybackHeadPosition|.
-      framePosition = audioTrack.getPlaybackHeadPosition();
+      // Time stamps haven't been updated yet, assume playback hasn't started.
+      audioTimestamp.framePosition = 0;
+      audioTimestamp.nanoTime = System.nanoTime();
     }
 
     // TODO: This is required for correctness of the audio sink, because
     // otherwise we would be going back in time. Investigate the impact it has
     // on playback.  All empirical measurements so far suggest that it should
     // be negligible.
-    if (framePosition > maxFramePositionSoFar) {
-      maxFramePositionSoFar = framePosition;
+    if (audioTimestamp.framePosition < maxFramePositionSoFar) {
+      audioTimestamp.framePosition = maxFramePositionSoFar;
     }
+    maxFramePositionSoFar = audioTimestamp.framePosition;
 
-    return maxFramePositionSoFar;
+    return audioTimestamp;
   }
 }

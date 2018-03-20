@@ -101,7 +101,7 @@ class AudioRenderer : public MediaTimeProvider,
   bool consume_frames_called_;
   bool seeking_;
   SbTime seeking_to_time_;
-  SbTime last_time_;
+  SbTime last_media_time_;
   AudioFrameTracker audio_frame_tracker_;
 
   int64_t frames_sent_to_sink_;
@@ -118,7 +118,11 @@ class AudioRenderer : public MediaTimeProvider,
                        int* offset_in_frames,
                        bool* is_playing,
                        bool* is_eos_reached) override;
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
+#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   void ConsumeFrames(int frames_consumed) override;
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
 
@@ -169,6 +173,7 @@ class AudioRenderer : public MediaTimeProvider,
 #if SB_LOG_MEDIA_TIME_STATS
   SbTime system_and_media_time_offset_ = -1;
   SbTime max_offset_difference_ = 0;
+  int64_t total_frames_consumed_ = 0;
 #endif  // SB_LOG_MEDIA_TIME_STATS
 };
 

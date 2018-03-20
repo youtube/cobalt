@@ -81,7 +81,7 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       consume_frames_called_(false),
       seeking_(false),
       seeking_to_time_(0),
-      last_time_(0),
+      last_media_time_(0),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       frames_sent_to_sink_(0),
       pending_decoder_outputs_(0),
@@ -236,7 +236,7 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
     ScopedLock scoped_lock(mutex_);
     eos_state_ = kEOSNotReceived;
     seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
-    last_time_ = seek_to_time;
+    last_media_time_ = seek_to_time;
     seeking_ = true;
   }
 
@@ -280,7 +280,7 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
 
-  SbTime media_sb_time = 0;
+  SbTime media_time = 0;
   SbTimeMonotonic now = -1;
   SbTimeMonotonic elasped_since_last_set = 0;
   int64_t frames_played = 0;
@@ -299,6 +299,10 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
     if (frames_consumed_by_sink_since_last_get_current_time_ > 0) {
       audio_frame_tracker_.RecordPlayedFrames(
           frames_consumed_by_sink_since_last_get_current_time_);
+#if SB_LOG_MEDIA_TIME_STATS
+      total_frames_consumed_ +=
+          frames_consumed_by_sink_since_last_get_current_time_;
+#endif  // SB_LOG_MEDIA_TIME_STATS
       frames_consumed_by_sink_since_last_get_current_time_ = 0;
     }
 
@@ -315,32 +319,35 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames);
-    media_sb_time =
+    media_time =
         seeking_to_time_ + frames_played * kSbTimeSecond / samples_per_second;
-    if (media_sb_time < last_time_) {
-      SB_DLOG(WARNING) << "Audio time runs backwards from " << last_time_
-                       << " to " << media_sb_time;
-      media_sb_time = last_time_;
+    if (media_time < last_media_time_) {
+#if SB_LOG_MEDIA_TIME_STATS
+      SB_LOG(WARNING) << "Audio time runs backwards from " << last_media_time_
+                      << " to " << media_time;
+#endif  // SB_LOG_MEDIA_TIME_STATS
+      media_time = last_media_time_;
     }
-    last_time_ = media_sb_time;
+    last_media_time_ = media_time;
   }
 
 #if SB_LOG_MEDIA_TIME_STATS
   if (system_and_media_time_offset_ < 0 && frames_played > 0) {
-    system_and_media_time_offset_ = now - media_sb_time;
+    system_and_media_time_offset_ = now - media_time;
   }
   if (system_and_media_time_offset_ > 0) {
-    SbTime offset = now - media_sb_time;
+    SbTime offset = now - media_time;
     SbTime diff = std::abs(offset - system_and_media_time_offset_);
     max_offset_difference_ = std::max(diff, max_offset_difference_);
     SB_LOG(ERROR) << "Media time stats: (" << now << "-"
                   << frames_consumed_set_at_ << "=" << elasped_since_last_set
-                  << ") => " << frames_played << " => " << media_sb_time
-                  << "  diff: " << diff << "/" << max_offset_difference_;
+                  << ") + " << total_frames_consumed_ << " => " << frames_played
+                  << " => " << media_time << "  diff: " << diff << "/"
+                  << max_offset_difference_;
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
-  return media_sb_time;
+  return media_time;
 }
 
 void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
@@ -369,27 +376,34 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
   }
 }
 
-void AudioRenderer::ConsumeFrames(int frames_consumed) {
-  // Note that occasionally thread context switch may cause that the time
-  // recorded here is several milliseconds later than the time |frames_consumed|
-  // is recorded.  This causes the audio time to drift as much as the difference
-  // between the two times.
-  // This is usually not a huge issue as:
-  // 1. It happens rarely.
-  // 2. It doesn't accumulate.
-  // 3. It doesn't affect frame presenting even with a 60fps video.
-  // However, if this ever becomes a problem, we can smooth it out over multiple
-  // ConsumeFrames() calls.
-  auto system_time = SbTimeGetMonotonicNow();
+void AudioRenderer::ConsumeFrames(int frames_consumed
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                  ,
+                                  SbTime frames_consumed_at
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                  ) {
+// Note that occasionally thread context switch may cause that the time
+// recorded here is several milliseconds later than the time |frames_consumed|
+// is recorded.  This causes the audio time to drift as much as the difference
+// between the two times.
+// This is usually not a huge issue as:
+// 1. It happens rarely.
+// 2. It doesn't accumulate.
+// 3. It doesn't affect frame presenting even with a 60fps video.
+// However, if this ever becomes a problem, we can smooth it out over multiple
+// ConsumeFrames() calls.
+#if !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  SbTime frames_consumed_at = SbTimeGetMonotonicNow();
+#endif  // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
   ScopedTryLock lock(mutex_);
   if (lock.is_locked()) {
     frames_consumed_on_sink_thread_ += frames_consumed;
 
-    UpdateVariablesOnSinkThread_Locked(system_time);
+    UpdateVariablesOnSinkThread_Locked(frames_consumed_at);
   } else {
     frames_consumed_on_sink_thread_ += frames_consumed;
-    frames_consumed_set_at_on_sink_thread_ = system_time;
+    frames_consumed_set_at_on_sink_thread_ = frames_consumed_at;
   }
 }
 
