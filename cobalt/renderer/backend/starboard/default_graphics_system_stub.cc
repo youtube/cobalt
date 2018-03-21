@@ -19,7 +19,9 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem() {
+scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
+    system_window::SystemWindow* system_window) {
+  UNREFERENCED_PARAMETER(system_window);
   return scoped_ptr<GraphicsSystem>(new GraphicsSystemStub());
 }
 

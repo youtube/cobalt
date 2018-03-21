@@ -27,17 +27,11 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-// Helper function that gets the handle of a system window.
-// Each platform that uses an EGL graphics system must provide an
-// implementation of this function.
-EGLNativeWindowType GetHandleFromSystemWindow(
-    system_window::SystemWindow* system_window);
-
 // Returns a EGL-specific graphics system that is implemented via EGL and
 // OpenGL ES.
 class GraphicsSystemEGL : public GraphicsSystem {
  public:
-  GraphicsSystemEGL();
+  explicit GraphicsSystemEGL(system_window::SystemWindow* system_window);
   ~GraphicsSystemEGL() override;
 
   EGLDisplay GetDisplay() { return display_; }
@@ -55,6 +49,15 @@ class GraphicsSystemEGL : public GraphicsSystem {
  private:
   EGLDisplay display_;
   EGLConfig config_;
+
+  // Track the system window that the precreated window surface is
+  // associated with.
+  system_window::SystemWindow* system_window_;
+
+  // Part of our config selection process involves testing to see if the config
+  // can actually be used to create a surface.  If successful, we store the
+  // created surface to avoid re-creating it when it is needed later.
+  EGLSurface window_surface_;
 
   // A special graphics context which is used exclusively for mapping/unmapping
   // texture memory.
