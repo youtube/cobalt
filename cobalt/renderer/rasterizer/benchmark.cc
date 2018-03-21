@@ -76,9 +76,18 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   // be done.
   base::debug::TraceLog::GetInstance()->SetEnabled(false);
 
+  base::EventDispatcher event_dispatcher;
+  scoped_ptr<SystemWindow> test_system_window;
+  if (output_surface_type == kOutputSurfaceTypeDisplay) {
+    test_system_window.reset(new cobalt::system_window::SystemWindow(
+        &event_dispatcher,
+        cobalt::math::Size(kViewportWidth, kViewportHeight)));
+  }
+
   // Setup our graphics system.
   scoped_ptr<GraphicsSystem> graphics_system =
-      cobalt::renderer::backend::CreateDefaultGraphicsSystem();
+      cobalt::renderer::backend::CreateDefaultGraphicsSystem(
+          test_system_window.get());
   scoped_ptr<GraphicsContext> graphics_context =
       graphics_system->CreateGraphicsContext();
 
@@ -86,14 +95,9 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   scoped_ptr<Rasterizer> rasterizer =
       CreateDefaultRasterizer(graphics_context.get());
 
-  base::EventDispatcher event_dispatcher;
-  scoped_ptr<SystemWindow> test_system_window;
   scoped_ptr<Display> test_display;
   scoped_refptr<RenderTarget> test_surface;
   if (output_surface_type == kOutputSurfaceTypeDisplay) {
-    test_system_window.reset(new cobalt::system_window::SystemWindow(
-        &event_dispatcher,
-        cobalt::math::Size(kViewportWidth, kViewportHeight)));
     test_display = graphics_system->CreateDisplay(test_system_window.get());
     test_surface = test_display->GetRenderTarget();
   } else if (output_surface_type == kOutputSurfaceTypeOffscreen) {

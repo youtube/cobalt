@@ -18,6 +18,7 @@
 #if defined(ENABLE_GLIMP_TRACING)
 #include "base/debug/trace_event.h"
 #endif
+#include "base/optional.h"
 #if defined(GLES3_SUPPORTED)
 #include "cobalt/renderer/backend/egl/texture_data_pbo.h"
 #else
@@ -49,7 +50,81 @@ class GlimpToBaseTraceEventBridge : public glimp::TraceEventImpl {
 GlimpToBaseTraceEventBridge s_glimp_to_base_trace_event_bridge;
 #endif  // #if defined(ENABLE_GLIMP_TRACING)
 
-GraphicsSystemEGL::GraphicsSystemEGL() {
+namespace {
+
+struct ChooseConfigResult {
+  ChooseConfigResult() : window_surface(EGL_NO_SURFACE) {}
+
+  EGLConfig config;
+  // This will be EGL_NO_SURFACE if no window was provided to find a config to
+  // match with.
+  EGLSurface window_surface;
+};
+
+// Returns a config that matches the |attribute_list|.  Optionally,
+// |system_window| can also be provided in which case the config returned will
+// also be guaranteed to match with it, and a EGLSurface will be returned
+// for that window.
+base::optional<ChooseConfigResult> ChooseConfig(
+    EGLDisplay display, EGLint* attribute_list,
+    system_window::SystemWindow* system_window) {
+  if (!system_window) {
+    // If there is no system window provided then this task is much easier,
+    // just return the first config that matches the provided attributes.
+    EGLint num_configs;
+    EGLConfig config;
+    eglChooseConfig(display, attribute_list, &config, 1, &num_configs);
+    DCHECK_GE(1, num_configs);
+
+    if (num_configs == 1) {
+      ChooseConfigResult results;
+      results.config = config;
+      return results;
+    } else {
+      LOG(ERROR) << "Could not find a EGLConfig compatible with the specified "
+                 << "attributes.";
+      return base::nullopt;
+    }
+  }
+
+  // Retrieve *all* configs that match the attribute list, and for each of them
+  // test to see if we can successfully call eglCreateWindowSurface() with them.
+  // Return the first config that succeeds the above test.
+  EGLint num_configs = 0;
+  eglChooseConfig(display, attribute_list, NULL, 0, &num_configs);
+  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  CHECK_LT(0, num_configs);
+
+  scoped_array<EGLConfig> configs(new EGLConfig[num_configs]);
+  eglChooseConfig(display, attribute_list, configs.get(), num_configs,
+                  &num_configs);
+
+  EGLNativeWindowType native_window =
+      (EGLNativeWindowType)(system_window->GetWindowHandle());
+
+  for (EGLint i = 0; i < num_configs; ++i) {
+    EGLSurface surface =
+        eglCreateWindowSurface(display, configs[i], native_window, NULL);
+    if (EGL_SUCCESS == eglGetError()) {
+      // We did it, we found a config that allows us to successfully create
+      // a surface.  Return the config along with the created surface.
+      ChooseConfigResult result;
+      result.config = configs[i];
+      result.window_surface = surface;
+      return result;
+    }
+  }
+
+  // We could not find a config with the provided window, return a failure.
+  LOG(ERROR) << "Could not find a EGLConfig compatible with the specified "
+             << "EGLNativeWindowType object and attributes.";
+  return base::nullopt;
+}
+
+}  // namespace
+
+GraphicsSystemEGL::GraphicsSystemEGL(
+    system_window::SystemWindow* system_window) {
 #if defined(ENABLE_GLIMP_TRACING)
   // If glimp tracing is enabled, hook up glimp trace calls to Chromium's
   // base trace_event calls.
@@ -93,8 +168,8 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
     EGL_NONE
   };
 
-  EGLint num_configs;
-  eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs);
+  base::optional<ChooseConfigResult> choose_config_results =
+      ChooseConfig(display_, attribute_list, system_window);
 
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
   // Try to allow preservation of the frame contents between swap calls --
@@ -102,16 +177,21 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
   DCHECK_EQ(EGL_SURFACE_TYPE, attribute_list[0]);
   EGLint& surface_type_value = attribute_list[1];
 
-  if (eglGetError() != EGL_SUCCESS || num_configs == 0) {
-    // Swap buffer preservation may not be supported. Try to find a config
-    // without the feature.
+  // Swap buffer preservation may not be supported. If we failed to find a
+  // config with the EGL_SWAP_BEHAVIOR_PRESERVED_BIT attribute, try again
+  // without it.
+  if (!choose_config_results) {
     surface_type_value &= ~EGL_SWAP_BEHAVIOR_PRESERVED_BIT;
-    EGL_CALL(
-        eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs));
+    choose_config_results =
+        ChooseConfig(display_, attribute_list, system_window);
   }
 #endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
 
-  DCHECK_EQ(1, num_configs);
+  DCHECK(choose_config_results);
+
+  config_ = choose_config_results->config;
+  system_window_ = system_window;
+  window_surface_ = choose_config_results->window_surface;
 
 #if defined(GLES3_SUPPORTED)
   resource_context_.emplace(display_, config_);
@@ -120,13 +200,29 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 
 GraphicsSystemEGL::~GraphicsSystemEGL() {
   resource_context_ = base::nullopt;
+
+  if (window_surface_ != EGL_NO_SURFACE) {
+    eglDestroySurface(display_, window_surface_);
+  }
+
   eglTerminate(display_);
 }
 
 scoped_ptr<Display> GraphicsSystemEGL::CreateDisplay(
     system_window::SystemWindow* system_window) {
-  EGLNativeWindowType window_handle = GetHandleFromSystemWindow(system_window);
-  return scoped_ptr<Display>(new DisplayEGL(display_, config_, window_handle));
+  EGLSurface surface;
+  if (system_window == system_window_ && window_surface_ != EGL_NO_SURFACE) {
+    // Hand-off our precreated window into the display being created.
+    surface = window_surface_;
+    window_surface_ = EGL_NO_SURFACE;
+  } else {
+    EGLNativeWindowType native_window =
+        (EGLNativeWindowType)(system_window->GetWindowHandle());
+    surface = eglCreateWindowSurface(display_, config_, native_window, NULL);
+    CHECK_EQ(EGL_SUCCESS, eglGetError());
+  }
+
+  return scoped_ptr<Display>(new DisplayEGL(display_, surface));
 }
 
 scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
