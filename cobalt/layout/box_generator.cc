@@ -266,6 +266,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
+    case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
@@ -298,7 +299,6 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
-    default:
       NOTREACHED();
       break;
   }
@@ -579,6 +579,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
+    case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kForwards:
@@ -611,7 +612,6 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
-    default:
       NOTREACHED();
       break;
   }
@@ -727,6 +727,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kEnd:
+      case cssom::KeywordValue::kEquirectangular:
       case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kFixed:
       case cssom::KeywordValue::kForwards:
@@ -760,7 +761,6 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
-      default:
         NOTREACHED();
     }
   }
