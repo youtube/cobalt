@@ -477,10 +477,9 @@ std::string KeywordValue::ToString() const {
       return kUppercaseKeywordName;
     case kVisible:
       return kVisibleKeywordName;
-    default:
-      NOTREACHED();
-      return "";
   }
+  NOTREACHED();
+  return "";
 }
 
 }  // namespace cssom
