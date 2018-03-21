@@ -8,11 +8,15 @@
 
 #include "./huffman.h"
 
-#include <string.h>  /* memcpy, memset */
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+
+#if !defined(STARBOARD)
+#include <string.h>  /* memcpy, memset */
+#else
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
