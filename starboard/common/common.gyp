@@ -40,6 +40,8 @@
         'state_machine.h',
         'thread_collision_warner.cc',
         'thread_collision_warner.h',
+        'thread.cc',
+        'thread.h',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

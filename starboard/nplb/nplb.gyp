@@ -242,6 +242,7 @@
         'thread_local_value_test.cc',
         'thread_set_name_test.cc',
         'thread_sleep_test.cc',
+        'thread_test.cc',
         'thread_yield_test.cc',
         'time_get_monotonic_now_test.cc',
         'time_get_now_test.cc',
