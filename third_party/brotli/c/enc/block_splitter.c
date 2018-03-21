@@ -8,7 +8,11 @@
 
 #include "./block_splitter.h"
 
+#if !defined(STARBOARD)
 #include <string.h>  /* memcpy, memset */
+#else
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include "../common/platform.h"
 #include "./bit_cost.h"

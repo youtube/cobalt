@@ -7,9 +7,15 @@
 /* Simple runner for decode_fuzzer.cc */
 
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdint.h>
+
+#if !defined(STARBOARD)
+#include <stdlib.h>  /* free, malloc */
+#include <string.h>  /* memcpy, memset */
+#else
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 extern "C" void LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
 

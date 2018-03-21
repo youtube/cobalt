@@ -6,7 +6,11 @@
 
 #include "./state.h"
 
+#if !defined(STARBOARD)
 #include <stdlib.h>  /* free, malloc */
+#else
+#include "starboard/client_porting/poem/stdio_poem.h"
+#endif
 
 #include <brotli/types.h>
 #include "./huffman.h"
