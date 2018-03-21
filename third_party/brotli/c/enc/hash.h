@@ -10,7 +10,9 @@
 #ifndef BROTLI_ENC_HASH_H_
 #define BROTLI_ENC_HASH_H_
 
+#if !defined(STARBOARD)
 #include <string.h>  /* memcmp, memset */
+#endif
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
