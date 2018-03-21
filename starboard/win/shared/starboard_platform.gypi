@@ -81,8 +81,6 @@
       '<(DEPTH)/starboard/shared/win32/media_transform.cc',
       '<(DEPTH)/starboard/shared/win32/media_transform.h',
       '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
-      '<(DEPTH)/starboard/shared/win32/simple_thread.cc',
-      '<(DEPTH)/starboard/shared/win32/simple_thread.h',
       '<(DEPTH)/starboard/shared/win32/video_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/video_decoder.h',
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.cc',
@@ -139,7 +137,14 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
     ],
+
+    'win32_shared_misc_files': [
+      '<(DEPTH)/starboard/common/thread.cc',
+      '<(DEPTH)/starboard/common/thread.h',
+    ],
+
     'starboard_platform_dependent_files': [
+      '<@(win32_shared_misc_files)',
       '<@(win32_media_player_files)',
       '<@(win32_shared_drm_files)',
       '<@(win32_shared_media_player_files)',

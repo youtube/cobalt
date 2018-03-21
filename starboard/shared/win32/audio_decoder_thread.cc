@@ -58,7 +58,7 @@ std::vector<DecodedAudioPtr> ReadAllDecodedAudioSamples(
 
 AudioDecoderThread::AudioDecoderThread(AbstractWin32AudioDecoder* decoder_impl,
                                        AudioDecodedCallback* callback)
-    : SimpleThread("AudioDecoderThread"),
+    : Thread("AudioDecoderThread"),
       win32_audio_decoder_(decoder_impl),
       callback_(callback) {
   Start();
