@@ -612,7 +612,7 @@ static int ParseNonListElement(ElementType type, int id, int64_t element_size,
     case SKIP:
       result = element_size;
       break;
-    default:
+    case UNKNOWN:
       DVLOG(1) << "Unhandled ID type " << type;
       return -1;
   }
