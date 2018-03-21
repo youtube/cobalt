@@ -58,7 +58,7 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
   // Load up the platform's default graphics system.
   {
     TRACE_EVENT0("cobalt::renderer", "backend::CreateDefaultGraphicsSystem()");
-    graphics_system_ = backend::CreateDefaultGraphicsSystem();
+    graphics_system_ = backend::CreateDefaultGraphicsSystem(system_window_);
   }
 
   // Create/initialize the display using the system window

@@ -30,9 +30,9 @@ class RenderTarget;
 
 class DisplayEGL : public Display {
  public:
-  // A native window handle is passed in to use as the render target.
-  DisplayEGL(EGLDisplay display, EGLConfig config,
-             EGLNativeWindowType window_handle);
+  // The DisplayEGL is constructed with a EGLSurface created from
+  // a call to eglCreateWindowSurface().
+  DisplayEGL(EGLDisplay display, EGLSurface surface);
 
   scoped_refptr<RenderTarget> GetRenderTarget() override;
 
