@@ -103,7 +103,6 @@ class CascadePrecedence {
       case kImportantAuthor:
       case kImportantOverride:
       case kImportantUserAgent:
-      default:
         NOTREACHED();
     }
   }
