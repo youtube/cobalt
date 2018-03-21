@@ -21,13 +21,9 @@ namespace cobalt {
 namespace renderer {
 namespace backend {
 
-scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem() {
-  return scoped_ptr<GraphicsSystem>(new GraphicsSystemEGL());
-}
-
-EGLNativeWindowType GetHandleFromSystemWindow(
+scoped_ptr<GraphicsSystem> CreateDefaultGraphicsSystem(
     system_window::SystemWindow* system_window) {
-  return (EGLNativeWindowType)(system_window->GetWindowHandle());
+  return scoped_ptr<GraphicsSystem>(new GraphicsSystemEGL(system_window));
 }
 
 }  // namespace backend
