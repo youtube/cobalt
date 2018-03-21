@@ -770,7 +770,7 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
 void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
                                       SbMediaType type,
                                       SbPlayerDecoderState state, int ticket) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::OnDecoderStatus,
@@ -780,7 +780,7 @@ void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
 // static
 void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
                                      SbPlayerState state, int ticket) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerStatus,
                             helper->callback_helper_, player, state, ticket));
@@ -790,7 +790,7 @@ void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
 // static
 void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
                                     SbPlayerError error, const char* message) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerError,
                             helper->callback_helper_, player, error,
@@ -801,7 +801,7 @@ void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
 // static
 void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                                          const void* sample_buffer) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::OnDeallocateSample,
