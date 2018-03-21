@@ -9,7 +9,13 @@
 #ifndef BROTLI_ENC_MEMORY_H_
 #define BROTLI_ENC_MEMORY_H_
 
-#include <string.h>  /* memcpy */
+#if !defined(STARBOARD)
+#include <string.h>  /* memcpy*/
+#define MEMCPY_MEMORY memcpy
+#else
+#include "starboard/memory.h"
+#define MEMCPY_MEMORY SbMemoryCopy
+#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>
@@ -73,7 +79,7 @@ R: requested size
     while (_new_size < (R)) _new_size *= 2;      \
     new_array = BROTLI_ALLOC((M), T, _new_size); \
     if (!BROTLI_IS_OOM(M) && C != 0)             \
-      memcpy(new_array, A, C * sizeof(T));       \
+      MEMCPY_MEMORY(new_array, A, C * sizeof(T));\
     BROTLI_FREE((M), A);                         \
     A = new_array;                               \
     C = _new_size;                               \
@@ -83,5 +89,7 @@ R: requested size
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
+
+#undef MEMCPY_MEMORY
 
 #endif  /* BROTLI_ENC_MEMORY_H_ */

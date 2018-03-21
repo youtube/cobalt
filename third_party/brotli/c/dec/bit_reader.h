@@ -9,7 +9,13 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
-#include <string.h>  /* memcpy */
+#if !defined(STARBOARD)
+#include <string.h>  /* memcpy*/
+#define MEMCPY_BIT_READER memcpy
+#else
+#include "starboard/memory.h"
+#define MEMCPY_BIT_READER SbMemoryCopy
+#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>
@@ -294,7 +300,7 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
     ++dest;
     --num;
   }
-  memcpy(dest, br->next_in, num);
+  MEMCPY_BIT_READER(dest, br->next_in, num);
   br->avail_in -= num;
   br->next_in += num;
 }
@@ -302,5 +308,7 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
+
+#undef MEMCPY_BIT_READER
 
 #endif  /* BROTLI_DEC_BIT_READER_H_ */

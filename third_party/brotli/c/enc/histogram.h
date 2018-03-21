@@ -9,7 +9,9 @@
 #ifndef BROTLI_ENC_HISTOGRAM_H_
 #define BROTLI_ENC_HISTOGRAM_H_
 
+#if !defined(STARBOARD)
 #include <string.h>  /* memset */
+#endif
 
 #include "../common/constants.h"
 #include "../common/platform.h"
