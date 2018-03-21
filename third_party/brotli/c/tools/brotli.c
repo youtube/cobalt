@@ -9,16 +9,23 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+
+#if !defined(STARBOARD)
+#include <stdlib.h>  /* free, malloc */
+#include <string.h>  /* memcpy, memset */
+#else
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include "../common/constants.h"
 #include "../common/version.h"
 #include <brotli/decode.h>
 #include <brotli/encode.h>
+
 
 #if !defined(_WIN32)
 #include <unistd.h>

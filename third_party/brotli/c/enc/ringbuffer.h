@@ -9,7 +9,13 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#include <string.h>  /* memcpy */
+#if !defined(STARBOARD)
+#include <string.h>  /* memcpy*/
+#define MEMCPY_RINGBUFFER memcpy
+#else
+#include "starboard/memory.h"
+#define MEMCPY_RINGBUFFER SbMemoryCopy
+#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>
@@ -77,7 +83,7 @@ static BROTLI_INLINE void RingBufferInitBuffer(
   size_t i;
   if (BROTLI_IS_OOM(m)) return;
   if (rb->data_) {
-    memcpy(new_data, rb->data_,
+    MEMCPY_RINGBUFFER(new_data, rb->data_,
         2 + rb->cur_size_ + kSlackForEightByteHashingEverywhere);
     BROTLI_FREE(m, rb->data_);
   }
@@ -96,7 +102,7 @@ static BROTLI_INLINE void RingBufferWriteTail(
   if (BROTLI_PREDICT_FALSE(masked_pos < rb->tail_size_)) {
     /* Just fill the tail buffer with the beginning data. */
     const size_t p = rb->size_ + masked_pos;
-    memcpy(&rb->buffer_[p], bytes,
+    MEMCPY_RINGBUFFER(&rb->buffer_[p], bytes,
         BROTLI_MIN(size_t, n, rb->tail_size_ - masked_pos));
   }
 }
@@ -114,7 +120,7 @@ static BROTLI_INLINE void RingBufferWrite(
     rb->pos_ = (uint32_t)n;
     RingBufferInitBuffer(m, rb->pos_, rb);
     if (BROTLI_IS_OOM(m)) return;
-    memcpy(rb->buffer_, bytes, n);
+    MEMCPY_RINGBUFFER(rb->buffer_, bytes, n);
     return;
   }
   if (rb->cur_size_ < rb->total_size_) {
@@ -133,14 +139,14 @@ static BROTLI_INLINE void RingBufferWrite(
     RingBufferWriteTail(bytes, n, rb);
     if (BROTLI_PREDICT_TRUE(masked_pos + n <= rb->size_)) {
       /* A single write fits. */
-      memcpy(&rb->buffer_[masked_pos], bytes, n);
+      MEMCPY_RINGBUFFER(&rb->buffer_[masked_pos], bytes, n);
     } else {
       /* Split into two writes.
          Copy into the end of the buffer, including the tail buffer. */
-      memcpy(&rb->buffer_[masked_pos], bytes,
+      MEMCPY_RINGBUFFER(&rb->buffer_[masked_pos], bytes,
              BROTLI_MIN(size_t, n, rb->total_size_ - masked_pos));
       /* Copy into the beginning of the buffer */
-      memcpy(&rb->buffer_[0], bytes + (rb->size_ - masked_pos),
+      MEMCPY_RINGBUFFER(&rb->buffer_[0], bytes + (rb->size_ - masked_pos),
              n - (rb->size_ - masked_pos));
     }
   }
@@ -156,5 +162,7 @@ static BROTLI_INLINE void RingBufferWrite(
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
+
+#undef MEMCPY_RINGBUFFER
 
 #endif  /* BROTLI_ENC_RINGBUFFER_H_ */
