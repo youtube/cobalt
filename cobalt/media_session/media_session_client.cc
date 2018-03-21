@@ -71,7 +71,8 @@ MediaSessionClient::GetAvailableActions() {
       // play from available actions."
       result[kMediaSessionActionPlay] = false;
       break;
-    default:
+    case kMediaSessionPlaybackStateNone:
+    case kMediaSessionPlaybackStatePaused:
       // "Otherwise, remove pause from available actions."
       result[kMediaSessionActionPause] = false;
       break;

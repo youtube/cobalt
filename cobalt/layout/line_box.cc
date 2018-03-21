@@ -496,9 +496,6 @@ void LineBox::BeginEstimateStaticPositionForAbsolutelyPositionedChild(
     case Box::kBlockLevel:
       child_box->SetStaticPositionLeftFromParent(LayoutUnit());
       break;
-    default:
-      NOTREACHED();
-      break;
   }
   child_box->SetStaticPositionTopFromParent(LayoutUnit());
 }

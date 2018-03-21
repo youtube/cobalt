@@ -477,10 +477,10 @@ std::string WebModuleStatTracker::GetEventTypeName(
       return "PointerUp";
     case WebModuleStatTracker::kEventTypeInvalid:
     case WebModuleStatTracker::kNumEventTypes:
-    default:
-      NOTREACHED();
-      return "Invalid";
+      break;
   }
+  NOTREACHED();
+  return "Invalid";
 }
 
 }  // namespace browser
