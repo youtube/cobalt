@@ -141,6 +141,8 @@
     'win32_shared_misc_files': [
       '<(DEPTH)/starboard/common/thread.cc',
       '<(DEPTH)/starboard/common/thread.h',
+      '<(DEPTH)/starboard/shared/starboard/net_log.cc',
+      '<(DEPTH)/starboard/shared/starboard/net_log.h',
     ],
 
     'starboard_platform_dependent_files': [

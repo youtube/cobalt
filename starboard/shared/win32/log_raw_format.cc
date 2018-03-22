@@ -24,13 +24,11 @@ static const int kMaxLogLineChars = 16 * 1024;
 namespace sbwin32 = starboard::shared::win32;
 
 void SbLogRawFormat(const char* format, va_list arguments) {
-  vfprintf(stderr, format, arguments);
-  char log_buffer[kMaxLogLineChars];
-  int result = vsprintf_s(log_buffer, kMaxLogLineChars, format, arguments);
+  char log_buffer[kMaxLogLineChars] = {0};
+  int result = vsprintf_s(log_buffer, kMaxLogLineChars-1, format, arguments);
   if (result > 0) {
-    OutputDebugStringA(log_buffer);
-    sbwin32::WriteToLogFile(log_buffer, result);
+    SbLogRaw(log_buffer);
   } else {
-    OutputDebugStringA("[log line too long]");
+    SbLogRaw("[log line too long]");
   }
 }

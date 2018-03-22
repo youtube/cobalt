@@ -16,9 +16,12 @@
 
 #include <intrin.h>
 
+#include "starboard/shared/starboard/net_log.h"
+
 void SbSystemBreakIntoDebugger() {
   // Note: neither DebugBreak() nor ExitProcess() are valid
   // on some Windows platforms (eg UWP) so we use __debugbreak()
   // instead.
+  starboard::shared::starboard::NetLogFlush();
   __debugbreak();
 }

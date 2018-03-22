@@ -26,24 +26,6 @@
 #include "starboard/types.h"
 
 namespace starboard {
-namespace {
-
-// Adapts an std::function for use in a thread.
-class FunctionThread : public Thread {
- public:
-  FunctionThread(const std::string& name,
-                 std::function<void(Semaphore*)> run_function)
-      : Thread(name), run_function_(run_function) {
-  }
-
-  void Run() override {
-    run_function_(join_sema());
-  }
-
-  std::function<void(Semaphore*)> run_function_;
-};
-
-}  // namespace.
 
 struct Thread::Data {
   std::string name_;
@@ -103,6 +85,10 @@ starboard::Semaphore* Thread::join_sema() {
   return &d_->join_sema_;
 }
 
+starboard::atomic_bool* Thread::joined_bool() {
+  return &d_->join_called_;
+}
+
 void* Thread::ThreadEntryPoint(void* context) {
   Thread* this_ptr = static_cast<Thread*>(context);
   this_ptr->Run();
@@ -116,6 +102,7 @@ void Thread::Join() {
 
   d_->join_called_.store(true);
   d_->join_sema_.Put();
+
   if (!SbThreadJoin(d_->thread_, NULL)) {
     SB_DCHECK(false) << "Could not join thread.";
   }
@@ -123,13 +110,6 @@ void Thread::Join() {
 
 bool Thread::join_called() const {
   return d_->join_called_.load();
-}
-
-scoped_ptr<Thread> Thread::Create(
-    const std::string& thread_name,
-    std::function<void(Semaphore*)> run_function) {
-  scoped_ptr<Thread> out(new FunctionThread(thread_name, run_function));
-  return out.Pass();
 }
 
 }  // namespace starboard

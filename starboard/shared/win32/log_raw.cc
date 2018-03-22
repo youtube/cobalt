@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <windows.h>
 
+#include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/win32/log_file_impl.h"
 #include "starboard/string.h"
 
@@ -27,4 +28,6 @@ void SbLogRaw(const char* message) {
   OutputDebugStringA(message);
   sbwin32::WriteToLogFile(
       message, static_cast<int>(SbStringGetLength(message)));
+
+  starboard::shared::starboard::NetLogWrite(message);
 }
