@@ -58,12 +58,6 @@ class ScriptValue {
   // into the constructor.
   class Reference {
    public:
-    Reference(Wrappable* wrappable, scoped_ptr<ScriptValue> script_value)
-        : owner_(wrappable), referenced_value_(script_value.Pass()) {
-      DCHECK(referenced_value_);
-      referenced_value_->RegisterOwner(owner_);
-    }
-
     Reference(Wrappable* wrappable, const ScriptValue& script_value)
         : owner_(wrappable), referenced_value_(script_value.MakeCopy()) {
       DCHECK(referenced_value_);
@@ -205,8 +199,6 @@ class Handle {
   bool IsEmpty() const { return script_value_ == nullptr; }
 
  private:
-  ScriptValue<T>* script_value_;
-
   void Clear() {
     if (script_value_) {
       script_value_->reference_count_--;
@@ -217,6 +209,8 @@ class Handle {
     }
     script_value_ = nullptr;
   }
+
+  ScriptValue<T>* script_value_;
 };
 
 }  // namespace script
