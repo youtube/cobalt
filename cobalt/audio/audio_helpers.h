@@ -47,7 +47,7 @@ inline size_t GetStarboardSampleTypeSize(SbMediaAudioSampleType sample_type) {
   switch (sample_type) {
     case kSbMediaAudioSampleTypeFloat32:
       return sizeof(float);
-    case kSbMediaAudioSampleTypeInt16:
+    case kSbMediaAudioSampleTypeInt16Deprecated:
       return sizeof(int16);
   }
   NOTREACHED();
@@ -77,7 +77,8 @@ inline SampleType GetPreferredOutputSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSampleTypeFloat32;
   }
-  DCHECK(SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16))
+  DCHECK(SbAudioSinkIsAudioSampleTypeSupported(
+      kSbMediaAudioSampleTypeInt16Deprecated))
       << "At least one starboard audio sample type must be supported if using "
          "starboard media pipeline.";
   return kSampleTypeInt16;
@@ -96,7 +97,7 @@ inline SbMediaAudioSampleType GetPreferredOutputStarboardSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSbMediaAudioSampleTypeFloat32;
   }
-  return kSbMediaAudioSampleTypeInt16;
+  return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 #endif
 
