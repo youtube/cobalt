@@ -45,7 +45,7 @@ class AudioSinkTestFrameBuffers {
 
   int channels() const { return channels_; }
   int bytes_per_frame() const {
-    return sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
+    return sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
   }
   static int frames_per_channel() { return kFramesPerChannel; }
   void** frame_buffers() {
