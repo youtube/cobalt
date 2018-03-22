@@ -35,16 +35,6 @@ class TestRunThread : public Thread {
   atomic_bool finished_;
 };
 
-class TestRunnable {
- public:
-  void Run(Semaphore* join_sema) {
-    join_sema->Take();
-    finished_.store(true);
-  }
-
-  atomic_bool finished_;
-};
-
 // Tests the expectation that a thread subclass will have the expected
 // behavior of running the Run() function will execute only after
 // Start(), and will exit on Join().
@@ -62,29 +52,6 @@ TEST(Thread, TestRunThread) {
   test_thread.Join();
   EXPECT_TRUE(test_thread.finished_.load());
   EXPECT_TRUE(test_thread.join_called());
-}
-
-// Tests that the Thread::Create() will transform a std::function into a
-// Thread.
-TEST(Thread, TestThreadCreate) {
-  TestRunnable obj;
-
-  std::function<void(Semaphore*)> callback =
-      std::bind(&TestRunnable::Run,
-                &obj,
-                std::placeholders::_1);
-
-  scoped_ptr<Thread> test_thread = Thread::Create("TestThread", callback);
-  EXPECT_FALSE(obj.finished_.load());
-  EXPECT_FALSE(test_thread->join_called());
-
-  test_thread->Start();
-  EXPECT_FALSE(obj.finished_.load());
-  EXPECT_FALSE(test_thread->join_called());
-
-  test_thread->Join();
-  EXPECT_TRUE(obj.finished_.load());
-  EXPECT_TRUE(test_thread->join_called());
 }
 
 }  // namespace.
