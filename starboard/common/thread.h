@@ -28,6 +28,7 @@
 namespace starboard {
 
 class Semaphore;
+class atomic_bool;
 
 class Thread {
  public:
@@ -39,21 +40,6 @@ class Thread {
     SbThreadPriority priority_;
     bool joinable = true;
   };
-
-  // Convenience function to create a Thread from the given
-  // run function. The run function will be passed the join
-  // semaphore, which will have Put() invoked once when join
-  // is called.
-  // Thread starts out in a stopped state.
-  // Example:
-  //  std::function<void(Semaphore*)> run_function = ...;
-  //  scoped_ptr<Thread> thread = CreateNewThread("MyThread", run_function);
-  //  thread->Start();
-  //  ...
-  //  thread->Join();
-  static scoped_ptr<Thread> Create(
-      const std::string& thread_name,
-      std::function<void(Semaphore*)> run_function);
 
   explicit Thread(const std::string& name);
   virtual ~Thread();
@@ -69,11 +55,12 @@ class Thread {
 
   // Called by the main thread, this will cause Run() to be invoked
   // on another thread.
-  void Start(const Options& options = Options());
-  void Join();
+  virtual void Start(const Options& options = Options());
+  virtual void Join();
   bool join_called() const;
 
  protected:
+  static void* ThreadEntryPoint(void* context);
   static void Sleep(SbTime microseconds);
   static void SleepMilliseconds(int value);
 
@@ -81,9 +68,7 @@ class Thread {
   // Join() was called then return |true|, else |false|.
   bool WaitForJoin(SbTime timeout);
   Semaphore* join_sema();
-
- private:
-  static void* ThreadEntryPoint(void* context);
+  atomic_bool* joined_bool();
 
   struct Data;
   scoped_ptr<Data> d_;
