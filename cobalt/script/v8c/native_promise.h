@@ -184,16 +184,6 @@ inline void ToJSValue(v8::Isolate* isolate,
             out_value);
 }
 
-// Destroys |promise_holder| as soon as the conversion is done.
-// This is useful when a wrappable is not interested in retaining a reference
-// to a promise, typically when a promise is resolved or rejected synchronously.
-template <typename T>
-inline void ToJSValue(v8::Isolate* isolate,
-                      scoped_ptr<ScriptValue<Promise<T>>> promise_holder,
-                      v8::Local<v8::Value>* out_value) {
-  ToJSValue(isolate, promise_holder.get(), out_value);
-}
-
 }  // namespace v8c
 }  // namespace script
 }  // namespace cobalt

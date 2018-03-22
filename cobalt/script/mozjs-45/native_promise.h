@@ -171,16 +171,6 @@ inline void ToJSValue(JSContext* context,
             out_value);
 }
 
-// Destroys |promise_holder| as soon as the conversion is done.
-// This is useful when a wrappable is not interested in retaining a reference
-// to a promise, typically when a promise is resolved or rejected synchronously.
-template <typename T>
-inline void ToJSValue(JSContext* context,
-                      scoped_ptr<ScriptValue<Promise<T>>> promise_holder,
-                      JS::MutableHandleValue out_value) {
-  ToJSValue(context, promise_holder.get(), out_value);
-}
-
 }  // namespace mozjs
 }  // namespace script
 }  // namespace cobalt
