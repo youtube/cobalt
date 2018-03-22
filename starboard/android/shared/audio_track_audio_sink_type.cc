@@ -42,7 +42,7 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
   switch (sample_type) {
     case kSbMediaAudioSampleTypeFloat32:
       return sizeof(float);
-    case kSbMediaAudioSampleTypeInt16:
+    case kSbMediaAudioSampleTypeInt16Deprecated:
       return sizeof(int16_t);
   }
   SB_NOTREACHED();
@@ -54,7 +54,7 @@ int GetAudioFormatSampleType(SbMediaAudioSampleType sample_type) {
     case kSbMediaAudioSampleTypeFloat32:
       // Android AudioFormat.ENCODING_PCM_FLOAT.
       return 4;
-    case kSbMediaAudioSampleTypeInt16:
+    case kSbMediaAudioSampleTypeInt16Deprecated:
       // Android AudioFormat.ENCODING_PCM_16BIT.
       return 2;
   }
@@ -163,7 +163,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   j_audio_track_bridge_ = env->ConvertLocalRefToGlobalRef(j_audio_track_bridge);
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     j_audio_data_ = env->NewFloatArray(channels_ * kMaxFramesPerRequest);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
+  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
     j_audio_data_ = env->NewByteArray(channels_ * GetSampleSize(sample_type_) *
                                       kMaxFramesPerRequest);
   } else {
@@ -292,7 +292,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       SB_DCHECK(written >= 0);
       SB_DCHECK(written % channels_ == 0);
       written_frames_ += written / channels_;
-    } else if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
+    } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
       int expected_written_size =
           expected_written_frames * channels_ * GetSampleSize(sample_type_);
       env->SetByteArrayRegion(

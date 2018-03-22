@@ -52,7 +52,7 @@ SbMediaTransferId GetTransferIdFromString(const std::string& eotf) {
 
 int GetBytesPerSample(SbMediaAudioSampleType sample_type) {
   switch (sample_type) {
-    case kSbMediaAudioSampleTypeInt16:
+    case kSbMediaAudioSampleTypeInt16Deprecated:
       return 2;
     case kSbMediaAudioSampleTypeFloat32:
       return 4;

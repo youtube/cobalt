@@ -41,7 +41,7 @@ void ConvertSample(const float* source, int16_t* destination) {
 
 DecodedAudio::DecodedAudio()
     : channels_(0),
-      sample_type_(kSbMediaAudioSampleTypeInt16),
+      sample_type_(kSbMediaAudioSampleTypeInt16Deprecated),
       storage_type_(kSbMediaAudioFrameStorageTypeInterleaved),
       pts_(0),
       size_(0) {}
@@ -60,7 +60,7 @@ DecodedAudio::DecodedAudio(int channels,
 
 int DecodedAudio::frames() const {
   int bytes_per_sample;
-  if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
     bytes_per_sample = 2;
   } else {
     SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeFloat32);
@@ -121,24 +121,24 @@ void DecodedAudio::SwitchFormatTo(
     }                                                                          \
   } while (false)
 
-  if (sample_type_ == kSbMediaAudioSampleTypeInt16 &&
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32 &&
       new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
     SwitchTo(int16_t, Interleaved, float, Planar);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16 &&
+  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
              storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
              new_sample_type == kSbMediaAudioSampleTypeFloat32 &&
              new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
     SwitchTo(int16_t, Planar, float, Interleaved);
   } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
              storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
-             new_sample_type == kSbMediaAudioSampleTypeInt16 &&
+             new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated &&
              new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
     SwitchTo(float, Interleaved, int16_t, Planar);
   } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
              storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
-             new_sample_type == kSbMediaAudioSampleTypeInt16 &&
+             new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated &&
              new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
     SwitchTo(float, Planar, int16_t, Interleaved);
   } else {
@@ -156,7 +156,7 @@ void DecodedAudio::SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type) {
       media::GetBytesPerSample(new_sample_type) * frames() * channels();
   scoped_array<uint8_t> new_buffer(new uint8_t[new_size]);
 
-  if (sample_type_ == kSbMediaAudioSampleTypeInt16 &&
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32) {
     const int16_t* old_samples = reinterpret_cast<int16_t*>(buffer_.get());
     float* new_samples = reinterpret_cast<float*>(new_buffer.get());
@@ -165,7 +165,7 @@ void DecodedAudio::SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type) {
       ConvertSample(old_samples + i, new_samples + i);
     }
   } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
-             new_sample_type == kSbMediaAudioSampleTypeInt16) {
+             new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
     const float* old_samples = reinterpret_cast<float*>(buffer_.get());
     int16_t* new_samples = reinterpret_cast<int16_t*>(new_buffer.get());
 
