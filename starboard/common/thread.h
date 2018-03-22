@@ -32,9 +32,12 @@ class Semaphore;
 class Thread {
  public:
   struct Options {
-    int64_t stack_size = 0;  // Signal for default stack size.
-    SbThreadPriority priority_ = kSbThreadNoPriority;
-    bool joinable = true;    // False - detached (daemon) thread.
+    Options() : stack_size(0),  // Signal for default stack size.
+                priority_(kSbThreadNoPriority),
+                joinable(true) {}
+    int64_t stack_size;
+    SbThreadPriority priority_;
+    bool joinable = true;
   };
 
   // Convenience function to create a Thread from the given
