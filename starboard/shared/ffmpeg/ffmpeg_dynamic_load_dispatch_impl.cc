@@ -68,6 +68,7 @@ class FFMPEGDispatchImpl {
   FFMPEGDispatch* get_ffmpeg_dispatch();
 
  private:
+  SbMutex mutex_;
   FFMPEGDispatch* ffmpeg_;
   // Load the ffmpeg shared libraries, return true if successful.
   bool OpenLibraries();
@@ -87,7 +88,11 @@ void construct_ffmpeg_dispatch_impl() {
 }
 
 FFMPEGDispatchImpl::FFMPEGDispatchImpl()
-    : ffmpeg_(NULL), avcodec_(NULL), avformat_(NULL), avutil_(NULL) {}
+    : mutex_(SB_MUTEX_INITIALIZER),
+      ffmpeg_(NULL),
+      avcodec_(NULL),
+      avformat_(NULL),
+      avutil_(NULL) {}
 
 FFMPEGDispatchImpl::~FFMPEGDispatchImpl() {
   delete ffmpeg_;
@@ -114,19 +119,24 @@ bool FFMPEGDispatchImpl::RegisterSpecialization(int specialization,
                                                 int avcodec,
                                                 int avformat,
                                                 int avutil) {
+  SbMutexAcquire(&mutex_);
   auto result = versions_.insert(std::make_pair(
       specialization, LibraryMajorVersions(avcodec, avformat, avutil)));
-  if (result.second) {
-    return true;
+  bool success = result.second;
+  if (!success) {
+    // Element was not inserted because an entry with the same key already
+    // exists. Registration is still successful if the parameters are the same.
+    const LibraryMajorVersions& existing_versions = result.first->second;
+    success = existing_versions.avcodec == avcodec &&
+              existing_versions.avformat == avformat &&
+              existing_versions.avutil == avutil;
   }
-  // Element was not inserted because an entry with the same key already exists.
-  const LibraryMajorVersions& existing_versions = result.first->second;
-  return existing_versions.avcodec == avcodec &&
-         existing_versions.avformat == avformat &&
-         existing_versions.avutil == avutil;
+  SbMutexRelease(&mutex_);
+  return success;
 }
 
 FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
+  SbMutexAcquire(&mutex_);
   if (!ffmpeg_) {
     ffmpeg_ = new FFMPEGDispatch();
     // Dynamically load the libraries and retrieve the function pointers.
@@ -135,6 +145,7 @@ FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
       ffmpeg_->av_register_all();
     }
   }
+  SbMutexRelease(&mutex_);
   return ffmpeg_;
 }
 
