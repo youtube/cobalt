@@ -55,7 +55,9 @@ class PlatformConfiguration(object):
   Should be derived by platform specific configurations.
   """
 
-  def __init__(self, platform_name, asan_enabled_by_default=False,
+  def __init__(self,
+               platform_name,
+               asan_enabled_by_default=False,
                directory=None):
     self._platform_name = platform_name
     if directory:
@@ -258,8 +260,8 @@ class PlatformConfiguration(object):
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
-    module_path = os.path.abspath(os.path.join(self.GetLauncherPath(),
-                                               'launcher.py'))
+    module_path = os.path.abspath(
+        os.path.join(self.GetLauncherPath(), 'launcher.py'))
     try:
       return imp.load_source('launcher', module_path)
     except (IOError, ImportError, RuntimeError):
