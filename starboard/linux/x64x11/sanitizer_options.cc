@@ -38,6 +38,7 @@ extern "C" void _sanitizer_options_link_helper() { }
 SANITIZER_HOOK_ATTRIBUTE const char* __lsan_default_suppressions() {
   return
       "leak:egl_gallium.so\n"
+      "leak:nvidia\n"
       "leak:libspeechd.so\n";
 }
 
