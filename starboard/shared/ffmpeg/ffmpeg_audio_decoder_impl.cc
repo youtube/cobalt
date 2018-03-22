@@ -32,7 +32,7 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSbMediaAudioSampleTypeFloat32;
   }
-  return kSbMediaAudioSampleTypeInt16;
+  return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
 AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
@@ -217,7 +217,7 @@ SbMediaAudioSampleType AudioDecoderImpl<FFMPEG>::GetSampleType() const {
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
       codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P) {
-    return kSbMediaAudioSampleTypeInt16;
+    return kSbMediaAudioSampleTypeInt16Deprecated;
   } else if (codec_context_->sample_fmt == AV_SAMPLE_FMT_FLT ||
              codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP) {
     return kSbMediaAudioSampleTypeFloat32;
@@ -259,7 +259,7 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
   codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(audio_codec_);
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
-  if (GetSupportedSampleType() == kSbMediaAudioSampleTypeInt16) {
+  if (GetSupportedSampleType() == kSbMediaAudioSampleTypeInt16Deprecated) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
   } else {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
