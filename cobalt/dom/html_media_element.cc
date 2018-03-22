@@ -1718,10 +1718,15 @@ void HTMLMediaElement::DurationChanged() {
 
   ScheduleOwnEvent(base::Tokens::durationchange());
 
-  float now = current_time(NULL);
-  float dur = duration();
-  if (now > dur) {
-    Seek(dur);
+  double now = current_time(NULL);
+  // Reset and update |duration_|.
+  duration_ = std::numeric_limits<double>::quiet_NaN();
+  if (player_ && ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata) {
+    duration_ = player_->GetDuration();
+  }
+
+  if (now > duration_) {
+    Seek(static_cast<float>(duration_));
   }
 
   EndProcessingMediaPlayerCallback();
