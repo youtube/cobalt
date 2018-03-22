@@ -181,13 +181,17 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
   EXPECT_EQ("2", attributes->GetNamedItem("a")->value());
 
   // Make sure that adding another attribute through the element affects
-  // the NamedNodeMap.
+  // the NamedNodeMap. Note that NamedNodeMap does not guarantee order of items.
   element->SetAttribute("b", "2");
   EXPECT_EQ(2, attributes->length());
   EXPECT_EQ("b", attributes->GetNamedItem("b")->name());
   EXPECT_EQ("2", attributes->GetNamedItem("b")->value());
-  EXPECT_EQ("b", attributes->Item(1)->name());
-  EXPECT_EQ("2", attributes->Item(1)->value());
+  if ("b" == attributes->Item(1)->name()) {
+    EXPECT_EQ("2", attributes->Item(1)->value());
+  } else {
+    EXPECT_EQ("b", attributes->Item(0)->name());
+    EXPECT_EQ("2", attributes->Item(0)->value());
+  }
 
   // Make sure that removing an attribute through the element affects
   // the NamedNodeMap.
