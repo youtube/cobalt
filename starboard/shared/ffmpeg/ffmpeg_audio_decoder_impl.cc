@@ -123,12 +123,19 @@ void AudioDecoderImpl<FFMPEG>::Decode(
   int frame_decoded = 0;
   int result = ffmpeg_->avcodec_decode_audio4(codec_context_, av_frame_,
                                               &frame_decoded, &packet);
-  if (result != input_buffer->size() || frame_decoded != 1) {
+  if (result != input_buffer->size()) {
     // TODO: Consider fill it with silence.
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
                      << " with input buffer size: " << input_buffer->size()
                      << " and frame decoded: " << frame_decoded;
     error_cb_();
+    return;
+  }
+
+  if (frame_decoded != 1) {
+    // TODO: Adjust timestamp accordingly when decoding result is shifted.
+    SB_DCHECK(frame_decoded == 0);
+    SB_DLOG(WARNING) << "avcodec_decode_audio4() returns with 0 frames decoded";
     return;
   }
 
