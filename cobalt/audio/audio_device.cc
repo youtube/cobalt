@@ -225,7 +225,7 @@ void AudioDevice::Impl::FillOutputAudioBus() {
   const bool is_input_int16 =
       input_audio_bus_.sample_type() == media::ShellAudioBus::kInt16;
   const bool is_output_int16 =
-      output_sample_type_ == kSbMediaAudioSampleTypeInt16;
+      output_sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated;
 
   if (is_input_int16 && is_output_int16) {
     FillOutputAudioBusForType<int16, int16>();
