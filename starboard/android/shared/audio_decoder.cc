@@ -54,9 +54,9 @@ namespace shared {
 namespace {
 
 SbMediaAudioSampleType GetSupportedSampleType() {
-  SB_DCHECK(
-      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16));
-  return kSbMediaAudioSampleTypeInt16;
+  SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(
+      kSbMediaAudioSampleTypeInt16Deprecated));
+  return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
 void* IncrementPointerByBytes(void* pointer, int offset) {

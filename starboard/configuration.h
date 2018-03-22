@@ -92,8 +92,12 @@
 //   This property was only ever used in platforms using `in_app_dial`.
 //   The only usage of this system property was replaced with a
 //   self-contained mechanism.
-
 #define SB_PROPERTY_UUID_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where kSbMediaAudioSampleTypeInt16 is deprecated.
+//   SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES has to be defined to continue
+//   support int16 audio samples after this version.
+#define SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -614,6 +618,12 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if SB_API_VERSION >= SB_PLAYER_ERROR_MESSAGE_API_VERSION
 #define SB_HAS_PLAYER_ERROR_MESSAGE 1
 #endif
+
+#if SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
+#if !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
+#endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

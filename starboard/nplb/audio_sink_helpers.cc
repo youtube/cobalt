@@ -20,8 +20,9 @@ namespace nplb {
 namespace {
 
 SbMediaAudioSampleType GetAnySupportedSampleType() {
-  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16)) {
-    return kSbMediaAudioSampleTypeInt16;
+  if (SbAudioSinkIsAudioSampleTypeSupported(
+          kSbMediaAudioSampleTypeInt16Deprecated)) {
+    return kSbMediaAudioSampleTypeInt16Deprecated;
   }
   return kSbMediaAudioSampleTypeFloat32;
 }

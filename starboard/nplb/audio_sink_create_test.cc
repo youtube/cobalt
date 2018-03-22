@@ -57,8 +57,9 @@ TEST(SbAudioSinkCreateTest, SunnyDay) {
 
 TEST(SbAudioSinkCreateTest, SunnyDayAllCombinations) {
   std::vector<SbMediaAudioSampleType> sample_types;
-  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16)) {
-    sample_types.push_back(kSbMediaAudioSampleTypeInt16);
+  if (SbAudioSinkIsAudioSampleTypeSupported(
+          kSbMediaAudioSampleTypeInt16Deprecated)) {
+    sample_types.push_back(kSbMediaAudioSampleTypeInt16Deprecated);
   }
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     sample_types.push_back(kSbMediaAudioSampleTypeFloat32);
@@ -142,13 +143,14 @@ TEST(SbAudioSinkCreateTest, RainyDayInvalidFrequency) {
 
 TEST(SbAudioSinkCreateTest, RainyDayInvalidSampleType) {
   SbMediaAudioSampleType invalid_sample_type;
-  if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16)) {
+  if (SbAudioSinkIsAudioSampleTypeSupported(
+          kSbMediaAudioSampleTypeInt16Deprecated)) {
     if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
       return;
     }
     invalid_sample_type = kSbMediaAudioSampleTypeFloat32;
   } else {
-    invalid_sample_type = kSbMediaAudioSampleTypeInt16;
+    invalid_sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
   }
 
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels(),
