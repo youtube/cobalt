@@ -59,7 +59,7 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
   switch (sample_type) {
     case kSbMediaAudioSampleTypeFloat32:
       return sizeof(float);
-    case kSbMediaAudioSampleTypeInt16:
+    case kSbMediaAudioSampleTypeInt16Deprecated:
       return sizeof(int16_t);
   }
   SB_NOTREACHED();

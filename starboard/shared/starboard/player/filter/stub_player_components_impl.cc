@@ -37,9 +37,9 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSbMediaAudioSampleTypeFloat32;
   }
-  SB_DCHECK(
-      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16));
-  return kSbMediaAudioSampleTypeInt16;
+  SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(
+      kSbMediaAudioSampleTypeInt16Deprecated));
+  return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
 }  // namespace
@@ -73,7 +73,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
       SbMediaTime diff = input_buffer->pts() - last_input_buffer_->pts();
       SB_DCHECK(diff >= 0);
       size_t sample_size =
-          GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
+          GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
       size_t size = diff * GetSamplesPerSecond() * sample_size *
                     audio_header_.number_of_channels / kSbMediaTimeSecond;
       size += size % (sample_size * audio_header_.number_of_channels);
@@ -109,7 +109,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
       // 4 times the encoded size.
       size_t fake_size = 4 * last_input_buffer_->size();
       size_t sample_size =
-          GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
+          GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
       fake_size += fake_size % (sample_size * audio_header_.number_of_channels);
 
       decoded_audios_.push(new DecodedAudio(

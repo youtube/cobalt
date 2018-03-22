@@ -51,16 +51,16 @@ class IdentityAudioResampler : public AudioResampler {
 
 // AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate
 // and AudioTimeStretcher can only process float32 samples.  So we try to use
-// kSbMediaAudioSampleTypeFloat32 and only use kSbMediaAudioSampleTypeInt16 when
-// float32 is not supported.  To use kSbMediaAudioSampleTypeFloat32 will cause
-// an extra conversion from float32 to int16 before the samples are sent to the
-// audio sink.
+// kSbMediaAudioSampleTypeFloat32 and only use
+// kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.  To use
+// kSbMediaAudioSampleTypeFloat32 will cause an extra conversion from float32 to
+// int16 before the samples are sent to the audio sink.
 SbMediaAudioSampleType GetSinkAudioSampleType(
     AudioRendererSink* audio_renderer_sink) {
   return audio_renderer_sink->IsAudioSampleTypeSupported(
              kSbMediaAudioSampleTypeFloat32)
              ? kSbMediaAudioSampleTypeFloat32
-             : kSbMediaAudioSampleTypeInt16;
+             : kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
 }  // namespace
