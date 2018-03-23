@@ -10,7 +10,13 @@
 #ifndef WOFF2_BUFFER_H_
 #define WOFF2_BUFFER_H_
 
-#if defined(_WIN32)
+#if defined(STARBOARD)
+#include "starboard/byte_swap.h"
+#define woff2_ntohl(x) SB_NET_TO_HOST_U32(x)
+#define woff2_ntohs(x) SB_NET_TO_HOST_U16(x)
+#define woff2_htonl(x) SB_HOST_TO_NET_U32(x)
+#define woff2_htons(x) SB_HOST_TO_NET_U16(x)
+#elif defined(_WIN32)
 #include <stdlib.h>
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
@@ -20,18 +26,29 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-#define ntohl(x) _byteswap_ulong (x)
-#define ntohs(x) _byteswap_ushort (x)
-#define htonl(x) _byteswap_ulong (x)
-#define htons(x) _byteswap_ushort (x)
+#define woff2_ntohl(x) _byteswap_ulong (x)
+#define woff2_ntohs(x) _byteswap_ushort (x)
+#define woff2_htonl(x) _byteswap_ulong (x)
+#define woff2_htons(x) _byteswap_ushort (x)
 #else
 #include <arpa/inet.h>
 #include <stdint.h>
+#define woff2_ntohl(x) ntohl (x)
+#define woff2_ntohs(x) ntohs (x)
+#define woff2_htonl(x) htonl (x)
+#define woff2_htons(x) htons (x)
+#endif
+
+#if !defined(STARBOARD)
+#include <cstring>
+#define MEMCPY_BUFFER std::memcpy
+#else
+#include "starboard/memory.h"
+#define MEMCPY_BUFFER SbMemoryCopy
 #endif
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <limits>
 
 namespace woff2 {
@@ -75,7 +92,7 @@ class Buffer {
       return FONT_COMPRESSION_FAILURE();
     }
     if (data) {
-      std::memcpy(data, buffer_ + offset_, n_bytes);
+      MEMCPY_BUFFER(data, buffer_ + offset_, n_bytes);
     }
     offset_ += n_bytes;
     return true;
@@ -94,8 +111,8 @@ class Buffer {
     if (offset_ + 2 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint16_t));
-    *value = ntohs(*value);
+    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint16_t));
+    *value = woff2_ntohs(*value);
     offset_ += 2;
     return true;
   }
@@ -119,8 +136,8 @@ class Buffer {
     if (offset_ + 4 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint32_t));
-    *value = ntohl(*value);
+    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint32_t));
+    *value = woff2_ntohl(*value);
     offset_ += 4;
     return true;
   }
@@ -133,7 +150,7 @@ class Buffer {
     if (offset_ + 4 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint32_t));
+    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint32_t));
     offset_ += 4;
     return true;
   }
@@ -142,7 +159,7 @@ class Buffer {
     if (offset_ + 8 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    std::memcpy(value, buffer_ + offset_, sizeof(uint64_t));
+    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint64_t));
     offset_ += 8;
     return true;
   }
@@ -160,5 +177,11 @@ class Buffer {
 };
 
 } // namespace woff2
+
+#undef MEMCPY_BUFFER
+#undef woff2_ntohl
+#undef woff2_ntohs
+#undef woff2_htonl
+#undef woff2_htons
 
 #endif  // WOFF2_BUFFER_H_

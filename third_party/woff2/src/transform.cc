@@ -10,6 +10,12 @@
 
 #include <complex>  // for std::abs
 
+#if !defined(STARBOARD)
+#include <cstring>
+#else
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 #include "./buffer.h"
 #include "./font.h"
 #include "./glyph.h"

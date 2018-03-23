@@ -11,6 +11,12 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#if !defined(STARBOARD)
+#include <cstring>
+#else
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
+
 #include "./buffer.h"
 #include "./port.h"
 #include "./font.h"

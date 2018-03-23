@@ -10,10 +10,15 @@
 
 #include <stdlib.h>
 #include <complex>
-#include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
+
+#if !defined(STARBOARD)
+#include <cstring>
+#else
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include <brotli/encode.h>
 #include "./buffer.h"
