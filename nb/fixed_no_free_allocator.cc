@@ -15,6 +15,9 @@
  */
 
 #include "nb/fixed_no_free_allocator.h"
+
+#include <algorithm>
+
 #include "nb/pointer_arithmetic.h"
 #include "starboard/log.h"
 
@@ -51,6 +54,8 @@ void FixedNoFreeAllocator::PrintAllocations() const {
 void* FixedNoFreeAllocator::Allocate(std::size_t* size,
                                      std::size_t alignment,
                                      bool align_pointer) {
+  *size = std::max<std::size_t>(*size, 1);
+
   // Find the next aligned memory available.
   uint8_t* aligned_next_memory =
       AsPointer(AlignUp(AsInteger(next_memory_), alignment));
