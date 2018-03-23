@@ -106,6 +106,10 @@
 // items on the stack.
 #define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
 
+// This quirk is used to fix an issue caused by the rewriting of memset to
+// SbMemorySet in third_party/protobuf/src/google/protobuf/stubs/port.h.
+#define SB_HAS_QUIRK_MEMSET_IN_SYSTEM_HEADERS 1
+
 // --- Graphics Configuration ------------------------------------------------
 
 // Indicates whether or not the given platform supports rendering of NV12

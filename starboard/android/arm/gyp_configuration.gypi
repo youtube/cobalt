@@ -23,6 +23,10 @@
     'compiler_flags': [
       '-march=armv7-a',
     ],
+    'linker_flags': [
+      # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
+      '-Wl,--exclude-libs,libunwind.a',
+    ]
   },
 
   'target_defaults': {
