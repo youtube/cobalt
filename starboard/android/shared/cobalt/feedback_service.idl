@@ -15,6 +15,7 @@
 // The send feedback report service.
 interface FeedbackService {
   // Send feedback.
-  [RaisesException] void sendFeedback(boolean includeScreenshot, any productSpecificData);
+  [RaisesException] void sendFeedback(any productSpecificData,
+                                      optional ArrayBuffer screenshotContents);
 };
 
