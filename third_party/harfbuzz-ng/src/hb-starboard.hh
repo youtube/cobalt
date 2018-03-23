@@ -26,6 +26,7 @@
 #define hb_free_impl SbMemoryDeallocate
 
 // Micro Posix Emulation
+#undef assert
 #define assert SB_DCHECK
 #define bsearch SbSystemBinarySearch
 #define getenv(x) NULL
