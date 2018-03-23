@@ -56,11 +56,22 @@ inline int Log2Floor(uint32 n) {
     (defined(M_ARM) && (M_ARM == 7)) || \
     defined(__aarch64__) || defined(__ARM64_ARCH_8__) || defined(__i386) || \
     defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
+
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#if SB_IS(BIG_ENDIAN)
+#define WOFF_BIG_ENDIAN
+#else
+#define WOFF_LITTLE_ENDIAN
+#endif
+#else /* not defined STARBOARD */
 #if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 #define WOFF_LITTLE_ENDIAN
 #elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #define WOFF_BIG_ENDIAN
 #endif  /* endianness */
+#endif  /* STARBOARD */
+
 #endif  /* CPU whitelist */
 
 #endif  // WOFF2_PORT_H_
