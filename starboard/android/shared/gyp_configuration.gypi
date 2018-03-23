@@ -31,17 +31,17 @@
     'compiler_flags': [
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
-      # See also build/cmake/android.toolchain.cmake in the Android NDK
-      # Note -DANDROID is an argument to some ifdefs in the NDK's eglplatform.h
-      '-DANDROID',
+
+      # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
       '-ffunction-sections',
       '-funwind-tables',
       '-fstack-protector-strong',
       '-no-canonical-prefixes',
-      '-fno-limit-debug-info',
     ],
     'linker_flags': [
-      # See also build/cmake/android.toolchain.cmake in the Android NDK
+      '-static-libstdc++',
+
+      # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
       '-Wl,--build-id',
       '-Wl,--warn-shared-textrel',
       '-Wl,--fatal-warnings',
@@ -78,38 +78,35 @@
       ['clang==1', {
         'common_clang_flags': [
           '-Werror',
+          '-fno-exceptions',
           '-fcolor-diagnostics',
+          '-fno-strict-aliasing',  # See http://crbug.com/32204
           # Default visibility to hidden, to enable dead stripping.
           '-fvisibility=hidden',
           # Warn for implicit type conversions that may change a value.
           '-Wconversion',
-          '-Wno-c++11-compat',
-          # This (rightfully) complains about 'override', which we use
-          # heavily.
-          '-Wno-c++11-extensions',
-          # Warns on switches on enums that cover all enum values but
-          # also contain a default: branch. Chrome is full of that.
-          '-Wno-covered-switch-default',
-          # protobuf uses hash_map.
-          '-Wno-deprecated',
-          '-fno-exceptions',
+          # Don't warn about register variables (in base and net)
+          '-Wno-deprecated-register',
+          # Don't warn about deprecated ICU methods (in googleurl and net)
+          '-Wno-deprecated-declarations',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
-          # Do not warn for implicit sign conversions.
+          # Don't warn for implicit sign conversions.
           '-Wno-sign-conversion',
-          '-fno-strict-aliasing',  # See http://crbug.com/32204
-          # TODO(pkasting): In C++11 this is legal, so this should be
-          # removed when we change to that.  (This is also why we don't
-          # bother fixing all these cases today.)
-          '-Wno-unnamed-type-template-args',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
-          # Do not warn if a function or variable cannot be implicitly
+          # Don't warn if a function or variable cannot be implicitly
           # instantiated.
           '-Wno-undefined-var-template',
-          '-Wno-tautological-compare',
+          # Don't warn about DCHECKs comparing against max int in mozjs-45.
           '-Wno-tautological-constant-out-of-range-compare',
+          # Don't warn about comparing unsigned value < 0 in mozjs-45.
+          '-Wno-tautological-compare',
+          # Don't warn about undefined inlines in mozjs-45.
           '-Wno-undefined-inline',
+
+          # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
+          '-fno-limit-debug-info',
         ],
       }],
       ['cobalt_fastbuild==0', {
@@ -126,28 +123,6 @@
           '-gline-tables-only',
         ],
       }],
-      ['use_asan==0', {
-        'linker_flags': [
-          # We don't wrap these symbols, but this ensures that they aren't
-          # linked in. We do have to allow them to linked in when using ASAN, as
-          # it needs to use its own version of these allocators in the Starboard
-          # implementation.
-          '-Wl,--wrap=calloc',
-          '-Wl,--wrap=reallocalign',
-          '-Wl,--wrap=strdup',
-          '-Wl,--wrap=malloc_usable_size',
-          '-Wl,--wrap=malloc_stats_fast',
-
-          # The starboard iso/posix memory implementation calls the real methods.
-          #'-Wl,--wrap=malloc',
-          #'-Wl,--wrap=realloc',
-          #'-Wl,--wrap=memalign',
-          #'-Wl,--wrap=free',
-
-          # The NDK libstdc++ uses cxa_demangle() in vterminate.cc.
-          #'-Wl,--wrap=__cxa_demangle',
-        ],
-      }],
     ],
   },
 
@@ -160,22 +135,21 @@
       '_GNU_SOURCE=1',
       # Enable compile-time decisions based on the ABI
       'ANDROID_ABI=<(ANDROID_ABI)',
+      # Note -DANDROID is an argument to some ifdefs in the NDK's eglplatform.h
+      'ANDROID',
+      # Undefining __linux__ causes the system headers to make wrong
+      # assumptions about which C-library is used on the platform.
+      '__BIONIC__',
+      # Undefining __linux__ leaves libc++ without a threads implementation.
+      # TODO: See if there's a way to make libcpp threading use Starboard.
+      '_LIBCPP_HAS_THREAD_API_PTHREAD',
     ],
     'cflags': [
       # libwebp uses the cpufeatures library to detect ARM NEON support
       '-I<(NDK_HOME)/sources/android/cpufeatures',
     ],
-    'cflags_c': [
-      # Limit to C99. This allows Linux to be a canary build for any
-      # C11 features that are not supported on some platforms' compilers.
-      '-std=c99',
-    ],
     'cflags_cc': [
-      '-std=gnu++11',
-    ],
-    'ldflags': [
-      # TODO: Figure out how to export ANativeActivity_onCreate()
-      '-Wl,-uCobaltActivity_onCreate',
+      '-std=c++11',
     ],
     'target_conditions': [
       ['sb_pedantic_warnings==1', {

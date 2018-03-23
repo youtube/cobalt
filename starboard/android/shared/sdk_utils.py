@@ -328,7 +328,7 @@ def _MaybeMakeToolchain(abi):
                              'make_standalone_toolchain.py')
   args = [
       script_path, '--arch', tools_arch, '--api', _ANDROID_NDK_API_LEVEL,
-      '--install-dir', tools_path
+      '--stl', 'libc++', '--install-dir', tools_path
   ]
   script_proc = subprocess.Popen(args)
   rc = script_proc.wait()
