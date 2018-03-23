@@ -122,7 +122,11 @@ void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   base::Thread::Options thread_options;
   thread_options.message_loop_type = MessageLoop::TYPE_IO;
   thread_options.stack_size = 256 * 1024;
-  thread_options.priority = base::kThreadPriority_High;
+  // It was found that setting the thread priority here to high could result
+  // in an increase in unresponsiveness and input latency on single-core
+  // devices.  Keeping it at normal so that it doesn't take precedence over
+  // user interaction processing.
+  thread_options.priority = base::kThreadPriority_Normal;
   thread_->StartWithOptions(thread_options);
 
   base::WaitableEvent creation_event(true, false);
