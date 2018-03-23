@@ -21,6 +21,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.util.Log;
@@ -338,8 +340,15 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void sendFeedback(HashMap<String, String> productSpecificData) {
-    feedbackService.sendFeedback(productSpecificData);
+  void sendFeedback(HashMap<String, String> productSpecificData, byte[] screenshotData) {
+    Bitmap screenshotBitmap = null;
+    if ((screenshotData != null) && (screenshotData.length > 0)) {
+      screenshotBitmap = BitmapFactory.decodeByteArray(screenshotData, 0, screenshotData.length);
+      if (screenshotBitmap == null) {
+        Log.e(TAG, "Unable to decode a screenshot from the data.");
+      }
+    }
+    feedbackService.sendFeedback(productSpecificData, screenshotBitmap);
   }
 
   @SuppressWarnings("unused")

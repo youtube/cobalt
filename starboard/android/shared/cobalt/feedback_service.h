@@ -15,6 +15,7 @@
 #ifndef STARBOARD_ANDROID_SHARED_COBALT_FEEDBACK_SERVICE_H_
 #define STARBOARD_ANDROID_SHARED_COBALT_FEEDBACK_SERVICE_H_
 
+#include "cobalt/dom/array_buffer.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
@@ -24,16 +25,18 @@ namespace webapi_extension {
 
 class FeedbackService : public ::cobalt::script::Wrappable {
  public:
-  FeedbackService();
-
-  void SendFeedback(bool include_screenshot,
-                    const script::ValueHandleHolder& product_specific_data,
+  void SendFeedback(const script::ValueHandleHolder& product_specific_data,
                     script::ExceptionState* exception_state);
 
-  DEFINE_WRAPPABLE_TYPE(FeedbackService);
+  void SendFeedback(const script::ValueHandleHolder& product_specific_data,
+                    const scoped_refptr<dom::ArrayBuffer>& screenshot_data,
+                    script::ExceptionState* exception_state);
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(FeedbackService);
+  FeedbackService() = default;
+  FeedbackService(const FeedbackService&) = delete;
+  FeedbackService& operator=(const FeedbackService&) = delete;
+
+  DEFINE_WRAPPABLE_TYPE(FeedbackService);
 };
 
 }  // namespace webapi_extension
