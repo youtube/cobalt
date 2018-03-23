@@ -94,31 +94,41 @@ TEST(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
 
   const int kCount = 5;
   TestObject obj[kCount];
-  int32 ids[kCount];
 
   for (int i = 0; i < kCount; i++)
-    ids[i] = map.Add(&obj[i]);
+    map.Add(&obj[i]);
 
+  // IDMap uses a hash_map, which has no predictable iteration order.
+  int32 ids_in_iteration_order[kCount];
+  const TestObject* objs_in_iteration_order[kCount];
   int counter = 0;
+  for (IDMap<TestObject>::const_iterator iter(&map);
+       !iter.IsAtEnd(); iter.Advance()) {
+    ids_in_iteration_order[counter] = iter.GetCurrentKey();
+    objs_in_iteration_order[counter] = iter.GetCurrentValue();
+    counter++;
+  }
+
+  counter = 0;
   for (IDMap<TestObject>::const_iterator iter(&map);
        !iter.IsAtEnd(); iter.Advance()) {
     EXPECT_EQ(1, map.iteration_depth());
 
     switch (counter) {
       case 0:
-        EXPECT_EQ(ids[0], iter.GetCurrentKey());
-        EXPECT_EQ(&obj[0], iter.GetCurrentValue());
-        map.Remove(ids[1]);
+        EXPECT_EQ(ids_in_iteration_order[0], iter.GetCurrentKey());
+        EXPECT_EQ(objs_in_iteration_order[0], iter.GetCurrentValue());
+        map.Remove(ids_in_iteration_order[1]);
         break;
       case 1:
-        EXPECT_EQ(ids[2], iter.GetCurrentKey());
-        EXPECT_EQ(&obj[2], iter.GetCurrentValue());
-        map.Remove(ids[3]);
+        EXPECT_EQ(ids_in_iteration_order[2], iter.GetCurrentKey());
+        EXPECT_EQ(objs_in_iteration_order[2], iter.GetCurrentValue());
+        map.Remove(ids_in_iteration_order[3]);
         break;
       case 2:
-        EXPECT_EQ(ids[4], iter.GetCurrentKey());
-        EXPECT_EQ(&obj[4], iter.GetCurrentValue());
-        map.Remove(ids[0]);
+        EXPECT_EQ(ids_in_iteration_order[4], iter.GetCurrentKey());
+        EXPECT_EQ(objs_in_iteration_order[4], iter.GetCurrentValue());
+        map.Remove(ids_in_iteration_order[0]);
         break;
       default:
         FAIL() << "should not have that many elements";
@@ -189,32 +199,37 @@ TEST(IDMapTest, AssignIterator) {
   EXPECT_EQ(0, map.iteration_depth());
 }
 
-// This test relies on specific ordering of items in a hash map to expect a
-// given ID at a given iteration point.  This is a bad expectation for a
-// hash_map, and one that does not hold on lbshell platforms.  This test
-// should be rewritten.
-#if !defined(__LB_SHELL__) && !defined(OS_STARBOARD)
 TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   IDMap<TestObject> map;
 
   const int kCount = 5;
   TestObject obj[kCount];
-  int32 ids[kCount];
 
   for (int i = 0; i < kCount; i++)
-    ids[i] = map.Add(&obj[i]);
+    map.Add(&obj[i]);
 
+  // IDMap uses a hash_map, which has no predictable iteration order.
   int counter = 0;
+  int32 ids_in_iteration_order[kCount];
+  const TestObject* objs_in_iteration_order[kCount];
+  for (IDMap<TestObject>::const_iterator iter(&map);
+       !iter.IsAtEnd(); iter.Advance()) {
+    ids_in_iteration_order[counter] = iter.GetCurrentKey();
+    objs_in_iteration_order[counter] = iter.GetCurrentValue();
+    counter++;
+  }
+
+  counter = 0;
   for (IDMap<TestObject>::const_iterator iter(&map);
        !iter.IsAtEnd(); iter.Advance()) {
     switch (counter) {
       case 0:
-        EXPECT_EQ(ids[0], iter.GetCurrentKey());
-        EXPECT_EQ(&obj[0], iter.GetCurrentValue());
+        EXPECT_EQ(ids_in_iteration_order[0], iter.GetCurrentKey());
+        EXPECT_EQ(objs_in_iteration_order[0], iter.GetCurrentValue());
         break;
       case 1:
-        EXPECT_EQ(ids[1], iter.GetCurrentKey());
-        EXPECT_EQ(&obj[1], iter.GetCurrentValue());
+        EXPECT_EQ(ids_in_iteration_order[1], iter.GetCurrentKey());
+        EXPECT_EQ(objs_in_iteration_order[1], iter.GetCurrentValue());
         map.Clear();
         EXPECT_TRUE(map.IsEmpty());
         EXPECT_EQ(0U, map.size());
@@ -229,7 +244,6 @@ TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   EXPECT_TRUE(map.IsEmpty());
   EXPECT_EQ(0U, map.size());
 }
-#endif
 
 TEST(IDMapTest, OwningPointersDeletesThemOnRemove) {
   const int kCount = 3;
