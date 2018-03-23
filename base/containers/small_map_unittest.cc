@@ -137,31 +137,22 @@ TEST(SmallMap, CopyConstructor) {
   }
 }
 
-template<class inner>
-static void SmallMapToMap(SmallMap<inner> const& src, inner* dest) {
+template <class inner>
+static bool SmallMapIsSubset(SmallMap<inner> const& a,
+                             SmallMap<inner> const& b) {
   typename SmallMap<inner>::const_iterator it;
-  for (it = src.begin(); it != src.end(); ++it) {
-    dest->insert(std::make_pair(it->first, it->second));
-  }
-}
-
-template<class inner>
-static bool SmallMapEqual(SmallMap<inner> const& a,
-                          SmallMap<inner> const& b) {
-  inner ia, ib;
-  SmallMapToMap(a, &ia);
-  SmallMapToMap(b, &ib);
-
-  // On most systems we can use operator== here, but under some lesser STL
-  // implementations it doesn't seem to work. So we manually compare.
-  if (ia.size() != ib.size())
-    return false;
-  for (typename inner::iterator ia_it = ia.begin(), ib_it = ib.begin();
-       ia_it != ia.end(); ++ia_it, ++ib_it) {
-    if (*ia_it != *ib_it)
+  for (it = a.begin(); it != a.end(); ++it) {
+    typename SmallMap<inner>::const_iterator it_in_b = b.find(it->first);
+    if (it_in_b == b.end() || it_in_b->second != it->second)
       return false;
   }
   return true;
+}
+
+template <class inner>
+static bool SmallMapEqual(SmallMap<inner> const& a,
+                          SmallMap<inner> const& b) {
+  return SmallMapIsSubset(a, b) && SmallMapIsSubset(b, a);
 }
 
 TEST(SmallMap, AssignmentOperator) {
