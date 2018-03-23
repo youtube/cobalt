@@ -8,7 +8,12 @@
 
 #include "./glyph.h"
 
+#if !defined(STARBOARD)
 #include <stdlib.h>
+#else
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include <limits>
 #include "./buffer.h"
 #include "./store_bytes.h"
@@ -312,14 +317,14 @@ bool StorePoints(const Glyph& glyph, size_t* offset,
       if (dx == 0) {
         // pass
       } else if (dx > -256 && dx < 256) {
-        dst[x_offset++] = std::abs(dx);
+        dst[x_offset++] = abs(dx);
       } else {
         Store16(dx, &x_offset, dst);
       }
       if (dy == 0) {
         // pass
       } else if (dy > -256 && dy < 256) {
-        dst[y_offset++] = std::abs(dy);
+        dst[y_offset++] = abs(dy);
       } else {
         Store16(dy, &y_offset, dst);
       }
