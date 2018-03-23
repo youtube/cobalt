@@ -14,6 +14,7 @@
 
 package dev.cobalt.feedback;
 
+import android.graphics.Bitmap;
 import dev.cobalt.util.UsedByNative;
 import java.util.HashMap;
 
@@ -26,5 +27,5 @@ public interface FeedbackService {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  void sendFeedback(HashMap<String, String> productSpecificData);
+  void sendFeedback(HashMap<String, String> productSpecificData, Bitmap screenshot);
 }

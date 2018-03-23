@@ -22,27 +22,32 @@
 namespace cobalt {
 namespace webapi_extension {
 
-FeedbackService::FeedbackService() = default;
-
 void FeedbackService::SendFeedback(
-    bool include_screenshot,
     const script::ValueHandleHolder& product_specific_data,
     script::ExceptionState* exception_state) {
+  static const scoped_refptr<dom::ArrayBuffer> kEmptyArrayBuffer;
+  SendFeedback(product_specific_data, kEmptyArrayBuffer, exception_state);
+}
+
+void FeedbackService::SendFeedback(
+    const script::ValueHandleHolder& product_specific_data,
+    const scoped_refptr<dom::ArrayBuffer>& screenshot_data,
+    script::ExceptionState* exception_state) {
+  using starboard::android::shared::ScopedLocalJavaRef;
+  using starboard::android::shared::JniEnvExt;
+
   std::unordered_map<std::string, std::string> product_specific_data_map =
       script::ConvertSimpleObjectToMap(product_specific_data, exception_state);
 
-  // TODO: Incorporate the screenshot.
-
   // Convert the unordered map of product specific data to a hashmap in JNI.
-  starboard::android::shared::JniEnvExt* env =
-      starboard::android::shared::JniEnvExt::Get();
+  JniEnvExt* env = JniEnvExt::Get();
 
-  starboard::android::shared::ScopedLocalJavaRef<jobject>
-      product_specific_data_hash_map(env->NewObjectOrAbort(
-          "java/util/HashMap", "(I)V", product_specific_data_map.size()));
+  ScopedLocalJavaRef<jobject> product_specific_data_hash_map(
+      env->NewObjectOrAbort("java/util/HashMap", "(I)V",
+                            product_specific_data_map.size()));
 
-  starboard::android::shared::ScopedLocalJavaRef<jstring> key;
-  starboard::android::shared::ScopedLocalJavaRef<jstring> value;
+  ScopedLocalJavaRef<jstring> key;
+  ScopedLocalJavaRef<jstring> value;
 
   for (const auto& data : product_specific_data_map) {
     key.Reset(env->NewStringUTF(data.first.c_str()));
@@ -54,8 +59,17 @@ void FeedbackService::SendFeedback(
         value.Get());
   }
 
-  env->CallStarboardVoidMethodOrAbort("sendFeedback", "(Ljava/util/HashMap;)V",
-                                      product_specific_data_hash_map.Get());
+  ScopedLocalJavaRef<jbyteArray> byte_array;
+  if (screenshot_data) {
+    byte_array.Reset(env->NewByteArrayFromRaw(
+        reinterpret_cast<const jbyte*>(screenshot_data->data()),
+        screenshot_data->byte_length()));
+    env->AbortOnException();
+  }
+
+  env->CallStarboardVoidMethodOrAbort(
+      "sendFeedback", "(Ljava/util/HashMap;[B)V",
+      product_specific_data_hash_map.Get(), byte_array.Get());
 }
 
 }  // namespace webapi_extension

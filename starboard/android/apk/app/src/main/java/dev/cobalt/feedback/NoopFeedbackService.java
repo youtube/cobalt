@@ -16,6 +16,7 @@ package dev.cobalt.feedback;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.graphics.Bitmap;
 import android.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.HashMap;
@@ -25,10 +26,13 @@ public class NoopFeedbackService implements FeedbackService {
   @Override
   @SuppressWarnings("unused")
   @UsedByNative
-  public void sendFeedback(HashMap<String, String> productSpecificData) {
+  public void sendFeedback(HashMap<String, String> productSpecificData, Bitmap screenshot) {
     Log.i(TAG, "Feedback product specific data:");
     for (String key : productSpecificData.keySet()) {
       Log.i(TAG, key + ": " + productSpecificData.get(key));
+    }
+    if (screenshot != null) {
+      Log.i(TAG, "Screenshot dimensions: " + screenshot.getWidth() + "x" + screenshot.getHeight());
     }
   }
 }
