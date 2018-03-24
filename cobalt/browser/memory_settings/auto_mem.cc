@@ -35,7 +35,6 @@
 #include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/math/clamp.h"
-#include "nb/lexical_cast.h"
 
 namespace cobalt {
 namespace browser {

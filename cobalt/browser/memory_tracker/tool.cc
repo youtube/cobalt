@@ -20,6 +20,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/string_number_conversions.h"
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
 #include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
@@ -32,7 +33,7 @@
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 
 #include "nb/analytics/memory_tracker_helpers.h"
-#include "nb/lexical_cast.h"
+#include "starboard/double.h"
 #include "starboard/log.h"
 
 namespace cobalt {
@@ -299,8 +300,9 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
     case kStartup: {
       double num_mins = 1.0;
       if (!tool_arg.empty()) {
-        num_mins = nb::lexical_cast<double>(tool_arg.c_str());
-        if ((num_mins > 0) == false) {  // Accounts for NaN.
+        if (!base::StringToDouble(tool_arg, &num_mins) ||
+            SbDoubleIsNan(num_mins) ||
+            num_mins <= 0) {
           num_mins = 1.0;
         }
       }
