@@ -23,9 +23,9 @@
 #include "base/optional.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
+#include "base/string_util.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
-#include "nb/lexical_cast.h"
 
 namespace cobalt {
 namespace browser {
@@ -56,20 +56,10 @@ base::optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
   return output;
 }
 
-char ToLowerCharTypesafe(int c) { return static_cast<char>(::tolower(c)); }
-
-std::string ToLower(const std::string& input) {
-  std::string value_str = input;
-  std::transform(value_str.begin(), value_str.end(), value_str.begin(),
-                 ToLowerCharTypesafe);
-
-  return value_str;
-}
-
 bool StringValueSignalsAutoset(const std::string& value) {
-  std::string value_lower_case = ToLower(value);
-  return ((value_lower_case == "auto") || (value_lower_case == "autoset") ||
-          (value_lower_case == "-1"));
+  return LowerCaseEqualsASCII(value, "auto") ||
+         LowerCaseEqualsASCII(value, "autoset") ||
+         value == "-1";
 }
 
 struct ParsedIntValue {
@@ -83,7 +73,7 @@ struct ParsedIntValue {
 
 // Parses a string like "1234x5678" to vector of parsed int values.
 std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
-  std::string value_str = ToLower(input);
+  std::string value_str = StringToLowerASCII(input);
   std::vector<ParsedIntValue> output;
 
   std::vector<std::string> lengths;
@@ -97,38 +87,36 @@ std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
   return output;
 }
 
-bool StringEndsWith(const std::string& value, const std::string& ending) {
-  if (ending.size() > value.size()) {
-    return false;
-  }
-  // Reverse search through the back of the string.
-  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
-// Handles bytes: "12435"
+// Handles bytes: "12435", "1234B"
 // Handles kilobytes: "128KB"
 // Handles megabytes: "64MB"
 // Handles gigabytes: "1GB"
 // Handles fractional units for kilo/mega/gigabytes
 int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
-  // nb::lexical_cast<> will parse out the number but it will ignore the
-  // unit part, such as "kb" or "mb".
-  double numerical_value = nb::lexical_cast<double>(value, parse_ok);
-  if (!(*parse_ok)) {
-    return static_cast<int64_t>(numerical_value);
+  // Use case-insensitive string comparisons.
+  const bool kIgnoreCase = false;
+
+  // Filter out the decimal portion from any unit designation in the string.
+  std::string number_string;
+  double units = 1.0;
+  if (EndsWith(value, "kb", kIgnoreCase)) {
+    units = 1024.0;
+    number_string = value.substr(0, value.size() - 2);
+  } else if (EndsWith(value, "mb", kIgnoreCase)) {
+    units = 1024.0 * 1024.0;
+    number_string = value.substr(0, value.size() - 2);
+  } else if (EndsWith(value, "gb", kIgnoreCase)) {
+    units = 1024.0 * 1024.0 * 1024.0;
+    number_string = value.substr(0, value.size() - 2);
+  } else if (EndsWith(value, "b", kIgnoreCase)) {
+    number_string = value.substr(0, value.size() - 1);
+  } else {
+    number_string = value;
   }
 
-  // Lowercasing the string makes the units easier to detect.
-  std::string value_lower_case = ToLower(value);
-
-  if (StringEndsWith(value_lower_case, "kb")) {
-    numerical_value *= 1024;  // convert kb -> bytes.
-  } else if (StringEndsWith(value_lower_case, "mb")) {
-    numerical_value *= 1024 * 1024;  // convert mb -> bytes.
-  } else if (StringEndsWith(value_lower_case, "gb")) {
-    numerical_value *= 1024 * 1024 * 1024;  // convert gb -> bytes.
-  }
-  return static_cast<int64_t>(numerical_value);
+  double numerical_value = 0.0;
+  *parse_ok = base::StringToDouble(number_string, &numerical_value);
+  return static_cast<int64_t>(numerical_value * units);
 }
 
 template <typename ValueType>
