@@ -21,6 +21,10 @@
 #include <sanitizer/lsan_interface.h>
 #endif
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -34,6 +38,8 @@ void* AlignedAllocInternal(size_t size, size_t alignment) {
   // posix_memalign is not exposed in some Android versions, so we fall back to
   // memalign. See http://code.google.com/p/android/issues/detail?id=35391.
   ptr = memalign(alignment, size);
+#elif V8_OS_STARBOARD
+  ptr = SbMemoryAllocateAligned(alignment, size);
 #else
   if (posix_memalign(&ptr, alignment, size)) ptr = nullptr;
 #endif

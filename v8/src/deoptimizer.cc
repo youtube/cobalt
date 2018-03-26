@@ -19,6 +19,10 @@
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
 
