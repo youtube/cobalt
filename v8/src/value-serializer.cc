@@ -23,6 +23,10 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
