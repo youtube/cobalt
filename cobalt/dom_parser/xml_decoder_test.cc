@@ -112,10 +112,12 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
   EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
-  EXPECT_EQ("a", element->attributes()->Item(0)->name());
-  EXPECT_EQ("1", element->attributes()->Item(0)->value());
-  EXPECT_EQ("b", element->attributes()->Item(1)->name());
-  EXPECT_EQ("2", element->attributes()->Item(1)->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
+  EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
+  EXPECT_EQ("1", element->attributes()->GetNamedItem("a")->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("b"));
+  EXPECT_EQ("b", element->attributes()->GetNamedItem("b")->name());
+  EXPECT_EQ("2", element->attributes()->GetNamedItem("b")->value());
 }
 
 TEST_F(XMLDecoderTest, TagNamesShouldBeCaseSensitive) {
@@ -150,10 +152,12 @@ TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
   EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
-  EXPECT_EQ("A", element->attributes()->Item(0)->name());
-  EXPECT_EQ("1", element->attributes()->Item(0)->value());
-  EXPECT_EQ("a", element->attributes()->Item(1)->name());
-  EXPECT_EQ("2", element->attributes()->Item(1)->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("A"));
+  EXPECT_EQ("A", element->attributes()->GetNamedItem("A")->name());
+  EXPECT_EQ("1", element->attributes()->GetNamedItem("A")->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
+  EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
+  EXPECT_EQ("2", element->attributes()->GetNamedItem("a")->value());
 }
 
 TEST_F(XMLDecoderTest, CanDealWithFileAttack) {
