@@ -11,6 +11,10 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace platform {
 namespace tracing {

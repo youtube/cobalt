@@ -10,6 +10,10 @@
 
 #include <stdlib.h>
 
+#if V8_OS_STARBOARD
+#include "starboard/memory.h"
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -19,7 +23,11 @@ namespace base {
 // std::unique_ptr<int, base::FreeDeleter> foo_ptr(
 //     static_cast<int*>(malloc(sizeof(int))));
 struct FreeDeleter {
+#if V8_OS_STARBOARD
+  inline void operator()(void* ptr) const { SbMemoryDeallocate(ptr); }
+#else
   inline void operator()(void* ptr) const { free(ptr); }
+#endif
 };
 
 }  // namespace base

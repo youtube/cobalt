@@ -12,6 +12,11 @@
 #include "src/checks.h"
 #include "src/globals.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/string.h"
+#define strlen(s) SbStringGetLength(s)
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -223,5 +228,9 @@ inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
 
 }  // namespace internal
 }  // namespace v8
+
+#if V8_OS_STARBOARD
+#undef strlen
+#endif
 
 #endif  // V8_VECTOR_H_
