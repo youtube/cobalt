@@ -23,6 +23,10 @@
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 #define REPEAT_1_TO_2(V, T) V(T) V(T, T)
 #define REPEAT_1_TO_3(V, T) REPEAT_1_TO_2(V, T) V(T, T, T)
 #define REPEAT_1_TO_4(V, T) REPEAT_1_TO_3(V, T) V(T, T, T, T)

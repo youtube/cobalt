@@ -59,6 +59,10 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
