@@ -34,10 +34,23 @@ class V8_EXPORT_PRIVATE Malloced {
 
 template <typename T>
 T* NewArray(size_t size) {
+#if V8_OS_STARBOARD
+  // operator new is already hooked up to SbMemoryAllocate, which will return
+  // null on failure, so on Starboard we just directly call operator new.
+  // Additionally Starboard platforms do not implement operator
+  // new(size_t, const std::no_throw&), and attempting to implement it seems to
+  // cause everything to break (since we also have exceptions off?).
+  T* result = new T[size];
+#else
   T* result = new (std::nothrow) T[size];
+#endif
   if (result == nullptr) {
     V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
+#if V8_OS_STARBOARD
+    result = new T[size];
+#else
     result = new (std::nothrow) T[size];
+#endif
     if (result == nullptr) FatalProcessOutOfMemory("NewArray");
   }
   return result;

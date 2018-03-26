@@ -15,6 +15,20 @@
 #include "src/base/hashmap-entry.h"
 #include "src/base/logging.h"
 
+#if V8_OS_STARBOARD
+
+#include "starboard/memory.h"
+#include "starboard/string.h"
+
+#define malloc(x) SbMemoryAllocate(x)
+#define realloc(x, y) SbMemoryReallocate(x, y)
+#define free(x) SbMemoryDeallocate(x)
+#define memcpy(x, y, z) SbMemoryCopy(x, y, z)
+#define calloc(x, y) SbMemoryCalloc(x, y)
+#define strdup(s) SbStringDuplicate(s)
+
+#endif  // V8_OS_STARBOARD
+
 namespace v8 {
 namespace base {
 
@@ -498,5 +512,14 @@ class TemplateHashMap
 
 }  // namespace base
 }  // namespace v8
+
+#if V8_OS_STARBOARD
+#undef malloc
+#undef realloc
+#undef free
+#undef memcpy
+#undef calloc
+#undef strdup
+#endif
 
 #endif  // V8_BASE_HASHMAP_H_
