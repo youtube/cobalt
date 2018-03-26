@@ -10,6 +10,30 @@ version previous to it.
 
 ## Version 10
 
+### Add support for multiple versions of ffmpeg
+
+An extra version agnostic ffmpeg dynamic dispatch layer is added in order to
+support multiple different versions of ffmpeg as may appear on user systems.
+
+### Make linux-x64x11 builds use GLX (via Angle) instead of EGL by default
+
+While common Cobalt code still targets EGL/GLES2, we now use Angle on
+linux-x64x11 builds to translate those calls to GLX/GL calls.  Thus, from
+the perspective of the system, linux-x64x11 builds now appear to use
+GLX/GL.  This change was made because GLX/GL was generally found to have
+better desktop support than EGL/GLES2.  The logic for this is added in the
+Starboard [enable_glx_via_angle.gypi](linux/x64x11/enable_glx_via_angle.gypi)
+file.
+
+### Split `base.gypi` into `cobalt_configuration.gypi` and `base_configuration.gypi`
+
+Up until now, both Cobalt-specific build configuration options as well as
+application-independent Starboard build configuration options were mixed
+together within base.gypi.  They have now been split apart, and the application
+independent options have been moved into Starboard under
+[base_configuration.gypi](build/base_configuration.gypi).  The Cobalt-specific
+options have been left in Cobalt, though renamed to `cobalt_configuration.gypi`.
+
 ### Moved `tizen` to `contrib/tizen`.
 
 Please see [contrib/README.md](contrib/README.md) for description of
