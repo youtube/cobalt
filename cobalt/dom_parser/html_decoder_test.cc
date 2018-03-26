@@ -237,14 +237,18 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
   EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(4, element->attributes()->length());
-  EXPECT_EQ("a", element->attributes()->Item(0)->name());
-  EXPECT_EQ("", element->attributes()->Item(0)->value());
-  EXPECT_EQ("b", element->attributes()->Item(1)->name());
-  EXPECT_EQ("2", element->attributes()->Item(1)->value());
-  EXPECT_EQ("c", element->attributes()->Item(2)->name());
-  EXPECT_EQ("", element->attributes()->Item(2)->value());
-  EXPECT_EQ("d", element->attributes()->Item(3)->name());
-  EXPECT_EQ("", element->attributes()->Item(3)->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
+  EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
+  EXPECT_EQ("", element->attributes()->GetNamedItem("a")->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("b"));
+  EXPECT_EQ("b", element->attributes()->GetNamedItem("b")->name());
+  EXPECT_EQ("2", element->attributes()->GetNamedItem("b")->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("c"));
+  EXPECT_EQ("c", element->attributes()->GetNamedItem("c")->name());
+  EXPECT_EQ("", element->attributes()->GetNamedItem("c")->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("d"));
+  EXPECT_EQ("d", element->attributes()->GetNamedItem("d")->name());
+  EXPECT_EQ("", element->attributes()->GetNamedItem("d")->value());
 }
 
 TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
@@ -263,10 +267,12 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
   EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
   EXPECT_EQ(2, element->attributes()->length());
-  EXPECT_EQ("a", element->attributes()->Item(0)->name());
-  EXPECT_EQ("b=2", element->attributes()->Item(0)->value());
-  EXPECT_EQ("c", element->attributes()->Item(1)->name());
-  EXPECT_EQ("", element->attributes()->Item(1)->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
+  EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
+  EXPECT_EQ("b=2", element->attributes()->GetNamedItem("a")->value());
+  ASSERT_NE(nullptr, element->attributes()->GetNamedItem("c"));
+  EXPECT_EQ("c", element->attributes()->GetNamedItem("c")->name());
+  EXPECT_EQ("", element->attributes()->GetNamedItem("c")->value());
 }
 
 TEST_F(HTMLDecoderTest, CanParseSelfClosingTags) {
