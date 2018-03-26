@@ -5,11 +5,11 @@ This document records all notable changes made to Cobalt since the last release.
 ## Version 16
  - **Move test data**
 
- Static test data is now copied to `content/data/test` instead of
- `content/dir_source_root`.  Tests looking for the path to this data should use
- `BasePathKey::DIR_TEST_DATA` instead of `BasePathKey::DIR_SOURCE_ROOT`. Tests
- in Starboard can find the static data in the `test/` subdirectory of
- `kSbSystemPathContentDirectory`.
+   Static test data is now copied to `content/data/test` instead of
+   `content/dir_source_root`.  Tests looking for the path to this data should
+   use `BasePathKey::DIR_TEST_DATA` instead of `BasePathKey::DIR_SOURCE_ROOT`.
+   Tests in Starboard can find the static data in the `test/` subdirectory of
+   `kSbSystemPathContentDirectory`.
 
  - **Add support for cobalt_media_buffer_max_capacity**
 
@@ -24,6 +24,43 @@ This document records all notable changes made to Cobalt since the last release.
    corresponding initial capacities: cobalt_media_buffer_initial_capacity_1080p
    and cobalt_media_buffer_initial_capacity_4k.
 
+- **Fix issue with CSS animations not working with the 'outline' property**
+
+   There was a bug in previous versions that resulted in incorrect behavior when
+   applying a CSS animation or CSS transition to the 'outline' property.  This
+   is fixed now.
+
+- **Change default minimum frame time to 16.0ms instead of 16.4ms.**
+
+   In case a platform can only wait on millisecond resolution, we would prefer
+   that it wait 16ms instead of 17ms, so we round this down.  Many platforms
+   will pace themselves to 16.6ms regardless.
+
+- **Make new rasterizer type "direct-gles" default**
+
+   This is an optimized OpenGLES 2.0 rasterizer that provides a fast path for
+   rendering most of the skia primitives that Cobalt uses.  While it was
+   available since Version 11, it is now polished and set as the default
+   rasterizer.
+
+- **Added support for the fetch and streams Web APIs**
+
+   A subset of ReadableStream and Fetch Web APIs have been implemented. Fetch
+   may be used to get progressive results via a ReadableStream, or the full
+   result can be accessed as text, from the Response class.
+
+- **HTMLMediaElement::loop is supported**
+
+   Now the video plays in a loop if the loop attribute of the video element is
+   set.
+
+- **Add support for MediaDevices.enumerateDevices()**
+
+   It is now possible to enumerate microphone devices from JavaScript via a
+   call to navigator.mediaDevices.enumerateDevices().  This returns a promise
+   of an array of MediaDeviceInfo objects, each partially implemented to have
+   valid `label` and `kind` attributes.
+
 ## Version 14
  - **Add support for document.hasFocus()**
 
@@ -32,9 +69,9 @@ This document records all notable changes made to Cobalt since the last release.
 
  - **Implemented Same Origin Policy and removed navigation whitelist**
 
-   - Added Same Origin Policy and Cross Origin Resource Sharing to vulnerable
-     code areas including XHR, script elements, link elements, style elements,
-     media elements and @font-face CSS rules.
+   - Added Same Origin Policy (SOP) and Cross Origin Resource Sharing (CORS)
+     suport to Cobalt.  In particular, it is added to XHR, script elements,
+     link elements, style elements, media elements and @font-face CSS rules.
    - Removed hardcoded YouTube navigation whitelist in favor of SOP and CSP.
 
 ## Version 12
