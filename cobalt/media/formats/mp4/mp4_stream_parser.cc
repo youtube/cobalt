@@ -618,6 +618,11 @@ bool MP4StreamParser::EnqueueSample(BufferQueueMap* buffers, bool* err) {
       buffer_allocator_, &frame_buf[0], frame_buf.size(), runs_->is_keyframe(),
       buffer_type, runs_->track_id());
 
+  // This causes infinite spinner.
+  if (!stream_buf) {
+    return false;
+  }
+
   if (decrypt_config) stream_buf->set_decrypt_config(decrypt_config.Pass());
 
   stream_buf->set_duration(runs_->duration());

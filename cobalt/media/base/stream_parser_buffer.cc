@@ -19,8 +19,13 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     Allocator* allocator, const uint8_t* data, int data_size, bool is_key_frame,
     Type type, TrackId track_id) {
-  return make_scoped_refptr(new StreamParserBuffer(
-      allocator, data, data_size, is_key_frame, type, track_id));
+  scoped_refptr<StreamParserBuffer> stream_parser_buffer =
+      make_scoped_refptr(new StreamParserBuffer(allocator, data, data_size,
+                                                is_key_frame, type, track_id));
+  if (stream_parser_buffer->has_data()) {
+    return stream_parser_buffer;
+  }
+  return NULL;
 }
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
@@ -56,6 +61,9 @@ StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
     set_duration(kNoTimestamp);
   }
 
+  if (allocations().number_of_buffers() == 0) {
+    return;
+  }
   if (is_key_frame) set_is_key_frame(true);
 }
 

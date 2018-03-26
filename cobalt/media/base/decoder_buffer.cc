@@ -54,8 +54,9 @@ DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
     CHECK_EQ(size, 0u);
     return;
   }
-
-  allocations().Write(0, data, size);
+  if (allocations().number_of_buffers()) {
+    allocations().Write(0, data, size);
+  }
 }
 
 DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
