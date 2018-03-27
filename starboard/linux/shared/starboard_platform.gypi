@@ -344,13 +344,4 @@
       '<(DEPTH)/third_party/libvpx/libvpx.gyp:libvpx',
     ],
   },
-  'conditions': [
-    ['gl_type != "none"', {
-      'target_defaults': {
-        'include_dirs': [
-          '<(DEPTH)/third_party/khronos',
-        ],
-      }
-    }]
-  ],
 }
