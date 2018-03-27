@@ -191,7 +191,8 @@ SoftwareResourceProvider::CreateTypefaceFromRawData(
 
   ots::ExpandingMemoryStream sanitized_data(
       raw_data->size(), render_tree::ResourceProvider::kMaxTypefaceDataSize);
-  if (!ots::Process(&sanitized_data, &((*raw_data)[0]), raw_data->size())) {
+  ots::OTSContext context;
+  if (!context.Process(&sanitized_data, &((*raw_data)[0]), raw_data->size())) {
     *error_string = "OpenType sanitizer unable to process data";
     return NULL;
   }
