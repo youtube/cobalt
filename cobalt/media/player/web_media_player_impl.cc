@@ -107,7 +107,7 @@ typedef base::Callback<void(const std::string&, const std::string&,
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     PipelineWindow window, WebMediaPlayerClient* client,
     WebMediaPlayerDelegate* delegate,
-    DecoderBuffer::Allocator* buffer_allocator,
+    DecoderBuffer::Allocator* buffer_allocator, bool allow_resume_after_suspend,
     const scoped_refptr<MediaLog>& media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
@@ -116,6 +116,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       client_(client),
       delegate_(delegate),
       buffer_allocator_(buffer_allocator),
+      allow_resume_after_suspend_(allow_resume_after_suspend),
       proxy_(new WebMediaPlayerProxy(main_loop_->message_loop_proxy(), this)),
       media_log_(media_log),
       incremented_externally_allocated_memory_(false),
@@ -137,7 +138,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
   pipeline_thread_.Start();
   pipeline_ = Pipeline::Create(window, pipeline_thread_.message_loop_proxy(),
-                               media_log_, video_frame_provider_);
+                               allow_resume_after_suspend_, media_log_,
+                               video_frame_provider_);
 
   // Also we want to be notified of |main_loop_| destruction.
   main_loop_->AddDestructionObserver(this);
