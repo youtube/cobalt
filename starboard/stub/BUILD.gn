@@ -374,6 +374,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/system_request_suspend.cc",
     "//starboard/shared/stub/system_request_unpause.cc",
     "//starboard/shared/stub/system_sort.cc",
+    '//starboard/shared/stub/system_supports_resume.cc',
     "//starboard/shared/stub/system_symbolize.cc",
     "//starboard/shared/stub/thread_create.cc",
     "//starboard/shared/stub/thread_create_local_key.cc",

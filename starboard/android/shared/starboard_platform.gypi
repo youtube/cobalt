@@ -420,6 +420,7 @@
         '<(DEPTH)/starboard/shared/starboard/string_copy_wide.cc',
         '<(DEPTH)/starboard/shared/starboard/string_duplicate.cc',
         '<(DEPTH)/starboard/shared/starboard/system_get_random_uint64.cc',
+        '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
         '<(DEPTH)/starboard/shared/starboard/thread_checker.h',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_create_transformer.cc',
