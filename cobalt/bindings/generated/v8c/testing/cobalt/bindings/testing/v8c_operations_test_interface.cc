@@ -98,6 +98,13 @@ const int kInterfaceUniqueId = 41;
 
 
 
+void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  V8cExceptionState exception(info.GetIsolate());
+  exception.SetSimpleException(
+      script::kTypeError, "OperationsTestInterface is not constructible.");
+}
+
+
 
 
 void longFunctionNoArgsMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -1276,7 +1283,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(
           isolate,
-          nullptr,
+          DummyConstructor,
           v8::Local<v8::Value>(),
           v8::Local<v8::Signature>(),
           0);
