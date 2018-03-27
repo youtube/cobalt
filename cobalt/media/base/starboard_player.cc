@@ -262,7 +262,8 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   DCHECK(SbPlayerIsValid(player_));
 
   ++ticket_;
-  SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
+  SbPlayerSeek(player_, SB_TIME_TO_SB_MEDIA_TIME(time.InMicroseconds()),
+               ticket_);
   seek_pending_ = false;
   SbPlayerSetPlaybackRate(player_, playback_rate_);
 }
@@ -330,13 +331,16 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *video_frames_dropped = info.dropped_video_frames;
   }
   if (media_time) {
-    *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+    *media_time = TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
   }
   if (buffer_start_time) {
-    *buffer_start_time = SbMediaTimeToTimeDelta(info.buffer_start_pts);
+    *buffer_start_time = TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.buffer_start_pts));
   }
   if (buffer_length_time) {
-    *buffer_length_time = SbMediaTimeToTimeDelta(info.buffer_duration_pts);
+    *buffer_length_time = TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.buffer_duration_pts));
   }
   if (frame_width) {
     *frame_width = info.frame_width;
@@ -377,7 +381,8 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *video_frames_dropped = info.dropped_video_frames;
   }
   if (media_time) {
-    *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+    *media_time = base::TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
   }
 }
 
@@ -393,7 +398,8 @@ base::TimeDelta StarboardPlayer::GetDuration() {
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
   DCHECK_NE(info.duration_pts, SB_PLAYER_NO_DURATION);
-  return SbMediaTimeToTimeDelta(info.duration_pts);
+  return base::TimeDelta::FromMicroseconds(
+      SB_MEDIA_TIME_TO_SB_TIME(info.duration_pts));
 }
 
 base::TimeDelta StarboardPlayer::GetStartDate() {
@@ -435,7 +441,8 @@ void StarboardPlayer::Suspend() {
   SbPlayerGetInfo(player_, &info);
   cached_video_frames_decoded_ = info.total_video_frames;
   cached_video_frames_dropped_ = info.dropped_video_frames;
-  preroll_timestamp_ = SbMediaTimeToTimeDelta(info.current_media_pts);
+  preroll_timestamp_ = base::TimeDelta::FromMicroseconds(
+      SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
 
   set_bounds_helper_->SetPlayer(NULL);
   video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
@@ -621,17 +628,18 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
+  SbPlayerWriteSample(
+      player_, DemuxerStreamTypeToSbMediaType(type),
 #if SB_API_VERSION >= 6
-                      allocations.buffers(), allocations.buffer_sizes(),
+      allocations.buffers(), allocations.buffer_sizes(),
 #else   // SB_API_VERSION >= 6
-                      const_cast<const void**>(allocations.buffers()),
-                      const_cast<int*>(allocations.buffer_sizes()),
+      const_cast<const void**>(allocations.buffers()),
+      const_cast<int*>(allocations.buffer_sizes()),
 #endif  // SB_API_VERSION >= 6
-                      allocations.number_of_buffers(),
-                      TimeDeltaToSbMediaTime(buffer->timestamp()),
-                      type == DemuxerStream::VIDEO ? &video_info : NULL,
-                      drm_info.subsample_count > 0 ? &drm_info : NULL);
+      allocations.number_of_buffers(),
+      SB_TIME_TO_SB_MEDIA_TIME(buffer->timestamp().InMicroseconds()),
+      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      drm_info.subsample_count > 0 ? &drm_info : NULL);
 }
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -731,7 +739,9 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }
-    SbPlayerSeek(player_, TimeDeltaToSbMediaTime(preroll_timestamp_), ticket_);
+    SbPlayerSeek(player_,
+                 SB_TIME_TO_SB_MEDIA_TIME(preroll_timestamp_.InMicroseconds()),
+                 ticket_);
     SetVolume(volume_);
     SbPlayerSetPlaybackRate(player_, playback_rate_);
     return;
