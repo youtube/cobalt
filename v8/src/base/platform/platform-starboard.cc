@@ -97,7 +97,7 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 }
 
 double OS::TimeCurrentMillis() {
-  return static_cast<double>(SbTimeGetNow() * 1000);
+  return Time::Now().ToJsTime();
 }
 
 int OS::ActivationFrameAlignment() {
