@@ -73,7 +73,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/third_party/ots/ots.gyp:ots',
       ],
     },
 
