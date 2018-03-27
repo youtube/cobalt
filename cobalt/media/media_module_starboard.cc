@@ -66,7 +66,8 @@ class MediaModuleStarboard : public MediaModule {
       window = system_window_->GetSbWindow();
     }
     return make_scoped_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
-        window, client, this, &decoder_buffer_allocator_, new media::MediaLog));
+        window, client, this, &decoder_buffer_allocator_,
+        options_.allow_resume_after_suspend, new media::MediaLog));
   }
 
   system_window::SystemWindow* system_window() const override {
