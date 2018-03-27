@@ -77,7 +77,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Constructs a media pipeline that will execute on |message_loop|.
   SbPlayerPipeline(PipelineWindow window,
                    const scoped_refptr<base::MessageLoopProxy>& message_loop,
-                   MediaLog* media_log,
+                   bool allow_resume_after_suspend, MediaLog* media_log,
                    VideoFrameProvider* video_frame_provider);
   ~SbPlayerPipeline() override;
 
@@ -164,6 +164,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
+
+  // Whether we should save DecoderBuffers for resume after suspend.
+  const bool allow_resume_after_suspend_;
 
   // The window this player associates with.  It should only be assigned in the
   // dtor and accesed once by SbPlayerCreate().
@@ -254,9 +257,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 SbPlayerPipeline::SbPlayerPipeline(
     PipelineWindow window,
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    MediaLog* media_log, VideoFrameProvider* video_frame_provider)
+    bool allow_resume_after_suspend, MediaLog* media_log,
+    VideoFrameProvider* video_frame_provider)
     : window_(window),
       message_loop_(message_loop),
+      allow_resume_after_suspend_(allow_resume_after_suspend),
       natural_size_(0, 0),
       volume_(1.f),
       playback_rate_(0.f),
@@ -753,7 +758,7 @@ void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
     DLOG(INFO) << "StarboardPlayer created with url: " << source_url;
     player_.reset(new StarboardPlayer(
         message_loop_, source_url, window_, this, set_bounds_helper_.get(),
-        *decode_to_texture_output_mode_,
+        allow_resume_after_suspend_, *decode_to_texture_output_mode_,
         on_encrypted_media_init_data_encountered_cb_, video_frame_provider_));
     SetPlaybackRateTask(playback_rate_);
     SetVolumeTask(volume_);
@@ -828,8 +833,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     base::AutoLock auto_lock(lock_);
     player_.reset(new StarboardPlayer(
         message_loop_, audio_config, video_config, window_, drm_system, this,
-        set_bounds_helper_.get(), *decode_to_texture_output_mode_,
-        video_frame_provider_));
+        set_bounds_helper_.get(), allow_resume_after_suspend_,
+        *decode_to_texture_output_mode_, video_frame_provider_));
     SetPlaybackRateTask(playback_rate_);
     SetVolumeTask(volume_);
   }
@@ -1196,9 +1201,10 @@ void SbPlayerPipeline::ResumeTask(base::WaitableEvent* done_event) {
 scoped_refptr<Pipeline> Pipeline::Create(
     PipelineWindow window,
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
-    MediaLog* media_log, VideoFrameProvider* video_frame_provider) {
-  return new SbPlayerPipeline(window, message_loop, media_log,
-                              video_frame_provider);
+    bool allow_resume_after_suspend, MediaLog* media_log,
+    VideoFrameProvider* video_frame_provider) {
+  return new SbPlayerPipeline(window, message_loop, allow_resume_after_suspend,
+                              media_log, video_frame_provider);
 }
 
 }  // namespace media

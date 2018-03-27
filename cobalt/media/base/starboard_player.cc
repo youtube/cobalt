@@ -85,7 +85,8 @@ void StarboardPlayer::CallbackHelper::ResetPlayer() {
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const std::string& url, SbWindow window, Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture,
+    SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
+    bool prefer_decode_to_texture,
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
     VideoFrameProvider* const video_frame_provider)
@@ -94,16 +95,9 @@ StarboardPlayer::StarboardPlayer(
       callback_helper_(
           new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       window_(window),
-      drm_system_(kSbDrmSystemInvalid),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
-      frame_width_(1),
-      frame_height_(1),
-      ticket_(SB_PLAYER_INITIAL_TICKET),
-      volume_(1.0),
-      playback_rate_(0.0),
-      seek_pending_(false),
-      state_(kPlaying),
+      allow_resume_after_suspend_(allow_resume_after_suspend),
       on_encrypted_media_init_data_encountered_cb_(
           on_encrypted_media_init_data_encountered_cb),
       video_frame_provider_(video_frame_provider) {
@@ -127,7 +121,8 @@ StarboardPlayer::StarboardPlayer(
     const AudioDecoderConfig& audio_config,
     const VideoDecoderConfig& video_config, SbWindow window,
     SbDrmSystem drm_system, Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture,
+    SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
+    bool prefer_decode_to_texture,
     VideoFrameProvider* const video_frame_provider)
     : message_loop_(message_loop),
       callback_helper_(
@@ -138,13 +133,7 @@ StarboardPlayer::StarboardPlayer(
       drm_system_(drm_system),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
-      frame_width_(1),
-      frame_height_(1),
-      ticket_(SB_PLAYER_INITIAL_TICKET),
-      volume_(1.0),
-      playback_rate_(0.0),
-      seek_pending_(false),
-      state_(kPlaying),
+      allow_resume_after_suspend_(allow_resume_after_suspend),
       video_frame_provider_(video_frame_provider) {
   DCHECK(video_config.IsValidConfig());
   DCHECK(host_);
@@ -208,11 +197,16 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(buffer);
 
-  decoder_buffer_cache_.AddBuffer(type, buffer);
+  if (allow_resume_after_suspend_) {
+    decoder_buffer_cache_.AddBuffer(type, buffer);
 
-  if (state_ != kSuspended) {
-    WriteNextBufferFromCache(type);
+    if (state_ != kSuspended) {
+      WriteNextBufferFromCache(type);
+    }
+
+    return;
   }
+  WriteBufferInternal(type, buffer);
 }
 
 #endif  // !SB_HAS(PLAYER_WITH_URL)
@@ -594,6 +588,11 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
 
   DCHECK(SbPlayerIsValid(player_));
 
+  WriteBufferInternal(type, buffer);
+}
+
+void StarboardPlayer::WriteBufferInternal(
+    DemuxerStream::Type type, const scoped_refptr<DecoderBuffer>& buffer) {
   if (buffer->end_of_stream()) {
     SbPlayerWriteEndOfStream(player_, DemuxerStreamTypeToSbMediaType(type));
     return;
