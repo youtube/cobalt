@@ -537,6 +537,7 @@ source_set("starboard_platform") {
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/system_request_suspend.cc",
     "//starboard/shared/starboard/system_request_unpause.cc",
+    '//starboard/shared/starboard/system_supports_resume.cc',
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/accessibility_get_display_settings.cc",
     "//starboard/shared/stub/accessibility_get_text_to_speech_settings.cc",
