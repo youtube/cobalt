@@ -26,8 +26,6 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "third_party/ots/include/opentype-sanitiser.h"
-#include "third_party/ots/include/ots-memory-stream.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -315,19 +313,8 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<Typeface> CreateTypefaceFromRawData(
       scoped_ptr<RawTypefaceDataVector> raw_data,
       std::string* error_string) override {
-    if (raw_data == NULL) {
-      *error_string = "No data to process";
-      return NULL;
-    }
-
-    ots::OTSContext context;
-    ots::ExpandingMemoryStream sanitized_data(
-        raw_data->size(), render_tree::ResourceProvider::kMaxTypefaceDataSize);
-    if (!context.Process(&sanitized_data, &((*raw_data)[0]),
-                         raw_data->size())) {
-      *error_string = "OpenType sanitizer unable to process data";
-      return NULL;
-    }
+    UNREFERENCED_PARAMETER(raw_data);
+    UNREFERENCED_PARAMETER(error_string);
     return make_scoped_refptr(new TypefaceStub(NULL));
   }
 

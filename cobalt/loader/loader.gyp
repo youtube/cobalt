@@ -144,7 +144,6 @@
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        '<(DEPTH)/third_party/ots/ots.gyp:ots',
         'loader',
         'loader_copy_test_data',
         '<@(cobalt_platform_dependencies)',
