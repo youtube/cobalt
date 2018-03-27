@@ -15,6 +15,7 @@
 
 import ConfigParser
 import fcntl
+import hashlib
 import logging
 import os
 import re
@@ -59,7 +60,6 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 # see https://developer.android.com/studio/index.html#command-tools
 _SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
 
-_SCRIPT_CTIME = os.path.getctime(__file__)
 _STARBOARD_TOOLCHAINS_DIR = build.GetToolchainsDir()
 
 # The path to the Android SDK, if placed inside of starboard-toolchains.
@@ -88,6 +88,11 @@ _TOOLS_ABI_ARCH_MAP = {
     'arm64-v8a': 'arm64',
 }
 
+_SCRIPT_HASH_PROPERTY = 'SdkUtils.Hash'
+
+with open(__file__, 'rb') as script:
+  _SCRIPT_HASH = hashlib.md5(script.read()).hexdigest()
+
 
 def GetToolsPath(abi):
   """Returns the path where the NDK standalone toolchain should be."""
@@ -111,8 +116,8 @@ def _CheckStamp(dir_path):
   stamp_path = os.path.join(dir_path, 'ndk.stamp')
   return (
       os.path.exists(stamp_path) and
-      os.path.getctime(stamp_path) > _SCRIPT_CTIME and
-      _GetRevisionFromPropertiesFile(stamp_path) == _GetInstalledNdkRevision())
+      _ReadNdkRevision(stamp_path) == _GetInstalledNdkRevision() and
+      _ReadProperty(stamp_path, _SCRIPT_HASH_PROPERTY) == _SCRIPT_HASH)
 
 
 def _UpdateStamp(dir_path):
@@ -121,6 +126,8 @@ def _UpdateStamp(dir_path):
   properties_path = os.path.join(path, 'source.properties')
   stamp_path = os.path.join(dir_path, 'ndk.stamp')
   shutil.copyfile(properties_path, stamp_path)
+  with open(stamp_path, 'a') as stamp:
+    stamp.write('{} = {}\n'.format(_SCRIPT_HASH_PROPERTY, _SCRIPT_HASH))
 
 
 def GetNdkPath():
@@ -131,12 +138,19 @@ def GetSdkPath():
   return _SDK_PATH
 
 
-def _GetRevisionFromPropertiesFile(properties_path):
+def _ReadNdkRevision(properties_path):
+  return _ReadProperty(properties_path, 'pkg.revision')
+
+
+def _ReadProperty(properties_path, property_key):
   with open(properties_path, 'r') as f:
     ini_str = '[properties]\n' + f.read()
   config = ConfigParser.RawConfigParser()
   config.readfp(StringIO.StringIO(ini_str))
-  return config.get('properties', 'pkg.revision')
+  try:
+    return config.get('properties', property_key)
+  except ConfigParser.NoOptionError:
+    return None
 
 
 def _GetInstalledNdkRevision():
@@ -144,7 +158,7 @@ def _GetInstalledNdkRevision():
   path = GetNdkPath()
   properties_path = os.path.join(path, 'source.properties')
   try:
-    return _GetRevisionFromPropertiesFile(properties_path)
+    return _ReadNdkRevision(properties_path)
   except IOError:
     logging.error("Error: Can't read NDK properties in %s", properties_path)
     sys.exit(1)
@@ -198,6 +212,12 @@ def _MaybeDownloadAndInstallSdkAndNdk():
                       ' which is not automatically updated')
     ndk_revision = _GetInstalledNdkRevision()
     logging.warning('Using Android NDK version %s', ndk_revision)
+
+    if _ANDROID_HOME or _ANDROID_NDK_HOME:
+      reply = raw_input(
+          'Do you want to continue using your custom Android tools? [yN]')
+      if reply.upper() != 'Y':
+        sys.exit(1)
 
   finally:
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_UN)
