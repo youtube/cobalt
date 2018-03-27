@@ -99,6 +99,13 @@
 //   support int16 audio samples after this version.
 #define SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbSystemSupportsResume() is supported.
+//   Platforms doesn't need to resume after suspend can return false in
+//   SbSystemSupportsResume() to free up the resource used by resume after
+//   suspend.
+//   Please see the comment in system.h for more details.
+#define SB_ALLOW_DISABLE_RESUME_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
