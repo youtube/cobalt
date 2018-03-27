@@ -103,6 +103,24 @@ TEST_F(ConstructorBindingsTest, NamedConstructorHasCorrectPrototype) {
   EXPECT_STREQ("true", result.c_str());
 }
 
+TEST_F(ConstructorBindingsTest, IllegalConstructorThrows) {
+  const char script[] = R"(
+      let result = null;
+      try {
+        const ngi = new NamedGetterInterface();
+        // Poke at the object a little bit in order to ensure it is actually
+        // backed by a native object.
+        ngi.property;
+      } catch (ex) {
+        result = ex.name;
+      }
+      result;
+  )";
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_STREQ("TypeError", result.c_str());
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt

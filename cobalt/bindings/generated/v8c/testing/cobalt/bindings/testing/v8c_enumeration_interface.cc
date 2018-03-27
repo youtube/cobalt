@@ -114,6 +114,7 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 
+
 void enumPropertyAttributeGetter(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
