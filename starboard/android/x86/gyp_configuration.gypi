@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'target_arch': 'x86',
+    'target_arch': 'ia32',
   },
 
   'target_defaults': {
