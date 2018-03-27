@@ -340,6 +340,7 @@
         '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
         '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
         '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
+        '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
         '<(DEPTH)/starboard/shared/starboard/window_set_default_options.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
