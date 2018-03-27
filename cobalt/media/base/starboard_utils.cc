@@ -90,16 +90,6 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
   return audio_header;
 }
 
-TimeDelta SbMediaTimeToTimeDelta(SbMediaTime timestamp) {
-  return TimeDelta::FromMicroseconds(timestamp * Time::kMicrosecondsPerSecond /
-                                     kSbMediaTimeSecond);
-}
-
-SbMediaTime TimeDeltaToSbMediaTime(TimeDelta timedelta) {
-  return timedelta.InMicroseconds() * kSbMediaTimeSecond /
-         Time::kMicrosecondsPerSecond;
-}
-
 DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type) {
   if (type == kSbMediaTypeAudio) {
     return DemuxerStream::AUDIO;
