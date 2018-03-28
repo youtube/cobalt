@@ -138,6 +138,9 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
       const scoped_refptr<SourceCode>& source_code, bool mute_errors);
 
+  void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
+                              const char* filename);
+
   // Evaluates any automatically included Javascript for the environment.
   void EvaluateAutomatics();
 
