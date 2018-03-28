@@ -189,5 +189,9 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
   return make_scoped_ptr<JavaScriptEngine>(new v8c::V8cEngine(options));
 }
 
+std::string GetJavaScriptEngineNameAndVersion() {
+  return std::string("V8/") + v8::V8::GetVersion();
+}
+
 }  // namespace script
 }  // namespace cobalt

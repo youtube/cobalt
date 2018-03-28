@@ -89,6 +89,7 @@ class UserAgentStringFactoryWithPlatformInfo : public UserAgentStringFactory {
     platform_info_->network_operator = "Aperture_Science_Innovators";
     platform_info_->device_type = PlatformInfo::kOverTheTopBox;
     platform_info_->chipset_model_number = "P-body/Orange_Atlas/Blue";
+    platform_info_->model_year = "2013";
     platform_info_->firmware_version = "0,01";
     platform_info_->brand = "Aperture Science (Labs)";
     platform_info_->model = "GLaDOS";
@@ -109,6 +110,7 @@ TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
       "Aperture" UNDER "Science" UNDER "Innovators"
       "_OTT_"
       "P-body" SLASH "Orange" UNDER "Atlas" SLASH "Blue"
+      "_2013"
       "/0" COMMA "01 (Aperture Science " LPAREN "Labs" RPAREN ", GLaDOS, )";
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
