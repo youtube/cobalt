@@ -1,30 +1,17 @@
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 {
+  'includes': [
+    'libwebp.gypi'
+  ],
   'targets': [
     {
       'target_name': 'libwebp_dec',
       'type': 'static_library',
-      'dependencies' : [
-        'libwebp_dsp',
-        'libwebp_dsp_neon',
-        'libwebp_utils',
-      ],
       'include_dirs': ['.'],
       'sources': [
-        'dec/alpha.c',
-        'dec/buffer.c',
-        'dec/frame.c',
-        'dec/idec.c',
-        'dec/io.c',
-        'dec/layer.c',
-        'dec/quant.c',
-        'dec/tree.c',
-        'dec/vp8.c',
-        'dec/vp8l.c',
-        'dec/webp.c',
+        '<@(libwebp_dec_sources)',
       ],
     },
     {
@@ -32,23 +19,23 @@
       'type': 'static_library',
       'include_dirs': ['.'],
       'sources': [
-        'demux/demux.c',
+        '<@(libwebp_demux_sources)',
       ],
     },
     {
       'target_name': 'libwebp_dsp',
-      'type': 'static_library',
+      'type' : 'static_library',
       'include_dirs': ['.'],
-      'sources': [
-        'dsp/cpu.c',
-        'dsp/dec.c',
-        'dsp/dec_sse2.c',
-        'dsp/enc.c',
-        'dsp/enc_sse2.c',
-        'dsp/lossless.c',
-        'dsp/upsampling.c',
-        'dsp/upsampling_sse2.c',
-        'dsp/yuv.c',
+      'sources' : [
+        '<@(libwebp_dsp_common_sources)',
+        '<@(libwebp_dsp_enc_sources)',
+      ],
+      'dependencies': [
+        'libwebp_dsp_avx2',
+        'libwebp_dsp_msa',
+        'libwebp_dsp_neon',
+        'libwebp_dsp_sse2',
+        'libwebp_dsp_sse41',
       ],
       'conditions': [
         ['OS == "android"', {
@@ -57,51 +44,95 @@
       ],
     },
     {
-      'target_name': 'libwebp_dsp_neon',
-      'conditions': [
-        ['((target_arch == "arm" and arm_version >= 7) or (target_arch == "arm64"))', {
-          'type': 'static_library',
-          'include_dirs': ['.'],
-          'sources': [
-            'dsp/dec_neon.c',
-            'dsp/enc_neon.c',
-            'dsp/upsampling_neon.c',
-          ],
-          # behavior similar to *.c.neon in an Android.mk
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-mfpu=neon' ],
-        },{  # "target_arch != "arm" or arm_version < 7"
-          'type': 'none',
-        }],
-        ['(target_arch == "arm" and arm_version >= 8) or (target_arch == "arm64")', {
-          # NEON is implicit on ARMv8, and both clang and gcc don't like the
-          # redundant flag.
-          'cflags!': [ '-mfpu=neon' ],
-        }],
+      'target_name': 'libwebp_dsp_avx2',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_avx2_sources)',
       ],
+    },
+    {
+      'target_name': 'libwebp_dsp_decode_msa',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_decode_msa_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_decode_neon',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_decode_neon_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_decode_sse41',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_decode_sse41_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_decode_sse2',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_decode_sse2_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_msa',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_msa_sources)',
+      ],
+      'dependencies': [
+        'libwebp_dsp_decode_msa',
+      ]
+    },
+    {
+      'target_name': 'libwebp_dsp_neon',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_neon_sources)',
+      ],
+      'dependencies': [
+        'libwebp_dsp_decode_neon',
+      ]
+    },
+    {
+      'target_name': 'libwebp_dsp_sse2',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_sse2_sources)',
+      ],
+      'dependencies': [
+        'libwebp_dsp_decode_sse2',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_sse41',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_sse41_sources)',
+      ],
+      'dependencies': [
+        'libwebp_dsp_decode_sse41',
+      ]
     },
     {
       'target_name': 'libwebp_enc',
       'type': 'static_library',
       'include_dirs': ['.'],
       'sources': [
-        'enc/alpha.c',
-        'enc/analysis.c',
-        'enc/backward_references.c',
-        'enc/config.c',
-        'enc/cost.c',
-        'enc/filter.c',
-        'enc/frame.c',
-        'enc/histogram.c',
-        'enc/iterator.c',
-        'enc/layer.c',
-        'enc/picture.c',
-        'enc/quant.c',
-        'enc/syntax.c',
-        'enc/token.c',
-        'enc/tree.c',
-        'enc/vp8l.c',
-        'enc/webpenc.c',
+        '<@(libwebp_enc_sources)',
       ],
     },
     {
@@ -109,17 +140,8 @@
       'type': 'static_library',
       'include_dirs': ['.'],
       'sources': [
-        'utils/bit_reader.c',
-        'utils/bit_writer.c',
-        'utils/color_cache.c',
-        'utils/filters.c',
-        'utils/huffman.c',
-        #'utils/huffman_encode.c',
-        'utils/quant_levels.c',
-        'utils/quant_levels_dec.c',
-        'utils/rescaler.c',
-        'utils/thread.c',
-        'utils/utils.c',
+        '<@(libwebp_utils_common_sources)',
+        '<@(libwebp_utils_enc_sources)',
       ],
     },
     {
@@ -128,9 +150,8 @@
       'dependencies' : [
         'libwebp_dec',
         'libwebp_demux',
-        #'libwebp_dsp',
-        #'libwebp_dsp_neon',
-        #'libwebp_enc',  # Not needed by Cobalt
+        'libwebp_dsp',
+        'libwebp_enc',
         'libwebp_utils',
       ],
       'direct_dependent_settings': {

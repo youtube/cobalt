@@ -30,7 +30,7 @@
 #include "cobalt/loader/image/image.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/resource_provider.h"
-#include "third_party/libwebp/webp/demux.h"
+#include "third_party/libwebp/src/webp/demux.h"
 
 namespace cobalt {
 namespace loader {

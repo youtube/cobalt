@@ -39,8 +39,6 @@ WEBPImageDecoder::WEBPImageDecoder(
   config_.options.no_fancy_upsampling = 1;
   // Don't use multi-threaded decoding.
   config_.options.use_threads = 0;
-  // Discard enhancement layer.
-  config_.options.no_enhancement = 1;
 }
 
 WEBPImageDecoder::~WEBPImageDecoder() {
