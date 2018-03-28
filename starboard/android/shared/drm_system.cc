@@ -77,7 +77,9 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
 
   SB_DCHECK(session_id_elements);
 
-  jsize length = env->GetArrayLength(j_key_status_array);
+  // NULL array indicates key status isn't supported (i.e. Android API < 23)
+  jsize length = (j_key_status_array == NULL) ? 0
+      : env->GetArrayLength(j_key_status_array);
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
