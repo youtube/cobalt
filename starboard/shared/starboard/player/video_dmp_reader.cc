@@ -64,7 +64,8 @@ using std::placeholders::_2;
 VideoDmpReader::VideoDmpReader(const char* filename)
     : reverse_byte_order_(false),
       read_cb_(std::bind(&VideoDmpReader::ReadFromFile, this, _1, _2)) {
-  SB_CHECK(SbFileCanOpen(filename, kSbFileOpenOnly | kSbFileRead));
+  SB_CHECK(SbFileCanOpen(filename, kSbFileOpenOnly | kSbFileRead))
+      << "Can't open " << filename;
   file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   SB_DCHECK(SbFileIsValid(file_));
 
@@ -157,8 +158,7 @@ void VideoDmpReader::Parse() {
 }
 
 VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
-  // TODO: make this read SbTime.
-  SbMediaTime timestamp;
+  SbTime timestamp;
   Read(read_cb_, reverse_byte_order_, &timestamp);
 
   bool drm_sample_info_present;
@@ -174,14 +174,13 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
   std::vector<uint8_t> data(size);
   Read(read_cb_, data.data(), size);
 
-  return AudioAccessUnit(SB_MEDIA_TIME_TO_SB_TIME(timestamp),
+  return AudioAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
                          std::move(data));
 }
 
 VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
-  // TODO: make this read SbTime.
-  SbMediaTime timestamp;
+  SbTime timestamp;
   Read(read_cb_, reverse_byte_order_, &timestamp);
 
   bool drm_sample_info_present;
@@ -200,8 +199,7 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
   SbMediaVideoSampleInfoWithOptionalColorMetadata video_sample_info;
   Read(read_cb_, reverse_byte_order_, &video_sample_info);
 
-  // TODO: use SbTime here.
-  return VideoAccessUnit(SB_MEDIA_TIME_TO_SB_TIME(timestamp),
+  return VideoAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
                          std::move(data), video_sample_info);
 }

@@ -172,8 +172,7 @@ void VideoDmpWriter::DumpAccessUnit(
     SB_NOTREACHED() << sample_type;
   }
 
-  // TODO: make this write SbTime.
-  Write(write_cb_, SB_TIME_TO_SB_MEDIA_TIME(sample_timestamp));
+  Write(write_cb_, sample_timestamp);
 
   if (drm_sample_info && drm_sample_info->identifier_size == 16 &&
       (drm_sample_info->initialization_vector_size == 8 ||

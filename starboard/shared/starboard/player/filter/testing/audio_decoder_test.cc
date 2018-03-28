@@ -317,8 +317,8 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 }
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"google_glass_h264_aac.dmp",
-                              "google_glass_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
+                              "beneath_the_canopy_vp9_opus.dmp"};
 
   static std::vector<const char*> test_params;
 

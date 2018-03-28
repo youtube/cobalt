@@ -68,13 +68,12 @@ std::string GetTestInputDirectory() {
   const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 
   char content_path[kPathSize];
-  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
-                              kPathSize));
+  EXPECT_TRUE(
+      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
   std::string directory_path =
-      std::string(content_path) + SB_FILE_SEP_CHAR + "test" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "shared" +
-      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "player" +
-      SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path) + SB_FILE_SEP_CHAR + "test" + SB_FILE_SEP_CHAR +
+      "starboard" + SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR +
+      "starboard" + SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str())) << directory_path;
   return directory_path;
@@ -614,8 +613,8 @@ std::vector<TestParam> GetSupportedTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
 
-  const char* kFilenames[] = {"google_glass_h264_aac.dmp",
-                              "google_glass_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
+                              "beneath_the_canopy_vp9_opus.dmp"};
 
   static std::vector<TestParam> test_params;
 
