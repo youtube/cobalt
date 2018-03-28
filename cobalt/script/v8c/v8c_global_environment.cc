@@ -21,6 +21,7 @@
 #include "base/lazy_instance.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/v8c/embedded_resources.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/v8c_script_value_factory.h"
 #include "cobalt/script/v8c/v8c_source_code.h"
@@ -375,11 +376,37 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
   return result;
 }
 
+void V8cGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,
+                                                  size_t size,
+                                                  const char* filename) {
+  TRACE_EVENT1("cobalt::script", "V8cGlobalEnvironment::EvaluateEmbeddedScript",
+               "filename", filename);
+  TRACK_MEMORY_SCOPE("Javascript");
+  std::string source(reinterpret_cast<const char*>(data), size);
+  scoped_refptr<SourceCode> source_code =
+      new V8cSourceCode(source, base::SourceLocation(filename, 1, 1));
+  std::string result;
+  bool success = EvaluateScript(source_code, false /*mute_errors*/, &result);
+  if (!success) {
+    DLOG(FATAL) << result;
+  }
+}
+
 void V8cGlobalEnvironment::EvaluateAutomatics() {
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateAutomatics()");
-  // TODO: Maybe add fetch and stream polyfills.  Investigate what V8 has to
-  // natively offer first.
-  NOTIMPLEMENTED();
+  EvaluateEmbeddedScript(
+      V8cEmbeddedResources::byte_length_queuing_strategy_js,
+      sizeof(V8cEmbeddedResources::byte_length_queuing_strategy_js),
+      "byte_length_queuing_strategy.js");
+  EvaluateEmbeddedScript(
+      V8cEmbeddedResources::count_queuing_strategy_js,
+      sizeof(V8cEmbeddedResources::count_queuing_strategy_js),
+      "count_queuing_strategy.js");
+  EvaluateEmbeddedScript(V8cEmbeddedResources::readable_stream_js,
+                         sizeof(V8cEmbeddedResources::readable_stream_js),
+                         "readable_stream.js");
+  EvaluateEmbeddedScript(V8cEmbeddedResources::fetch_js,
+                         sizeof(V8cEmbeddedResources::fetch_js), "fetch.js");
 }
 
 bool V8cGlobalEnvironment::HasInterfaceData(int key) const {
