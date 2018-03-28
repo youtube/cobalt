@@ -100,6 +100,13 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       platform_info_->chipset_model_number = value;
     }
 
+    // Model year
+    result = SbSystemGetProperty(kSbSystemPropertyModelYear, value,
+                                 kSystemPropertyMaxLength);
+    if (result) {
+      platform_info_->model_year = value;
+    }
+
     // Firmware version
     result = SbSystemGetProperty(kSbSystemPropertyFirmwareVersion, value,
                                  kSystemPropertyMaxLength);
@@ -115,7 +122,7 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       platform_info_->brand = value;
     }
 
-    // Model
+    // Model name
     result = SbSystemGetProperty(kSbSystemPropertyModelName, value,
                                  kSystemPropertyMaxLength);
     SB_DCHECK(result);
