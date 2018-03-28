@@ -67,6 +67,7 @@ class UserAgentStringFactory {
     base::optional<std::string> network_operator;
     DeviceType device_type;
     base::optional<std::string> chipset_model_number;
+    base::optional<std::string> model_year;
     base::optional<std::string> firmware_version;
     std::string brand;
     std::string model;
