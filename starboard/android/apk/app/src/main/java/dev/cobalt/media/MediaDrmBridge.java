@@ -243,9 +243,8 @@ public class MediaDrmBridge {
       Log.d(
           TAG, String.format("Key successfully added for session %s", bytesToHexString(sessionId)));
       if (Build.VERSION.SDK_INT < 23) {
-        // Call callback with empty list to notify Cobalt that the platform doesn't support key
-        // statuses.
-        nativeOnKeyStatusChange(mNativeMediaDrmBridge, sessionId, new MediaDrm.KeyStatus[0]);
+        // Pass null to indicate that KeyStatus isn't supported.
+        nativeOnKeyStatusChange(mNativeMediaDrmBridge, sessionId, null);
       }
       return true;
     } catch (NotProvisionedException e) {
