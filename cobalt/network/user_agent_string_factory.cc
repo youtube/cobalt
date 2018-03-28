@@ -21,6 +21,7 @@
 #if defined(COBALT_ENABLE_LIB)
 #include "cobalt/network/lib/exported/user_agent.h"
 #endif
+#include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 
 #include "cobalt_build_id.h"  // NOLINT(build/include)
@@ -104,6 +105,7 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
   // Cobalt's user agent contains the following sections:
   //   Mozilla/5.0 (ChromiumStylePlatform)
   //   Cobalt/Version.BuildNumber-BuildConfiguration (unlike Gecko)
+  //   JavaScript Engine Name/Version
   //   Starboard/APIVersion,
   //   Device/FirmwareVersion (Brand, Model, ConnectionType)
 
@@ -116,6 +118,10 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
                       COBALT_VERSION, COBALT_BUILD_VERSION_NUMBER,
                       kBuildConfiguration);
 
+  //   JavaScript Engine Name/Version
+  base::StringAppendF(&user_agent, " %s",
+                      script::GetJavaScriptEngineNameAndVersion().c_str());
+
   //   Starboard/APIVersion,
   if (!starboard_version_.empty()) {
     base::StringAppendF(&user_agent, " %s", starboard_version_.c_str());
@@ -124,10 +130,11 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
   //   Device/FirmwareVersion (Brand, Model, ConnectionType)
   if (platform_info_) {
     base::StringAppendF(
-        &user_agent, ", %s_%s_%s/%s (%s, %s, %s)",
+        &user_agent, ", %s_%s_%s_%s/%s (%s, %s, %s)",
         Sanitize(platform_info_->network_operator.value_or("")).c_str(),
         CreateDeviceTypeString().c_str(),
         Sanitize(platform_info_->chipset_model_number.value_or("")).c_str(),
+        Sanitize(platform_info_->model_year.value_or("")).c_str(),
         Sanitize(platform_info_->firmware_version.value_or("")).c_str(),
         Sanitize(g_brand_name_override_set ?
             std::string(g_brand_name_override) : platform_info_->brand).c_str(),
