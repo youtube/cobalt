@@ -63,6 +63,7 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/v8/src/v8.gyp:v8',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
+        'embed_v8c_resources_as_header_files',
       ],
       'defines': [
         'ENGINE_SUPPORTS_INT64',
@@ -107,5 +108,44 @@
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
       ],
     },
+
+    {
+      # This target takes specified files and embeds them as header files for
+      # inclusion into the binary.
+      'target_name': 'embed_v8c_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/cobalt/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/script/v8c/embedded_resources.h',
+      },
+      'sources': [
+        '<(DEPTH)/cobalt/fetch/embedded_scripts/fetch.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/byte_length_queuing_strategy.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/count_queuing_strategy.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/readable_stream.js',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_v8c_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'V8cEmbeddedResources', '<(output_path)', '<@(_sources)' ],
+          'message': 'Embedding v8c resources in into header file, "<(output_path)".',
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
+    },
+
   ],
 }
