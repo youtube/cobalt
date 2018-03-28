@@ -121,6 +121,13 @@ void NamedPropertyGetterCallback(
   DCHECK(!exception_state.is_exception_set());
 }
 
+void IndexedPropertyGetterCallback(
+    uint32_t index,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::String> as_string = v8::Integer::New(info.GetIsolate(), index)->ToString();
+  NamedPropertyGetterCallback(as_string, info);
+}
+
 void NamedPropertyQueryCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
@@ -149,6 +156,13 @@ void NamedPropertyQueryCallback(
   //      desc.[[Enumerable]] to false, otherwise set it to true.
 
   info.GetReturnValue().Set(properties);
+}
+
+void IndexedPropertyDescriptorCallback(
+    uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // TODO: Figure out under what conditions this gets called.  It's not
+  // getting called in our tests.
+  NOTIMPLEMENTED();
 }
 
 void NamedPropertyEnumeratorCallback(
@@ -200,6 +214,15 @@ void NamedPropertySetterCallback(
   info.GetReturnValue().Set(value);
   DCHECK(!exception_state.is_exception_set());
 }
+
+void IndexedPropertySetterCallback(
+    uint32_t index,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::String> as_string = v8::Integer::New(info.GetIsolate(), index)->ToString();
+  NamedPropertySetterCallback(as_string, value, info);
+}
+
 
 
 
@@ -298,6 +321,18 @@ void InitializeTemplate(v8::Isolate* isolate) {
       static_cast<v8::PropertyHandlerFlags>(int(v8::PropertyHandlerFlags::kNonMasking) | int(v8::PropertyHandlerFlags::kOnlyInterceptStrings))
     };
     instance_template->SetHandler(named_property_handler_configuration);
+  }
+
+  {
+    v8::IndexedPropertyHandlerConfiguration indexed_property_handler_configuration = {
+      IndexedPropertyGetterCallback,
+      IndexedPropertySetterCallback,
+      IndexedPropertyDescriptorCallback,
+      nullptr,
+      nullptr,
+      nullptr
+    };
+    instance_template->SetHandler(indexed_property_handler_configuration);
   }
 
 
