@@ -85,6 +85,10 @@ class JavaScriptEngine {
   friend class scoped_ptr<JavaScriptEngine>;
 };
 
+// Returns the name and version of the JavaScript engine being used, joined
+// by "/". Example output (when using V8) will look like "V8/6.5.254.28".
+std::string GetJavaScriptEngineNameAndVersion();
+
 }  // namespace script
 }  // namespace cobalt
 
