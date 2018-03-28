@@ -125,6 +125,7 @@ void NamedPropertyGetterCallback(
   DCHECK(!exception_state.is_exception_set());
 }
 
+
 void NamedPropertyQueryCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
@@ -154,6 +155,7 @@ void NamedPropertyQueryCallback(
 
   info.GetReturnValue().Set(properties);
 }
+
 
 void NamedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
@@ -204,6 +206,8 @@ void NamedPropertySetterCallback(
   info.GetReturnValue().Set(value);
   DCHECK(!exception_state.is_exception_set());
 }
+
+
 
 
 
@@ -837,6 +841,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
     };
     instance_template->SetHandler(named_property_handler_configuration);
   }
+
 
   {
     v8::IndexedPropertyHandlerConfiguration indexed_property_handler_configuration = {

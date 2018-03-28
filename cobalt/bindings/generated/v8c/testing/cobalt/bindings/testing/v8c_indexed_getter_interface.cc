@@ -630,6 +630,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
 
 
 
+
   {
     v8::IndexedPropertyHandlerConfiguration indexed_property_handler_configuration = {
       IndexedPropertyGetterCallback,
