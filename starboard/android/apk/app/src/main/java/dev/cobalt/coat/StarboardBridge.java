@@ -110,9 +110,11 @@ public class StarboardBridge {
   protected void onActivityStart(Activity activity) {
     activityHolder.set(activity);
     cobaltMediaSession.onActivityStart();
+    feedbackService.connect();
   }
 
   protected void onActivityStop(Activity activity) {
+    feedbackService.disconnect();
     cobaltMediaSession.onActivityStop();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);

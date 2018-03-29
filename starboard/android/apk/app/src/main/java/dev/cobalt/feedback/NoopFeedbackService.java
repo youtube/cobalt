@@ -35,4 +35,10 @@ public class NoopFeedbackService implements FeedbackService {
       Log.i(TAG, "Screenshot dimensions: " + screenshot.getWidth() + "x" + screenshot.getHeight());
     }
   }
+
+  @Override
+  public void connect() {}
+
+  @Override
+  public void disconnect() {}
 }
