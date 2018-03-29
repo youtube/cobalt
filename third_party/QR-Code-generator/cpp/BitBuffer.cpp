@@ -23,6 +23,9 @@
 
 #include "BitBuffer.hpp"
 
+#include "starboard/log.h"
+
+#define throw SB_CHECK(false) <<
 
 namespace qrcodegen {
 
