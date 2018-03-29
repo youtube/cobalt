@@ -13,21 +13,8 @@
 # limitations under the License.
 """Starboard Raspberry Pi 2 platform configuration for gyp_cobalt."""
 
-import logging
-import os
-import sys
-
-_SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(_SCRIPT_DIR, '../..'))
-
-# pylint: disable=g-import-not-at-top
-from shared.gyp_configuration import RaspiPlatformConfig
+from starboard.raspi.shared.gyp_configuration import RaspiPlatformConfig
 
 
 def CreatePlatformConfig():
-  try:
-    return RaspiPlatformConfig('raspi-2-skia')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
-
+  return RaspiPlatformConfig('raspi-2-skia')

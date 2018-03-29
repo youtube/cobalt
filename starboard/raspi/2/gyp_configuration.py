@@ -16,5 +16,19 @@
 from starboard.raspi.shared import gyp_configuration as shared_configuration
 
 
+class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
+
+  def __init__(self, platform):
+    super(Raspi2PlatformConfig, self).__init__(platform)
+
+  def GetVariables(self, config_name):
+    variables = super(Raspi2PlatformConfig, self).GetVariables(config_name)
+    variables.update({
+        'javascript_engine': 'v8',
+        'cobalt_enable_jit': 1,
+    })
+    return variables
+
+
 def CreatePlatformConfig():
-  return shared_configuration.RaspiPlatformConfig('raspi-2')
+  return Raspi2PlatformConfig('raspi-2')
