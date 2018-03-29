@@ -216,6 +216,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     return !event_queue_.empty();
   }
 
+#if SB_HAS(GLES2)
   void AssertValidDecodeTarget() {
     if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
       SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
@@ -223,6 +224,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
       fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
     }
   }
+#endif  // SB_HAS(GLES2)
 
   // This has to be called when the decoder is just initialized/reseted or when
   // status is |kNeedMoreInput|.
@@ -386,6 +388,7 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
   }
 }
 
+#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
   if (GetParam().output_mode == kSbPlayerOutputModeDecodeToTexture) {
     SbDecodeTarget decode_target = video_decoder_->GetCurrentDecodeTarget();
@@ -393,6 +396,7 @@ TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
     fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
   }
 }
+#endif  // SB_HAS(GLES2)
 
 TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   // Create three more decoders for each supported combinations.
@@ -439,18 +443,21 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
               std::bind(&VideoDecoderTest::OnError, this));
 
+#if SB_HAS(GLES2)
           if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
             SbDecodeTarget decode_target =
                 video_decoders[i]->GetCurrentDecodeTarget();
             EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
             fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
           }
+#endif  // SB_HAS(GLES2)
         }
       }
     }
   }
 }
 
+#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, SingleInput) {
   WriteSingleInput(0);
   WriteEndOfStream();
@@ -489,6 +496,7 @@ TEST_P(VideoDecoderTest, SingleInvalidInput) {
     AssertValidDecodeTarget();
   }
 }
+#endif  // SB_HAS(GLES2)
 
 TEST_P(VideoDecoderTest, EndOfStreamWithoutAnyInput) {
   WriteEndOfStream();
@@ -574,6 +582,7 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
   ASSERT_FALSE(error_occurred);
 }
 
+#if SB_HAS(GLES2)
 TEST_P(VideoDecoderTest, DecodeFullGOP) {
   int gop_size = 1;
   while (gop_size < dmp_reader_.number_of_video_buffers()) {
@@ -608,6 +617,7 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
       }));
   ASSERT_FALSE(error_occurred);
 }
+#endif  // SB_HAS(GLES2)
 
 std::vector<TestParam> GetSupportedTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
