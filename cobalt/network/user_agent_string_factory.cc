@@ -225,29 +225,22 @@ UserAgentStringFactory::StarboardToPlatformInfoDeviceType(
   switch (device_type) {
     case kSbSystemDeviceTypeBlueRayDiskPlayer:
       return PlatformInfo::kBlueRayDiskPlayer;
-      break;
     case kSbSystemDeviceTypeGameConsole:
       return PlatformInfo::kGameConsole;
-      break;
     case kSbSystemDeviceTypeOverTheTopBox:
       return PlatformInfo::kOverTheTopBox;
-      break;
     case kSbSystemDeviceTypeSetTopBox:
       return PlatformInfo::kSetTopBox;
-      break;
     case kSbSystemDeviceTypeTV:
       return PlatformInfo::kTV;
-      break;
     case kSbSystemDeviceTypeAndroidTV:
       return PlatformInfo::kAndroidTV;
-      break;
     case kSbSystemDeviceTypeUnknown:
       return PlatformInfo::kUnknown;
-      break;
     case kSbSystemDeviceTypeDesktopPC:
-    default:
-      return PlatformInfo::kInvalidDeviceType;
+      break;
   }
+  return PlatformInfo::kInvalidDeviceType;
 }
 
 }  // namespace network

@@ -26,10 +26,9 @@ base::Token TypeEnumToToken(SpeechRecognitionEvent::Type type) {
       return base::Tokens::result();
     case SpeechRecognitionEvent::kNoMatch:
       return base::Tokens::nomatch();
-    default:
-      NOTREACHED() << "Invalid SpeechRecognitionEvent::Type";
-      return base::Tokens::nomatch();
   }
+  NOTREACHED() << "Invalid SpeechRecognitionEvent::Type";
+  return base::Tokens::nomatch();
 }
 }  // namespace
 

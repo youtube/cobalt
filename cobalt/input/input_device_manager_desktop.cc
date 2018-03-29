@@ -174,7 +174,13 @@ void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
       // reported button press.
       buttons &= ~(1 << event->button());
       break;
-    default:
+    case system_window::InputEvent::kKeyDown:
+    case system_window::InputEvent::kKeyUp:
+    case system_window::InputEvent::kKeyMove:
+    case system_window::InputEvent::kInput:
+    case system_window::InputEvent::kPointerMove:
+    case system_window::InputEvent::kTouchpadMove:
+    case system_window::InputEvent::kWheel:
       break;
   }
 
@@ -226,7 +232,14 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
     case system_window::InputEvent::kTouchpadMove:
       pointer_event.set_pointer_type("touchpad");
       break;
-    default:
+    case system_window::InputEvent::kKeyDown:
+    case system_window::InputEvent::kKeyUp:
+    case system_window::InputEvent::kKeyMove:
+    case system_window::InputEvent::kInput:
+    case system_window::InputEvent::kPointerDown:
+    case system_window::InputEvent::kPointerMove:
+    case system_window::InputEvent::kPointerUp:
+    case system_window::InputEvent::kWheel:
       pointer_event.set_pointer_type("mouse");
       break;
   }
@@ -328,12 +341,12 @@ void InputDeviceManagerDesktop::HandleSystemWindowInputEvent(
     case system_window::InputEvent::kWheel:
       HandleWheelEvent(input_event);
       break;
-#if SB_HAS(ON_SCREEN_KEYBOARD)
     case system_window::InputEvent::kInput:
+#if SB_HAS(ON_SCREEN_KEYBOARD)
       HandleInputEvent(input_event);
       break;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-    default:
+    case system_window::InputEvent::kKeyMove:
       break;
   }
 
