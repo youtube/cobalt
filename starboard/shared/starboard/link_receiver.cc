@@ -316,8 +316,6 @@ void LinkReceiver::Impl::Run() {
     return;
   }
 
-  SB_LOG(INFO) << "LinkReceiver port: " << actual_port_;
-
   char port_string[32] = {0};
   SbStringFormatF(port_string, SB_ARRAY_SIZE(port_string), "%d", actual_port_);
   CreateTemporaryFile("link_receiver_port", port_string,
