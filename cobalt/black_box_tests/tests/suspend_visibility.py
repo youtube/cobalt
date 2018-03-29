@@ -16,8 +16,7 @@ class SuspendVisibilityTest(black_box_tests.BlackBoxTestCase):
     url = self.GetURL(file_name='suspend_visibility.html')
 
     with self.CreateCobaltRunner(url=url) as runner:
+      runner.PollUntilFound('#visibility_event_listener_added')
       runner.SendSuspend()
-      # We use sleep() here only to ensure suspend and resume are executed by
-      # cobalt in specified order.
       runner.SendResume()
       self.assertTrue(runner.HTMLTestsSucceeded())
