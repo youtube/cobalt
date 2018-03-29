@@ -102,6 +102,16 @@ android {
         }
     }
     sourceSets {
+        // The source is split into two parts:
+        //   "main" is the code that should go into any Cobalt-based app for Android TV.
+        //   "app" is the specialization needed to make "the blue app" out of the main code.
+        // The Android Gradle plugin includes "main" by default, so we just need to add "app".
+        main {
+            manifest.srcFile "src/app/AndroidManifest.xml"
+            java.srcDir "src/app/java"
+            res.srcDir "src/app/res"
+            assets.srcDir "src/app/assets"
+        }
         // Add the directories symlinked by the CMake "cobalt_content" custom command.
         debug {
             assets.srcDir "${buildDir}/intermediates/cmake/debug/cobalt_content"
