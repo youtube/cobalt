@@ -25,7 +25,8 @@ from starboard.tools.toolchain import touch
 class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
   """Starboard Linux X64 X11 platform configuration."""
 
-  def __init__(self, platform_name='linux-x64x11',
+  def __init__(self,
+               platform_name='linux-x64x11',
                asan_enabled_by_default=True,
                goma_supports_compiler=True):
     super(LinuxX64X11Configuration, self).__init__(

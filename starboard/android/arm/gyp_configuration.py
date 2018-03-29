@@ -17,4 +17,4 @@ from starboard.android.shared import gyp_configuration as shared_configuration
 
 
 def CreatePlatformConfig():
-  return shared_configuration.PlatformConfig('android-arm', 'armeabi-v7a')
+  return shared_configuration.AndroidConfiguration('android-arm', 'armeabi-v7a')

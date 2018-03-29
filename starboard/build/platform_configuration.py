@@ -18,7 +18,7 @@ import inspect
 import logging
 import os
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.tools import environment
 from starboard.tools import paths
@@ -303,6 +303,7 @@ class PlatformConfiguration(object):
     return [
         'nplb',
         'nplb_blitter_pixel_tests',
+        'player_filter_tests',
         'starboard_platform_tests',
     ]
 
