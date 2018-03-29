@@ -30,10 +30,9 @@ std::string LevelToString(LogEntry::LogLevel level) {
       return "WARNING";
     case LogEntry::kSevere:
       return "SEVERE";
-    default:
-      NOTREACHED();
-      return "DEBUG";
   }
+  NOTREACHED();
+  return "DEBUG";
 }
 }  // namespace
 
