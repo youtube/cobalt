@@ -12,7 +12,7 @@
   <script>
     // In started mode, visibility should be "visible" and window/document
     // should have focus.
-    assertEqual(document.visibilityState, "visible");
+    assertEqual("visible", document.visibilityState);
     assertTrue(document.hasFocus());
 
     let suspendStateVerified = false;
@@ -72,5 +72,10 @@
       }
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Append an element to signal that event listener is added.
+    let span_ele = document.createElement('span');
+    span_ele.id = 'visibility_event_listener_added';
+    document.appendChild(span_ele);
   </script>
 </body>
