@@ -34,8 +34,6 @@ std::string RadialGradientValue::ToString() const {
     case kEllipse:
       result.append(kEllipseKeywordName);
       break;
-    default:
-      NOTREACHED();
   }
 
   if (size_keyword_) {
@@ -53,8 +51,6 @@ std::string RadialGradientValue::ToString() const {
       case kFarthestCorner:
         result.append(kFarthestCornerKeywordName);
         break;
-      default:
-        NOTREACHED();
     }
   } else if (size_value_) {
     result.push_back(' ');
