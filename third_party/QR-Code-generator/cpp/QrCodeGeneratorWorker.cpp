@@ -33,6 +33,8 @@
 #include <vector>
 #include "QrCode.hpp"
 
+#include "starboard/string.h"
+
 using qrcodegen::QrCode;
 using qrcodegen::QrSegment;
 
@@ -92,7 +94,7 @@ int main() {
 			}
 			
 		} catch (const char *msg) {
-			if (strcmp(msg, "Data too long") != 0) {
+			if (SbStringCompare(msg, "Data too long") != 0) {
 				std::cerr << msg << std::endl;
 				return EXIT_FAILURE;
 			}
