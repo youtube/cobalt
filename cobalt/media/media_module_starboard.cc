@@ -16,18 +16,11 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/math/size.h"
-#include "cobalt/media/shell_media_platform_starboard.h"
-#include "cobalt/system_window/system_window.h"
-#if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/media_log.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/player/web_media_player_impl.h"
-#else  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "media/base/filter_collection.h"
-#include "media/base/media_log.h"
-#include "media/base/message_loop_factory.h"
-#include "media/player/web_media_player_impl.h"
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/media/shell_media_platform_starboard.h"
+#include "cobalt/system_window/system_window.h"
 #include "nb/memory_scope.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
@@ -36,13 +29,6 @@ namespace cobalt {
 namespace media {
 
 namespace {
-
-#if !defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::FilterCollection FilterCollection;
-typedef ::media::MessageLoopFactory MessageLoopFactory;
-typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
-typedef ::media::ShellMediaPlatformStarboard ShellMediaPlatformStarboard;
-#endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
@@ -75,27 +61,12 @@ class MediaModuleStarboard : public MediaModule {
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebMediaPlayerClient* client) override {
     TRACK_MEMORY_SCOPE("Media");
-#if defined(COBALT_MEDIA_SOURCE_2016)
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
       window = system_window_->GetSbWindow();
     }
     return make_scoped_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
         window, client, this, &decoder_buffer_allocator_, new media::MediaLog));
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-    scoped_ptr<MessageLoopFactory> message_loop_factory(new MessageLoopFactory);
-    scoped_refptr<base::MessageLoopProxy> pipeline_message_loop =
-        message_loop_factory->GetMessageLoop(MessageLoopFactory::kPipeline);
-
-    SbWindow window = kSbWindowInvalid;
-    if (system_window_) {
-      window = system_window_->GetSbWindow();
-    }
-    return make_scoped_ptr<WebMediaPlayer>(new ::media::WebMediaPlayerImpl(
-        window, client, this, media_platform_.GetVideoFrameProvider(),
-        scoped_ptr<FilterCollection>(new FilterCollection), NULL,
-        message_loop_factory.Pass(), new ::media::MediaLog));
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   }
 
   system_window::SystemWindow* system_window() const override {
@@ -111,9 +82,7 @@ class MediaModuleStarboard : public MediaModule {
  private:
   const Options options_;
   system_window::SystemWindow* system_window_;
-#if defined(COBALT_MEDIA_SOURCE_2016)
   DecoderBufferAllocator decoder_buffer_allocator_;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   ShellMediaPlatformStarboard media_platform_;
 };
 
