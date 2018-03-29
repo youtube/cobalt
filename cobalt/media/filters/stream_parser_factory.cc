@@ -272,12 +272,13 @@ static bool VerifyCodec(const CodecInfo* codec_info,
 #endif
       if (video_codecs) video_codecs->push_back(codec_info->tag);
       return true;
-    default:
-      // Not audio or video, so skip it.
-      DVLOG(1) << "CodecInfo type of " << codec_info->type
-               << " should not be specified in a SupportedTypes list";
-      return false;
+    case CodecInfo::UNKNOWN:
+      break;
   }
+  // Not audio or video, so skip it.
+  DVLOG(1) << "CodecInfo type of " << codec_info->type
+           << " should not be specified in a SupportedTypes list";
+  return false;
 }
 
 // Checks to see if the specified |type| and |codecs| list are supported.

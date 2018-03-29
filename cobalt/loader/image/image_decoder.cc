@@ -275,8 +275,8 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
       return "image/webp";
     case ImageDecoder::kImageTypeInvalid:
       return NULL;
-    default: { NOTREACHED(); }
   }
+  NOTREACHED();
   return NULL;
 }
 
