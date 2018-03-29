@@ -97,11 +97,18 @@ void PlayerWorker::UpdateMediaTime(SbTime time) {
   host_->UpdateMediaTime(time, ticket_);
 }
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
-#if !SB_HAS(PLAYER_ERROR_MESSAGE)
-  SB_DCHECK(!error_occurred_);
-  if (error_occurred_)
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  SB_DCHECK(!error_occurred_) << "Player state should not update after error.";
+  if (error_occurred_) {
     return;
-#endif  // !SB_HAS(PLAYER_ERROR_MESSAGE)
+  }
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
+  SB_DCHECK(error_occurred_ == (player_state == kSbPlayerStateError))
+      << "Player state error if and only if error occurred.";
+  if (error_occurred_ && (player_state != kSbPlayerStateError)) {
+    return;
+  }
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   player_state_ = player_state;
 
   if (!player_status_func_) {
