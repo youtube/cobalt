@@ -341,7 +341,7 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
     JS::ResetTimeZone();
 
-#ifdef JS_SIMULATOR
+#if defined(JS_SIMULATOR) && !defined(STARBOARD)
     simulator_ = js::jit::Simulator::Create();
     if (!simulator_)
         return false;
@@ -469,7 +469,7 @@ JSRuntime::~JSRuntime()
     gc.storeBuffer.disable();
     gc.nursery.disable();
 
-#ifdef JS_SIMULATOR
+#if defined(JS_SIMULATOR) && !defined(STARBOARD)
     js::jit::Simulator::Destroy(simulator_);
 #endif
 
@@ -625,7 +625,7 @@ JSRuntime::resetJitStackLimit()
     // Note that, for now, we use the untrusted limit for ion. This is fine,
     // because it's the most conservative limit, and if we hit it, we'll bail
     // out of ion into the interpreter, which will do a proper recursion check.
-#ifdef JS_SIMULATOR
+#if defined(JS_SIMULATOR) && !defined(STARBOARD)
     jitStackLimit_ = jit::Simulator::StackLimit();
 #else
     jitStackLimit_ = mainThread.nativeStackLimit[StackForUntrustedScript];
