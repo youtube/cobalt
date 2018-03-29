@@ -50,8 +50,6 @@ std::string ConvertKeyStatusToString(MediaKeyStatus key_status) {
       return "status-pending";
     case kMediaKeyStatusInternalError:
       return "internal-error";
-    default:
-      break;
   }
 
   NOTREACHED();

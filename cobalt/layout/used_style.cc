@@ -1155,6 +1155,7 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kClip:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
+    case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kForwards:
@@ -1190,7 +1191,6 @@ void UsedBackgroundSizeProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -1340,6 +1340,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kEnd:
+      case cssom::KeywordValue::kEquirectangular:
       case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kFixed:
@@ -1375,7 +1376,6 @@ class UsedLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
-      default:
         NOTREACHED();
     }
   }
@@ -1413,6 +1413,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kCursive:
       case cssom::KeywordValue::kEllipsis:
       case cssom::KeywordValue::kEnd:
+      case cssom::KeywordValue::kEquirectangular:
       case cssom::KeywordValue::kFantasy:
       case cssom::KeywordValue::kForwards:
       case cssom::KeywordValue::kFixed:
@@ -1447,7 +1448,6 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
       case cssom::KeywordValue::kTop:
       case cssom::KeywordValue::kUppercase:
       case cssom::KeywordValue::kVisible:
-      default:
         NOTREACHED();
     }
   }

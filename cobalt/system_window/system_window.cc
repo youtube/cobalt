@@ -121,7 +121,13 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
           pressure = std::max(pressure, 0.5f);
         }
         break;
-      default:
+      case InputEvent::kKeyDown:
+      case InputEvent::kKeyUp:
+      case InputEvent::kKeyMove:
+      case InputEvent::kInput:
+      case InputEvent::kPointerUp:
+      case InputEvent::kTouchpadUp:
+      case InputEvent::kWheel:
         break;
     }
   }

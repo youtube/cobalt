@@ -408,10 +408,6 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       tool_ptr.reset(malloc_logger.release());
       break;
     }
-    default: {
-      SB_NOTREACHED() << "Unhandled case.";
-      break;
-    }
   }
 
   if (tool_ptr.get()) {
