@@ -1,0 +1,158 @@
+/*
+ * Copyright 2017 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+body {
+  overflow: hidden;
+  font-size: 1.4815vh;  /* Corresponds to 16px at 1080p. */
+}
+
+#splash {
+  background-color: #16396b;
+  background-image: url("file:///cobalt_logo_1024.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: auto 33%;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+
+#loading {
+  position: absolute;
+  top: 52em;
+  width: 100%;
+}
+
+#spinner {
+  /* The spinner starts with display set to none, and JavaScript will set this
+     to 'block' after some time has passed, if the splash screen is still
+     visible. */
+  display: none;
+
+  height: 5.33em;
+  margin: 0 auto;
+  position: relative;
+  width: 5.33em;
+}
+
+.dot {
+  background-color: #cbcbcb;
+  border-radius: 50%;
+  height: 1.17em;
+  position: absolute;
+  width: 1.17em;
+}
+
+@keyframes fade1 {
+  0%,100% {opacity: 0}
+  50% {opacity: 1}
+}
+
+@keyframes fade2 {
+  0%,100% {opacity: .25}
+  37.5% {opacity: 1}
+  87.5% {opacity: 0}
+}
+
+@keyframes fade3 {
+  0%,100% {opacity: .5}
+  25% {opacity: 1}
+  75% {opacity: 0}
+}
+
+@keyframes fade4 {
+  0%,100% {opacity: .75}
+  12.5% {opacity: 1}
+  62.5% {opacity: 0}
+}
+
+@keyframes fade5 {
+  0%,100% {opacity: 1}
+  50% {opacity: 0}
+}
+
+@keyframes fade6 {
+  0%,100% {opacity: .75}
+  37.5% {opacity: 0}
+  87.5% {opacity: 1}
+}
+
+@keyframes fade7 {
+  0%,100% {opacity: .5}
+  25% {opacity: 0}
+  75% {opacity: 1}
+}
+
+@keyframes fade8 {
+  0%,100% {opacity: .25}
+  12.5% {opacity: 0}
+  62.5% {opacity: 1}
+}
+
+#dot1 {
+  animation: fade8 .72s infinite ease;
+  left: 0;
+  top: 2.09em;
+}
+
+#dot2 {
+  animation: fade7 .72s infinite ease;
+  left: .61em;
+  top: .61em;
+}
+
+#dot3 {
+  animation: fade6 .72s infinite ease;
+  left: 2.09em;
+  top: 0;
+}
+
+#dot4 {
+  animation: fade5 .72s infinite ease;
+  right: .61em;
+  top: .61em;
+}
+
+#dot5 {
+  animation: fade4 .72s infinite ease;
+  right: 0;
+  top: 2.09em;
+}
+
+#dot6 {
+  animation: fade3 .72s infinite ease;
+  bottom: .61em;
+  right: .61em;
+}
+
+#dot7 {
+  animation: fade2 .72s infinite ease;
+  bottom: 0;
+  left: 2.09em;
+}
+
+#dot8 {
+  animation: fade1 .72s infinite ease;
+  bottom: .61em;
+  left: .61em;
+}
+
+.hidden {
+  height: 0;
+  visibility: hidden;
+}
