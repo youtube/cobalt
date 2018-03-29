@@ -17,5 +17,5 @@ class TimerInPreloadTest(black_box_tests.BlackBoxTestCase):
 
     with self.CreateCobaltRunner(
         url=url, target_params=['--preload']) as runner:
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())
       self.assertTrue(runner.IsInPreload())
