@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
+# Copyright 2018 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,24 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Raspberry Pi 2 platform configuration."""
+"""Starboard Raspberry Pi 2 platform configuration for gyp_cobalt."""
 
-from starboard.raspi.shared import gyp_configuration as shared_configuration
+import importlib
+
+# pylint: disable=invalid-name
+Raspi2PlatformConfig = importlib.import_module(
+    'starboard.raspi.2.gyp_configuration').Raspi2PlatformConfig
 
 
-class Raspi2PlatformConfig(shared_configuration.RaspiPlatformConfig):
+class Raspi2MozjsPlatformConfig(Raspi2PlatformConfig):
 
   def __init__(self, platform):
-    super(Raspi2PlatformConfig, self).__init__(platform)
+    super(Raspi2MozjsPlatformConfig, self).__init__(platform)
 
   def GetVariables(self, config_name):
-    variables = super(Raspi2PlatformConfig, self).GetVariables(config_name)
+    variables = super(Raspi2MozjsPlatformConfig, self).GetVariables(config_name)
     variables.update({
-        'javascript_engine': 'v8',
-        'cobalt_enable_jit': 1,
+        'javascript_engine': 'mozjs-45',
+        'cobalt_enable_jit': 0,
     })
     return variables
 
 
 def CreatePlatformConfig():
-  return Raspi2PlatformConfig('raspi-2')
+  return Raspi2MozjsPlatformConfig('raspi-2-mozjs')
