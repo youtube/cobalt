@@ -72,10 +72,6 @@
       }
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Append an element to signal that event listener is added.
-    let span_ele = document.createElement('span');
-    span_ele.id = 'visibility_event_listener_added';
-    document.appendChild(span_ele);
+    setupFinished();
   </script>
 </body>

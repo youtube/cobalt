@@ -17,6 +17,7 @@ class PreloadVisibilityTest(black_box_tests.BlackBoxTestCase):
 
     with self.CreateCobaltRunner(
         url=url, target_params=['--preload']) as runner:
+      runner.WaitForJSTestsSetup()
       self.assertTrue(runner.IsInPreload())
       runner.SendResume()
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())
