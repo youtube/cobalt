@@ -4,9 +4,10 @@
 // are made in black_box_cobalt_runner.py.
 
 const TEST_STATUS_ELEMENT_NAME = 'black_box_test_status';
-const SUCCESS_MESSAGE = 'HTMLTestsSucceeded';
-const FAILURE_MESSAGE = 'test_failed';
-const EFFECT_AFTER_VISIBILITY_CHANGE_TIMEOUT_SECONDS = 5
+const SUCCESS_MESSAGE = 'JavaScript_test_succeeded';
+const FAILURE_MESSAGE = 'JavaScript_test_failed';
+const SETUP_DONE_MESSAGE = 'JavaScript_setup_done';
+const EFFECT_AFTER_VISIBILITY_CHANGE_TIMEOUT_SECONDS = 5;
 
 function notReached() {
   document.body.setAttribute(TEST_STATUS_ELEMENT_NAME, FAILURE_MESSAGE);
@@ -72,3 +73,11 @@ class TimerTestCase {
     }
   }
 };
+
+function setupFinished() {
+  // Append an element to tell python test scripts that setup steps are done
+  // on the JavaScript side.
+  let span_ele = document.createElement('span');
+  span_ele.id = SETUP_DONE_MESSAGE;
+  document.appendChild(span_ele);
+}

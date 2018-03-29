@@ -26,18 +26,21 @@ class PersistentCookieTest(black_box_tests.BlackBoxTestCase):
     with self.CreateCobaltRunner(url=url) as runner:
       # Press NUMPAD1 to verify basic cookie functionality and set
       # a persistent cookie.
+      runner.WaitForJSTestsSetup()
       runner.SendKeys(keys.Keys.NUMPAD1)
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())
 
     with self.CreateCobaltRunner(url=url) as runner:
+      runner.WaitForJSTestsSetup()
       # Press NUMPAD2 to indicate this is the second time we opened
       # the webpage and verify a persistent cookie is on device. Then
       # clear this persistent cookie.
       runner.SendKeys(keys.Keys.NUMPAD2)
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())
 
     with self.CreateCobaltRunner(url=url) as runner:
+      runner.WaitForJSTestsSetup()
       # Press NUMPAD3 to verify the persistent cookie we cleared is
       # not on the device for this URL any more.
       runner.SendKeys(keys.Keys.NUMPAD3)
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())
