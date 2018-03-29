@@ -331,15 +331,15 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *video_frames_dropped = info.dropped_video_frames;
   }
   if (media_time) {
-    *media_time = TimeDelta::FromMicroseconds(
+    *media_time = base::TimeDelta::FromMicroseconds(
         SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
   }
   if (buffer_start_time) {
-    *buffer_start_time = TimeDelta::FromMicroseconds(
+    *buffer_start_time = base::TimeDelta::FromMicroseconds(
         SB_MEDIA_TIME_TO_SB_TIME(info.buffer_start_pts));
   }
   if (buffer_length_time) {
-    *buffer_length_time = TimeDelta::FromMicroseconds(
+    *buffer_length_time = base::TimeDelta::FromMicroseconds(
         SB_MEDIA_TIME_TO_SB_TIME(info.buffer_duration_pts));
   }
   if (frame_width) {
