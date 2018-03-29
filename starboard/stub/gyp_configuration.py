@@ -21,20 +21,20 @@ import gyp_utils
 
 def CreatePlatformConfig():
   try:
-    return PlatformConfig('stub')
+    return StubConfiguration('stub')
   except RuntimeError as e:
     logging.critical(e)
     return None
 
 
-class PlatformConfig(config.base.PlatformConfigBase):
+class StubConfiguration(config.base.PlatformConfigBase):
   """Starboard stub platform configuration."""
 
   def __init__(self, platform):
-    super(PlatformConfig, self).__init__(platform)
+    super(StubConfiguration, self).__init__(platform)
 
   def GetVariables(self, configuration):
-    variables = super(PlatformConfig, self).GetVariables(
+    variables = super(StubConfiguration, self).GetVariables(
         configuration, use_clang=1)
     variables.update({
         'javascript_engine': 'v8',
