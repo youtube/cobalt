@@ -19,17 +19,18 @@ import imp
 import os
 
 import gyp_utils
-import sdk_utils
+import starboard.android.shared.sdk_utils as sdk_utils
 from starboard.build.platform_configuration import PlatformConfiguration
 from starboard.tools.testing import test_filter
 
 
-class PlatformConfig(PlatformConfiguration):
+class AndroidConfiguration(PlatformConfiguration):
   """Starboard Android platform configuration."""
 
   # TODO: make ASAN work with NDK tools and enable it by default
   def __init__(self, platform, android_abi, asan_enabled_by_default=False):
-    super(PlatformConfig, self).__init__(platform, asan_enabled_by_default)
+    super(AndroidConfiguration, self).__init__(platform,
+                                               asan_enabled_by_default)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
     self.android_abi = android_abi
@@ -50,7 +51,7 @@ class PlatformConfig(PlatformConfiguration):
     return 'ninja,qtcreator_ninja'
 
   def GetVariables(self, configuration):
-    variables = super(PlatformConfig, self).GetVariables(
+    variables = super(AndroidConfiguration, self).GetVariables(
         configuration, use_clang=1)
     variables.update({
         'ANDROID_HOME':
@@ -100,13 +101,13 @@ class PlatformConfig(PlatformConfiguration):
     return launcher_module
 
   def GetTestFilters(self):
-    filters = super(PlatformConfig, self).GetTestFilters()
-    for target, tests in self._FAILING_TESTS.iteritems():
+    filters = super(AndroidConfiguration, self).GetTestFilters()
+    for target, tests in self._FILTERED_TESTS.iteritems():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
   # A map of failing or crashing tests per target.
-  _FAILING_TESTS = {
+  _FILTERED_TESTS = {
       'nplb': [
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
@@ -136,4 +137,6 @@ class PlatformConfig(PlatformConfiguration):
           'SpeechRecognizerTest.StartWithInvalidSpeechRecognizer',
           'SpeechRecognizerTest.StopIsCalledMultipleTimes',
       ],
+      # TODO: enable player filter tests.
+      'player_filter_tests': [test_filter.FILTER_ALL],
   }

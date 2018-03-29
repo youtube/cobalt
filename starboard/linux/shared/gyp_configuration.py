@@ -73,8 +73,18 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetTestFilters(self):
     filters = super(LinuxConfiguration, self).GetTestFilters()
-    filters.extend([
-        test_filter.TestFilter('starboard_platform_tests',
-                               test_filter.FILTER_ALL),
-    ])
+    for target, tests in self._FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
+
+  _FILTERED_TESTS = {
+      'starboard_platform_tests': [test_filter.FILTER_ALL],
+      'player_filter_tests': [
+          # These tests have memory leaks related to av_malloc.
+          'AudioDecoderTests/AudioDecoderTest.*',
+
+          # These tests fail on buildbot.
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/1',
+      ]
+  }

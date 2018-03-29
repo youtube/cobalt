@@ -19,17 +19,19 @@ from starboard.tools import build
 from starboard.tools.testing import test_filter
 
 
-class PlatformConfig(platform_configuration.PlatformConfiguration):
+class LinuxX64X11MockConfiguration(
+    platform_configuration.PlatformConfiguration):
   """Starboard mock platform configuration."""
 
   def __init__(self, platform):
-    super(PlatformConfig, self).__init__(platform)
+    super(LinuxX64X11MockConfiguration, self).__init__(platform)
 
   def GetBuildFormat(self):
     return 'ninja,qtcreator_ninja'
 
   def GetVariables(self, configuration):
-    return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)
+    return super(LinuxX64X11MockConfiguration, self).GetVariables(
+        configuration, use_clang=1)
 
   def GetGeneratorVariables(self, configuration):
     del configuration
@@ -52,13 +54,13 @@ class PlatformConfig(platform_configuration.PlatformConfiguration):
     return env_variables
 
   def GetTestFilters(self):
-    filters = super(PlatformConfig, self).GetTestFilters()
+    filters = super(LinuxX64X11MockConfiguration, self).GetTestFilters()
     filters.extend([
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL),
+        test_filter.TestFilter('starboard_platform_tests',
+                               test_filter.FILTER_ALL),
     ])
     return filters
 
 
 def CreatePlatformConfig():
-  return PlatformConfig('linux-x64x11-mock')
+  return LinuxX64X11MockConfiguration('linux-x64x11-mock')
