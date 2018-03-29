@@ -16,6 +16,5 @@
 -->
 
 <resources>
-  <color name="cobalt_blue">#ff16396b</color>
-  <color name="primary">@color/cobalt_blue</color>
+  <string name="app_name">Cobalt On Android TV</string>
 </resources>
