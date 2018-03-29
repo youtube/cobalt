@@ -90,21 +90,23 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
 
   def GetTestFilters(self):
     filters = super(RaspiPlatformConfig, self).GetTestFilters()
-    filters.extend([
-        # The RasPi test devices don't have access to an IPV6 network, so
-        # disable the related tests.
-        test_filter.TestFilter(
-            'nplb', 'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.'
-            'SunnyDayDestination/1'),
-        test_filter.TestFilter(
-            'nplb', 'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.'
-            'SunnyDaySourceForDestination/1'),
-        test_filter.TestFilter(
-            'nplb', 'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.'
-            'SunnyDaySourceNotLoopback/1'),
-        test_filter.TestFilter('starboard_platform_tests',
-                               test_filter.FILTER_ALL),
-        test_filter.TestFilter('nplb_blitter_pixel_tests',
-                               test_filter.FILTER_ALL),
-    ])
+    for target, tests in self._FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
+
+  _FILTERED_TESTS = {
+      # The RasPi test devices don't have access to an IPV6 network, so
+      # disable the related tests.
+      'nplb': [
+          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
+          '.SunnyDayDestination/1',
+          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
+          '.SunnyDaySourceForDestination/1',
+          'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
+          '.SunnyDaySourceNotLoopback/1',
+      ],
+      'nplb_blitter_pixel_tests': [test_filter.FILTER_ALL],
+      # TODO: enable player_filter_tests.
+      'player_filter_tests': [test_filter.FILTER_ALL],
+      'starboard_platform_tests': [test_filter.FILTER_ALL],
+  }
