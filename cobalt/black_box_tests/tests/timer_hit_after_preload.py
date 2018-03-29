@@ -21,4 +21,4 @@ class TimerAfterPreloadTest(black_box_tests.BlackBoxTestCase):
       # setInterval will hit once during the .5 seconds.
       runner.PollUntilFound('#script_executed')
       runner.SendResume()
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())
