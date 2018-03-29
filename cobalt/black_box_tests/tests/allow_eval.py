@@ -16,4 +16,4 @@ class AllowEvalTest(black_box_tests.BlackBoxTestCase):
     url = self.GetURL(file_name='allow_eval.html')
 
     with self.CreateCobaltRunner(url=url) as runner:
-      self.assertTrue(runner.HTMLTestsSucceeded())
+      self.assertTrue(runner.JSTestsSucceeded())

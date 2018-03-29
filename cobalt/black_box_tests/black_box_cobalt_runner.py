@@ -11,15 +11,20 @@ from cobalt.tools.automated_testing import cobalt_runner
 # the JavaScript test environment. Anyone making changes here should also
 # ensure necessary changes are made to testdata/black_box_js_test_utils.js
 _TEST_STATUS_ELEMENT_NAME = 'black_box_test_status'
-_HTML_TEST_SUCCESS_MESSAGE = 'HTMLTestsSucceeded'
+_JS_TEST_SUCCESS_MESSAGE = 'JavaScript_test_succeeded'
+_JS_TEST_SETUP_DONE_MESSAGE = 'JavaScript_setup_done'
 
 
 class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
 
-  def HTMLTestsSucceeded(self):
+  def JSTestsSucceeded(self):
     """Check test assertions in HTML page."""
 
     self.PollUntilFound('[' + _TEST_STATUS_ELEMENT_NAME + ']')
     body_element = self.UniqueFind('body')
     return body_element.get_attribute(
-        _TEST_STATUS_ELEMENT_NAME) == _HTML_TEST_SUCCESS_MESSAGE
+        _TEST_STATUS_ELEMENT_NAME) == _JS_TEST_SUCCESS_MESSAGE
+
+  def WaitForJSTestsSetup(self):
+    """Poll setup status until JavaScript gives green light."""
+    self.PollUntilFound('#{}'.format(_JS_TEST_SETUP_DONE_MESSAGE))
