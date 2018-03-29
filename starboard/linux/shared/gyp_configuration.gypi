@@ -38,6 +38,9 @@
     'variables': {
       'use_dlmalloc_allocator%': 0,
     },
+    'linker_flags': [
+      '-static-libstdc++'
+    ],
 
     'conditions': [
       ['use_dlmalloc_allocator==1 and use_asan==0', {
