@@ -40,8 +40,13 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     return 'ninja,qtcreator_ninja'
 
   def GetVariables(self, config_name):
-    return super(LinuxConfiguration, self).GetVariables(config_name,
-                                                        use_clang=1)
+    variables = super(LinuxConfiguration, self).GetVariables(
+        config_name, use_clang=1)
+    variables.update({
+        'javascript_engine': 'v8',
+        'cobalt_enable_jit': 1,
+    })
+    return variables
 
   def GetLauncherPath(self):
     """Gets the path to the launcher module for this platform."""
@@ -49,7 +54,9 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetGeneratorVariables(self, config_name):
     del config_name
-    generator_variables = {'qtcreator_session_name_prefix': 'cobalt',}
+    generator_variables = {
+        'qtcreator_session_name_prefix': 'cobalt',
+    }
     return generator_variables
 
   def GetEnvironmentVariables(self):
@@ -67,7 +74,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
   def GetTestFilters(self):
     filters = super(LinuxConfiguration, self).GetTestFilters()
     filters.extend([
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL),
+        test_filter.TestFilter('starboard_platform_tests',
+                               test_filter.FILTER_ALL),
     ])
     return filters
