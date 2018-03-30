@@ -60,13 +60,23 @@ bool ReadRecord(Savegame::ByteVector* bytes_ptr, size_t max_to_read,
       record->Read(reinterpret_cast<char*>(bytes.data()), size);
   bytes.resize(
       static_cast<size_t>(std::max(static_cast<int64_t>(0), bytes_read)));
-  return bytes_read == size;
+
+  bool success = (bytes_read == size);
+  if (success) {
+    DLOG(INFO) << "Successfully read storage record.";
+  }
+  return success;
 }
 
 bool WriteRecord(const scoped_ptr<starboard::StorageRecord>& record,
                  const Savegame::ByteVector& bytes) {
   int64_t byte_count = static_cast<int64_t>(bytes.size());
-  return record->Write(reinterpret_cast<const char*>(bytes.data()), byte_count);
+  bool success =
+      record->Write(reinterpret_cast<const char*>(bytes.data()), byte_count);
+  if (success) {
+    DLOG(INFO) << "Successfully wrote storage record.";
+  }
+  return success;
 }
 
 scoped_ptr<starboard::StorageRecord> CreateRecord(
@@ -182,6 +192,8 @@ bool SavegameStarboard::MigrateFromFallback() {
 
   if (buffer.size() == 0) {
     // We migrated nothing successfully.
+    DLOG(INFO) << "Migrated storage record data successfully (but trivially, "
+               << "there was no data).";
     return true;
   }
 
@@ -199,6 +211,8 @@ bool SavegameStarboard::MigrateFromFallback() {
 
   // Now cleanup the fallback record.
   fallback_record->Delete();
+  DLOG(INFO) << "Migrated storage record data successfully for user id: "
+             << options_.id;
   return true;
 }
 
