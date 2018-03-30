@@ -34,7 +34,13 @@ class PlatformConfig(config.base.PlatformConfigBase):
     super(PlatformConfig, self).__init__(platform)
 
   def GetVariables(self, configuration):
-    return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)
+    variables = super(PlatformConfig, self).GetVariables(
+        configuration, use_clang=1)
+    variables.update({
+        'javascript_engine': 'v8',
+        'cobalt_enable_jit': 1,
+    })
+    return variables
 
   def GetEnvironmentVariables(self):
     if not hasattr(self, 'host_compiler_environment'):

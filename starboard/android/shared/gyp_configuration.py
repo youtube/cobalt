@@ -63,6 +63,10 @@ class PlatformConfig(PlatformConfiguration):
             0,
         'include_path_platform_deploy_gypi':
             'starboard/android/shared/platform_deploy.gypi',
+        'javascript_engine':
+            'v8',
+        'cobalt_enable_jit':
+            1,
     })
     return variables
 
