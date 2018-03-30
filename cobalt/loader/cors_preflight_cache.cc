@@ -149,17 +149,20 @@ bool CORSPreflightCache::HaveEntry(
 void CORSPreflightCache::ClearObsoleteEntries() {
   while (expiration_time_heap_.size() > 0 &&
          expiration_time_heap_.top().expiration_time < base::Time::Now()) {
-    DCHECK(content_.find(expiration_time_heap_.top().url_str) !=
-           content_.end());
-    auto url_iter = content_.find(expiration_time_heap_.top().url_str);
-    DCHECK(url_iter->second.find(expiration_time_heap_.top().origin) !=
-           url_iter->second.end());
-    auto entry_iter = url_iter->second.find(expiration_time_heap_.top().origin);
+    auto heap_top = expiration_time_heap_.top();
+    expiration_time_heap_.pop();
+    auto url_iter = content_.find(heap_top.url_str);
+    if (url_iter == content_.end()) {
+      continue;
+    }
+    auto entry_iter = url_iter->second.find(heap_top.origin);
+    if (entry_iter == url_iter->second.end()) {
+      continue;
+    }
     // The entry could have been updated and should only delete obselete ones.
     if (entry_iter->second->expiration_time < base::Time::Now()) {
       url_iter->second.erase(entry_iter);
     }
-    expiration_time_heap_.pop();
   }
 }
 
