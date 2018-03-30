@@ -16,9 +16,6 @@
     'target_arch': 'x64',
     'target_os': 'linux',
 
-    'javascript_engine': 'v8',
-    'cobalt_enable_jit': 1,
-
     # No GL drivers available.
     'gl_type': 'none',
 
