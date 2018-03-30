@@ -104,10 +104,12 @@ title: "Starboard Configuration Reference Guide"
 | Properties |
 | :--- |
 | **`SB_HAS_QUIRK_SEEK_TO_KEYFRAME`**<br><br>After a seek is triggerred, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.<br><br>By default, this property is undefined. |
+| **`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES`**<br><br>The implementation is allowed to support `kSbMediaAudioSampleTypeInt16` only when this macro is defined. |
 | **`SB_HAS_QUIRK_NO_FFS`**<br><br>dlmalloc will use the ffs intrinsic if available.  Platforms on which this is not available should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND`**<br><br>The maximum audio bitrate the platform can decode.  The following value equals to 5M bytes per seconds which is more than enough for compressed audio.<br><br>The default value in the Stub implementation is `(40 * 1024 * 1024)` |
 | **`SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND`**<br><br>The maximum video bitrate the platform can decode.  The following value equals to 25M bytes per seconds which is more than enough for compressed video.<br><br>The default value in the Stub implementation is `(200 * 1024 * 1024)` |
 | **`SB_HAS_MEDIA_WEBM_VP9_SUPPORT`**<br><br>Specifies whether this platform has webm/vp9 support.  This should be set to non-zero on platforms with webm/vp9 support.<br><br>The default value in the Stub implementation is `0` |
+| **`SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING`**<br><br>Specifies whether this platform updates audio frames asynchronously.  In such case an extra parameter will be added to `SbAudioSinkConsumeFramesFunc()` to indicate the absolute time that the consumed audio frames are reported.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MEDIA_THREAD_STACK_SIZE`**<br><br>Specifies the stack size for threads created inside media stack.  Set to 0 to use the default thread stack size.  Set to non-zero to explicitly set the stack size for media stack threads.<br><br>The default value in the Stub implementation is `0U` |
 
 
