@@ -3,6 +3,22 @@
 This document records all notable changes made to Cobalt since the last release.
 
 ## Version 16
+ - **Move ``javascript_engine`` and ``cobalt_enable_jit`` build variables**
+
+   Move gyp variables ``javascript_engine`` and ``cobalt_enable_jit``, which
+   were previously defined in ``cobalt_configuration.gypi``, to
+   ``$PLATFORM/gyp_configuration.py``.  This was done in order to work around
+   bindings gyp files' complex usage of gyp variables, which prevented us from
+   having a default JavaScript engine at the gyp variable level.  Now, platforms
+   will by default use the JavaScript engine selected by
+   ``starboard/build/platform_configuration.py``, and can override it by
+   providing a different one in their ``GetVariables`` implementation.  See the
+   ``linux-x64x11-mozjs`` platform for an override example.
+
+   **IMPORTANT**: While existing gyp files that define ``javascript_engine`` and
+   ``cobalt_enable_jit`` may continue to work by chance, it is *strongly*
+   preferred to move all declarations of these variables to python instead.
+
  - **Move test data**
 
    Static test data is now copied to `content/data/test` instead of
