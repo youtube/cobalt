@@ -353,19 +353,11 @@
     # a warning if the engine consumes more memory than this value specifies.
     'reduce_gpu_memory_by%': -1,
 
-    # The only currently-supported Javascript engine is 'mozjs-45'.
-    'default_javascript_engine': 'mozjs-45',
-    'javascript_engine%': '<(default_javascript_engine)',
-
-    # Disable JIT and run in interpreter-only mode by default. It can be set
-    # to 1 to run in JIT mode.  For SpiderMonkey in particular, we have found
-    # that disabling JIT often results in faster JavaScript execution and
-    # lower memory usage.
-    # Setting this to 1 on a platform or engine for which there is no JIT
-    # implementation is a no-op.
-    # Setting this to 0 on an engine for which there is a JIT implementation
-    # is a platform configuration error.
-    'cobalt_enable_jit%': 0,
+    # Note: Ideally, |javascript_engine| and |cobalt_enable_jit| would live
+    # here, however due to weird gyp variable usage in bindings gyp files
+    # (that if we removed, would result in large code duplication), we have to
+    # define them in the python gyp platform files instead.  See
+    # "starboard/build/platform_configuration.py" for their documentation.
 
     # Can be set to enable zealous garbage collection, if |javascript_engine|
     # supports it.  Zealous garbage collection will cause garbage collection
