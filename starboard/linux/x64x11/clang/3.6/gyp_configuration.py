@@ -45,6 +45,16 @@ class PlatformConfig(shared_configuration.LinuxConfiguration):
     })
     return env_variables
 
+  def GetVariables(self, config_name):
+    # A significant amount of code in V8 fails to compile on clang 3.6 using
+    # the debug config, due to an internal error in clang.
+    variables = super(PlatformConfig, self).GetVariables(config_name)
+    variables.update({
+        'javascript_engine': 'mozjs-45',
+        'cobalt_enable_jit': 0,
+    })
+    return variables
+
 
 def CreatePlatformConfig():
   try:

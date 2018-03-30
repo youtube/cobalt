@@ -16,5 +16,16 @@
 from starboard.linux.x64x11 import gyp_configuration as linux_configuration
 
 
+class PlatformConfig(linux_configuration.LinuxX64X11Configuration):
+
+  def GetVariables(self, config_name):
+    variables = super(PlatformConfig, self).GetVariables(config_name)
+    variables.update({
+        'javascript_engine': 'mozjs-45',
+        'cobalt_enable_jit': 0,
+    })
+    return variables
+
+
 def CreatePlatformConfig():
-  return linux_configuration.LinuxX64X11Configuration('linux-x64x11-mozjs')
+  return PlatformConfig('linux-x64x11-mozjs')
