@@ -1307,6 +1307,8 @@ egl::Error Renderer11::getD3DTextureInfo(const egl::Config *configuration,
         case DXGI_FORMAT_R16G16B16A16_FLOAT:
         case DXGI_FORMAT_R32G32B32A32_FLOAT:
         case DXGI_FORMAT_NV12:
+        case DXGI_FORMAT_R8_UNORM:
+        case DXGI_FORMAT_R16_UNORM:
             break;
 
         default:
