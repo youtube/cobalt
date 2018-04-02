@@ -154,6 +154,7 @@ v8.log
 /testing/iossim/third_party/
 /testserver.log
 /third_party/GTM
+/third_party/QR-Code-generator
 /third_party/WebKit
 /third_party/adobe/flash/binaries
 /third_party/adobe/flash/symbols
@@ -214,6 +215,7 @@ v8.log
 /third_party/libsrtp
 /third_party/libvpx
 /third_party/libvpx_gpu
+/third_party/libvpx_xb1
 /third_party/libyuv
 /third_party/lighttpd
 /third_party/llvm
