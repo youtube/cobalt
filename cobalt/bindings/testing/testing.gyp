@@ -145,6 +145,7 @@
       'target_name': 'bindings_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'array_buffers_test.cc',
         'any_bindings_test.cc',
         'any_dictionary_bindings_test.cc',
         'boolean_type_bindings_test.cc',
