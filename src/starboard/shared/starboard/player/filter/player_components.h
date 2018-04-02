@@ -75,9 +75,12 @@ class PlayerComponents {
     if (!audio_decoder || !audio_renderer_sink) {
       return scoped_ptr<AudioRenderer>();
     }
-    return make_scoped_ptr(new AudioRenderer(audio_decoder.Pass(),
-                                             audio_renderer_sink.Pass(),
-                                             audio_parameters.audio_header));
+    int max_cached_frames, max_frames_per_append;
+    GetAudioRendererParams(&max_cached_frames, &max_frames_per_append);
+    return make_scoped_ptr(
+        new AudioRenderer(audio_decoder.Pass(), audio_renderer_sink.Pass(),
+                          audio_parameters.audio_header, max_cached_frames,
+                          max_frames_per_append));
   }
   scoped_ptr<VideoRenderer> CreateVideoRenderer(
       const VideoParameters& video_parameters,
@@ -100,6 +103,7 @@ class PlayerComponents {
 #endif  // COBALT_BUILD_TYPE_GOLD
   // Note that the following functions are exposed in non-Gold build to allow
   // unit tests to run.
+
   virtual void CreateAudioComponents(
       const AudioParameters& audio_parameters,
       scoped_ptr<AudioDecoder>* audio_decoder,
@@ -110,6 +114,10 @@ class PlayerComponents {
       scoped_ptr<VideoDecoder>* video_decoder,
       scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
       scoped_refptr<VideoRendererSink>* video_renderer_sink) = 0;
+
+  // Check AudioRenderer ctor for more details on the parameters.
+  virtual void GetAudioRendererParams(int* max_cached_frames,
+                                      int* max_frames_per_append) const = 0;
 
  protected:
   PlayerComponents() {}

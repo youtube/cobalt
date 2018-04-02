@@ -13,7 +13,7 @@ namespace internal {
 
 
 void Isolate::set_context(Context* context) {
-  DCHECK(context == NULL || context->IsContext());
+  DCHECK(context == nullptr || context->IsContext());
   thread_local_top_.context_ = context;
 }
 
@@ -125,6 +125,11 @@ Isolate::ExceptionScope::~ExceptionScope() {
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
+
+bool Isolate::IsArrayConstructorIntact() {
+  Cell* array_constructor_cell = heap()->array_constructor_protector();
+  return array_constructor_cell->value() == Smi::FromInt(kProtectorValid);
+}
 
 bool Isolate::IsArraySpeciesLookupChainIntact() {
   // Note: It would be nice to have debug checks to make sure that the

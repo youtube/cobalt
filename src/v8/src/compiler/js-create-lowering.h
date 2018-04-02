@@ -16,7 +16,7 @@ namespace internal {
 class AllocationSiteUsageContext;
 class CompilationDependencies;
 class Factory;
-
+class JSRegExp;
 
 namespace compiler {
 
@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreate(Node* node);
   Reduction ReduceJSCreateArguments(Node* node);
   Reduction ReduceJSCreateArray(Node* node);
+  Reduction ReduceJSCreateBoundFunction(Node* node);
   Reduction ReduceJSCreateClosure(Node* node);
   Reduction ReduceJSCreateIterResultObject(Node* node);
   Reduction ReduceJSCreateKeyValueArray(Node* node);
@@ -62,10 +63,12 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateCatchContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
   Reduction ReduceJSCreateGeneratorObject(Node* node);
+  Reduction ReduceNewArray(Node* node, Node* length, Handle<Map> initial_map,
+                           PretenureFlag pretenure);
   Reduction ReduceNewArray(Node* node, Node* length, int capacity,
-                           Handle<AllocationSite> site);
+                           Handle<Map> initial_map, PretenureFlag pretenure);
   Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
-                           Handle<AllocationSite> site);
+                           Handle<Map> initial_map, PretenureFlag pretenure);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
   Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,

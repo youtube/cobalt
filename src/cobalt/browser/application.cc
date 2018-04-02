@@ -87,11 +87,11 @@ int GetRemoteDebuggingPort() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kRemoteDebuggingPort)) {
-    const std::string switchValue =
+    std::string switch_value =
         command_line->GetSwitchValueASCII(switches::kRemoteDebuggingPort);
-    if (!base::StringToInt(switchValue, &remote_debugging_port)) {
+    if (!base::StringToInt(switch_value, &remote_debugging_port)) {
       DLOG(ERROR) << "Invalid port specified for remote debug server: "
-                  << switchValue
+                  << switch_value
                   << ". Using default port: " << kDefaultRemoteDebuggingPort;
       remote_debugging_port = kDefaultRemoteDebuggingPort;
     }
@@ -285,17 +285,17 @@ base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
     return base::nullopt;
   }
 
-  const std::string switchValue =
+  std::string switch_value =
       command_line->GetSwitchValueASCII(browser::switches::kViewport);
-  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switchValue);
+  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switch_value);
   if (parsed_ints.size() < 1) {
     return base::nullopt;
   }
 
   const ParsedIntValue parsed_width = parsed_ints[0];
   if (parsed_width.error_) {
-    DLOG(ERROR) << "Invalid value specified for viewport width: " << switchValue
-                << ". Using default viewport size.";
+    DLOG(ERROR) << "Invalid value specified for viewport width: "
+                << switch_value << ". Using default viewport size.";
     return base::nullopt;
   }
 
@@ -317,7 +317,7 @@ base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
 
   if (parsed_height_ptr->error_) {
     DLOG(ERROR) << "Invalid value specified for viewport height: "
-                << switchValue << ". Using default viewport size.";
+                << switch_value << ". Using default viewport size.";
     return base::nullopt;
   }
 
@@ -841,7 +841,17 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           new base::AccessibilityCaptionSettingsChangedEvent());
       break;
 #endif  // SB_HAS(CAPTIONS)
-    default:
+    // Explicitly list unhandled cases here so that the compiler can give a
+    // warning when a value is added, but not handled.
+    case kSbEventTypeInput:
+#if SB_API_VERSION >= 6
+    case kSbEventTypePreload:
+#endif  // SB_API_VERSION >= 6
+    case kSbEventTypeScheduled:
+    case kSbEventTypeStart:
+    case kSbEventTypeStop:
+    case kSbEventTypeUser:
+    case kSbEventTypeVerticalSync:
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -918,8 +928,29 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->ReduceMemory();
       DLOG(INFO) << "Finished reducing memory usage.";
       break;
+    // All of the remaining event types are unexpected:
+    case kSbEventTypePreload:
 #endif  // SB_API_VERSION >= 6
-    default:
+#if SB_API_VERSION >= 8
+    case kSbEventTypeWindowSizeChanged:
+#endif
+#if SB_HAS(CAPTIONS)
+    case kSbEventTypeAccessibilityCaptionSettingsChanged:
+#endif  // SB_HAS(CAPTIONS)
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+    case kSbEventTypeOnScreenKeyboardBlurred:
+    case kSbEventTypeOnScreenKeyboardFocused:
+    case kSbEventTypeOnScreenKeyboardHidden:
+    case kSbEventTypeOnScreenKeyboardShown:
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+    case kSbEventTypeAccessiblitySettingsChanged:
+    case kSbEventTypeInput:
+    case kSbEventTypeLink:
+    case kSbEventTypeNetworkConnect:
+    case kSbEventTypeNetworkDisconnect:
+    case kSbEventTypeScheduled:
+    case kSbEventTypeUser:
+    case kSbEventTypeVerticalSync:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1002,10 +1033,6 @@ Application::CValStats::CValStats()
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
                       "Total CPU memory allocated via the app's allocators."),
-      js_reserved_memory("Memory.JS", 0,
-                         "The total memory that is reserved by the engine, "
-                         "including the part that is actually occupied by "
-                         "JS objects, and the part that is not yet."),
       app_start_time("Time.Cobalt.Start",
                      base::StartupTimer::StartTime().ToInternalValue(),
                      "Start time of the application in microseconds."),
@@ -1087,8 +1114,7 @@ void Application::UpdatePeriodicStats() {
     *c_val_stats_.used_gpu_memory = *used_gpu_memory;
   }
 
-  c_val_stats_.js_reserved_memory =
-      script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved();
+  browser_module_->UpdateJavaScriptHeapStatistics();
 
   browser_module_->CheckMemory(used_cpu_memory, used_gpu_memory);
 }

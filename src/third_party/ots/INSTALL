@@ -1,37 +1,52 @@
-How to build (using scons, on Linux):
+Instructions below are for building standalone OTS utilities, if you want to
+use OTS as a library then the recommended way is to copy the source code and
+integrate it into your existing build system. Our build system does not build
+a shared library intentionally.
 
- $ cd ots/test/
- $ sudo apt-get install scons g++ libfreetype6-dev
- $ scons
+General build instructions:
 
-How to build (using gyp):
+  1. If you are building from cloned Git repository, you will need to update
+     the git sub modules, as well as run autoreconf. A convenience script is
+     provided:
 
-  (Note: test programs which require gtest can't build with gyp for now)
+     $ ./autogen.sh
 
-  1. If you are building OTS on Windows, download zlib from
-     http://www.zlib.net/ and put them in appropriate folder.
+  2. Build OTS
 
-  2. Run gyp_ots
+     $ ./configure
+     $ make
 
-    $ ./gyp_ots
+  3. Run the tests (if you wish)
 
-    This will fetch gyp and generate build files. By default, following
-    files will be generated:
-      - MSVS solution file on Windows
-      - Xcode project file on Mac
-      - Makefile on Linux
+     $ make check
 
-    If you want to generate Makefile on Mac, you can use -f option:
+Building on Windows:
 
-    $ ./gyp_ots -f make
+   1. A POSIX-compatible environment is required to build OTS, MSYS2 is
+      recommended. Follow the installation instructions on
+	  https://msys2.github.io/.
 
-  3. Build OTS
+   2. Install the required packages:
 
-    Using MSVS:
-      Open ots-standalone.sln and build targets.
+      $ pacman -S autoconf automake pkg-config gcc make
 
-    Using Xcode:
-      $ xcodebuild -target ots-standalone.xcodeproj -target all
+   3. Follow the general build instructions above.
 
-    Using Makefile:
-      $ make
+Developer build instructions:
+
+  1. If you would like to see the source code lines related to reported 
+     errors, then replace configure call above with:
+
+     $ ./configure --enable-debug
+
+     For example,
+
+     $ ./ots-sanitize ~/fonts/ofl/merriweathersans/MerriweatherSans-Bold.ttf
+     ERROR at src/layout.cc:100 (ParseScriptTable)
+     ERROR: Layout: DFLT table doesn't satisfy the spec. for script tag DFLT
+     ERROR at src/layout.cc:1247 (ParseScriptListTable)
+     ERROR: Layout: Failed to parse script table 0
+     ERROR at src/gsub.cc:642 (ots_gsub_parse)
+     ERROR: GSUB: Failed to parse script list table
+     ERROR at src/ots.cc:669 (ProcessGeneric)
+     Failed to sanitize file!

@@ -57,7 +57,7 @@ FilePath ResolvePath(const char* path) {
   FilePath result(path);
   if (!result.IsAbsolute()) {
     FilePath content_path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &content_path);
+    PathService::Get(base::DIR_TEST_DATA, &content_path);
     CHECK(content_path.IsAbsolute());
     result = content_path.Append(result);
   }
@@ -87,9 +87,9 @@ void PrintUsage(const char* executable_path_name) {
   std::string executable_file_name =
       FilePath(executable_path_name).BaseName().value();
   const char kExampleAdaptiveAudioPathName[] =
-      "cobalt/browser/testdata/media-element-demo/dash-audio.mp4";
+      "cobalt/demos/media-element-demo/dash-audio.mp4";
   const char kExampleAdaptiveVideoPathName[] =
-      "cobalt/browser/testdata/media-element-demo/dash-video-1080p.mp4";
+      "cobalt/demos/media-element-demo/dash-video-1080p.mp4";
   const char kExampleProgressiveUrl[] =
       "https://storage.googleapis.com/yt-cobalt-media-element-demo/"
       "progressive.mp4";

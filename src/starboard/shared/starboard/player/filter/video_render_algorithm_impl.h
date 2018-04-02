@@ -41,7 +41,7 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   int GetDroppedFrames() override { return dropped_frames_; }
 
  private:
-  SbMediaTime last_frame_pts_;
+  SbTime last_frame_timestamp_;
   int dropped_frames_;
 };
 

@@ -19,8 +19,8 @@ namespace starboard {
 namespace nplb {
 
 TEST(SbAudioSinkIsAudioSampleTypeSupportedTest, SunnyDay) {
-  bool int16_supported =
-      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16);
+  bool int16_supported = SbAudioSinkIsAudioSampleTypeSupported(
+      kSbMediaAudioSampleTypeInt16Deprecated);
   bool float32_supported =
       SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32);
   // A platform must support at least one of the sample types.

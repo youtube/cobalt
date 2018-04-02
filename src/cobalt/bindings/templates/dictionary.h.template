@@ -13,21 +13,19 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  #}
-/*
- * Copyright {{today.year}} Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright {{today.year}} Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // clang-format off
 
@@ -101,8 +99,8 @@ class {{class_name}} {
 {% else %}
     if (other.{{member.name}}_) {
       {{member.name}}_.reset(
-          new script::ScriptValue<{{member.type}}>::StrongReference(
-              other.{{member.name}}_->referenced_value()));
+          new script::Handle<{{member.type}}>(
+              *other.{{member.name}}_));
     }
 {% endif %}
 {% endfor %}
@@ -121,8 +119,8 @@ class {{class_name}} {
 {% else %}
     if (other.{{member.name}}_) {
       {{member.name}}_.reset(
-          new script::ScriptValue<{{member.type}}>::StrongReference(
-                other.{{member.name}}_->referenced_value()));
+          new script::Handle<{{member.type}}>(
+              *other.{{member.name}}_));
     } else {
       {{member.name}}_.reset();
     }
@@ -147,7 +145,7 @@ class {{class_name}} {
     if (!{{member.name}}_) {
       return NULL;
     }
-    return &({{member.name}}_->referenced_value());
+    return ({{member.name}}_->GetScriptValue());
 {% else %}
     return {{member.name}}_;
 {% endif %}
@@ -159,7 +157,7 @@ class {{class_name}} {
 {% if member.is_script_value %}
     if (value) {
       {{member.name}}_.reset(
-          new script::ScriptValue<{{member.type}}>::StrongReference(*value));
+          new script::Handle<{{member.type}}>(*value));
     } else {
       {{member.name}}_.reset();
     }
@@ -169,13 +167,14 @@ class {{class_name}} {
   }
 
 {% endfor %}
+
  private:
 {% for member in members %}
 {% if not member.default_value %}
   bool has_{{member.name}}_;
 {% endif %}
 {% if member.is_script_value %}
-  scoped_ptr<script::ScriptValue<{{member.type}}>::StrongReference> {{member.name}}_;
+  scoped_ptr<script::Handle<{{member.type}}>> {{member.name}}_;
 {% else %}
   {{member.type}} {{member.name}}_;
 {% endif %}

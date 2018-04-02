@@ -14,10 +14,12 @@
 
 #include <string.h>
 
+#include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
+#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -76,7 +78,6 @@ TEST(SbSystemGetPathTest, FailsGracefullyBogusId) {
 
 TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
   BasicTest(kSbSystemPathDebugOutputDirectory, false, false, __LINE__);
-  BasicTest(kSbSystemPathSourceDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTempDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTestOutputDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathCacheDirectory, false, false, __LINE__);
@@ -156,6 +157,26 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     EXPECT_TRUE(SbFileDelete(path));
     EXPECT_FALSE(SbFileExists(path));
   }
+}
+
+TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
+  // Verify that the creation time of the current executable file is not
+  // greater than the current time.
+  char path[kPathSize];
+  SbMemorySet(path, 0xCD, kPathSize);
+  bool result = SbSystemGetPath(kSbSystemPathExecutableFile, path, kPathSize);
+  ASSERT_TRUE(result);
+
+  EXPECT_NE('\xCD', path[0]);
+  int len = static_cast<int>(SbStringGetLength(path));
+  EXPECT_GT(len, 0);
+
+  SbFileInfo executable_file_info;
+  result = SbFileGetPathInfo(path, &executable_file_info);
+  ASSERT_TRUE(result);
+
+  SbTime now = SbTimeGetNow();
+  EXPECT_GT(now, executable_file_info.creation_time);
 }
 
 }  // namespace

@@ -83,6 +83,9 @@ class ApplicationWin32 : public starboard::QueueApplication {
   LRESULT WindowProcess(HWND hWnd, UINT msg, WPARAM w_param, LPARAM l_param);
   VOID TimedEventCallback(PVOID lp, BOOLEAN timer_or_wait_fired);
 
+  // Non-virtual override. Calls into super class Run().
+  int Run(int argc, char** argv);
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() override { return true; }

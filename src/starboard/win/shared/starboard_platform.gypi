@@ -26,6 +26,7 @@
       '<(DEPTH)/starboard/shared/win32/log_file_impl.h',
       '<(DEPTH)/starboard/shared/win32/log_raw.cc',
       '<(DEPTH)/starboard/shared/win32/log_raw_format.cc',
+      '<(DEPTH)/starboard/shared/win32/media_is_audio_supported.cc',
       '<(DEPTH)/starboard/shared/win32/playready_license.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
       '<(DEPTH)/starboard/shared/win32/system_clear_platform_error.cc',
@@ -75,14 +76,11 @@
       '<(DEPTH)/starboard/shared/win32/media_common.h',
       '<(DEPTH)/starboard/shared/win32/media_foundation_utils.cc',
       '<(DEPTH)/starboard/shared/win32/media_foundation_utils.h',
-      '<(DEPTH)/starboard/shared/win32/media_is_audio_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_transform.cc',
       '<(DEPTH)/starboard/shared/win32/media_transform.h',
       '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
-      '<(DEPTH)/starboard/shared/win32/simple_thread.cc',
-      '<(DEPTH)/starboard/shared/win32/simple_thread.h',
       '<(DEPTH)/starboard/shared/win32/video_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/video_decoder.h',
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.cc',
@@ -92,7 +90,6 @@
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
       '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_stereo_only.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_stereo_only.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
@@ -140,7 +137,16 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
     ],
+
+    'win32_shared_misc_files': [
+      '<(DEPTH)/starboard/common/thread.cc',
+      '<(DEPTH)/starboard/common/thread.h',
+      '<(DEPTH)/starboard/shared/starboard/net_log.cc',
+      '<(DEPTH)/starboard/shared/starboard/net_log.h',
+    ],
+
     'starboard_platform_dependent_files': [
+      '<@(win32_shared_misc_files)',
       '<@(win32_media_player_files)',
       '<@(win32_shared_drm_files)',
       '<@(win32_shared_media_player_files)',
@@ -409,8 +415,11 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
-        # We assume most modern Windows PCs can handle 4k H264.
-        'ENABLE_H264_4K_SUPPORT'
+        # We assume most modern Windows PCs can handle 4k H264 and 8k VP9.
+        # The latter is additionally gated on Media Foundation acceleration
+        # support during runtime anyway.
+        'ENABLE_H264_4K_SUPPORT',
+        'ENABLE_VP9_8K_SUPPORT',
       ],
       'dependencies': [
         'convert_i18n_data',

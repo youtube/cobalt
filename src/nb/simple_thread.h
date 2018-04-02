@@ -19,7 +19,7 @@
 
 #include <string>
 
-#include "nb/atomic.h"
+#include "starboard/atomic.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -54,7 +54,7 @@ class SimpleThread {
 
   const std::string name_;
   SbThread thread_;
-  atomic_bool join_called_;
+  starboard::atomic_bool join_called_;
 
   SB_DISALLOW_COPY_AND_ASSIGN(SimpleThread);
 };

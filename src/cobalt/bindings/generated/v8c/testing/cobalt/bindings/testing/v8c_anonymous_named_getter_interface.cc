@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -91,7 +92,7 @@ void NamedPropertyGetterCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
@@ -120,11 +121,18 @@ void NamedPropertyGetterCallback(
   DCHECK(!exception_state.is_exception_set());
 }
 
+void IndexedPropertyGetterCallback(
+    uint32_t index,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::String> as_string = v8::Integer::New(info.GetIsolate(), index)->ToString();
+  NamedPropertyGetterCallback(as_string, info);
+}
+
 void NamedPropertyQueryCallback(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Integer>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrapperObject(object);
   if (!wrapper_private) {
@@ -138,19 +146,29 @@ void NamedPropertyQueryCallback(
   if (!result) {
     return;
   }
+
   // https://heycam.github.io/webidl/#LegacyPlatformObjectGetOwnProperty
+  int properties = v8::None;
   // 2.7. If |O| implements an interface with a named property setter, then set
   //      desc.[[Writable]] to true, otherwise set it to false.
   // 2.8. If |O| implements an interface with the
   //      [LegacyUnenumerableNamedProperties] extended attribute, then set
   //      desc.[[Enumerable]] to false, otherwise set it to true.
-  info.GetReturnValue().Set(v8::DontEnum | v8::ReadOnly);
+
+  info.GetReturnValue().Set(properties);
+}
+
+void IndexedPropertyDescriptorCallback(
+    uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // TODO: Figure out under what conditions this gets called.  It's not
+  // getting called in our tests.
+  NOTIMPLEMENTED();
 }
 
 void NamedPropertyEnumeratorCallback(
     const v8::PropertyCallbackInfo<v8::Array>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrapperObject(object);
   if (!wrapper_private) {
@@ -171,7 +189,7 @@ void NamedPropertySetterCallback(
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
 
@@ -193,12 +211,29 @@ void NamedPropertySetterCallback(
 
   impl->AnonymousNamedSetter(property_name, native_value);
   result_value = v8::Undefined(isolate);
+  info.GetReturnValue().Set(value);
   DCHECK(!exception_state.is_exception_set());
+}
+
+void IndexedPropertySetterCallback(
+    uint32_t index,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Local<v8::String> as_string = v8::Integer::New(info.GetIsolate(), index)->ToString();
+  NamedPropertySetterCallback(as_string, value, info);
 }
 
 
 
 
+
+
+
+void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  V8cExceptionState exception(info.GetIsolate());
+  exception.SetSimpleException(
+      script::kTypeError, "AnonymousNamedGetterInterface is not constructible.");
+}
 
 
 
@@ -229,7 +264,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(
           isolate,
-          nullptr,
+          DummyConstructor,
           v8::Local<v8::Value>(),
           v8::Local<v8::Signature>(),
           0);
@@ -274,6 +309,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
       NewInternalString(isolate, "AnonymousNamedGetterInterface"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
 
+
   {
     v8::NamedPropertyHandlerConfiguration named_property_handler_configuration = {
       NamedPropertyGetterCallback,
@@ -285,6 +321,18 @@ void InitializeTemplate(v8::Isolate* isolate) {
       static_cast<v8::PropertyHandlerFlags>(int(v8::PropertyHandlerFlags::kNonMasking) | int(v8::PropertyHandlerFlags::kOnlyInterceptStrings))
     };
     instance_template->SetHandler(named_property_handler_configuration);
+  }
+
+  {
+    v8::IndexedPropertyHandlerConfiguration indexed_property_handler_configuration = {
+      IndexedPropertyGetterCallback,
+      IndexedPropertySetterCallback,
+      IndexedPropertyDescriptorCallback,
+      nullptr,
+      nullptr,
+      nullptr
+    };
+    instance_template->SetHandler(indexed_property_handler_configuration);
   }
 
 

@@ -13,19 +13,29 @@
 # limitations under the License.
 """Starboard win32 shared platform configuration for gyp_cobalt."""
 
-import os
-import sys
-
 import config.base
+import logging
+import os
+import re
+import subprocess
+import sys
 
 import starboard.shared.win32.sdk_configuration as sdk_configuration
 from starboard.tools.paths import STARBOARD_ROOT
 from starboard.tools.testing import test_filter
 
+def GetWindowsVersion():
+  out = subprocess.check_output('ver', universal_newlines = True, shell=True)
+  lines = [l for l in out.split('\n') if len(l) > 0]
+  for l in lines:
+    m = re.search(r"Version\s([0-9\.]+)", out)
+    if m and m.group(1):
+      major, minor, build = m.group(1).split('.')
+      return (int(major), int(minor), int(build))
+  raise IOError("Could not retrieve windows version")
 
 def _QuotePath(path):
   return '"' + path + '"'
-
 
 class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
@@ -91,13 +101,28 @@ class PlatformConfig(config.base.PlatformConfigBase):
     from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
     return MSVCUWPToolchain()
 
+  def IsWin10orHigher(self):
+    try:
+      # Both Win10 and Win2016-Server will return 10.0+
+      major, minor, build = GetWindowsVersion()
+      return major >= 10
+    except Exception as e:
+        print("Error while getting version for windows: " + str(e))
+    return False
+
+
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
 
     Returns:
       A list of initialized TestFilter objects.
     """
-    return [
+
+    if not self.IsWin10orHigher():
+        logging.error("Tests can only be executed on Win10 and higher.")
+        return [ test_filter.DISABLE_TESTING ]
+    else:
+      return [
         # Fails on JSC.
         test_filter.TestFilter(
             'bindings_test', ('EvaluateScriptTest.ThreeArguments')),
@@ -124,4 +149,4 @@ class PlatformConfig(config.base.PlatformConfigBase):
         test_filter.TestFilter('webdriver_test',
                                test_filter.FILTER_ALL)
 
-    ]
+      ]

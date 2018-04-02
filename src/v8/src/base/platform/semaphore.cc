@@ -73,7 +73,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_POSIX
 
 Semaphore::Semaphore(int count) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   int result = sem_init(&native_handle_, 0, count);
   DCHECK_EQ(0, result);
   USE(result);
@@ -135,9 +135,9 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_WIN
 
 Semaphore::Semaphore(int count) {
-  DCHECK(count >= 0);
-  native_handle_ = ::CreateSemaphoreA(NULL, count, 0x7fffffff, NULL);
-  DCHECK(native_handle_ != NULL);
+  DCHECK_GE(count, 0);
+  native_handle_ = ::CreateSemaphoreA(nullptr, count, 0x7FFFFFFF, nullptr);
+  DCHECK_NOT_NULL(native_handle_);
 }
 
 
@@ -184,6 +184,29 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
       return true;
     }
   }
+}
+
+#elif V8_OS_STARBOARD
+
+Semaphore::Semaphore(int count) {
+  DCHECK_GE(count, 0);
+}
+
+Semaphore::~Semaphore() {
+}
+
+void Semaphore::Signal() {
+  native_handle_.Put();
+}
+
+
+void Semaphore::Wait() {
+  native_handle_.Take();
+}
+
+bool Semaphore::WaitFor(const TimeDelta& rel_time) {
+  SbTime microseconds = rel_time.InMicroseconds();
+  return native_handle_.TakeWait(microseconds);
 }
 
 #endif  // V8_OS_MACOSX

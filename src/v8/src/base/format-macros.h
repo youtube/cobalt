@@ -32,13 +32,13 @@
 #error "without __STDC_FORMAT_MACROS defined."
 #endif
 
-#if defined(V8_OS_POSIX) && !defined(__STDC_FORMAT_MACROS)
+#if (defined(V8_OS_POSIX) || defined(V8_OS_STARBOARD)) && !defined(__STDC_FORMAT_MACROS)
 #define __STDC_FORMAT_MACROS
 #endif
 
 #include <inttypes.h>
 
-#if defined(V8_OS_POSIX)
+#if defined(V8_OS_POSIX) || defined(V8_OS_STARBOARD)
 
 // GCC will concatenate wide and narrow strings correctly, so nothing needs to
 // be done here.

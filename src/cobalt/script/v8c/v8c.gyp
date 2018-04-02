@@ -25,6 +25,8 @@
         'conversion_helpers.h',
         'entry_scope.h',
         'interface_data.h',
+        'isolate_fellowship.cc',
+        'isolate_fellowship.h',
         'native_promise.h',
         'scoped_persistent.h',
         'stack_trace_helpers.cc',
@@ -50,6 +52,7 @@
         'v8c_source_code.h',
         'v8c_user_object_holder.h',
         'v8c_value_handle.h',
+        'v8c_value_handle.cc',
         'v8c_wrapper_handle.h',
         'wrapper_factory.cc',
         'wrapper_factory.h',
@@ -60,17 +63,25 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/v8/src/v8.gyp:v8',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
+        'embed_v8c_resources_as_header_files',
       ],
       'defines': [
         'ENGINE_SUPPORTS_INT64',
         'ENGINE_SUPPORTS_JIT',
+        # The file name to store our V8 startup snapshot file at.  This is a
+        # serialized representation of a |v8::Isolate| after completing all
+        # tasks prior to creation of the global object (e.g., executing self
+        # hosted JavaScript to implement ECMAScript level features).  This
+        # state is architecture dependent, and in fact, dependent on anything
+        # that could affect JavaScript execution (such as #defines), and thus
+        # must be unique with respect to binary, which is why we build it out
+        # of platform name and configuration.
+        'V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME="<(starboard_platform_name)_<(cobalt_config)_v8_startup_snapshot.bin"',
       ],
       'all_dependent_settings': {
         'defines': [
           'ENGINE_SUPPORTS_INDEXED_DELETERS',
           'ENGINE_SUPPORTS_INT64',
-          # TODO: Remove this when exact rooting and generational GC is enabled.
-          'ENGINE_USES_CONSERVATIVE_ROOTING',
         ],
       },
       # V8 always requires JIT.  |cobalt_enable_jit| must be set to true to
@@ -97,5 +108,44 @@
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
       ],
     },
+
+    {
+      # This target takes specified files and embeds them as header files for
+      # inclusion into the binary.
+      'target_name': 'embed_v8c_resources_as_header_files',
+      'type': 'none',
+      # Because we generate a header, we must set the hard_dependency flag.
+      'hard_dependency': 1,
+      'variables': {
+        'script_path': '<(DEPTH)/cobalt/build/generate_data_header.py',
+        'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/script/v8c/embedded_resources.h',
+      },
+      'sources': [
+        '<(DEPTH)/cobalt/fetch/embedded_scripts/fetch.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/byte_length_queuing_strategy.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/count_queuing_strategy.js',
+        '<(DEPTH)/cobalt/streams/embedded_scripts/readable_stream.js',
+      ],
+      'actions': [
+        {
+          'action_name': 'embed_v8c_resources_as_header_files',
+          'inputs': [
+            '<(script_path)',
+            '<@(_sources)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)', 'V8cEmbeddedResources', '<(output_path)', '<@(_sources)' ],
+          'message': 'Embedding v8c resources in into header file, "<(output_path)".',
+        },
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(SHARED_INTERMEDIATE_DIR)',
+        ],
+      },
+    },
+
   ],
 }

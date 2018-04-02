@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Cobalt suspend state visibility test</title>
+  <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+  <h1>
+    <span id="unique_id">ID element</span>
+  </h1>
+  <script>
+    // In started mode, visibility should be "visible" and window/document
+    // should have focus.
+    assertEqual("visible", document.visibilityState);
+    assertTrue(document.hasFocus());
+
+    let suspendStateVerified = false;
+    // Success callback for verifying visibility and focus in suspend.
+    function intoSuspendCallback() {
+      suspendStateVerified = true;
+    }
+
+    // Success callback for verifying visibility and focus after suspend in
+    // started.
+    function outOfSuspendCallback() {
+      if (suspendStateVerified){
+        onEndTest();
+      } else {
+        // By now, it is in Started state and Suspend state behavior
+        // verification will never secceed.
+        notReached();
+      }
+    }
+
+    function verifyVisibilityAndFocusInterval(shouldBeVisible, shouldHaveFocus) {
+      visibility_str = shouldBeVisible ? "visible" : "hidden";
+      if (document.hasFocus() === shouldHaveFocus && document.visibilityState === visibility_str) {
+        return true;
+      }
+    }
+
+    // Post periodic timer to check desired visibility and focus settings.
+    function verifyVisibilityAndFocus(shouldBeVisible, shouldHaveFocus, successCallback) {
+      if (verifyVisibilityAndFocusInterval(shouldBeVisible, shouldHaveFocus)) {
+        successCallback();
+        return true;
+      }
+      time_elapsed = 0;
+      set_interval_id = setInterval(() => {
+        if (verifyVisibilityAndFocusInterval(shouldBeVisible, shouldHaveFocus)){
+          successCallback()
+          clearInterval(set_interval_id);
+        }else {
+          if (time_elapsed > EFFECT_AFTER_VISIBILITY_CHANGE_TIMEOUT_SECONDS){
+            console.log("Waiting for visibilityState and focus change timed out")
+            notReached();
+          }
+          time_elapsed += 0.1;
+        }
+      }, 50);
+    }
+
+    // Wait for visibility change to verify visibilityState and focus status.
+    let visibilityChangeCalledBefore = false;
+    function handleVisibilityChange() {
+      if (!visibilityChangeCalledBefore) {
+        verifyVisibilityAndFocus(false, false, intoSuspendCallback);
+        visibilityChangeCalledBefore = true;
+      } else {
+        verifyVisibilityAndFocus(true, true, outOfSuspendCallback);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    setupFinished();
+  </script>
+</body>

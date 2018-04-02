@@ -10,6 +10,12 @@
 #include <malloc.h>  // NOLINT
 #endif
 
+#include "src/allocation.h"
+
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -82,11 +88,7 @@ Segment* AccountingAllocator::GetSegment(size_t bytes) {
 }
 
 Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
-  void* memory = malloc(bytes);
-  if (memory == nullptr) {
-    V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-    memory = malloc(bytes);
-  }
+  void* memory = AllocWithRetry(bytes);
   if (memory != nullptr) {
     base::AtomicWord current =
         base::Relaxed_AtomicIncrement(&current_memory_usage_, bytes);

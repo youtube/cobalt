@@ -1,56 +1,46 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "cvt.h"
 
 // cvt - Control Value Table
-// http://www.microsoft.com/opentype/otspec/cvt.htm
+// http://www.microsoft.com/typography/otspec/cvt.htm
 
 namespace ots {
 
-bool ots_cvt_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
+bool OpenTypeCVT::Parse(const uint8_t *data, size_t length) {
   Buffer table(data, length);
 
-  OpenTypeCVT *cvt = new OpenTypeCVT;
-  file->cvt = cvt;
-
   if (length >= 128 * 1024u) {
-    return OTS_FAILURE();  // almost all cvt tables are less than 4k bytes.
+    return Error("Length (%d) > 120K");  // almost all cvt tables are less than 4k bytes.
   }
 
   if (length % 2 != 0) {
-    return OTS_FAILURE();
+    return Error("Uneven table length (%d)", length);
   }
 
   if (!table.Skip(length)) {
-    return OTS_FAILURE();
+    return Error("Table length too high");
   }
 
-  cvt->data = data;
-  cvt->length = length;
+  this->data = data;
+  this->length = length;
   return true;
 }
 
-bool ots_cvt_should_serialise(OpenTypeFile *file) {
-  if (!file->glyf) {
-    return false;  // this table is not for CFF fonts.
-  }
-  return g_transcode_hints && file->cvt;
-}
-
-bool ots_cvt_serialise(OTSStream *out, OpenTypeFile *file) {
-  const OpenTypeCVT *cvt = file->cvt;
-
-  if (!out->Write(cvt->data, cvt->length)) {
-    return OTS_FAILURE();
+bool OpenTypeCVT::Serialize(OTSStream *out) {
+  if (!out->Write(this->data, this->length)) {
+    return Error("Failed to write cvt table");
   }
 
   return true;
 }
 
-void ots_cvt_free(OpenTypeFile *file) {
-  delete file->cvt;
+bool OpenTypeCVT::ShouldSerialize() {
+  return Table::ShouldSerialize() &&
+         // this table is not for CFF fonts.
+         GetFont()->GetTable(OTS_TAG_GLYF) != NULL;
 }
 
 }  // namespace ots

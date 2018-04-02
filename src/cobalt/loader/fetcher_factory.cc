@@ -39,7 +39,6 @@ namespace {
 const char kAboutScheme[] = "about";
 #endif
 
-#if defined(COBALT_ENABLE_FILE_SCHEME)
 bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   DCHECK(url.is_valid() && url.SchemeIsFile());
   std::string path = url.path();
@@ -48,7 +47,6 @@ bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   *file_path = FilePath(path);
   return !file_path->empty();
 }
-#endif
 
 std::string ClipUrl(const GURL& url, size_t length) {
   const std::string& spec = url.possibly_invalid_spec();
@@ -56,7 +54,11 @@ std::string ClipUrl(const GURL& url, size_t length) {
     return spec;
   }
 
-  return spec.substr(0, length - 5) + "[...]";
+  size_t remain = length - 5;
+  size_t head = remain / 2;
+  size_t tail = remain - head;
+
+  return spec.substr(0, head) + "[...]" + spec.substr(spec.size() - tail);
 }
 
 }  // namespace
@@ -100,7 +102,7 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
 scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin, Fetcher::Handler* handler) {
-  DLOG(INFO) << "Fetching: " << ClipUrl(url, 60);
+  DLOG(INFO) << "Fetching: " << ClipUrl(url, 80);
 
   if (!url.is_valid()) {
     std::stringstream error_message;
@@ -135,7 +137,6 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
                                                 read_cache_callback_));
   }
 
-#if defined(COBALT_ENABLE_FILE_SCHEME)
   if (url.SchemeIsFile()) {
     FilePath file_path;
     if (!FileURLToFilePath(url, &file_path)) {
@@ -150,7 +151,6 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     options.extra_search_dir = extra_search_dir_;
     return scoped_ptr<Fetcher>(new FileFetcher(file_path, handler, options));
   }
-#endif
 
 #if defined(ENABLE_ABOUT_SCHEME)
   if (url.SchemeIs(kAboutScheme)) {

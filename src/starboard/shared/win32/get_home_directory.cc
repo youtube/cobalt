@@ -57,13 +57,15 @@ bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
     CoTaskMemFree(local_app_data_path);
     // Instead of using the raw local AppData directory, we create a program
     // app directory if it doesn't exist already.
-    const CommandLine* command_line =
-        sbwin32::ApplicationWin32::Get()->GetCommandLine();
-    SB_DCHECK(command_line);
-    const std::string program_name = command_line->argv()[0];
-    PathAppend(
-        wide_path,
-        sbwin32::CStringToWString(program_name.c_str()).c_str());
+    TCHAR program_name[MAX_PATH];
+    DWORD program_name_length = GetModuleFileName(NULL, program_name, MAX_PATH);
+    if (program_name_length == 0) {
+      SB_LOG(ERROR) << "GetModuleFileName failed";
+      sbwin32::DebugLogWinError();
+      return false;
+    }
+    PathStripPath(program_name);
+    PathAppend(wide_path, program_name);
     if (!PathFileExists(wide_path)) {
       SECURITY_ATTRIBUTES security_attributes = {sizeof(SECURITY_ATTRIBUTES),
                                                  NULL, TRUE};

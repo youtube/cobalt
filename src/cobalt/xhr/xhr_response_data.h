@@ -45,6 +45,9 @@ class XhrResponseData {
   size_t capacity() const { return data_.capacity(); }
 
  private:
+  void IncreaseMemoryUsage();
+  void DecreaseMemoryUsage();
+
   std::string data_;
 };
 

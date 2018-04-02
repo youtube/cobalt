@@ -17,49 +17,57 @@
 #
 # To use this, create a gyp target with the following form:
 # {
-#   'target_name': 'copy_data_target_name',
+#   'target_name': 'target_name_copy_web_files',
 #   'type': 'none',
-#   'actions': [
-#     {
-#       'action_name': 'copy_data_target_name',
-#       'variables': {
-#         'input_files': [
-#           'path/to/datafile.txt',     # The file will be copied.
-#           'path/to/data/directory',   # The directory and its content will be copied.
-#           'path/to/data/directory/',  # The directory's content will be copied.
-#         ]
-#         'output_dir' : 'path/to/output/directory',
-#       },
-#       'includes': [ 'path/to/this/gypi/file' ],
-#     },
-#   ],
+#   'variables': {
+#     'content_web_input_files': [
+#       'path/to/datafile.txt',     # The file will be copied.
+#       'path/to/data/directory',   # The directory and its content will be copied.
+#       'path/to/data/directory/',  # The directory's content will be copied.
+#     ]
+#     'content_web_output_subdir' : 'path/to/output/directory',
+#   },
+#   'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
 # },
 #
 # Meaning of the variables:
-#   input_files: list: paths to data files or directories. When an item is a
-#                      directory, without the final "/", the directory (along
-#                      with the content) will be copied, otherwise only the
-#                      content will be copied.
-#   output_dir: string: The directory that all input files will be copied to.
-#                       Generally, this should be the directory of the gypi file
-#                       containing the target (e.g. it should be "base" for the
-#                       target in base/base.gyp).
-# It is recommended that input_files and output_dir have similar path, so the
-# directory structure in dir_source_root/ will reflect that in the source
-# folder.
+#   content_web_input_files: list:
+#       Paths to data files or directories. When an item is a directory,
+#       without the final "/", the directory (along with the content) will be
+#       copied, otherwise only the content will be copied.
+#   content_web_output_subdir: string:
+#       Directory within the 'web' directory that all input files will be
+#       copied to.  Generally, this should be the directory of the gypi file
+#       containing the target (e.g. it should be "base" for the target in
+#       base/base.gyp).
+# It is recommended that content_web_input_files and content_web_output_subdir
+# have similar paths, so the directory structure in web/ will reflect that in
+# the source folder.
 
 {
   'includes': [ 'contents_dir.gypi' ],
-  'inputs': [
-    '<!@pymod_do_main(starboard.build.copy_data --inputs <(input_files))',
+
+  'actions': [
+    {
+      'action_name': 'copy_web_files',
+      'inputs': [
+        '<!@pymod_do_main(starboard.build.copy_data --inputs <(content_web_input_files))',
+      ],
+      'outputs': [
+        '<!@pymod_do_main(starboard.build.copy_data -o <(sb_static_contents_output_data_dir)/web/<(content_web_output_subdir) --outputs <(content_web_input_files))',
+      ],
+      'action': [
+        'python',
+        '<(DEPTH)/starboard/build/copy_data.py',
+        '-o', '<(sb_static_contents_output_data_dir)/web/<(content_web_output_subdir)',
+        '<@(content_web_input_files)',
+      ],
+    },
   ],
-  'outputs': [
-    '<!@pymod_do_main(starboard.build.copy_data -o <(sb_static_contents_output_data_dir)/web/<(output_dir) --outputs <(input_files))',
-  ],
-  'action': [
-    'python',
-    '<(DEPTH)/starboard/build/copy_data.py',
-    '-o', '<(sb_static_contents_output_data_dir)/web/<(output_dir)',
-    '<@(input_files)',
-  ],
+
+  'all_dependent_settings': {
+    'variables': {
+      'content_deploy_subdirs': [ 'web/<(content_web_output_subdir)' ]
+    }
+  },
 }

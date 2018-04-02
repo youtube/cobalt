@@ -4430,7 +4430,7 @@ comma_separated_text_shadow_list:
   }
   ;
 
-// This property accepts a comma-seperated list of shadow effects to be applied
+// This property accepts a comma-separated list of shadow effects to be applied
 // to the text of the element.
 //   https://www.w3.org/TR/css-text-decor-3/#text-shadow-property
 text_shadow_property_value:

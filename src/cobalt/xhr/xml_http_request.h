@@ -30,6 +30,7 @@
 #include "cobalt/dom/uint8_array.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/net_fetcher.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xhr_response_data.h"
 #include "cobalt/xhr/xml_http_request_event_target.h"
@@ -56,7 +57,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
  public:
   // Note: This is expected to be a DOMSettings object, but we declare it as
   // EnvironmentSettings so that JSC doesn't need to know about dom.
-  explicit XMLHttpRequest(script::EnvironmentSettings*);
+  explicit XMLHttpRequest(script::EnvironmentSettings* settings);
 
   typedef script::UnionType2<std::string, scoped_refptr<dom::ArrayBuffer> >
       ResponseType;

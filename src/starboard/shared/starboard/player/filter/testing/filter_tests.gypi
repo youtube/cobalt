@@ -35,23 +35,23 @@
         'STARBOARD_IMPLEMENTATION',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+        '<@(cobalt_platform_dependencies)',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        'filter_tests_copy_test_data',
       ],
-      'actions': [
-        {
-          'action_name': 'copy_filter_tests_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/starboard/shared/starboard/player/testdata',
-            ],
-            'output_dir': '/starboard/shared/starboard/player',
-          },
-          'includes': ['../../../../../build/copy_test_data.gypi'],
-        }
-      ],
+    },
+    {
+      'target_name': 'filter_tests_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/starboard/shared/starboard/player/testdata',
+        ],
+        'content_test_output_subdir': 'starboard/shared/starboard/player',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
     },
     {
       'target_name': 'filter_tests_deploy',

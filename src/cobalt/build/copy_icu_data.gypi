@@ -57,4 +57,10 @@
       'files': [ '<(inputs_icu)' ],
     },
   ],
+
+  'all_dependent_settings': {
+    'variables': {
+      'content_deploy_subdirs': [ 'icu' ]
+    }
+  },
 }

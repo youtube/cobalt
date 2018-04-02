@@ -144,6 +144,7 @@
         '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/third_party/ots/ots.gyp:ots',
         'loader',
         'loader_copy_test_data',
         '<@(cobalt_platform_dependencies)',
@@ -165,18 +166,13 @@
     {
       'target_name': 'loader_copy_test_data',
       'type': 'none',
-      'actions': [
-        {
-          'action_name': 'loader_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/loader/testdata/',
-            ],
-            'output_dir': 'cobalt/loader/testdata/',
-          },
-          'includes': [ '../build/copy_test_data.gypi' ],
-        },
-      ],
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/cobalt/loader/testdata/',
+        ],
+        'content_test_output_subdir': 'cobalt/loader/testdata/',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/copy_test_data.gypi' ],
     },
 
     {

@@ -156,6 +156,13 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 namespace v8 {
 namespace sampler {
 
+#if V8_OS_STARBOARD
+class Sampler::PlatformData {
+ public:
+  PlatformData() = default;
+};
+#endif
+
 namespace {
 
 #if defined(USE_SIGNALS)
@@ -227,7 +234,7 @@ class SamplerManager {
     base::HashMap::Entry* entry =
             sampler_map_.LookupOrInsert(ThreadKey(thread_id),
                                         ThreadHash(thread_id));
-    DCHECK(entry != nullptr);
+    DCHECK_NOT_NULL(entry);
     if (entry->value == nullptr) {
       SamplerList* samplers = new SamplerList();
       samplers->push_back(sampler);
@@ -256,7 +263,7 @@ class SamplerManager {
     void* thread_key = ThreadKey(thread_id);
     uint32_t thread_hash = ThreadHash(thread_id);
     base::HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
-    DCHECK(entry != nullptr);
+    DCHECK_NOT_NULL(entry);
     SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
     for (SamplerListIterator iter = samplers->begin(); iter != samplers->end();
          ++iter) {
@@ -662,6 +669,12 @@ void Sampler::DoSample() {
     SampleStack(state);
   }
   ResumeThread(profiled_thread);
+}
+
+#elif V8_OS_STARBOARD
+
+void Sampler::DoSample() {
+  SB_NOTIMPLEMENTED();
 }
 
 #endif  // USE_SIGNALS

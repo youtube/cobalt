@@ -247,6 +247,11 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
   return 0;
 }
 
+int ApplicationWin32::Run(int argc, char** argv) {
+  int return_val = Application::Run(argc, argv);
+  return return_val;
+}
+
 void ApplicationWin32::ProcessNextSystemMessage() {
   MSG msg;
   BOOL peek_message_return = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);

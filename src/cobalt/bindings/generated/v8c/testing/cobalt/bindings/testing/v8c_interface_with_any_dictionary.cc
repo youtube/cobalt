@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -84,7 +85,7 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 28;
+const int kInterfaceUniqueId = 29;
 
 
 
@@ -112,13 +113,14 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 
 
+
 void getAnyMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<InterfaceWithAnyDictionary>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cInterfaceWithAnyDictionary::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -150,11 +152,11 @@ void getAnyMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void hasAnyMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<InterfaceWithAnyDictionary>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cInterfaceWithAnyDictionary::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -186,11 +188,11 @@ void hasAnyMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void hasAnyDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<InterfaceWithAnyDictionary>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cInterfaceWithAnyDictionary::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -222,11 +224,11 @@ void hasAnyDefaultMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void setAnyMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<InterfaceWithAnyDictionary>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cInterfaceWithAnyDictionary::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -343,16 +345,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, getAnyMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "getAny"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -376,16 +378,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, hasAnyMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "hasAny"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -409,16 +411,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, hasAnyDefaultMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "hasAnyDefault"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -442,16 +444,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, setAnyMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "setAny"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -469,6 +471,8 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "InterfaceWithAnyDictionary"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+
 
 
 

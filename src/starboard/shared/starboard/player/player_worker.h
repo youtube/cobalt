@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
 #include <functional>
+#include <string>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
@@ -44,11 +45,11 @@ class PlayerWorker {
  public:
   class Host {
    public:
-    virtual void UpdateMediaTime(SbMediaTime media_time, int ticket) = 0;
+    virtual void UpdateMediaTime(SbTime media_time, int ticket) = 0;
     virtual void UpdateDroppedVideoFrames(int dropped_video_frames) = 0;
 
    protected:
-    ~Host() {}
+    virtual ~Host() {}
   };
 
   struct Bounds {
@@ -62,11 +63,12 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
-    typedef void (PlayerWorker::*UpdateMediaTimeCB)(SbMediaTime media_time);
+    typedef void (PlayerWorker::*UpdateMediaTimeCB)(SbTime media_time);
     typedef SbPlayerState (PlayerWorker::*GetPlayerStateCB)() const;
     typedef void (PlayerWorker::*UpdatePlayerStateCB)(
         SbPlayerState player_state);
-
+    typedef void (PlayerWorker::*UpdatePlayerErrorCB)(
+        const std::string& message);
     virtual ~Handler() {}
 
     // All the following functions return false to signal a fatal error.  The
@@ -76,8 +78,13 @@ class PlayerWorker {
                       SbPlayer player,
                       UpdateMediaTimeCB update_media_time_cb,
                       GetPlayerStateCB get_player_state_cb,
-                      UpdatePlayerStateCB update_player_state_cb) = 0;
-    virtual bool Seek(SbMediaTime seek_to_pts, int ticket) = 0;
+                      UpdatePlayerStateCB update_player_state_cb
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                      ,
+                      UpdatePlayerErrorCB update_player_error_cb
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+                      ) = 0;
+    virtual bool Seek(SbTime seek_to_time, int ticket) = 0;
     virtual bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                              bool* written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
@@ -100,13 +107,16 @@ class PlayerWorker {
                scoped_ptr<Handler> handler,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+               SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                SbPlayer player,
                void* context);
   ~PlayerWorker();
 
-  void Seek(SbMediaTime seek_to_pts, int ticket) {
+  void Seek(SbTime seek_to_time, int ticket) {
     job_queue_->Schedule(
-        std::bind(&PlayerWorker::DoSeek, this, seek_to_pts, ticket));
+        std::bind(&PlayerWorker::DoSeek, this, seek_to_time, ticket));
   }
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {
@@ -157,15 +167,16 @@ class PlayerWorker {
   }
 
  private:
-  void UpdateMediaTime(SbMediaTime time);
+  void UpdateMediaTime(SbTime time);
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);
+  void UpdatePlayerError(const std::string& message);
 
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
   void DoInit();
-  void DoSeek(SbMediaTime seek_to_pts, int ticket);
+  void DoSeek(SbTime seek_to_time, int ticket);
   void DoWriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
@@ -186,6 +197,10 @@ class PlayerWorker {
 
   SbPlayerDecoderStatusFunc decoder_status_func_;
   SbPlayerStatusFunc player_status_func_;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  SbPlayerErrorFunc player_error_func_;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+  bool error_occurred_ = false;
   SbPlayer player_;
   void* context_;
   int ticket_;

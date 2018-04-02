@@ -134,7 +134,6 @@ void RawMachineAssembler::Return(Node* value) {
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Return(Node* v1, Node* v2) {
   Node* values[] = {Int32Constant(0), v1, v2};
   Node* ret = MakeNode(common()->Return(2), 3, values);
@@ -142,12 +141,29 @@ void RawMachineAssembler::Return(Node* v1, Node* v2) {
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
   Node* values[] = {Int32Constant(0), v1, v2, v3};
   Node* ret = MakeNode(common()->Return(3), 4, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
+}
+
+void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3, Node* v4) {
+  Node* values[] = {Int32Constant(0), v1, v2, v3, v4};
+  Node* ret = MakeNode(common()->Return(4), 5, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::Return(int count, Node* vs[]) {
+  typedef Node* Node_ptr;
+  Node** values = new Node_ptr[count + 1];
+  values[0] = Int32Constant(0);
+  for (int i = 0; i < count; ++i) values[i + 1] = vs[i];
+  Node* ret = MakeNode(common()->Return(count), count + 1, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+  delete[] values;
 }
 
 void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
@@ -168,6 +184,14 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
                                        Node* v3) {
   Node* values[] = {pop, v1, v2, v3};
   Node* ret = MakeNode(common()->Return(3), 4, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3,
+                                       Node* v4) {
+  Node* values[] = {pop, v1, v2, v3, v4};
+  Node* ret = MakeNode(common()->Return(4), 5, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
@@ -301,6 +325,41 @@ Node* RawMachineAssembler::CallCFunction3WithCallerSavedRegisters(
                  arg0, arg1, arg2);
 }
 
+Node* RawMachineAssembler::CallCFunction4(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, Node* function, Node* arg0,
+    Node* arg1, Node* arg2, Node* arg3) {
+  MachineSignature::Builder builder(zone(), 1, 4);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  builder.AddParam(arg3_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2, arg3);
+}
+
+Node* RawMachineAssembler::CallCFunction5(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
+    Node* function, Node* arg0, Node* arg1, Node* arg2, Node* arg3,
+    Node* arg4) {
+  MachineSignature::Builder builder(zone(), 1, 5);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  builder.AddParam(arg3_type);
+  builder.AddParam(arg4_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2, arg3,
+                 arg4);
+}
+
 Node* RawMachineAssembler::CallCFunction6(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
     MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
@@ -395,7 +454,7 @@ void RawMachineAssembler::Bind(RawMachineLabel* label,
     str << "Binding label without closing previous block:"
         << "\n#    label:          " << info
         << "\n#    previous block: " << *current_block_;
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
   Bind(label);
   current_block_->set_debug_info(info);
@@ -404,6 +463,8 @@ void RawMachineAssembler::Bind(RawMachineLabel* label,
 void RawMachineAssembler::PrintCurrentBlock(std::ostream& os) {
   os << CurrentBlock();
 }
+
+bool RawMachineAssembler::InsideBlock() { return current_block_ != nullptr; }
 
 void RawMachineAssembler::SetInitialDebugInformation(
     AssemblerDebugInfo debug_info) {
@@ -458,7 +519,7 @@ RawMachineLabel::~RawMachineLabel() {
   } else {
     str << "A label has been used but it's not bound.";
   }
-  FATAL(str.str().c_str());
+  FATAL("%s", str.str().c_str());
 #endif  // DEBUG
 }
 

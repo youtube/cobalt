@@ -15,6 +15,7 @@
 #ifndef COBALT_SCRIPT_MOZJS_45_NATIVE_PROMISE_H_
 #define COBALT_SCRIPT_MOZJS_45_NATIVE_PROMISE_H_
 
+#include "base/logging.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
@@ -38,8 +39,6 @@ inline void ToJSValue(JSContext* context,
   out_value.setUndefined();
 }
 
-// Shared functionality for NativePromise<T>. Does not implement the Resolve
-// function, since that needs to be specialized for Promise<T>.
 template <typename T>
 class NativePromise : public Promise<T> {
  public:
@@ -75,13 +74,11 @@ class NativePromise : public Promise<T> {
   JSObject* promise() const { return promise_resolver_->GetPromise(); }
 
   void Resolve(const ResolveType& value) const override {
-    JS::RootedObject promise_wrapper(context_,
-                                     promise_resolver_->get().GetObject());
-    if (!promise_wrapper) {
-      return;
-    }
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
-    JSAutoCompartment auto_compartment(context_, promise_wrapper);
+    JSAutoCompartment auto_compartment(context_, promise_resolver);
     JS::RootedValue converted_value(context_);
     ToJSValue(context_, value, &converted_value);
     promise_resolver_->Resolve(converted_value);
@@ -90,9 +87,7 @@ class NativePromise : public Promise<T> {
   void Reject() const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
-    if (!promise_resolver) {
-      return;
-    }
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, promise_resolver);
     promise_resolver_->Reject(JS::UndefinedHandleValue);
@@ -101,9 +96,7 @@ class NativePromise : public Promise<T> {
   void Reject(SimpleExceptionType exception) const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
-    if (!promise_resolver) {
-      return;
-    }
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, promise_resolver);
     JS::RootedValue error_result(context_);
@@ -115,14 +108,21 @@ class NativePromise : public Promise<T> {
   void Reject(const scoped_refptr<ScriptException>& result) const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
-    if (!promise_resolver) {
-      return;
-    }
+    DCHECK(promise_resolver);
     JSAutoRequest auto_request(context_);
     JSAutoCompartment auto_compartment(context_, promise_resolver);
     JS::RootedValue converted_result(context_);
     ToJSValue(context_, result, &converted_result);
     promise_resolver_->Reject(converted_result);
+  }
+
+  PromiseState State() const {
+    JS::RootedObject promise_resolver(context_,
+                                      promise_resolver_->get().GetObject());
+    DCHECK(promise_resolver);
+    JSAutoRequest auto_request(context_);
+    JSAutoCompartment auto_compartment(context_, promise_resolver);
+    return promise_resolver_->State();
   }
 
  private:
@@ -153,7 +153,7 @@ inline void ToJSValue(JSContext* context,
 
   const NativePromise<T>* native_promise =
       base::polymorphic_downcast<const NativePromise<T>*>(
-          user_object_holder->GetScriptValue());
+          user_object_holder->GetValue());
 
   DCHECK(native_promise);
   out_value.setObjectOrNull(native_promise->promise());
@@ -169,16 +169,6 @@ inline void ToJSValue(JSContext* context,
   TRACK_MEMORY_SCOPE("Javascript");
   ToJSValue(context, const_cast<const ScriptValue<Promise<T>>*>(promise_holder),
             out_value);
-}
-
-// Destroys |promise_holder| as soon as the conversion is done.
-// This is useful when a wrappable is not interested in retaining a reference
-// to a promise, typically when a promise is resolved or rejected synchronously.
-template <typename T>
-inline void ToJSValue(JSContext* context,
-                      scoped_ptr<ScriptValue<Promise<T>>> promise_holder,
-                      JS::MutableHandleValue out_value) {
-  ToJSValue(context, promise_holder.get(), out_value);
 }
 
 }  // namespace mozjs

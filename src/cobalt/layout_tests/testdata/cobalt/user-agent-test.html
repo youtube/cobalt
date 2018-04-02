@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<!--
+ | Tests that the platform user agent string will be accepted by one of the
+ | user agent regexes.
+-->
+<html>
+<head>
+  <title>user-agent-test</title>
+  <style>
+    #result {
+      width: 100px;
+      height:100px;
+      background-color:#0047AB;
+    }
+  </style>
+</head>
+<body>
+
+<div id="result"></div>
+
+<script>
+
+function expect(condition, message) {
+  if (!condition) {
+    document.querySelector('#result').style.display = 'none';
+    if (typeof message !== 'undefined') {
+      console.error(message);
+    } else {
+      console.error('!condition block reached in |expect|');
+    }
+  }
+}
+
+// This matches a device.py file in Google's internal code repository.
+function generateUserAgentRegexes() {
+  const output = [];
+  const uaFieldChars = "-.A-Za-z0-9\\,_/()";
+
+  // Note that ?P<NAME> is used by python for named capture groups. JavaScript
+  // does not support named capture groups, so they are commented out.
+  // Additionally, all model names have been replaced with more general regexes.
+  // YTTV 2016: Operator_DeviceType_Chipset/Firmware (Brand, Model, Connection)
+  const string = "("/*?P<device>*/ + "(" + /*?P<operator>*/"[" + uaFieldChars + "'/]*)_"
+      + "("/*?P<type>*/ + "[" + uaFieldChars + "/]+)_"
+      + "("/*?P<chipset>*/ + "[" + uaFieldChars + "/_]+)) ?/ ?"
+      + "[" + uaFieldChars + "_]* "
+      + "\\(("/*?P<brand>*/ + "[" + uaFieldChars + "/_ ]+), ?("/*?P<model>*/ + "[^,]*), "
+      + "?[WIREDLSwiredls\\/]*\\)";
+  output.push(string);
+
+  // TTV 2013: Device/Firmware (Brand, Model, Connection)
+  output.push("("/*?P<device>*/ + "[-_.A-Za-z0-9\\/]+) ?/ ?[-_.A-Za-z0-9\\\\]* "
+              + "\\(("/*?P<brand>*/ + "[-_.A-Za-z0-9\\/ ]+), ?("/*?P<model>*/ + "[^,]*), "
+              + "?[WIREDLSwiredls\\/]*\\)");
+
+  // YTTV 2012: Vendor Device/Firmware (Model, SKU, Lang, Country)
+  output.push("("/*?P<brand>*/ + "[-_.A-Za-z0-9\\\\/]+) "
+              + "("/*?P<device>*/ + "[-_.A-Za-z0-9\\\\]+)/[-_.A-Za-z0-9\\\\/]* \\(("/*?P<model>*/ + "[^,]*), "
+              + "?[-_.A-Za-z0-9\\\\/]*,[^,]+,[^)]+\\)");
+
+  // (REMOVED) Spec:
+  output.push("("/*?P<device>*/ + "[a-zA-Z]+)/[0-9.]+ \\([^;]*; ?("/*?P<brand>*/ + "[^;]*); "
+              + "?("/*?P<model>*/ + "[^;]*);[^;]*;[^;]*;[^)]*\\)");
+
+  // (REMOVED) 2012:
+  output.push("("/*?P<brand>*/ + "[G-L]+) Browser/[0-9.]+\\([^;]*; [E-L]+; "
+              + "?("/*?P<model>*/ + "[^;]*);[^;]*;[^;]*;\\); [G-L]+ ("/*?P<device>*/ + "[-_.A-Za-z0-9\\\\/]+) ");
+
+  // (REMOVED)
+  // Note: device is more of a firmware version, but model should feasibly always match.
+  output.push("("/*?P<brand>*/ + "[a-zA-Z]+)/("/*?P<model>*/ + "\\S+) \\(("/*?P<device>*/ + "[^)]+)\\)");
+
+  output.push("[.A-Za-z0-9\\\\/]+ [a-zA-Z]+/[.0-9]+ ("/*?P<brand>*/ + "[a-zA-Z]+)[T-V]+/[.0-9]+ "
+              + "model/("/*?P<model>*/ + "\\S+) ?[-_.A-Za-z0-9\\\\/]* build/[A-Za-z0-9]+");
+  return output;
+}
+
+expect(
+    generateUserAgentRegexes()
+    .map(regex => new RegExp(regex, 'g').test(navigator.userAgent))
+    .some(value => value),
+    `userAgent string '${navigator.userAgent}' failed to match any acceptable regular expression`
+);
+
+</script>
+
+</body>
+</html>

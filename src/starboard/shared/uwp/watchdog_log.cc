@@ -18,12 +18,10 @@
 
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
-#include "starboard/shared/win32/simple_thread.h"
 #include "starboard/string.h"
-
-using starboard::shared::win32::SimpleThread;
 
 namespace starboard {
 namespace shared {
@@ -34,11 +32,11 @@ namespace {
 // file. On destruction WatchDogThread will write out "done\n".
 // This allows a test runner to accurately determine whether this process
 // is still alive, finished, or crashed.
-class WatchDogThread : public SimpleThread {
+class WatchDogThread : public Thread {
  public:
   explicit WatchDogThread(const std::string& file_path)
-      : SimpleThread("WatchDogLog"), file_path_(file_path) {
-    SimpleThread::Start();
+      : Thread("WatchDogLog"), file_path_(file_path) {
+    Start();
   }
 
   ~WatchDogThread() {
@@ -58,7 +56,7 @@ class WatchDogThread : public SimpleThread {
       SB_LOG(ERROR) << "Could not create watchdog file " << file_path_;
       return;
     }
-    while (!exiting_sema_.TakeWait(kSleepTime)) {
+    while (!WaitForJoin(kSleepTime)) {
       std::stringstream ss;
       ss << "alive: " << counter++ << "\n";
       std::string str = ss.str();
@@ -73,14 +71,8 @@ class WatchDogThread : public SimpleThread {
     SB_LOG_IF(ERROR, closed) << "Could not close file " << file_path_;
   }
 
-  void Join() override {
-    exiting_sema_.Put();
-    SimpleThread::Join();
-  }
-
  private:
   std::string file_path_;
-  starboard::Semaphore exiting_sema_;
 };
 starboard::scoped_ptr<WatchDogThread> s_watchdog_singleton_;
 }  // namespace.

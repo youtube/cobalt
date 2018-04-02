@@ -21,4 +21,4 @@ interface DebugScriptRunner {
 };
 
 callback CreateRemoteObjectCallback =
-    DOMString(object obj, DOMString json_params);
+    DOMString(object obj, DOMString jsonParams);

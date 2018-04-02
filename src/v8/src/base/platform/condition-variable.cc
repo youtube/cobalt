@@ -28,7 +28,7 @@ ConditionVariable::ConditionVariable() {
   DCHECK_EQ(0, result);
   result = pthread_condattr_destroy(&attr);
 #else
-  int result = pthread_cond_init(&native_handle_, NULL);
+  int result = pthread_cond_init(&native_handle_, nullptr);
 #endif
   DCHECK_EQ(0, result);
   USE(result);
@@ -157,6 +157,39 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 #endif
   mutex->AssertUnheldAndMark();
   return result != 0;
+}
+
+#elif V8_OS_STARBOARD
+
+ConditionVariable::ConditionVariable() {
+  SbConditionVariableCreate(&native_handle_, nullptr);
+}
+
+
+ConditionVariable::~ConditionVariable() {
+  SbConditionVariableDestroy(&native_handle_);
+}
+
+void ConditionVariable::NotifyOne() {
+  SbConditionVariableSignal(&native_handle_);
+}
+
+void ConditionVariable::NotifyAll() {
+  SbConditionVariableBroadcast(&native_handle_);
+}
+
+
+void ConditionVariable::Wait(Mutex* mutex) {
+  SbConditionVariableWait(&native_handle_, &mutex->native_handle());
+}
+
+
+bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
+  SbTime microseconds = static_cast<SbTime>(rel_time.InMicroseconds());
+  SbConditionVariableResult result = SbConditionVariableWaitTimed(
+      &native_handle_, &mutex->native_handle(), microseconds);
+  DCHECK(result != kSbConditionVariableFailed);
+  return result == kSbConditionVariableSignaled;
 }
 
 #endif  // V8_OS_POSIX

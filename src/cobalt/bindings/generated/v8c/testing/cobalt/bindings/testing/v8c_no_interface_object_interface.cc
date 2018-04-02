@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -84,13 +85,20 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 36;
+const int kInterfaceUniqueId = 37;
 
 
 
 
 
 
+
+
+void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  V8cExceptionState exception(info.GetIsolate());
+  exception.SetSimpleException(
+      script::kTypeError, "NoInterfaceObjectInterface is not constructible.");
+}
 
 
 
@@ -121,7 +129,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(
           isolate,
-          nullptr,
+          DummyConstructor,
           v8::Local<v8::Value>(),
           v8::Local<v8::Signature>(),
           0);
@@ -165,6 +173,8 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "NoInterfaceObjectInterface"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+
 
 
 

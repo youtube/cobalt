@@ -54,8 +54,8 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
       void* context,
       SbDrmSessionUpdateRequestFunc session_update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback,
-      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
-
+      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+      SbDrmSessionClosedFunc session_closed_callback);
   ~SbDrmSystemPlayready() override;
 
   // From |SbDrmSystemPrivate|.
@@ -77,6 +77,8 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
   // Used by audio and video decoders to retrieve the decryptors.
   scoped_refptr<License> GetLicense(const uint8_t* key_id, int key_id_size);
 
+  void OnUwpResume();
+
  private:
   std::string GenerateAndAdvanceSessionId();
   // Note: requires mutex_ to be held
@@ -88,6 +90,7 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
   SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  SbDrmSessionClosedFunc session_closed_callback_;
   int current_session_id_;
 
   std::map<std::string, scoped_refptr<License> > pending_requests_;

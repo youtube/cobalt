@@ -38,6 +38,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
 
+  // Provides access to BigInt's bit field.
+  static FieldAccess ForBigIntBitfield();
+
   // Provides access to JSObject::properties() field.
   static FieldAccess ForJSObjectPropertiesOrHash();
 
@@ -235,6 +238,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGlobalObject::native_context() field.
   static FieldAccess ForJSGlobalObjectNativeContext();
 
+  // Provides access to JSGlobalProxy::native_context() field.
+  static FieldAccess ForJSGlobalProxyNativeContext();
+
   // Provides access to JSArrayIterator::object() field.
   static FieldAccess ForJSArrayIteratorObject();
 
@@ -299,6 +305,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForOrderedHashTableBaseNumberOfBuckets();
   static FieldAccess ForOrderedHashTableBaseNumberOfElements();
   static FieldAccess ForOrderedHashTableBaseNumberOfDeletedElements();
+
+  // Provides access to OrderedHashMap elements.
+  static ElementAccess ForOrderedHashMapEntryValue();
 
   // Provides access to Dictionary fields.
   static FieldAccess ForDictionaryMaxNumberKey();

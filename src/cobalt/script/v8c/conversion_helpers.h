@@ -537,7 +537,7 @@ inline void ToJSValue(v8::Isolate* isolate,
   // can get the implementing object.
   const V8cCallbackInterfaceClass* v8c_callback_interface =
       base::polymorphic_downcast<const V8cCallbackInterfaceClass*>(
-          user_object_holder->GetScriptValue());
+          user_object_holder->GetValue());
   DCHECK(v8c_callback_interface);
   *out_value = v8c_callback_interface->NewLocal(isolate);
 }
@@ -612,8 +612,6 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // JS -> IDL type conversion procedure described here:
   // https://heycam.github.io/webidl/#es-sequence
 
-  v8::TryCatch try_catch(isolate);
-
   // 1. If Type(V) is not Object, throw a TypeError.
   if (!value->IsObject()) {
     exception_state->SetSimpleException(kNotObjectType);
@@ -643,7 +641,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     // Let next be ? IteratorStep(iter).
     v8::Local<v8::Value> next;
     if (!iterator->Get(context, next_key).ToLocal(&next)) {
-      v8c_exception_state->ReThrow(&try_catch);
+      exception_state->SetSimpleException(kTypeError, "");
       return;
     }
     if (!next->IsFunction()) {
@@ -656,7 +654,6 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     if (!next.As<v8::Function>()
              ->Call(context, iterator, 0, nullptr)
              .ToLocal(&next_result)) {
-      v8c_exception_state->ReThrow(&try_catch);
       return;
     }
     if (!next_result->IsObject()) {
@@ -671,13 +668,11 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     v8::Local<v8::Value> done;
     if (!result_object->Get(context, value_key).ToLocal(&next_item) ||
         !result_object->Get(context, done_key).ToLocal(&done)) {
-      v8c_exception_state->ReThrow(&try_catch);
       return;
     }
 
     bool done_as_bool;
     if (!done->BooleanValue(context).To(&done_as_bool)) {
-      v8c_exception_state->ReThrow(&try_catch);
       return;
     }
     if (done_as_bool) {
@@ -694,6 +689,23 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     }
     out_sequence->push_back(idl_next_item);
   }
+}
+
+template <typename T>
+void ToJSValue(v8::Isolate* isolate,
+               const ScriptValue<Promise<T>>* promise_holder,
+               v8::Local<v8::Value>* out_value);
+
+template <typename T>
+void ToJSValue(v8::Isolate* isolate, ScriptValue<Promise<T>>* promise_holder,
+               v8::Local<v8::Value>* out_value);
+
+// script::Handle<T> -> JSValue
+template <typename T>
+void ToJSValue(v8::Isolate* isolate, const Handle<T>& local,
+               v8::Local<v8::Value>* out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  ToJSValue(isolate, local.GetScriptValue(), out_value);
 }
 
 }  // namespace v8c

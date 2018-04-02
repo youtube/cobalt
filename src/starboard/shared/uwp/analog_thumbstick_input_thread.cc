@@ -20,28 +20,26 @@
 #include <map>
 #include <vector>
 
+#include "starboard/common/thread.h"
 #include "starboard/double.h"
 #include "starboard/shared/uwp/analog_thumbstick_input.h"
-#include "starboard/shared/win32/simple_thread.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
 namespace uwp {
 
-using starboard::shared::win32::SimpleThread;
-
-class AnalogThumbstickThread::Impl : public SimpleThread {
+class AnalogThumbstickThread::Impl : public Thread {
  public:
-  explicit Impl(Callback* cb) : SimpleThread("AnalogGamepad"), callback_(cb) {
+  explicit Impl(Callback* cb) : Thread("AnalogGamepad"), callback_(cb) {
     stick_is_centered_[kSbKeyGamepadLeftStickLeft] = true;
     stick_is_centered_[kSbKeyGamepadRightStickLeft] = true;
     stick_is_centered_[kSbKeyGamepadLeftStickUp] = true;
     stick_is_centered_[kSbKeyGamepadRightStickUp] = true;
 
-    SimpleThread::Start();
+    Thread::Start();
   }
-  ~Impl() { SimpleThread::Join(); }
+  ~Impl() { Thread::Join(); }
 
   void Run() override {
     while (!join_called()) {

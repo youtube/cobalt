@@ -21,11 +21,11 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/win32/media_common.h"
-#include "starboard/shared/win32/simple_thread.h"
 #include "starboard/shared/win32/win32_audio_decoder.h"
 
 namespace starboard {
@@ -41,7 +41,7 @@ class AudioDecodedCallback {
 // This decoder thread simplifies decoding media. Data is pushed in via
 // QueueInput() and QueueEndOfStream() and output data is pushed via
 // the AudioDecodedCallback.
-class AudioDecoderThread : private SimpleThread {
+class AudioDecoderThread : private Thread {
  public:
   AudioDecoderThread(AbstractWin32AudioDecoder* decoder_impl,
                      AudioDecodedCallback* callback);

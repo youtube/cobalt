@@ -397,7 +397,7 @@ bool DoResolveRelativeHost(const char* base_url,
   // Parse the relative URL, just like we would for anything following a
   // scheme.
   url_parse::Parsed relative_parsed;  // Everything but the scheme is valid.
-  url_parse::ParseAfterScheme(&relative_url[relative_component.begin],
+  url_parse::ParseAfterScheme(relative_url,
                               relative_component.len, relative_component.begin,
                               &relative_parsed);
 

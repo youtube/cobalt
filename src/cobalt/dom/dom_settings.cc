@@ -35,19 +35,12 @@ DOMSettings::DOMSettings(
       fetcher_factory_(fetcher_factory),
       network_module_(network_module),
       window_(window),
-      array_buffer_allocator_(options.array_buffer_allocator),
-      array_buffer_cache_(options.array_buffer_cache),
       media_source_registry_(media_source_registry),
       blob_registry_(blob_registry),
       can_play_type_handler_(can_play_type_handler),
       javascript_engine_(engine),
       global_environment_(global_environment),
       mutation_observer_task_manager_(mutation_observer_task_manager) {
-  if (array_buffer_allocator_) {
-    DCHECK(options.array_buffer_cache);
-  } else {
-    DCHECK(!options.array_buffer_cache);
-  }
 }
 
 DOMSettings::~DOMSettings() {}

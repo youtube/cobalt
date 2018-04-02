@@ -20,6 +20,7 @@
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "starboard/log.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace speech {
@@ -70,8 +71,10 @@ StarboardSpeechRecognizer::~StarboardSpeechRecognizer() {
 }
 
 void StarboardSpeechRecognizer::Start(const SpeechRecognitionConfig& config) {
+  SB_DCHECK(config.max_alternatives < INT_MAX);
   SbSpeechConfiguration configuration = {
-      config.continuous, config.interim_results, config.max_alternatives};
+      config.continuous, config.interim_results,
+      static_cast<int>(config.max_alternatives)};
   if (SbSpeechRecognizerIsValid(speech_recognizer_)) {
     SbSpeechRecognizerStart(speech_recognizer_, &configuration);
   }

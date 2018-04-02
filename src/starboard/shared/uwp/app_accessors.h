@@ -23,6 +23,8 @@
 
 #include <string>
 
+#include "starboard/key.h"
+
 namespace starboard {
 namespace shared {
 namespace uwp {
@@ -54,6 +56,8 @@ void RunInMainThreadAsync(const T& lambda) {
 concurrency::task<
     Windows::Security::Authentication::Web::Core::WebTokenRequestResult^>
     TryToFetchSsoToken(const std::string& url);
+
+void InjectKeypress(SbKey key);
 
 }  // namespace uwp
 }  // namespace shared

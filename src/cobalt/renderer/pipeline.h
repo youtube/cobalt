@@ -244,13 +244,9 @@ class Pipeline {
   bool last_did_rasterize_;
 
   // Timer tracking the amount of time spent in
-  // |RasterizeSubmissionToRenderTarget| when the render tree has changed.
-  // The tracking is flushed when the max count is hit.
-  base::CValCollectionTimerStats<base::CValPublic> rasterize_periodic_timer_;
-  // Timer tracking the amount of time spent in
   // |RasterizeSubmissionToRenderTarget| while animations are active. The
   // tracking is flushed when the animations expire.
-  base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
+  base::CValCollectionTimerStats<base::CValPublic> rasterize_animations_timer_;
 
   // Accumulates render tree rasterization interval times but does not flush
   // them until the maximum number of samples is gathered.
@@ -264,16 +260,16 @@ class Pipeline {
       rasterize_animations_interval_timer_;
 
   // The total number of new render trees that have been rasterized.
-  base::CVal<int> new_render_tree_rasterize_count_;
+  base::CVal<int, base::CValPublic> new_render_tree_rasterize_count_;
   // The last time that a newly encountered render tree was first rasterized.
-  base::CVal<int64> new_render_tree_rasterize_time_;
+  base::CVal<int64, base::CValPublic> new_render_tree_rasterize_time_;
 
   // Whether or not animations are currently playing.
-  base::CVal<bool> has_active_animations_c_val_;
+  base::CVal<bool, base::CValPublic> has_active_animations_c_val_;
   // The most recent time animations started playing.
-  base::CVal<int64> animations_start_time_;
+  base::CVal<int64, base::CValPublic> animations_start_time_;
   // The most recent time animations ended playing.
-  base::CVal<int64> animations_end_time_;
+  base::CVal<int64, base::CValPublic> animations_end_time_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.

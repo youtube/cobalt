@@ -83,44 +83,46 @@ namespace {
 const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
 }  // namespace
 
-Window::Window(int width, int height, float device_pixel_ratio,
-               base::ApplicationState initial_application_state,
-               cssom::CSSParser* css_parser, Parser* dom_parser,
-               loader::FetcherFactory* fetcher_factory,
-               render_tree::ResourceProvider** resource_provider,
-               loader::image::AnimatedImageTracker* animated_image_tracker,
-               loader::image::ImageCache* image_cache,
-               loader::image::ReducedCacheCapacityManager*
-                   reduced_image_cache_capacity_manager,
-               loader::font::RemoteTypefaceCache* remote_typeface_cache,
-               loader::mesh::MeshCache* mesh_cache,
-               LocalStorageDatabase* local_storage_database,
-               media::CanPlayTypeHandler* can_play_type_handler,
-               media::WebMediaPlayerFactory* web_media_player_factory,
-               script::ExecutionState* execution_state,
-               script::ScriptRunner* script_runner,
-               script::ScriptValueFactory* script_value_factory,
-               MediaSource::Registry* media_source_registry,
-               DomStatTracker* dom_stat_tracker, const GURL& url,
-               const std::string& user_agent, const std::string& language,
-               const std::string& font_language_script,
-               const base::Callback<void(const GURL&)> navigation_callback,
-               const base::Callback<void(const std::string&)>& error_callback,
-               network_bridge::CookieJar* cookie_jar,
-               const network_bridge::PostSender& post_sender,
-               csp::CSPHeaderPolicy require_csp,
-               CspEnforcementType csp_enforcement_mode,
-               const base::Closure& csp_policy_changed_callback,
-               const base::Closure& ran_animation_frame_callbacks_callback,
-               const CloseCallback& window_close_callback,
-               const base::Closure& window_minimize_callback,
-               OnScreenKeyboardBridge* on_screen_keyboard_bridge,
-               const scoped_refptr<input::Camera3D>& camera_3d,
-               const scoped_refptr<MediaSession>& media_session,
-               int csp_insecure_allowed_token, int dom_max_element_depth,
-               float video_playback_rate_multiplier, ClockType clock_type,
-               const CacheCallback& splash_screen_cache_callback,
-               const scoped_refptr<captions::SystemCaptionSettings>& captions)
+Window::Window(
+    int width, int height, float device_pixel_ratio,
+    base::ApplicationState initial_application_state,
+    cssom::CSSParser* css_parser, Parser* dom_parser,
+    loader::FetcherFactory* fetcher_factory,
+    render_tree::ResourceProvider** resource_provider,
+    loader::image::AnimatedImageTracker* animated_image_tracker,
+    loader::image::ImageCache* image_cache,
+    loader::image::ReducedCacheCapacityManager*
+        reduced_image_cache_capacity_manager,
+    loader::font::RemoteTypefaceCache* remote_typeface_cache,
+    loader::mesh::MeshCache* mesh_cache,
+    LocalStorageDatabase* local_storage_database,
+    media::CanPlayTypeHandler* can_play_type_handler,
+    media::WebMediaPlayerFactory* web_media_player_factory,
+    script::ExecutionState* execution_state,
+    script::ScriptRunner* script_runner,
+    script::ScriptValueFactory* script_value_factory,
+    MediaSource::Registry* media_source_registry,
+    DomStatTracker* dom_stat_tracker, const GURL& url,
+    const std::string& user_agent, const std::string& language,
+    const std::string& font_language_script,
+    const base::Callback<void(const GURL&)> navigation_callback,
+    const base::Callback<void(const std::string&)>& error_callback,
+    network_bridge::CookieJar* cookie_jar,
+    const network_bridge::PostSender& post_sender,
+    csp::CSPHeaderPolicy require_csp, CspEnforcementType csp_enforcement_mode,
+    const base::Closure& csp_policy_changed_callback,
+    const base::Closure& ran_animation_frame_callbacks_callback,
+    const CloseCallback& window_close_callback,
+    const base::Closure& window_minimize_callback,
+    OnScreenKeyboardBridge* on_screen_keyboard_bridge,
+    const scoped_refptr<input::Camera3D>& camera_3d,
+    const scoped_refptr<MediaSession>& media_session,
+    const OnStartDispatchEventCallback& on_start_dispatch_event_callback,
+    const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
+    int csp_insecure_allowed_token, int dom_max_element_depth,
+    float video_playback_rate_multiplier, ClockType clock_type,
+    const CacheCallback& splash_screen_cache_callback,
+    const scoped_refptr<captions::SystemCaptionSettings>& captions)
     : width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
@@ -159,8 +161,8 @@ Window::Window(int width, int height, float device_pixel_ratio,
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(NULL),
       history_(new History()),
-      navigator_(new Navigator(user_agent, language, media_session,
-                               captions, script_value_factory)),
+      navigator_(new Navigator(user_agent, language, media_session, captions,
+                               script_value_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
@@ -185,7 +187,9 @@ Window::Window(int width, int height, float device_pixel_ratio,
                               ? new OnScreenKeyboard(on_screen_keyboard_bridge,
                                                      script_value_factory)
                               : NULL),
-      splash_screen_cache_callback_(splash_screen_cache_callback) {
+      splash_screen_cache_callback_(splash_screen_cache_callback),
+      on_start_dispatch_event_callback_(on_start_dispatch_event_callback),
+      on_stop_dispatch_event_callback_(on_stop_dispatch_event_callback) {
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
@@ -249,7 +253,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 }
 
 scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
-    const scoped_refptr<Element>& elt, const std::string& pseudoElt) {
+    const scoped_refptr<Element>& elt, const std::string& pseudo_elt) {
   // The getComputedStyle(elt, pseudoElt) method must run these steps:
   // https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle
 
@@ -268,8 +272,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 3. If pseudoElt is as an ASCII case-insensitive match for either
     // ':before' or '::before' let obj be the ::before pseudo-element of elt.
-    if (LowerCaseEqualsASCII(pseudoElt, ":before") ||
-        LowerCaseEqualsASCII(pseudoElt, "::before")) {
+    if (LowerCaseEqualsASCII(pseudo_elt, ":before") ||
+        LowerCaseEqualsASCII(pseudo_elt, "::before")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kBeforePseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -278,8 +282,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 4. If pseudoElt is as an ASCII case-insensitive match for either ':after'
     // or '::after' let obj be the ::after pseudo-element of elt.
-    if (LowerCaseEqualsASCII(pseudoElt, ":after") ||
-        LowerCaseEqualsASCII(pseudoElt, "::after")) {
+    if (LowerCaseEqualsASCII(pseudo_elt, ":after") ||
+        LowerCaseEqualsASCII(pseudo_elt, "::after")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kAfterPseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -600,6 +604,18 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
   }
 }
 
+void Window::OnStartDispatchEvent(const scoped_refptr<dom::Event>& event) {
+  if (!on_start_dispatch_event_callback_.is_null()) {
+    on_start_dispatch_event_callback_.Run(event);
+  }
+}
+
+void Window::OnStopDispatchEvent(const scoped_refptr<dom::Event>& event) {
+  if (!on_stop_dispatch_event_callback_.is_null()) {
+    on_stop_dispatch_event_callback_.Run(event);
+  }
+}
+
 void Window::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 
@@ -631,6 +647,8 @@ void Window::CacheSplashScreen(const std::string& content) {
 const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
   return on_screen_keyboard_;
 }
+
+void Window::ReleaseOnScreenKeyboard() { on_screen_keyboard_ = nullptr; }
 
 Window::~Window() {
   html_element_context_->page_visibility_state()->RemoveObserver(this);

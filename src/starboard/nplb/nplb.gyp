@@ -23,10 +23,9 @@
       'type': '<(gtest_target_type)',
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
-        '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
-        '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
         'accessibility_get_setting_test.cc',
         'align_test.cc',
+        'atomic_base_test.cc',
         'atomic_test.cc',
         'audio_sink_create_test.cc',
         'audio_sink_destroy_test.cc',
@@ -149,7 +148,6 @@
         'mutex_destroy_test.cc',
         'once_test.cc',
         'optional_test.cc',
-        'player_create_with_url_test.cc',
         'random_helpers.cc',
         'rwlock_test.cc',
         'semaphore_test.cc',
@@ -244,6 +242,7 @@
         'thread_local_value_test.cc',
         'thread_set_name_test.cc',
         'thread_sleep_test.cc',
+        'thread_test.cc',
         'thread_yield_test.cc',
         'time_get_monotonic_now_test.cc',
         'time_get_now_test.cc',
@@ -267,14 +266,17 @@
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',
+        '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
       ],
       'conditions': [
         ['sb_media_platform=="starboard"', {
           'sources': [
+            '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
+            '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
             'player_create_test.cc',
+            'player_create_with_url_test.cc',
             'player_output_mode_supported_test.cc',
           ],
         }],

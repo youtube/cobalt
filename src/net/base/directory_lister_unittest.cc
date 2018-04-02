@@ -88,7 +88,7 @@ class ListerDelegate : public DirectoryLister::DirectoryListerDelegate {
 
 TEST(DirectoryListerTest, BigDirTest) {
   FilePath path;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
+  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &path));
 
   ListerDelegate delegate(false, false);
   DirectoryLister lister(path, &delegate);
@@ -114,7 +114,7 @@ TEST(DirectoryListerTest, BigDirRecursiveTest) {
 
 TEST(DirectoryListerTest, CancelTest) {
   FilePath path;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
+  ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &path));
 
   ListerDelegate delegate(false, true);
   DirectoryLister lister(path, &delegate);

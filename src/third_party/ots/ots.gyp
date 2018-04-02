@@ -12,7 +12,7 @@
   'targets': [
     {
       'target_name': 'ots',
-      'type': '<(library)',
+      'type': 'static_library',
       'sources': [
         '<@(ots_sources)',
       ],
@@ -25,6 +25,8 @@
         ],
       },
       'dependencies': [
+        '../brotli/brotli.gyp:dec',
+        '../woff2/woff2.gyp:woff2_dec',
         '../zlib/zlib.gyp:zlib',
       ],
       # Disable windows ots warnings:

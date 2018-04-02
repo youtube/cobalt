@@ -37,16 +37,19 @@ InspectorTest.logMessage = function(originalMessage) {
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp",
-    "executionContextId", "callFrameId", "breakpointId", "bindRemoteObjectFunctionId", "formatterObjectId" ]);
+  const nonStableFields = new Set([
+    'objectId', 'scriptId', 'exceptionId', 'timestamp', 'executionContextId',
+    'callFrameId', 'breakpointId', 'bindRemoteObjectFunctionId',
+    'formatterObjectId', 'debuggerId'
+  ]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
     for (var key in object) {
       if (nonStableFields.has(key))
         object[key] = `<${key}>`;
-      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:debug/))
-        object[key] = object[key].replace(/\d+/, '<scriptId>');
+      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:\d+/))
+        object[key] = object[key].substring(0, object[key].lastIndexOf(':')) + ":<scriptId>";
       else if (typeof object[key] === "object")
         objects.push(object[key]);
     }
@@ -298,13 +301,9 @@ InspectorTest.Session = class {
 
   logAsyncStackTrace(asyncStackTrace) {
     while (asyncStackTrace) {
-      if (asyncStackTrace.promiseCreationFrame) {
-        var frame = asyncStackTrace.promiseCreationFrame;
-        InspectorTest.log(`-- ${asyncStackTrace.description} (${frame.url}:${frame.lineNumber}:${frame.columnNumber})--`);
-      } else {
-        InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-      }
+      InspectorTest.log(`-- ${asyncStackTrace.description || '<empty>'} --`);
       this.logCallFrames(asyncStackTrace.callFrames);
+      if (asyncStackTrace.parentId) InspectorTest.log('  <external stack>');
       asyncStackTrace = asyncStackTrace.parent;
     }
   }

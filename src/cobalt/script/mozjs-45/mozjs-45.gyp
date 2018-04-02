@@ -43,6 +43,7 @@
         'mozjs_tracer.h',
         'mozjs_user_object_holder.h',
         'mozjs_value_handle.h',
+        'mozjs_value_handle.cc',
         'mozjs_wrapper_handle.h',
         'native_promise.h',
         'promise_wrapper.cc',

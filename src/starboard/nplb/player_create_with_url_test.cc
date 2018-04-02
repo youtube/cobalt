@@ -23,6 +23,7 @@ namespace nplb {
 namespace {
 
 #if SB_HAS(PLAYER_WITH_URL)
+
 TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -42,7 +43,7 @@ TEST(SbPlayerUrlTest, SunnyDay) {
     char url[] = "about:blank";
     SB_DLOG(ERROR) << "Creating player";
     SbPlayer player = SbPlayerCreateWithUrl(url, window, SB_PLAYER_NO_DURATION,
-                                            NULL, NULL, NULL);
+                                            NULL, NULL, NULL, NULL);
 
     EXPECT_TRUE(SbPlayerIsValid(player));
 

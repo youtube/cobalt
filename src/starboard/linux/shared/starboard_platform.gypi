@@ -36,14 +36,6 @@
       '<(DEPTH)/starboard/shared/alsa/audio_sink_is_audio_sample_type_supported.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_decoder.cc',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_decoder.h',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_resampler.cc',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_audio_resampler.h',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_common.cc',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_common.h',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_video_decoder.cc',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg_video_decoder.h',
       '<(DEPTH)/starboard/shared/gcc/atomic_gcc_public.h',
       '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
       '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -243,6 +235,7 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/cpu_video_frame.cc',
@@ -355,9 +348,19 @@
     'starboard_platform_dependencies': [
       '<(DEPTH)/starboard/common/common.gyp:common',
       '<(DEPTH)/starboard/linux/shared/starboard_base_symbolize.gyp:starboard_base_symbolize',
+      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
       '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
       '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
       '<(DEPTH)/third_party/libvpx/libvpx.gyp:libvpx',
     ],
   },
+  'conditions': [
+    ['gl_type != "none"', {
+      'target_defaults': {
+        'include_dirs': [
+          '<(DEPTH)/third_party/khronos',
+        ],
+      }
+    }]
+  ],
 }

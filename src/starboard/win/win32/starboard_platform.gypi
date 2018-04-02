@@ -22,6 +22,7 @@
       'thread_types_public.h',
       '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
       '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_stereo_only.cc',
       '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',

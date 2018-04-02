@@ -13,6 +13,10 @@
 #include "SkString.h"
 #include <stddef.h>
 
+#if defined(COBALT)
+#include "starboard/log.h"
+#endif
+
 static void normalize_perspective(SkScalar mat[9]) {
     // If it was interesting to never store the last element, we could divide all 8 other
     // elements here by the 9th, making it 1.0...
@@ -1522,6 +1526,23 @@ template <MinMaxOrBoth MIN_MAX_OR_BOTH> bool get_scale_factor(SkMatrix::TypeMask
             results[0] = apluscdiv2 - x;
             results[1] = apluscdiv2 + x;
         }
+
+#if defined(COBALT)
+        // If |x| and |apluscdiv2| are very large floating point numbers
+        // that are close to each other, there might be floating point
+        // inaccuracies in calculating the eigenvalues.
+        const SkScalar kLargeNumber = 1E12;
+        if ((SkScalarAbs(x) > kLargeNumber) &&
+            (SkScalarAbs(apluscdiv2) > kLargeNumber) &&
+            SkScalarNearlyZero(x/apluscdiv2 - 1)) {
+          results[0] = 0;
+          if (kBoth_MinMaxOrBoth == MIN_MAX_OR_BOTH)  {
+            results[1] = 0;
+          }
+          SB_DLOG(WARNING) << "Unable to calculate scale factor of a matrix.";
+          return false;
+        }
+#endif
     }
     if (!SkScalarIsFinite(results[0])) {
         return false;

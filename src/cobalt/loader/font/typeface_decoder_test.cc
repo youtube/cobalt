@@ -32,6 +32,7 @@ namespace {
 
 const char kTtfTestTypeface[] = "icons.ttf";
 const char kWoffTestTypeface[] = "icons.woff";
+const char kWoff2TestTypeface[] = "icons.woff2";
 
 struct MockTypefaceDecoderCallback {
   void SuccessCallback(const scoped_refptr<render_tree::Typeface>& value) {
@@ -96,7 +97,7 @@ void MockTypefaceDecoder::ExpectCallWithError(const std::string& message) {
 
 FilePath GetTestTypefacePath(const char* file_name) {
   FilePath data_directory;
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &data_directory));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &data_directory));
   return data_directory.Append(FILE_PATH_LITERAL("cobalt"))
       .Append(FILE_PATH_LITERAL("loader"))
       .Append(FILE_PATH_LITERAL("testdata"))
@@ -175,6 +176,37 @@ TEST(TypefaceDecoderTest, DecodeWoffTypefaceWithMultipleChunks) {
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kWoffTestTypeface));
+  typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[0]), 4);
+  typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[4]), 2);
+  typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[6]), 94);
+  typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[100]),
+                               100);
+  typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[200]),
+                               typeface_data.size() - 200);
+  typeface_decoder.Finish();
+
+  EXPECT_TRUE(typeface_decoder.Typeface());
+}
+
+// Test that we can decode a woff2 typeface received in one chunk.
+TEST(TypefaceDecoderTest, DecodeWoff2Typeface) {
+  MockTypefaceDecoder typeface_decoder;
+
+  std::vector<uint8> typeface_data =
+      GetTypefaceData(GetTestTypefacePath(kWoff2TestTypeface));
+  typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[0]),
+                               typeface_data.size());
+  typeface_decoder.Finish();
+
+  EXPECT_TRUE(typeface_decoder.Typeface());
+}
+
+// Test that we can decode a woff2 typeface received in multiple chunks.
+TEST(TypefaceDecoderTest, DecodeWoff2TypefaceWithMultipleChunks) {
+  MockTypefaceDecoder typeface_decoder;
+
+  std::vector<uint8> typeface_data =
+      GetTypefaceData(GetTestTypefacePath(kWoff2TestTypeface));
   typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[0]), 4);
   typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[4]), 2);
   typeface_decoder.DecodeChunk(reinterpret_cast<char*>(&typeface_data[6]), 94);

@@ -28,8 +28,6 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-v8::Platform* GetPlatform();
-
 class V8cEngine : public JavaScriptEngine {
  public:
   // Helper function to allow others to retrieve us (a |V8cEngine|) from our
@@ -43,9 +41,10 @@ class V8cEngine : public JavaScriptEngine {
 
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() override;
   void CollectGarbage() override;
-  void ReportExtraMemoryCost(size_t bytes) override;
+  void AdjustAmountOfExternalAllocatedMemory(int64_t bytes) override;
   bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
   void SetGcThreshold(int64_t bytes) override;
+  HeapStatistics GetHeapStatistics() override;
 
   v8::Isolate* isolate() const { return isolate_; }
   V8cHeapTracer* heap_tracer() const { return v8c_heap_tracer_.get(); }
@@ -61,9 +60,6 @@ class V8cEngine : public JavaScriptEngine {
   v8::Isolate* isolate_;
 
   scoped_ptr<V8cHeapTracer> v8c_heap_tracer_;
-
-  // The amount of externally allocated memory since last forced GC.
-  size_t accumulated_extra_memory_cost_;
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;

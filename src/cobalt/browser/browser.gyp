@@ -86,8 +86,6 @@
         'on_screen_keyboard_starboard_bridge.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
-        'resource_provider_array_buffer_allocator.cc',
-        'resource_provider_array_buffer_allocator.h',
         'splash_screen.cc',
         'splash_screen.h',
         'splash_screen_cache.cc',
@@ -278,37 +276,15 @@
     },
 
     {
-      'target_name': 'browser_copy_test_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'browser_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/browser/testdata/',
-            ],
-            'output_dir': 'cobalt/browser/testdata/',
-          },
-          'includes': [ '../build/copy_test_data.gypi' ],
-        },
-      ],
-    },
-
-    {
       'target_name': 'browser_copy_debug_console',
       'type': 'none',
-      'actions': [
-        {
-          'action_name': 'browser_copy_debug_console',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/cobalt/browser/debug_console/',
-            ],
-            'output_dir': 'cobalt/browser/debug_console/',
-          },
-          'includes': [ '../build/copy_web_data.gypi' ],
-        },
-      ],
+      'variables': {
+        'content_web_input_files': [
+          '<(DEPTH)/cobalt/browser/debug_console/',
+        ],
+        'content_web_output_subdir': 'cobalt/browser/debug_console/',
+      },
+      'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
     },
   ],
 }

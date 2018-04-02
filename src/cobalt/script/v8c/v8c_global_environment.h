@@ -111,41 +111,35 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   void AddInterfaceData(int key,
                         v8::Local<v8::FunctionTemplate> function_template);
 
-  WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
+  WrapperFactory* wrapper_factory() const { return wrapper_factory_.get(); }
+
+  Wrappable* global_wrappable() const { return global_wrappable_; }
 
   EnvironmentSettings* GetEnvironmentSettings() const {
     return environment_settings_;
   }
 
-  void AddReferencedObject(Wrappable* owner, v8::Local<v8::Value> value) {
-    auto it = referenced_object_map_.insert({owner, {isolate_, value}});
-    // TODO: Make this weak.
-  }
-
-  void RemoveReferencedObject(Wrappable* owner, v8::Local<v8::Value> value) {
-    auto pair_range = referenced_object_map_.equal_range(owner);
-    auto it = std::find_if(pair_range.first, pair_range.second,
-                           [this, &value](decltype(*pair_range.first) handle) {
-                             return handle.second.Get(isolate_) == value;
-                           });
-    if (it != pair_range.second) {
-      referenced_object_map_.erase(it);
-    } else {
-      DLOG(WARNING) << "No reference to the specified object found.";
-    }
-  }
-
  private:
-  // Helper struct to store a V8 persistent handle as well as a count.  We
-  // need to make it the less common copyable variant because we plan on
-  // storing it in an STL container.
-  struct CountedHandle {
-    v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> handle;
-    int count;
+  // A helper class to trigger a final necessary garbage collection to run
+  // finalizer callbacks precisely in between |global_wrappable_| getting
+  // propped up and |context_| + |global_object_| getting reset.
+  class DestructionHelper {
+   public:
+    explicit DestructionHelper(v8::Isolate* isolate) : isolate_(isolate) {}
+    ~DestructionHelper();
+
+   private:
+    v8::Isolate* isolate_;
   };
+
+  static bool AllowCodeGenerationFromStringsCallback(
+      v8::Local<v8::Context> context, v8::Local<v8::String> source);
 
   v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
       const scoped_refptr<SourceCode>& source_code, bool mute_errors);
+
+  void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
+                              const char* filename);
 
   // Evaluates any automatically included Javascript for the environment.
   void EvaluateAutomatics();
@@ -156,38 +150,31 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   base::ThreadChecker thread_checker_;
   v8::Isolate* isolate_;
-  v8::Global<v8::Context> context_;
-  int garbage_collection_count_;
 
+  // Hold an extra reference to the global wrappable in order to properly
+  // destruct.  Were we to not do this, finalizers can run in the order (e.g.)
+  // document window, which the Cobalt DOM does not support.
+  scoped_refptr<Wrappable> global_wrappable_;
+  DestructionHelper destruction_helper_;
+  v8::Global<v8::Context> context_;
   v8::Global<v8::Object> global_object_;
+
   scoped_ptr<WrapperFactory> wrapper_factory_;
+  scoped_ptr<V8cScriptValueFactory> script_value_factory_;
 
   // Data that is cached on a per-interface basis. Note that we can get to
   // everything (the function instance, the prototype template, and the
   // instance template) from just the function template.
   std::vector<v8::Eternal<v8::FunctionTemplate>> cached_interface_data_;
 
-  // TODO: Should be scoped_ptr, fix headers/sources template mess.
-  V8cScriptValueFactory* script_value_factory_;
-
-  EnvironmentSettings* environment_settings_;
-
-  std::unordered_map<Wrappable*, CountedHandle> kept_alive_objects_;
-
-  // TODO: We might need to make all of these weak, and only visit them when
-  // we get asked to trace them.
-  std::unordered_multimap<
-      Wrappable*,
-      v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>>>
-      referenced_object_map_;
+  EnvironmentSettings* environment_settings_ = nullptr;
 
   // If non-NULL, the error message from the ReportErrorHandler will get
   // assigned to this instead of being printed.
-  std::string* last_error_message_;
+  std::string* last_error_message_ = nullptr;
 
-  bool eval_enabled_;
-  base::optional<std::string> eval_disabled_message_;
   base::Closure report_eval_;
+
   ReportErrorCallback report_error_callback_;
 };
 

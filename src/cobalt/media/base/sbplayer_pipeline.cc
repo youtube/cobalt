@@ -57,7 +57,7 @@ struct StartTaskParameters {
   Demuxer* demuxer;
   SetDrmSystemReadyCB set_drm_system_ready_cb;
   PipelineStatusCB ended_cb;
-  PipelineStatusCB error_cb;
+  ErrorCB error_cb;
   PipelineStatusCB seek_cb;
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
@@ -90,7 +90,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                  on_encrypted_media_init_data_encountered_cb,
              const std::string& source_url,
 #endif  // SB_HAS(PLAYER_WITH_URL)
-             const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
+             const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
@@ -153,6 +153,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnNeedData(DemuxerStream::Type type) override;
 #endif  // !SB_HAS(PLAYER_WITH_URL)
   void OnPlayerStatus(SbPlayerState state) override;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  void OnPlayerError(SbPlayerError error, const std::string& message) override;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   void UpdateDecoderConfig(DemuxerStream* stream);
 
@@ -207,7 +210,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Permanent callbacks passed in via Start().
   SetDrmSystemReadyCB set_drm_system_ready_cb_;
   PipelineStatusCB ended_cb_;
-  PipelineStatusCB error_cb_;
+  ErrorCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
   base::Closure output_mode_change_cb_;
@@ -318,18 +321,20 @@ void OnEncryptedMediaInitDataEncountered(
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::Start(
-    Demuxer* demuxer, const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+void SbPlayerPipeline::Start(Demuxer* demuxer,
+                             const SetDrmSystemReadyCB& set_drm_system_ready_cb,
 #if SB_HAS(PLAYER_WITH_URL)
-    const OnEncryptedMediaInitDataEncounteredCB&
-        on_encrypted_media_init_data_encountered_cb,
-    const std::string& source_url,
+                             const OnEncryptedMediaInitDataEncounteredCB&
+                                 on_encrypted_media_init_data_encountered_cb,
+                             const std::string& source_url,
 #endif  // SB_HAS(PLAYER_WITH_URL)
-    const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
-    const PipelineStatusCB& seek_cb, const BufferingStateCB& buffering_state_cb,
-    const base::Closure& duration_change_cb,
-    const base::Closure& output_mode_change_cb,
-    const base::Closure& content_size_change_cb) {
+                             const PipelineStatusCB& ended_cb,
+                             const ErrorCB& error_cb,
+                             const PipelineStatusCB& seek_cb,
+                             const BufferingStateCB& buffering_state_cb,
+                             const base::Closure& duration_change_cb,
+                             const base::Closure& output_mode_change_cb,
+                             const base::Closure& content_size_change_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
   DCHECK(!ended_cb.is_null());
@@ -439,7 +444,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
   }
 #if SB_HAS(PLAYER_WITH_URL)
   player_->Seek(seek_time_);
-#else  //  SB_HAS(PLAYER_WITH_URL)
+#else   //  SB_HAS(PLAYER_WITH_URL)
   demuxer_->Seek(time, BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerSeeked, this)));
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -506,7 +511,7 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     natural_size_ = gfx::Size(frame_width, frame_height);
     content_size_change_cb_.Run();
   }
-#else  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   player_->GetInfo(&statistics_.video_frames_decoded,
                    &statistics_.video_frames_dropped, &media_time);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -543,8 +548,8 @@ Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
     int64 new_start_seconds = buffer_start_time.InSeconds();
     int64 old_length_seconds = old_buffer_length_time.InSeconds();
     int64 new_length_seconds = buffer_length_time.InSeconds();
-    if (old_start_seconds != new_start_seconds
-        || old_length_seconds != new_length_seconds) {
+    if (old_start_seconds != new_start_seconds ||
+        old_length_seconds != new_length_seconds) {
       did_loading_progress_ = true;
     }
   } else {
@@ -555,7 +560,7 @@ Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
   return time_ranges;
 }
 
-#else  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
 
 Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
   base::AutoLock auto_lock(lock_);
@@ -709,7 +714,7 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
   }
 
   if (error != PIPELINE_OK) {
-    ResetAndRunIfNotNull(&error_cb_, error);
+    ResetAndRunIfNotNull(&error_cb_, error, "Demuxer error.");
   }
 }
 
@@ -871,7 +876,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 
   if (status != PIPELINE_OK) {
-    ResetAndRunIfNotNull(&error_cb_, status);
+    ResetAndRunIfNotNull(&error_cb_, status, "Demuxer initialization error.");
     return;
   }
 
@@ -886,17 +891,19 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
 
-#if SB_API_VERSION < SB_AUDIOLESS_VIDEO_API_VERSION
+#if !SB_HAS(AUDIOLESS_VIDEO)
   if (audio_stream == NULL) {
     LOG(INFO) << "The video has to contain an audio track.";
-    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+                         "The video has to contain an audio track.");
     return;
   }
-#endif  // SB_API_VERSION < SB_AUDIOLESS_VIDEO_API_VERSION
+#endif  // !SB_HAS(AUDIOLESS_VIDEO)
 
   if (video_stream == NULL) {
     LOG(INFO) << "The video has to contain a video track.";
-    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+                         "The video has to contain a video track.");
     return;
   }
 
@@ -1088,23 +1095,42 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateDestroyed:
       break;
-#if SB_HAS(PLAYER_WITH_URL)
-    case kSbPlayerWithUrlStateNetworkError:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK);
-      break;
-    case kSbPlayerWithUrlStateDecodeError:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE);
-      break;
-    case kSbPlayerWithUrlStateSrcNotSupportedError:
-      ResetAndRunIfNotNull(&error_cb_, DECODER_ERROR_NOT_SUPPORTED);
-      break;
-#else   //  SB_HAS(PLAYER_WITH_URL)
+#if !SB_HAS(PLAYER_ERROR_MESSAGE)
     case kSbPlayerStateError:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE);
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE,
+                           "Pipeline player state error.");
       break;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // !SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
+
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
+                                     const std::string& message) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  // In case if Stop() has been called.
+  if (!player_) {
+    return;
+  }
+#if SB_HAS(PLAYER_WITH_URL)
+  switch (error) {
+    case kSbPlayerErrorNetwork:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK, message);
+      break;
+    case kSbPlayerErrorDecode:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+      break;
+    case kSbPlayerErrorSrcNotSupported:
+      ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_COULD_NOT_OPEN, message);
+      break;
+  }
+#else
+  DCHECK_EQ(error, kSbPlayerErrorDecode);
+  ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+#endif  // SB_HAS(PLAYER_WITH_URL)
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(message_loop_->BelongsToCurrentThread());

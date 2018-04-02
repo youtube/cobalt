@@ -102,6 +102,7 @@ class Mutex {
   ~Mutex() { SbMutexDestroy(&mutex_); }
 
   void Acquire() const {
+    debugPreAcquire();
     SbMutexAcquire(&mutex_);
     debugSetAcquired();
   }
@@ -132,6 +133,11 @@ class Mutex {
     SB_DCHECK(currrent_thread_acquired_ == current_thread);
     currrent_thread_acquired_ = kSbThreadInvalid;
   }
+  void debugPreAcquire() const {
+    // Check that the mutex is not held by the current thread.
+    SbThread current_thread = SbThreadGetCurrent();
+    SB_DCHECK(currrent_thread_acquired_ != current_thread);
+  }
   void debugSetAcquired() const {
     // Check that the thread has already not been held.
     SB_DCHECK(currrent_thread_acquired_ == kSbThreadInvalid);
@@ -141,6 +147,7 @@ class Mutex {
 #else
   void debugInit() {}
   void debugSetReleased() const {}
+  void debugPreAcquire() const {}
   void debugSetAcquired() const {}
 #endif
 

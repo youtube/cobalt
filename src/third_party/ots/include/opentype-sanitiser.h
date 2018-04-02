@@ -1,21 +1,24 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef OPENTYPE_SANITISER_H_
 #define OPENTYPE_SANITISER_H_
 
+#if !defined(STARBOARD)
+#include <cstring>
+#define MEMCPY_OPENTYPE_SANITISER std::memcpy
+#else
+#include "starboard/memory.h"
+#define MEMCPY_OPENTYPE_SANITISER SbMemoryCopy
+#endif
+
 #if defined(STARBOARD)
 #include "starboard/byte_swap.h"
-#undef ntohl
-#define ntohl(x) SB_NET_TO_HOST_U32(x)
-#undef ntohs
-#define ntohs(x) SB_NET_TO_HOST_U16(x)
-#undef htonl
-#define htonl(x) SB_HOST_TO_NET_U32(x)
-#undef htons
-#define htons(x) SB_HOST_TO_NET_U16(x)
-#elif defined(COBALT_WIN)
+#define NTOHL_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U32(x)
+#define NTOHS_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U16(x)
+#define HTONL_OPENTYPE_SANITISER(x) SB_HOST_TO_NET_U32(x)
+#define HTONS_OPENTYPE_SANITISER(x) SB_HOST_TO_NET_U16(x)
 #elif defined(_WIN32)
 #include <stdlib.h>
 typedef signed char int8_t;
@@ -26,19 +29,27 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-#define ntohl(x) _byteswap_ulong (x)
-#define ntohs(x) _byteswap_ushort (x)
-#define htonl(x) _byteswap_ulong (x)
-#define htons(x) _byteswap_ushort (x)
+#define NTOHL_OPENTYPE_SANITISER(x) _byteswap_ulong (x)
+#define NTOHS_OPENTYPE_SANITISER(x) _byteswap_ushort (x)
+#define HTONL_OPENTYPE_SANITISER(x) _byteswap_ulong (x)
+#define HTONS_OPENTYPE_SANITISER(x) _byteswap_ushort (x)
 #else
 #include <arpa/inet.h>
 #include <stdint.h>
+#define NTOHL_OPENTYPE_SANITISER(x) ntohl (x)
+#define NTOHS_OPENTYPE_SANITISER(x) ntohs (x)
+#define HTONL_OPENTYPE_SANITISER(x) htonl (x)
+#define HTONS_OPENTYPE_SANITISER(x) htons (x)
 #endif
 
-#include <algorithm>  // for std::min
+#include <sys/types.h>
+
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
-#include <cstring>
+
+#define OTS_TAG(c1,c2,c3,c4) ((uint32_t)((((uint8_t)(c1))<<24)|(((uint8_t)(c2))<<16)|(((uint8_t)(c3))<<8)|((uint8_t)(c4))))
+#define OTS_UNTAG(tag)       ((char)((tag)>>24)), ((char)((tag)>>16)), ((char)((tag)>>8)), ((char)(tag))
 
 namespace ots {
 
@@ -48,9 +59,7 @@ namespace ots {
 // -----------------------------------------------------------------------------
 class OTSStream {
  public:
-  OTSStream() {
-    ResetChecksum();
-  }
+  OTSStream() : chksum_(0) {}
 
   virtual ~OTSStream() {}
 
@@ -62,52 +71,47 @@ class OTSStream {
 
     const size_t orig_length = length;
     size_t offset = 0;
-    if (chksum_buffer_offset_) {
-      const size_t l =
-        std::min(length, static_cast<size_t>(4) - chksum_buffer_offset_);
-      std::memcpy(chksum_buffer_ + chksum_buffer_offset_, data, l);
-#if defined(COBALT_WIN)
+
+    size_t chksum_offset = Tell() & 3;
+    if (chksum_offset) {
+      const size_t l = std::min(length, static_cast<size_t>(4) - chksum_offset);
+      uint32_t tmp = 0;
+      MEMCPY_OPENTYPE_SANITISER(reinterpret_cast<uint8_t *>(&tmp) + chksum_offset, data, l);
+#if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4267)  // possible loss of data
 #endif
-      chksum_buffer_offset_ += l;
-#if defined(COBALT_WIN)
+      chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
+#if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
-      offset += l;
       length -= l;
-    }
-
-    if (chksum_buffer_offset_ == 4) {
-      uint32_t chksum;
-      std::memcpy(&chksum, chksum_buffer_, 4);
-      chksum_ += ntohl(chksum);
-      chksum_buffer_offset_ = 0;
+      offset += l;
     }
 
     while (length >= 4) {
       uint32_t tmp;
-      std::memcpy(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
+      MEMCPY_OPENTYPE_SANITISER(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
         sizeof(uint32_t));
-      chksum_ += ntohl(tmp);
+      chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
       length -= 4;
       offset += 4;
     }
 
     if (length) {
-      if (chksum_buffer_offset_ != 0) return false;  // not reached
       if (length > 4) return false;  // not reached
-      std::memcpy(chksum_buffer_,
-             reinterpret_cast<const uint8_t*>(data) + offset, length);
-#if defined(COBALT_WIN)
+      uint32_t tmp = 0;
+      MEMCPY_OPENTYPE_SANITISER(&tmp,
+                  reinterpret_cast<const uint8_t*>(data) + offset, length);
+#if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4267)  // possible loss of data
 #elif defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #endif
-      chksum_buffer_offset_ = length;
-#if defined(COBALT_WIN)
+      chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
+#if defined(_MSC_VER)
 #pragma warning(pop)
 #elif defined(__clang__)
 #pragma clang diagnostic pop
@@ -123,7 +127,7 @@ class OTSStream {
   virtual bool Pad(size_t bytes) {
     static const uint32_t kZero = 0;
     while (bytes >= 4) {
-      if (!WriteTag(kZero)) return false;
+      if (!Write(&kZero, 4)) return false;
       bytes -= 4;
     }
     while (bytes) {
@@ -139,41 +143,41 @@ class OTSStream {
   }
 
   bool WriteU16(uint16_t v) {
-    v = htons(v);
+    v = HTONS_OPENTYPE_SANITISER(v);
     return Write(&v, sizeof(v));
   }
 
   bool WriteS16(int16_t v) {
-#if defined(COBALT_WIN)
+#if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4365)  // signed/unsigned mismatch
 #endif
-    v = htons(v);
-#if defined(COBALT_WIN)
+    v = HTONS_OPENTYPE_SANITISER(v);
+#if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
     return Write(&v, sizeof(v));
   }
 
   bool WriteU24(uint32_t v) {
-    v = htonl(v);
+    v = HTONL_OPENTYPE_SANITISER(v);
     return Write(reinterpret_cast<uint8_t*>(&v)+1, 3);
   }
 
   bool WriteU32(uint32_t v) {
-    v = htonl(v);
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4365)  // signed/unsigned mismatch
+#endif
+    v = HTONL_OPENTYPE_SANITISER(v);
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
     return Write(&v, sizeof(v));
   }
 
   bool WriteS32(int32_t v) {
-#if defined(COBALT_WIN)
-#pragma warning(push)
-#pragma warning(disable : 4365)  // signed/unsigned mismatch
-#endif
-    v = htonl(v);
-#if defined(COBALT_WIN)
-#pragma warning(pop)
-#endif
+    v = HTONL_OPENTYPE_SANITISER(v);
     return Write(&v, sizeof(v));
   }
 
@@ -181,62 +185,66 @@ class OTSStream {
     return Write(&v, sizeof(v));
   }
 
-  bool WriteTag(uint32_t v) {
-    return Write(&v, sizeof(v));
-  }
-
   void ResetChecksum() {
+    assert((Tell() & 3) == 0);
     chksum_ = 0;
-    chksum_buffer_offset_ = 0;
   }
 
   uint32_t chksum() const {
-    assert(chksum_buffer_offset_ == 0);
     return chksum_;
-  }
-
-  struct ChecksumState {
-    uint32_t chksum;
-    uint8_t chksum_buffer[4];
-    unsigned chksum_buffer_offset;
-  };
-
-  ChecksumState SaveChecksumState() const {
-    ChecksumState s;
-    s.chksum = chksum_;
-    s.chksum_buffer_offset = chksum_buffer_offset_;
-    std::memcpy(s.chksum_buffer, chksum_buffer_, 4);
-
-    return s;
-  }
-
-  void RestoreChecksum(const ChecksumState &s) {
-    assert(chksum_buffer_offset_ == 0);
-    chksum_ += s.chksum;
-    chksum_buffer_offset_ = s.chksum_buffer_offset;
-    std::memcpy(chksum_buffer_, s.chksum_buffer, 4);
   }
 
  protected:
   uint32_t chksum_;
-  uint8_t chksum_buffer_[4];
-  unsigned chksum_buffer_offset_;
 };
 
-// -----------------------------------------------------------------------------
-// Process a given OpenType file and write out a sanitised version
-//   output: a pointer to an object implementing the OTSStream interface. The
-//     sanitisied output will be written to this. In the even of a failure,
-//     partial output may have been written.
-//   input: the OpenType file
-//   length: the size, in bytes, of |input|
-// -----------------------------------------------------------------------------
-bool Process(OTSStream *output, const uint8_t *input, size_t length);
+#ifdef __GCC__
+#define MSGFUNC_FMT_ATTR __attribute__((format(printf, 2, 3)))
+#else
+#define MSGFUNC_FMT_ATTR
+#endif
 
-// Force to disable debug output even when the library is compiled with
-// -DOTS_DEBUG.
-void DisableDebugOutput();
+enum TableAction {
+  TABLE_ACTION_DEFAULT,  // Use OTS's default action for that table
+  TABLE_ACTION_SANITIZE, // Sanitize the table, potentially dropping it
+  TABLE_ACTION_PASSTHRU, // Serialize the table unchanged
+  TABLE_ACTION_DROP      // Drop the table
+};
+
+class OTSContext {
+  public:
+    OTSContext() {}
+    virtual ~OTSContext() {}
+
+    // Process a given OpenType file and write out a sanitized version
+    //   output: a pointer to an object implementing the OTSStream interface. The
+    //     sanitisied output will be written to this. In the even of a failure,
+    //     partial output may have been written.
+    //   input: the OpenType file
+    //   length: the size, in bytes, of |input|
+    //   index: if the input is a font collection and index is specified, then
+    //     the corresponding font will be returned, otherwise the whole
+    //     collection. Ignored for non-collection fonts.
+    bool Process(OTSStream *output, const uint8_t *input, size_t length, uint32_t index = -1);
+
+    // This function will be called when OTS is reporting an error.
+    //   level: the severity of the generated message:
+    //     0: error messages in case OTS fails to sanitize the font.
+    //     1: warning messages about issue OTS fixed in the sanitized font.
+    virtual void Message(int /* level */, const char* /* format */, ...) MSGFUNC_FMT_ATTR {}
+
+    // This function will be called when OTS needs to decide what to do for a
+    // font table.
+    //   tag: table tag formed with OTS_TAG() macro
+    virtual TableAction GetTableAction(uint32_t /* tag */) { return ots::TABLE_ACTION_DEFAULT; }
+};
 
 }  // namespace ots
+
+#undef MEMCPY_OPENTYPE_SANITISER
+#undef NTOHL_OPENTYPE_SANITISER
+#undef NTOHS_OPENTYPE_SANITISER
+#undef HTONL_OPENTYPE_SANITISER
+#undef HTONS_OPENTYPE_SANITISER
 
 #endif  // OPENTYPE_SANITISER_H_

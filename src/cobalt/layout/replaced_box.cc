@@ -360,6 +360,27 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     set_left(maybe_left.value_or(LayoutUnit()));
     set_top(maybe_top.value_or(LayoutUnit()));
   }
+  // Note that computed height may be "auto", even if it is specified as a
+  // percentage (depending on conditions of the containing block). See details
+  // in the spec. https://www.w3.org/TR/CSS22/visudet.html#the-height-property
+  if (!maybe_height) {
+    LOG(ERROR) << "ReplacedBox element has computed height \"auto\"!";
+  }
+  if (!maybe_width) {
+    LOG(ERROR) << "ReplacedBox element has computed width \"auto\"!";
+  }
+  // In order for Cobalt to handle "auto" dimensions correctly for both punchout
+  // and decode-to-texture we need to use the content's intrinsic dimensions &
+  // ratio rather than using the content_box_size directly. Until this
+  // functionality is found to be useful, we avoid the extra complexity
+  // introduced by its implementation.
+  if (!maybe_height || !maybe_width) {
+    LOG(ERROR)
+        << "Cobalt ReplacedBox does not handle \"auto\" dimensions correctly! "
+           "\"auto\" dimensions are updated using the intrinsic dimensions of "
+           "the content (e.g. video width/height), which is often not what is "
+           "intended.";
+  }
   if (!maybe_width) {
     if (!maybe_height) {
       if (maybe_intrinsic_width_) {
@@ -679,10 +700,10 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
             loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
         mesh_projection->GetMesh(
             loader::mesh::MeshProjection::kRightEyeCollection));
-
-    filter_node =
-        new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
   }
+
+  filter_node =
+      new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
 
 #if !SB_HAS(VIRTUAL_REALITY)
   // Attach a 3D camera to the map-to-mesh node, so the rendering of its

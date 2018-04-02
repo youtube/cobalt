@@ -35,7 +35,7 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
     return 1024;
   }
 
-  SbMediaTime duration =
+  SbTime duration =
       access_units.back().timestamp() - access_units.front().timestamp();
 
   SB_DCHECK(duration > 0);
@@ -45,7 +45,7 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
     total_bitrate += au.data().size();
   }
 
-  return total_bitrate * 8 * kSbMediaTimeSecond / duration;
+  return total_bitrate * 8 * kSbTimeSecond / duration;
 }
 
 static void DeallocateSampleFunc(SbPlayer player,
@@ -64,7 +64,8 @@ using std::placeholders::_2;
 VideoDmpReader::VideoDmpReader(const char* filename)
     : reverse_byte_order_(false),
       read_cb_(std::bind(&VideoDmpReader::ReadFromFile, this, _1, _2)) {
-  SB_CHECK(SbFileCanOpen(filename, kSbFileOpenOnly | kSbFileRead));
+  SB_CHECK(SbFileCanOpen(filename, kSbFileOpenOnly | kSbFileRead))
+      << "Can't open " << filename;
   file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
   SB_DCHECK(SbFileIsValid(file_));
 
@@ -143,20 +144,21 @@ void VideoDmpReader::Parse() {
 
   // Guestimate the video fps.
   if (video_access_units_.size() > 1) {
-    SbMediaTime first_pts = video_access_units_.front().timestamp();
-    SbMediaTime second_pts = video_access_units_.back().timestamp();
+    SbTime first_timestamp = video_access_units_.front().timestamp();
+    SbTime second_timestamp = video_access_units_.back().timestamp();
     for (const auto& au : video_access_units_) {
-      if (au.timestamp() != first_pts && au.timestamp() < second_pts) {
-        second_pts = au.timestamp();
+      if (au.timestamp() != first_timestamp &&
+          au.timestamp() < second_timestamp) {
+        second_timestamp = au.timestamp();
       }
     }
-    SB_DCHECK(first_pts < second_pts);
-    video_fps_ = kSbMediaTimeSecond / (second_pts - first_pts);
+    SB_DCHECK(first_timestamp < second_timestamp);
+    video_fps_ = kSbTimeSecond / (second_timestamp - first_timestamp);
   }
 }
 
 VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
-  SbMediaTime timestamp;
+  SbTime timestamp;
   Read(read_cb_, reverse_byte_order_, &timestamp);
 
   bool drm_sample_info_present;
@@ -178,7 +180,7 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
 }
 
 VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
-  SbMediaTime timestamp;
+  SbTime timestamp;
   Read(read_cb_, reverse_byte_order_, &timestamp);
 
   bool drm_sample_info_present;

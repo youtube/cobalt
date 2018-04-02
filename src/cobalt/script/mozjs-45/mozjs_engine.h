@@ -33,9 +33,10 @@ class MozjsEngine : public JavaScriptEngine {
 
   scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() override;
   void CollectGarbage() override;
-  void ReportExtraMemoryCost(size_t bytes) override;
-  bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
+  void AdjustAmountOfExternalAllocatedMemory(int64_t bytes) override;
+  bool RegisterErrorHandler(ErrorHandler handler) override;
   void SetGcThreshold(int64_t bytes) override;
+  HeapStatistics GetHeapStatistics() override;
 
  private:
   static bool ContextCallback(JSContext* context, unsigned context_op,
@@ -46,20 +47,25 @@ class MozjsEngine : public JavaScriptEngine {
 
   base::ThreadChecker thread_checker_;
 
-  // Top-level object that represents the Javascript engine. Typically there is
-  // one per process, but it's allowed to have multiple.
+  // Top-level object that represents the JavaScript engine.
   JSRuntime* runtime_;
 
   // The sole context created for this JSRuntime.
-  JSContext* context_;
+  JSContext* context_ = nullptr;
 
-  // The amount of externally allocated memory since last forced GC.
-  size_t accumulated_extra_memory_cost_;
+  // The amount of externally allocated memory since the last GC, regardless of
+  // whether it was forced by us.  Once this value exceeds
+  // |options_.gc_threshold_bytes|, we will force a garbage collection, and set
+  // this value back to 0.  Note that there is no guarantee that the allocations
+  // that incremented this value will have actually been collected.  Also note
+  // that this value is only incremented, never decremented, as it makes for a
+  // better force garbage collection heuristic.
+  int64_t force_gc_heuristic_ = 0;
 
-  // Used to handle javascript errors.
+  // Used to handle JavaScript errors.
   ErrorHandler error_handler_;
 
-  JavaScriptEngine::Options options_;
+  Options options_;
 };
 }  // namespace mozjs
 }  // namespace script

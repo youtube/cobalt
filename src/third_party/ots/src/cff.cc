@@ -1,18 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "cff.h"
 
 #include <cstring>
-#include <utility>  // std::pair
+#include <utility>
 #include <vector>
 
+#include "maxp.h"
 #include "cff_type2_charstring.h"
 
 // CFF - PostScript font program (Compact Font Format) table
 // http://www.microsoft.com/typography/otspec/cff.htm
 // http://www.microsoft.com/typography/otspec/cffspec.htm
+
+#define TABLE_NAME "CFF"
 
 namespace {
 
@@ -372,11 +375,17 @@ bool ParsePrivateDictData(
     operands.pop_back();
 
     switch (op) {
-      // array
+      // hints
       case 6:  // BlueValues
       case 7:  // OtherBlues
       case 8:  // FamilyBlues
       case 9:  // FamilyOtherBlues
+        if ((operands.size() % 2) != 0) {
+          return OTS_FAILURE();
+        }
+        break;
+
+      // array
       case (12U << 8) + 12:  // StemSnapH (delta)
       case (12U << 8) + 13:  // StemSnapV (delta)
         if (operands.empty()) {
@@ -415,8 +424,8 @@ bool ParsePrivateDictData(
           return OTS_FAILURE();
         }
         // parse "16. Local Subrs INDEX"
-        ots::Buffer table(data, table_length);
-        table.set_offset(operands.back().first + offset);
+        ots::Buffer cff_table(data, table_length);
+        cff_table.set_offset(operands.back().first + offset);
         ots::CFFIndex *local_subrs_index = NULL;
         if (type == DICT_DATA_FDARRAY) {
           if (out_cff->local_subrs_per_font.empty()) {
@@ -430,7 +439,7 @@ bool ParsePrivateDictData(
           local_subrs_index = new ots::CFFIndex;
           out_cff->local_subrs = local_subrs_index;
         }
-        if (!ParseIndex(&table, local_subrs_index)) {
+        if (!ParseIndex(&cff_table, local_subrs_index)) {
           return OTS_FAILURE();
         }
         break;
@@ -459,8 +468,9 @@ bool ParsePrivateDictData(
 }
 
 bool ParseDictData(const uint8_t *data, size_t table_length,
-                   const ots::CFFIndex &index, size_t sid_max,
-                   DICT_DATA_TYPE type, ots::OpenTypeCFF *out_cff) {
+                   const ots::CFFIndex &index, uint16_t glyphs,
+                   size_t sid_max, DICT_DATA_TYPE type,
+                   ots::OpenTypeCFF *out_cff) {
   for (unsigned i = 1; i < index.offsets.size(); ++i) {
     if (type == DICT_DATA_TOPLEVEL) {
       out_cff->char_strings_array.push_back(new ots::CFFIndex);
@@ -472,7 +482,7 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
 
     FONT_FORMAT font_format = FORMAT_UNKNOWN;
     bool have_ros = false;
-    size_t glyphs = 0;
+    uint16_t charstring_glyphs = 0;
     size_t charset_offset = 0;
 
     while (table.offset() < dict_length) {
@@ -602,10 +612,10 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
           }
 
           // parse sub dictionary INDEX.
-          ots::Buffer table(data, table_length);
-          table.set_offset(operands.back().first);
+          ots::Buffer cff_table(data, table_length);
+          cff_table.set_offset(operands.back().first);
           uint8_t format = 0;
-          if (!table.ReadU8(&format)) {
+          if (!cff_table.ReadU8(&format)) {
             return OTS_FAILURE();
           }
           if (format & 0x80) {
@@ -627,19 +637,22 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
             return OTS_FAILURE();
           }
           // parse "14. CharStrings INDEX"
-          ots::Buffer table(data, table_length);
-          table.set_offset(operands.back().first);
+          ots::Buffer cff_table(data, table_length);
+          cff_table.set_offset(operands.back().first);
           ots::CFFIndex *charstring_index = out_cff->char_strings_array.back();
-          if (!ParseIndex(&table, charstring_index)) {
+          if (!ParseIndex(&cff_table, charstring_index)) {
             return OTS_FAILURE();
           }
           if (charstring_index->count < 2) {
             return OTS_FAILURE();
           }
-          if (glyphs) {
+          if (charstring_glyphs) {
             return OTS_FAILURE();  // multiple charstring tables?
           }
-          glyphs = charstring_index->count;
+          charstring_glyphs = charstring_index->count;
+          if (charstring_glyphs != glyphs) {
+            return OTS_FAILURE();  // CFF and maxp have different number of glyphs?
+          }
           break;
         }
 
@@ -655,14 +668,15 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
           }
 
           // parse sub dictionary INDEX.
-          ots::Buffer table(data, table_length);
-          table.set_offset(operands.back().first);
+          ots::Buffer cff_table(data, table_length);
+          cff_table.set_offset(operands.back().first);
           ots::CFFIndex sub_dict_index;
-          if (!ParseIndex(&table, &sub_dict_index)) {
+          if (!ParseIndex(&cff_table, &sub_dict_index)) {
             return OTS_FAILURE();
           }
           if (!ParseDictData(data, table_length,
-                             sub_dict_index, sid_max, DICT_DATA_FDARRAY,
+                             sub_dict_index,
+                             glyphs, sid_max, DICT_DATA_FDARRAY,
                              out_cff)) {
             return OTS_FAILURE();
           }
@@ -685,23 +699,23 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
           }
 
           // parse FDSelect data structure
-          ots::Buffer table(data, table_length);
-          table.set_offset(operands.back().first);
+          ots::Buffer cff_table(data, table_length);
+          cff_table.set_offset(operands.back().first);
           uint8_t format = 0;
-          if (!table.ReadU8(&format)) {
+          if (!cff_table.ReadU8(&format)) {
             return OTS_FAILURE();
           }
           if (format == 0) {
-            for (size_t j = 0; j < glyphs; ++j) {
+            for (uint16_t j = 0; j < glyphs; ++j) {
               uint8_t fd_index = 0;
-              if (!table.ReadU8(&fd_index)) {
+              if (!cff_table.ReadU8(&fd_index)) {
                 return OTS_FAILURE();
               }
               (out_cff->fd_select)[j] = fd_index;
             }
           } else if (format == 3) {
             uint16_t n_ranges = 0;
-            if (!table.ReadU16(&n_ranges)) {
+            if (!cff_table.ReadU16(&n_ranges)) {
               return OTS_FAILURE();
             }
             if (n_ranges == 0) {
@@ -712,7 +726,7 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
             uint8_t fd_index = 0;
             for (unsigned j = 0; j < n_ranges; ++j) {
               uint16_t first = 0;  // GID
-              if (!table.ReadU16(&first)) {
+              if (!cff_table.ReadU16(&first)) {
                 return OTS_FAILURE();
               }
 
@@ -734,14 +748,14 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
                 }
               }
 
-              if (!table.ReadU8(&fd_index)) {
+              if (!cff_table.ReadU8(&fd_index)) {
                 return OTS_FAILURE();
               }
               last_gid = first;
               // TODO(yusukes): check GID?
             }
             uint16_t sentinel = 0;
-            if (!table.ReadU16(&sentinel)) {
+            if (!cff_table.ReadU16(&sentinel)) {
               return OTS_FAILURE();
             }
             if (last_gid >= sentinel) {
@@ -828,17 +842,17 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
 
     // parse "13. Charsets"
     if (charset_offset) {
-      ots::Buffer table(data, table_length);
-      table.set_offset(charset_offset);
+      ots::Buffer cff_table(data, table_length);
+      cff_table.set_offset(charset_offset);
       uint8_t format = 0;
-      if (!table.ReadU8(&format)) {
+      if (!cff_table.ReadU8(&format)) {
         return OTS_FAILURE();
       }
       switch (format) {
         case 0:
-          for (unsigned j = 1 /* .notdef is omitted */; j < glyphs; ++j) {
+          for (uint16_t j = 1 /* .notdef is omitted */; j < glyphs; ++j) {
             uint16_t sid = 0;
-            if (!table.ReadU16(&sid)) {
+            if (!cff_table.ReadU16(&sid)) {
               return OTS_FAILURE();
             }
             if (!have_ros && (sid > sid_max)) {
@@ -853,7 +867,7 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
           uint32_t total = 1;  // .notdef is omitted.
           while (total < glyphs) {
             uint16_t sid = 0;
-            if (!table.ReadU16(&sid)) {
+            if (!cff_table.ReadU16(&sid)) {
               return OTS_FAILURE();
             }
             if (!have_ros && (sid > sid_max)) {
@@ -863,13 +877,13 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
 
             if (format == 1) {
               uint8_t left = 0;
-              if (!table.ReadU8(&left)) {
+              if (!cff_table.ReadU8(&left)) {
                 return OTS_FAILURE();
               }
               total += (left + 1);
             } else {
               uint16_t left = 0;
-              if (!table.ReadU16(&left)) {
+              if (!cff_table.ReadU16(&left)) {
                 return OTS_FAILURE();
               }
               total += (left + 1);
@@ -890,14 +904,13 @@ bool ParseDictData(const uint8_t *data, size_t table_length,
 
 namespace ots {
 
-bool ots_cff_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
+bool OpenTypeCFF::Parse(const uint8_t *data, size_t length) {
   Buffer table(data, length);
 
-  file->cff = new OpenTypeCFF;
-  file->cff->data = data;
-  file->cff->length = length;
-  file->cff->font_dict_length = 0;
-  file->cff->local_subrs = NULL;
+  Font *font = GetFont();
+
+  this->m_data = data;
+  this->m_length = length;
 
   // parse "6. Header" in the Adobe Compact Font Format Specification
   uint8_t major = 0;
@@ -935,7 +948,7 @@ bool ots_cff_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
   if (!ParseIndex(&table, &name_index)) {
     return OTS_FAILURE();
   }
-  if (!ParseNameData(&table, name_index, &(file->cff->name))) {
+  if (!ParseNameData(&table, name_index, &(this->name))) {
     return OTS_FAILURE();
   }
 
@@ -959,12 +972,19 @@ bool ots_cff_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
     return OTS_FAILURE();
   }
 
+  OpenTypeMAXP *maxp = static_cast<OpenTypeMAXP*>(
+    GetFont()->GetTypedTable(OTS_TAG_MAXP));
+  if (!maxp) {
+    return Error("Required maxp table missing");
+  }
+  const uint16_t num_glyphs = maxp->num_glyphs;
   const size_t sid_max = string_index.count + kNStdString;
   // string_index.count == 0 is allowed.
 
   // parse "9. Top DICT Data"
   if (!ParseDictData(data, length, top_dict_index,
-                     sid_max, DICT_DATA_TOPLEVEL, file->cff)) {
+                     num_glyphs, sid_max,
+                     DICT_DATA_TOPLEVEL, this)) {
     return OTS_FAILURE();
   }
 
@@ -977,52 +997,46 @@ bool ots_cff_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
 
   // Check if all fd_index in FDSelect are valid.
   std::map<uint16_t, uint8_t>::const_iterator iter;
-  std::map<uint16_t, uint8_t>::const_iterator end = file->cff->fd_select.end();
-  for (iter = file->cff->fd_select.begin(); iter != end; ++iter) {
-    if (iter->second >= file->cff->font_dict_length) {
+  std::map<uint16_t, uint8_t>::const_iterator end = this->fd_select.end();
+  for (iter = this->fd_select.begin(); iter != end; ++iter) {
+    if (iter->second >= this->font_dict_length) {
       return OTS_FAILURE();
     }
   }
 
   // Check if all charstrings (font hinting code for each glyph) are valid.
-  for (size_t i = 0; i < file->cff->char_strings_array.size(); ++i) {
-    if (!ValidateType2CharStringIndex(*(file->cff->char_strings_array.at(i)),
+  for (size_t i = 0; i < this->char_strings_array.size(); ++i) {
+    if (!ValidateType2CharStringIndex(font,
+                                      *(this->char_strings_array.at(i)),
                                       global_subrs_index,
-                                      file->cff->fd_select,
-                                      file->cff->local_subrs_per_font,
-                                      file->cff->local_subrs,
+                                      this->fd_select,
+                                      this->local_subrs_per_font,
+                                      this->local_subrs,
                                       &table)) {
-      return OTS_FAILURE();
+      return Error("Failed validating charstring set %d", (int) i);
     }
   }
 
   return true;
 }
 
-bool ots_cff_should_serialise(OpenTypeFile *file) {
-  return file->cff != NULL;
-}
-
-bool ots_cff_serialise(OTSStream *out, OpenTypeFile *file) {
-  // TODO(yusukes): would be better to transcode the data,
-  //                rather than simple memcpy.
-  if (!out->Write(file->cff->data, file->cff->length)) {
-    return OTS_FAILURE();
+bool OpenTypeCFF::Serialize(OTSStream *out) {
+  if (!out->Write(this->m_data, this->m_length)) {
+    return Error("Failed to write table");
   }
   return true;
 }
 
-void ots_cff_free(OpenTypeFile *file) {
-  if (file->cff) {
-    for (size_t i = 0; i < file->cff->char_strings_array.size(); ++i) {
-      delete (file->cff->char_strings_array)[i];
-    }
-    for (size_t i = 0; i < file->cff->local_subrs_per_font.size(); ++i) {
-      delete (file->cff->local_subrs_per_font)[i];
-    }
-    delete file->cff->local_subrs;
-    delete file->cff;
+OpenTypeCFF::~OpenTypeCFF() {
+  for (size_t i = 0; i < this->char_strings_array.size(); ++i) {
+    delete (this->char_strings_array)[i];
   }
+  for (size_t i = 0; i < this->local_subrs_per_font.size(); ++i) {
+    delete (this->local_subrs_per_font)[i];
+  }
+  delete this->local_subrs;
 }
 
 }  // namespace ots
+
+#undef TABLE_NAME

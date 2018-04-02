@@ -55,8 +55,11 @@ typedef enum SbSystemPathId {
   // usable by Starboard applications.
   kSbSystemPathFontConfigurationDirectory,
 
-  // Path to the directory containing the root of the source tree.
+#if SB_API_VERSION < SB_PATH_SOURCE_DIR_REMOVED_API_VERSION
+  // Deprecated and unused. Tests looking for static data should instead look
+  // in the 'test' subdirectory of kSbSystemPathContentDirectory.
   kSbSystemPathSourceDirectory,
+#endif  // SB_API_VERSION < SB_PATH_SOURCE_DIR_REMOVED_API_VERSION
 
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
@@ -104,8 +107,10 @@ typedef enum SbSystemPropertyId {
   // User-Agent, say.
   kSbSystemPropertyPlatformName,
 
+#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
+#endif  // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
 
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API

@@ -34,7 +34,7 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
       algorithm_(algorithm.Pass()),
       sink_(sink),
       seeking_(false),
-      seeking_to_pts_(0),
+      seeking_to_time_(0),
       end_of_stream_written_(false),
       need_more_input_(true),
       decoder_(decoder.Pass()),
@@ -78,7 +78,7 @@ void VideoRenderer::WriteSample(
   SB_DCHECK(input_buffer);
 
   if (end_of_stream_written_) {
-    SB_LOG(ERROR) << "Appending video sample at " << input_buffer->pts()
+    SB_LOG(ERROR) << "Appending video sample at " << input_buffer->timestamp()
                   << " after EOS reached.";
     return;
   }
@@ -109,9 +109,9 @@ void VideoRenderer::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 }
 
-void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
+void VideoRenderer::Seek(SbTime seek_to_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(seek_to_pts >= 0);
+  SB_DCHECK(seek_to_time >= 0);
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -120,7 +120,7 @@ void VideoRenderer::Seek(SbMediaTime seek_to_pts) {
 
   ScopedLock lock(mutex_);
 
-  seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
+  seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
   seeking_ = true;
   end_of_stream_written_ = false;
   need_more_input_ = true;
@@ -137,8 +137,8 @@ bool VideoRenderer::IsEndOfStreamPlayed() const {
 bool VideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   ScopedLock lock(mutex_);
-  return frames_.size() < kMaxCachedFrames && !end_of_stream_written_ &&
-         need_more_input_;
+  return frames_.size() < decoder_->GetMaxNumberOfCachedFrames() &&
+         !end_of_stream_written_ && need_more_input_;
 }
 
 bool VideoRenderer::IsSeekingInProgress() const {
@@ -162,7 +162,7 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
     if (seeking_) {
       if (frame->is_end_of_stream()) {
         seeking_ = false;
-      } else if (frame->pts() < seeking_to_pts_) {
+      } else if (frame->timestamp() < seeking_to_time_) {
         frame_too_early = true;
       }
     }

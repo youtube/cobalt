@@ -192,7 +192,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
-  void OnPipelineError(PipelineStatus error);
+  void OnPipelineError(PipelineStatus error, const std::string& message);
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
   void SetOpaque(bool);
@@ -211,6 +211,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Helpers that set the network/ready state and notifies the client if
   // they've changed.
   void SetNetworkState(WebMediaPlayer::NetworkState state);
+  void SetNetworkError(WebMediaPlayer::NetworkState state,
+                       const std::string& message);
   void SetReadyState(WebMediaPlayer::ReadyState state);
 
   // Destroy resources held.

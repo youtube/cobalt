@@ -34,8 +34,6 @@ namespace sbuwp = starboard::shared::uwp;
 
 namespace {
 
-const char kCobaltBootstrapUrl[] =
-    "https://www.youtube.com/api/xbox/cobalt_bootstrap";
 const char kXboxLiveAccountProviderId[] = "https://xsts.auth.xboxlive.com";
 
 // The name of the header to send the STS token out on.
@@ -134,29 +132,6 @@ bool StringStartsWith(const std::string& str, const char* starts_with) {
 }
 
 }  // namespace
-
-namespace cobalt {
-namespace loader {
-
-std::string CobaltFetchMaybeAddHeader(const GURL& url) {
-  std::string out_string;
-  if (!StringStartsWith(url.spec(), kCobaltBootstrapUrl)) {
-    return out_string;
-  }
-
-  if (!PopulateToken(url.spec(), &out_string)) {
-    return out_string;
-  }
-  std::string result;
-  result.append(kXauthHeaderName);
-  result.append(": ");
-  result.append(out_string);
-
-  return result;
-}
-
-}  // namespace loader
-}  // namespace cobalt
 
 namespace cobalt {
 namespace xhr {

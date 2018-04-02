@@ -17,6 +17,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
+#include "cobalt/script/promise.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
@@ -30,7 +31,7 @@ class PromiseWrapper {
  public:
   // Creates a new JS object that wraps a new Promise, created using the
   // Promise constructor on |global_object|. Returns NULL on failure.
-  static JSObject* Create(JSContext* context, JS::HandleObject global_object);
+  static JSObject* Create(JSContext* context);
 
   PromiseWrapper(JSContext* context, JS::HandleValue promise_wrapper);
 
@@ -39,6 +40,7 @@ class PromiseWrapper {
   JSObject* GetPromise() const;
   void Resolve(JS::HandleValue value) const;
   void Reject(JS::HandleValue value) const;
+  PromiseState State() const;
 
  private:
   JSContext* context_;

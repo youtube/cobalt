@@ -22,10 +22,26 @@
 #include <cstdio>
 
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/win32/application_win32.h"
 #include "starboard/shared/win32/thread_private.h"
 
+using starboard::shared::starboard::CommandLine;
+using starboard::shared::starboard::kNetLogCommandSwitchWait;
+using starboard::shared::starboard::NetLogFlushThenClose;
+using starboard::shared::starboard::NetLogWaitForClientConnected;
 using starboard::shared::win32::ApplicationWin32;
+
+namespace {
+
+void WaitForNetLogIfNecessary(const CommandLine& cmd_line) {
+  if (cmd_line.HasSwitch(kNetLogCommandSwitchWait)) {
+    NetLogWaitForClientConnected();
+  }
+}
+
+}  // namespace.
 
 extern "C" int StarboardMain(int argc, char** argv) {
   WSAData wsaData;
@@ -44,14 +60,16 @@ extern "C" int StarboardMain(int argc, char** argv) {
   CoInitialize(nullptr);
   SbAudioSinkPrivate::Initialize();
   starboard::shared::win32::RegisterMainThread();
-
   // TODO: Do this with SbOnce when media is first used instead.
   HRESULT hr = MFStartup(MF_VERSION);
   SB_DCHECK(SUCCEEDED(hr));
 
+  WaitForNetLogIfNecessary(CommandLine(argc, argv));
   ApplicationWin32 application;
   // This will run the message loop.
   const int main_return_value = application.Run(argc, argv);
+  NetLogFlushThenClose();
+
   MFShutdown();
   WSACleanup();
   return main_return_value;

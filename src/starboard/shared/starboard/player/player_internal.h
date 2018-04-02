@@ -31,19 +31,22 @@ struct SbPlayerPrivate
 
   SbPlayerPrivate(
       SbMediaAudioCodec audio_codec,
-      SbMediaTime duration_pts,
+      SbTime duration,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
       void* context,
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  void Seek(SbMediaTime seek_to_pts, int ticket);
+  void Seek(SbTime seek_to_time, int ticket);
   void WriteSample(SbMediaType sample_type,
                    const void* const* sample_buffers,
                    const int* sample_buffer_sizes,
                    int number_of_sample_buffers,
-                   SbMediaTime sample_pts,
+                   SbTime sample_time,
                    const SbMediaVideoSampleInfo* video_sample_info,
                    const SbDrmSampleInfo* sample_drm_info);
   void WriteEndOfStream(SbMediaType stream_type);
@@ -58,7 +61,7 @@ struct SbPlayerPrivate
 
  private:
   // PlayerWorker::Host methods.
-  void UpdateMediaTime(SbMediaTime media_time, int ticket) override;
+  void UpdateMediaTime(SbTime media_time, int ticket) override;
   void UpdateDroppedVideoFrames(int dropped_video_frames) override;
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
@@ -66,9 +69,9 @@ struct SbPlayerPrivate
 
   starboard::Mutex mutex_;
   int ticket_;
-  SbMediaTime duration_pts_;
-  SbMediaTime media_pts_;
-  SbTimeMonotonic media_pts_update_time_;
+  SbTime duration_;
+  SbTime media_time_;
+  SbTimeMonotonic media_time_update_time_;
   int frame_width_;
   int frame_height_;
   bool is_paused_;

@@ -46,7 +46,7 @@ class YUVConvertPerfTest : public testing::Test {
       : yuv_bytes_(new uint8_t[kYUV12Size]),
         rgb_bytes_converted_(new uint8_t[kRGBSize]) {
     base::FilePath path;
-    CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &path));
+    CHECK(PathService::Get(base::DIR_TEST_DATA, &path));
     path = path.Append(FILE_PATH_LITERAL("media"))
                .Append(FILE_PATH_LITERAL("test"))
                .Append(FILE_PATH_LITERAL("data"))

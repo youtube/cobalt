@@ -16,6 +16,13 @@
 #include <pthread.h>  // NOLINT
 #endif
 
+#if V8_OS_STARBOARD
+#include "starboard/mutex.h"
+// TODO: Implement recursive mutex with a hand rolled recursive mutex built
+// out of SbMutex instead.
+#include <mutex>
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -58,6 +65,8 @@ class V8_BASE_EXPORT Mutex final {
   typedef pthread_mutex_t NativeHandle;
 #elif V8_OS_WIN
   typedef SRWLOCK NativeHandle;
+#elif V8_OS_STARBOARD
+  typedef SbMutex NativeHandle;
 #endif
 
   NativeHandle& native_handle() {
@@ -157,6 +166,10 @@ class V8_BASE_EXPORT RecursiveMutex final {
   typedef pthread_mutex_t NativeHandle;
 #elif V8_OS_WIN
   typedef CRITICAL_SECTION NativeHandle;
+#elif V8_OS_STARBOARD
+  // TODO: Implement recursive mutex with a hand rolled recursive mutex built
+  // out of SbMutex instead.
+  typedef std::recursive_mutex NativeHandle;
 #endif
 
   NativeHandle& native_handle() {

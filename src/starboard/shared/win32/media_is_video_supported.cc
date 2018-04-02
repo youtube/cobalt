@@ -57,6 +57,7 @@ bool IsVp9Supported() {
       hr = CoCreateInstance(CLSID_MSVPxDecoder, nullptr, CLSCTX_INPROC_SERVER,
                             IID_PPV_ARGS(transform.GetAddressOf()));
     }
+
     if (SUCCEEDED(hr)) {
       hr = transform->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER,
                                      ULONG_PTR(device_manager.Get()));
@@ -79,16 +80,28 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_height,
                                        int64_t bitrate,
                                        int fps) {
-  // Only certain codecs support 4K resolution.
-  bool supports_4k = video_codec == kSbMediaVideoCodecVp9;
-  // Not all devices can support 4k H264; some (e.g. xb1) may crash in
-  // the decoder if provided too high of a resolution. Therefore
-  // platforms must explicitly opt-in to support 4k H264.
+  int max_width = 1920;
+  int max_height = 1080;
+
+  if (video_codec == kSbMediaVideoCodecVp9) {
+    // Vp9 supports 8k only in whitelisted platforms, up to 4k in the others.
+#ifdef ENABLE_VP9_8K_SUPPORT
+    max_width = 7680;
+    max_height = 4320;
+#else  // ENABLE_VP9_8K_SUPPORT
+    max_width = 3840;
+    max_height = 2160;
+#endif  // ENABLE_VP9_8K_SUPPORT
+  } else if (video_codec == kSbMediaVideoCodecH264) {
+    // Not all devices can support 4k H264; some (e.g. xb1) may crash in
+    // the decoder if provided too high of a resolution. Therefore
+    // platforms must explicitly opt-in to support 4k H264.
 #ifdef ENABLE_H264_4K_SUPPORT
-  supports_4k = supports_4k || video_codec == kSbMediaVideoCodecH264;
-#endif
-  const int max_width = supports_4k ? 3840 : 1920;
-  const int max_height = supports_4k ? 2160 : 1080;
+    max_width = 3840;
+    max_height = 2160;
+#endif  // ENABLE_H264_4K_SUPPORT
+  }
+
   if (frame_width > max_width || frame_height > max_height) {
     return false;
   }

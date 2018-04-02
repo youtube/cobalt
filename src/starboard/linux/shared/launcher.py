@@ -19,10 +19,24 @@ import signal
 import socket
 import subprocess
 import sys
+import time
 import traceback
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
+
+STATUS_CHANGE_TIMEOUT = 15
+
+
+def GetProcessStatus(pid):
+  """Returns process running status given its pid, or empty string if not found.
+
+  Args:
+    pid: process id of specified cobalt instance.
+  """
+  output = subprocess.check_output(
+      ["ps -o state= -p {}".format(pid)], shell=True)
+  return output
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -35,7 +49,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if socket.has_ipv6:  #  If the device supports IPv6:
         self.device_id = "::1"  #  Use the only IPv6 loopback address
       else:
-        self.device_id = socket.gethostbyname("localhost")
+        self.device_id = socket.gethostbyname("localhost")  # pylint: disable=W6503
 
     self.executable = self.GetTargetPath()
 
@@ -78,6 +92,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     sys.stderr.write("\n***Sending continue signal to executable***\n")
     if self.proc:
       self.proc.send_signal(signal.SIGCONT)
+      # Wait for process status change in Linux system.
+      self.WaitForProcessStatus("R", STATUS_CHANGE_TIMEOUT)
     else:
       sys.stderr.write("Cannot send continue to executable; it is closed.\n")
 
@@ -86,5 +102,25 @@ class Launcher(abstract_launcher.AbstractLauncher):
     sys.stderr.write("\n***Sending suspend signal to executable***\n")
     if self.proc:
       self.proc.send_signal(signal.SIGUSR1)
+      # Wait for process status change in Linux system.
+      self.WaitForProcessStatus("T", STATUS_CHANGE_TIMEOUT)
     else:
       sys.stderr.write("Cannot send suspend to executable; it is closed.\n")
+
+  def WaitForProcessStatus(self, target_status, timeout):
+    """Wait for Cobalt to turn to target status within specified timeout limit.
+
+    Args:
+      target_status: A character representing application status:
+                        R-running;
+                        T-stopped/suspended;
+                        S-sleep/paused;
+      timeout:       Time limit in unit of seconds.
+    """
+    elapsed_time = 0
+    while not GetProcessStatus(pid=self.pid).startswith(target_status):
+      if elapsed_time >= timeout:
+        return
+      else:
+        elapsed_time += .005
+      time.sleep(.005)

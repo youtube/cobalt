@@ -21,6 +21,12 @@
     'final_executable_type': 'shared_library',
     'default_renderer_options_dependency': '<(DEPTH)/cobalt/renderer/rasterizer/lib/lib.gyp:external_rasterizer',
     'sb_enable_lib': 1,
+
+    # We turn off V-Sync and throttling in Cobalt so we can let the client
+    # decide if they want those features.
+    'cobalt_egl_swap_interval': 0,
+    'cobalt_minimum_frame_time_in_milliseconds': 0,
+
     'enable_map_to_mesh': 1,
     'angle_build_winrt': 0,
     'winrt': 0,

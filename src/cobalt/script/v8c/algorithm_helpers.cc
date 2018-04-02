@@ -26,12 +26,10 @@ namespace v8c {
 v8::MaybeLocal<v8::Object> GetIterator(v8::Isolate* isolate,
                                        v8::Local<v8::Object> object,
                                        V8cExceptionState* exception_state) {
-  v8::TryCatch try_catch(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Value> iterator_getter;
   if (!object->Get(context, v8::Symbol::GetIterator(isolate))
            .ToLocal(&iterator_getter)) {
-    exception_state->ReThrow(&try_catch);
     return {};
   }
   if (!iterator_getter->IsFunction()) {
@@ -42,7 +40,6 @@ v8::MaybeLocal<v8::Object> GetIterator(v8::Isolate* isolate,
   v8::Local<v8::Value> iterator;
   if (!MaybeCallAsFunction(context, iterator_getter, object)
            .ToLocal(&iterator)) {
-    exception_state->ReThrow(&try_catch);
     return {};
   }
   if (!iterator->IsObject()) {

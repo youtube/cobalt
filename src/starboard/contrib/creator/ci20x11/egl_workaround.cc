@@ -22,7 +22,8 @@ extern "C" EGLBoolean __wrap_eglTerminate(EGLDisplay display);
 
 NativeDisplayType native_display_;
 
-extern "C" EGLDisplay __wrap_eglGetDisplay(EGLNativeDisplayType native_display) {
+extern "C" EGLDisplay
+    __wrap_eglGetDisplay(EGLNativeDisplayType native_display) {
   native_display_ = XOpenDisplay(0);
   return __real_eglGetDisplay((EGLNativeDisplayType) native_display_);
 }
@@ -32,4 +33,3 @@ extern "C" EGLBoolean __wrap_eglTerminate(EGLDisplay display) {
   XCloseDisplay((NativeDisplayType) native_display_);
   return result;
 }
-

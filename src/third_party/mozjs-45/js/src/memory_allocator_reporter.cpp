@@ -60,24 +60,14 @@ void AllocationMetadata::SetSizeToBaseAddress(void* base_ptr, int64_t size) {
   }
 }
 
-void MemoryAllocatorReporter::UpdateAllocatedBytes(int64_t bytes) {
+void MemoryAllocatorReporter::UpdateTotalHeapSize(int64_t bytes) {
   starboard::ScopedLock lock(mutex_);
-  current_bytes_allocated_ += bytes;
+  total_heap_size_ += bytes;
 }
 
-int64_t MemoryAllocatorReporter::GetCurrentBytesAllocated() {
+int64_t MemoryAllocatorReporter::GetTotalHeapSize() {
   starboard::ScopedLock lock(mutex_);
-  return current_bytes_allocated_;
-}
-
-void MemoryAllocatorReporter::UpdateMappedBytes(int64_t bytes) {
-  starboard::ScopedLock lock(mutex_);
-  current_bytes_mapped_ += bytes;
-}
-
-int64_t MemoryAllocatorReporter::GetCurrentBytesMapped() {
-  starboard::ScopedLock lock(mutex_);
-  return current_bytes_mapped_;
+  return total_heap_size_;
 }
 
 // static

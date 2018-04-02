@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,6 +35,7 @@ namespace ots {
 //  cff_table: A buffer which contains actual byte code of charstring, global
 //             subroutines and local subroutines.
 bool ValidateType2CharStringIndex(
+    Font *font,
     const CFFIndex &char_strings_index,
     const CFFIndex &global_subrs_index,
     const std::map<uint16_t, uint8_t> &fd_select,
@@ -67,6 +68,7 @@ enum Type2CharStringOperator {
   kCallGSubr = 29,
   kVHCurveTo = 30,
   kHVCurveTo = 31,
+  kDotSection = 12 << 8,
   kAnd = (12 << 8) + 3,
   kOr = (12 << 8) + 4,
   kNot = (12 << 8) + 5,
@@ -91,8 +93,7 @@ enum Type2CharStringOperator {
   kFlex = (12 << 8) + 35,
   kHFlex1 = (12 << 8) + 36,
   kFlex1 = (12 << 8) + 37,
-  // Operators that are obsoleted or undocumented, such as 'blend', will be
-  // rejected.
+  // Operators that are undocumented, such as 'blend', will be rejected.
 };
 
 }  // namespace ots

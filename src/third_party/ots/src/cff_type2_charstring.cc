@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,13 @@
 #include "cff_type2_charstring.h"
 
 #include <climits>
+#include <cstdio>
 #include <cstring>
 #include <stack>
 #include <string>
 #include <utility>
+
+#define TABLE_NAME "CFF"
 
 namespace {
 
@@ -27,7 +30,8 @@ const size_t kMaxSubrNesting = 10;
 // will fail with the dummy value.
 const int32_t dummy_result = INT_MAX;
 
-bool ExecuteType2CharString(size_t call_depth,
+bool ExecuteType2CharString(ots::Font *font,
+                            size_t call_depth,
                             const ots::CFFIndex& global_subrs_index,
                             const ots::CFFIndex& local_subrs_index,
                             ots::Buffer *cff_table,
@@ -37,6 +41,7 @@ bool ExecuteType2CharString(size_t call_depth,
                             bool *out_found_width,
                             size_t *in_out_num_stems);
 
+#ifdef DUMP_T2CHARSTRING
 // Converts |op| to a string and returns it.
 const char *Type2CharStringOperatorToString(ots::Type2CharStringOperator op) {
   switch (op) {
@@ -86,6 +91,8 @@ const char *Type2CharStringOperatorToString(ots::Type2CharStringOperator op) {
     return "VHCurveTo";
   case ots::kHVCurveTo:
     return "HVCurveTo";
+  case ots::kDotSection:
+    return "DotSection";
   case ots::kAnd:
     return "And";
   case ots::kOr:
@@ -138,6 +145,7 @@ const char *Type2CharStringOperatorToString(ots::Type2CharStringOperator op) {
 
   return "UNKNOWN";
 }
+#endif
 
 // Read one or more bytes from the |char_string| buffer and stores the number
 // read on |out_number|. If the number read is an operator (ex 'vstem'), sets
@@ -217,7 +225,8 @@ bool ReadNextNumberFromType2CharString(ots::Buffer *char_string,
 // succeeds. If the |op| is kCallSubr or kCallGSubr, the function recursively
 // calls ExecuteType2CharString() function. The arguments other than |op| and
 // |argument_stack| are passed for that reason.
-bool ExecuteType2CharStringOperator(int32_t op,
+bool ExecuteType2CharStringOperator(ots::Font *font,
+                                    int32_t op,
                                     size_t call_depth,
                                     const ots::CFFIndex& global_subrs_index,
                                     const ots::CFFIndex& local_subrs_index,
@@ -281,7 +290,8 @@ bool ExecuteType2CharStringOperator(int32_t op,
     }
     ots::Buffer char_string_to_jump(cff_table->buffer() + offset, length);
 
-    return ExecuteType2CharString(call_depth + 1,
+    return ExecuteType2CharString(font,
+                                  call_depth + 1,
                                   global_subrs_index,
                                   local_subrs_index,
                                   cff_table,
@@ -523,6 +533,13 @@ bool ExecuteType2CharStringOperator(int32_t op,
     return successful ? true : OTS_FAILURE();
   }
 
+  case ots::kDotSection:
+    // Deprecated operator but harmless, we probably should drop it some how.
+    if (stack_size != 0) {
+      return OTS_FAILURE();
+    }
+    return true;
+
   case ots::kAnd:
   case ots::kOr:
   case ots::kEq:
@@ -696,8 +713,7 @@ bool ExecuteType2CharStringOperator(int32_t op,
     return true;
   }
 
-  OTS_WARNING("Undefined operator: %d (0x%x)", op, op);
-  return OTS_FAILURE();
+  return OTS_FAILURE_MSG("Undefined operator: %d (0x%x)", op, op);
 }
 
 // Executes |char_string| and updates |argument_stack|.
@@ -713,7 +729,8 @@ bool ExecuteType2CharStringOperator(int32_t op,
 // in_out_found_width: true is set if |char_string| contains 'width' byte (which
 //                     is 0 or 1 byte.)
 // in_out_num_stems: total number of hstems and vstems processed so far.
-bool ExecuteType2CharString(size_t call_depth,
+bool ExecuteType2CharString(ots::Font *font,
+                            size_t call_depth,
                             const ots::CFFIndex& global_subrs_index,
                             const ots::CFFIndex& local_subrs_index,
                             ots::Buffer *cff_table,
@@ -737,19 +754,21 @@ bool ExecuteType2CharString(size_t call_depth,
       return OTS_FAILURE();
     }
 
+#ifdef DUMP_T2CHARSTRING
     /*
       You can dump all operators and operands (except mask bytes for hintmask
       and cntrmask) by the following code:
+    */
 
       if (!is_operator) {
         std::fprintf(stderr, "#%d# ", operator_or_operand);
       } else {
         std::fprintf(stderr, "#%s#\n",
            Type2CharStringOperatorToString(
-               Type2CharStringOperator(operator_or_operand)),
-           operator_or_operand);
+               ots::Type2CharStringOperator(operator_or_operand))
+           );
       }
-    */
+#endif
 
     if (!is_operator) {
       argument_stack->push(operator_or_operand);
@@ -760,7 +779,8 @@ bool ExecuteType2CharString(size_t call_depth,
     }
 
     // An operator is found. Execute it.
-    if (!ExecuteType2CharStringOperator(operator_or_operand,
+    if (!ExecuteType2CharStringOperator(font,
+                                        operator_or_operand,
                                         call_depth,
                                         global_subrs_index,
                                         local_subrs_index,
@@ -825,6 +845,7 @@ bool SelectLocalSubr(const std::map<uint16_t, uint8_t> &fd_select,
 namespace ots {
 
 bool ValidateType2CharStringIndex(
+    ots::Font *font,
     const CFFIndex& char_strings_index,
     const CFFIndex& global_subrs_index,
     const std::map<uint16_t, uint8_t> &fd_select,
@@ -872,7 +893,8 @@ bool ValidateType2CharStringIndex(
     bool found_endchar = false;
     bool found_width = false;
     size_t num_stems = 0;
-    if (!ExecuteType2CharString(0 /* initial call_depth is zero */,
+    if (!ExecuteType2CharString(font,
+                                0 /* initial call_depth is zero */,
                                 global_subrs_index, *local_subrs_to_use,
                                 cff_table, &char_string, &argument_stack,
                                 &found_endchar, &found_width, &num_stems)) {
@@ -886,3 +908,5 @@ bool ValidateType2CharStringIndex(
 }
 
 }  // namespace ots
+
+#undef TABLE_NAME

@@ -168,6 +168,10 @@ class BrowserModule {
   void CheckMemory(const int64_t& used_cpu_memory,
                    const base::optional<int64_t>& used_gpu_memory);
 
+  // Post a task to the main web module to update
+  // |javascript_reserved_memory_|.
+  void UpdateJavaScriptHeapStatistics();
+
 #if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
   void OnWindowSizeChanged(const SbWindowSize& size);
@@ -366,6 +370,10 @@ class BrowserModule {
   // Applies the current AutoMem settings to all applicable submodules.
   void ApplyAutoMemSettings();
 
+  // The callback posted to the main web module in for
+  // |UpdateJavaScriptHeapStatistics|.
+  void GetHeapStatisticsCallback(const script::HeapStatistics& heap_statistics);
+
   // If it exists, takes the current combined render tree from
   // |render_tree_combiner_| and submits it to the pipeline in the renderer
   // module.
@@ -432,12 +440,6 @@ class BrowserModule {
   // ResourceProvider is created. Only valid in the Preloading state.
   base::optional<render_tree::ResourceProviderStub> resource_provider_stub_;
 
-  // Optional memory allocator used by ArrayBuffer.
-  scoped_ptr<dom::ArrayBuffer::Allocator> array_buffer_allocator_;
-
-  // Optional cache used by ArrayBuffer.
-  scoped_ptr<dom::ArrayBuffer::Cache> array_buffer_cache_;
-
   // Controls all media playback related objects/resources.
   scoped_ptr<media::MediaModule> media_module_;
 
@@ -491,10 +493,16 @@ class BrowserModule {
 
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.
-  base::CVal<int64> navigate_time_;
+  base::CVal<int64, base::CValPublic> navigate_time_;
 
   // The time when the WebModule's Window.onload event is fired.
-  base::CVal<int64> on_load_event_time_;
+  base::CVal<int64, base::CValPublic> on_load_event_time_;
+
+  // The total memory that is reserved by the JavaScript engine, which
+  // includes both parts that have live JavaScript values, as well as
+  // preallocated space for future values.
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      javascript_reserved_memory_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Possibly null, but if not, will contain a reference to an instance of

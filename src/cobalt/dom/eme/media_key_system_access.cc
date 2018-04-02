@@ -31,21 +31,19 @@ MediaKeySystemAccess::MediaKeySystemAccess(
 
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysystemaccess-createmediakeys.
-scoped_ptr<MediaKeySystemAccess::InterfacePromiseValue>
+script::Handle<MediaKeySystemAccess::InterfacePromise>
 MediaKeySystemAccess::CreateMediaKeys() const {
   // 1. Let promise be a new promise.
-  scoped_ptr<InterfacePromiseValue> promise =
-      script_value_factory_
-          ->CreateInterfacePromise<scoped_refptr<MediaKeys> >();
-  InterfacePromiseValue::StrongReference promise_reference(*promise);
+  script::Handle<MediaKeySystemAccess::InterfacePromise> promise =
+      script_value_factory_->CreateInterfacePromise<scoped_refptr<MediaKeys>>();
 
   // 2.10. Let media keys be a new MediaKeys object.
   scoped_refptr<MediaKeys> media_keys(
       new MediaKeys(key_system_, script_value_factory_));
 
   // 2.11. Resolve promise with media keys.
-  promise_reference.value().Resolve(media_keys);
-  return promise.Pass();
+  promise->Resolve(media_keys);
+  return promise;
 }
 
 }  // namespace eme

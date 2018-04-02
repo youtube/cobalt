@@ -20,14 +20,17 @@ namespace cobalt {
 namespace layout {
 
 LayoutStatTracker::LayoutStatTracker(const std::string& name)
-    : total_boxes_(StringPrintf("Count.%s.Layout.Box", name.c_str()), 0,
-                   "Total number of layout boxes."),
-      is_event_active_(false),
-      boxes_created_count_(0),
-      boxes_destroyed_count_(0),
-      update_size_count_(0),
-      render_and_animate_count_(0),
-      update_cross_references_count_(0) {
+    : count_box_(StringPrintf("Count.%s.Layout.Box", name.c_str()), 0,
+                 "Total number of layout boxes."),
+      count_box_created_(0),
+      count_box_destroyed_(0),
+      is_tracking_event_(false),
+      event_initial_count_box_(0),
+      event_count_box_created_(0),
+      event_count_box_destroyed_(0),
+      event_count_update_size_(0),
+      event_count_render_and_animate_(0),
+      event_count_update_cross_references_(0) {
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
@@ -35,15 +38,62 @@ LayoutStatTracker::~LayoutStatTracker() {
   FlushPeriodicTracking();
 
   // Verify that all of the boxes were destroyed.
-  DCHECK_EQ(total_boxes_, 0);
+  DCHECK_EQ(count_box_, 0);
 }
 
-void LayoutStatTracker::OnStartEvent() {
-  is_event_active_ = true;
+void LayoutStatTracker::OnBoxCreated() {
+  ++count_box_created_;
+  if (is_tracking_event_) {
+    ++event_count_box_created_;
+  }
+}
 
-  // Flush the periodic tracking prior to starting the event. This ensures that
-  // an accurate count of the periodic counts is produced during the event.
-  FlushPeriodicTracking();
+void LayoutStatTracker::OnBoxDestroyed() {
+  ++count_box_destroyed_;
+  if (is_tracking_event_) {
+    ++event_count_box_destroyed_;
+  }
+}
+
+void LayoutStatTracker::OnUpdateSize() {
+  if (is_tracking_event_) {
+    ++event_count_update_size_;
+  }
+}
+
+void LayoutStatTracker::OnRenderAndAnimate() {
+  if (is_tracking_event_) {
+    ++event_count_render_and_animate_;
+  }
+}
+
+void LayoutStatTracker::OnUpdateCrossReferences() {
+  if (is_tracking_event_) {
+    ++event_count_update_cross_references_;
+  }
+}
+
+void LayoutStatTracker::FlushPeriodicTracking() {
+  // Update the CVals before clearing the periodic values.
+  count_box_ += count_box_created_ - count_box_destroyed_;
+
+  // Now clear the values.
+  count_box_created_ = 0;
+  count_box_destroyed_ = 0;
+}
+
+void LayoutStatTracker::StartTrackingEvent() {
+  DCHECK(!is_tracking_event_);
+  is_tracking_event_ = true;
+
+  event_initial_count_box_ =
+      count_box_ + count_box_created_ - count_box_destroyed_;
+
+  event_count_box_created_ = 0;
+  event_count_box_destroyed_ = 0;
+  event_count_update_size_ = 0;
+  event_count_render_and_animate_ = 0;
+  event_count_update_cross_references_ = 0;
 
   // Zero out the stop watch durations so that the numbers will only include the
   // event.
@@ -52,24 +102,14 @@ void LayoutStatTracker::OnStartEvent() {
   }
 }
 
-void LayoutStatTracker::OnEndEvent() {
-  is_event_active_ = false;
-
-  // Flush the periodic tracking after the event. This updates the cval totals,
-  // providing an accurate picture of them at the moment the event ends
-  FlushPeriodicTracking();
+void LayoutStatTracker::StopTrackingEvent() {
+  DCHECK(is_tracking_event_);
+  is_tracking_event_ = false;
 }
 
-void LayoutStatTracker::OnBoxCreated() { ++boxes_created_count_; }
-
-void LayoutStatTracker::OnBoxDestroyed() { ++boxes_destroyed_count_; }
-
-void LayoutStatTracker::OnUpdateSize() { ++update_size_count_; }
-
-void LayoutStatTracker::OnRenderAndAnimate() { ++render_and_animate_count_; }
-
-void LayoutStatTracker::OnUpdateCrossReferences() {
-  ++update_cross_references_count_;
+int LayoutStatTracker::EventCountBox() const {
+  return event_initial_count_box_ + event_count_box_created_ -
+         event_count_box_destroyed_;
 }
 
 base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
@@ -78,24 +118,12 @@ base::TimeDelta LayoutStatTracker::GetStopWatchTypeDuration(
 }
 
 bool LayoutStatTracker::IsStopWatchEnabled(int /*id*/) const {
-  return is_event_active_;
+  return is_tracking_event_;
 }
 
 void LayoutStatTracker::OnStopWatchStopped(int id,
                                            base::TimeDelta time_elapsed) {
   stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
-}
-
-void LayoutStatTracker::FlushPeriodicTracking() {
-  // Update the CVals before clearing the periodic values.
-  total_boxes_ += boxes_created_count_ - boxes_destroyed_count_;
-
-  // Now clear the values.
-  boxes_created_count_ = 0;
-  boxes_destroyed_count_ = 0;
-  update_size_count_ = 0;
-  render_and_animate_count_ = 0;
-  update_cross_references_count_ = 0;
 }
 
 }  // namespace layout

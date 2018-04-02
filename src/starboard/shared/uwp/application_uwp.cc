@@ -32,6 +32,7 @@
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 #include "starboard/shared/uwp/app_accessors.h"
 #include "starboard/shared/uwp/async_utils.h"
@@ -49,9 +50,13 @@ namespace sbwin32 = starboard::shared::win32;
 using Microsoft::WRL::ComPtr;
 using starboard::shared::starboard::Application;
 using starboard::shared::starboard::CommandLine;
+using starboard::shared::starboard::kNetLogCommandSwitchWait;
+using starboard::shared::starboard::NetLogFlushThenClose;
+using starboard::shared::starboard::NetLogWaitForClientConnected;
 using starboard::shared::uwp::ApplicationUwp;
 using starboard::shared::uwp::RunInMainThreadAsync;
 using starboard::shared::uwp::WaitForResult;
+using starboard::shared::win32::platformStringToString;
 using starboard::shared::win32::stringToPlatformString;
 using starboard::shared::win32::wchar_tToUTF8;
 using Windows::ApplicationModel::Activation::ActivationKind;
@@ -79,8 +84,10 @@ using Windows::Media::Protection::HdcpSetProtectionResult;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestResult;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestStatus;
 using Windows::Security::Credentials::WebAccountProvider;
+using Windows::Storage::FileAttributes;
 using Windows::Storage::KnownFolders;
 using Windows::Storage::StorageFolder;
+using Windows::Storage::StorageFile;
 using Windows::System::Threading::ThreadPoolTimer;
 using Windows::System::Threading::TimerElapsedHandler;
 using Windows::System::UserAuthenticationStatus;
@@ -106,15 +113,6 @@ const char kLogPathSwitch[] = "xb1_log_file";
 const char kWatchDogLog[] = "xb1_watchdog_log";
 const char kStarboardArgumentsPath[] = "arguments\\starboard_arguments.txt";
 const int64_t kMaxArgumentFileSizeBytes = 4 * 1024 * 1024;
-
-// Filename, placed in the cache dir, whose presence indicates
-// that the first run has happened.
-const char kFirstRunFilename[] = "first_run";
-// The entry point used by the main app.
-const char kMainAppDefaultEntryPoint[] = "https://www.youtube.com/tv";
-// The URL to be used for the main app on the first run.
-const char kMainAppFirstRunUrl[]
-    = "https://www.youtube.com/api/xbox/cobalt_bootstrap";
 
 int main_return_value = 0;
 
@@ -250,34 +248,20 @@ std::string GetBinaryName() {
 
   return full_binary_path.substr(index + 1);
 }
-
-// Returns true of this is the app's first run on a given device.
-bool IsFirstRun() {
-  char path[SB_FILE_MAX_PATH];
-  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
-                                 path, SB_FILE_MAX_PATH);
-  SB_DCHECK(success);
-  std::string file_path(path);
-  file_path.append(1, '/');
-  file_path.append(kFirstRunFilename);
-
-  if (SbFileExists(file_path.c_str())) {
-    return false;
-  }
-
-  bool created;
-  SbFile file = SbFileOpen(file_path.c_str(),
-      kSbFileRead | kSbFileOpenAlways, &created, nullptr);
-  SbFileClose(file);
-
-  return true;
-}
 }  // namespace
+
+namespace starboard {
+namespace shared {
+namespace win32 {
+// Called into drm_system_playready.cc
+extern void DrmSystemOnUwpResume();
+}  // namespace win32
+}  // namespace shared
+}  // namespace starboard
 
 ref class App sealed : public IFrameworkView {
  public:
-  App() : previously_activated_(false),
-          first_run_(IsFirstRun()) {}
+  App() : previously_activated_(false) {}
 
   // IFrameworkView methods.
   virtual void Initialize(CoreApplicationView^ application_view) {
@@ -339,6 +323,7 @@ ref class App sealed : public IFrameworkView {
         new ApplicationUwp::Event(kSbEventTypeResume, NULL, NULL));
     ApplicationUwp::Get()->DispatchAndDelete(
         new ApplicationUwp::Event(kSbEventTypeUnpause, NULL, NULL));
+    sbwin32::DrmSystemOnUwpResume();
   }
 
   void OnKeyUp(CoreWindow^ sender, KeyEventArgs^ args) {
@@ -349,47 +334,10 @@ ref class App sealed : public IFrameworkView {
     ApplicationUwp::Get()->OnKeyEvent(sender, args, false);
   }
 
-#pragma warning(push)
-#pragma warning(disable: 4451)  // False-positive Platform::Agile warning
   void OnActivated(
       CoreApplicationView^ application_view, IActivatedEventArgs^ args) {
-    SB_LOG(INFO) << "OnActivated first run:" << first_run_;
-    if (!first_run_) {
-      FinishActivated(application_view, args, entry_point_);
-    } else {
-      sbuwp::TryToFetchSsoToken(kMainAppFirstRunUrl).then(
-          [this, application_view, args](
-            concurrency::task<WebTokenRequestResult^> previous_task) {
-        bool success = false;
-        try {
-          WebTokenRequestResult^ result = previous_task.get();
-          success = result &&
-              (result->ResponseStatus == WebTokenRequestStatus::Success);
-        } catch(Platform::Exception^) {
-          SB_LOG(INFO) << "Exception during RequestTokenAsync";
-        }
-        // It seems like it should be able to specify a task_contination_context
-        // such that we don't need to additionally do RunInMainThreadAsync here,
-        // however obvious solutions seem to cause this to run in background
-        // threads.
-        SB_LOG(INFO) << "TryToFetchSsoToken success:" << success;
-        RunInMainThreadAsync([this, application_view, args, success]() {
-          std::string start_url = entry_point_;
-          if (success && start_url == kMainAppDefaultEntryPoint) {
-            SB_LOG(INFO) << "Using special main app first-run entry point.";
-            start_url = kMainAppFirstRunUrl;
-          }
-          FinishActivated(application_view, args, start_url);
-        });
-      });
-    }
-  }
-#pragma warning(pop)
-
- private:
-  void FinishActivated(
-      CoreApplicationView^ application_view, IActivatedEventArgs^ args,
-      const std::string& start_url) {
+    SB_LOG(INFO) << "OnActivated";
+    std::string start_url = entry_point_;
     bool command_line_set = false;
 
     // Please see application lifecyle description:
@@ -470,11 +418,17 @@ ref class App sealed : public IFrameworkView {
     if (!previously_activated_) {
       if (!command_line_set) {
         args_.push_back(GetArgvZero());
+        std::string start_url_arg = "--url=";
+        start_url_arg.append(start_url);
+        args_.push_back(start_url_arg);
+        std::string partition_arg = "--local_storage_partition_url=";
+        partition_arg.append(entry_point_);
+        args_.push_back(partition_arg);
+
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
         char content_directory[SB_FILE_MAX_NAME];
         content_directory[0] = '\0';
-        if (SbSystemGetPath(kSbSystemPathContentDirectory,
-                            content_directory,
+        if (SbSystemGetPath(kSbSystemPathContentDirectory, content_directory,
                             SB_ARRAY_SIZE_INT(content_directory))) {
           std::string arguments_file_path = content_directory;
           arguments_file_path += SB_FILE_SEP_STRING;
@@ -483,12 +437,6 @@ ref class App sealed : public IFrameworkView {
         }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-        std::string start_url_arg = "--url=";
-        start_url_arg.append(start_url);
-        args_.push_back(start_url_arg);
-        std::string partition_arg = "--local_storage_partition_url=";
-        partition_arg.append(entry_point_);
-        args_.push_back(partition_arg);
         for (auto& arg : args_) {
           argv_.push_back(arg.c_str());
         }
@@ -514,10 +462,12 @@ ref class App sealed : public IFrameworkView {
       }
 
       if (command_line->HasSwitch(kLogPathSwitch)) {
-        std::string switch_val = command_line->GetSwitchValue(kLogPathSwitch);
-        sbuwp::OpenLogFile(
-            Windows::Storage::ApplicationData::Current->LocalCacheFolder,
-            switch_val.c_str());
+        std::stringstream ss;
+        ss << sbwin32::platformStringToString(
+            Windows::Storage::ApplicationData::Current->LocalCacheFolder->Path);
+        ss << "\\" << "" << command_line->GetSwitchValue(kLogPathSwitch);
+        std::string full_path_log_file = ss.str();
+        sbuwp::OpenLogFileWin32(full_path_log_file.c_str());
       } else {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
         // Log to a file on the last removable device available (probably the
@@ -547,7 +497,7 @@ ref class App sealed : public IFrameworkView {
                     now->Year, now->Month, now->Day,
                     now->Hour + now->FirstHourInThisPeriod,
                     now->Minute, now->Second);
-                sbuwp::OpenLogFile(folder, filename);
+                sbuwp::OpenLogFileUWP(folder, filename);
               });
         }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
@@ -569,6 +519,7 @@ ref class App sealed : public IFrameworkView {
     previously_activated_ = true;
   }
 
+ private:
   void ProcessDeepLinkUri(std::string *uri_string) {
     SB_DCHECK(uri_string);
     if (previously_activated_) {
@@ -583,7 +534,6 @@ ref class App sealed : public IFrameworkView {
 
   std::string entry_point_;
   bool previously_activated_;
-  bool first_run_;
   // Only valid if previously_activated_ is true
   ActivationKind previous_activation_kind_;
   std::vector<std::string> args_;
@@ -708,9 +658,30 @@ void ApplicationUwp::Inject(Application::Event* event) {
   RunInMainThreadAsync([this, event]() {
     bool result = DispatchAndDelete(event);
     if (!result) {
+      NetLogFlushThenClose();
       CoreApplication::Exit();
     }
   });
+}
+
+void ApplicationUwp::InjectKeypress(SbKey key) {
+  std::unique_ptr<SbInputData> press_data(new SbInputData());
+  std::unique_ptr<SbInputData> unpress_data(new SbInputData());
+
+  SbMemorySet(press_data.get(), 0, sizeof(*press_data));
+  press_data->window = window_;
+  press_data->device_type = kSbInputDeviceTypeKeyboard;
+  press_data->device_id = device_id();
+  press_data->key = key;
+  press_data->type = kSbInputEventTypePress;
+
+  *unpress_data = *press_data;
+  unpress_data->type = kSbInputEventTypeUnpress;
+
+  Inject(new Event(kSbEventTypeInput, press_data.release(),
+      &Application::DeleteDestructor<SbInputData>));
+  Inject(new Event(kSbEventTypeInput, unpress_data.release(),
+      &Application::DeleteDestructor<SbInputData>));
 }
 
 void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
@@ -879,6 +850,19 @@ void DisplayRequestRelease() {
   });
 }
 
+void InjectKeypress(SbKey key) {
+  ApplicationUwp::Get()->InjectKeypress(key);
+}
+
+bool HasNetLogSwitch(Platform::Array<Platform::String^>^ args) {
+  CommandLine::StringVector arg_v;
+  for (Platform::String^ arg : args) {
+    arg_v.push_back(platformStringToString(arg));
+  }
+  CommandLine cmd_line(arg_v);
+  return cmd_line.HasSwitch(kNetLogCommandSwitchWait);
+}
+
 }  // namespace uwp
 }  // namespace shared
 }  // namespace starboard
@@ -910,8 +894,12 @@ int main(Platform::Array<Platform::String^>^ args) {
 
   starboard::shared::win32::RegisterMainThread();
 
+  if (starboard::shared::uwp::HasNetLogSwitch(args)) {
+    NetLogWaitForClientConnected();
+  }
   auto direct3DApplicationSource = ref new Direct3DApplicationSource();
   CoreApplication::Run(direct3DApplicationSource);
+  NetLogFlushThenClose();
 
   MFShutdown();
   WSACleanup();

@@ -220,6 +220,13 @@
     # The URL of default build time splash screen - see
     #   cobalt/doc/splash_screen.md for information about this.
     'fallback_splash_screen_url%': 'none',
+    # The path to a splash screen to copy into content/data/web which can be
+    # accessed via a file URL starting with
+    # "file:///cobalt/browser/splash_screen/". If '', no file is copied.
+    'cobalt_splash_screen_file%': '',
+
+    # Some platforms have difficulty linking snapshot_app_stats
+    'build_snapshot_app_stats%': 1,
 
     # Cache parameters
 
@@ -400,12 +407,11 @@
     # video resolution is no larger than 1080p. If 0, then memory can grow
     # without bound. This must be larger than sum of 1080p video budget and non-
     # video budget.
-    'cobalt_media_buffer_max_capacity_1080p%': 36 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_1080p%': 0,
     # The maximum amount of memory that will be used to store media buffers when
-    # video resolution is no larger than 4k. If 0, then memory can grow
-    # without bound. This must be larger than sum of 4k video budget and non-
-    # video budget.
-    'cobalt_media_buffer_max_capacity_4k%': 65 * 1024 * 1024,
+    # video resolution is 4k. If 0, then memory can grow without bound. This
+    # must be larger than sum of 4k video budget and non- video budget.
+    'cobalt_media_buffer_max_capacity_4k%': 0,
 
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
@@ -453,6 +459,17 @@
     # significant difficulty if this value is too low.
     'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
 
+    # Specifies the duration threshold of media source garbage collection.  When
+    # the accumulated duration in a source buffer exceeds this value, the media
+    # source implementation will try to eject existing buffers from the cache.
+    # This is usually triggered when the video being played has a simple content
+    # and the encoded data is small.  In such case this can limit how much is
+    # allocated for the book keeping data of the media buffers and avoid OOM of
+    # system heap.
+    # This should be set to 170 for most of the platforms.  But it can be
+    # further reduced on systems with extremely low memory.
+    'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': 170,
+
     'compiler_flags_host': [
       '-D__LB_HOST__',  # TODO: Is this still needed?
     ],
@@ -467,9 +484,9 @@
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
       'ENABLE_DEBUG_CONSOLE',
-      'ENABLE_DIR_SOURCE_ROOT_ACCESS',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
+      'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
       '__LB_SHELL__ENABLE_SCREENSHOT__',
 
@@ -487,9 +504,9 @@
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
       'ENABLE_DEBUG_CONSOLE',
-      'ENABLE_DIR_SOURCE_ROOT_ACCESS',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
+      'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
       '__LB_SHELL__ENABLE_SCREENSHOT__',
       '__LB_SHELL__FORCE_LOGGING__',
@@ -503,9 +520,9 @@
       'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
       'ENABLE_DEBUG_C_VAL',
       'ENABLE_DEBUG_CONSOLE',
-      'ENABLE_DIR_SOURCE_ROOT_ACCESS',
       'ENABLE_IGNORE_CERTIFICATE_ERRORS',
       'ENABLE_PARTIAL_LAYOUT_CONTROL',
+      'ENABLE_TEST_DATA',
       'ENABLE_TEST_RUNNER',
       '__LB_SHELL__ENABLE_SCREENSHOT__',
     ],
@@ -532,6 +549,7 @@
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
+      'COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=<(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)',
     ],
     'conditions': [
       ['cobalt_media_source_2016 == 1', {
@@ -563,11 +581,6 @@
           'DIAL_SERVER',
         ],
       }],
-      ['enable_file_scheme == 1', {
-        'defines': [
-          'COBALT_ENABLE_FILE_SCHEME',
-        ],
-      }],
       ['enable_spdy == 0', {
         'defines': [
           'COBALT_DISABLE_SPDY',
@@ -586,7 +599,6 @@
         'cobalt_copy_debug_console': 1,
         'enable_about_scheme': 1,
         'enable_fake_microphone': 1,
-        'enable_file_scheme': 1,
         'enable_network_logging': 1,
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
@@ -598,7 +610,6 @@
         'cobalt_copy_debug_console': 0,
         'enable_about_scheme': 0,
         'enable_fake_microphone': 0,
-        'enable_file_scheme': 0,
         'enable_network_logging': 0,
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,

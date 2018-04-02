@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -84,26 +85,33 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 38;
+const int kInterfaceUniqueId = 39;
 
 
 
 
 
 
+
+
+void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  V8cExceptionState exception(info.GetIsolate());
+  exception.SetSimpleException(
+      script::kTypeError, "NumericTypesTestInterface is not constructible.");
+}
 
 
 
 void bytePropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -120,27 +128,28 @@ void bytePropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->byte_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void bytePropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -170,15 +179,15 @@ void bytePropertyAttributeSetter(
 
 
 void byteClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -195,27 +204,28 @@ void byteClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->byte_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void byteClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -245,15 +255,15 @@ void byteClampPropertyAttributeSetter(
 
 
 void octetPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -270,27 +280,28 @@ void octetPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->octet_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void octetPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -320,15 +331,15 @@ void octetPropertyAttributeSetter(
 
 
 void octetClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -345,27 +356,28 @@ void octetClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->octet_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void octetClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -395,15 +407,15 @@ void octetClampPropertyAttributeSetter(
 
 
 void shortPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -420,27 +432,28 @@ void shortPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->short_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void shortPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -470,15 +483,15 @@ void shortPropertyAttributeSetter(
 
 
 void shortClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -495,27 +508,28 @@ void shortClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->short_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void shortClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -545,15 +559,15 @@ void shortClampPropertyAttributeSetter(
 
 
 void unsignedShortPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -570,27 +584,28 @@ void unsignedShortPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unsigned_short_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unsignedShortPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -620,15 +635,15 @@ void unsignedShortPropertyAttributeSetter(
 
 
 void unsignedShortClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -645,27 +660,28 @@ void unsignedShortClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unsigned_short_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unsignedShortClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -695,15 +711,15 @@ void unsignedShortClampPropertyAttributeSetter(
 
 
 void longPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -720,27 +736,28 @@ void longPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->long_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void longPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -770,15 +787,15 @@ void longPropertyAttributeSetter(
 
 
 void longClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -795,27 +812,28 @@ void longClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->long_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void longClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -845,15 +863,15 @@ void longClampPropertyAttributeSetter(
 
 
 void unsignedLongPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -870,27 +888,28 @@ void unsignedLongPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unsigned_long_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unsignedLongPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -920,15 +939,15 @@ void unsignedLongPropertyAttributeSetter(
 
 
 void unsignedLongClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -945,27 +964,28 @@ void unsignedLongClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unsigned_long_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unsignedLongClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -995,15 +1015,15 @@ void unsignedLongClampPropertyAttributeSetter(
 
 
 void longLongPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1020,27 +1040,28 @@ void longLongPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->long_long_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void longLongPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1070,15 +1091,15 @@ void longLongPropertyAttributeSetter(
 
 
 void longLongClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1095,27 +1116,28 @@ void longLongClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->long_long_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void longLongClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1145,15 +1167,15 @@ void longLongClampPropertyAttributeSetter(
 
 
 void unsignedLongLongPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1170,27 +1192,28 @@ void unsignedLongLongPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unsigned_long_long_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unsignedLongLongPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1220,15 +1243,15 @@ void unsignedLongLongPropertyAttributeSetter(
 
 
 void unsignedLongLongClampPropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1245,27 +1268,28 @@ void unsignedLongLongClampPropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unsigned_long_long_clamp_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unsignedLongLongClampPropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1295,15 +1319,15 @@ void unsignedLongLongClampPropertyAttributeSetter(
 
 
 void doublePropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1320,27 +1344,28 @@ void doublePropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->double_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void doublePropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1370,15 +1395,15 @@ void doublePropertyAttributeSetter(
 
 
 void unrestrictedDoublePropertyAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1395,27 +1420,28 @@ void unrestrictedDoublePropertyAttributeGetter(
   NumericTypesTestInterface* impl =
       wrapper_private->wrappable<NumericTypesTestInterface>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->unrestricted_double_property(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 void unrestrictedDoublePropertyAttributeSetter(
-    v8::Local<v8::String> property,
-    v8::Local<v8::Value> v8_value,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
+  v8::Local<v8::Value> v8_value = info[0];
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1447,11 +1473,11 @@ void unrestrictedDoublePropertyAttributeSetter(
 
 void byteArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1493,11 +1519,11 @@ void byteArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info
 
 void byteReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1529,11 +1555,11 @@ void byteReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) 
 
 void doubleArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1575,11 +1601,11 @@ void doubleArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& in
 
 void doubleReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1611,11 +1637,11 @@ void doubleReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info
 
 void longArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1657,11 +1683,11 @@ void longArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info
 
 void longLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1703,11 +1729,11 @@ void longLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& 
 
 void longLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1739,11 +1765,11 @@ void longLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& in
 
 void longReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1775,11 +1801,11 @@ void longReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) 
 
 void octetArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1821,11 +1847,11 @@ void octetArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& inf
 
 void octetReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1857,11 +1883,11 @@ void octetReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
 
 void shortArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1903,11 +1929,11 @@ void shortArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& inf
 
 void shortReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1939,11 +1965,11 @@ void shortReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info)
 
 void unrestrictedDoubleArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -1985,11 +2011,11 @@ void unrestrictedDoubleArgumentOperationMethod(const v8::FunctionCallbackInfo<v8
 
 void unrestrictedDoubleReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2021,11 +2047,11 @@ void unrestrictedDoubleReturnOperationMethod(const v8::FunctionCallbackInfo<v8::
 
 void unsignedLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2067,11 +2093,11 @@ void unsignedLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Valu
 
 void unsignedLongLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2113,11 +2139,11 @@ void unsignedLongLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::
 
 void unsignedLongLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2149,11 +2175,11 @@ void unsignedLongLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Va
 
 void unsignedLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2185,11 +2211,11 @@ void unsignedLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>
 
 void unsignedShortArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2231,11 +2257,11 @@ void unsignedShortArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Val
 
 void unsignedShortReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<NumericTypesTestInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cNumericTypesTestInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -2291,7 +2317,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(
           isolate,
-          nullptr,
+          DummyConstructor,
           v8::Local<v8::Value>(),
           v8::Local<v8::Signature>(),
           0);
@@ -2338,18 +2364,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, bytePropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, bytePropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        bytePropertyAttributeGetter,
-        bytePropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2372,18 +2400,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, byteClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, byteClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        byteClampPropertyAttributeGetter,
-        byteClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2406,18 +2436,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, octetPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, octetPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        octetPropertyAttributeGetter,
-        octetPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2440,18 +2472,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, octetClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, octetClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        octetClampPropertyAttributeGetter,
-        octetClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2474,18 +2508,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, shortPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, shortPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        shortPropertyAttributeGetter,
-        shortPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2508,18 +2544,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, shortClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, shortClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        shortClampPropertyAttributeGetter,
-        shortClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2542,18 +2580,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unsignedShortPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unsignedShortPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unsignedShortPropertyAttributeGetter,
-        unsignedShortPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2576,18 +2616,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unsignedShortClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unsignedShortClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unsignedShortClampPropertyAttributeGetter,
-        unsignedShortClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2610,18 +2652,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, longPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, longPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        longPropertyAttributeGetter,
-        longPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2644,18 +2688,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, longClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, longClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        longClampPropertyAttributeGetter,
-        longClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2678,18 +2724,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unsignedLongPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unsignedLongPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unsignedLongPropertyAttributeGetter,
-        unsignedLongPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2712,18 +2760,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unsignedLongClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unsignedLongClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unsignedLongClampPropertyAttributeGetter,
-        unsignedLongClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2746,18 +2796,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, longLongPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, longLongPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        longLongPropertyAttributeGetter,
-        longLongPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2780,18 +2832,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, longLongClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, longLongClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        longLongClampPropertyAttributeGetter,
-        longLongClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2814,18 +2868,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unsignedLongLongPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unsignedLongLongPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unsignedLongLongPropertyAttributeGetter,
-        unsignedLongLongPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2848,18 +2904,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unsignedLongLongClampPropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unsignedLongLongClampPropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unsignedLongLongClampPropertyAttributeGetter,
-        unsignedLongLongClampPropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2882,18 +2940,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, doublePropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, doublePropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        doublePropertyAttributeGetter,
-        doublePropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
   {
@@ -2916,18 +2976,20 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, unrestrictedDoublePropertyAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter =
+        v8::FunctionTemplate::New(isolate, unrestrictedDoublePropertyAttributeSetter);
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        unrestrictedDoublePropertyAttributeGetter,
-        unrestrictedDoublePropertyAttributeSetter,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
 
@@ -2953,16 +3015,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, byteArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "byteArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -2986,16 +3048,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, byteReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "byteReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3019,16 +3081,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, doubleArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "doubleArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3052,16 +3114,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, doubleReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "doubleReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3085,16 +3147,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, longArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "longArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3118,16 +3180,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, longLongArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "longLongArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3151,16 +3213,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, longLongReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "longLongReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3184,16 +3246,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, longReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "longReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3217,16 +3279,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, octetArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "octetArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3250,16 +3312,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, octetReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "octetReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3283,16 +3345,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, shortArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "shortArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3316,16 +3378,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, shortReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "shortReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3349,16 +3411,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unrestrictedDoubleArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "unrestrictedDoubleArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3382,16 +3444,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unrestrictedDoubleReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "unrestrictedDoubleReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3415,16 +3477,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unsignedLongArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "unsignedLongArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3448,16 +3510,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unsignedLongLongArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "unsignedLongLongArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3481,16 +3543,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unsignedLongLongReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "unsignedLongLongReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3514,16 +3576,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unsignedLongReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "unsignedLongReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3547,16 +3609,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unsignedShortArgumentOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(1);
-    prototype_template->Set(
-        NewInternalString(isolate, "unsignedShortArgumentOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3580,16 +3642,16 @@ void InitializeTemplate(v8::Isolate* isolate) {
     v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
         B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-    // The location of the property is determined as follows:
-    // Otherwise, the property exists solely on the interface's interface
-    // prototype object.
     v8::Local<v8::FunctionTemplate> method_template =
         v8::FunctionTemplate::New(isolate, unsignedShortReturnOperationMethod);
     method_template->RemovePrototype();
     method_template->SetLength(0);
-    prototype_template->Set(
-        NewInternalString(isolate, "unsignedShortReturnOperation"),
-        method_template);
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->
+        Set(name, method_template);
 
     // The value of the property is the result of creating an operation function
     // given the operation, the interface, and the relevant Realm of the object
@@ -3607,6 +3669,8 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "NumericTypesTestInterface"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+
 
 
 

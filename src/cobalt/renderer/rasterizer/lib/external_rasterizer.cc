@@ -137,10 +137,7 @@ INSTANCE_CALLBACK_UPDATE(UpdateProjectionTypeAndStereoMode,
 INSTANCE_CALLBACK_UPDATE(UpdateAspectRatio, CbLibVideoSetOnUpdateAspectRatio);
 INSTANCE_CALLBACK_UPDATE(GraphicsContextCreated,
                          CbLibGraphicsSetContextCreatedCallback);
-INSTANCE_CALLBACK_UPDATE(BeginRenderFrame,
-                         CbLibGraphicsSetBeginRenderFrameCallback);
-INSTANCE_CALLBACK_UPDATE(EndRenderFrame,
-                         CbLibGraphicsSetEndRenderFrameCallback);
+INSTANCE_CALLBACK_UPDATE(RenderFrame, CbLibGraphicsSetRenderFrameCallback);
 #undef INSTANCE_CALLBACK_UPDATE
 
 UpdateMeshes::LazyCallback g_update_meshes_callback = LAZY_INSTANCE_INITIALIZER;
@@ -153,10 +150,7 @@ UpdateAspectRatio::LazyCallback g_update_aspect_ratio_callback =
     LAZY_INSTANCE_INITIALIZER;
 GraphicsContextCreated::LazyCallback g_graphics_context_created_callback =
     LAZY_INSTANCE_INITIALIZER;
-BeginRenderFrame::LazyCallback g_begin_render_frame_callback =
-    LAZY_INSTANCE_INITIALIZER;
-EndRenderFrame::LazyCallback g_end_render_frame_callback =
-    LAZY_INSTANCE_INITIALIZER;
+RenderFrame::LazyCallback g_render_frame_callback = LAZY_INSTANCE_INITIALIZER;
 
 bool ApproxEqual(const cobalt::math::Size& a, const cobalt::math::Size& b,
                  float epsilon) {
@@ -191,6 +185,9 @@ class ExternalRasterizer::Impl {
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target);
+  void RenderCobalt();
+  void CopyBackbuffer(uintptr_t surface, float width_scale);
+  void SwapBackbuffer();
 
   render_tree::ResourceProvider* GetResourceProvider();
 
@@ -206,7 +203,7 @@ class ExternalRasterizer::Impl {
  private:
   void RenderOffscreenVideo(render_tree::FilterNode* map_to_mesh_filter_node);
 
-  scoped_refptr<render_tree::MatrixTransformNode> UpdateTextureSizeAndWrapNode(
+  void SubmitWithUpdatedTextureSize(
       const cobalt::math::Size& native_render_target_size,
       const scoped_refptr<render_tree::Node>& render_tree);
 
@@ -220,6 +217,12 @@ class ExternalRasterizer::Impl {
   skia::HardwareRasterizer hardware_rasterizer_;
 #endif
   Rasterizer::Options options_;
+
+  // Temporary reference to the render tree and main window render target.
+  //
+  // Only valid inside of Submit().
+  scoped_refptr<render_tree::Node> render_tree_temp_;
+  backend::RenderTargetEGL* main_render_target_temp_;
 
   // The main offscreen render target to use when rendering UI or rectangular
   // video.
@@ -258,14 +261,18 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       hardware_rasterizer_(graphics_context, skia_atlas_width,
                            skia_atlas_height, skia_cache_size_in_bytes,
                            scratch_surface_cache_size_in_bytes,
+
 #if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
                            offscreen_target_cache_size_in_bytes,
 #endif
                            purge_skia_font_caches_on_destruction
 #if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-                           , disable_rasterizer_caching
+                           ,
+                           disable_rasterizer_caching
 #endif
                            ),
+      render_tree_temp_(nullptr),
+      main_render_target_temp_(nullptr),
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
       video_texture_rgb_(0),
@@ -296,6 +303,8 @@ ExternalRasterizer::Impl::~Impl() {
 void ExternalRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
   backend::RenderTargetEGL* render_target_egl =
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
           render_target.get());
@@ -306,15 +315,34 @@ void ExternalRasterizer::Impl::Submit(
   // client implementing CbLibRenderFrame.
   if (!render_target_egl->IsWindowRenderTarget()) {
     hardware_rasterizer_.Submit(render_tree, render_target, options_);
-    return;
-  }
+  } else {
+    // Store the pointers to the render tree and target temporarily so they
+    // can be used from callbacks triggered from the app's RenderFrameCallback.
+    render_tree_temp_ = render_tree.get();
+    main_render_target_temp_ = render_target_egl;
 
-  graphics_context_->MakeCurrentWithSurface(render_target_egl);
+    // TODO: Allow clients to specify arbitrary subtrees to render into
+    // different textures?
+    g_render_frame_callback.Get().Run();
+
+    render_tree_temp_ = nullptr;
+    main_render_target_temp_ = nullptr;
+  }
+}
+
+void ExternalRasterizer::Impl::RenderCobalt() {
+  // This method must be called from the g_render_frame_callback set by the
+  // host, otherwise these members will be nullptr.
+  CHECK(main_render_target_temp_);
+  CHECK(render_tree_temp_.get());
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  graphics_context_->MakeCurrentWithSurface(main_render_target_temp_);
 
   // Attempt to find map to mesh filter node, then render video subtree
   // offscreen.
   auto map_to_mesh_search = common::FindNode<render_tree::FilterNode>(
-      render_tree, base::Bind(common::HasMapToMesh),
+      render_tree_temp_, base::Bind(common::HasMapToMesh),
       base::Bind(common::ReplaceWithEmptyCompositionNode));
   if (map_to_mesh_search.found_node != NULL) {
     base::optional<render_tree::MapToMeshFilter> filter =
@@ -406,26 +434,25 @@ void ExternalRasterizer::Impl::Submit(
     }
   }
 
-  const scoped_refptr<render_tree::MatrixTransformNode> scaled_main_node =
-      UpdateTextureSizeAndWrapNode(render_target->GetSize(),
-                                   map_to_mesh_search.replaced_tree);
-  hardware_rasterizer_.Submit(scaled_main_node, main_offscreen_render_target_,
-                              options_);
+  SubmitWithUpdatedTextureSize(main_render_target_temp_->GetSize(),
+                               map_to_mesh_search.replaced_tree);
+}
 
-  CbLibRenderContext host_render_context;
-  // TODO: Allow clients to specify arbitrary subtrees to render into
-  // different textures?
-  g_begin_render_frame_callback.Get().Run(&host_render_context);
+void ExternalRasterizer::Impl::CopyBackbuffer(uintptr_t surface,
+                                              float width_scale) {
+  // This method must be called from the g_render_frame_callback set by the
+  // host, otherwise this member will be nullptr.
+  CHECK(main_render_target_temp_);
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   // If there is any host-provided surface, mirror it directly into the
   // system window with a blit.  The surface will be streched or shrunk as
   // appropriate so that it fits the system window's backbuffer.
-  if (host_render_context.surface_to_mirror != 0) {
+  if (surface != 0) {
 #ifdef ANGLE_ENABLE_D3D11
     EGLContext egl_context = eglGetCurrentContext();
-    EGLSurface egl_mirror_surface = reinterpret_cast<EGLSurface>(
-        host_render_context.surface_to_mirror);
-    EGLSurface egl_window_surface = render_target_egl->GetSurface();
+    EGLSurface egl_mirror_surface = reinterpret_cast<EGLSurface>(surface);
+    EGLSurface egl_window_surface = main_render_target_temp_->GetSurface();
     ::gl::Context* angle_context =
         reinterpret_cast<::gl::Context*>(egl_context);
     ::egl::Surface* angle_mirror_surface = reinterpret_cast<::egl::Surface*>(
@@ -443,8 +470,7 @@ void ExternalRasterizer::Impl::Submit(
         static_cast<::rx::SwapChain11*>(d3d_mirror_surface->getSwapChain());
     ::rx::SwapChain11* d3d11_window_swapchain =
         static_cast<::rx::SwapChain11*>(d3d_window_surface->getSwapChain());
-    float src_width_scale =
-        std::min(1.0f, std::max(host_render_context.width_to_mirror, 0.0f));
+    float src_width_scale = std::min(1.0f, std::max(width_scale, 0.0f));
 
     d3d11_renderer->getBlitter()->copyTexture(
         d3d11_mirror_swapchain->getRenderTargetShaderResource(),
@@ -463,15 +489,26 @@ void ExternalRasterizer::Impl::Submit(
                << "under DirectX.";
 #endif
   }
-  graphics_context_->SwapBuffers(render_target_egl);
-  g_end_render_frame_callback.Get().Run();
+}
+
+void ExternalRasterizer::Impl::SwapBackbuffer() {
+  // This method must be called from the g_render_frame_callback set by the
+  // host, otherwise this member will be nullptr.
+  CHECK(main_render_target_temp_);
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  graphics_context_->SwapBuffers(main_render_target_temp_);
 }
 
 // TODO: Share this logic with the ComponentRenderer.
-scoped_refptr<render_tree::MatrixTransformNode>
-ExternalRasterizer::Impl::UpdateTextureSizeAndWrapNode(
+void ExternalRasterizer::Impl::SubmitWithUpdatedTextureSize(
     const cobalt::math::Size& native_render_target_size,
     const scoped_refptr<render_tree::Node>& render_tree) {
+  // We need to make sure that our texture ID gets updated after the
+  // HardwareRasterizer submits, because the render target in use might get
+  // swapped during the submit.
+  bool texture_id_needs_update = false;
+
   // Create a new offscreen render target if the exist one's size is far enough
   // off from the target/ideal size.
   if (!main_offscreen_render_target_ ||
@@ -482,14 +519,7 @@ ExternalRasterizer::Impl::UpdateTextureSizeAndWrapNode(
     main_offscreen_render_target_ =
         graphics_context_->CreateOffscreenRenderTarget(
             target_main_render_target_size_);
-    // Note: The TextureEGL this pointer references must first be destroyed by
-    // calling reset() before a new TextureEGL can be constructed.
-    main_texture_.reset();
-    main_texture_.reset(new backend::TextureEGL(
-        graphics_context_,
-        make_scoped_refptr(
-            base::polymorphic_downcast<backend::RenderTargetEGL*>(
-                main_offscreen_render_target_.get()))));
+    texture_id_needs_update = true;
   }
 
   DCHECK(native_render_target_size.width());
@@ -509,8 +539,22 @@ ExternalRasterizer::Impl::UpdateTextureSizeAndWrapNode(
       glm::mat4(1.0f), glm::vec3(texture_x_scale, texture_y_scale, 1)));
   const cobalt::math::Matrix3F root_transform_matrix =
       cobalt::math::Matrix3F::FromArray(glm::value_ptr(scale_mat));
-  return scoped_refptr<render_tree::MatrixTransformNode>(
+  scoped_refptr<render_tree::MatrixTransformNode> scaled_main_node(
       new render_tree::MatrixTransformNode(render_tree, root_transform_matrix));
+
+  hardware_rasterizer_.Submit(scaled_main_node, main_offscreen_render_target_,
+                              options_);
+
+  if (texture_id_needs_update) {
+    // Note: The TextureEGL this pointer references must first be destroyed by
+    // calling reset() before a new TextureEGL can be constructed.
+    main_texture_.reset();
+    main_texture_.reset(new backend::TextureEGL(
+        graphics_context_,
+        make_scoped_refptr(
+            base::polymorphic_downcast<backend::RenderTargetEGL*>(
+                main_offscreen_render_target_.get()))));
+  }
 }
 
 render_tree::ResourceProvider* ExternalRasterizer::Impl::GetResourceProvider() {
@@ -548,21 +592,18 @@ void ExternalRasterizer::Impl::RenderOffscreenVideo(
                                           1.0f, kMaxRenderTargetSize);
   const math::Size video_size(target_width, target_height);
 
+  // We need to make sure that our texture ID gets updated after the
+  // HardwareRasterizer submits, because the render target in use might get
+  // swapped during the submit.
+  bool texture_id_needs_update = false;
+
   if (!video_offscreen_render_target_ ||
       video_offscreen_render_target_->GetSize() != video_size) {
     video_offscreen_render_target_ =
         graphics_context_->CreateOffscreenRenderTarget(video_size);
     DLOG(INFO) << "Created new video_offscreen_render_target_: "
                << video_offscreen_render_target_->GetSize();
-
-    // Note: The TextureEGL this pointer references must first be destroyed by
-    // calling reset() before a new TextureEGL can be constructed.
-    video_texture_.reset();
-    video_texture_.reset(new backend::TextureEGL(
-        graphics_context_,
-        make_scoped_refptr(
-            base::polymorphic_downcast<backend::RenderTargetEGL*>(
-                video_offscreen_render_target_.get()))));
+    texture_id_needs_update = true;
   }
 
   if (image_node.get()) {
@@ -580,6 +621,17 @@ void ExternalRasterizer::Impl::RenderOffscreenVideo(
     // textures already produced by decode-to-texture.
     hardware_rasterizer_.Submit(correctly_scaled_image_node,
                                 video_offscreen_render_target_, options_);
+
+    if (texture_id_needs_update) {
+      // Note: The TextureEGL this pointer references must first be destroyed by
+      // calling reset() before a new TextureEGL can be constructed.
+      video_texture_.reset();
+      video_texture_.reset(new backend::TextureEGL(
+          graphics_context_,
+          make_scoped_refptr(
+              base::polymorphic_downcast<backend::RenderTargetEGL*>(
+                  video_offscreen_render_target_.get()))));
+    }
 
     const intptr_t video_texture_handle = video_texture_->GetPlatformHandle();
     if (video_texture_rgb_ != video_texture_handle) {
@@ -664,18 +716,11 @@ void CbLibGraphicsSetContextCreatedCallback(
                : base::Bind(&GraphicsContextCreated::DefaultImplementation);
 }
 
-void CbLibGraphicsSetBeginRenderFrameCallback(
-    void* context, CbLibGraphicsBeginRenderFrameCallback callback) {
-  g_begin_render_frame_callback.Get() =
+void CbLibGraphicsSetRenderFrameCallback(
+    void* context, CbLibGraphicsRenderFrameCallback callback) {
+  g_render_frame_callback.Get() =
       callback ? base::Bind(callback, context)
-               : base::Bind(&BeginRenderFrame::DefaultImplementation);
-}
-
-void CbLibGraphicsSetEndRenderFrameCallback(
-    void* context, CbLibGraphicsEndRenderFrameCallback callback) {
-  g_end_render_frame_callback.Get() =
-      callback ? base::Bind(callback, context)
-               : base::Bind(&EndRenderFrame::DefaultImplementation);
+               : base::Bind(&RenderFrame::DefaultImplementation);
 }
 
 intptr_t CbLibGrapicsGetMainTextureHandle() {
@@ -699,4 +744,34 @@ void CbLibGraphicsSetTargetMainTextureSize(
   }
   const cobalt::math::Size size = CobaltSizeFromCbLibSize(target_render_size);
   g_external_rasterizer_impl->SetTargetMainTextureSize(size);
+}
+
+void CbLibGraphicsRenderCobalt() {
+  DCHECK(g_external_rasterizer_impl);
+  if (!g_external_rasterizer_impl) {
+    LOG(WARNING) << __FUNCTION__
+                 << "ExternalRasterizer not yet created; unable to progress.";
+    return;
+  }
+  g_external_rasterizer_impl->RenderCobalt();
+}
+
+void CbLibGraphicsCopyBackbuffer(uintptr_t surface, float width_scale) {
+  DCHECK(g_external_rasterizer_impl);
+  if (!g_external_rasterizer_impl) {
+    LOG(WARNING) << __FUNCTION__
+                 << "ExternalRasterizer not yet created; unable to progress.";
+    return;
+  }
+  g_external_rasterizer_impl->CopyBackbuffer(surface, width_scale);
+}
+
+void CbLibGraphicsSwapBackbuffer() {
+  DCHECK(g_external_rasterizer_impl);
+  if (!g_external_rasterizer_impl) {
+    LOG(WARNING) << __FUNCTION__
+                 << "ExternalRasterizer not yet created; unable to progress.";
+    return;
+  }
+  g_external_rasterizer_impl->SwapBackbuffer();
 }

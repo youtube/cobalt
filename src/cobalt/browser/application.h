@@ -160,11 +160,7 @@ class Application {
     base::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         used_gpu_memory;
 
-    // The total memory that is reserved by the engine, including the part that
-    // is actually occupied by JS objects, and the part that is not yet.
-    base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory;
-
-    base::CVal<int64> app_start_time;
+    base::CVal<int64, base::CValPublic> app_start_time;
     base::CVal<base::TimeDelta, base::CValPublic> app_lifetime;
   };
 

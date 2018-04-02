@@ -9,12 +9,12 @@ def count_dom_active_java_script_events():
   return 'Count.DOM.ActiveJavaScriptEvents'
 
 
-def count_dom_html_elements_document():
+def count_dom_html_element():
+  return 'Count.MainWebModule.DOM.HtmlElement'
+
+
+def count_dom_html_element_document():
   return 'Count.MainWebModule.DOM.HtmlElement.Document'
-
-
-def count_dom_html_elements_total():
-  return 'Count.MainWebModule.DOM.HtmlElement.Total'
 
 
 def count_dom_html_script_element_execute():
@@ -57,12 +57,6 @@ def event_duration_dom_video_start_delay():
   return 'Event.Duration.MainWebModule.DOM.VideoStartDelay'
 
 
-def event_duration_renderer_rasterize_render_tree_delay(event_type):
-  c_val_prefix = 'Event.Duration.MainWebModule'
-  c_val_suffix = 'Renderer.Rasterize.RenderTreeDelay'
-  return '{}.{}.{}'.format(c_val_prefix, event_type, c_val_suffix)
-
-
 def event_is_processing():
   return 'Event.MainWebModule.IsProcessing'
 
@@ -85,6 +79,10 @@ def memory_font_cache_resource_loaded():
 
 def memory_image_cache_resource_loaded():
   return 'Memory.MainWebModule.ImageCache.Resource.Loaded'
+
+
+def memory_dom_html_script_element_execute():
+  return 'Memory.MainWebModule.DOM.HtmlScriptElement.Execute'
 
 
 def rasterize_animations_entry_list():

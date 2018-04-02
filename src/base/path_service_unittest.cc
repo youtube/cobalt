@@ -31,6 +31,9 @@ bool ReturnsValidPath(int dir_type) {
   // Some paths might not exist on some platforms in which case confirming
   // |result| is true and !path.empty() is the best we can do.
   bool check_path_exists = true;
+  // With tests using DIR_TEST_DATA, there is no longer a fake source-root.
+  if (dir_type == base::DIR_SOURCE_ROOT)
+    check_path_exists = false;
 #if defined(__LB_SHELL__)
   if (dir_type == base::DIR_USER_DESKTOP)
     check_path_exists = false;
@@ -92,6 +95,9 @@ typedef PlatformTest PathServiceTest;
 // correct value while returning false.)
 TEST_F(PathServiceTest, Get) {
   for (int key = base::PATH_START + 1; key < base::PATH_END; ++key) {
+    // With tests using DIR_TEST_DATA, there is no longer a fake source-root.
+    if (key == base::DIR_SOURCE_ROOT)
+      continue;
 #if defined(OS_ANDROID)
     if (key == base::FILE_MODULE || key == base::DIR_USER_DESKTOP)
       continue;  // Android doesn't implement FILE_MODULE and DIR_USER_DESKTOP;

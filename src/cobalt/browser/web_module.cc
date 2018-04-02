@@ -242,6 +242,8 @@ class WebModule::Impl {
   void Resume(render_tree::ResourceProvider* resource_provider);
 
   void ReduceMemory();
+  void GetJavaScriptHeapStatistics(
+      const JavaScriptHeapStatisticsCallback& callback);
 
   void LogScriptError(const base::SourceLocation& source_location,
                       const std::string& error_message);
@@ -269,13 +271,17 @@ class WebModule::Impl {
   void OnRenderTreeProduced(const LayoutResults& layout_results);
 
   // Called by the Renderer on the Renderer thread when it rasterizes a render
-  // tree with this callback attached.
+  // tree with this callback attached. It includes the time the render tree was
+  // produced.
   void OnRenderTreeRasterized(
-      scoped_refptr<base::MessageLoopProxy> web_module_message_loop);
+      scoped_refptr<base::MessageLoopProxy> web_module_message_loop,
+      const base::TimeTicks& produced_time);
 
   // WebModule thread handling of the OnRenderTreeRasterized() callback. It
-  // includes the time that the rasterization callback was initially received.
-  void ProcessOnRenderTreeRasterized(const base::TimeTicks& on_rasterize_time);
+  // includes the time that the render tree was produced and the time that the
+  // render tree was rasterized.
+  void ProcessOnRenderTreeRasterized(const base::TimeTicks& produced_time,
+                                     const base::TimeTicks& rasterized_time);
 
   void OnCspPolicyChanged();
 
@@ -302,6 +308,9 @@ class WebModule::Impl {
   // Initializes the ResourceProvider and dependent resources.
   void SetResourceProvider(render_tree::ResourceProvider* resource_provider);
 
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
+
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
@@ -310,6 +319,9 @@ class WebModule::Impl {
 
   // Simple flag used for basic error checking.
   bool is_running_;
+
+  // The most recent time that a new render tree was produced.
+  base::TimeTicks last_render_tree_produced_time_;
 
   // Whether or not a render tree has been produced but not yet rasterized.
   base::CVal<bool, base::CValPublic> is_render_tree_rasterization_pending_;
@@ -444,8 +456,8 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
     }
   }
 
-  void OnMutation() override{};
-  void OnFocusChanged() override{};
+  void OnMutation() override {}
+  void OnFocusChanged() override {}
 
  private:
   ClosureVector loaded_callbacks_;
@@ -611,6 +623,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.window_close_callback, data.window_minimize_callback,
       data.options.on_screen_keyboard_bridge, data.options.camera_3d,
       media_session_client_->GetMediaSession(),
+      base::Bind(&WebModule::Impl::OnStartDispatchEvent,
+                 base::Unretained(this)),
+      base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -620,8 +635,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #else
       dom::Window::kClockTypeSystemTime,
 #endif
-      splash_screen_cache_callback,
-      system_caption_settings_);
+      splash_screen_cache_callback, system_caption_settings_);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -735,17 +749,11 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
   DCHECK(is_running_);
   DCHECK(window_);
 
-  web_module_stat_tracker_->OnStartInjectEvent(event);
-
   if (element) {
     element->DispatchEvent(event);
   } else {
     window_->InjectEvent(event);
   }
-
-  web_module_stat_tracker_->OnEndInjectEvent(
-      window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsRenderTreePending());
 }
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
@@ -860,13 +868,17 @@ void WebModule::Impl::OnRenderTreeProduced(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
 
+  last_render_tree_produced_time_ = base::TimeTicks::Now();
   is_render_tree_rasterization_pending_ = true;
-  web_module_stat_tracker_->OnRenderTreeProduced();
+
+  web_module_stat_tracker_->OnRenderTreeProduced(
+      last_render_tree_produced_time_);
 
   LayoutResults layout_results_with_callback(
       layout_results.render_tree, layout_results.layout_time,
       base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
-                 base::Unretained(this), base::MessageLoopProxy::current()));
+                 base::Unretained(this), base::MessageLoopProxy::current(),
+                 last_render_tree_produced_time_));
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
@@ -876,17 +888,23 @@ void WebModule::Impl::OnRenderTreeProduced(
 }
 
 void WebModule::Impl::OnRenderTreeRasterized(
-    scoped_refptr<base::MessageLoopProxy> web_module_message_loop) {
+    scoped_refptr<base::MessageLoopProxy> web_module_message_loop,
+    const base::TimeTicks& produced_time) {
   web_module_message_loop->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::ProcessOnRenderTreeRasterized,
-                            base::Unretained(this), base::TimeTicks::Now()));
+                            base::Unretained(this), produced_time,
+                            base::TimeTicks::Now()));
 }
 
 void WebModule::Impl::ProcessOnRenderTreeRasterized(
-    const base::TimeTicks& on_rasterize_time) {
+    const base::TimeTicks& produced_time,
+    const base::TimeTicks& rasterized_time) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  web_module_stat_tracker_->OnRenderTreeRasterized(on_rasterize_time);
-  is_render_tree_rasterization_pending_ = false;
+  web_module_stat_tracker_->OnRenderTreeRasterized(produced_time,
+                                                   rasterized_time);
+  if (produced_time >= last_render_tree_produced_time_) {
+    is_render_tree_rasterization_pending_ = false;
+  }
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -1030,6 +1048,18 @@ void WebModule::Impl::SetResourceProvider(
   }
 }
 
+void WebModule::Impl::OnStartDispatchEvent(
+    const scoped_refptr<dom::Event>& event) {
+  web_module_stat_tracker_->OnStartDispatchEvent(event);
+}
+
+void WebModule::Impl::OnStopDispatchEvent(
+    const scoped_refptr<dom::Event>& event) {
+  web_module_stat_tracker_->OnStopDispatchEvent(
+      event, window_->HasPendingAnimationFrameCallbacks(),
+      layout_manager_->IsRenderTreePending());
+}
+
 void WebModule::Impl::Start(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Start()");
   SetResourceProvider(resource_provider);
@@ -1122,6 +1152,16 @@ void WebModule::Impl::ReduceMemory() {
   if (javascript_engine_) {
     javascript_engine_->CollectGarbage();
   }
+}
+
+void WebModule::Impl::GetJavaScriptHeapStatistics(
+    const JavaScriptHeapStatisticsCallback& callback) {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::Impl::GetJavaScriptHeapStatistics()");
+  DCHECK(thread_checker_.CalledOnValidThread());
+  script::HeapStatistics heap_statistics =
+      javascript_engine_->GetHeapStatistics();
+  callback.Run(heap_statistics);
 }
 
 void WebModule::Impl::LogScriptError(
@@ -1617,6 +1657,16 @@ void WebModule::ReduceMemory() {
   message_loop()->PostBlockingTask(FROM_HERE,
                                    base::Bind(&WebModule::Impl::ReduceMemory,
                                               base::Unretained(impl_.get())));
+}
+
+void WebModule::RequestJavaScriptHeapStatistics(
+    const JavaScriptHeapStatisticsCallback& callback) {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
+
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::GetJavaScriptHeapStatistics,
+                            base::Unretained(impl_.get()), callback));
 }
 
 }  // namespace browser

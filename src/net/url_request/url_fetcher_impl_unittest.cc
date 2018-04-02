@@ -712,7 +712,7 @@ void URLFetcherProtectTestPassedThrough::OnURLFetchComplete(
 
 
 URLFetcherBadHTTPSTest::URLFetcherBadHTTPSTest() {
-  PathService::Get(base::DIR_SOURCE_ROOT, &cert_dir_);
+  PathService::Get(base::DIR_TEST_DATA, &cert_dir_);
   cert_dir_ = cert_dir_.AppendASCII("chrome");
   cert_dir_ = cert_dir_.AppendASCII("test");
   cert_dir_ = cert_dir_.AppendASCII("data");

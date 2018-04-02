@@ -42,7 +42,6 @@
             'fixed_no_free_allocator.h',
             'hash.cc',
             'hash.h',
-            'lexical_cast.h',
             'memory_pool.h',
             'memory_scope.cc',
             'memory_scope.h',
@@ -95,13 +94,11 @@
             'analytics/memory_tracker_helpers_test.cc',
             'analytics/memory_tracker_impl_test.cc',
             'analytics/memory_tracker_test.cc',
-            'atomic_test.cc',
             'bidirectional_fit_reuse_allocator_test.cc',
             'concurrent_map_test.cc',
             'concurrent_ptr_test.cc',
             'first_fit_reuse_allocator_test.cc',
             'fixed_no_free_allocator_test.cc',
-            'lexical_cast_test.cc',
             'memory_scope_test.cc',
             'multipart_allocator_test.cc',
             'rewindable_vector_test.cc',
@@ -140,18 +137,7 @@
       ],
       'dependencies': [
         'nb',
-      ],
-      'actions': [
-        {
-          'action_name': 'reuse_allocator_benchmark_copy_test_data',
-          'variables': {
-            'input_files': [
-              '<(DEPTH)/nb/testdata/',
-            ],
-            'output_dir': 'nb/testdata',
-          },
-          'includes': ['../starboard/build/copy_test_data.gypi'],
-        }
+        'nb_copy_test_data',
       ],
     },
     {
@@ -164,5 +150,18 @@
         'executable_name': 'reuse_allocator_benchmark',
       },
     },
+
+    {
+      'target_name': 'nb_copy_test_data',
+      'type': 'none',
+      'variables': {
+        'content_test_input_files': [
+          '<(DEPTH)/nb/testdata/',
+        ],
+        'content_test_output_subdir': 'nb/testdata',
+      },
+      'includes': ['<(DEPTH)/starboard/build/copy_test_data.gypi'],
+    },
+
   ],
 }

@@ -182,7 +182,7 @@ SkBitmap DiffBitmaps(const SkBitmap& bitmap_a, const SkBitmap& bitmap_b,
         bitmap_diff.rowBytes() * r / sizeof(uint32_t);
     for (int c = 0; c < bitmap_a.width(); ++c) {
       // Check each pixel in the current row for differences.  We do this by
-      // looking at each color channel seperately and taking the max of the
+      // looking at each color channel separately and taking the max of the
       // differences we see in each channel.
       int max_diff = 0;
       for (int i = 0; i < 4; ++i) {

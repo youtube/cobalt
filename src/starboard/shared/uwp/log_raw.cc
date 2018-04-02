@@ -17,16 +17,15 @@
 #include <stdio.h>
 #include <windows.h>
 
+#include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/uwp/log_file_impl.h"
 #include "starboard/string.h"
 
 namespace sbuwp = starboard::shared::uwp;
 
-void SbLogRaw(const char* message) {
-  fprintf(stderr, "%s", message);
-  sbuwp::WriteToLogFile(
-      message, static_cast<int>(SbStringGetLength(message)));
+namespace {
 
+void OutputToDebugConsole(const char* message) {
   // OutputDebugStringA may stall for multiple seconds if the output string is
   // too long. Split |message| into shorter strings for output.
   char buffer[512];
@@ -42,4 +41,15 @@ void SbLogRaw(const char* message) {
       break;
     }
   }
+}
+
+}  // namespace.
+
+void SbLogRaw(const char* message) {
+  fprintf(stderr, "%s", message);
+  sbuwp::WriteToLogFile(
+      message, static_cast<int>(SbStringGetLength(message)));
+
+  OutputToDebugConsole(message);
+  starboard::shared::starboard::NetLogWrite(message);
 }

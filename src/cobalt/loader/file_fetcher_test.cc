@@ -38,7 +38,7 @@ class FileFetcherTest : public ::testing::Test {
   ~FileFetcherTest() override {}
 
   FilePath data_dir_;
-  FilePath dir_source_root_;
+  FilePath dir_test_data_;
   MessageLoop message_loop_;
   scoped_ptr<FileFetcher> file_fetcher_;
 };
@@ -47,7 +47,7 @@ FileFetcherTest::FileFetcherTest() : message_loop_(MessageLoop::TYPE_DEFAULT) {
   data_dir_ = data_dir_.Append(FILE_PATH_LITERAL("cobalt"))
                   .Append(FILE_PATH_LITERAL("loader"))
                   .Append(FILE_PATH_LITERAL("testdata"));
-  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &dir_source_root_));
+  CHECK(PathService::Get(base::DIR_TEST_DATA, &dir_test_data_));
 }
 
 TEST_F(FileFetcherTest, NonExisitingPath) {
@@ -112,7 +112,7 @@ TEST_F(FileFetcherTest, ValidFile) {
   std::string loaded_text = fetcher_handler_mock.data();
 
   std::string expected_text;
-  EXPECT_TRUE(file_util::ReadFileToString(dir_source_root_.Append(file_path),
+  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data_.Append(file_path),
                                           &expected_text));
   EXPECT_EQ(expected_text, loaded_text);
 
@@ -146,7 +146,7 @@ TEST_F(FileFetcherTest, ReadWithOffset) {
   std::string loaded_text = fetcher_handler_mock.data();
 
   std::string expected_text;
-  EXPECT_TRUE(file_util::ReadFileToString(dir_source_root_.Append(file_path),
+  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data_.Append(file_path),
                                           &expected_text));
   expected_text = expected_text.substr(kStartOffset);
   EXPECT_EQ(expected_text, loaded_text);
@@ -183,7 +183,7 @@ TEST_F(FileFetcherTest, ReadWithOffsetAndSize) {
   std::string loaded_text = fetcher_handler_mock.data();
 
   std::string expected_text;
-  EXPECT_TRUE(file_util::ReadFileToString(dir_source_root_.Append(file_path),
+  EXPECT_TRUE(file_util::ReadFileToString(dir_test_data_.Append(file_path),
                                           &expected_text));
   expected_text = expected_text.substr(kStartOffset, kBytesToRead);
   EXPECT_EQ(expected_text, loaded_text);

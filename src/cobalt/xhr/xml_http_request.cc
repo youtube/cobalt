@@ -507,11 +507,10 @@ base::optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
     case kDocument:
     case kBlob:
     case kResponseTypeCodeMax:
-    default:
       NOTIMPLEMENTED() << "Unsupported response_type_ "
                        << response_type(exception_state);
-      return base::nullopt;
   }
+  return base::nullopt;
 }
 
 int XMLHttpRequest::status() const {
@@ -704,10 +703,8 @@ void XMLHttpRequest::OnURLFetchDownloadData(
 
   if (fetch_callback_) {
     scoped_refptr<dom::Uint8Array> data = new dom::Uint8Array(
-          settings_,
-          reinterpret_cast<const uint8*>(download_data->data()),
-          static_cast<uint32>(download_data->size()),
-          NULL);
+        settings_, reinterpret_cast<const uint8*>(download_data->data()),
+        static_cast<uint32>(download_data->size()), NULL);
     fetch_callback_->value().Run(data);
   }
 
@@ -1059,8 +1056,6 @@ void XMLHttpRequest::AllowGarbageCollection() {
 
   DCHECK_EQ((is_active && has_event_listeners), false);
 
-  settings_->javascript_engine()->ReportExtraMemoryCost(
-      response_body_.capacity());
   settings_->global_environment()->AllowGarbageCollection(
       make_scoped_refptr(this));
 }

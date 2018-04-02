@@ -132,6 +132,15 @@ typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     const SbDrmKeyStatus* key_statuses);
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 
+// A callback for signalling that a session has been closed by the SbDrmSystem
+#if SB_HAS(DRM_SESSION_CLOSED)
+typedef void (*SbDrmSessionClosedFunc)(
+    SbDrmSystem drm_system,
+    void* context,
+    const void* session_id,
+    int session_id_size);
+#endif  // SB_HAS(DRM_SESSION_CLOSED))
+
 // --- Constants -------------------------------------------------------------
 
 // An invalid SbDrmSystem.
@@ -171,7 +180,26 @@ static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
 // SbDrmGenerateSessionUpdateRequest() is called.
 // |session_updated_callback|: A function that is called every time after
 // SbDrmUpdateSession() is called.
-#if SB_HAS(DRM_KEY_STATUSES)
+// |key_statuses_changed_callback|: A function that can be called to indicate
+// that key statuses have changed.
+// |session_closed_callback|: A function that can be called to indicate that
+// a session has closed.
+#if SB_HAS(DRM_SESSION_CLOSED)
+
+#if !SB_HAS(DRM_KEY_STATUSES)
+#error "Platforms with SB_HAS_DRM_SESSION_CLOSED must also set "
+    "SB_HAS_DRM_KEY_STATUSES"
+#endif  // !SB_HAS(DRM_KEY_STATUSES)
+
+SB_EXPORT SbDrmSystem SbDrmCreateSystem(
+    const char* key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmSessionClosedFunc session_closed_callback);
+
+#elif SB_HAS(DRM_KEY_STATUSES)
 
 SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     const char* key_system,

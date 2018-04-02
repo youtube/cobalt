@@ -62,14 +62,14 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     audio_header_ = *audio_header;
 
 #if SB_API_VERSION >= 6
-  if (audio_header_.audio_specific_config_size > 0) {
-    audio_specific_config_.reset(
-        new int8_t[audio_header_.audio_specific_config_size]);
-    audio_header_.audio_specific_config = audio_specific_config_.get();
-    SbMemoryCopy(audio_specific_config_.get(),
-                 audio_header_.audio_specific_config,
-                 audio_header_.audio_specific_config_size);
-  }
+    if (audio_header_.audio_specific_config_size > 0) {
+      audio_specific_config_.reset(
+          new int8_t[audio_header_.audio_specific_config_size]);
+      SbMemoryCopy(audio_specific_config_.get(),
+                   audio_header->audio_specific_config,
+                   audio_header->audio_specific_config_size);
+      audio_header_.audio_specific_config = audio_specific_config_.get();
+    }
 #endif  // SB_API_VERSION >= 6
   }
 
@@ -87,7 +87,12 @@ bool FilterBasedPlayerWorkerHandler::Init(
     SbPlayer player,
     UpdateMediaTimeCB update_media_time_cb,
     GetPlayerStateCB get_player_state_cb,
-    UpdatePlayerStateCB update_player_state_cb) {
+    UpdatePlayerStateCB update_player_state_cb
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    ,
+    UpdatePlayerErrorCB update_player_error_cb
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+    ) {
   // This function should only be called once.
   SB_DCHECK(player_worker_ == NULL);
 
@@ -106,6 +111,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
   update_media_time_cb_ = update_media_time_cb;
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  update_player_error_cb_ = update_player_error_cb;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
   SB_DCHECK(player_components);
@@ -123,10 +131,13 @@ bool FilterBasedPlayerWorkerHandler::Init(
         audio_codec_, audio_header_, drm_system_, job_queue_};
 
     audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
-    audio_renderer_->SetPlaybackRate(playback_rate_);
-    audio_renderer_->SetVolume(volume_);
-    audio_renderer_->Initialize(
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+    SB_DCHECK(audio_renderer_);
+    if (audio_renderer_) {
+      audio_renderer_->SetPlaybackRate(playback_rate_);
+      audio_renderer_->SetVolume(volume_);
+      audio_renderer_->Initialize(
+          std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+    }
   } else {
     media_time_provider_impl_.reset(
         new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
@@ -145,15 +156,18 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   video_renderer_ = player_components->CreateVideoRenderer(video_parameters,
                                                            media_time_provider);
-  video_renderer_->Initialize(
-      std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+  SB_DCHECK(video_renderer_);
+  if (video_renderer_) {
+    video_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+  }
 
   update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
 
   return true;
 }
 
-bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
+bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   SB_UNREFERENCED_PARAMETER(ticket);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -161,14 +175,14 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
     return false;
   }
 
-  if (seek_to_pts < 0) {
-    SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_pts;
-    seek_to_pts = 0;
+  if (seek_to_time < 0) {
+    SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_time;
+    seek_to_time = 0;
   }
 
   GetMediaTimeProvider()->Pause();
-  video_renderer_->Seek(seek_to_pts);
-  GetMediaTimeProvider()->Seek(seek_to_pts);
+  video_renderer_->Seek(seek_to_time);
+  GetMediaTimeProvider()->Seek(seek_to_time);
   return true;
 }
 
@@ -199,7 +213,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
-          drm_system_->Decrypt(input_buffer);
+            drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
@@ -232,7 +246,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
           return false;
         }
         SbDrmSystemPrivate::DecryptStatus decrypt_status =
-          drm_system_->Decrypt(input_buffer);
+            drm_system_->Decrypt(input_buffer);
         if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
@@ -243,7 +257,8 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         }
       }
       if (media_time_provider_impl_) {
-        media_time_provider_impl_->UpdateVideoDuration(input_buffer->pts());
+        media_time_provider_impl_->UpdateVideoDuration(
+            input_buffer->timestamp());
       }
       video_renderer_->WriteSample(input_buffer);
     }
@@ -348,7 +363,14 @@ void FilterBasedPlayerWorkerHandler::OnError() {
     return;
   }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  if (update_player_error_cb_) {
+    (*player_worker_.*
+     update_player_error_cb_)("FilterBasedPlayerWorkerHandler error.");
+  }
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
   (*player_worker_.*update_player_state_cb_)(kSbPlayerStateError);
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
 // TODO: This should be driven by callbacks instead polling.

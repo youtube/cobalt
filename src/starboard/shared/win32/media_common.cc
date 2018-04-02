@@ -35,19 +35,17 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-// Converts 90khz to 10Mhz (100ns time).
-int64_t ConvertToWin32Time(SbMediaTime input) {
+// Converts microseconds to 10Mhz (100ns time).
+int64_t ConvertToWin32Time(SbTime input) {
   int64_t out = input;
-  out *= 1000;
-  out /= 9;
+  out *= 10;
   return out;
 }
 
 // Convert the other way around.
-SbMediaTime ConvertToMediaTime(int64_t input) {
-  SbMediaTime out = input;
-  out *= 9;
-  out /= 1000;
+SbTime ConvertToSbTime(int64_t input) {
+  SbTime out = input;
+  out /= 10;
   return out;
 }
 

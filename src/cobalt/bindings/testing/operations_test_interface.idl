@@ -28,7 +28,7 @@ interface OperationsTestInterface {
 
   void variadicPrimitiveArguments(long... bools);
   void variadicStringArgumentsAfterOptionalArgument(
-      optional boolean optional_arg, DOMString... strings);
+      optional boolean optionalArg, DOMString... strings);
 
   void overloadedFunction();
   void overloadedFunction(long arg);

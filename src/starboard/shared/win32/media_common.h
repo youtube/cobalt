@@ -50,11 +50,11 @@ using VideoFrame = ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoFramePtr = ::starboard::scoped_refptr<VideoFrame>;
 using Microsoft::WRL::ComPtr;
 
-// Converts 90khz to 10Mhz (100ns time).
-int64_t ConvertToWin32Time(SbMediaTime input);
+// Converts microseconds to 10Mhz (100ns time).
+int64_t ConvertToWin32Time(SbTime input);
 
 // Convert the other way around.
-SbMediaTime ConvertToMediaTime(int64_t input);
+SbTime ConvertToSbTime(int64_t input);
 
 std::vector<ComPtr<IMFMediaType>> GetAllOutputMediaTypes(int stream_id,
                                                          IMFTransform* decoder);

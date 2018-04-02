@@ -25,7 +25,7 @@ static V8_INLINE void InitializeNativeHandle(pthread_mutex_t* mutex) {
   result = pthread_mutexattr_destroy(&attr);
 #else
   // Use a fast mutex (default attributes).
-  result = pthread_mutex_init(mutex, NULL);
+  result = pthread_mutex_init(mutex, nullptr);
 #endif  // defined(DEBUG)
   DCHECK_EQ(0, result);
   USE(result);
@@ -231,6 +231,43 @@ bool RecursiveMutex::TryLock() {
   level_++;
 #endif
   return true;
+}
+
+#elif V8_OS_STARBOARD
+
+Mutex::Mutex() {
+  SbMutexCreate(&native_handle_);
+}
+
+Mutex::~Mutex() {
+  SbMutexDestroy(&native_handle_);
+}
+
+void Mutex::Lock() {
+  SbMutexAcquire(&native_handle_);
+}
+
+void Mutex::Unlock() {
+  SbMutexRelease(&native_handle_);
+}
+
+RecursiveMutex::RecursiveMutex() {
+}
+
+RecursiveMutex::~RecursiveMutex() {
+
+}
+
+void RecursiveMutex::Lock() {
+  native_handle_.lock();
+}
+
+void RecursiveMutex::Unlock() {
+  native_handle_.unlock();
+}
+
+bool RecursiveMutex::TryLock() {
+  return native_handle_.try_lock();
 }
 
 #endif  // V8_OS_POSIX

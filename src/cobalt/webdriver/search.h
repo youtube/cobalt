@@ -54,7 +54,11 @@ class Search {
         NodeListToElementVector(node_list, &found_elements);
         break;
       }
-      default:
+      case protocol::SearchStrategy::kId:
+      case protocol::SearchStrategy::kLinkText:
+      case protocol::SearchStrategy::kName:
+      case protocol::SearchStrategy::kPartialLinkText:
+      case protocol::SearchStrategy::kXPath:
         NOTIMPLEMENTED();
     }
     return PopulateFindResults<T>(found_elements, element_mapping);

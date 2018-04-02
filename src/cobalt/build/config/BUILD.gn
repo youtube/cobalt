@@ -39,6 +39,7 @@ config("compiler_defaults") {
     "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=$cobalt_media_buffer_non_video_budget",
     "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=$cobalt_media_buffer_video_budget_1080p",
     "COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=$cobalt_media_buffer_video_budget_4k",
+    "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=$cobalt_media_source_garbage_collection_duration_threshold_in_seconds",
 
     # From common.gypi
     "USE_OPENSSL=1",
@@ -60,10 +61,6 @@ config("compiler_defaults") {
 
   if (enable_in_app_dial) {
     defines += [ "DIAL_SERVER" ]
-  }
-
-  if (enable_file_scheme) {
-    defines += [ "COBALT_ENABLE_FILE_SCHEME" ]
   }
 
   if (!enable_spdy) {
@@ -107,9 +104,9 @@ config("compiler_defaults_debug") {
     "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
     "ENABLE_DEBUG_C_VAL",
     "ENABLE_DEBUG_CONSOLE",
-    "ENABLE_DIR_SOURCE_ROOT_ACCESS",
     "ENABLE_IGNORE_CERTIFICATE_ERRORS",
     "ENABLE_PARTIAL_LAYOUT_CONTROL",
+    "ENABLE_TEST_DATA",
     "ENABLE_TEST_RUNNER",
     "__LB_SHELL__ENABLE_SCREENSHOT__",
     "__LB_SHELL__FORCE_LOGGING__",  # TODO: Rename to COBALT_LOGGING_ENABLED.
@@ -127,9 +124,9 @@ config("compiler_defaults_devel") {
     "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
     "ENABLE_DEBUG_C_VAL",
     "ENABLE_DEBUG_CONSOLE",
-    "ENABLE_DIR_SOURCE_ROOT_ACCESS",
     "ENABLE_IGNORE_CERTIFICATE_ERRORS",
     "ENABLE_PARTIAL_LAYOUT_CONTROL",
+    "ENABLE_TEST_DATA",
     "ENABLE_TEST_RUNNER",
     "__LB_SHELL__ENABLE_SCREENSHOT__",
     "__LB_SHELL__FORCE_LOGGING__",
@@ -146,9 +143,9 @@ config("compiler_defaults_qa") {
     "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
     "ENABLE_DEBUG_C_VAL",
     "ENABLE_DEBUG_CONSOLE",
-    "ENABLE_DIR_SOURCE_ROOT_ACCESS",
     "ENABLE_IGNORE_CERTIFICATE_ERRORS",
     "ENABLE_PARTIAL_LAYOUT_CONTROL",
+    "ENABLE_TEST_DATA",
     "ENABLE_TEST_RUNNER",
     "__LB_SHELL__ENABLE_SCREENSHOT__",
     "NDEBUG",

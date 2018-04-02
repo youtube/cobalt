@@ -14,7 +14,13 @@
 
 #include "net/dial/dial_system_config.h"
 
+#include "starboard/file.h"
 #include "starboard/system.h"
+
+namespace {
+const char kInAppDialUuidFilename[] = "upnp_udn";
+const size_t kUuidSizeBytes = 16;
+}
 
 namespace net {
 
@@ -50,15 +56,56 @@ std::string DialSystemConfig::GetModelName() {
   }
 }
 
+namespace {
+std::string GenerateRandomUuid() {
+  char uuid_buffer[kUuidSizeBytes];
+  SbSystemGetRandomData(uuid_buffer, kUuidSizeBytes);
+  return std::string(uuid_buffer, kUuidSizeBytes);
+}
+}  // namespace
+
 // static
 std::string DialSystemConfig::GeneratePlatformUuid() {
-  char buffer[kMaxNameSize];
-  if (SbSystemGetProperty(kSbSystemPropertyPlatformUuid, buffer,
-                          sizeof(buffer))) {
-    return std::string(buffer);
-  } else {
-    return std::string();
+  char path_buffer[SB_FILE_MAX_PATH];
+  bool success = SbSystemGetPath(kSbSystemPathCacheDirectory,
+                                 path_buffer,
+                                 sizeof(path_buffer));
+
+  DCHECK(success) << "kSbSystemPathCacheDirectory not implemented";
+
+  std::string path(path_buffer);
+  path.append(SB_FILE_SEP_STRING);
+  path.append(kInAppDialUuidFilename);
+
+  bool created;
+  SbFileError error;
+  starboard::ScopedFile file(path.c_str(),
+                             kSbFileOpenAlways | kSbFileRead | kSbFileWrite,
+                             &created,
+                             &error);
+  if (error != kSbFileOk) {
+    LOG(ERROR) << "Unable to open or create " << path;
+    return GenerateRandomUuid();
   }
+
+  char uuid_buffer[kUuidSizeBytes];
+  int bytes_read = file.ReadAll(uuid_buffer, kUuidSizeBytes);
+
+  if (bytes_read == kUuidSizeBytes) {
+    return std::string(uuid_buffer, bytes_read);
+  }
+
+  file.Truncate(0);
+
+  std::string uuid = GenerateRandomUuid();
+
+  int bytes_written = file.WriteAll(uuid.data(), uuid.size());
+
+  if (bytes_written != uuid.size()) {
+    LOG(ERROR) << "Unable to store device UUID to " << path;
+  }
+
+  return uuid;
 }
 
 }  // namespace net

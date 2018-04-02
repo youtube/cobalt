@@ -68,6 +68,15 @@ class PlayerComponentsImpl : public PlayerComponents {
     video_decoder->reset(video_decoder_impl.release());
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
   }
+
+  void GetAudioRendererParams(int* max_cached_frames,
+                              int* max_frames_per_append) const override {
+    SB_DCHECK(max_cached_frames);
+    SB_DCHECK(max_frames_per_append);
+
+    *max_cached_frames = 256 * 1024;
+    *max_frames_per_append = 16384;
+  }
 };
 
 }  // namespace

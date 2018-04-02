@@ -11,6 +11,7 @@
 #include "src/deoptimize-reason.h"
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/vector-slot-pair.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -52,15 +53,18 @@ int ValueInputCountOfReturn(Operator const* const op);
 // Parameters for the {Deoptimize} operator.
 class DeoptimizeParameters final {
  public:
-  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason)
-      : kind_(kind), reason_(reason) {}
+  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
+                       VectorSlotPair const& feedback)
+      : kind_(kind), reason_(reason), feedback_(feedback) {}
 
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
 
  private:
   DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
+  VectorSlotPair const feedback_;
 };
 
 bool operator==(DeoptimizeParameters, DeoptimizeParameters);
@@ -125,7 +129,8 @@ V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const);
 const ParameterInfo& ParameterInfoOf(const Operator* const);
 
 struct ObjectStateInfo final : std::pair<uint32_t, int> {
-  using std::pair<uint32_t, int>::pair;
+  ObjectStateInfo(uint32_t object_id, int size)
+      : std::pair<uint32_t, int>(object_id, size) {}
   uint32_t object_id() const { return first; }
   int size() const { return second; }
 };
@@ -134,7 +139,10 @@ size_t hash_value(ObjectStateInfo const& p);
 
 struct TypedObjectStateInfo final
     : std::pair<uint32_t, const ZoneVector<MachineType>*> {
-  using std::pair<uint32_t, const ZoneVector<MachineType>*>::pair;
+  TypedObjectStateInfo(uint32_t object_id,
+                       const ZoneVector<MachineType>* machine_types)
+      : std::pair<uint32_t, const ZoneVector<MachineType>*>(object_id,
+                                                            machine_types) {}
   uint32_t object_id() const { return first; }
   const ZoneVector<MachineType>* machine_types() const { return second; }
 };
@@ -300,8 +308,6 @@ RegionObservability RegionObservabilityOf(Operator const*) WARN_UNUSED_RESULT;
 std::ostream& operator<<(std::ostream& os,
                          const ZoneVector<MachineType>* types);
 
-ZoneHandleSet<Map> MapGuardMapsOf(Operator const*) WARN_UNUSED_RESULT;
-
 Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 int OsrValueIndexOf(Operator const*);
@@ -336,6 +342,8 @@ ArgumentsStateType ArgumentsStateTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 uint32_t ObjectIdOf(Operator const*);
 
+MachineRepresentation DeadValueRepresentationOf(Operator const*);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -344,6 +352,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   explicit CommonOperatorBuilder(Zone* zone);
 
   const Operator* Dead();
+  const Operator* DeadValue(MachineRepresentation rep);
+  const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
@@ -354,10 +364,12 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
-  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason);
-  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason);
-  const Operator* DeoptimizeUnless(DeoptimizeKind kind,
-                                   DeoptimizeReason reason);
+  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
+                             VectorSlotPair const& feedback);
+  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
+                               VectorSlotPair const& feedback);
+  const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
+                                   VectorSlotPair const& feedback);
   const Operator* TrapIf(int32_t trap_id);
   const Operator* TrapUnless(int32_t trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -403,8 +415,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                    SparseInputMask bitmask);
   const Operator* ArgumentsElementsState(ArgumentsStateType type);
   const Operator* ArgumentsLengthState(ArgumentsStateType type);
-  const Operator* ObjectState(int object_id, int pointer_slots);
-  const Operator* TypedObjectState(int object_id,
+  const Operator* ObjectState(uint32_t object_id, int pointer_slots);
+  const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,
                              OutputFrameStateCombine state_combine,
@@ -415,7 +427,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* TailCall(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
-  const Operator* MapGuard(ZoneHandleSet<Map> maps);
   const Operator* TypeGuard(Type* type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but

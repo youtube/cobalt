@@ -28,7 +28,6 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -48,9 +47,9 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(audio_decoder);
     SB_DCHECK(audio_renderer_sink);
 
-    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(new AudioDecoderImpl(
+    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(AudioDecoderImpl::Create(
         audio_parameters.audio_codec, audio_parameters.audio_header));
-    if (audio_decoder_impl->is_valid()) {
+    if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
       audio_decoder->reset(audio_decoder_impl.release());
     } else {
       audio_decoder->reset();
@@ -80,10 +79,10 @@ class PlayerComponentsImpl : public PlayerComponents {
           video_parameters.decode_target_graphics_context_provider));
     } else {
       scoped_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
-          new FfmpegVideoDecoderImpl(
+          FfmpegVideoDecoderImpl::Create(
               video_parameters.video_codec, video_parameters.output_mode,
               video_parameters.decode_target_graphics_context_provider));
-      if (ffmpeg_video_decoder->is_valid()) {
+      if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
         video_decoder->reset(ffmpeg_video_decoder.release());
       }
     }
@@ -91,6 +90,15 @@ class PlayerComponentsImpl : public PlayerComponents {
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
     *video_renderer_sink = new PunchoutVideoRendererSink(
         video_parameters.player, kVideoSinkRenderInterval);
+  }
+
+  void GetAudioRendererParams(int* max_cached_frames,
+                              int* max_frames_per_append) const override {
+    SB_DCHECK(max_cached_frames);
+    SB_DCHECK(max_frames_per_append);
+
+    *max_cached_frames = 256 * 1024;
+    *max_frames_per_append = 16384;
   }
 };
 

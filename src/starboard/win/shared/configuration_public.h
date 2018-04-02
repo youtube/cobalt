@@ -124,6 +124,9 @@
 // Whether the current platform has speech recognizer.
 #define SB_HAS_SPEECH_RECOGNIZER 0
 
+// Whether the current platform has a DRM session closed callback.
+#define SB_HAS_DRM_SESSION_CLOSED 1
+
 #if !defined(__WCHAR_MAX__)
 #include <wchar.h>
 #define __WCHAR_MAX__ WCHAR_MAX

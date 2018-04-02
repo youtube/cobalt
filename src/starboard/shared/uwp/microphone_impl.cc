@@ -29,13 +29,13 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/uwp/app_accessors.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/win32/error_utils.h"
-#include "starboard/shared/win32/simple_thread.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
 #include "starboard/time.h"
@@ -54,13 +54,13 @@ using starboard::Semaphore;
 using starboard::shared::uwp::ApplicationUwp;
 using starboard::shared::win32::CheckResult;
 using starboard::shared::win32::platformStringToString;
-using starboard::shared::win32::SimpleThread;
 using Windows::Devices::Enumeration::DeviceInformation;
 using Windows::Devices::Enumeration::DeviceInformationCollection;
 using Windows::Foundation::EventRegistrationToken;
 using Windows::Foundation::IMemoryBufferByteAccess;
 using Windows::Foundation::IMemoryBufferReference;
 using Windows::Foundation::TypedEventHandler;
+using Windows::Foundation::Uri;
 using Windows::Media::Audio::AudioDeviceInputNode;
 using Windows::Media::Audio::AudioDeviceNodeCreationStatus;
 using Windows::Media::Audio::AudioFrameOutputNode;
@@ -77,6 +77,7 @@ using Windows::Media::Capture::MediaCategory;
 using Windows::Media::Devices::MediaDevice;
 using Windows::Media::MediaProperties::AudioEncodingProperties;
 using Windows::Media::Render::AudioRenderCategory;
+using Windows::System::Launcher;
 
 namespace {
 
@@ -136,6 +137,29 @@ bool IsUiThread() {
   return dispatcher->HasThreadAccess;
 }
 
+void LaunchMicrophonePermissionsAppAsync() {
+  // Schedule a task to run on the main thread which will launch a URI to
+  // request microphone permissions.
+  auto main_thread_task = []() {
+    auto uri = ref new Uri("ms-settings:privacy-microphone");
+
+    concurrency::create_task(Launcher::LaunchUriAsync(uri))
+    .then([](concurrency::task<bool> previous_task){
+      try {
+        bool launched_ok = !!previous_task.get();
+        SB_LOG_IF(ERROR, !launched_ok);
+      } catch (Platform::Exception^ e) {
+        HRESULT hr = e->HResult;
+        std::string msg = platformStringToString(e->Message);
+        SB_LOG(ERROR)
+            << "Exception while launching permissions app, HRESULT: " << hr
+            << ", msg: " << msg;
+      }
+    });
+  };
+  starboard::shared::uwp::RunInMainThreadAsync(main_thread_task);
+}
+
 std::vector<DeviceInformation^> GetAllMicrophoneDevices() {
   std::vector<DeviceInformation^> output;
   Platform::String^ audio_str = MediaDevice::GetAudioCaptureSelector();
@@ -159,12 +183,15 @@ AudioGraph^ CreateAudioGraph(AudioRenderCategory category,
   AudioGraph^ graph = result->Graph;
   return graph;
 }
-
 std::vector<AudioDeviceInputNode^> GenerateAudioInputNodes(
     const std::vector<DeviceInformation^>& microphone_devices,
     AudioEncodingProperties^ encoding_properties,
     AudioGraph^ graph) {
   std::vector<AudioDeviceInputNode^> output;
+
+  SbTime start_time = SbTimeGetMonotonicNow();
+
+  bool had_permissions_error = false;
   for (DeviceInformation^ mic : microphone_devices) {
     auto create_microphone_input_task = graph->CreateDeviceInputNodeAsync(
         MediaCategory::Speech, encoding_properties, mic);
@@ -178,15 +205,37 @@ std::vector<AudioDeviceInputNode^> GenerateAudioInputNodes(
       SB_LOG(INFO) << "Failed to create microphone with device name \""
                    << platformStringToString(mic->Name) << "\" because "
                    << ToString(status);
+      if (status == AudioDeviceNodeCreationStatus::AccessDenied) {
+        // The user hasn't given cobalt access to the microphone because they
+        // declined access to the microphone now or previously.
+        had_permissions_error = true;
+      }
       continue;
     }
-
     SB_LOG(INFO) << "Created a microphone with device \""
                  << platformStringToString(mic->Name) << "\"";
-
     input_node->ConsumeInput = true;
     input_node->OutgoingGain = kMicGain;
     output.push_back(input_node);
+  }
+
+  SbTime delta_time = SbTimeGetMonotonicNow() - start_time;
+  const bool had_ui_interaction = delta_time > (kSbTimeMillisecond*250);
+
+  // We only care to retry permissions if there were
+  // 1. No microphones that could be opened.
+  // 2. There are 1 or more microphones that had errors.
+  // 3. There was no UI interaction, which is detected if the audio
+  // node creation completed really quickly. A quick action suggests
+  // that there was no user interaction and therefore we are in a
+  // permissions "cooldown" period. These typically last for 30 minutes
+  // and the work around requires an explicit permissions request.
+  const bool do_launch_microphone_permissions_app =
+     output.empty() && had_permissions_error &&
+     !had_ui_interaction;
+
+  if (do_launch_microphone_permissions_app) {
+    LaunchMicrophonePermissionsAppAsync();
   }
   return output;
 }
@@ -263,7 +312,7 @@ class MutedTrigger {
 // immediately start recording. A callback will be created which will process
 // audio data when new samples are available. The Microphone will stop
 // recording when Close() is called.
-class MicrophoneProcessor : public SimpleThread {
+class MicrophoneProcessor : public starboard::Thread {
  public:
   // This will try and create a microphone. This will fail (return null) if
   // there are not available microphones.
@@ -288,7 +337,7 @@ class MicrophoneProcessor : public SimpleThread {
   }
 
   virtual ~MicrophoneProcessor() {
-    SimpleThread::Join();
+    Thread::Join();
     audio_graph_->Stop();
   }
 
@@ -315,7 +364,7 @@ class MicrophoneProcessor : public SimpleThread {
       size_t max_num_samples,
       int sample_rate,
       const std::vector<DeviceInformation^>& microphone_devices)
-          : SimpleThread("MicrophoneProcessor"),
+          : Thread("MicrophoneProcessor"),
             max_num_samples_(max_num_samples) {
     audio_graph_ = CreateAudioGraph(AudioRenderCategory::Speech,
                                     QuantumSizeSelectionMode::SystemDefault);
@@ -335,7 +384,7 @@ class MicrophoneProcessor : public SimpleThread {
     }
     // Update the audio data whenever a new audio sample has been finished.
     audio_graph_->Start();
-    SimpleThread::Start();
+    Thread::Start();
   }
 
   void Run() override {

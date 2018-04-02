@@ -97,11 +97,6 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
-  // Mark the reference to this object independent.
-  static void MarkIndependent(Object** location);
-
-  static bool IsIndependent(Object** location);
-
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
 
@@ -133,12 +128,13 @@ class GlobalHandles {
   // and have class IDs
   void IterateWeakRootsInNewSpaceWithClassIds(v8::PersistentHandleVisitor* v);
 
-  // Iterates over all weak roots in heap.
-  void IterateWeakRoots(RootVisitor* v);
+  // Iterates over weak roots on the heap.
+  void IterateWeakRootsForFinalizers(RootVisitor* v);
+  void IterateWeakRootsForPhantomHandles(WeakSlotCallback should_reset_handle);
 
-  // Find all weak handles satisfying the callback predicate, mark
-  // them as pending.
-  void IdentifyWeakHandles(WeakSlotCallback f);
+  // Marks all handles that should be finalized based on the predicate
+  // |should_reset_handle| as pending.
+  void IdentifyWeakHandles(WeakSlotCallback should_reset_handle);
 
   // NOTE: Five ...NewSpace... functions below are used during
   // scavenge collections and iterate over sets of handles that are
@@ -153,14 +149,14 @@ class GlobalHandles {
   void IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
       RootVisitor* v, size_t start, size_t end);
 
-  // Finds weak independent or unmodified handles satisfying
-  // the callback predicate and marks them as pending. See the note above.
+  // Marks weak unmodified handles satisfying |is_dead| as pending.
   void MarkNewSpaceWeakUnmodifiedObjectsPending(
-      WeakSlotCallbackWithHeap is_unscavenged);
+      WeakSlotCallbackWithHeap is_dead);
 
-  // Iterates over weak independent or unmodified handles.
-  // See the note above.
-  void IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v);
+  // Iterates over weak unmodified handles. See the note above.
+  void IterateNewSpaceWeakUnmodifiedRootsForFinalizers(RootVisitor* v);
+  void IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+      RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle);
 
   // Identify unmodified objects that are in weak state and marks them
   // unmodified

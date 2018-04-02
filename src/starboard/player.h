@@ -70,20 +70,25 @@ typedef enum SbPlayerState {
 
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerStateDestroyed,
-
-#if SB_HAS(PLAYER_WITH_URL)
-  // The following error codes are used by the URL player to report detailed
-  // errors.  They are not required in non-URL player mode.
-  kSbPlayerWithUrlStateNetworkError,
-  kSbPlayerWithUrlStateDecodeError,
-  kSbPlayerWithUrlStateSrcNotSupportedError,
-#else   //  SB_HAS(PLAYER_WITH_URL)
+#if !SB_HAS(PLAYER_ERROR_MESSAGE)
   // The player encountered an error. It expects an SbPlayerDestroy() call
   // to tear down the player. Calls to other functions may be ignored and
   // callbacks may not be triggered.
   kSbPlayerStateError,
-#endif  //  SB_HAS(PLAYER_WITH_URL)
+#endif  // !SB_HAS(PLAYER_ERROR_MESSAGE)
 } SbPlayerState;
+
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+typedef enum SbPlayerError {
+  kSbPlayerErrorDecode,
+#if SB_HAS(PLAYER_WITH_URL)
+  // The following error codes are used by the URL player to report detailed
+  // errors. They are not required in non-URL player mode.
+  kSbPlayerErrorNetwork,
+  kSbPlayerErrorSrcNotSupported,
+#endif  //  SB_HAS(PLAYER_WITH_URL)
+} SbPlayerError;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 typedef enum SbPlayerOutputMode {
   // Requests for SbPlayer to produce an OpenGL texture that the client must
@@ -195,6 +200,18 @@ typedef void (*SbPlayerStatusFunc)(SbPlayer player,
                                    SbPlayerState state,
                                    int ticket);
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+// Callback for player errors, that may set a |message|.
+// |error|: indicates the error code.
+// |message|: provides specific informative diagnostic message about the error
+//            condition encountered. It is ok for the message to be an empty
+//            string or NULL if no information is available.
+typedef void (*SbPlayerErrorFunc)(SbPlayer player,
+                                  void* context,
+                                  SbPlayerError error,
+                                  const char* message);
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+
 // Callback to free the given sample buffer data.  When more than one buffer
 // are sent in SbPlayerWriteSample(), the implementation only has to call this
 // callback with |sample_buffer| points to the the first buffer.
@@ -259,6 +276,9 @@ SbPlayerCreateWithUrl(const char* url,
                       SbPlayerStatusFunc player_status_func,
                       SbPlayerEncryptedMediaInitDataEncounteredCB
                           encrypted_media_init_data_encountered_cb,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                      SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                       void* context);
 
 // Sets the DRM system of a running URL-based SbPlayer created with
@@ -301,10 +321,10 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 // |audio_codec|: The audio codec used for the player. The value should never
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
 //   populated |audio_header| if the audio codec is |kSbMediaAudioCodecAac|.
-#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#if SB_HAS(AUDIOLESS_VIDEO)
 //   This can be set to |kSbMediaAudioCodecNone| to play a video without any
 //   audio track.  In such case |audio_header| must be NULL.
-#endif  // SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#endif  // SB_HAS(AUDIOLESS_VIDEO)
 //
 // |duration_pts|: The expected media duration in 90KHz ticks (PTS). It may be
 //   set to |SB_PLAYER_NO_DURATION| for live streams.
@@ -322,9 +342,9 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
 #endif  // SB_API_VERSION >= 6
-#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#if SB_HAS(AUDIOLESS_VIDEO)
 //   When |audio_codec| is |kSbMediaAudioCodecNone|, this must be set to NULL.
-#endif  // SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#endif  // SB_HAS(AUDIOLESS_VIDEO)
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
@@ -339,6 +359,12 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   internal thread to provide an update on the playback status. No work
 //   should be done on this thread. Rather, it should just signal the client
 //   thread interacting with the decoder.
+//
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+// |player_error_func|: If not |NULL|, the player calls this function on an
+//   internal thread to provide an update on the error status. This callback is
+//   responsible for setting the media error message.
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 //
 // |context|: This is passed to all callbacks and is generally used to point
 //   at a class or struct that contains state associated with the player.
@@ -366,6 +392,9 @@ SbPlayerCreate(SbWindow window,
                SbPlayerDeallocateSampleFunc sample_deallocate_func,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+               SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                void* context,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* context_provider);

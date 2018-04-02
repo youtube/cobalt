@@ -20,32 +20,41 @@ namespace cobalt {
 namespace dom {
 
 DomStatTracker::DomStatTracker(const std::string& name)
-    : html_elements_count_(
-          StringPrintf("Count.%s.DOM.HtmlElement.Total", name.c_str()), 0,
+    : count_html_element_(
+          StringPrintf("Count.%s.DOM.HtmlElement", name.c_str()), 0,
           "Total number of HTML elements."),
-      document_html_elements_count_(
+      count_html_element_document_(
           StringPrintf("Count.%s.DOM.HtmlElement.Document", name.c_str()), 0,
           "Number of HTML elements in the document."),
-      is_event_active_(false),
+      count_html_element_created_(0),
+      count_html_element_destroyed_(0),
+      count_html_element_document_added_(0),
+      count_html_element_document_removed_(0),
+      script_element_execute_count_(
+          StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          0, "Count of HTML script element execute calls."),
+      script_element_execute_total_size_(
+          StringPrintf("Memory.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          0, "Total size in bytes of HTML script elements executed."),
+      script_element_execute_time_(
+          StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          0, "Time of the last HTML script element execute."),
+      is_tracking_event_(false),
+      event_initial_count_html_element_(0),
+      event_initial_count_html_element_document_(0),
+      event_count_html_element_created_(0),
+      event_count_html_element_destroyed_(0),
+      event_count_html_element_document_added_(0),
+      event_count_html_element_document_removed_(0),
+      event_count_update_matching_rules_(0),
+      event_count_update_computed_style_(0),
+      event_count_generate_html_element_computed_style_(0),
+      event_count_generate_pseudo_element_computed_style_(0),
       event_video_start_delay_stop_watch_(kStopWatchTypeEventVideoStartDelay,
                                           base::StopWatch::kAutoStartOff, this),
       event_video_start_delay_(
           StringPrintf("Event.Duration.%s.DOM.VideoStartDelay", name.c_str()),
-          base::TimeDelta(), "Total delay between event and video starting."),
-      script_element_execute_count_(
-          StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
-          0, "Count of HTML script element execute calls."),
-      script_element_execute_time_(
-          StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
-          0, "Time of the last HTML script element execute."),
-      html_elements_created_count_(0),
-      html_elements_destroyed_count_(0),
-      html_elements_inserted_into_document_count_(0),
-      html_elements_removed_from_document_count_(0),
-      update_matching_rules_count_(0),
-      update_computed_style_count_(0),
-      generate_html_element_computed_style_count_(0),
-      generate_pseudo_element_computed_style_count_(0) {
+          base::TimeDelta(), "Total delay between event and video starting.") {
   stop_watch_durations_.resize(kNumStopWatchTypes, base::TimeDelta());
 }
 
@@ -54,18 +63,111 @@ DomStatTracker::~DomStatTracker() {
 
   // Verify that all of the elements were removed from the document and
   // destroyed.
-  DCHECK_EQ(html_elements_count_, 0);
-  DCHECK_EQ(document_html_elements_count_, 0);
+  DCHECK_EQ(count_html_element_, 0);
+  DCHECK_EQ(count_html_element_document_, 0);
 
   event_video_start_delay_stop_watch_.Stop();
 }
 
-void DomStatTracker::OnStartEvent() {
-  is_event_active_ = true;
+void DomStatTracker::OnHtmlElementCreated() {
+  ++count_html_element_created_;
+  if (is_tracking_event_) {
+    ++event_count_html_element_created_;
+  }
+}
 
-  // Flush the periodic tracking prior to starting the event. This ensures that
-  // an accurate count of the periodic counts is produced during the event.
-  FlushPeriodicTracking();
+void DomStatTracker::OnHtmlElementDestroyed() {
+  ++count_html_element_destroyed_;
+  if (is_tracking_event_) {
+    ++event_count_html_element_destroyed_;
+  }
+}
+
+void DomStatTracker::OnHtmlElementInsertedIntoDocument() {
+  ++count_html_element_document_added_;
+  if (is_tracking_event_) {
+    ++event_count_html_element_document_added_;
+  }
+}
+
+void DomStatTracker::OnHtmlElementRemovedFromDocument() {
+  ++count_html_element_document_removed_;
+  if (is_tracking_event_) {
+    ++event_count_html_element_document_removed_;
+  }
+}
+
+void DomStatTracker::OnUpdateMatchingRules() {
+  if (is_tracking_event_) {
+    ++event_count_update_matching_rules_;
+  }
+}
+
+void DomStatTracker::OnUpdateComputedStyle() {
+  if (is_tracking_event_) {
+    ++event_count_update_computed_style_;
+  }
+}
+
+void DomStatTracker::OnGenerateHtmlElementComputedStyle() {
+  if (is_tracking_event_) {
+    ++event_count_generate_html_element_computed_style_;
+  }
+}
+
+void DomStatTracker::OnGeneratePseudoElementComputedStyle() {
+  if (is_tracking_event_) {
+    ++event_count_generate_pseudo_element_computed_style_;
+  }
+}
+
+void DomStatTracker::OnHtmlScriptElementExecuted(size_t script_size) {
+  ++script_element_execute_count_;
+  script_element_execute_total_size_ += script_size;
+  script_element_execute_time_ = base::TimeTicks::Now().ToInternalValue();
+}
+
+void DomStatTracker::OnHtmlVideoElementPlaying() {
+  if (event_video_start_delay_stop_watch_.IsCounting()) {
+    event_video_start_delay_stop_watch_.Stop();
+    event_video_start_delay_ =
+        stop_watch_durations_[kStopWatchTypeEventVideoStartDelay];
+  }
+}
+
+void DomStatTracker::FlushPeriodicTracking() {
+  // Update the CVals before clearing the periodic values.
+  count_html_element_ +=
+      count_html_element_created_ - count_html_element_destroyed_;
+  count_html_element_document_ +=
+      count_html_element_document_added_ - count_html_element_document_removed_;
+
+  // Now clear the values.
+  count_html_element_created_ = 0;
+  count_html_element_destroyed_ = 0;
+  count_html_element_document_added_ = 0;
+  count_html_element_document_removed_ = 0;
+}
+
+void DomStatTracker::StartTrackingEvent() {
+  DCHECK(!is_tracking_event_);
+  is_tracking_event_ = true;
+
+  event_initial_count_html_element_ = count_html_element_ +
+                                      count_html_element_created_ -
+                                      count_html_element_destroyed_;
+  event_initial_count_html_element_document_ =
+      count_html_element_document_ + count_html_element_document_added_ -
+      count_html_element_document_removed_;
+
+  event_count_html_element_created_ = 0;
+  event_count_html_element_destroyed_ = 0;
+  event_count_html_element_document_added_ = 0;
+  event_count_html_element_document_removed_ = 0;
+  event_count_update_matching_rules_ = 0;
+  event_count_update_computed_style_ = 0;
+  event_count_generate_html_element_computed_style_ = 0;
+  event_count_generate_pseudo_element_computed_style_ = 0;
 
   // Stop the watch before re-starting it. This ensures that the count is
   // zeroed out if it was still running from the prior event (this is a common
@@ -81,51 +183,20 @@ void DomStatTracker::OnStartEvent() {
   }
 }
 
-void DomStatTracker::OnEndEvent() {
-  is_event_active_ = false;
-
-  // Flush the periodic tracking after the event. This updates the cval totals,
-  // providing an accurate picture of them at the moment the event ends.
-  FlushPeriodicTracking();
+void DomStatTracker::StopTrackingEvent() {
+  DCHECK(is_tracking_event_);
+  is_tracking_event_ = false;
 }
 
-void DomStatTracker::OnHtmlVideoElementPlaying() {
-  if (event_video_start_delay_stop_watch_.IsCounting()) {
-    event_video_start_delay_stop_watch_.Stop();
-    event_video_start_delay_ =
-        stop_watch_durations_[kStopWatchTypeEventVideoStartDelay];
-  }
+int DomStatTracker::EventCountHtmlElement() const {
+  return event_initial_count_html_element_ + event_count_html_element_created_ -
+         event_count_html_element_destroyed_;
 }
 
-void DomStatTracker::OnHtmlScriptElementExecuted() {
-  ++script_element_execute_count_;
-  script_element_execute_time_ = base::TimeTicks::Now().ToInternalValue();
-}
-
-void DomStatTracker::OnHtmlElementCreated() { ++html_elements_created_count_; }
-
-void DomStatTracker::OnHtmlElementDestroyed() {
-  ++html_elements_destroyed_count_;
-}
-
-void DomStatTracker::OnHtmlElementInsertedIntoDocument() {
-  ++html_elements_inserted_into_document_count_;
-}
-
-void DomStatTracker::OnHtmlElementRemovedFromDocument() {
-  ++html_elements_removed_from_document_count_;
-}
-
-void DomStatTracker::OnUpdateMatchingRules() { ++update_matching_rules_count_; }
-
-void DomStatTracker::OnUpdateComputedStyle() { ++update_computed_style_count_; }
-
-void DomStatTracker::OnGenerateHtmlElementComputedStyle() {
-  ++generate_html_element_computed_style_count_;
-}
-
-void DomStatTracker::OnGeneratePseudoElementComputedStyle() {
-  ++generate_pseudo_element_computed_style_count_;
+int DomStatTracker::EventCountHtmlElementDocument() const {
+  return event_initial_count_html_element_document_ +
+         event_count_html_element_document_added_ -
+         event_count_html_element_document_removed_;
 }
 
 base::TimeDelta DomStatTracker::GetStopWatchTypeDuration(
@@ -134,29 +205,11 @@ base::TimeDelta DomStatTracker::GetStopWatchTypeDuration(
 }
 
 bool DomStatTracker::IsStopWatchEnabled(int id) const {
-  return is_event_active_ || id == kStopWatchTypeEventVideoStartDelay;
+  return is_tracking_event_ || id == kStopWatchTypeEventVideoStartDelay;
 }
 
 void DomStatTracker::OnStopWatchStopped(int id, base::TimeDelta time_elapsed) {
   stop_watch_durations_[static_cast<size_t>(id)] += time_elapsed;
-}
-
-void DomStatTracker::FlushPeriodicTracking() {
-  // Update the CVals before clearing the periodic values.
-  html_elements_count_ +=
-      html_elements_created_count_ - html_elements_destroyed_count_;
-  document_html_elements_count_ += html_elements_inserted_into_document_count_ -
-                                   html_elements_removed_from_document_count_;
-
-  // Now clear the values.
-  html_elements_created_count_ = 0;
-  html_elements_destroyed_count_ = 0;
-  html_elements_inserted_into_document_count_ = 0;
-  html_elements_removed_from_document_count_ = 0;
-  update_matching_rules_count_ = 0;
-  update_computed_style_count_ = 0;
-  generate_html_element_computed_style_count_ = 0;
-  generate_pseudo_element_computed_style_count_ = 0;
 }
 
 }  // namespace dom

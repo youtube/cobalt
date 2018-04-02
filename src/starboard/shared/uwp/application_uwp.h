@@ -98,6 +98,8 @@ class ApplicationUwp : public shared::starboard::Application,
 
   void Inject(Event* event) override;
 
+  void InjectKeypress(SbKey key);
+
   void SetStartLink(const char* link) {
     shared::starboard::Application::SetStartLink(link);
   }

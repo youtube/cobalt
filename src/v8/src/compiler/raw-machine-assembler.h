@@ -186,6 +186,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                    old_value, new_value);
   }
 
+  Node* SpeculationFence() {
+    return AddNode(machine()->SpeculationFence().op());
+  }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return AddNode(machine()->WordAnd(), a, b);
@@ -778,6 +782,17 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
       MachineType return_type, MachineType arg0_type, MachineType arg1_type,
       MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
       SaveFPRegsMode mode = kSaveFPRegs);
+  // Call to a C function with four arguments.
+  Node* CallCFunction4(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, Node* function, Node* arg0,
+                       Node* arg1, Node* arg2, Node* arg3);
+  // Call to a C function with five arguments.
+  Node* CallCFunction5(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2,
+                       Node* arg3, Node* arg4);
   // Call to a C function with six arguments.
   Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
@@ -817,9 +832,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);
+  void Return(Node* v1, Node* v2, Node* v3, Node* v4);
+  void Return(int count, Node* v[]);
   void PopAndReturn(Node* pop, Node* value);
   void PopAndReturn(Node* pop, Node* v1, Node* v2);
   void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3);
+  void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3, Node* v4);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugAbort(Node* message);
@@ -831,6 +849,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Bind(RawMachineLabel* label, AssemblerDebugInfo info);
   void SetInitialDebugInformation(AssemblerDebugInfo info);
   void PrintCurrentBlock(std::ostream& os);
+  bool InsideBlock();
 #endif  // DEBUG
 
   // Add success / exception successor blocks and ends the current block ending

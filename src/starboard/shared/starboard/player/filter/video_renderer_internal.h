@@ -58,7 +58,7 @@ class VideoRenderer {
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
-  void Seek(SbMediaTime seek_to_pts);
+  void Seek(SbTime seek_to_time);
 
   bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
   bool IsEndOfStreamPlayed() const;
@@ -69,12 +69,6 @@ class VideoRenderer {
 
  private:
   typedef std::list<scoped_refptr<VideoFrame>> Frames;
-
-  // Set a soft limit for the max video frames we can cache so we can:
-  // 1. Avoid using too much memory.
-  // 2. Have the frame cache full to simulate the state that the renderer can
-  //    no longer accept more data.
-  static const size_t kMaxCachedFrames = 12;
 
   void OnDecoderStatus(VideoDecoder::Status status,
                        const scoped_refptr<VideoFrame>& frame);
@@ -92,13 +86,13 @@ class VideoRenderer {
 
   Frames frames_;
 
-  SbMediaTime seeking_to_pts_;
+  SbTime seeking_to_time_;
   bool end_of_stream_written_;
   bool need_more_input_;
 
   scoped_ptr<VideoDecoder> decoder_;
 
-  // Our owner will attempt to seek to pts 0 when playback begins.  In
+  // Our owner will attempt to seek to time 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
   // some platforms, so we make an effort to improve playback startup
   // performance by keeping track of whether we already have a fresh decoder,

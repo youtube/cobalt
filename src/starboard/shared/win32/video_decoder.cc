@@ -53,8 +53,13 @@ const int kDecodeTargetCacheSize = 2;
 
 // Allocate decode targets at the maximum size to allow them to be reused for
 // all resolutions. This minimizes hitching during resolution changes.
+#ifdef ENABLE_VP9_8K_SUPPORT
+const int kMaxDecodeTargetWidth = 7680;
+const int kMaxDecodeTargetHeight = 4320;
+#else  // ENABLE_VP9_8K_SUPPORT
 const int kMaxDecodeTargetWidth = 3840;
 const int kMaxDecodeTargetHeight = 2160;
+#endif  // ENABLE_VP9_8K_SUPPOR
 
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.
@@ -66,15 +71,15 @@ struct CreateDecodeTargetContext {
 scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
     const GUID& input_guid, const GUID& output_guid,
     const IMFDXGIDeviceManager* device_manager) {
-  scoped_ptr<MediaTransform> transform(new MediaTransform(decoder_guid));
+  scoped_ptr<MediaTransform> media_transform(new MediaTransform(decoder_guid));
 
-  transform->EnableInputThrottle(true);
-  transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
-                         ULONG_PTR(device_manager));
+  media_transform->EnableInputThrottle(true);
+  media_transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
+                               ULONG_PTR(device_manager));
 
   // Tell the decoder to allocate resources for the maximum resolution in
   // order to minimize hitching on resolution changes.
-  ComPtr<IMFAttributes> attributes = transform->GetAttributes();
+  ComPtr<IMFAttributes> attributes = media_transform->GetAttributes();
   CheckResult(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1));
 
   ComPtr<IMFMediaType> input_type;
@@ -91,17 +96,17 @@ scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
                                    kMaxDecodeTargetWidth,
                                    kMaxDecodeTargetHeight));
   }
-  transform->SetInputType(input_type);
+  media_transform->SetInputType(input_type);
 
-  transform->SetOutputTypeBySubType(output_guid);
+  media_transform->SetOutputTypeBySubType(output_guid);
 
-  return transform.Pass();
+  return media_transform.Pass();
 }
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  VideoFrameImpl(SbMediaTime pts, std::function<void(VideoFrame*)> release_cb)
-      : VideoFrame(pts), release_cb_(release_cb) {
+  VideoFrameImpl(SbTime timestamp, std::function<void(VideoFrame*)> release_cb)
+      : VideoFrame(timestamp), release_cb_(release_cb) {
     SB_DCHECK(release_cb_);
   }
   ~VideoFrameImpl() { release_cb_(this); }
@@ -188,6 +193,10 @@ size_t VideoDecoder::GetPrerollFrameCount() const {
   return kMaxOutputSamples;
 }
 
+size_t VideoDecoder::GetMaxNumberOfCachedFrames() const {
+  return kMaxOutputSamples;
+}
+
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                               const ErrorCB& error_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
@@ -234,6 +243,7 @@ void VideoDecoder::Reset() {
   thread_lock_.Release();
   outputs_reset_lock_.Release();
 
+  decoder_status_cb_(kReleaseAllFrames, nullptr);
   decoder_->Reset();
 }
 
@@ -494,7 +504,7 @@ scoped_refptr<VideoFrame> VideoDecoder::CreateVideoFrame(
   // weak references to the actual sample.
   LONGLONG win32_sample_time = 0;
   CheckResult(sample->GetSampleTime(&win32_sample_time));
-  SbMediaTime sample_time = ConvertToMediaTime(win32_sample_time);
+  SbTime sample_time = ConvertToSbTime(win32_sample_time);
 
   thread_lock_.Acquire();
   thread_outputs_.emplace_back(sample_time, video_area_, sample);
@@ -510,7 +520,7 @@ void VideoDecoder::DeleteVideoFrame(VideoFrame* video_frame) {
   ScopedLock lock(thread_lock_);
   for (auto iter = thread_outputs_.begin(); iter != thread_outputs_.end();
        ++iter) {
-    if (iter->time == video_frame->pts()) {
+    if (iter->time == video_frame->timestamp()) {
       thread_outputs_.erase(iter);
       break;
     }

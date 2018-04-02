@@ -229,6 +229,13 @@ if (!defined(fallback_splash_screen_url)) {
   fallback_splash_screen_url = "none"
 }
 
+# The path to a splash screen to copy into content/data/web which can be
+# accessed via a file URL starting with
+# "file:///cobalt/browser/splash_screen/". If "", no file is copied.
+if (!defined(cobalt_splash_screen_file)) {
+  cobalt_splash_screen_file = ""
+}
+
 # Cache parameters
 
 # The following set of parameters define how much memory is reserved for
@@ -525,6 +532,18 @@ if (!defined(cobalt_media_buffer_video_budget_4k)) {
   cobalt_media_buffer_video_budget_4k = "(60 * 1024 * 1024)"
 }
 
+# Specifies the duration threshold of media source garbage collection.  When the
+# accumulated duration in a source buffer exceeds this value, the media source
+# implementation will try to eject existing buffers from the cache.
+# This is usually triggered when the video being played has a simple content and
+# the encoded data is small.  In such case this can limit how much is allocated
+# for the book keeping data of the media buffers and avoid OOM of system heap.
+# This should be set to 170 for most of the platforms.  But it can be further
+# reduced on systems with extremely low memory.
+if (!defined(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)) {
+  cobalt_media_source_garbage_collection_duration_threshold_in_seconds = "(170)"
+}
+
 # Enables embedding Cobalt as a shared library within another app. This
 # requires a 'lib' starboard implementation for the corresponding platform.
 if (!defined(cobalt_enable_lib)) {
@@ -547,9 +566,6 @@ if (!defined(enable_about_scheme)) {
 }
 if (!defined(enable_fake_microphone)) {
   enable_fake_microphone = _copy_test_data
-}
-if (!defined(enable_file_scheme)) {
-  enable_file_scheme = _copy_test_data
 }
 if (!defined(enable_network_logging)) {
   enable_network_logging = _copy_test_data

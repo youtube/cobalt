@@ -178,9 +178,14 @@ void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "SubmitToFallbackRasterizer");
 
+  if (!scissor.IsExpressibleAsRect()) {
+    DLOG(WARNING) << "Invalid scissor of " << scissor.ToString()
+                  << " passed into SubmitToFallbackRasterizer.";
+    return;
+  }
+
   // Use skia to rasterize to the allocated offscreen target.
   fallback_render_target->save();
-
   fallback_render_target->clipRect(SkRect::MakeXYWH(
       scissor.x(), scissor.y(), scissor.width(), scissor.height()));
   fallback_render_target->concat(skia::CobaltMatrixToSkia(transform));

@@ -1,18 +1,16 @@
-/*
- * Copyright 2018 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2018 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // clang-format off
 
@@ -75,14 +73,14 @@ class TestDictionary {
     non_default_member_ = other.non_default_member_;
     if (other.any_member_with_default_) {
       any_member_with_default_.reset(
-          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
-              other.any_member_with_default_->referenced_value()));
+          new script::Handle<::cobalt::script::ValueHandle>(
+              *other.any_member_with_default_));
     }
     has_any_member_ = other.has_any_member_;
     if (other.any_member_) {
       any_member_.reset(
-          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
-              other.any_member_->referenced_value()));
+          new script::Handle<::cobalt::script::ValueHandle>(
+              *other.any_member_));
     }
   }
 
@@ -104,16 +102,16 @@ class TestDictionary {
     non_default_member_ = other.non_default_member_;
     if (other.any_member_with_default_) {
       any_member_with_default_.reset(
-          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
-                other.any_member_with_default_->referenced_value()));
+          new script::Handle<::cobalt::script::ValueHandle>(
+              *other.any_member_with_default_));
     } else {
       any_member_with_default_.reset();
     }
     has_any_member_ = other.has_any_member_;
     if (other.any_member_) {
       any_member_.reset(
-          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
-                other.any_member_->referenced_value()));
+          new script::Handle<::cobalt::script::ValueHandle>(
+              *other.any_member_));
     } else {
       any_member_.reset();
     }
@@ -221,12 +219,12 @@ class TestDictionary {
     if (!any_member_with_default_) {
       return NULL;
     }
-    return &(any_member_with_default_->referenced_value());
+    return (any_member_with_default_->GetScriptValue());
   }
   void set_any_member_with_default(const ::cobalt::script::ScriptValue<::cobalt::script::ValueHandle>* value) {
     if (value) {
       any_member_with_default_.reset(
-          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(*value));
+          new script::Handle<::cobalt::script::ValueHandle>(*value));
     } else {
       any_member_with_default_.reset();
     }
@@ -240,17 +238,18 @@ class TestDictionary {
     if (!any_member_) {
       return NULL;
     }
-    return &(any_member_->referenced_value());
+    return (any_member_->GetScriptValue());
   }
   void set_any_member(const ::cobalt::script::ScriptValue<::cobalt::script::ValueHandle>* value) {
     has_any_member_ = true;
     if (value) {
       any_member_.reset(
-          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(*value));
+          new script::Handle<::cobalt::script::ValueHandle>(*value));
     } else {
       any_member_.reset();
     }
   }
+
 
  private:
   bool has_boolean_member_;
@@ -268,9 +267,9 @@ class TestDictionary {
   int32_t member_with_default_;
   bool has_non_default_member_;
   int32_t non_default_member_;
-  scoped_ptr<script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference> any_member_with_default_;
+  scoped_ptr<script::Handle<::cobalt::script::ValueHandle>> any_member_with_default_;
   bool has_any_member_;
-  scoped_ptr<script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference> any_member_;
+  scoped_ptr<script::Handle<::cobalt::script::ValueHandle>> any_member_;
 };
 
 // This ostream override is necessary for MOCK_METHODs commonly used

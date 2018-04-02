@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/window.h"
@@ -32,29 +33,29 @@ namespace cobalt {
 namespace dom {
 
 class Window;
+class OnScreenKeyboardMockBridge;
 
 class OnScreenKeyboard : public EventTarget {
  public:
   typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
 
-  typedef std::unordered_map<int,
-                             std::unique_ptr<VoidPromiseValue::TracedReference>>
+  typedef std::unordered_map<int, std::unique_ptr<VoidPromiseValue::Reference>>
       TicketToPromiseMap;
 
   OnScreenKeyboard(OnScreenKeyboardBridge* bridge,
                    script::ScriptValueFactory* script_value_factory);
 
   // Shows the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Show();
+  script::Handle<script::Promise<void>> Show();
 
   // Hides the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Hide();
+  script::Handle<script::Promise<void>> Hide();
 
   // Focuses the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Focus();
+  script::Handle<script::Promise<void>> Focus();
 
   // Blurs the on screen keyboard by calling a Starboard function.
-  scoped_ptr<VoidPromiseValue> Blur();
+  script::Handle<script::Promise<void>> Blur();
 
   std::string data() const { return data_; }
   void set_data(const std::string& data) { data_ = data; }
@@ -77,6 +78,9 @@ class OnScreenKeyboard : public EventTarget {
   // If the keyboard is shown.
   bool shown() const;
 
+  // The rectangle of the keyboard in screen pixel coordinates.
+  scoped_refptr<DOMRect> bounding_rect() const;
+
   void set_keep_focus(bool keep_focus);
   bool keep_focus() const { return keep_focus_; }
 
@@ -87,9 +91,10 @@ class OnScreenKeyboard : public EventTarget {
   void DispatchBlurEvent(int ticket);
 
   DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
-  void TraceMembers(script::Tracer* tracer) override;
 
  private:
+  friend class OnScreenKeyboardMockBridge;
+
   ~OnScreenKeyboard() override {}
 
   TicketToPromiseMap ticket_to_hide_promise_map_;

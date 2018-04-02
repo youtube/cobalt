@@ -55,7 +55,7 @@ std::string LoadFile(const std::string& file_name) {
   FilePath file_path(file_name);
   if (!file_path.IsAbsolute()) {
     FilePath content_path;
-    PathService::Get(base::DIR_SOURCE_ROOT, &content_path);
+    PathService::Get(base::DIR_TEST_DATA, &content_path);
     DCHECK(content_path.IsAbsolute());
     file_path = content_path.Append(file_path);
   }
@@ -97,7 +97,7 @@ void ReadDemuxerStream(DemuxerStream* demuxer_stream) {
 int SandboxMain(int argc, char** argv) {
   if (argc != 3) {
     // Path should be in the form of
-    //     "cobalt/browser/testdata/media-element-demo/dash-video-240p.mp4".
+    //     "cobalt/demos/media-element-demo/dash-video-240p.mp4".
     LOG(ERROR) << "Usage: " << argv[0] << " <audio_path> <video_path>";
     return 1;
   }

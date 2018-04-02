@@ -83,8 +83,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 
   scoped_refptr<TimeRanges> buffered() const;
   void Load();
-  std::string CanPlayType(const std::string& mimeType);
-  std::string CanPlayType(const std::string& mimeType,
+  std::string CanPlayType(const std::string& mime_type);
+  std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system);
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
@@ -95,7 +95,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
     return media_keys_;
   }
   typedef script::ScriptValue<script::Promise<void> > VoidPromiseValue;
-  scoped_ptr<VoidPromiseValue> SetMediaKeys(
+  script::Handle<script::Promise<void>> SetMediaKeys(
       const scoped_refptr<eme::MediaKeys>& media_keys);
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   void GenerateKeyRequest(
@@ -185,8 +185,9 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void LoadResource(const GURL& initial_url, const std::string& content_type,
                     const std::string& key_system);
   void ClearMediaPlayer();
-  void NoneSupported();
-  void MediaLoadingFailed(WebMediaPlayer::NetworkState error);
+  void NoneSupported(const std::string& message);
+  void MediaLoadingFailed(WebMediaPlayer::NetworkState error,
+                          const std::string& message);
 
   // Timers
   void OnLoadTimer();
@@ -214,6 +215,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // States
   void SetReadyState(WebMediaPlayer::ReadyState state);
   void SetNetworkState(WebMediaPlayer::NetworkState state);
+  void SetNetworkError(WebMediaPlayer::NetworkState state,
+                       const std::string& message);
   void ChangeNetworkStateFromLoadingToIdle();
 
   // Playback
@@ -236,6 +239,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 
   // WebMediaPlayerClient methods
   void NetworkStateChanged() override;
+  void NetworkError(const std::string& message) override;
   void ReadyStateChanged() override;
   void TimeChanged(bool eos_played) override;
   void DurationChanged() override;
@@ -302,8 +306,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   bool seeking_;
   bool controls_;
 
-  // The last time a timeupdate event was sent (wall clock).
-  double last_time_update_event_wall_time_;
   // The last time a timeupdate event was sent in movie time.
   double last_time_update_event_movie_time_;
 

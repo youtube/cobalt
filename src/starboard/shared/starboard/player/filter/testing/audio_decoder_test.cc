@@ -47,13 +47,14 @@ const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 std::string GetTestInputDirectory() {
   const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 
-  char test_output_path[kPathSize];
-  SB_CHECK(SbSystemGetPath(kSbSystemPathSourceDirectory, test_output_path,
+  char content_path[kPathSize];
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path,
                            kPathSize));
   std::string directory_path =
-      std::string(test_output_path) + SB_FILE_SEP_CHAR + "starboard" +
-      SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR + "starboard" +
-      SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path) + SB_FILE_SEP_CHAR + "test" +
+      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "shared" +
+      SB_FILE_SEP_CHAR + "starboard" + SB_FILE_SEP_CHAR + "player" +
+      SB_FILE_SEP_CHAR + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
       << "Cannot open directory " << directory_path;
@@ -84,13 +85,6 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
                                std::bind(&AudioDecoderTest::OnError, this));
   }
 
- protected:
-  enum Event { kConsumed, kOutput, kError };
-
-  void OnConsumed() {
-    ScopedLock scoped_lock(event_queue_mutex_);
-    event_queue_.push_back(kConsumed);
-  }
   void OnOutput() {
     ScopedLock scoped_lock(event_queue_mutex_);
     event_queue_.push_back(kOutput);
@@ -98,6 +92,14 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
   void OnError() {
     ScopedLock scoped_lock(event_queue_mutex_);
     event_queue_.push_back(kError);
+  }
+
+ protected:
+  enum Event { kConsumed, kOutput, kError };
+
+  void OnConsumed() {
+    ScopedLock scoped_lock(event_queue_mutex_);
+    event_queue_.push_back(kConsumed);
   }
 
   void WaitForNextEvent(Event* event) {
@@ -151,7 +153,8 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
       return;
     }
     if (last_decoded_audio_) {
-      ASSERT_LT(last_decoded_audio_->pts(), local_decoded_audio->pts());
+      ASSERT_LT(last_decoded_audio_->timestamp(),
+                local_decoded_audio->timestamp());
     }
     last_decoded_audio_ = local_decoded_audio;
     *decoded_audio = local_decoded_audio;
@@ -232,6 +235,27 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
   scoped_refptr<DecodedAudio> last_decoded_audio_;
 };
 
+TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
+  const int kDecodersToCreate = 3;
+
+  PlayerComponents::AudioParameters audio_parameters = {
+      dmp_reader_.audio_codec(), dmp_reader_.audio_header(),
+      kSbDrmSystemInvalid, &job_queue_};
+
+  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+  scoped_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];
+  scoped_ptr<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
+
+  for (int i = 0; i < kDecodersToCreate; ++i) {
+    components->CreateAudioComponents(audio_parameters, &audio_decoders[i],
+                                      &audio_renderer_sinks[i]);
+    ASSERT_TRUE(audio_decoders[i]);
+
+    audio_decoders[i]->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
+                                  std::bind(&AudioDecoderTest::OnError, this));
+  }
+}
+
 TEST_P(AudioDecoderTest, SingleInput) {
   ASSERT_NO_FATAL_FAILURE(WriteSingleInput(0));
   audio_decoder_->WriteEndOfStream();
@@ -293,8 +317,8 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 }
 
 std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"google_glass_h264_aac.dmp",
-                              "google_glass_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
+                              "beneath_the_canopy_vp9_opus.dmp"};
 
   static std::vector<const char*> test_params;
 

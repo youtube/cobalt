@@ -37,9 +37,9 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
     return kSbMediaAudioSampleTypeFloat32;
   }
-  SB_DCHECK(
-      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeInt16));
-  return kSbMediaAudioSampleTypeInt16;
+  SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(
+      kSbMediaAudioSampleTypeInt16Deprecated));
+  return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
 }  // namespace
@@ -70,17 +70,17 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     const FillType fill_type = kSilence;
 
     if (last_input_buffer_) {
-      SbMediaTime diff = input_buffer->pts() - last_input_buffer_->pts();
+      SbTime diff = input_buffer->timestamp() - last_input_buffer_->timestamp();
       SB_DCHECK(diff >= 0);
       size_t sample_size =
-          GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
+          GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
       size_t size = diff * GetSamplesPerSecond() * sample_size *
-                    audio_header_.number_of_channels / kSbMediaTimeSecond;
+                    audio_header_.number_of_channels / kSbTimeSecond;
       size += size % (sample_size * audio_header_.number_of_channels);
 
       decoded_audios_.push(new DecodedAudio(audio_header_.number_of_channels,
                                             GetSampleType(), GetStorageType(),
-                                            input_buffer->pts(), size));
+                                            input_buffer->timestamp(), size));
 
       if (fill_type == kSilence) {
         SbMemorySet(decoded_audios_.back()->buffer(), 0, size);
@@ -109,12 +109,12 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
       // 4 times the encoded size.
       size_t fake_size = 4 * last_input_buffer_->size();
       size_t sample_size =
-          GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
+          GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated ? 2 : 4;
       fake_size += fake_size % (sample_size * audio_header_.number_of_channels);
 
       decoded_audios_.push(new DecodedAudio(
           audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
-          last_input_buffer_->pts(), fake_size));
+          last_input_buffer_->timestamp(), fake_size));
       Schedule(output_cb_);
     }
     decoded_audios_.push(new DecodedAudio());
@@ -173,7 +173,8 @@ class StubVideoDecoder : public VideoDecoder {
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override {
     SB_DCHECK(input_buffer);
-    decoder_status_cb_(kNeedMoreInput, new VideoFrame(input_buffer->pts()));
+    decoder_status_cb_(kNeedMoreInput,
+                       new VideoFrame(input_buffer->timestamp()));
   }
   void WriteEndOfStream() override {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
@@ -221,6 +222,15 @@ class PlayerComponentsImpl : public PlayerComponents {
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
     *video_renderer_sink = new PunchoutVideoRendererSink(
         video_parameters.player, kVideoSinkRenderInterval);
+  }
+
+  void GetAudioRendererParams(int* max_cached_frames,
+                              int* max_frames_per_append) const override {
+    SB_DCHECK(max_cached_frames);
+    SB_DCHECK(max_frames_per_append);
+
+    *max_cached_frames = 256 * 1024;
+    *max_frames_per_append = 16384;
   }
 };
 

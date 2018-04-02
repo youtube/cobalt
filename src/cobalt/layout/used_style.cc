@@ -72,7 +72,8 @@ struct BackgroundImageTransformData {
 
 render_tree::FontStyle ConvertCSSOMFontValuesToRenderTreeFontStyle(
     cssom::FontStyleValue::Value style, cssom::FontWeightValue::Value weight) {
-  render_tree::FontStyle::Weight font_weight;
+  render_tree::FontStyle::Weight font_weight =
+      render_tree::FontStyle::kNormalWeight;
   switch (weight) {
     case cssom::FontWeightValue::kThinAka100:
       font_weight = render_tree::FontStyle::kThinWeight;
@@ -101,8 +102,6 @@ render_tree::FontStyle ConvertCSSOMFontValuesToRenderTreeFontStyle(
     case cssom::FontWeightValue::kBlackAka900:
       font_weight = render_tree::FontStyle::kBlackWeight;
       break;
-    default:
-      font_weight = render_tree::FontStyle::kNormalWeight;
   }
 
   render_tree::FontStyle::Slant font_slant =
@@ -159,10 +158,11 @@ BackgroundImageTransformData GetImageTransformationData(
   }
 
   BackgroundImageTransformData background_image_transform_data(
-      image_node_size, math::TranslateMatrix(image_node_translate_matrix_x,
-                                             image_node_translate_matrix_y) *
-                           math::ScaleMatrix(image_node_scale_matrix_x,
-                                             image_node_scale_matrix_y),
+      image_node_size,
+      math::TranslateMatrix(image_node_translate_matrix_x,
+                            image_node_translate_matrix_y) *
+          math::ScaleMatrix(image_node_scale_matrix_x,
+                            image_node_scale_matrix_y),
       math::PointF(composition_node_translate_matrix_x + frame.x(),
                    composition_node_translate_matrix_y + frame.y()));
   return background_image_transform_data;
@@ -255,6 +255,7 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kCursive:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
+    case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFantasy:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kFixed:
@@ -290,7 +291,6 @@ void UsedBackgroundSizeScaleProvider::VisitKeyword(
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -348,6 +348,7 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kCover:
     case cssom::KeywordValue::kEllipsis:
     case cssom::KeywordValue::kEnd:
+    case cssom::KeywordValue::kEquirectangular:
     case cssom::KeywordValue::kFixed:
     case cssom::KeywordValue::kForwards:
     case cssom::KeywordValue::kHidden:
@@ -379,7 +380,6 @@ void UsedFontFamilyProvider::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kTop:
     case cssom::KeywordValue::kUppercase:
     case cssom::KeywordValue::kVisible:
-    default:
       NOTREACHED();
   }
 }
@@ -712,10 +712,9 @@ std::pair<math::PointF, math::PointF> LinearGradientPointsFromDirection(
     case cssom::LinearGradientValue::kTopRight:
       return std::make_pair(math::PointF(0, frame_size.height()),
                             math::PointF(frame_size.width(), 0));
-    default:
-      NOTREACHED();
-      return std::make_pair(math::PointF(0, 0), math::PointF(0, 0));
   }
+  NOTREACHED();
+  return std::make_pair(math::PointF(0, 0), math::PointF(0, 0));
 }
 
 std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
@@ -730,8 +729,8 @@ std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
   // we can pass it into the trigonometric functions cos() and sin().
   float ccw_angle_from_right = -angle_in_radians + static_cast<float>(M_PI / 2);
 
-  return render_tree::LinearGradientPointsFromAngle(
-      ccw_angle_from_right, frame_size);
+  return render_tree::LinearGradientPointsFromAngle(ccw_angle_from_right,
+                                                    frame_size);
 }
 
 // The specifications indicate that if positions are not specified for color

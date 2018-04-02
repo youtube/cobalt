@@ -20,6 +20,7 @@
 #include <limits>
 #include <vector>
 
+#include "starboard/atomic.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
@@ -78,7 +79,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                   SbAudioSinkConsumeFramesFunc consume_frame_func,
                   void* context);
-  ~XAudioAudioSink() override;
+  ~XAudioAudioSink() override {}
 
   bool IsType(Type* type) override;
   void SetPlaybackRate(double playback_rate) override {
@@ -97,8 +98,26 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
   }
   void Process();
 
+  void StopCallbacks() {
+    SbAtomicBarrier_Increment(&stop_callbacks_, 1);
+    // Make sure that any call to Process() returns so we know that
+    // no future callbacks will be invoked.
+    process_mutex_.Acquire();
+    process_mutex_.Release();
+
+    // This must happen on a non-XAudio callback thread.
+    source_voice_->DestroyVoice();
+  }
+
  private:
+  bool AreCallbacksStopped() const {
+    return SbAtomicAcquire_Load(&stop_callbacks_) != 0;
+  }
   void SubmitSourceBuffer(int offset_in_frames, int count_frames);
+
+  // If true, this instance's source_voice_ has been destroyed and
+  // future Process() calls should return immediately.
+  SbAtomic32 stop_callbacks_;
 
   XAudioAudioSinkType* const type_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
@@ -113,7 +132,10 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
   // that IXAudio2SourceVoice cannot be a ComPtr.
   IXAudio2SourceVoice* source_voice_;
 
-  // |mutex_| protects only |destroying_| and |playback_rate_|.
+  // |process_mutex_| is held during Process. Others may rapidly
+  // acquire/release to ensure they wait until the current Process() ends.
+  Mutex process_mutex_;
+  // |mutex_| protects |playback_rate_| and |volume_|.
   Mutex mutex_;
   double playback_rate_;
   double volume_;
@@ -158,10 +180,12 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
   ComPtr<IXAudio2> x_audio2_;
   IXAudio2MasteringVoice* mastering_voice_;
 
+  // This mutex protects |audio_sinks_to_add_| and |audio_sinks_to_delete_|.
   Mutex mutex_;
   std::vector<XAudioAudioSink*> audio_sinks_to_add_;
   std::vector<SbAudioSink> audio_sinks_to_delete_;
-  ConditionVariable sink_removed_signal_;
+
+  // This must only be accessed from the OnProcessingPassStart callback
   std::vector<XAudioAudioSink*> audio_sinks_on_xaudio_callbacks_;
 };
 
@@ -174,7 +198,8 @@ XAudioAudioSink::XAudioAudioSink(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frame_func,
     void* context)
-    : type_(type),
+    : stop_callbacks_(0),
+      type_(type),
       source_voice_(source_voice),
       update_source_status_func_(update_source_status_func),
       consume_frame_func_(consume_frame_func),
@@ -192,15 +217,17 @@ XAudioAudioSink::XAudioAudioSink(
   CHECK_HRESULT_OK(source_voice_->Stop(0));
 }
 
-XAudioAudioSink::~XAudioAudioSink() {
-  source_voice_->DestroyVoice();
-}
-
 bool XAudioAudioSink::IsType(Type* type) {
   return type_ == type;
 }
 
 void XAudioAudioSink::Process() {
+  ScopedLock process_lock(process_mutex_);
+  if (AreCallbacksStopped()) {
+    // We must not continue in this case, since |source_voice_| has been
+    // destroyed.
+    return;
+  }
   int frames_in_buffer, offset_in_frames;
   bool is_playing, is_eos_reached;
   bool is_playback_rate_zero = false;
@@ -288,7 +315,7 @@ void XAudioAudioSink::SubmitSourceBuffer(int offset_in_frames,
   CHECK_HRESULT_OK(source_voice_->SubmitSourceBuffer(&audio_buffer_info));
 }
 
-XAudioAudioSinkType::XAudioAudioSinkType() : sink_removed_signal_(mutex_) {
+XAudioAudioSinkType::XAudioAudioSinkType() {
   CHECK_HRESULT_OK(XAudio2Create(&x_audio2_, 0, XAUDIO2_DEFAULT_PROCESSOR));
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
@@ -353,12 +380,15 @@ void XAudioAudioSinkType::Destroy(SbAudioSink audio_sink) {
     SB_LOG(WARNING) << "audio_sink is invalid.";
     return;
   }
+  // Previous versions of this code waited for the next OnProcessingPassStart()
+  // call to occur before returning. However, various circumstances could
+  // cause that never to happen, especially during UWP suspend.
+  // Instead, we return immediately, ensuring no SbAudioSink callbacks occur
+  // and postpone the delete itself until the next OnProcessingPassStart()
+  static_cast<XAudioAudioSink*>(audio_sink)->StopCallbacks();
+
   ScopedLock lock(mutex_);
   audio_sinks_to_delete_.push_back(audio_sink);
-  while (!audio_sinks_to_delete_.empty()) {
-    sink_removed_signal_.Wait();
-  }
-  delete audio_sink;
 }
 
 void XAudioAudioSinkType::OnProcessingPassStart() {
@@ -374,14 +404,14 @@ void XAudioAudioSinkType::OnProcessingPassStart() {
         audio_sinks_on_xaudio_callbacks_.erase(
             std::find(audio_sinks_on_xaudio_callbacks_.begin(),
                       audio_sinks_on_xaudio_callbacks_.end(), sink));
+        delete sink;
       }
       audio_sinks_to_delete_.clear();
-      sink_removed_signal_.Broadcast();
     }
     mutex_.Release();
   }
 
-  for (auto sink : audio_sinks_on_xaudio_callbacks_) {
+  for (XAudioAudioSink* sink : audio_sinks_on_xaudio_callbacks_) {
     sink->Process();
   }
 }

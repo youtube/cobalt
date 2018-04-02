@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -84,26 +85,33 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 30;
+const int kInterfaceUniqueId = 31;
 
 
 
 
 
 
+
+
+void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  V8cExceptionState exception(info.GetIsolate());
+  exception.SetSimpleException(
+      script::kTypeError, "InterfaceWithUnsupportedProperties is not constructible.");
+}
 
 
 
 void supportedAttributeAttributeGetter(
-    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<InterfaceWithUnsupportedProperties>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cInterfaceWithUnsupportedProperties::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -120,14 +128,16 @@ void supportedAttributeAttributeGetter(
   InterfaceWithUnsupportedProperties* impl =
       wrapper_private->wrappable<InterfaceWithUnsupportedProperties>().get();
 
+
   if (!exception_state.is_exception_set()) {
     ToJSValue(isolate,
               impl->supported_attribute(),
               &result_value);
   }
-  if (!exception_state.is_exception_set()) {
-    info.GetReturnValue().Set(result_value);
+  if (exception_state.is_exception_set()) {
+    return;
   }
+  info.GetReturnValue().Set(result_value);
 }
 
 
@@ -159,7 +169,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(
           isolate,
-          nullptr,
+          DummyConstructor,
           v8::Local<v8::Value>(),
           v8::Local<v8::Signature>(),
           0);
@@ -206,18 +216,19 @@ void InitializeTemplate(v8::Isolate* isolate) {
     //
     // S is the attribute setter created given the attribute, the interface, and
     // the relevant Realm of the object that is the location of the property.
-
+    v8::Local<v8::FunctionTemplate> getter =
+        v8::FunctionTemplate::New(isolate, supportedAttributeAttributeGetter);
+    v8::Local<v8::FunctionTemplate> setter;
 
     // The location of the property is determined as follows:
     // Otherwise, the property exists solely on the interface's interface
     // prototype object.
-    prototype_template->SetAccessor(
-        name,
-        supportedAttributeAttributeGetter,
-        0,
-        v8::Local<v8::Value>(),
-        v8::DEFAULT,
-        attributes);
+    prototype_template->
+        SetAccessorProperty(
+            name,
+            getter,
+            setter,
+            attributes);
 
   }
 
@@ -237,6 +248,8 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "InterfaceWithUnsupportedProperties"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+
 
 
 

@@ -52,7 +52,7 @@ class Blob : public script::Wrappable {
        const scoped_refptr<ArrayBuffer>& buffer = NULL);
 
   Blob(script::EnvironmentSettings* settings,
-       script::Sequence<BlobPart> blobParts,
+       script::Sequence<BlobPart> blob_parts,
        const BlobPropertyBag& options = EmptyBlobPropertyBag());
 
   const uint8* data() { return buffer_->data(); }

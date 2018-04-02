@@ -83,7 +83,7 @@ class GetElementTextTest : public ::testing::Test {
 }  // namespace
 
 TEST_F(GetElementTextTest, ZeroSpaceWidthIsRemoved) {
-  AppendText(u8"a\u200bb\u200ec\u200fd");
+  AppendText(u8"a\u200bb\u200ec\u200f\u200bd");
   EXPECT_STREQ("abcd", algorithms::GetElementText(div_.get()).c_str());
 }
 
@@ -94,7 +94,7 @@ TEST_F(GetElementTextTest, NewLinesAreConvertedToSpaces) {
 
 TEST_F(GetElementTextTest, NoWrapStyle) {
   div_->style()->set_white_space("nowrap", NULL);
-  AppendText(u8"a\n\nb\nc\td\u2028e\u2029f\xa0g");
+  AppendText(u8"a\n\nb\nc\td\u2028e\u2029f\u00a0g");
   EXPECT_STREQ("a b c d e f g", algorithms::GetElementText(div_.get()).c_str());
 }
 
@@ -125,6 +125,24 @@ TEST_F(GetElementTextTest, Blocks) {
   AppendText("c");
 
   EXPECT_STREQ("a\nb\nc", algorithms::GetElementText(div_.get()).c_str());
+}
+
+TEST_F(GetElementTextTest, LinesAreTrimmed) {
+  AppendText(" a \n");
+  AppendBR();
+  AppendText("  b  \n\n");
+  AppendBR();
+  AppendText("\nc  ");
+  AppendBR();
+  AppendText("  ");
+
+  EXPECT_STREQ("a\nb\nc", algorithms::GetElementText(div_.get()).c_str());
+}
+
+TEST_F(GetElementTextTest, WholeCodePointsAreProcessed) {
+  AppendText(u8"a\u200b\u2020\u2029\u2022\U0002070Eb");
+  EXPECT_STREQ(u8"a\u2020 \u2022\U0002070Eb",
+               algorithms::GetElementText(div_.get()).c_str());
 }
 
 }  // namespace webdriver

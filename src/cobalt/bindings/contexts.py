@@ -558,7 +558,7 @@ class ContextBuilder(object):
         if operation.name
     ]
 
-    # Create overload sets for static and non-static methods seperately.
+    # Create overload sets for static and non-static methods separately.
     # Each item in the list is a pair of (name, [method_contexts]) where for
     # each method_context m in the list, m['name'] == name.
     static_method_overloads = method_overloads_by_name(

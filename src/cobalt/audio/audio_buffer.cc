@@ -36,8 +36,8 @@ AudioBuffer::AudioBuffer(script::EnvironmentSettings* settings,
   const uint32 length =
       number_of_frames * number_of_channels *
       (sample_type == kSampleTypeFloat32 ? sizeof(float) : sizeof(int16));
-  scoped_refptr<dom::ArrayBuffer> array_buffer(new dom::ArrayBuffer(
-      settings, dom::ArrayBuffer::kFromHeap, channels_data.Pass(), length));
+  scoped_refptr<dom::ArrayBuffer> array_buffer(
+      new dom::ArrayBuffer(settings, channels_data.Pass(), length));
 
   // Each channel should have |number_of_frames * size_of_sample_type| bytes.
   // We create |number_of_channels| of {Float32,Int16}Array as views into the

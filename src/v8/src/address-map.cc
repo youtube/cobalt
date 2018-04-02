@@ -7,12 +7,16 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
 RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = isolate->root_index_map();
-  if (map_ != NULL) return;
+  if (map_ != nullptr) return;
   map_ = new HeapObjectToIndexHashMap();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);

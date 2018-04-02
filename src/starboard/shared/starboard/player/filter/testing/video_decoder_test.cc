@@ -51,6 +51,9 @@ namespace {
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::std::placeholders::_1;
 using ::std::placeholders::_2;
+using ::testing::AssertionFailure;
+using ::testing::AssertionResult;
+using ::testing::AssertionSuccess;
 using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
@@ -64,13 +67,13 @@ const SbTimeMonotonic kDefaultWaitForNextEventTimeOut = 5 * kSbTimeSecond;
 std::string GetTestInputDirectory() {
   const size_t kPathSize = SB_FILE_MAX_PATH + 1;
 
-  char test_output_path[kPathSize];
-  EXPECT_TRUE(SbSystemGetPath(kSbSystemPathSourceDirectory, test_output_path,
-                              kPathSize));
+  char content_path[kPathSize];
+  EXPECT_TRUE(
+      SbSystemGetPath(kSbSystemPathContentDirectory, content_path, kPathSize));
   std::string directory_path =
-      std::string(test_output_path) + SB_FILE_SEP_CHAR + "starboard" +
-      SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR + "starboard" +
-      SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
+      std::string(content_path) + SB_FILE_SEP_CHAR + "test" + SB_FILE_SEP_CHAR +
+      "starboard" + SB_FILE_SEP_CHAR + "shared" + SB_FILE_SEP_CHAR +
+      "starboard" + SB_FILE_SEP_CHAR + "player" + SB_FILE_SEP_CHAR + "testdata";
 
   SB_CHECK(SbDirectoryCanOpen(directory_path.c_str())) << directory_path;
   return directory_path;
@@ -80,10 +83,21 @@ std::string ResolveTestFileName(const char* filename) {
   return GetTestInputDirectory() + SB_FILE_SEP_CHAR + filename;
 }
 
+AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
+  const SbTime kEpsilon = kSbTimeSecond / 1000;
+  SbTime diff = time1 - time2;
+  if (-kEpsilon <= diff && diff <= kEpsilon) {
+    return AssertionSuccess();
+  }
+  return AssertionFailure()
+         << "time " << time1 << " doesn't match with time " << time2;
+}
+
 class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
  public:
   VideoDecoderTest()
       : dmp_reader_(ResolveTestFileName(GetParam().filename).c_str()) {}
+
   void SetUp() override {
     ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
     ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
@@ -108,9 +122,39 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
                                       &video_renderer_sink_);
     ASSERT_TRUE(video_decoder_);
 
+    video_renderer_sink_->SetRenderCB(
+        std::bind(&VideoDecoderTest::Render, this, _1));
+
     video_decoder_->Initialize(
         std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
         std::bind(&VideoDecoderTest::OnError, this));
+  }
+
+  void Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
+    SB_UNREFERENCED_PARAMETER(draw_frame_cb);
+  }
+
+  void OnDecoderStatusUpdate(VideoDecoder::Status status,
+                             const scoped_refptr<VideoFrame>& frame) {
+    ScopedLock scoped_lock(mutex_);
+    // TODO: Ensure that this is only called during dtor or Reset().
+    if (status == VideoDecoder::kReleaseAllFrames) {
+      SB_DCHECK(!frame);
+      event_queue_.clear();
+      decoded_frames_.clear();
+      return;
+    } else if (status == VideoDecoder::kNeedMoreInput) {
+      event_queue_.push_back(Event(kNeedMoreInput, frame));
+    } else if (status == VideoDecoder::kBufferFull) {
+      event_queue_.push_back(Event(kBufferFull, frame));
+    } else {
+      event_queue_.push_back(Event(kError, frame));
+    }
+  }
+
+  void OnError() {
+    ScopedLock scoped_lock(mutex_);
+    event_queue_.push_back(Event(kError, NULL));
   }
 
  protected:
@@ -190,7 +234,7 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     {
       ScopedLock scoped_lock(mutex_);
       need_more_input_ = false;
-      outstanding_inputs_.insert(input_buffer->pts());
+      outstanding_inputs_.insert(input_buffer->timestamp());
     }
 
     video_decoder_->WriteInputBuffer(input_buffer);
@@ -227,12 +271,13 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
       if (event.frame) {
         ASSERT_FALSE(event.frame->is_end_of_stream());
         if (!decoded_frames_.empty()) {
-          ASSERT_LT(decoded_frames_.back()->pts(), event.frame->pts());
+          ASSERT_LT(decoded_frames_.back()->timestamp(),
+                    event.frame->timestamp());
         }
         decoded_frames_.push_back(event.frame);
-        ASSERT_TRUE(outstanding_inputs_.find(event.frame->pts()) !=
-                    outstanding_inputs_.end());
-        outstanding_inputs_.erase(outstanding_inputs_.find(event.frame->pts()));
+        ASSERT_TRUE(AlmostEqualTime(*outstanding_inputs_.begin(),
+                                    event.frame->timestamp()));
+        outstanding_inputs_.erase(outstanding_inputs_.begin());
       }
       if (event_cb) {
         bool continue_process = true;
@@ -268,13 +313,13 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
           ASSERT_TRUE(outstanding_inputs_.empty());
         } else {
           if (!decoded_frames_.empty()) {
-            ASSERT_LT(decoded_frames_.back()->pts(), event.frame->pts());
+            ASSERT_LT(decoded_frames_.back()->timestamp(),
+                      event.frame->timestamp());
           }
           decoded_frames_.push_back(event.frame);
-          ASSERT_TRUE(outstanding_inputs_.find(event.frame->pts()) !=
-                      outstanding_inputs_.end());
-          outstanding_inputs_.erase(
-              outstanding_inputs_.find(event.frame->pts()));
+          ASSERT_TRUE(AlmostEqualTime(*outstanding_inputs_.begin(),
+                                      event.frame->timestamp()));
+          outstanding_inputs_.erase(outstanding_inputs_.begin());
         }
       }
       if (event_cb) {
@@ -296,6 +341,8 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
     outstanding_inputs_.clear();
   }
 
+  JobQueue job_queue_;
+
   Mutex mutex_;
   std::deque<Event> event_queue_;
 
@@ -304,35 +351,11 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
   scoped_ptr<VideoDecoder> video_decoder_;
 
   bool need_more_input_ = true;
-  std::set<SbMediaTime> outstanding_inputs_;
+  std::set<SbTime> outstanding_inputs_;
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
 
  private:
-  void OnDecoderStatusUpdate(VideoDecoder::Status status,
-                             const scoped_refptr<VideoFrame>& frame) {
-    ScopedLock scoped_lock(mutex_);
-    // TODO: Ensure that this is only called during dtor or Reset().
-    if (status == VideoDecoder::kReleaseAllFrames) {
-      SB_DCHECK(!frame);
-      event_queue_.clear();
-      decoded_frames_.clear();
-      return;
-    } else if (status == VideoDecoder::kNeedMoreInput) {
-      event_queue_.push_back(Event(kNeedMoreInput, frame));
-    } else if (status == VideoDecoder::kBufferFull) {
-      event_queue_.push_back(Event(kBufferFull, frame));
-    } else {
-      event_queue_.push_back(Event(kError, frame));
-    }
-  }
-
-  void OnError() {
-    ScopedLock scoped_lock(mutex_);
-    event_queue_.push_back(Event(kError, NULL));
-  }
-
   SbPlayerPrivate player_;
-  JobQueue job_queue_;
   scoped_ptr<VideoRenderAlgorithm> video_render_algorithm_;
   scoped_refptr<VideoRendererSink> video_renderer_sink_;
 
@@ -371,6 +394,63 @@ TEST_P(VideoDecoderTest, GetCurrentDecodeTargetBeforeWriteInputBuffer) {
   }
 }
 
+TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
+  // Create three more decoders for each supported combinations.
+  const int kDecodersToCreate = 3;
+
+  scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
+
+  SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+  SbMediaVideoCodec kVideoCodecs[] = {
+      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
+      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
+      kSbMediaVideoCodecVp10,  kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+
+  for (auto output_mode : kOutputModes) {
+    for (auto video_codec : kVideoCodecs) {
+      if (VideoDecoder::OutputModeSupported(output_mode, video_codec,
+                                            kSbDrmSystemInvalid)) {
+        SbPlayerPrivate players[kDecodersToCreate];
+        scoped_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
+        scoped_ptr<VideoRenderAlgorithm>
+            video_render_algorithms[kDecodersToCreate];
+        scoped_refptr<VideoRendererSink>
+            video_renderer_sinks[kDecodersToCreate];
+
+        for (int i = 0; i < kDecodersToCreate; ++i) {
+          PlayerComponents::VideoParameters video_parameters = {
+              &players[i],
+              dmp_reader_.video_codec(),
+              kSbDrmSystemInvalid,
+              &job_queue_,
+              output_mode,
+              fake_graphics_context_provider_.decoder_target_provider()};
+
+          components->CreateVideoComponents(
+              video_parameters, &video_decoders[i], &video_render_algorithms[i],
+              &video_renderer_sinks[i]);
+          ASSERT_TRUE(video_decoders[i]);
+
+          video_renderer_sinks[i]->SetRenderCB(
+              std::bind(&VideoDecoderTest::Render, this, _1));
+
+          video_decoders[i]->Initialize(
+              std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
+              std::bind(&VideoDecoderTest::OnError, this));
+
+          if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+            SbDecodeTarget decode_target =
+                video_decoders[i]->GetCurrentDecodeTarget();
+            EXPECT_FALSE(SbDecodeTargetIsValid(decode_target));
+            fake_graphics_context_provider_.ReleaseDecodeTarget(decode_target);
+          }
+        }
+      }
+    }
+  }
+}
+
 TEST_P(VideoDecoderTest, SingleInput) {
   WriteSingleInput(0);
   WriteEndOfStream();
@@ -389,7 +469,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
 TEST_P(VideoDecoderTest, SingleInvalidInput) {
   need_more_input_ = false;
   auto input_buffer = dmp_reader_.GetVideoInputBuffer(0);
-  outstanding_inputs_.insert(input_buffer->pts());
+  outstanding_inputs_.insert(input_buffer->timestamp());
   std::vector<uint8_t> content(input_buffer->size(), 0xab);
   // Replace the content with invalid data.
   input_buffer->SetDecryptedContent(content.data(),
@@ -476,20 +556,20 @@ TEST_P(VideoDecoderTest, Preroll) {
 }
 
 TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
-  // TODO: Move the following to VideoDecoder::GetMaxNumberOfCachedFrames().
-  const size_t kMaxCachedFrames = 12;
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, dmp_reader_.number_of_video_buffers(),
       [=](const Event& event, bool* continue_process) {
         SB_UNREFERENCED_PARAMETER(event);
-        *continue_process = decoded_frames_.size() < kMaxCachedFrames;
+        *continue_process = decoded_frames_.size() <
+                            video_decoder_->GetMaxNumberOfCachedFrames();
       }));
   WriteEndOfStream();
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
         SB_UNREFERENCED_PARAMETER(event);
-        *continue_process = decoded_frames_.size() < kMaxCachedFrames;
+        *continue_process = decoded_frames_.size() <
+                            video_decoder_->GetMaxNumberOfCachedFrames();
       }));
   ASSERT_FALSE(error_occurred);
 }
@@ -508,22 +588,33 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   ASSERT_NO_FATAL_FAILURE(WriteMultipleInputs(
       0, gop_size, [=](const Event& event, bool* continue_process) {
         SB_UNREFERENCED_PARAMETER(event);
-        while (decoded_frames_.size() >
+        while (decoded_frames_.size() >=
                video_decoder_->GetPrerollFrameCount()) {
           decoded_frames_.pop_front();
         }
         *continue_process = true;
       }));
   WriteEndOfStream();
-  ASSERT_NO_FATAL_FAILURE(DrainOutputs());
+
+  bool error_occurred = true;
+  ASSERT_NO_FATAL_FAILURE(DrainOutputs(
+      &error_occurred, [=](const Event& event, bool* continue_process) {
+        SB_UNREFERENCED_PARAMETER(event);
+        while (decoded_frames_.size() >=
+               video_decoder_->GetMaxNumberOfCachedFrames()) {
+          decoded_frames_.pop_front();
+        }
+        *continue_process = true;
+      }));
+  ASSERT_FALSE(error_occurred);
 }
 
 std::vector<TestParam> GetSupportedTests() {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
 
-  const char* kFilenames[] = {"google_glass_h264_aac.dmp",
-                              "google_glass_vp9_opus.dmp"};
+  const char* kFilenames[] = {"beneath_the_canopy_avc_aac.dmp",
+                              "beneath_the_canopy_vp9_opus.dmp"};
 
   static std::vector<TestParam> test_params;
 

@@ -36,8 +36,8 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   if (!array_buffer->is_neuterable()) {
     return isolate->heap()->undefined_value();
   }
-  if (array_buffer->backing_store() == NULL) {
-    CHECK(Smi::kZero == array_buffer->byte_length());
+  if (array_buffer->backing_store() == nullptr) {
+    CHECK_EQ(Smi::kZero, array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }
   // Shared array buffers should never be neutered.
@@ -200,7 +200,7 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
 
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(args.length(), 2);
   Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(0);
   Handle<Object> length = args.at(1);
   int argc = 1;
@@ -212,6 +212,51 @@ RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
       isolate, result_array,
       JSTypedArray::SpeciesCreate(isolate, exemplar, argc, argv.start(), ""));
   return *result_array;
+}
+
+// 22.2.3.23 %TypedArray%.prototype.set ( overloaded [ , offset ] )
+RUNTIME_FUNCTION(Runtime_TypedArraySet) {
+  HandleScope scope(isolate);
+  Handle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  Handle<Object> obj = args.at(1);
+  Handle<Smi> offset = args.at<Smi>(2);
+
+  DCHECK(!target->WasNeutered());  // Checked in TypedArrayPrototypeSet.
+  DCHECK(!obj->IsJSTypedArray());  // Should be handled by CSA.
+  DCHECK_LE(0, offset->value());
+
+  const uint32_t uint_offset = static_cast<uint32_t>(offset->value());
+
+  if (obj->IsNumber()) {
+    // For number as a first argument, throw TypeError
+    // instead of silently ignoring the call, so that
+    // users know they did something wrong.
+    // (Consistent with Firefox and Blink/WebKit)
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalidArgument));
+  }
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj,
+                                     Object::ToObject(isolate, obj));
+
+  Handle<Object> len;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, len,
+      Object::GetProperty(obj, isolate->factory()->length_string()));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
+                                     Object::ToLength(isolate, len));
+
+  if (uint_offset + len->Number() > target->length_value()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
+  }
+
+  uint32_t int_l;
+  CHECK(DoubleToUint32IfEqualToSelf(len->Number(), &int_l));
+
+  Handle<JSReceiver> source = Handle<JSReceiver>::cast(obj);
+  ElementsAccessor* accessor = target->GetElementsAccessor();
+  return accessor->CopyElements(source, target, int_l, uint_offset);
 }
 
 }  // namespace internal

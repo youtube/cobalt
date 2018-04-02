@@ -592,12 +592,13 @@ class ResourceCache {
   base::CVal<base::cval::SizeInBytes, base::CValPublic> memory_size_in_bytes_;
   base::CVal<base::cval::SizeInBytes, base::CValPublic>
       memory_capacity_in_bytes_;
-  base::CVal<base::cval::SizeInBytes> memory_resources_loaded_in_bytes_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      memory_resources_loaded_in_bytes_;
 
-  base::CVal<int> count_resources_requested_;
-  base::CVal<int> count_resources_loading_;
-  base::CVal<int> count_resources_loaded_;
-  base::CVal<int> count_pending_callbacks_;
+  base::CVal<int, base::CValPublic> count_resources_requested_;
+  base::CVal<int, base::CValPublic> count_resources_loading_;
+  base::CVal<int, base::CValPublic> count_resources_loaded_;
+  base::CVal<int, base::CValPublic> count_pending_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
 };

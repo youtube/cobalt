@@ -28,10 +28,9 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
                platform,
                asan_enabled_by_default=True,
                goma_supports_compiler=True):
+    self.goma_supports_compiler = goma_supports_compiler
     super(LinuxConfiguration, self).__init__(platform, asan_enabled_by_default)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
-    self.host_compiler_environment = build.GetHostCompilerEnvironment(
-        clang.GetClangSpecification(), goma_supports_compiler)
 
   def GetBuildFormat(self):
     """Returns the desired build format."""
@@ -54,6 +53,10 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     return generator_variables
 
   def GetEnvironmentVariables(self):
+    if not hasattr(self, 'host_compiler_environment'):
+      self.host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang.GetClangSpecification(), self.goma_supports_compiler)
+
     env_variables = self.host_compiler_environment
     env_variables.update({
         'CC': self.host_compiler_environment['CC_host'],

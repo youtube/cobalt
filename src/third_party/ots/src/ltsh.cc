@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,74 +9,63 @@
 // LTSH - Linear Threshold
 // http://www.microsoft.com/typography/otspec/ltsh.htm
 
-#define DROP_THIS_TABLE \
-  do { delete file->ltsh; file->ltsh = 0; } while (0)
-
 namespace ots {
 
-bool ots_ltsh_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
+bool OpenTypeLTSH::Parse(const uint8_t *data, size_t length) {
   Buffer table(data, length);
 
-  if (!file->maxp) {
-    return OTS_FAILURE();
+  OpenTypeMAXP *maxp = static_cast<OpenTypeMAXP*>(
+      GetFont()->GetTypedTable(OTS_TAG_MAXP));
+  if (!maxp) {
+    return Error("Required maxp table is missing");
   }
-
-  OpenTypeLTSH *ltsh = new OpenTypeLTSH;
-  file->ltsh = ltsh;
 
   uint16_t num_glyphs = 0;
-  if (!table.ReadU16(&ltsh->version) ||
+  if (!table.ReadU16(&this->version) ||
       !table.ReadU16(&num_glyphs)) {
-    return OTS_FAILURE();
+    return Error("Failed to read table header");
   }
 
-  if (ltsh->version != 0) {
-    OTS_WARNING("bad version: %u", ltsh->version);
-    DROP_THIS_TABLE;
-    return true;
+  if (this->version != 0) {
+    return Drop("Unsupported version: %u", this->version);
   }
 
-  if (num_glyphs != file->maxp->num_glyphs) {
-    OTS_WARNING("bad num_glyphs: %u", num_glyphs);
-    DROP_THIS_TABLE;
-    return true;
+  if (num_glyphs != maxp->num_glyphs) {
+    return Drop("Bad numGlyphs: %u", num_glyphs);
   }
 
-  ltsh->ypels.reserve(num_glyphs);
+  this->ypels.reserve(num_glyphs);
   for (unsigned i = 0; i < num_glyphs; ++i) {
     uint8_t pel = 0;
     if (!table.ReadU8(&pel)) {
-      return OTS_FAILURE();
+      return Error("Failed to read pixels for glyph %d", i);
     }
-    ltsh->ypels.push_back(pel);
+    this->ypels.push_back(pel);
   }
 
   return true;
 }
 
-bool ots_ltsh_should_serialise(OpenTypeFile *file) {
-  if (!file->glyf) return false;  // this table is not for CFF fonts.
-  return file->ltsh != NULL;
-}
-
-bool ots_ltsh_serialise(OTSStream *out, OpenTypeFile *file) {
-  const OpenTypeLTSH *ltsh = file->ltsh;
-
-  if (!out->WriteU16(ltsh->version) ||
-      !out->WriteU16(ltsh->ypels.size())) {
-    return OTS_FAILURE();
+bool OpenTypeLTSH::Serialize(OTSStream *out) {
+  const uint16_t num_ypels = static_cast<uint16_t>(this->ypels.size());
+  if (num_ypels != this->ypels.size() ||
+      !out->WriteU16(this->version) ||
+      !out->WriteU16(num_ypels)) {
+    return Error("Failed to write table header");
   }
-  for (unsigned i = 0; i < ltsh->ypels.size(); ++i) {
-    if (!out->Write(&(ltsh->ypels[i]), 1)) {
-      return OTS_FAILURE();
+  for (uint16_t i = 0; i < num_ypels; ++i) {
+    if (!out->Write(&(this->ypels[i]), 1)) {
+      return Error("Failed to write pixel size for glyph %d", i);
     }
   }
 
   return true;
 }
 
-void ots_ltsh_free(OpenTypeFile *file) {
-  delete file->ltsh;
+bool OpenTypeLTSH::ShouldSerialize() {
+  return Table::ShouldSerialize() &&
+         // this table is not for CFF fonts.
+         GetFont()->GetTable(OTS_TAG_GLYF) != NULL;
 }
 
 }  // namespace ots

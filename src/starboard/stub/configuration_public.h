@@ -92,6 +92,12 @@
 // Whether the current platform supports thread priorities.
 #define SB_HAS_THREAD_PRIORITY_SUPPORT 0
 
+// Whether the current platform implements the on screen keyboard interface.
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+// Whether the current platform uses a media player that relies on a URL.
+#define SB_HAS_PLAYER_WITH_URL 0
+
 // Whether the current platform's thread scheduler will automatically balance
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.
@@ -369,6 +375,10 @@
 // following macro is defined, the app will append audio frames start from the
 // timestamp that is before the timestamp of the video key frame being appended.
 #undef SB_HAS_QUIRK_SEEK_TO_KEYFRAME
+
+// The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only
+// when this macro is defined.
+#undef SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES
 
 // dlmalloc will use the ffs intrinsic if available.  Platforms on which this is
 // not available should define the following quirk.

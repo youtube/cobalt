@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_property_enumerator.h"
@@ -84,7 +85,7 @@ namespace testing {
 
 namespace {
 
-const int kInterfaceUniqueId = 46;
+const int kInterfaceUniqueId = 47;
 
 
 
@@ -93,17 +94,23 @@ const int kInterfaceUniqueId = 46;
 
 
 
+void DummyConstructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  V8cExceptionState exception(info.GetIsolate());
+  exception.SetSimpleException(
+      script::kTypeError, "StringifierAnonymousOperationInterface is not constructible.");
+}
 
-void Stringifier(v8::Local<v8::String> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+
+
+void Stringifier(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
   V8cExceptionState exception_state(isolate);
 
     V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<StringifierAnonymousOperationInterface>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !V8cStringifierAnonymousOperationInterface::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -160,7 +167,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
   v8::Local<v8::FunctionTemplate> function_template =
       v8::FunctionTemplate::New(
           isolate,
-          nullptr,
+          DummyConstructor,
           v8::Local<v8::Value>(),
           v8::Local<v8::Signature>(),
           0);
@@ -204,6 +211,15 @@ void InitializeTemplate(v8::Isolate* isolate) {
       v8::Symbol::GetToStringTag(isolate),
       NewInternalString(isolate, "StringifierAnonymousOperationInterface"),
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+  {
+    v8::Local<v8::String> name = NewInternalString(isolate, "toString");
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, Stringifier);
+    prototype_template->Set(
+      NewInternalString(isolate, "toString"),
+      method_template);
+  }
+
 
 
 

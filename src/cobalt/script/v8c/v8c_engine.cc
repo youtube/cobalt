@@ -22,59 +22,105 @@
 #include "base/message_loop.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
+#include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
-#include "starboard/once.h"
-#include "v8/include/libplatform/libplatform.h"
-#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
 namespace v8c {
+
 namespace {
 
-SbOnceControl g_js_init_once_control = SB_ONCE_INITIALIZER;
-v8::Platform* g_platform = nullptr;
-v8::ArrayBuffer::Allocator* g_array_buffer_allocator = nullptr;
-
-void ShutDown(void*) {
-  v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
-
-  DCHECK(g_platform);
-  delete g_platform;
-  g_platform = nullptr;
-
-  DCHECK(g_array_buffer_allocator);
-  delete g_array_buffer_allocator;
-  g_array_buffer_allocator = nullptr;
+void VisitWeakHandlesForMinorGC(v8::Isolate* isolate) {
+  class V8cPersistentHandleVisitor : public v8::PersistentHandleVisitor {
+   public:
+    void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
+                               uint16_t class_id) override {
+      DCHECK(value);
+      value->MarkActive();
+    }
+  } visitor;
+  isolate->VisitWeakHandles(&visitor);
 }
 
-void InitializeAndRegisterShutDownOnce() {
-  // TODO: Initialize V8 ICU stuff here as well.
-  g_platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(g_platform);
-  v8::V8::Initialize();
-  g_array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+size_t UsedHeapSize(v8::Isolate* isolate) {
+  v8::HeapStatistics heap_statistics;
+  isolate->GetHeapStatistics(&heap_statistics);
+  return heap_statistics.used_heap_size();
+}
 
-  base::AtExitManager::RegisterCallback(ShutDown, nullptr);
+void GCPrologueCallback(v8::Isolate* isolate, v8::GCType type,
+                        v8::GCCallbackFlags) {
+  switch (type) {
+    case v8::kGCTypeScavenge:
+      TRACE_EVENT_BEGIN1("cobalt::script", "MinorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate));
+      VisitWeakHandlesForMinorGC(isolate);
+      break;
+    case v8::kGCTypeMarkSweepCompact:
+      TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate), "type", "atomic pause");
+      break;
+    case v8::kGCTypeIncrementalMarking:
+      TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate), "type", "incremental marking");
+      break;
+    case v8::kGCTypeProcessWeakCallbacks:
+      TRACE_EVENT_BEGIN2("cobalt::script", "MajorGC", "usedHeapSizeBefore",
+                         UsedHeapSize(isolate), "type", "weak processing");
+      break;
+    default:
+      NOTREACHED();
+  }
+}
+
+void GCEpilogueCallback(v8::Isolate* isolate, v8::GCType type,
+                        v8::GCCallbackFlags) {
+  switch (type) {
+    case v8::kGCTypeScavenge:
+      TRACE_EVENT_END1("cobalt::script", "MinorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    case v8::kGCTypeMarkSweepCompact:
+      TRACE_EVENT_END1("cobalt::script", "MajorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    case v8::kGCTypeIncrementalMarking:
+      TRACE_EVENT_END1("cobalt::script", "MajorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    case v8::kGCTypeProcessWeakCallbacks:
+      TRACE_EVENT_END1("cobalt::script", "MajorGC", "usedHeapSizeAfter",
+                       UsedHeapSize(isolate));
+      break;
+    default:
+      NOTREACHED();
+  }
 }
 
 }  // namespace
 
-v8::Platform* GetPlatform() { return g_platform; }
-
-V8cEngine::V8cEngine(const Options& options)
-    : accumulated_extra_memory_cost_(0), options_(options) {
+V8cEngine::V8cEngine(const Options& options) : options_(options) {
   TRACE_EVENT0("cobalt::script", "V8cEngine::V8cEngine()");
-  SbOnce(&g_js_init_once_control, InitializeAndRegisterShutDownOnce);
-  DCHECK(g_platform);
-  DCHECK(g_array_buffer_allocator);
 
-  v8::Isolate::CreateParams params;
-  params.array_buffer_allocator = g_array_buffer_allocator;
+  auto* isolate_fellowship = IsolateFellowship::GetInstance();
 
-  isolate_ = v8::Isolate::New(params);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator =
+      isolate_fellowship->array_buffer_allocator;
+  auto* startup_data = &isolate_fellowship->startup_data;
+  if (startup_data->data != nullptr) {
+    create_params.snapshot_blob = startup_data;
+  } else {
+    // Technically possible to attempt to recover here, but hitting this
+    // indicates that something is probably seriously wrong.
+    LOG(WARNING) << "Isolate fellowship startup data was null, this will "
+                    "significantly slow down startup time.";
+  }
+
+  isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);
+
   // There are 2 total isolate data slots, one for the sole |V8cEngine| (us),
   // and one for the |V8cGlobalEnvironment|.
   const int kTotalIsolateDataSlots = 2;
@@ -83,15 +129,14 @@ V8cEngine::V8cEngine(const Options& options)
 
   v8c_heap_tracer_.reset(new V8cHeapTracer(isolate_));
   isolate_->SetEmbedderHeapTracer(v8c_heap_tracer_.get());
+
+  isolate_->AddGCPrologueCallback(GCPrologueCallback);
+  isolate_->AddGCEpilogueCallback(GCEpilogueCallback);
 }
 
 V8cEngine::~V8cEngine() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::~V8cEngine");
   DCHECK(thread_checker_.CalledOnValidThread());
-
-  // This next GC is to GC everything (mostly for ASan), so we actually don't
-  // want our wrappers and wrappables to stay alive.
-  isolate_->SetEmbedderHeapTracer(nullptr);
 
   // Send a low memory notification to V8 in order to force a garbage
   // collection before shut down.  This is required to run weak callbacks that
@@ -116,16 +161,9 @@ void V8cEngine::CollectGarbage() {
   isolate_->LowMemoryNotification();
 }
 
-void V8cEngine::ReportExtraMemoryCost(size_t bytes) {
+void V8cEngine::AdjustAmountOfExternalAllocatedMemory(int64_t bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  accumulated_extra_memory_cost_ += bytes;
-
-  const bool do_collect_garbage =
-      accumulated_extra_memory_cost_ > options_.gc_threshold_bytes;
-  if (do_collect_garbage) {
-    accumulated_extra_memory_cost_ = 0;
-    CollectGarbage();
-  }
+  isolate_->AdjustAmountOfExternalAllocatedMemory(bytes);
 }
 
 bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
@@ -135,6 +173,13 @@ bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
 
 void V8cEngine::SetGcThreshold(int64_t bytes) { NOTIMPLEMENTED(); }
 
+HeapStatistics V8cEngine::GetHeapStatistics() {
+  v8::HeapStatistics v8_heap_statistics;
+  isolate_->GetHeapStatistics(&v8_heap_statistics);
+  return {v8_heap_statistics.total_heap_size(),
+          v8_heap_statistics.used_heap_size()};
+}
+
 }  // namespace v8c
 
 // static
@@ -142,12 +187,6 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new v8c::V8cEngine(options));
-}
-
-// static
-size_t JavaScriptEngine::UpdateMemoryStatsAndReturnReserved() {
-  NOTIMPLEMENTED();
-  return 0;
 }
 
 }  // namespace script

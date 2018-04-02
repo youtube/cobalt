@@ -45,6 +45,10 @@ class StarboardPlayer {
     virtual void OnNeedData(DemuxerStream::Type type) = 0;
 #endif  // !SB_HAS(PLAYER_WITH_URL)
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    virtual void OnPlayerError(SbPlayerError error,
+                               const std::string& message) = 0;
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
    protected:
     ~Host() {}
@@ -126,6 +130,10 @@ class StarboardPlayer {
     void OnDecoderStatus(SbPlayer player, SbMediaType type,
                          SbPlayerDecoderState state, int ticket);
     void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    void OnPlayerError(SbPlayer player, SbPlayerError error,
+                       const std::string& message);
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void OnDeallocateSample(const void* sample_buffer);
     void ResetPlayer();
 
@@ -154,17 +162,27 @@ class StarboardPlayer {
   void WriteNextBufferFromCache(DemuxerStream::Type type);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+  void UpdateBounds_Locked();
+
   void ClearDecoderBufferCache();
 
   void OnDecoderStatus(SbPlayer player, SbMediaType type,
                        SbPlayerDecoderState state, int ticket);
   void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  void OnPlayerError(SbPlayer player, SbPlayerError error,
+                     const std::string& message);
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   void OnDeallocateSample(const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player, void* context, SbMediaType type,
                               SbPlayerDecoderState state, int ticket);
   static void PlayerStatusCB(SbPlayer player, void* context,
                              SbPlayerState state, int ticket);
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  static void PlayerErrorCB(SbPlayer player, void* context, SbPlayerError error,
+                            const char* message);
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   static void DeallocateSampleCB(SbPlayer player, void* context,
                                  const void* sample_buffer);
 
@@ -206,15 +224,14 @@ class StarboardPlayer {
   bool paused_;
   bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
-  // If |SetBounds| is called while we are in a suspended state, then the
-  // |z_index| and |rect| that we are passed will be saved to here, and then
-  // immediately set on the new player that we construct when we are resumed.
-  base::optional<int> pending_set_bounds_z_index_;
-  base::optional<gfx::Rect> pending_set_bounds_rect_;
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
   base::Lock lock_;
+
+  // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
+  base::optional<int> set_bounds_z_index_;
+  base::optional<gfx::Rect> set_bounds_rect_;
   State state_;
   SbPlayer player_;
   uint32 cached_video_frames_decoded_;

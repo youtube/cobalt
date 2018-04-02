@@ -20,8 +20,8 @@
 {% macro check_if_object_implements_interface() %}
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->DoesObjectImplementInterface(
-        object, base::GetTypeId<{{impl_class}}>())) {
+  if (!WrapperPrivate::HasWrapperPrivate(object) ||
+      !{{binding_class}}::GetTemplate(isolate)->HasInstance(object)) {
     V8cExceptionState exception(isolate);
     exception.SetSimpleException(script::kDoesNotImplementInterface);
     return;
@@ -38,7 +38,7 @@
 {% if operation.is_static %}
 {{ static_function_prologue() }}
 {% else %}
-  v8::Local<v8::Object> object = info.This();
+  v8::Local<v8::Object> object = info.Holder();
 {{ check_if_object_implements_interface() }}
 {{ nonstatic_function_prologue(impl_class) }}
 {% endif %}

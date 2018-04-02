@@ -68,11 +68,36 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version where supporting player error messages is required.
+#define SB_PLAYER_ERROR_MESSAGE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Minimum API version for supporting system-level closed caption settings.
 #define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version for supporting audioless video playback.
+// Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where DRM session closed callback is required.
+//   Add a callback to SbDrmCreateSystem that allows a DRM system to
+//   signal that a DRM session has closed from the Starboard layer.
+//   Previously, DRM sessions could only be closed from the application layer.
+#define SB_DRM_SESSION_CLOSED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where kSbSystemPathSourceDirectory is removed.
+//   Test code looking for its static input files should instead use the `test`
+//   subdirectory in kSbSystemPathContentDirectory.
+#define SB_PATH_SOURCE_DIR_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where kSbSystemPropertyPlatformUuid is removed.
+//   This property was only ever used in platforms using `in_app_dial`.
+//   The only usage of this system property was replaced with a
+//   self-contained mechanism.
+#define SB_PROPERTY_UUID_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where kSbMediaAudioSampleTypeInt16 is deprecated.
+//   SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES has to be defined to continue
+//   support int16 audio samples after this version.
+#define SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -552,11 +577,30 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 #endif  // SB_API_VERSION >= 6
 
+#if SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+#if defined(SB_HAS_DRM_SESSION_CLOSED)
+#if !SB_HAS(DRM_SESSION_CLOSED)
+#error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
+#endif  // !SB_HAS(DRM_SESSION_CLOSED)
+#else   // defined(SB_HAS_DRM_SESSION_CLOSED)
+#define SB_HAS_DRM_SESSION_CLOSED 1
+#endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
+#endif  // SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
+
+#if SB_API_VERSION >= 8
+#if !defined(SB_HAS_ON_SCREEN_KEYBOARD)
+#error "Your platform must define SB_HAS_ON_SCREEN_KEYBOARD."
+#endif  // !defined(SB_HAS_ON_SCREEN_KEYBOARD)
+#if !defined(SB_HAS_PLAYER_WITH_URL)
+#error "Your platform must define SB_HAS_PLAYER_WITH_URL."
+#endif  // !defined(SB_HAS_PLAYER_WITH_URL)
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
@@ -566,6 +610,20 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
     (SB_API_VERSION < SB_ACCESSIBILITY_CAPTIONS_API_VERSION)
 #error "SB_HAS_CAPTIONS not supported in this API version."
 #endif
+
+#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#define SB_HAS_AUDIOLESS_VIDEO 1
+#endif
+
+#if SB_API_VERSION >= SB_PLAYER_ERROR_MESSAGE_API_VERSION
+#define SB_HAS_PLAYER_ERROR_MESSAGE 1
+#endif
+
+#if SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
+#if !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
+#endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+#endif  // SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

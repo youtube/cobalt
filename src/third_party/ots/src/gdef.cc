@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,52 +26,48 @@ const uint16_t kMaxGlyphClassDefValue = 4;
 // ParseLigCaretListTable() for the reason.
 const uint16_t kMaxCaretValueFormat = 2;
 
-bool ParseGlyphClassDefTable(ots::OpenTypeFile *file, const uint8_t *data,
-                             size_t length, const uint16_t num_glyphs) {
-  return ots::ParseClassDefTable(data, length, num_glyphs,
-                                 kMaxGlyphClassDefValue);
-}
+}  // namespace
 
-bool ParseAttachListTable(ots::OpenTypeFile *file, const uint8_t *data,
-                          size_t length, const uint16_t num_glyphs) {
+namespace ots {
+
+bool OpenTypeGDEF::ParseAttachListTable(const uint8_t *data, size_t length) {
   ots::Buffer subtable(data, length);
 
   uint16_t offset_coverage = 0;
   uint16_t glyph_count = 0;
   if (!subtable.ReadU16(&offset_coverage) ||
       !subtable.ReadU16(&glyph_count)) {
-    return OTS_FAILURE();
+    return Error("Failed to read gdef header");
   }
   const unsigned attach_points_end =
       2 * static_cast<unsigned>(glyph_count) + 4;
   if (attach_points_end > std::numeric_limits<uint16_t>::max()) {
-    return OTS_FAILURE();
+    return Error("Bad glyph count in gdef");
   }
   if (offset_coverage == 0 || offset_coverage >= length ||
       offset_coverage < attach_points_end) {
-    return OTS_FAILURE();
+    return Error("Bad coverage offset %d", offset_coverage);
   }
-  if (glyph_count > num_glyphs) {
-    OTS_WARNING("bad glyph count: %u", glyph_count);
-    return OTS_FAILURE();
+  if (glyph_count > this->m_num_glyphs) {
+    return Error("Bad glyph count %u", glyph_count);
   }
 
   std::vector<uint16_t> attach_points;
   attach_points.resize(glyph_count);
   for (unsigned i = 0; i < glyph_count; ++i) {
     if (!subtable.ReadU16(&attach_points[i])) {
-      return OTS_FAILURE();
+      return Error("Can't read attachment point %d", i);
     }
     if (attach_points[i] >= length ||
         attach_points[i] < attach_points_end) {
-      return OTS_FAILURE();
+      return Error("Bad attachment point %d of %d", i, attach_points[i]);
     }
   }
 
   // Parse coverage table
-  if (!ots::ParseCoverageTable(data + offset_coverage,
-                               length - offset_coverage, num_glyphs)) {
-    return OTS_FAILURE();
+  if (!ots::ParseCoverageTable(GetFont(), data + offset_coverage,
+                               length - offset_coverage, this->m_num_glyphs)) {
+    return Error("Bad coverage table");
   }
 
   // Parse attach point table
@@ -79,22 +75,21 @@ bool ParseAttachListTable(ots::OpenTypeFile *file, const uint8_t *data,
     subtable.set_offset(attach_points[i]);
     uint16_t point_count = 0;
     if (!subtable.ReadU16(&point_count)) {
-      return OTS_FAILURE();
+      return Error("Can't read point count %d", i);
     }
     if (point_count == 0) {
-      return OTS_FAILURE();
+      return Error("zero point count %d", i);
     }
     uint16_t last_point_index = 0;
     uint16_t point_index = 0;
     for (unsigned j = 0; j < point_count; ++j) {
       if (!subtable.ReadU16(&point_index)) {
-        return OTS_FAILURE();
+        return Error("Can't read point index %d in point %d", j, i);
       }
       // Contour point indeces are in increasing numerical order
       if (last_point_index != 0 && last_point_index >= point_index) {
-        OTS_WARNING("bad contour indeces: %u >= %u",
+        return Error("bad contour indeces: %u >= %u",
                     last_point_index, point_index);
-        return OTS_FAILURE();
       }
       last_point_index = point_index;
     }
@@ -102,44 +97,42 @@ bool ParseAttachListTable(ots::OpenTypeFile *file, const uint8_t *data,
   return true;
 }
 
-bool ParseLigCaretListTable(ots::OpenTypeFile *file, const uint8_t *data,
-                            size_t length, const uint16_t num_glyphs) {
+bool OpenTypeGDEF::ParseLigCaretListTable(const uint8_t *data, size_t length) {
   ots::Buffer subtable(data, length);
   uint16_t offset_coverage = 0;
   uint16_t lig_glyph_count = 0;
   if (!subtable.ReadU16(&offset_coverage) ||
       !subtable.ReadU16(&lig_glyph_count)) {
-    return OTS_FAILURE();
+    return Error("Can't read caret structure");
   }
   const unsigned lig_glyphs_end =
       2 * static_cast<unsigned>(lig_glyph_count) + 4;
   if (lig_glyphs_end > std::numeric_limits<uint16_t>::max()) {
-    return OTS_FAILURE();
+    return Error("Bad caret structure");
   }
   if (offset_coverage == 0 || offset_coverage >= length ||
       offset_coverage < lig_glyphs_end) {
-    return OTS_FAILURE();
+    return Error("Bad caret coverate offset %d", offset_coverage);
   }
-  if (lig_glyph_count > num_glyphs) {
-    OTS_WARNING("bad ligature glyph count: %u", lig_glyph_count);
-    return OTS_FAILURE();
+  if (lig_glyph_count > this->m_num_glyphs) {
+    return Error("bad ligature glyph count: %u", lig_glyph_count);
   }
 
   std::vector<uint16_t> lig_glyphs;
   lig_glyphs.resize(lig_glyph_count);
   for (unsigned i = 0; i < lig_glyph_count; ++i) {
     if (!subtable.ReadU16(&lig_glyphs[i])) {
-      return OTS_FAILURE();
+      return Error("Can't read ligature glyph location %d", i);
     }
     if (lig_glyphs[i] >= length || lig_glyphs[i] < lig_glyphs_end) {
-      return OTS_FAILURE();
+      return Error("Bad ligature glyph location %d in glyph %d", lig_glyphs[i], i);
     }
   }
 
   // Parse coverage table
-  if (!ots::ParseCoverageTable(data + offset_coverage,
-                               length - offset_coverage, num_glyphs)) {
-    return OTS_FAILURE();
+  if (!ots::ParseCoverageTable(GetFont(), data + offset_coverage,
+                               length - offset_coverage, this->m_num_glyphs)) {
+    return Error("Can't parse caret coverage table");
   }
 
   // Parse ligature glyph table
@@ -147,130 +140,105 @@ bool ParseLigCaretListTable(ots::OpenTypeFile *file, const uint8_t *data,
     subtable.set_offset(lig_glyphs[i]);
     uint16_t caret_count = 0;
     if (!subtable.ReadU16(&caret_count)) {
-      return OTS_FAILURE();
+      return Error("Can't read caret count for glyph %d", i);
     }
     if (caret_count == 0) {
-      OTS_WARNING("bad caret value count: %u", caret_count);
-      return OTS_FAILURE();
+      return Error("bad caret value count: %u", caret_count);
     }
 
-    std::vector<uint16_t> caret_values;
-    caret_values.resize(caret_count);
-    uint16_t last_offset_caret = 0;
-    unsigned caret_values_end = 2 * static_cast<unsigned>(caret_count) + 2;
+    std::vector<uint16_t> caret_value_offsets;
+    caret_value_offsets.resize(caret_count);
+    unsigned caret_value_offsets_end = 2 * static_cast<unsigned>(caret_count) + 2;
     for (unsigned j = 0; j < caret_count; ++j) {
-      if (!subtable.ReadU16(&caret_values[j])) {
-        return OTS_FAILURE();
+      if (!subtable.ReadU16(&caret_value_offsets[j])) {
+        return Error("Can't read caret offset %d for glyph %d", j, i);
       }
-      if (caret_values[j] >= length || caret_values[j] < caret_values_end) {
-        return OTS_FAILURE();
+      if (caret_value_offsets[j] >= length || caret_value_offsets[j] < caret_value_offsets_end) {
+        return Error("Bad caret offset %d for caret %d glyph %d", caret_value_offsets[j], j, i);
       }
-      // Caret offsets are in increasing coordinate order
-      if (last_offset_caret != 0 && last_offset_caret >= caret_values[j]) {
-        OTS_WARNING("offset isn't in increasing coordinate order: %u >= %u",
-                    last_offset_caret, caret_values[j]);
-        return OTS_FAILURE();
-      }
-      last_offset_caret = caret_values[j];
     }
 
     // Parse caret values table
     for (unsigned j = 0; j < caret_count; ++j) {
-      subtable.set_offset(lig_glyphs[i] + caret_values[j]);
+      subtable.set_offset(lig_glyphs[i] + caret_value_offsets[j]);
       uint16_t caret_format = 0;
       if (!subtable.ReadU16(&caret_format)) {
-        return OTS_FAILURE();
+        return Error("Can't read caret values table %d in glyph %d", j, i);
       }
       // TODO(bashi): We only support caret value format 1 and 2 for now
       // because there are no fonts which contain caret value format 3
       // as far as we investigated.
       if (caret_format == 0 || caret_format > kMaxCaretValueFormat) {
-        OTS_WARNING("bad caret value format: %u", caret_format);
-        return OTS_FAILURE();
+        return Error("bad caret value format: %u", caret_format);
       }
       // CaretValueFormats contain a 2-byte field which could be
       // arbitrary value.
       if (!subtable.Skip(2)) {
-        return OTS_FAILURE();
+        return Error("Bad caret value table structure %d in glyph %d", j, i);
       }
     }
   }
   return true;
 }
 
-bool ParseMarkAttachClassDefTable(ots::OpenTypeFile *file, const uint8_t *data,
-                                  size_t length, const uint16_t num_glyphs) {
-  return ots::ParseClassDefTable(data, length, num_glyphs, kMaxClassDefValue);
-}
-
-bool ParseMarkGlyphSetsDefTable(ots::OpenTypeFile *file, const uint8_t *data,
-                                size_t length, const uint16_t num_glyphs) {
+bool OpenTypeGDEF::ParseMarkGlyphSetsDefTable(const uint8_t *data, size_t length) {
   ots::Buffer subtable(data, length);
   uint16_t format = 0;
   uint16_t mark_set_count = 0;
   if (!subtable.ReadU16(&format) ||
       !subtable.ReadU16(&mark_set_count)) {
-    return OTS_FAILURE();
+    return Error("Can' read mark glyph table structure");
   }
   if (format != 1) {
-    OTS_WARNING("bad mark glyph set table format: %u", format);
-    return OTS_FAILURE();
+    return Error("bad mark glyph set table format: %u", format);
   }
 
   const unsigned mark_sets_end = 2 * static_cast<unsigned>(mark_set_count) + 4;
   if (mark_sets_end > std::numeric_limits<uint16_t>::max()) {
-    return OTS_FAILURE();
+    return Error("Bad mark_set %d", mark_sets_end);
   }
   for (unsigned i = 0; i < mark_set_count; ++i) {
     uint32_t offset_coverage = 0;
     if (!subtable.ReadU32(&offset_coverage)) {
-      return OTS_FAILURE();
+      return Error("Can't read covrage location for mark set %d", i);
     }
     if (offset_coverage >= length ||
         offset_coverage < mark_sets_end) {
-      return OTS_FAILURE();
+      return Error("Bad coverage location %d for mark set %d", offset_coverage, i);
     }
-    if (!ots::ParseCoverageTable(data + offset_coverage,
-                                 length - offset_coverage, num_glyphs)) {
-      return OTS_FAILURE();
+    if (!ots::ParseCoverageTable(GetFont(), data + offset_coverage,
+                                 length - offset_coverage, this->m_num_glyphs)) {
+      return Error("Failed to parse coverage table for mark set %d", i);
     }
   }
-  file->gdef->num_mark_glyph_sets = mark_set_count;
+  this->num_mark_glyph_sets = mark_set_count;
   return true;
 }
 
-}  // namespace
+bool OpenTypeGDEF::Parse(const uint8_t *data, size_t length) {
+  OpenTypeMAXP *maxp = static_cast<OpenTypeMAXP*>(
+      GetFont()->GetTypedTable(OTS_TAG_MAXP));
 
-#define DROP_THIS_TABLE \
-  do { file->gdef->data = 0; file->gdef->length = 0; } while (0)
-
-namespace ots {
-
-bool ots_gdef_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
-  // Grab the number of glyphs in the file from the maxp table to check
+  // Grab the number of glyphs in the font from the maxp table to check
   // GlyphIDs in GDEF table.
-  if (!file->maxp) {
-    return OTS_FAILURE();
+  if (!maxp) {
+    return Error("No maxp table in font, needed by GDEF");
   }
-  const uint16_t num_glyphs = file->maxp->num_glyphs;
+  this->m_num_glyphs = maxp->num_glyphs;
 
   Buffer table(data, length);
 
-  OpenTypeGDEF *gdef = new OpenTypeGDEF;
-  file->gdef = gdef;
-
   uint32_t version = 0;
   if (!table.ReadU32(&version)) {
-    return OTS_FAILURE();
+    return Error("Incomplete table");
   }
   if (version < 0x00010000 || version == 0x00010001) {
-    OTS_WARNING("bad GDEF version");
-    DROP_THIS_TABLE;
-    return true;
+    return Error("Bad version");
   }
 
+  bool version_2 = false;
   if (version >= 0x00010002) {
-    gdef->version_2 = true;
+    version_2 = true;
   }
 
   uint16_t offset_glyph_class_def = 0;
@@ -281,113 +249,88 @@ bool ots_gdef_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
       !table.ReadU16(&offset_attach_list) ||
       !table.ReadU16(&offset_lig_caret_list) ||
       !table.ReadU16(&offset_mark_attach_class_def)) {
-    return OTS_FAILURE();
+    return Error("Incomplete table");
   }
   uint16_t offset_mark_glyph_sets_def = 0;
-  if (gdef->version_2) {
+  if (version_2) {
     if (!table.ReadU16(&offset_mark_glyph_sets_def)) {
-      return OTS_FAILURE();
+      return Error("Incomplete table");
     }
   }
 
-  unsigned gdef_header_end = 8;
-  if (gdef->version_2)
+  unsigned gdef_header_end = 4 + 4 * 2;
+  if (version_2)
     gdef_header_end += 2;
 
   // Parse subtables
   if (offset_glyph_class_def) {
     if (offset_glyph_class_def >= length ||
         offset_glyph_class_def < gdef_header_end) {
-      return OTS_FAILURE();
+      return Error("Invalid offset to glyph classes");
     }
-    if (!ParseGlyphClassDefTable(file, data + offset_glyph_class_def,
+    if (!ots::ParseClassDefTable(GetFont(), data + offset_glyph_class_def,
                                  length - offset_glyph_class_def,
-                                 num_glyphs)) {
-      DROP_THIS_TABLE;
-      return true;
+                                 this->m_num_glyphs, kMaxGlyphClassDefValue)) {
+      return Error("Invalid glyph classes");
     }
-    gdef->has_glyph_class_def = true;
   }
 
   if (offset_attach_list) {
     if (offset_attach_list >= length ||
         offset_attach_list < gdef_header_end) {
-      return OTS_FAILURE();
+      return Error("Invalid offset to attachment list");
     }
-    if (!ParseAttachListTable(file, data + offset_attach_list,
-                              length - offset_attach_list,
-                              num_glyphs)) {
-      DROP_THIS_TABLE;
-      return true;
+    if (!ParseAttachListTable(data + offset_attach_list,
+                              length - offset_attach_list)) {
+      return Error("Invalid attachment list");
     }
   }
 
   if (offset_lig_caret_list) {
     if (offset_lig_caret_list >= length ||
         offset_lig_caret_list < gdef_header_end) {
-      return OTS_FAILURE();
+      return Error("Invalid offset to ligature caret list");
     }
-    if (!ParseLigCaretListTable(file, data + offset_lig_caret_list,
-                              length - offset_lig_caret_list,
-                              num_glyphs)) {
-      DROP_THIS_TABLE;
-      return true;
+    if (!ParseLigCaretListTable(data + offset_lig_caret_list,
+                                length - offset_lig_caret_list)) {
+      return Error("Invalid ligature caret list");
     }
   }
 
   if (offset_mark_attach_class_def) {
     if (offset_mark_attach_class_def >= length ||
         offset_mark_attach_class_def < gdef_header_end) {
-      return OTS_FAILURE();
+      return Error("Invalid offset to mark attachment list");
     }
-    if (!ParseMarkAttachClassDefTable(file,
-                                      data + offset_mark_attach_class_def,
-                                      length - offset_mark_attach_class_def,
-                                      num_glyphs)) {
-      DROP_THIS_TABLE;
-      return true;
+    if (!ots::ParseClassDefTable(GetFont(),
+                                 data + offset_mark_attach_class_def,
+                                 length - offset_mark_attach_class_def,
+                                 this->m_num_glyphs, kMaxClassDefValue)) {
+      return Error("Invalid mark attachment list");
     }
-    gdef->has_mark_attachment_class_def = true;
   }
 
   if (offset_mark_glyph_sets_def) {
     if (offset_mark_glyph_sets_def >= length ||
         offset_mark_glyph_sets_def < gdef_header_end) {
-      return OTS_FAILURE();
+      return Error("invalid offset to mark glyph sets");
     }
-    if (!ParseMarkGlyphSetsDefTable(file,
-                                    data + offset_mark_glyph_sets_def,
-                                    length - offset_mark_glyph_sets_def,
-                                    num_glyphs)) {
-      DROP_THIS_TABLE;
-      return true;
+    if (!ParseMarkGlyphSetsDefTable(data + offset_mark_glyph_sets_def,
+                                    length - offset_mark_glyph_sets_def)) {
+      return Error("Invalid mark glyph sets");
     }
-    gdef->has_mark_glyph_sets_def = true;
   }
-  gdef->data = data;
-  gdef->length = length;
+  this->m_data = data;
+  this->m_length = length;
   return true;
 }
 
-bool ots_gdef_should_serialise(OpenTypeFile *file) {
-  const bool needed_tables_dropped =
-      (file->gsub && file->gsub->data == NULL) ||
-      (file->gpos && file->gpos->data == NULL);
-  return file->gdef != NULL && file->gdef->data != NULL &&
-      !needed_tables_dropped;
-}
-
-bool ots_gdef_serialise(OTSStream *out, OpenTypeFile *file) {
-  if (!out->Write(file->gdef->data, file->gdef->length)) {
-    return OTS_FAILURE();
+bool OpenTypeGDEF::Serialize(OTSStream *out) {
+  if (!out->Write(this->m_data, this->m_length)) {
+    return Error("Failed to write table");
   }
 
   return true;
-}
-
-void ots_gdef_free(OpenTypeFile *file) {
-  delete file->gdef;
 }
 
 }  // namespace ots
-

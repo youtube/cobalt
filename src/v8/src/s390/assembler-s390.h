@@ -276,6 +276,7 @@ constexpr Register kLithiumScratch = r1;  // lithium scratch.
 constexpr Register kRootRegister = r10;   // Roots array pointer.
 constexpr Register cp = r13;              // JavaScript context pointer.
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
@@ -358,7 +359,7 @@ struct Mask {
   uint8_t mask;
   uint8_t value() { return mask; }
   static Mask from_value(uint8_t input) {
-    DCHECK(input <= 0x0F);
+    DCHECK_LE(input, 0x0F);
     Mask m = {input};
     return m;
   }
@@ -496,14 +497,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -554,10 +556,6 @@ class Assembler : public AssemblerBase {
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(static Address target_address_at(Address pc, Code* code));
-  INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
@@ -623,7 +621,7 @@ class Assembler : public AssemblerBase {
   template <class T, int size, int lo, int hi>
   inline T getfield(T value) {
     DCHECK(lo < hi);
-    DCHECK(size > 0);
+    DCHECK_GT(size, 0);
     int mask = hi - lo;
     int shift = size * 8 - hi;
     uint32_t mask_value = (mask == 32) ? 0xffffffff : (1 << mask) - 1;
@@ -1592,7 +1590,6 @@ class Assembler : public AssemblerBase {
 
   friend class RegExpMacroAssemblerS390;
   friend class RelocInfo;
-  friend class CodePatcher;
 
   std::vector<Handle<Code>> code_targets_;
   friend class EnsureSpace;

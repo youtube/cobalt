@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_V8C_V8C_USER_OBJECT_HOLDER_H_
 
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/v8c/v8c_engine.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/wrapper_private.h"
 #include "v8/include/v8.h"
@@ -79,33 +80,19 @@ class V8cUserObjectHolder
     return v8_value() == v8c_other->v8_value();
   }
 
-  void TraceMembers(Tracer* tracer) override {
-    if (!handle_.IsEmpty()) {
-      handle_.Get().RegisterExternalReference(isolate_);
-    }
-  }
-
   void RegisterOwner(Wrappable* owner) override {
-    V8cGlobalEnvironment* global_environment =
-        V8cGlobalEnvironment::GetFromIsolate(isolate_);
-    v8::HandleScope handle_scope(isolate_);
-    global_environment->AddReferencedObject(owner, v8_value());
+    V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->AddReferencedObject(
+        owner, &handle_);
   }
 
   void DeregisterOwner(Wrappable* owner) override {
-    V8cGlobalEnvironment* global_environment =
-        V8cGlobalEnvironment::GetFromIsolate(isolate_);
-    if (!global_environment) {
-      // TODO: This will get hit when finalization callbacks get run during
-      // shut down, in between the time in which an isolate and context exist.
-      // It might be safe to just no-op, but we might have to do something
-      // different, such as stopping early in the callback if some flag that
-      // lives on the isolate is set.
-      LOG(WARNING) << "DeregisterOwner after global environment destroyed.";
-      return;
+    // This will get called in destructors caused by finalizers caused by the
+    // final shutdown GC.  In this case, the entire heap tracer will have
+    // already been removed, so we don't need to bother removing ourselves.
+    V8cHeapTracer* tracer = V8cEngine::GetFromIsolate(isolate_)->heap_tracer();
+    if (tracer) {
+      tracer->RemoveReferencedObject(owner, &handle_);
     }
-    v8::HandleScope handle_scope(isolate_);
-    global_environment->RemoveReferencedObject(owner, v8_value());
   }
 
   void PreventGarbageCollection() override {
@@ -121,7 +108,12 @@ class V8cUserObjectHolder
     }
   }
 
-  const typename V8cUserObjectType::BaseType* GetScriptValue() const override {
+  typename V8cUserObjectType::BaseType* GetValue() override {
+    return const_cast<typename V8cUserObjectType::BaseType*>(
+        static_cast<const V8cUserObjectHolder&>(*this).GetValue());
+  }
+
+  const typename V8cUserObjectType::BaseType* GetValue() const override {
     return handle_.IsEmpty() ? nullptr : &handle_;
   }
 
@@ -132,6 +124,8 @@ class V8cUserObjectHolder
   }
 
   v8::Local<v8::Value> v8_value() const { return handle_.NewLocal(isolate_); }
+
+  v8::Isolate* isolate() const { return isolate_; }
 
  private:
   v8::Isolate* isolate_ = nullptr;

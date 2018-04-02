@@ -1,56 +1,39 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011-2017 The OTS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "vhea.h"
 
-#include "gsub.h"
 #include "head.h"
 #include "maxp.h"
 
 // vhea - Vertical Header Table
-// http://www.microsoft.com/opentype/otspec/vhea.htm
+// http://www.microsoft.com/typography/otspec/vhea.htm
 
 namespace ots {
 
-bool ots_vhea_parse(OpenTypeFile *file, const uint8_t *data, size_t length) {
+bool OpenTypeVHEA::Parse(const uint8_t *data, size_t length) {
   Buffer table(data, length);
-  OpenTypeVHEA *vhea = new OpenTypeVHEA;
-  file->vhea = vhea;
 
-  if (!table.ReadU32(&vhea->header.version)) {
-    return OTS_FAILURE();
+  if (!table.ReadU32(&this->version)) {
+    return Error("Failed to read version");
   }
-  if (vhea->header.version != 0x00010000 &&
-      vhea->header.version != 0x00011000) {
-    return OTS_FAILURE();
+  if (this->version != 0x00010000 &&
+      this->version != 0x00011000) {
+    return Error("Unsupported table version: 0x%x", this->version);
   }
 
-  if (!ParseMetricsHeader(file, &table, &vhea->header)) {
-    return OTS_FAILURE();
-  }
-
-  return true;
+  return OpenTypeMetricsHeader::Parse(data, length);
 }
 
-bool ots_vhea_should_serialise(OpenTypeFile *file) {
-  // vhea should'nt serialise when vmtx doesn't exist.
-  // Firefox developer pointed out that vhea/vmtx should serialise iff GSUB is
-  // preserved. See http://crbug.com/77386
-  return file->vhea != NULL && file->vmtx != NULL &&
-      ots_gsub_should_serialise(file);
+bool OpenTypeVHEA::Serialize(OTSStream *out) {
+  return OpenTypeMetricsHeader::Serialize(out);
 }
 
-bool ots_vhea_serialise(OTSStream *out, OpenTypeFile *file) {
-  if (!SerialiseMetricsHeader(out, &file->vhea->header)) {
-    return OTS_FAILURE();
-  }
-  return true;
-}
-
-void ots_vhea_free(OpenTypeFile *file) {
-  delete file->vhea;
+bool OpenTypeVHEA::ShouldSerialize() {
+  return OpenTypeMetricsHeader::ShouldSerialize() &&
+         // vhea shouldn't serialise when vmtx doesn't exist.
+         GetFont()->GetTable(OTS_TAG_VMTX) != NULL;
 }
 
 }  // namespace ots
-

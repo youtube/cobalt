@@ -347,7 +347,7 @@ bool fcn_registerCallback(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
+  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callbackInterface;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -355,12 +355,12 @@ bool fcn_registerCallback(
   FromJSValue(context,
               non_optional_value0,
               kNoConversionFlags,
-              &exception_state, &callback_interface);
+              &exception_state, &callbackInterface);
   if (exception_state.is_exception_set()) {
     return false;
   }
 
-  impl->RegisterCallback(callback_interface);
+  impl->RegisterCallback(callbackInterface);
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }

@@ -57,6 +57,16 @@ void StarboardPlayer::CallbackHelper::OnPlayerStatus(SbPlayer player,
   }
 }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void StarboardPlayer::CallbackHelper::OnPlayerError(
+    SbPlayer player, SbPlayerError error, const std::string& message) {
+  base::AutoLock auto_lock(lock_);
+  if (player_) {
+    player_->OnPlayerError(player, error, message);
+  }
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+
 void StarboardPlayer::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
   base::AutoLock auto_lock(lock_);
@@ -71,6 +81,7 @@ void StarboardPlayer::CallbackHelper::ResetPlayer() {
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
+
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const std::string& url, SbWindow window, Host* host,
@@ -108,7 +119,8 @@ StarboardPlayer::StarboardPlayer(
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
-#else
+
+#else   // SB_HAS(PLAYER_WITH_URL)
 
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
@@ -206,15 +218,16 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
 #endif  // !SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
+  base::AutoLock auto_lock(lock_);
+
+  set_bounds_z_index_ = z_index;
+  set_bounds_rect_ = rect;
+
   if (state_ == kSuspended) {
-    pending_set_bounds_z_index_ = z_index;
-    pending_set_bounds_rect_ = rect;
     return;
   }
 
-  DCHECK(SbPlayerIsValid(player_));
-  SbPlayerSetBounds(player_, z_index, rect.x(), rect.y(), rect.width(),
-                    rect.height());
+  UpdateBounds_Locked();
 }
 
 void StarboardPlayer::PrepareForSeek() {
@@ -249,7 +262,8 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   DCHECK(SbPlayerIsValid(player_));
 
   ++ticket_;
-  SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
+  SbPlayerSeek(player_, SB_TIME_TO_SB_MEDIA_TIME(time.InMicroseconds()),
+               ticket_);
   seek_pending_ = false;
   SbPlayerSetPlaybackRate(player_, playback_rate_);
 }
@@ -317,13 +331,16 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *video_frames_dropped = info.dropped_video_frames;
   }
   if (media_time) {
-    *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+    *media_time = base::TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
   }
   if (buffer_start_time) {
-    *buffer_start_time = SbMediaTimeToTimeDelta(info.buffer_start_pts);
+    *buffer_start_time = base::TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.buffer_start_pts));
   }
   if (buffer_length_time) {
-    *buffer_length_time = SbMediaTimeToTimeDelta(info.buffer_duration_pts);
+    *buffer_length_time = base::TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.buffer_duration_pts));
   }
   if (frame_width) {
     *frame_width = info.frame_width;
@@ -364,7 +381,8 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *video_frames_dropped = info.dropped_video_frames;
   }
   if (media_time) {
-    *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+    *media_time = base::TimeDelta::FromMicroseconds(
+        SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
   }
 }
 
@@ -380,7 +398,8 @@ base::TimeDelta StarboardPlayer::GetDuration() {
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
   DCHECK_NE(info.duration_pts, SB_PLAYER_NO_DURATION);
-  return SbMediaTimeToTimeDelta(info.duration_pts);
+  return base::TimeDelta::FromMicroseconds(
+      SB_MEDIA_TIME_TO_SB_TIME(info.duration_pts));
 }
 
 base::TimeDelta StarboardPlayer::GetStartDate() {
@@ -422,7 +441,8 @@ void StarboardPlayer::Suspend() {
   SbPlayerGetInfo(player_, &info);
   cached_video_frames_decoded_ = info.total_video_frames;
   cached_video_frames_dropped_ = info.dropped_video_frames;
-  preroll_timestamp_ = SbMediaTimeToTimeDelta(info.current_media_pts);
+  preroll_timestamp_ = base::TimeDelta::FromMicroseconds(
+      SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
 
   set_bounds_helper_->SetPlayer(NULL);
   video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
@@ -455,6 +475,7 @@ void StarboardPlayer::Resume() {
 
   base::AutoLock auto_lock(lock_);
   state_ = kResuming;
+  UpdateBounds_Locked();
 }
 
 namespace {
@@ -496,7 +517,11 @@ void StarboardPlayer::CreatePlayerWithUrl(const std::string& url) {
   player_ = SbPlayerCreateWithUrl(
       url.c_str(), window_, SB_PLAYER_NO_DURATION,
       &StarboardPlayer::PlayerStatusCB,
-      &StarboardPlayer::EncryptedMediaInitDataEncounteredCB, this);
+      &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      &StarboardPlayer::PlayerErrorCB,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+      this);
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -510,11 +535,8 @@ void StarboardPlayer::CreatePlayerWithUrl(const std::string& url) {
 
   set_bounds_helper_->SetPlayer(this);
 
-  if (pending_set_bounds_z_index_ && pending_set_bounds_rect_) {
-    SetBounds(*pending_set_bounds_z_index_, *pending_set_bounds_rect_);
-    pending_set_bounds_z_index_ = base::nullopt_t();
-    pending_set_bounds_rect_ = base::nullopt_t();
-  }
+  base::AutoLock auto_lock(lock_);
+  UpdateBounds_Locked();
 }
 
 #else
@@ -539,8 +561,11 @@ void StarboardPlayer::CreatePlayer() {
   player_ = SbPlayerCreate(
       window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
       has_audio ? &audio_header : NULL, &StarboardPlayer::DeallocateSampleCB,
-      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this,
-      output_mode_,
+      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      &StarboardPlayer::PlayerErrorCB,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+      this, output_mode_,
       ShellMediaPlatform::Instance()
           ->GetSbDecodeTargetGraphicsContextProvider());
   DCHECK(SbPlayerIsValid(player_));
@@ -553,14 +578,10 @@ void StarboardPlayer::CreatePlayer() {
   }
   video_frame_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-
   set_bounds_helper_->SetPlayer(this);
 
-  if (pending_set_bounds_z_index_ && pending_set_bounds_rect_) {
-    SetBounds(*pending_set_bounds_z_index_, *pending_set_bounds_rect_);
-    pending_set_bounds_z_index_ = base::nullopt_t();
-    pending_set_bounds_rect_ = base::nullopt_t();
-  }
+  base::AutoLock auto_lock(lock_);
+  UpdateBounds_Locked();
 }
 
 void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
@@ -607,17 +628,18 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
+  SbPlayerWriteSample(
+      player_, DemuxerStreamTypeToSbMediaType(type),
 #if SB_API_VERSION >= 6
-                      allocations.buffers(), allocations.buffer_sizes(),
+      allocations.buffers(), allocations.buffer_sizes(),
 #else   // SB_API_VERSION >= 6
-                      const_cast<const void**>(allocations.buffers()),
-                      const_cast<int*>(allocations.buffer_sizes()),
+      const_cast<const void**>(allocations.buffers()),
+      const_cast<int*>(allocations.buffer_sizes()),
 #endif  // SB_API_VERSION >= 6
-                      allocations.number_of_buffers(),
-                      TimeDeltaToSbMediaTime(buffer->timestamp()),
-                      type == DemuxerStream::VIDEO ? &video_info : NULL,
-                      drm_info.subsample_count > 0 ? &drm_info : NULL);
+      allocations.number_of_buffers(),
+      SB_TIME_TO_SB_MEDIA_TIME(buffer->timestamp().InMicroseconds()),
+      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      drm_info.subsample_count > 0 ? &drm_info : NULL);
 }
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -628,6 +650,19 @@ SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
 
 SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
   return output_mode_;
+}
+
+void StarboardPlayer::UpdateBounds_Locked() {
+  lock_.AssertAcquired();
+  DCHECK(SbPlayerIsValid(player_));
+
+  if (!set_bounds_z_index_ || !set_bounds_rect_) {
+    return;
+  }
+
+  auto& rect = *set_bounds_rect_;
+  SbPlayerSetBounds(player_, *set_bounds_z_index_, rect.x(), rect.y(),
+                    rect.width(), rect.height());
 }
 
 void StarboardPlayer::ClearDecoderBufferCache() {
@@ -704,7 +739,9 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }
-    SbPlayerSeek(player_, TimeDeltaToSbMediaTime(preroll_timestamp_), ticket_);
+    SbPlayerSeek(player_,
+                 SB_TIME_TO_SB_MEDIA_TIME(preroll_timestamp_.InMicroseconds()),
+                 ticket_);
     SetVolume(volume_);
     SbPlayerSetPlaybackRate(player_, playback_rate_);
     return;
@@ -712,6 +749,17 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   host_->OnPlayerStatus(state);
 }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
+                                    const std::string& message) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (player_ != player) {
+    return;
+  }
+  host_->OnPlayerError(error, message);
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -732,7 +780,7 @@ void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
 void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
                                       SbMediaType type,
                                       SbPlayerDecoderState state, int ticket) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::OnDecoderStatus,
@@ -742,16 +790,28 @@ void StarboardPlayer::DecoderStatusCB(SbPlayer player, void* context,
 // static
 void StarboardPlayer::PlayerStatusCB(SbPlayer player, void* context,
                                      SbPlayerState state, int ticket) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerStatus,
                             helper->callback_helper_, player, state, ticket));
 }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+// static
+void StarboardPlayer::PlayerErrorCB(SbPlayer player, void* context,
+                                    SbPlayerError error, const char* message) {
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+  helper->message_loop_->PostTask(
+      FROM_HERE, base::Bind(&StarboardPlayer::CallbackHelper::OnPlayerError,
+                            helper->callback_helper_, player, error,
+                            message ? std::string(message) : ""));
+}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+
 // static
 void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                                          const void* sample_buffer) {
-  StarboardPlayer* helper = reinterpret_cast<StarboardPlayer*>(context);
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
   helper->message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&StarboardPlayer::CallbackHelper::OnDeallocateSample,

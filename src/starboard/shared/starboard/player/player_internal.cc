@@ -20,28 +20,30 @@ using starboard::shared::starboard::player::InputBuffer;
 
 namespace {
 
-SbMediaTime GetMediaTime(SbMediaTime media_pts,
-                         SbTimeMonotonic media_pts_update_time) {
-  SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_pts_update_time;
-  return media_pts + elapsed * kSbMediaTimeSecond / kSbTimeSecond;
+SbTime GetMediaTime(SbTime media_time, SbTimeMonotonic media_time_update_time) {
+  SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_time_update_time;
+  return media_time + elapsed;
 }
 
 }  // namespace
 
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
-    SbMediaTime duration_pts,
+    SbTime duration,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void* context,
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
-      duration_pts_(duration_pts),
-      media_pts_(0),
-      media_pts_update_time_(SbTimeGetMonotonicNow()),
+      duration_(duration),
+      media_time_(0),
+      media_time_update_time_(SbTimeGetMonotonicNow()),
       frame_width_(0),
       frame_height_(0),
       is_paused_(true),
@@ -54,19 +56,23 @@ SbPlayerPrivate::SbPlayerPrivate(
                                player_worker_handler.Pass(),
                                decoder_status_func,
                                player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                               player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                                this,
-                               context)) {}
+                               context)) {
+}
 
-void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
+void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
   {
     starboard::ScopedLock lock(mutex_);
     SB_DCHECK(ticket_ != ticket);
-    media_pts_ = seek_to_pts;
-    media_pts_update_time_ = SbTimeGetMonotonicNow();
+    media_time_ = seek_to_time;
+    media_time_update_time_ = SbTimeGetMonotonicNow();
     ticket_ = ticket;
   }
 
-  worker_->Seek(seek_to_pts, ticket);
+  worker_->Seek(seek_to_time, ticket);
 }
 
 void SbPlayerPrivate::WriteSample(
@@ -74,7 +80,7 @@ void SbPlayerPrivate::WriteSample(
     const void* const* sample_buffers,
     const int* sample_buffer_sizes,
     int number_of_sample_buffers,
-    SbMediaTime sample_pts,
+    SbTime sample_timestamp,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* sample_drm_info) {
   if (sample_type == kSbMediaTypeVideo) {
@@ -82,7 +88,7 @@ void SbPlayerPrivate::WriteSample(
   }
   starboard::scoped_refptr<InputBuffer> input_buffer = new InputBuffer(
       sample_type, sample_deallocate_func_, this, context_, sample_buffers,
-      sample_buffer_sizes, number_of_sample_buffers, sample_pts,
+      sample_buffer_sizes, number_of_sample_buffers, sample_timestamp,
       video_sample_info, sample_drm_info);
   worker_->WriteSample(input_buffer);
 }
@@ -105,12 +111,13 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   SB_DCHECK(out_player_info != NULL);
 
   starboard::ScopedLock lock(mutex_);
-  out_player_info->duration_pts = duration_pts_;
+  // TODO: change out_player_info to have duration (in SbTime).
+  out_player_info->duration_pts = SB_TIME_TO_SB_MEDIA_TIME(duration_);
   if (is_paused_) {
-    out_player_info->current_media_pts = media_pts_;
+    out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(media_time_);
   } else {
-    out_player_info->current_media_pts =
-        GetMediaTime(media_pts_, media_pts_update_time_);
+    out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(
+        GetMediaTime(media_time_, media_time_update_time_));
   }
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
@@ -136,13 +143,13 @@ void SbPlayerPrivate::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivate::UpdateMediaTime(SbMediaTime media_time, int ticket) {
+void SbPlayerPrivate::UpdateMediaTime(SbTime media_time, int ticket) {
   starboard::ScopedLock lock(mutex_);
   if (ticket_ != ticket) {
     return;
   }
-  media_pts_ = media_time;
-  media_pts_update_time_ = SbTimeGetMonotonicNow();
+  media_time_ = media_time;
+  media_time_update_time_ = SbTimeGetMonotonicNow();
 }
 
 void SbPlayerPrivate::UpdateDroppedVideoFrames(int dropped_video_frames) {

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Cobalt preload state visibility test</title>
+  <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+  <h1>
+    <span id="unique_id">ID element</span>
+  </h1>
+  <script>
+    // In preload mode, visibility should be "prerender" and window/document
+    // should not have focus.
+    assertEqual("prerender", document.visibilityState);
+    assertFalse(document.hasFocus());
+
+    // Wait for visibility change to verify visibilityState and having focus.
+    function handleVisibilityChange() {
+      assertEqual("visible", document.visibilityState);
+      assertTrue(document.hasFocus());
+      onEndTest();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    setupFinished();
+  </script>
+</body>

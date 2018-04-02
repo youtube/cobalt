@@ -38,6 +38,7 @@
 #include "cobalt/bindings/testing/constants_interface.h"
 #include "cobalt/bindings/testing/constructor_interface.h"
 #include "cobalt/bindings/testing/constructor_with_arguments_interface.h"
+#include "cobalt/bindings/testing/convert_simple_object_interface.h"
 #include "cobalt/bindings/testing/derived_getter_setter_interface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
 #include "cobalt/bindings/testing/dictionary_interface.h"
@@ -67,6 +68,7 @@
 #include "cobalt/bindings/testing/mozjs_constants_interface.h"
 #include "cobalt/bindings/testing/mozjs_constructor_interface.h"
 #include "cobalt/bindings/testing/mozjs_constructor_with_arguments_interface.h"
+#include "cobalt/bindings/testing/mozjs_convert_simple_object_interface.h"
 #include "cobalt/bindings/testing/mozjs_derived_getter_setter_interface.h"
 #include "cobalt/bindings/testing/mozjs_derived_interface.h"
 #include "cobalt/bindings/testing/mozjs_dictionary_interface.h"
@@ -167,6 +169,7 @@ using cobalt::bindings::testing::ConditionalInterface;
 using cobalt::bindings::testing::ConstantsInterface;
 using cobalt::bindings::testing::ConstructorInterface;
 using cobalt::bindings::testing::ConstructorWithArgumentsInterface;
+using cobalt::bindings::testing::ConvertSimpleObjectInterface;
 using cobalt::bindings::testing::DOMStringTestInterface;
 using cobalt::bindings::testing::DerivedGetterSetterInterface;
 using cobalt::bindings::testing::DerivedInterface;
@@ -200,6 +203,7 @@ using cobalt::bindings::testing::MozjsConditionalInterface;
 using cobalt::bindings::testing::MozjsConstantsInterface;
 using cobalt::bindings::testing::MozjsConstructorInterface;
 using cobalt::bindings::testing::MozjsConstructorWithArgumentsInterface;
+using cobalt::bindings::testing::MozjsConvertSimpleObjectInterface;
 using cobalt::bindings::testing::MozjsDOMStringTestInterface;
 using cobalt::bindings::testing::MozjsDerivedGetterSetterInterface;
 using cobalt::bindings::testing::MozjsDerivedInterface;
@@ -992,7 +996,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 53;
+  const int kInterfaceUniqueId = 54;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
@@ -1167,6 +1171,10 @@ void MozjsGlobalEnvironment::CreateGlobalObject(
       ConstructorWithArgumentsInterface::ConstructorWithArgumentsInterfaceWrappableType(),
       base::Bind(MozjsConstructorWithArgumentsInterface::CreateProxy),
       base::Bind(MozjsConstructorWithArgumentsInterface::PrototypeClass));
+  wrapper_factory_->RegisterWrappableType(
+      ConvertSimpleObjectInterface::ConvertSimpleObjectInterfaceWrappableType(),
+      base::Bind(MozjsConvertSimpleObjectInterface::CreateProxy),
+      base::Bind(MozjsConvertSimpleObjectInterface::PrototypeClass));
   wrapper_factory_->RegisterWrappableType(
       DOMStringTestInterface::DOMStringTestInterfaceWrappableType(),
       base::Bind(MozjsDOMStringTestInterface::CreateProxy),
