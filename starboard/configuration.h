@@ -120,6 +120,14 @@
 // Minimum API version for supporting the kSbKeyMicrophone keycode
 #define SB_MICROPHONE_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add support for new decode target type,
+// kSbDecodeTargetFormat3Plane10BitYUVI420.
+//   Added kSbDecodeTargetFormat3Plane10BitYUVI420 to the SbDecodeTargetFormat
+//   enum in order to support 10-bit YUV textures.
+#define SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
