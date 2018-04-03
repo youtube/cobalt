@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!--
+ | Test case which ensures that when a pseudo-element can handle CSS
+ | transitions being applied to it properly.
+ -->
+<html>
+<head>
+  <style>
+    #block {
+      width: 100px;
+      height: 100px;
+      background-color: yellow;
+      font-size: 30px;
+    }
+    #block::after {
+      content: "";
+      display:block;
+      transform: translateX(100px);
+      width: 100px;
+      height: 100px;
+      background-color: #0f0;
+      transition: background-color 1s linear;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="block"></div>
+
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    var blockDiv = document.getElementById('block');
+
+    window.addEventListener('load', function() {
+      if (window.testRunner) {
+        // Do a layout upon the load event so that we setup our source styles
+        // that we will be transitioning from.
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      // Modify the rule that targets the pseudo-element, to trigger the
+      // transition.
+      var sheet = document.styleSheets[0];
+      var rules = sheet.cssRules;
+      rules[1].style.backgroundColor = '#00f';
+
+      if (window.testRunner) {
+        // Run the transition a bit so that it is started but not completed.
+        window.testRunner.DoNonMeasuredLayout();
+        window.testRunner.AdvanceClockByMs(500);
+
+        // Measure that the transition should now appear half-way finished.
+        window.testRunner.notifyDone();
+      }
+    });
+  </script>
+
+</body>
+</html>
