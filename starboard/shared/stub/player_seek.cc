@@ -14,6 +14,8 @@
 
 #include "starboard/player.h"
 
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 void SbPlayerSeek(SbPlayer /*player*/,
                   SbMediaTime /*seek_to_pts*/,
                   int /*ticket*/) {}
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION

@@ -17,7 +17,9 @@
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
                         SbMediaTime /*duration_pts*/,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
                         SbDrmSystem /*drm_system*/,
                         const SbMediaAudioHeader* /*audio_header*/,
                         SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,

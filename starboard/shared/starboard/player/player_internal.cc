@@ -29,7 +29,6 @@ SbTime GetMediaTime(SbTime media_time, SbTimeMonotonic media_time_update_time) {
 
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
-    SbTime duration,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -41,7 +40,6 @@ SbPlayerPrivate::SbPlayerPrivate(
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
-      duration_(duration),
       media_time_(0),
       media_time_update_time_(SbTimeGetMonotonicNow()),
       frame_width_(0),
@@ -107,18 +105,32 @@ void SbPlayerPrivate::SetBounds(int z_index,
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
+#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   SB_DCHECK(out_player_info != NULL);
 
   starboard::ScopedLock lock(mutex_);
-  // TODO: change out_player_info to have duration (in SbTime).
-  out_player_info->duration_pts = SB_TIME_TO_SB_MEDIA_TIME(duration_);
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+  out_player_info->duration_pts = SB_PLAYER_NO_DURATION;
   if (is_paused_) {
     out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(media_time_);
   } else {
     out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(
         GetMediaTime(media_time_, media_time_update_time_));
   }
+#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+  out_player_info->duration = SB_PLAYER_NO_DURATION;
+  if (is_paused_) {
+    out_player_info->current_media_timestamp = media_time_;
+  } else {
+    out_player_info->current_media_timestamp =
+        GetMediaTime(media_time_, media_time_update_time_);
+  }
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
   out_player_info->is_paused = is_paused_;
