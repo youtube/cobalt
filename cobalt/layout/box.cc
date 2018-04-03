@@ -716,7 +716,7 @@ void Box::DumpWithIndent(std::ostream* stream, int indent) const {
 #endif  // COBALT_BOX_DUMP_ENABLED
 
 namespace {
-void PopulateBaseStyleForBackgroundNode(
+void PopulateBaseStyleForBackgroundColorNode(
     const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
     const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
   // NOTE: Properties set by PopulateBaseStyleForBackgroundNode() should match
@@ -724,7 +724,7 @@ void PopulateBaseStyleForBackgroundNode(
   destination_style->set_background_color(source_style->background_color());
 }
 
-void SetupBackgroundNodeFromStyle(
+void SetupBackgroundColorNodeFromStyle(
     const base::optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
@@ -1445,8 +1445,8 @@ void Box::RenderAndAnimateBackgroundColor(
                                  border_top_width().toFloat()),
                     GetPaddingBoxSize()),
         scoped_ptr<Brush>());
-    SetupBackgroundNodeFromStyle(rounded_corners, computed_style(),
-                                 &rect_node_builder);
+    SetupBackgroundColorNodeFromStyle(rounded_corners, computed_style(),
+                                      &rect_node_builder);
     if (!rect_node_builder.rect.IsEmpty()) {
       scoped_refptr<RectNode> rect_node(new RectNode(rect_node_builder.Pass()));
       border_node_builder->AddChild(rect_node);
@@ -1455,8 +1455,8 @@ void Box::RenderAndAnimateBackgroundColor(
       // instead here.
       if (background_color_animated) {
         AddAnimations<RectNode>(
-            base::Bind(&PopulateBaseStyleForBackgroundNode),
-            base::Bind(&SetupBackgroundNodeFromStyle, rounded_corners),
+            base::Bind(&PopulateBaseStyleForBackgroundColorNode),
+            base::Bind(&SetupBackgroundColorNodeFromStyle, rounded_corners),
             *css_computed_style_declaration(), rect_node, animate_node_builder);
       }
     }

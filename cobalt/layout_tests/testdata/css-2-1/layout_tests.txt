@@ -3,10 +3,10 @@
 10-1-absolute-positioned-elements-compute-used-values-from-containing-block
 10-1-absolute-positioned-elements-container-block-is-absolute-positioned-ancestor
 10-1-absolute-positioned-elements-do-not-effect-containing-block-size
+10-1-containing-block-above-stacking-context-should-be-padding-edge-for-absolute-positioned-elements
 10-1-containing-block-should-be-ancestor-padding-edge-for-absolutely-positioned-elements
 10-1-containing-block-should-be-ancestor-padding-edge-for-fixed-positioned-elements
 10-1-containing-block-should-be-ancestor-padding-edge-for-percentage-of-absolutely-positioned-elements
-10-1-containing-block-above-stacking-context-should-be-padding-edge-for-absolute-positioned-elements
 10-1-non-positioned-stacking-context-above-containing-block-should-apply-proper-offset-to-children
 10-1-positioned-stacking-context-above-fixed-containing-block-should-apply-proper-offset-to-children
 10-3-1-auto-margin-should-become-zero-in-inline-non-replaced-elements
@@ -20,8 +20,8 @@
 10-3-3-one-auto-should-follow-from-equality
 10-3-4-block-level-replaced-box-margins-should-be-calculated-as-for-non-replaced-box
 10-3-4-block-level-replaced-box-width-should-be-calculated-as-for-inline-replaced-box
-10-3-7-absolute-element-children-with-br-elements-should-shrink-to-fit
 10-3-7-absolute-element-children-should-shrink-to-fit
+10-3-7-absolute-element-children-with-br-elements-should-shrink-to-fit
 10-3-7-absolute-position-elements-solve-for-height-when-top-and-bottom-are-specified
 10-3-7-absolute-position-elements-solve-for-width-when-left-and-right-are-specified
 10-3-7-left-and-top-position-absolute-elements-relative-to-their-containing-block
@@ -88,6 +88,7 @@
 12-1-after-pseudoelement-simple
 12-1-before-pseudoelement
 12-1-before-pseudoelement-does-not-inherit-inline-style
+12-1-before-pseudoelement-responds-to-style-change
 16-2-text-align-can-be-left-center-right
 16-2-text-align-should-not-apply-when-child-boxes-overflow
 18-4-outline
@@ -95,8 +96,8 @@
 18-4-outline-overflow-hidden
 8-1-margin-should-be-transparent
 8-3-margin-percentage-should-refer-containing-block-width
-8-3-negative_margins-should-be-allowed-to-produce_negative-box-widths
 8-3-negative-margins-should-be-allowed
+8-3-negative_margins-should-be-allowed-to-produce_negative-box-widths
 8-3-vertical-margins-should-not-apply-to-non-replaced-inline-elements
 8-4-padding-color-should-be-specified-by-background
 8-4-padding-image-should-be-specified-by-background
@@ -152,11 +153,11 @@
 9-9-1-fixed-position-element-should-not-appear-on-top-of-later-siblings
 9-9-1-nearest-ancestor-stacking-context-should-contain-element
 9-9-1-negative-z-indices
-9-9-1-relative-positioned-element-should-not-appear-on-top-of-later-sibling
 9-9-1-relative-positioned-element-should-be-included-in-containing-stacking-context
+9-9-1-relative-positioned-element-should-not-appear-on-top-of-later-sibling
 9-9-1-simple-positive-z-indices
 9-9-1-stacking-contexts-and-containing-blocks-in-separate-subtrees
 9-9-1-stacking-contexts-and-containing-blocks-with-transforms
-9-9-1-stacking-contexts-should-take-into-account-intermediate-containing-blocks
 9-9-1-stacking-contexts-differ-from-containing-blocks
+9-9-1-stacking-contexts-should-take-into-account-intermediate-containing-blocks
 9-9-1-z-index-should-only-be-applied-to-positioned-elements

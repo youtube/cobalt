@@ -71,6 +71,12 @@ class PseudoElement {
   HTMLElement* parent_element() { return parent_element_; }
   void ClearMatchingRules() { matching_rules_.clear(); }
 
+  void set_layout_boxes(scoped_ptr<LayoutBoxes> layout_boxes) {
+    layout_boxes_ = layout_boxes.Pass();
+  }
+  LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
+  void reset_layout_boxes() { layout_boxes_.reset(); }
+
  private:
   HTMLElement* parent_element_;
 
@@ -85,6 +91,9 @@ class PseudoElement {
   base::optional<cssom::AnimationSet> css_animations_;
 
   cssom::RulesWithCascadePrecedence matching_rules_;
+
+  // This contains information about the boxes generated from the element.
+  scoped_ptr<LayoutBoxes> layout_boxes_;
 
   // PseudoElement is a friend of Animatable so that animatable can insert and
   // remove animations into PseudoElement's set of animations.

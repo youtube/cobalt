@@ -77,6 +77,10 @@ This document records all notable changes made to Cobalt since the last release.
    of an array of MediaDeviceInfo objects, each partially implemented to have
    valid `label` and `kind` attributes.
 
+- **Improvements and Bug Fixes**
+  - Fix for pseudo elements not visually updating when their CSS is modified
+    (e.g. by switching their classes).
+
 ## Version 14
  - **Add support for document.hasFocus()**
 
