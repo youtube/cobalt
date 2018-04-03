@@ -234,6 +234,13 @@ class ParserImpl {
   friend int yyparse(ParserImpl* parser_impl);
 };
 
+// By Bison's convention, a function that returns next token, should
+// be named yylex().
+inline Token yylex(TokenValue* token_value, YYLTYPE* token_location,
+                   ParserImpl* parser_impl) {
+  return parser_impl->scanner().Scan(token_value, token_location);
+}
+
 // TODO: Stop deduplicating warnings.
 namespace {
 
