@@ -31,7 +31,6 @@ struct SbPlayerPrivate
 
   SbPlayerPrivate(
       SbMediaAudioCodec audio_codec,
-      SbTime duration,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -52,7 +51,11 @@ struct SbPlayerPrivate
   void WriteEndOfStream(SbMediaType stream_type);
   void SetBounds(int z_index, int x, int y, int width, int height);
 
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   void GetInfo(SbPlayerInfo* out_player_info);
+#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+  void GetInfo(SbPlayerInfo2* out_player_info);
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   void SetPause(bool pause);
   void SetPlaybackRate(double playback_rate);
   void SetVolume(double volume);
@@ -69,7 +72,6 @@ struct SbPlayerPrivate
 
   starboard::Mutex mutex_;
   int ticket_;
-  SbTime duration_;
   SbTime media_time_;
   SbTimeMonotonic media_time_update_time_;
   int frame_width_;

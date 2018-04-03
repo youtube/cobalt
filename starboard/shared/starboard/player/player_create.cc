@@ -40,7 +40,9 @@ using starboard::shared::starboard::player::PlayerWorker;
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
                         SbMediaTime duration_pts,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
                         SbDrmSystem drm_system,
                         const SbMediaAudioHeader* audio_header,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -53,6 +55,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+  SB_UNREFERENCED_PARAMETER(duration_pts);
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone &&
@@ -88,13 +93,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
 
-  SbPlayer player = new SbPlayerPrivate(
-      audio_codec, SB_MEDIA_TIME_TO_SB_TIME(duration_pts),
-      sample_deallocate_func, decoder_status_func, player_status_func,
+  SbPlayer player = new SbPlayerPrivate(audio_codec, sample_deallocate_func,
+                                        decoder_status_func, player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-      player_error_func,
+                                        player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-      context, handler.Pass());
+                                        context, handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;

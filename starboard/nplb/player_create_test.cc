@@ -60,8 +60,11 @@ TEST_F(SbPlayerTest, SunnyDay) {
 
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecAac, SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
-        &audio_header, NULL, NULL, NULL,
+        kSbMediaAudioCodecAac,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+        SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+        kSbDrmSystemInvalid, &audio_header, NULL, NULL, NULL,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         NULL,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -93,8 +96,11 @@ TEST_F(SbPlayerTest, Audioless) {
 
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
-        kSbMediaAudioCodecNone, SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
-        NULL, NULL, NULL, NULL,
+        kSbMediaAudioCodecNone,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+        SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+        kSbDrmSystemInvalid, NULL, NULL, NULL, NULL,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
         NULL,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)

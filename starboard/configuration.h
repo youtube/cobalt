@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbMediaTime is deprecated (for SbTime).
+#define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Minimum API version where supporting player error messages is required.
 #define SB_PLAYER_ERROR_MESSAGE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
