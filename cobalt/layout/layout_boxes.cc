@@ -23,10 +23,6 @@
 namespace cobalt {
 namespace layout {
 
-LayoutBoxes::LayoutBoxes() {}
-
-LayoutBoxes::~LayoutBoxes() {}
-
 LayoutBoxes::Type LayoutBoxes::type() const { return kLayoutLayoutBoxes; }
 
 // Algorithm for GetClientRects:

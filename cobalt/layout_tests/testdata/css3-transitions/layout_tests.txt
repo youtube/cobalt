@@ -1,6 +1,8 @@
 2-transition-ends-on-display-none
+2-transition-ends-on-display-none-for-pseudoelement
 2-transition-ends-on-display-none-from-ancestor
 2-transition-start-during-display-none-does-not-transition
 2-transition-start-during-display-none-does-not-transition-from-ancestor
 5-multiple-transitions-should-fire-in-correct-order
 5-simple-transition
+5-simple-transition-for-pseudoelement

@@ -664,7 +664,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
   }
 
   // Do not update computed style for descendants of "display: none" elements,
-  // since they do not participate in layout. Note the "display: node" elements
+  // since they do not participate in layout. Note the "display: none" elements
   // themselves still need to have their computed style updated, in case the
   // value of display is changed.
   if (computed_style()->display() == cssom::KeywordValue::GetNone()) {
@@ -735,30 +735,57 @@ void HTMLElement::InvalidateComputedStylesOfNodeAndDescendants() {
 }
 
 void HTMLElement::InvalidateLayoutBoxesOfNodeAndAncestors() {
-  layout_boxes_.reset();
+  InvalidateLayoutBoxes();
   InvalidateLayoutBoxesOfAncestors();
 }
 
 void HTMLElement::InvalidateLayoutBoxesOfNodeAndDescendants() {
-  layout_boxes_.reset();
+  InvalidateLayoutBoxes();
   InvalidateLayoutBoxesOfDescendants();
 }
 
 void HTMLElement::InvalidateLayoutBoxSizes() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateSizes();
+
+    for (auto& pseudo_element : pseudo_elements_) {
+      if (pseudo_element && pseudo_element->layout_boxes()) {
+        pseudo_element->layout_boxes()->InvalidateSizes();
+      }
+    }
   }
 }
 
 void HTMLElement::InvalidateLayoutBoxCrossReferences() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateCrossReferences();
+
+    for (auto& pseudo_element : pseudo_elements_) {
+      if (pseudo_element && pseudo_element->layout_boxes()) {
+        pseudo_element->layout_boxes()->InvalidateCrossReferences();
+      }
+    }
   }
 }
 
 void HTMLElement::InvalidateLayoutBoxRenderTreeNodes() {
   if (layout_boxes_) {
     layout_boxes_->InvalidateRenderTreeNodes();
+
+    for (auto& pseudo_element : pseudo_elements_) {
+      if (pseudo_element && pseudo_element->layout_boxes()) {
+        pseudo_element->layout_boxes()->InvalidateRenderTreeNodes();
+      }
+    }
+  }
+}
+
+void HTMLElement::InvalidateLayoutBoxes() {
+  layout_boxes_.reset();
+  for (auto& pseudo_element : pseudo_elements_) {
+    if (pseudo_element) {
+      pseudo_element->reset_layout_boxes();
+    }
   }
 }
 

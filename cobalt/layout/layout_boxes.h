@@ -28,8 +28,9 @@ namespace layout {
 
 class LayoutBoxes : public dom::LayoutBoxes {
  public:
-  LayoutBoxes();
-  ~LayoutBoxes() override;
+  LayoutBoxes() {}
+  explicit LayoutBoxes(Boxes&& boxes) : boxes_(std::move(boxes)) {}
+  ~LayoutBoxes() override{};
 
   // From: dom:LayoutBoxes
   //
@@ -60,7 +61,6 @@ class LayoutBoxes : public dom::LayoutBoxes {
 
   // Other
   //
-  void SwapBoxes(Boxes& boxes) { boxes_.swap(boxes); }
   const Boxes& boxes() { return boxes_; }
 
  private:
