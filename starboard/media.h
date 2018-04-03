@@ -31,11 +31,13 @@ extern "C" {
 
 // --- Types -----------------------------------------------------------------
 
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 // Time represented in 90KHz ticks.
 typedef int64_t SbMediaTime;
 
 #define SB_MEDIA_TIME_TO_SB_TIME(media) (media * 100 / 9)
 #define SB_TIME_TO_SB_MEDIA_TIME(time) (time * 9 / 100)
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
 // Types of media component streams.
 typedef enum SbMediaType {
@@ -475,11 +477,13 @@ typedef struct SbMediaAudioHeader {
 #endif  // SB_API_VERSION >= 6
 } SbMediaAudioHeader;
 
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 // --- Constants -------------------------------------------------------------
 
-// TODO: remove kSbMediaTimeSecond.
+// TODO: remove entirely.
 // One second in SbMediaTime (90KHz ticks).
 #define kSbMediaTimeSecond ((SbMediaTime)(90000))
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
 // --- Functions -------------------------------------------------------------
 

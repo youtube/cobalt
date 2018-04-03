@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,7 @@
 
 #include "starboard/player.h"
 
-#include "starboard/log.h"
-#include "starboard/shared/starboard/player/player_internal.h"
-
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
-  if (!SbPlayerIsValid(player)) {
-    SB_DLOG(WARNING) << "player is invalid.";
-    return;
-  }
-
-  if (out_player_info == NULL) {
-    SB_DLOG(WARNING) << "out_player_info is NULL.";
-    return;
-  }
-
-  player->GetInfo(out_player_info);
+#if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+void SbPlayerGetInfo2(SbPlayer /*player*/, SbPlayerInfo2* /*out_player_info*/) {
 }
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION

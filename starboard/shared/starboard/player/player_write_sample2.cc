@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,20 +20,15 @@
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-void SbPlayerWriteSample(SbPlayer player,
-                         SbMediaType sample_type,
-#if SB_API_VERSION >= 6
-                         const void* const* sample_buffers,
-                         const int* sample_buffer_sizes,
-#else   // SB_API_VERSION >= 6
-                         const void** sample_buffers,
-                         int* sample_buffer_sizes,
-#endif  // SB_API_VERSION >= 6
-                         int number_of_sample_buffers,
-                         SbMediaTime sample_pts,
-                         const SbMediaVideoSampleInfo* video_sample_info,
-                         const SbDrmSampleInfo* sample_drm_info) {
+#if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+void SbPlayerWriteSample2(SbPlayer player,
+                          SbMediaType sample_type,
+                          const void* const* sample_buffers,
+                          const int* sample_buffer_sizes,
+                          int number_of_sample_buffers,
+                          SbTime sample_timestamp,
+                          const SbMediaVideoSampleInfo* video_sample_info,
+                          const SbDrmSampleInfo* sample_drm_info) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;
@@ -55,8 +50,6 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
-  SbTime sample_timestamp = SB_MEDIA_TIME_TO_SB_TIME(sample_pts);
-
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerWriteSample(
@@ -69,4 +62,4 @@ void SbPlayerWriteSample(SbPlayer player,
                       number_of_sample_buffers, sample_timestamp,
                       video_sample_info, sample_drm_info);
 }
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
