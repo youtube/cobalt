@@ -1,3 +1,4 @@
 # Cobalt's special tests that borrows WPT infrastructures.
 
 origin-clean.htm,PASS
+preflight-cache-2.htm,PASS
