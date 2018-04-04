@@ -237,6 +237,11 @@ const char kOffscreenTargetCacheSizeInBytesHelp[] =
     "limit allows. It is recommended that enough memory be reserved for two "
     "RGBA atlases about a quarter of the frame size.";
 
+const char kQrCodeOverlay[] = "qr_code_overlay";
+const char kQrCodeOverlayHelp[] =
+    "Display QrCode based overlay information. These information can be used"
+    " for performance tuning or playback quality check.";
+
 const char kReduceCpuMemoryBy[] = "reduce_cpu_memory_by";
 const char kReduceCpuMemoryByHelp[] =
     "Reduces the cpu-memory of the system by this amount. This causes AutoMem "
@@ -359,6 +364,7 @@ std::string HelpMessage() {
         {kMaxCobaltGpuUsage, kMaxCobaltGpuUsageHelp},
         {kOffscreenTargetCacheSizeInBytes,
          kOffscreenTargetCacheSizeInBytesHelp},
+        {kQrCodeOverlay, kQrCodeOverlayHelp},
         {kReduceCpuMemoryBy, kReduceCpuMemoryByHelp},
         {kReduceGpuMemoryBy, kReduceGpuMemoryByHelp},
         {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},

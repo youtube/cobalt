@@ -110,6 +110,8 @@ extern const char kMaxCobaltGpuUsage[];
 extern const char kMaxCobaltGpuUsageHelp[];
 extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kOffscreenTargetCacheSizeInBytesHelp[];
+extern const char kQrCodeOverlay[];
+extern const char kQrCodeOverlayHelp[];
 extern const char kReduceCpuMemoryBy[];
 extern const char kReduceCpuMemoryByHelp[];
 extern const char kReduceGpuMemoryBy[];
