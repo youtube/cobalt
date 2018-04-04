@@ -54,6 +54,8 @@
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/overlay_info/qr_code_overlay.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/renderer_module.h"
@@ -224,6 +226,13 @@ class BrowserModule {
       const browser::WebModule::LayoutResults& layout_results);
   void OnSplashScreenRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
+
+  // Glue function to deal with the production of the qr code overlay render
+  // tree, and will manage handing it off to the renderer.
+  void QueueOnQrCodeOverlayRenderTreeProduced(
+      const scoped_refptr<render_tree::Node>& render_tree);
+  void OnQrCodeOverlayRenderTreeProduced(
+      const scoped_refptr<render_tree::Node>& render_tree);
 
   // Saves/loads the debug console mode to/from local storage so we can
   // persist the user's preference.
@@ -456,6 +465,7 @@ class BrowserModule {
 #if defined(ENABLE_DEBUG_CONSOLE)
   scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+  scoped_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
 
 #if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
@@ -534,6 +544,9 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
+
+  // The qr code overlay to display qr codes on top of all layers.
+  scoped_ptr<overlay_info::QrCodeOverlay> qr_code_overlay_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
