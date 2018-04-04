@@ -45,6 +45,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/input/input_device_manager_fuzzer.h"
+#include "cobalt/overlay_info/overlay_info_registry.h"
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
 #include "starboard/configuration.h"
@@ -116,10 +117,12 @@ const float kLayoutMaxRefreshFrequencyInHz = 60.0f;
 
 const int kMainWebModuleZIndex = 1;
 const int kSplashScreenZIndex = 2;
+#if defined(ENABLE_DEBUG_CONSOLE)
+const int kDebugConsoleZIndex = 3;
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+const int kOverlayInfoZIndex = 4;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-
-const int kDebugConsoleZIndex = 3;
 
 const char kFuzzerToggleCommand[] = "fuzzer_toggle";
 const char kFuzzerToggleCommandShortHelp[] = "Toggles the input fuzzer on/off.";
@@ -302,6 +305,8 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+
   // Create the main web module layer.
   main_web_module_layer_ =
       render_tree_combiner_.CreateLayer(kMainWebModuleZIndex);
@@ -311,6 +316,12 @@ BrowserModule::BrowserModule(const GURL& url,
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_console_layer_ = render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
 #endif
+  if (command_line->HasSwitch(browser::switches::kQrCodeOverlay)) {
+    qr_overlay_info_layer_ =
+        render_tree_combiner_.CreateLayer(kOverlayInfoZIndex);
+  } else {
+    overlay_info::OverlayInfoRegistry::Disable();
+  }
 
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
@@ -332,7 +343,6 @@ BrowserModule::BrowserModule(const GURL& url,
         base::Bind(&CreateExtensionInterface);
   }
 
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
 #if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
     OnFuzzerToggle(std::string());
@@ -362,6 +372,13 @@ BrowserModule::BrowserModule(const GURL& url,
 
   if (command_line->HasSwitch(switches::kEnableMapToMeshRectanglar)) {
     options_.web_module_options.enable_map_to_mesh_rectangular = true;
+  }
+
+  if (qr_overlay_info_layer_) {
+    qr_code_overlay_.reset(new overlay_info::QrCodeOverlay(
+        GetViewportSize(), GetResourceProvider(),
+        base::Bind(&BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced,
+                   base::Unretained(this))));
   }
 
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
@@ -720,6 +737,34 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
 // a screenshot is taken : there will be a race condition on which
 // web module update their render tree last.
 #endif
+
+  SubmitCurrentRenderTreeToRenderer();
+}
+
+void BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced(
+    const scoped_refptr<render_tree::Node>& render_tree) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced()");
+  render_tree_submission_queue_.AddMessage(
+      base::Bind(&BrowserModule::OnQrCodeOverlayRenderTreeProduced,
+                 base::Unretained(this), render_tree));
+  self_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
+}
+
+void BrowserModule::OnQrCodeOverlayRenderTreeProduced(
+    const scoped_refptr<render_tree::Node>& render_tree) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnQrCodeOverlayRenderTreeProduced()");
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(qr_overlay_info_layer_);
+
+  if (application_state_ == base::kApplicationStatePreloading) {
+    return;
+  }
+
+  qr_overlay_info_layer_->Submit(renderer::Submission(render_tree));
 
   SubmitCurrentRenderTreeToRenderer();
 }
@@ -1454,6 +1499,10 @@ void BrowserModule::UpdateScreenSize() {
   if (web_module_) {
     web_module_->SetSize(size, video_pixel_ratio);
   }
+
+  if (qr_code_overlay_) {
+    qr_code_overlay_->SetSize(size);
+  }
 }
 
 void BrowserModule::SuspendInternal(bool is_start) {
@@ -1465,6 +1514,10 @@ void BrowserModule::SuspendInternal(bool is_start) {
     FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Prestart());
   } else {
     FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Suspend());
+  }
+
+  if (qr_code_overlay_) {
+    qr_code_overlay_->SetResourceProvider(NULL);
   }
 
   // Flush out any submitted render trees pushed since we started shutting down
@@ -1487,6 +1540,9 @@ void BrowserModule::SuspendInternal(bool is_start) {
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_console_layer_->Reset();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+  if (qr_overlay_info_layer_) {
+    qr_overlay_info_layer_->Reset();
+  }
 
   if (media_module_) {
     media_module_->Suspend();
@@ -1519,6 +1575,9 @@ void BrowserModule::StartOrResumeInternalPreStateUpdate(bool is_start) {
   } else {
     FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                       Resume(GetResourceProvider()));
+  }
+  if (qr_code_overlay_) {
+    qr_code_overlay_->SetResourceProvider(GetResourceProvider());
   }
 }
 
