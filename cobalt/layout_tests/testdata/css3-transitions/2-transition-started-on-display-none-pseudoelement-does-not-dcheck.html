@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+ | Test case to handle a particular bug where a DCHECK could result when a
+ | pseudoelement's animations/transitions are not cleared properly while
+ | moving from a parent's "display: none" to the main div's "display: none".
+ | In the end, we expect the final result to be that no DCHECKs get set off,
+ | and that the transition appears to have been fully completed.
+ -->
+<html>
+<head>
+  <style>
+    #block {
+      width: 100px;
+      height: 100px;
+      background-color: yellow;
+      font-size: 30px;
+    }
+    #block::after {
+      content: "";
+      display:block;
+      transform: translateX(100px);
+      width: 100px;
+      height: 100px;
+      background-color: #0f0;
+      transition: background-color 1s linear;
+    }
+  </style>
+</head>
+<body>
+  <div id="parent">
+    <div id="block"></div>
+  </div>
+
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    var parentDiv = document.getElementById('parent');
+    var blockDiv = document.getElementById('block');
+
+    window.addEventListener('load', function() {
+      if (window.testRunner) {
+        // Do a layout upon the load event so that we setup our source styles
+        // that we will be transitioning from.
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      // Modify the rule that targets the pseudo-element, to trigger the
+      // transition.
+      var sheet = document.styleSheets[0];
+      var rules = sheet.cssRules;
+      rules[1].style.backgroundColor = '#00f';
+
+      if (window.testRunner) {
+        // Do a layout to start the transition.
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      // Set the parent div's display to none.  This should have the effect
+      // of hiding the parent div and cancelling all descendant animations
+      // and transitions, like the one we started above.
+      parentDiv.style.display = "none";
+
+      if (window.testRunner) {
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      // Reveal the parent div but hide the main div at the same time.  This
+      // should result in the main div having its computed style calculated
+      // again, even though we do nothing with it because it still has its
+      // display set to none.  This is mostly just a sanity check to make
+      // sure no DCHECKs go off, as a bug had been found in this case before.
+      parentDiv.style.display = "block";
+      blockDiv.style.display = "none";
+
+      if (window.testRunner) {
+        // Run the transition a bit so that it is started but not completed.
+        window.testRunner.AdvanceClockByMs(500);
+        window.testRunner.DoNonMeasuredLayout();
+
+        blockDiv.style.display = "block";
+
+        // Measure that the transition should now appear to be fully completed.
+        window.testRunner.notifyDone();
+      }
+    });
+  </script>
+
+</body>
+</html>
