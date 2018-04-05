@@ -14,8 +14,8 @@
 
 #include "starboard/system.h"
 
-#include <linux/if.h>  // NOLINT(build/include_alpha)
 #include <netdb.h>
+#include <linux/if.h>  // NOLINT(build/include_alpha)
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
