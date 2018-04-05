@@ -103,7 +103,7 @@
     'defines': [
       # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
       # nasty macros (|Status|, for example) that conflict with Chromium base.
-      #'MESA_EGL_NO_X11_HEADERS'
+      'MESA_EGL_NO_X11_HEADERS'
     ],
     'target_conditions': [
       ['clang==1', {
