@@ -24,7 +24,9 @@
 
     'platform_libraries': [
       '-lasound',
-      '-ldl',
+      '-lavcodec',
+      '-lavformat',
+      '-lavutil',
       '-lm',
       '-lpthread',
       '-lrt',
