@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <X11/Xlib.h>
 #include "cobalt/renderer/backend/egl/display.h"
 
 extern "C" EGLDisplay __real_eglGetDisplay(EGLNativeDisplayType native_display);
@@ -20,7 +21,7 @@ extern "C" EGLDisplay __wrap_eglGetDisplay(EGLNativeDisplayType native_display);
 extern "C" EGLBoolean __real_eglTerminate(EGLDisplay display);
 extern "C" EGLBoolean __wrap_eglTerminate(EGLDisplay display);
 
-NativeDisplayType native_display_;
+Display* native_display_;
 
 extern "C" EGLDisplay
     __wrap_eglGetDisplay(EGLNativeDisplayType native_display) {
@@ -30,6 +31,6 @@ extern "C" EGLDisplay
 
 extern "C" EGLBoolean __wrap_eglTerminate(EGLDisplay display) {
   EGLBoolean result = __real_eglTerminate(display);
-  XCloseDisplay((NativeDisplayType) native_display_);
+  XCloseDisplay(native_display_);
   return result;
 }
