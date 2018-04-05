@@ -68,15 +68,19 @@ DecoderBuffer::DecoderBuffer(Allocator* allocator, Type type,
     return;
   }
 
-  SbMemoryCopy(data_.get(), data, size_);
+  if (has_data()) {
+    SbMemoryCopy(data_.get(), data, size_);
+  }
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
     return;
   }
 
-  DCHECK_GT(side_data_size_, 0u);
-  SbMemoryCopy(side_data_.get(), side_data, side_data_size_);
+  if (has_side_data()) {
+    DCHECK_GT(side_data_size_, 0u);
+    SbMemoryCopy(side_data_.get(), side_data, side_data_size_);
+  }
 }
 
 DecoderBuffer::~DecoderBuffer() {}

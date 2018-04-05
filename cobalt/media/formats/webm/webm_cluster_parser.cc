@@ -512,7 +512,10 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
     buffer = StreamParserBuffer::CopyFrom(
         buffer_allocator_, data + data_offset, size - data_offset, additional,
         additional_size, is_keyframe, buffer_type, track_num);
-
+    if (!buffer) {
+      MEDIA_LOG(ERROR, media_log_) << "Failed to allocate StreamParserBuffer";
+      return false;
+    }
     if (decrypt_config) buffer->set_decrypt_config(decrypt_config.Pass());
   } else {
     std::string id, settings, content;
@@ -529,6 +532,10 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
         buffer_allocator_, reinterpret_cast<const uint8_t*>(content.data()),
         content.length(), &side_data[0], side_data.size(), true, buffer_type,
         track_num);
+    if (!buffer) {
+      MEDIA_LOG(ERROR, media_log_) << "Failed to allocate StreamParserBuffer";
+      return false;
+    }
   }
 
   buffer->set_timestamp(timestamp);
