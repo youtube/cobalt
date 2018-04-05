@@ -92,6 +92,11 @@
   },
 
   'target_defaults': {
+    'defines': [
+      # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
+      # nasty macros (|Status|, for example) that conflict with Chromium base.
+      'MESA_EGL_NO_X11_HEADERS'
+    ],
     'cflags_c': [
       # Limit to C99. This allows Linux to be a canary build for any
       # C11 features that are not supported on some platforms' compilers.
