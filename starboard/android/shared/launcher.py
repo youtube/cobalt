@@ -39,6 +39,9 @@ _RE_ADB_AM_MONITOR_ERROR = re.compile(r'\*\* ERROR')
 # Matches the prefix that logcat prepends to starboad log lines.
 _RE_STARBOARD_LOGCAT_PREFIX = re.compile(r'^.* starboard: ')
 
+# Matches an IPv4 address with an optional port number
+_RE_IP_ADDRESS = re.compile(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$')
+
 # String added to queue to indicate process has crashed
 _QUEUE_CODE_CRASHED = 'crashed'
 
@@ -143,6 +146,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     if not self.device_id:
       self.device_id = self._IdentifyDevice()
+    else:
+      self._ConnectIfNecessary()
 
     self.adb_builder = AdbCommandBuilder(self.device_id)
 
@@ -194,6 +199,27 @@ class Launcher(abstract_launcher.AbstractLauncher):
       device_name = devices[0]
 
     return device_name
+
+  def _ConnectIfNecessary(self):
+    """Run ADB connect if needed for devices connected over IP."""
+    if not self.device_id or not re.search(_RE_IP_ADDRESS, self.device_id):
+      return
+    for device in self._GetAdbDevices():
+      # Devices returned by _GetAdbDevices might include port number, so cannot
+      # simply check if self.device_id is in the returned list.
+      if self.device_id in device:
+        return
+
+    # Device isn't connected. Run ADB connect.
+    # Does not use the ADBCommandBuilder class because this command should be
+    # run without targeting a specific device.
+    p = subprocess.Popen([_ADB, 'connect', self.device_id], stderr=_DEV_NULL,
+                         stdout=subprocess.PIPE, close_fds=True)
+    result = p.stdout.readlines()[0]
+    p.wait()
+
+    if 'connected to' not in result:
+      sys.stderr.write('Failed to connect to {}\n'.format(self.device_id))
 
   def _LaunchCrowIfNecessary(self):
     if self.device_id:
