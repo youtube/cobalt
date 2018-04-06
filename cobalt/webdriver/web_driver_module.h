@@ -71,7 +71,7 @@ class WebDriverModule {
 
  private:
   void StartServer(int server_port, const std::string& listen_ip);
-  void StopServer();
+  void StopServerAndSession();
   void GetServerStatus(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,

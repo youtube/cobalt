@@ -26,8 +26,7 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
 ]
 # These tests only need app launchers with webdriver.
 _TESTS_NO_SIGNAL = [
-    # TODO: Re-enable cookie test after its flakiness is resovled.
-    # 'persistent_cookie',
+    'persistent_cookie',
     'allow_eval',
     'disable_eval_with_csp',
 ]
