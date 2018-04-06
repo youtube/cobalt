@@ -24,11 +24,11 @@ namespace {
 template <typename T>
 struct InterfaceToMozjs;
 
-#define COBALT_SCRIPT_DEFINE_INTERFACE_TO_MOZJS(array, ctype)                \
-  template <>                                                                \
-  struct InterfaceToMozjs<array> {                                           \
-    using Result = mozjs::Mozjs##array;                                      \
-    static constexpr auto JS_NewArrayWithBuffer = JS_New##array##WithBuffer; \
+#define COBALT_SCRIPT_DEFINE_INTERFACE_TO_MOZJS(array, ctype)                 \
+  template <>                                                                 \
+  struct InterfaceToMozjs<array> {                                            \
+    using Result = mozjs::Mozjs##array;                                       \
+    static constexpr auto JS_NewArrayWithBuffer = &JS_New##array##WithBuffer; \
   };
 COBALT_SCRIPT_TYPED_ARRAY_LIST(COBALT_SCRIPT_DEFINE_INTERFACE_TO_MOZJS)
 #undef COBALT_SCRIPT_DEFINE_INTERFACE_TO_MOZJS
