@@ -454,8 +454,8 @@ WebDriverModule::WebDriverModule(
 }  // NOLINT(readability/fn_size)
 
 WebDriverModule::~WebDriverModule() {
-  webdriver_thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebDriverModule::StopServer,
+  webdriver_thread_.message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebDriverModule::StopServerAndSession,
                             base::Unretained(this)));
   webdriver_thread_.Stop();
 }  // NOLINT(readability/fn_size)
@@ -484,8 +484,9 @@ void WebDriverModule::StartServer(int server_port,
       "Cobalt.Server.WebDriver"));
 }
 
-void WebDriverModule::StopServer() {
+void WebDriverModule::StopServerAndSession() {
   webdriver_server_.reset();
+  session_.reset();
 }
 
 SessionDriver* WebDriverModule::GetSessionDriver(
