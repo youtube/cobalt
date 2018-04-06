@@ -144,7 +144,7 @@ void MediaDecoder::WriteInputBuffer(
   if (!SbThreadIsValid(decoder_thread_)) {
     decoder_thread_ = SbThreadCreate(
         0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true,
-        media_type_ == kSbMediaTypeAudio ? "audio_decoder" : "audio_decoder",
+        media_type_ == kSbMediaTypeAudio ? "audio_decoder" : "video_decoder",
         &MediaDecoder::ThreadEntryPoint, this);
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
