@@ -440,7 +440,9 @@ bool LookupIterator::PrepareTransitionToDataProperty(
          (GetAccessors()->IsAccessorInfo() &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
   DCHECK_NE(INTEGER_INDEXED_EXOTIC, state_);
+#if !defined(COBALT_ARRAY_BUFFER_COLLISION_WORKAROUND)
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
+#endif
 
   Handle<Map> map(receiver->map(), isolate_);
 
@@ -455,7 +457,9 @@ bool LookupIterator::PrepareTransitionToDataProperty(
           global, name(), PropertyCellType::kUninitialized, &entry);
       Handle<GlobalDictionary> dictionary(global->global_dictionary(),
                                           isolate_);
+#if !defined(COBALT_ARRAY_BUFFER_COLLISION_WORKAROUND)
       DCHECK(cell->value()->IsTheHole(isolate_));
+#endif
       DCHECK(!value->IsTheHole(isolate_));
       transition_ = cell;
       // Assign an enumeration index to the property and update
