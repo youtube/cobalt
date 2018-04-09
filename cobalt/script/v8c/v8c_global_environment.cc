@@ -118,7 +118,9 @@ bool V8cGlobalEnvironment::EvaluateScript(
   }
 
   if (out_result_utf8) {
-    *out_result_utf8 = *v8::String::Utf8Value(isolate_, result);
+    V8cExceptionState exception_state(isolate_);
+    FromJSValue(isolate_, result, kNoConversionFlags, &exception_state,
+                out_result_utf8);
   }
 
   return true;
