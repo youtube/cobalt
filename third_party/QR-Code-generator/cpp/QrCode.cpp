@@ -50,6 +50,7 @@ int QrCode::getFormatBits(Ecc ecl) {
 		case Ecc::HIGH    :  return 2;
 		default:  throw "Assertion error";
 	}
+	return 0;
 }
 
 
