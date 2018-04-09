@@ -417,4 +417,20 @@ namespace v8 { template <typename T> class AlignOfHelper { char c; T t; }; }
 
 // clang-format on
 
+// Prior to mid-2018, Cobalt had its own array buffers / typed array
+// implementations, which were implemented the way other normal web IDL
+// platform objects are implemented.  When they are registered via
+// FunctionTemplates during bindings initialization, they cause many V8
+// internal DCHECKs to trigger, as V8 codes around the invariant of no object
+// properties being replaced by templates.  These specific DCHECKs are
+// temporarily disabled in order to allow all other DCHECKs to be turned on.
+// Once DOM array buffers are replaced with script array buffers, these
+// DCHECKs should be re-enabled (by removing this macro and all references to
+// it).
+//
+// tl;dr V8 doesn't like Cobalt's array buffers, and fights back with DCHECKs.
+#if defined(COBALT)
+#define COBALT_ARRAY_BUFFER_COLLISION_WORKAROUND 1
+#endif
+
 #endif  // V8CONFIG_H_
