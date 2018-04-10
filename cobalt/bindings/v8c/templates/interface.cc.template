@@ -117,7 +117,6 @@ void NamedPropertyGetterCallback(
     return;
   }
   info.GetReturnValue().Set(result_value);
-  DCHECK(!exception_state.is_exception_set());
 }
 
 {% if not indexed_property_getter %}
@@ -202,8 +201,10 @@ void NamedPropertySetterCallback(
                         named_property_setter.name, ["property_name", "native_value"],
                         named_property_setter.raises_exception,
                         named_property_setter.call_with) }}
+  if (exception_state.is_exception_set()) {
+    return;
+  }
   info.GetReturnValue().Set(value);
-  DCHECK(!exception_state.is_exception_set());
 }
 
 {% if not indexed_property_setter %}
