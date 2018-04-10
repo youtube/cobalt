@@ -29,6 +29,8 @@ class Tracer;
 
 class Traceable {
  public:
+  virtual ~Traceable() {}
+
   // Trace all native |Traceable|s accessible by the |Traceable|.  Any class
   // that owns a |Traceable| must implement this interface and trace each of
   // its |Traceable| members.  Note that here, "owns" means is accessible from

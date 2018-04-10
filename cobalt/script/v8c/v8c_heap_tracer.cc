@@ -49,6 +49,10 @@ void V8cHeapTracer::TracePrologue() {
   // manually decide to trace the from the global object.
   MaybeAddToFrontier(
       V8cGlobalEnvironment::GetFromIsolate(isolate_)->global_wrappable());
+
+  for (Traceable* traceable : roots_) {
+    MaybeAddToFrontier(traceable);
+  }
 }
 
 bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms,
@@ -128,6 +132,12 @@ void V8cHeapTracer::RemoveReferencedObject(Wrappable* owner,
       [&](decltype(*pair_range.first) it) { return it.second == value; });
   DCHECK(it != pair_range.second);
   reference_map_.erase(it);
+}
+
+void V8cHeapTracer::AddRoot(Traceable* traceable) { roots_.insert(traceable); }
+
+void V8cHeapTracer::RemoveRoot(Traceable* traceable) {
+  roots_.erase(traceable);
 }
 
 void V8cHeapTracer::MaybeAddToFrontier(Traceable* traceable) {
