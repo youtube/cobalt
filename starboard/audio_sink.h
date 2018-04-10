@@ -81,7 +81,11 @@ SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 // audio sink, and returns an opaque handle to the audio sink.
 //
 // If the particular platform doesn't support the requested audio sink, the
-// function returns kSbAudioSinkInvalid without calling any of the callbacks.
+// function returns |kSbAudioSinkInvalid| without calling any of the callbacks.
+// If there is a platform limitation on how many audio sinks can coexist
+// simultaneously, then calls made to this function that attempt to exceed
+// that limit must return |kSbAudioSinkInvalid|. Multiple calls to
+// SbAudioSinkCreate must not cause a crash.
 //
 // |channels|: The number of audio channels, such as left and right channels
 // in stereo audio.

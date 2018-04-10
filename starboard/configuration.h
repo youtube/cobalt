@@ -80,6 +80,14 @@
 // Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version where calling SbPlayerCreate mutiple times (without
+// calling SbPlayerDestroy in between) must not crash, and likewise calling
+// SbAudioSinkCreate multiple times (without calling SbAudioSinkDestroy in
+// between) must not crash. SbPlayerCreate may return kSbPlayerInvalid if
+// additional players are not supported. SbAudioSinkCreate may return
+// kSbAudionSinkInvalid if additional audio sinks are not supported.
+#define SB_MULTI_PLAYER_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // API version where DRM session closed callback is required.
 //   Add a callback to SbDrmCreateSystem that allows a DRM system to
 //   signal that a DRM session has closed from the Starboard layer.
