@@ -62,8 +62,13 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,
                  DerivedDictionary* out_dictionary) {
   DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
+  V8cExceptionState* v8c_exception_state = base::polymorphic_downcast<V8cExceptionState*>(exception_state);
+  DCHECK(!v8c_exception_state->is_exception_set());
 
   FromJSValue(isolate, value, conversion_flags, exception_state, static_cast<cobalt::bindings::testing::TestDictionary*>(out_dictionary));
+  if (v8c_exception_state->is_exception_set()) {
+    return;
+  }
 
   // https://heycam.github.io/webidl/#es-dictionary
   if (value->IsNullOrUndefined()) {
