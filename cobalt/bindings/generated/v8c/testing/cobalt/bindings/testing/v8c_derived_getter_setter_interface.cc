@@ -122,7 +122,6 @@ void NamedPropertyGetterCallback(
     return;
   }
   info.GetReturnValue().Set(result_value);
-  DCHECK(!exception_state.is_exception_set());
 }
 
 
@@ -203,8 +202,10 @@ void NamedPropertySetterCallback(
 
   impl->AnonymousNamedSetter(property_name, native_value);
   result_value = v8::Undefined(isolate);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
   info.GetReturnValue().Set(value);
-  DCHECK(!exception_state.is_exception_set());
 }
 
 
