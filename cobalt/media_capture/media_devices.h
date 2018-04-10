@@ -17,6 +17,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
@@ -30,7 +31,7 @@ namespace media_capture {
 // The MediaDevices object is the entry point to the API used to examine and
 // get access to media devices available to the User Agent.
 //   https://www.w3.org/TR/mediacapture-streams/#mediadevices
-class MediaDevices : public script::Wrappable {
+class MediaDevices : public dom::EventTarget {
  public:
   using MediaInfoSequence = script::Sequence<scoped_refptr<script::Wrappable>>;
   using MediaInfoSequencePromise = script::Promise<MediaInfoSequence>;
