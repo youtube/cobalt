@@ -45,8 +45,10 @@ void CHECK_HRESULT_OK(HRESULT hr) {
 
 WORD SampleTypeToFormatTag(SbMediaAudioSampleType type) {
   switch (type) {
+#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
     case kSbMediaAudioSampleTypeInt16:
       return WAVE_FORMAT_PCM;
+#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
     case kSbMediaAudioSampleTypeFloat32:
       return WAVE_FORMAT_IEEE_FLOAT;
     default:
@@ -57,8 +59,10 @@ WORD SampleTypeToFormatTag(SbMediaAudioSampleType type) {
 
 WORD SampleTypeToBitsPerSample(SbMediaAudioSampleType type) {
   switch (type) {
+#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
     case kSbMediaAudioSampleTypeInt16:
       return 16;
+#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
     case kSbMediaAudioSampleTypeFloat32:
       return 32;
     default:
