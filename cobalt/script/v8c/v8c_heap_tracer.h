@@ -52,6 +52,9 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   void RemoveReferencedObject(Wrappable* owner,
                               ScopedPersistent<v8::Value>* value);
 
+  void AddRoot(Traceable* traceable);
+  void RemoveRoot(Traceable* traceable);
+
  private:
   void MaybeAddToFrontier(Traceable* traceable);
 
@@ -62,6 +65,10 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
   std::unordered_set<Traceable*> visited_;
   std::unordered_multimap<Wrappable*, ScopedPersistent<v8::Value>*>
       reference_map_;
+
+  // TODO: A "counted" multiset approach here would be a bit nicer than
+  // std::multiset.
+  std::unordered_multiset<Traceable*> roots_;
 };
 
 }  // namespace v8c
