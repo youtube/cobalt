@@ -384,16 +384,20 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
     FireProgressEvent(upload_, base::Tokens::loadstart());
   }
 
-  StartRequest(request_body_text_);
+  // The loadstart callback may abort or modify the XHR request in some way.
+  // 11.3. If state is not opened or the send() flag is unset, then return.
+  if (state_ == kOpened && sent_) {
+    StartRequest(request_body_text_);
 
-  // Start the timeout timer running, if applicable.
-  send_start_time_ = base::TimeTicks::Now();
-  if (timeout_ms_) {
-    StartTimer(base::TimeDelta());
+    // Start the timeout timer running, if applicable.
+    send_start_time_ = base::TimeTicks::Now();
+    if (timeout_ms_) {
+      StartTimer(base::TimeDelta());
+    }
+    // Timer for throttling progress events.
+    upload_last_progress_time_ = base::TimeTicks();
+    last_progress_time_ = base::TimeTicks();
   }
-  // Timer for throttling progress events.
-  upload_last_progress_time_ = base::TimeTicks();
-  last_progress_time_ = base::TimeTicks();
 }
 
 void XMLHttpRequest::Fetch(const FetchUpdateCallbackArg& fetch_callback,
