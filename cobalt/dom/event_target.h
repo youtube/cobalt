@@ -396,10 +396,6 @@ class EventTarget : public script::Wrappable,
   // Return true if one or more event listeners are registered
   bool HasOneOrMoreAttributeEventListener() const;
 
-  // script::Wrappable
-  //
-  bool ShouldKeepWrapperAlive() override;
-
   // Returns a string that represents the target for debug purpose.
   virtual std::string GetDebugName() { return ""; }
 
