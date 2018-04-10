@@ -353,6 +353,14 @@ void MozjsGlobalEnvironment::AllowGarbageCollection(
   }
 }
 
+void MozjsGlobalEnvironment::AddRoot(Traceable* traceable) {
+  roots_.insert(traceable);
+}
+
+void MozjsGlobalEnvironment::RemoveRoot(Traceable* traceable) {
+  roots_.erase(traceable);
+}
+
 void MozjsGlobalEnvironment::DisableEval(const std::string& message) {
   DCHECK(thread_checker_.CalledOnValidThread());
   eval_disabled_message_.emplace(message);
@@ -413,21 +421,21 @@ ScriptValueFactory* MozjsGlobalEnvironment::script_value_factory() {
 }
 
 // static
-void MozjsGlobalEnvironment::TraceFunction(JSTracer* tracer, void* data) {
+void MozjsGlobalEnvironment::TraceFunction(JSTracer* js_tracer, void* data) {
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(data);
   if (global_environment->global_object_proxy_) {
-    JS_CallObjectTracer(tracer, &global_environment->global_object_proxy_,
+    JS_CallObjectTracer(js_tracer, &global_environment->global_object_proxy_,
                         "MozjsGlobalEnvironment");
   }
 
   for (auto& interface_data : global_environment->cached_interface_data_) {
     if (interface_data.prototype) {
-      JS_CallObjectTracer(tracer, &interface_data.prototype,
+      JS_CallObjectTracer(js_tracer, &interface_data.prototype,
                           "MozjsGlobalEnvironment");
     }
     if (interface_data.interface_object) {
-      JS_CallObjectTracer(tracer, &interface_data.interface_object,
+      JS_CallObjectTracer(js_tracer, &interface_data.interface_object,
                           "MozjsGlobalEnvironment");
     }
   }
@@ -436,8 +444,14 @@ void MozjsGlobalEnvironment::TraceFunction(JSTracer* tracer, void* data) {
   for (auto& pair : kept_alive_objects_) {
     auto& counted_heap_object = pair.second;
     DCHECK_GT(counted_heap_object.count, 0);
-    JS_CallObjectTracer(tracer, &counted_heap_object.heap_object,
+    JS_CallObjectTracer(js_tracer, &counted_heap_object.heap_object,
                         "MozjsGlobalEnvironment");
+  }
+
+  MozjsTracer mozjs_tracer(js_tracer);
+  for (Traceable* root : global_environment->roots_) {
+    mozjs_tracer.Trace(root);
+    mozjs_tracer.DrainFrontier();
   }
 }
 
