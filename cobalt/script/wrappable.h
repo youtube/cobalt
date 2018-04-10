@@ -61,13 +61,6 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
 
   virtual base::SourceLocation GetInlineSourceLocation() const = 0;
 
-  // If this function returns true, the JavaScript engine will keep the wrapper
-  // for this Wrappable from being garbage collected even if there are no strong
-  // references to it. If this Wrappable is no longer referenced from anything
-  // other than the wrapper, the wrappable will be garbage collected despite
-  // this (which will result in the Wrappable being destructed as well.)
-  virtual bool ShouldKeepWrapperAlive() { return false; }
-
   // Our implementation of the |Traceable| interface.  All |Wrappable|s that
   // own any |Traceable|s must override |TraceMembers| and trace them.
   void TraceMembers(Tracer* /*tracer*/) override {}

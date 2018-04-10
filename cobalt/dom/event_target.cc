@@ -162,10 +162,6 @@ bool EventTarget::HasOneOrMoreAttributeEventListener() const {
   return false;
 }
 
-bool EventTarget::ShouldKeepWrapperAlive() {
-  return !event_listener_infos_.empty();
-}
-
 void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   DCHECK(event->IsBeingDispatched());
   DCHECK(event->target());
