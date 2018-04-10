@@ -27,6 +27,7 @@ void MutationObserverTaskManager::OnMutationObserverCreated(
   DCHECK(observers_.find(observer) == observers_.end());
   observers_.insert(observer);
 }
+
 void MutationObserverTaskManager::OnMutationObserverDestroyed(
     MutationObserver* observer) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -50,6 +51,10 @@ void MutationObserverTaskManager::QueueMutationObserverMicrotask() {
       FROM_HERE,
       base::Bind(&MutationObserverTaskManager::NotifyMutationObservers,
                  base::Unretained(this)));
+}
+
+void MutationObserverTaskManager::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(observers_);
 }
 
 void MutationObserverTaskManager::NotifyMutationObservers() {

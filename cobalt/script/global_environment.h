@@ -95,6 +95,14 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   virtual void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) = 0;
 
+  // Register |traceable| as a member of the root set, i.e., an a priori
+  // reachable node.  In a manner similar to |PreventGarbageCollection|,
+  // multiple calls are supported.
+  virtual void AddRoot(Traceable* traceable) = 0;
+
+  // Undo a registration from |AddRoot|.
+  virtual void RemoveRoot(Traceable* traceable) = 0;
+
   // Disable eval() and specify the message to report in the exception.
   virtual void DisableEval(const std::string& message) = 0;
 

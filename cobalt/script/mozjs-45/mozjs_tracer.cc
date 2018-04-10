@@ -80,13 +80,17 @@ void MozjsTracer::Trace(Traceable* traceable) {
   DCHECK(JS_ContextIterator(js_tracer_->runtime(), &context) == nullptr);
 }
 
-void MozjsTracer::TraceFrom(Wrappable* wrappable) {
+void MozjsTracer::TraceFrom(Traceable* traceable) {
   DCHECK(frontier_.empty());
-  frontier_.push_back(wrappable);
+  frontier_.push_back(traceable);
+  DrainFrontier();
+}
+
+void MozjsTracer::DrainFrontier() {
   while (!frontier_.empty()) {
-    Traceable* traceable = frontier_.back();
+    Traceable* back = frontier_.back();
     frontier_.pop_back();
-    traceable->TraceMembers(this);
+    back->TraceMembers(this);
   }
 }
 

@@ -180,6 +180,14 @@ std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
   return result;
 }
 
+void V8cGlobalEnvironment::AddRoot(Traceable* traceable) {
+  V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->AddRoot(traceable);
+}
+
+void V8cGlobalEnvironment::RemoveRoot(Traceable* traceable) {
+  V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->RemoveRoot(traceable);
+}
+
 void V8cGlobalEnvironment::PreventGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());

@@ -17,6 +17,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "base/hash_tables.h"
@@ -81,6 +82,10 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) override;
+
+  void AddRoot(Traceable* traceable) override;
+
+  void RemoveRoot(Traceable* traceable) override;
 
   void DisableEval(const std::string& message) override;
 
@@ -190,6 +195,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
   base::hash_set<Traceable*> visited_traceables_;
+  std::unordered_multiset<Traceable*> roots_;
 
   // Store the result of "Promise" immediately after evaluating the
   // promise polyfill in order to defend against application JavaScript
