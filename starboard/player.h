@@ -368,7 +368,8 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   there is a mutex guarding calls into each |SbPlayer| instance.
 // - If there is a platform limitation on how many players can coexist
 //   simultaneously, then calls made to this function that attempt to exceed
-//   that limit will return |kSbPlayerInvalid|.
+//   that limit must return |kSbPlayerInvalid|. Multiple calls to SbPlayerCreate
+//   must not cause a crash.
 //
 // |window|: The window that will display the player. |window| can be
 //   |kSbWindowInvalid| for platforms where video is only displayed on a
@@ -443,7 +444,7 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   use the provider to create SbDecodeTargets on the renderer thread. A
 //   provider may not always be needed by the player, but if it is needed, and
 //   the provider is not given, the player will fail by returning
-//   kSbPlayerInvalid.
+//   |kSbPlayerInvalid|.
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbWindow window,
                SbMediaVideoCodec video_codec,
