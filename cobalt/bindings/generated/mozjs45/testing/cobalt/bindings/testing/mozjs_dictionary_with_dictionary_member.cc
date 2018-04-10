@@ -58,6 +58,9 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  DictionaryWithDictionaryMember* out_dictionary) {
   DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
+  MozjsExceptionState* mozjs_exception_state = base::polymorphic_downcast<MozjsExceptionState*>(exception_state);
+  DCHECK(!mozjs_exception_state->is_exception_set());
+
   // https://heycam.github.io/webidl/#es-dictionary
 
   if (value.isUndefined() || value.isNull()) {
