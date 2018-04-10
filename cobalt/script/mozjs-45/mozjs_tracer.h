@@ -36,6 +36,7 @@ namespace mozjs {
 class MozjsTracer : public ::cobalt::script::Tracer {
  public:
   explicit MozjsTracer(JSTracer* js_tracer) : js_tracer_(js_tracer) {}
+  ~MozjsTracer() { DCHECK_EQ(frontier_.size(), 0); }
 
   void Trace(Traceable* traceable) override;
 
@@ -43,7 +44,13 @@ class MozjsTracer : public ::cobalt::script::Tracer {
   // |wrappable|.  For any reachable |Traceable|s that have corresponding
   // wrappers, feed those wrappers to the SpiderMonkey-side tracer.  In the
   // case that they don't, add them to |frontier_|, and trace them ourselves.
-  void TraceFrom(Wrappable* wrappable);
+  void TraceFrom(Traceable* traceable);
+
+  // Trace all remaining items in |frontier_|.  This is mainly to facilitate
+  // the use case of beginning a tracing session at a |Traceable| that you
+  // don't know is a |Wrappable|, so you would like to begin tracing it with
+  // |Trace|.
+  void DrainFrontier();
 
   // This is primarly exposed for |MozjsUserObjectHolder|'s implementation of
   // |TraceMembers|.

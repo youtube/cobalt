@@ -579,6 +579,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
+  mutation_observer_task_manager_.RegisterAsTracingRoot(global_environment_);
+
   execution_state_ =
       script::ExecutionState::CreateExecutionState(global_environment_);
   DCHECK(execution_state_);

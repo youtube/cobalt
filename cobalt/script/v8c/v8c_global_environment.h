@@ -77,6 +77,10 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) override;
 
+  void AddRoot(Traceable* traceable) override;
+
+  void RemoveRoot(Traceable* traceable) override;
+
   void DisableEval(const std::string& message) override;
 
   void EnableEval() override;
