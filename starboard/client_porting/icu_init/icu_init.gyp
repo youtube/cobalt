@@ -22,7 +22,7 @@
         'icu_init.h',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
