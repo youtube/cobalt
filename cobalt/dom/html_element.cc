@@ -706,6 +706,14 @@ void HTMLElement::MarkDisplayNoneOnNodeAndDescendants() {
     descendant_computed_styles_valid_ = false;
   }
 
+  // Also clear out all animations/transitions on pseudo elements.
+  for (auto& pseudo_element : pseudo_elements_) {
+    if (pseudo_element) {
+      pseudo_element->css_transitions()->Clear();
+      pseudo_element->css_animations()->Clear();
+    }
+  }
+
   MarkDisplayNoneOnDescendants();
 }
 
