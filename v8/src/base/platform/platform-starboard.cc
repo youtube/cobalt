@@ -355,7 +355,6 @@ Thread::Thread(const Options& options)
 }
 
 Thread::~Thread() {
-  SB_NOTIMPLEMENTED();
   delete data_;
 }
 
