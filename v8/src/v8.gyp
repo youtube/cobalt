@@ -54,7 +54,12 @@
           'OBJECT_PRINT=1',
           'V8_ENABLE_ALLOCATION_TIMEOUT=1',
         ],
-      }]
+      }],
+      ['cobalt_gc_zeal == 1', {
+        'defines': [
+          'COBALT_GC_ZEAL=1',
+        ],
+      }],
     ],
    },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
