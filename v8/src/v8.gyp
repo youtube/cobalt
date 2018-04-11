@@ -1986,7 +1986,6 @@
             ],
           },
         }],
-        # TODO: Remove after starboardization.
         ['OS=="linux"', {
             'link_settings': {
               'libraries': [
