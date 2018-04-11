@@ -336,7 +336,7 @@
           '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',
           '<(DEPTH)/starboard/shared/dlmalloc/memory_free_aligned.cc',
           '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
-          '<(DEPTH)/starboard/shared/dlmalloc/system_get_used_cpu_memory.cc',
+          '<(DEPTH)/starboard/shared/linux/system_get_used_cpu_memory.cc',
         ],
       }, {
         'starboard_platform_sources': [
