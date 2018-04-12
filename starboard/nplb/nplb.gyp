@@ -291,7 +291,7 @@
       'variables': {
         'executable_name': 'nplb',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
