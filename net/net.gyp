@@ -1200,7 +1200,7 @@
       'variables': {
         'executable_name': 'net_unittests',
       },
-      'includes': [ '../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
