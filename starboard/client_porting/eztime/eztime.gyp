@@ -51,6 +51,7 @@
       'variables': {
         'executable_name': 'eztime_test',
       },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
