@@ -31,7 +31,7 @@
 #      'variables': {
 #        'executable_name': 'target',
 #      },
-#      'includes': [ '../build/deploy.gypi' ],
+#      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
 #    },
 #    ...
 #
@@ -51,7 +51,7 @@
 #      'variables': {
 #        'executable_name': 'nplb',
 #      },
-#      'includes': [ '../build/deploy.gypi' ],
+#      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
 #    },
 
 {

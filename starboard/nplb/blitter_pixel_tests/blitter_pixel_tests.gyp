@@ -53,7 +53,7 @@
       'variables': {
         'executable_name': 'nplb_blitter_pixel_tests',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
