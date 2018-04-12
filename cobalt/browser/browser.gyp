@@ -60,6 +60,8 @@
         'memory_tracker/tool/compressed_time_series_tool.cc',
         'memory_tracker/tool/compressed_time_series_tool.h',
         'memory_tracker/tool/histogram_table_csv_base.h',
+        'memory_tracker/tool/internal_fragmentation_tool.cc',
+        'memory_tracker/tool/internal_fragmentation_tool.h',
         'memory_tracker/tool/leak_finder_tool.cc',
         'memory_tracker/tool/leak_finder_tool.h',
         'memory_tracker/tool/log_writer_tool.cc',
