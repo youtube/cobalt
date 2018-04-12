@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "starboard/common/optional.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/auto_event_handle.h"
@@ -104,6 +105,10 @@ class SbSocketWaiterPrivate {
 
     // Gets the Waitee associated with the given socket, or nullptr.
     Waitee* GetWaitee(SbSocket socket);
+
+    // Gets the index by socket
+    starboard::optional<int64_t> GetIndex(SbSocket socket);
+
     // Gets the Waitee by index.
     Waitee* GetWaiteeByIndex(LookupToken socket_index);
 
