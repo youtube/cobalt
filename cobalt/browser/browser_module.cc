@@ -284,6 +284,11 @@ BrowserModule::BrowserModule(const GURL& url,
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
       current_main_web_module_timeline_id_(-1) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
+
+  // Apply platform memory setting adjustments and defaults.
+  ApplyAutoMemSettings();
+
   h5vcc_url_handler_.reset(new H5vccURLHandler(this));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -303,7 +308,6 @@ BrowserModule::BrowserModule(const GURL& url,
                  url),
       base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
 #endif
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
 
@@ -382,6 +386,7 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
+
   // Synchronously construct our WebModule object.
   Navigate(url);
   DCHECK(web_module_);
@@ -524,6 +529,10 @@ void BrowserModule::Navigate(const GURL& url) {
   if (system_window_) {
     video_pixel_ratio = system_window_->GetVideoPixelRatio();
   }
+
+  // Make sure that automem has been run before creating the WebModule, so that
+  // we use properly configured options for all parameters.
+  DCHECK(auto_mem_);
 
   web_module_.reset(new WebModule(
       url, application_state_,
@@ -1420,13 +1429,12 @@ render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
 }
 
 void BrowserModule::InitializeSystemWindow() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeSystemWindow()");
   resource_provider_stub_ = base::nullopt;
   DCHECK(!system_window_);
   system_window_.reset(new system_window::SystemWindow(
       event_dispatcher_, options_.requested_viewport_size));
-  auto_mem_.reset(new memory_settings::AutoMem(
-      GetViewportSize(), options_.command_line_auto_mem_settings,
-      options_.build_auto_mem_settings));
+  // Reapply automem settings now that we may have a different viewport size.
   ApplyAutoMemSettings();
 
   input_device_manager_ =
@@ -1616,7 +1624,20 @@ math::Size BrowserModule::GetViewportSize() {
 }
 
 void BrowserModule::ApplyAutoMemSettings() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
+  auto_mem_.reset(new memory_settings::AutoMem(
+      GetViewportSize(), options_.command_line_auto_mem_settings,
+      options_.build_auto_mem_settings));
+
   LOG(INFO) << "\n\n" << auto_mem_->ToPrettyPrintString(SbLogIsTty()) << "\n\n";
+
+  if (javascript_gc_threshold_in_bytes_) {
+    DCHECK_EQ(*javascript_gc_threshold_in_bytes_,
+              auto_mem_->javascript_gc_threshold_in_bytes()->value());
+  } else {
+    javascript_gc_threshold_in_bytes_ =
+        auto_mem_->javascript_gc_threshold_in_bytes()->value();
+  }
 
   // Web Module options.
   options_.web_module_options.image_cache_capacity =
@@ -1631,8 +1652,6 @@ void BrowserModule::ApplyAutoMemSettings() {
         auto_mem_->image_cache_size_in_bytes()->value());
     web_module_->SetRemoteTypefaceCacheCapacity(
         auto_mem_->remote_typeface_cache_size_in_bytes()->value());
-    web_module_->SetJavascriptGcThreshold(
-        auto_mem_->javascript_gc_threshold_in_bytes()->value());
   }
 
   // Renderer Module options.
