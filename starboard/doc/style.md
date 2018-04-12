@@ -228,9 +228,10 @@ namespace at the starboard repository root.
   * All comments must be full grammatically-correct English sentences with
     proper punctuation.
   * Comments in Starboard headers must be written as requirements for the
-    porter, using phrases like "this function must" or the "this function should"
-    rather than "this function will". The choice of "must" vs "should" must
-    follow the guidelines of IETF RFC, https://www.ietf.org/rfc/rfc2119.txt .
+    porter, for example: "must not return NULL" or "should not return
+    NULL" rather than "will not return NULL". The choice of "must" vs "should"
+    must follow the guidelines of IETF RFC,
+    https://www.ietf.org/rfc/rfc2119.txt .
 
 ### Implementations
 
