@@ -182,6 +182,7 @@ void ApplicationAndroid::WakeSystemEventWait() {
 }
 
 void ApplicationAndroid::ProcessAndroidCommand() {
+  JniEnvExt* env = JniEnvExt::Get();
   AndroidCommand cmd;
   int err = read(android_command_readfd_, &cmd, sizeof(cmd));
   SB_DCHECK(err >= 0) << "Command read failed. errno=" << errno;
@@ -211,9 +212,9 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       break;
     }
 
-    // The window surface being created/destroyed is more significant than the
-    // Activity lifecycle since Cobalt can't do anything at all if it doesn't
-    // have a window surface to draw on.
+    // Starboard resume/suspend is tied to the UI window being created/destroyed
+    // (rather than to the Activity lifecycle) since Cobalt can't do anything at
+    // all if it doesn't have a window surface to draw on.
     case AndroidCommand::kNativeWindowCreated:
       {
         ScopedLock lock(android_command_mutex_);
@@ -225,6 +226,9 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // continue, before we start or resume the Starboard app.
         android_command_condition_.Signal();
       }
+      // We'll either be sending the start event here, or the resume event below
+      // (either explicitly or as an injected event before unpause).
+      env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
@@ -235,21 +239,23 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         sync_state = activity_state_;
       }
       break;
-    case AndroidCommand::kNativeWindowDestroyed: {
-      ScopedLock lock(android_command_mutex_);
-      // Cobalt can't keep running without a window, even if the Activity hasn't
-      // stopped yet. DispatchAndDelete() will inject events as needed if we're
-      // not already paused.
-      DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
-      if (window_) {
-        window_->native_window = NULL;
+    case AndroidCommand::kNativeWindowDestroyed:
+      env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
+      {
+        ScopedLock lock(android_command_mutex_);
+        // Cobalt can't keep running without a window, even if the Activity
+        // hasn't stopped yet. DispatchAndDelete() will inject events as needed
+        // if we're not already paused.
+        DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        if (window_) {
+          window_->native_window = NULL;
+        }
+        native_window_ = NULL;
+        // Now that we've suspended the Starboard app, and let go of the window,
+        // signal that the Android UI thread can continue.
+        android_command_condition_.Signal();
       }
-      native_window_ = NULL;
-      // Now that we've suspended the Starboard app, and let go of the window,
-      // signal that the Android UI thread can continue.
-      android_command_condition_.Signal();
       break;
-    }
 
     case AndroidCommand::kWindowFocusLost:
       break;
@@ -299,9 +305,12 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
         break;
       case AndroidCommand::kStop:
-        // In practice we've already suspended in kNativeWindowDestroyed
-        // above, so DispatchAndDelete() will squelch this event.
-        DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        if (state() != kStateSuspended) {
+          // In practice we've already suspended when we lost the window, but
+          // if that didn't happen we suspend when the Android app is stopped.
+          env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
+          DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
+        }
         break;
       default:
         break;
