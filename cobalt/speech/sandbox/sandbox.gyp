@@ -48,7 +48,7 @@
       'variables': {
         'executable_name': 'speech_sandbox',
       },
-      'includes': [ '../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

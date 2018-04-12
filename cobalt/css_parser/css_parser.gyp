@@ -145,7 +145,7 @@
       'variables': {
         'executable_name': 'css_parser_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
   ],

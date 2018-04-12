@@ -76,7 +76,7 @@
       'variables': {
         'executable_name': 'simple_example',
       },
-      'includes': [ '../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     # This target will create a test for simple_example.
@@ -123,7 +123,7 @@
       'variables': {
         'executable_name': 'simple_example_test',
       },
-      'includes': [ '../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
