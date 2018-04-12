@@ -68,6 +68,7 @@ bool V8cHeapTracer::AdvanceTracing(double deadline_in_ms,
 
     Traceable* traceable = frontier_.back();
     frontier_.pop_back();
+    DCHECK(traceable);
 
     if (traceable->IsWrappable()) {
       Wrappable* wrappable = base::polymorphic_downcast<Wrappable*>(traceable);
@@ -113,19 +114,20 @@ void V8cHeapTracer::AbortTracing() {
 size_t V8cHeapTracer::NumberOfWrappersToTrace() { return frontier_.size(); }
 
 void V8cHeapTracer::Trace(Traceable* traceable) {
-  if (!traceable) {
-    return;
-  }
   MaybeAddToFrontier(traceable);
 }
 
 void V8cHeapTracer::AddReferencedObject(Wrappable* owner,
                                         ScopedPersistent<v8::Value>* value) {
+  DCHECK(owner);
+  DCHECK(value);
   auto it = reference_map_.insert({owner, value});
 }
 
 void V8cHeapTracer::RemoveReferencedObject(Wrappable* owner,
                                            ScopedPersistent<v8::Value>* value) {
+  DCHECK(owner);
+  DCHECK(value);
   auto pair_range = reference_map_.equal_range(owner);
   auto it = std::find_if(
       pair_range.first, pair_range.second,
@@ -134,13 +136,22 @@ void V8cHeapTracer::RemoveReferencedObject(Wrappable* owner,
   reference_map_.erase(it);
 }
 
-void V8cHeapTracer::AddRoot(Traceable* traceable) { roots_.insert(traceable); }
+void V8cHeapTracer::AddRoot(Traceable* traceable) {
+  DCHECK(traceable);
+  roots_.insert(traceable);
+}
 
 void V8cHeapTracer::RemoveRoot(Traceable* traceable) {
-  roots_.erase(traceable);
+  DCHECK(traceable);
+  auto it = roots_.find(traceable);
+  DCHECK(it != roots_.end());
+  roots_.erase(it);
 }
 
 void V8cHeapTracer::MaybeAddToFrontier(Traceable* traceable) {
+  if (!traceable) {
+    return;
+  }
   if (!visited_.insert(traceable).second) {
     return;
   }
