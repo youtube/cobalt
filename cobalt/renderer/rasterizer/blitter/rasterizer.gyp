@@ -115,7 +115,7 @@
       'variables': {
         'executable_name': 'blitter_rasterizer_tests',
       },
-      'includes': [ '../../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

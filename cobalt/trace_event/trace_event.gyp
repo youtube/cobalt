@@ -59,7 +59,7 @@
       'variables': {
         'executable_name': 'trace_event_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     {
@@ -111,7 +111,7 @@
       'variables': {
         'executable_name': 'sample_benchmark',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

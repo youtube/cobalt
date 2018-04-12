@@ -75,7 +75,7 @@
       'variables': {
         'executable_name': 'web_media_player_sandbox',
       },
-      'includes': [ '../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
   'conditions': [
@@ -102,7 +102,7 @@
           'variables': {
             'executable_name': 'media2_sandbox',
           },
-          'includes': [ '../../../starboard/build/deploy.gypi' ],
+          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
         },
       ],
     }],
@@ -148,7 +148,7 @@
           'variables': {
             'executable_name': 'raw_video_decoder_fuzzer',
           },
-          'includes': [ '../../../starboard/build/deploy.gypi' ],
+          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
         },
 
         # This target will build a sandbox application that allows for fuzzing
@@ -191,7 +191,7 @@
           'variables': {
             'executable_name': 'shell_demuxer_fuzzer',
           },
-          'includes': [ '../../../starboard/build/deploy.gypi' ],
+          'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
         },
       ],
     }],
