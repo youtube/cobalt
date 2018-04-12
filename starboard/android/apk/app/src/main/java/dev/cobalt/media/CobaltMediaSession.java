@@ -79,7 +79,7 @@ public class CobaltMediaSession
   // Accessed on the main looper thread only.
   private boolean active = false;
   private boolean mediaPlaying = false;
-  private boolean foreground = false;
+  private boolean suspended = true;
 
   // Duplicated in starboard/android/shared/android_media_session_client.h
   // PlaybackState
@@ -228,13 +228,18 @@ public class CobaltMediaSession
     return (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
   }
 
-  /**
-   * To be called by Activity's onStart method.
-   * Must be called on the main looper thread
-   */
-  public void onActivityStart() {
+  public void resume() {
+    mainHandler.post(new Runnable() {
+      @Override
+      public void run() {
+        resumeInternal();
+      }
+    });
+  }
+
+  private void resumeInternal() {
     checkMainLooperThread();
-    foreground = true;
+    suspended = false;
     // Undoing what may have been done in onStop().
     if (mediaPlaying) {
       onMediaStart();
@@ -242,17 +247,21 @@ public class CobaltMediaSession
     mediaSession.setActive(active);
   }
 
-  /**
-   * To be called by Activity's onStop method.
-   * Must be called on the main looper thread
-   */
-  public void onActivityStop() {
-    checkMainLooperThread();
-    foreground = false;
+  public void suspend() {
+    mainHandler.post(new Runnable() {
+      @Override
+      public void run() {
+        suspendInternal();
+      }
+    });
+  }
 
-    // When we stop, Cobalt enters the "suspended" state and destroys
-    // any active SbPlayer instances. However, the HTML5 app may still
-    // indicate that it's playing.
+  private void suspendInternal() {
+    checkMainLooperThread();
+    suspended = true;
+
+    // When Cobalt is suspended it destroys any active SbPlayer instances.
+    // However, the HTML5 app may still indicate that it's playing.
     //
     // In general, when the HTML5 app says it's playing and Cobalt has
     // no active media, we may be in between videos so we want MediaSession
@@ -314,8 +323,9 @@ public class CobaltMediaSession
     active = nowActive;
     mediaPlaying = nowMediaPlaying;
 
-    // JavaScript executing while the Activity is stopped can't activate the MediaSession.
-    if (!active || !foreground) {
+    // The Android MediaSession becomes inactive when JavaScript says so,
+    // but don't allow JavaScript to enable it while suspended.
+    if (!active || suspended) {
       mediaSession.setActive(false);
       return;
     }
