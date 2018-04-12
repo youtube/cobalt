@@ -25,19 +25,32 @@ bool Base64Encode(const StringPiece& input, std::string* output) {
   return true;
 }
 
-bool Base64Decode(const StringPiece& input, std::string* output) {
-  std::string temp;
+template <class Container>
+bool Base64DecodeInternal(const StringPiece& input, Container* output) {
+  Container temp;
   temp.resize(modp_b64_decode_len(input.size()));
 
-  // does not null terminate result since result is binary data!
   int input_size = static_cast<int>(input.size());
-  int output_size = modp_b64_decode(&(temp[0]), input.data(), input_size);
+  // When using this template for a new type, make sure its content is unsigned
+  // char or char.
+  static_assert(sizeof(typename Container::value_type) == 1,
+                "Input type should be char or equivalent.");
+  int output_size = modp_b64_decode(reinterpret_cast<char*>(&(temp[0])),
+                                    input.data(), input_size);
   if (output_size < 0)
     return false;
 
   temp.resize(output_size);
   output->swap(temp);
   return true;
+}
+
+bool Base64Decode(const StringPiece& input, std::string* output) {
+  return Base64DecodeInternal(input, output);
+}
+
+bool Base64Decode(const StringPiece& input, std::vector<uint8_t>* output) {
+  return Base64DecodeInternal(input, output);
 }
 
 }  // namespace base
