@@ -33,6 +33,7 @@
       'variables': {
         'executable_name': 'starboard_window_example',
       },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
