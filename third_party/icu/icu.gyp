@@ -298,7 +298,7 @@
                 'U_HAVE_NL_LANGINFO=0'
               ],
               'dependencies': [
-                '<(DEPTH)/starboard/starboard.gyp:starboard',
+                '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
                ],
             }],
             ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
@@ -441,7 +441,7 @@
             }],
             ['OS=="starboard"', {
               'dependencies': [
-                '<(DEPTH)/starboard/starboard.gyp:starboard',
+                '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
                ],
             }],
             ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
