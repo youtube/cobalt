@@ -72,7 +72,7 @@
       'variables': {
         'executable_name': 'web_animations_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
