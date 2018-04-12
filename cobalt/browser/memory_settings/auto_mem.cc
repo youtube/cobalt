@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "base/debug/trace_event.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
@@ -270,6 +271,7 @@ int64_t GenerateTargetMemoryBytes(
 AutoMem::AutoMem(const math::Size& ui_resolution,
                  const AutoMemSettings& command_line_settings,
                  const AutoMemSettings& build_settings) {
+  TRACE_EVENT0("cobalt::browser", "AutoMem::AutoMem()");
   ConstructSettings(ui_resolution, command_line_settings, build_settings);
 
   const int64_t target_cpu_memory =

@@ -35,7 +35,6 @@ class MozjsEngine : public JavaScriptEngine {
   void CollectGarbage() override;
   void AdjustAmountOfExternalAllocatedMemory(int64_t bytes) override;
   bool RegisterErrorHandler(ErrorHandler handler) override;
-  void SetGcThreshold(int64_t bytes) override;
   HeapStatistics GetHeapStatistics() override;
 
  private:

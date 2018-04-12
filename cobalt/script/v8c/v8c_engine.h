@@ -43,7 +43,6 @@ class V8cEngine : public JavaScriptEngine {
   void CollectGarbage() override;
   void AdjustAmountOfExternalAllocatedMemory(int64_t bytes) override;
   bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
-  void SetGcThreshold(int64_t bytes) override;
   HeapStatistics GetHeapStatistics() override;
 
   v8::Isolate* isolate() const { return isolate_; }

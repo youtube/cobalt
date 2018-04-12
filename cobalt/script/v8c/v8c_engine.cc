@@ -171,8 +171,6 @@ bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
   return true;
 }
 
-void V8cEngine::SetGcThreshold(int64_t bytes) { NOTIMPLEMENTED(); }
-
 HeapStatistics V8cEngine::GetHeapStatistics() {
   v8::HeapStatistics v8_heap_statistics;
   isolate_->GetHeapStatistics(&v8_heap_statistics);
