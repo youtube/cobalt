@@ -381,7 +381,7 @@
       'variables': {
         'executable_name': 'base_unittests',
       },
-      'includes': [ '../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
