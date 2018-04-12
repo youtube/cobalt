@@ -619,6 +619,11 @@ class BrowserModule {
   // to another (in which case it may need to clear its submission queue).
   int current_splash_screen_timeline_id_;
   int current_main_web_module_timeline_id_;
+
+  // Remember the first set value for JavaScript's GC threshold setting computed
+  // by automem.  We want this so that we can check that it never changes, since
+  // we do not have the ability to modify it after startup.
+  base::optional<int64_t> javascript_gc_threshold_in_bytes_;
 };
 
 }  // namespace browser
