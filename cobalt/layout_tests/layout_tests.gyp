@@ -85,7 +85,7 @@
       'variables': {
         'executable_name': 'layout_tests',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     {
@@ -114,7 +114,7 @@
       'variables': {
         'executable_name': 'layout_benchmarks',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
     {
       'target_name': 'web_platform_tests',
@@ -142,7 +142,7 @@
       'variables': {
         'executable_name': 'web_platform_tests',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
   ],
