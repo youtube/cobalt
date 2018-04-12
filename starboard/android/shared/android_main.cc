@@ -101,7 +101,7 @@ void* ThreadEntryPoint(void* context) {
   // Inform StarboardBridge that the run loop has exited so it can cleanup and
   // kill the process.
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("onStarboardStopped", "()V");
+  env->CallStarboardVoidMethodOrAbort("afterStopped", "()V");
 
   return NULL;
 }
