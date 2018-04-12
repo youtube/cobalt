@@ -171,6 +171,22 @@ class HistogramTableCSVBase {
   TableData table_data_;
 };
 
+// Useful for tracking values in megabytes.
+class MemoryBytesHistogramCSV : public HistogramTableCSVBase<int64_t> {
+ public:
+  MemoryBytesHistogramCSV() : HistogramTableCSVBase<int64_t>(0) {}
+  std::string ValueToString(const int64_t& bytes) const override {
+    return ToMegabyteString(bytes);
+  }
+
+  static std::string ToMegabyteString(int64_t bytes) {
+    double megabytes = static_cast<double>(bytes) / (1024.0 * 1024.0);
+    char buff[128];
+    SbStringFormatF(buff, sizeof(buff), "%.1f", megabytes);
+    return std::string(buff);
+  }
+};
+
 }  // namespace memory_tracker
 }  // namespace browser
 }  // namespace cobalt
