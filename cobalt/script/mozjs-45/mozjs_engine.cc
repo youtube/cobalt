@@ -190,11 +190,6 @@ bool MozjsEngine::RegisterErrorHandler(ErrorHandler handler) {
   return true;
 }
 
-void MozjsEngine::SetGcThreshold(int64_t bytes) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  runtime_->gc.setMaxMallocBytes(static_cast<size_t>(bytes));
-}
-
 HeapStatistics MozjsEngine::GetHeapStatistics() {
   DCHECK(thread_checker_.CalledOnValidThread());
   // There is unfortunately no easy way to get used vs total in SpiderMonkey,

@@ -301,7 +301,6 @@ class WebModule : public LifecycleObserver {
       media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
-  void SetJavascriptGcThreshold(int64_t bytes);
 
   // LifecycleObserver implementation
   void Prestart() override;

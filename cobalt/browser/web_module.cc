@@ -219,7 +219,6 @@ class WebModule::Impl {
       media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
-  void SetJavascriptGcThreshold(int64_t bytes);
 
   // Sets the application state, asserts preconditions to transition to that
   // state, and dispatches any precipitate web events.
@@ -1005,10 +1004,6 @@ void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   remote_typeface_cache_->SetCapacity(static_cast<uint32>(bytes));
 }
 
-void WebModule::Impl::SetJavascriptGcThreshold(int64_t bytes) {
-  javascript_engine_->SetGcThreshold(bytes);
-}
-
 void WebModule::Impl::SetSize(math::Size window_dimensions,
                               float video_pixel_ratio) {
   window_->SetSize(window_dimensions.width(), window_dimensions.height(),
@@ -1565,12 +1560,6 @@ void WebModule::SetImageCacheCapacity(int64_t bytes) {
 void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SetRemoteTypefaceCacheCapacity,
-                            base::Unretained(impl_.get()), bytes));
-}
-
-void WebModule::SetJavascriptGcThreshold(int64_t bytes) {
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetJavascriptGcThreshold,
                             base::Unretained(impl_.get()), bytes));
 }
 
