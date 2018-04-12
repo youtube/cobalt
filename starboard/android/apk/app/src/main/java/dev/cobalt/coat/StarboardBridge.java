@@ -109,13 +109,9 @@ public class StarboardBridge {
 
   protected void onActivityStart(Activity activity) {
     activityHolder.set(activity);
-    cobaltMediaSession.onActivityStart();
-    feedbackService.connect();
   }
 
   protected void onActivityStop(Activity activity) {
-    feedbackService.disconnect();
-    cobaltMediaSession.onActivityStop();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
@@ -133,7 +129,28 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void onStarboardStopped() {
+  void beforeStartOrResume() {
+    Log.i(TAG, "Prepare to resume");
+    // Bring our platform services to life before resuming so that they're ready to deal with
+    // whatever the web app wants to do with them as part of its start/resume logic.
+    cobaltMediaSession.resume();
+    feedbackService.connect();
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  void beforeSuspend() {
+    Log.i(TAG, "Prepare to suspend");
+    // We want the MediaSession to be deactivated immediately before suspending so that by the time
+    // the launcher is visible our "Now Playing" card is already gone. Then Cobalt and the web app
+    // can take their time suspending after that.
+    cobaltMediaSession.suspend();
+    feedbackService.disconnect();
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  void afterStopped() {
     starboardStopped = true;
     ttsHelper.shutdown();
     userAuthorizer.shutdown();
