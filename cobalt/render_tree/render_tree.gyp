@@ -119,7 +119,7 @@
       'variables': {
         'executable_name': 'render_tree_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

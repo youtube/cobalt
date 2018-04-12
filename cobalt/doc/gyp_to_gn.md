@@ -303,7 +303,7 @@ Replace
       'variables': {
         'executable_name': 'target',
       },
-      'includes': [ '../build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
 with

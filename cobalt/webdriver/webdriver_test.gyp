@@ -43,7 +43,7 @@
       'variables': {
         'executable_name': 'webdriver_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ]
 }

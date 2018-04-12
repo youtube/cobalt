@@ -62,7 +62,7 @@
       'variables': {
         'executable_name': 'page_visibility_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

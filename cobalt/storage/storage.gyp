@@ -74,7 +74,7 @@
       'variables': {
         'executable_name': 'storage_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
     {
       'target_name': 'storage_upgrade_copy_test_data',
