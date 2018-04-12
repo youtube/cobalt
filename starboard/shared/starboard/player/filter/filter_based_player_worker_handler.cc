@@ -384,7 +384,8 @@ void FilterBasedPlayerWorkerHandler::Update() {
   if ((*player_worker_.*get_player_state_cb_)() == kSbPlayerStatePrerolling) {
     bool audio_seek_in_progress =
         audio_renderer_ && audio_renderer_->IsSeekingInProgress();
-    if (!audio_seek_in_progress && !video_renderer_->IsSeekingInProgress()) {
+    if (!audio_seek_in_progress &&
+        !video_renderer_->UpdateAndRetrieveIsSeekingInProgress()) {
       (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
       if (!paused_) {
         GetMediaTimeProvider()->Play();
