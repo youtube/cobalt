@@ -141,8 +141,13 @@ bool VideoRenderer::CanAcceptMoreData() const {
          !end_of_stream_written_ && need_more_input_;
 }
 
-bool VideoRenderer::IsSeekingInProgress() const {
+bool VideoRenderer::UpdateAndRetrieveIsSeekingInProgress() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+  ScopedLock lock(mutex_);
+  if (seeking_ && !frames_.empty()) {
+    auto elapsed = SbTimeGetMonotonicNow() - absolute_time_of_first_input_;
+    seeking_ = elapsed < decoder_->GetPrerollTimeout();
+  }
   return seeking_;
 }
 
@@ -170,13 +175,8 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
       frames_.push_back(frame);
     }
 
-    if (seeking_ && !frames_.empty()) {
-      if (frames_.size() >= decoder_->GetPrerollFrameCount()) {
-        seeking_ = false;
-      } else {
-        auto elapsed = SbTimeGetMonotonicNow() - absolute_time_of_first_input_;
-        seeking_ = elapsed < decoder_->GetPrerollTimeout();
-      }
+    if (seeking_ && frames_.size() >= decoder_->GetPrerollFrameCount()) {
+      seeking_ = false;
     }
   }
 

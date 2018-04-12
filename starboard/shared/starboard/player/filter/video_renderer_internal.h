@@ -63,7 +63,7 @@ class VideoRenderer {
   bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
   bool IsEndOfStreamPlayed() const;
   bool CanAcceptMoreData() const;
-  bool IsSeekingInProgress() const;
+  bool UpdateAndRetrieveIsSeekingInProgress();
 
   SbDecodeTarget GetCurrentDecodeTarget();
 
