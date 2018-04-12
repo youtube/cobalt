@@ -37,7 +37,7 @@
       'variables': {
         'executable_name': 'poem_unittests',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

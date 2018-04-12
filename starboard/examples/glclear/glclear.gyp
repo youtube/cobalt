@@ -34,6 +34,7 @@
       'variables': {
         'executable_name': 'starboard_glclear_example',
       },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }
