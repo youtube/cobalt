@@ -30,6 +30,7 @@ import android.media.session.PlaybackState;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.WindowManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
@@ -74,18 +75,18 @@ public class CobaltMediaSession
 
 
   // We re-use the builder to hold onto the most recent metadata and add artwork later.
-  MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder();
-
-  // Accessed on the main looper thread only.
-  private boolean active = false;
-  private boolean mediaPlaying = false;
-  private boolean suspended = true;
+  private MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder();
 
   // Duplicated in starboard/android/shared/android_media_session_client.h
   // PlaybackState
   private static final int PLAYBACK_STATE_PLAYING = 0;
   private static final int PLAYBACK_STATE_PAUSED = 1;
   private static final int PLAYBACK_STATE_NONE = 2;
+  private static final String[] PLAYBACK_STATE_NAME = { "playing", "paused", "none" };
+
+  // Accessed on the main looper thread only.
+  private int playbackState = PLAYBACK_STATE_NONE;
+  private boolean suspended = true;
 
   public CobaltMediaSession(
       Context context, Holder<Activity> activityHolder, UpdateVolumeListener volumeListener) {
@@ -136,31 +137,43 @@ public class CobaltMediaSession
     }
   }
 
-  /** Must be called on the main looper thread */
-  private void onMediaStart() {
+  /**
+   * Sets system media resources active or not according to whether media is playing.
+   * This is idempotent as it may be called multiple times during the course of a media session.
+   */
+  private void configureMediaFocus(int playbackState) {
     checkMainLooperThread();
+    Log.i(TAG, "Media focus: " + PLAYBACK_STATE_NAME[playbackState]);
+    wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
+    audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
+    mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
+  }
+
+  private void wakeLock(boolean lock) {
     Activity activity = activityHolder.get();
-    if (activity != null) {
-      activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    if (activity == null) {
+      return;
     }
-    if (Build.VERSION.SDK_INT < 26) {
-      requestAudioFocus();
+    if (lock) {
+      activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     } else {
-      requestAudioFocusV26();
+      activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
   }
 
-  /** Must be called on the main looper thread */
-  private void onMediaStop() {
-    checkMainLooperThread();
-    Activity activity = activityHolder.get();
-    if (activity != null) {
-      activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-    }
-    if (Build.VERSION.SDK_INT < 26) {
-      abandonAudioFocus();
+  private void audioFocus(boolean focus) {
+    if (focus) {
+      if (Build.VERSION.SDK_INT < 26) {
+        requestAudioFocus();
+      } else {
+        requestAudioFocusV26();
+      }
     } else {
-      abandonAudioFocusV26();
+      if (Build.VERSION.SDK_INT < 26) {
+        abandonAudioFocus();
+      } else {
+        abandonAudioFocusV26();
+      }
     }
   }
 
@@ -202,12 +215,14 @@ public class CobaltMediaSession
     switch (focusChange) {
       case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
       case AudioManager.AUDIOFOCUS_LOSS:
-        if (mediaPlaying) {
+        if (playbackState == PLAYBACK_STATE_PLAYING) {
           nativeInvokeAction(PlaybackState.ACTION_PAUSE);
         }
         break;
       case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
         // Lower the volume, keep current play state.
+        // Starting with API 26 the system does automatic ducking without calling our listener,
+        // but we still need this for API < 26.
         volumeListener.onUpdateVolume(AUDIO_FOCUS_DUCK_LEVEL);
         break;
       case AudioManager.AUDIOFOCUS_GAIN_TRANSIENT:
@@ -216,7 +231,7 @@ public class CobaltMediaSession
         // The app has been granted audio focus again. Raise volume to normal,
         // restart playback if necessary.
         volumeListener.onUpdateVolume(1.0f);
-        if (!mediaPlaying) {
+        if (playbackState != PLAYBACK_STATE_PLAYING) {
           nativeInvokeAction(PlaybackState.ACTION_PLAY);
         }
         break;
@@ -240,11 +255,8 @@ public class CobaltMediaSession
   private void resumeInternal() {
     checkMainLooperThread();
     suspended = false;
-    // Undoing what may have been done in onStop().
-    if (mediaPlaying) {
-      onMediaStart();
-    }
-    mediaSession.setActive(active);
+    // Undoing what may have been done in suspendInternal().
+    configureMediaFocus(playbackState);
   }
 
   public void suspend() {
@@ -260,17 +272,13 @@ public class CobaltMediaSession
     checkMainLooperThread();
     suspended = true;
 
-    // When Cobalt is suspended it destroys any active SbPlayer instances.
-    // However, the HTML5 app may still indicate that it's playing.
-    //
-    // In general, when the HTML5 app says it's playing and Cobalt has
-    // no active media, we may be in between videos so we want MediaSession
-    // to stay active. In the onStop() case, though, we do not.
-    // So we set the set the MediaSession to inactive in this case.
-    mediaSession.setActive(false);
-    if (mediaPlaying) {
-      onMediaStop();
-    }
+    // We generally believe the HTML5 app playback state as the source of truth for configuring
+    // media focus since only it can know about a momentary pause between videos in a playlist, or
+    // other autoplay scenario when we should keep media focus. However, when suspending, any
+    // active SbPlayer is destroyed and we release media focus, even if the HTML5 app still thinks
+    // it's in a playing state. We'll configure it again in resumeInternal() and the HTML5 app will
+    // be none the wiser.
+    configureMediaFocus(PLAYBACK_STATE_NONE);
   }
 
   private static native void nativeInvokeAction(long action);
@@ -290,47 +298,27 @@ public class CobaltMediaSession
   private void updateMediaSessionInternal(int playbackState, long actions,
       String title, String artist, String album, MediaImage[] artwork) {
     checkMainLooperThread();
-    boolean nowActive;
-    boolean nowMediaPlaying;
-    int androidPlaybackState;
 
-    switch (playbackState) {
-      case PLAYBACK_STATE_PLAYING:
-        nowActive = true;
-        nowMediaPlaying = true;
-        androidPlaybackState = PlaybackState.STATE_PLAYING;
-        break;
-      case PLAYBACK_STATE_PAUSED:
-        nowActive = true;
-        nowMediaPlaying = false;
-        androidPlaybackState = PlaybackState.STATE_PAUSED;
-        break;
-      case PLAYBACK_STATE_NONE:
-        nowActive = false;
-        nowMediaPlaying = false;
-        androidPlaybackState = PlaybackState.STATE_NONE;
-        break;
-      default:
-        throw new RuntimeException("Unrecognized playbackState");
-    }
+    // Always keep track of what the HTML5 app thinks the playback state is so we can configure the
+    // media focus correctly, either immediately or when resuming from being suspended.
+    this.playbackState = playbackState;
 
-    if (nowMediaPlaying && !mediaPlaying) {
-      onMediaStart();
-    } else if (!nowMediaPlaying && mediaPlaying) {
-      onMediaStop();
-    }
-
-    active = nowActive;
-    mediaPlaying = nowMediaPlaying;
-
-    // The Android MediaSession becomes inactive when JavaScript says so,
-    // but don't allow JavaScript to enable it while suspended.
-    if (!active || suspended) {
-      mediaSession.setActive(false);
+    // Don't update anything while suspended.
+    if (suspended) {
       return;
     }
 
-    mediaSession.setActive(true);
+    configureMediaFocus(playbackState);
+
+    // Ignore updates to the MediaSession metadata if playback is stopped.
+    if (playbackState == PLAYBACK_STATE_NONE) {
+      return;
+    }
+
+    int androidPlaybackState =
+        (playbackState == PLAYBACK_STATE_PLAYING) ? PlaybackState.STATE_PLAYING
+        : (playbackState == PLAYBACK_STATE_PAUSED) ? PlaybackState.STATE_PAUSED
+        : PlaybackState.STATE_NONE;
 
     mediaSession.setPlaybackState(
         new PlaybackState.Builder()
