@@ -268,10 +268,6 @@ bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(SbSocket socket) {
   }
 
   if (socket->waiter != this) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") "
-                   << "is watched by Waiter (" << socket->waiter << "), "
-                   << "not this Waiter (" << this << ").";
-    SB_DSTACK(ERROR);
     return false;
   }
 
