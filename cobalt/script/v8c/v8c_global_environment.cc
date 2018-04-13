@@ -55,6 +55,13 @@ std::string ExceptionToString(const v8::TryCatch& try_catch) {
   return string;
 }
 
+std::string ToStringOrNull(v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || !value->IsString()) {
+    return "";
+  }
+  return *v8::String::Utf8Value(value.As<v8::String>());
+}
+
 }  // namespace
 
 V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
@@ -76,6 +83,12 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
       [](v8::Local<v8::Context> context, v8::Local<v8::String> source) {
         return false;
       });
+
+  isolate_->AddMessageListenerWithErrorLevel(
+      MessageHandler,
+      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+          v8::Isolate::kMessageLog);
 }
 
 V8cGlobalEnvironment::~V8cGlobalEnvironment() {
@@ -116,6 +129,10 @@ bool V8cGlobalEnvironment::EvaluateScript(
       LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
       return false;
     }
+    // The MessageHandler appears to never get called under a |v8::TryCatch|
+    // block, even if we re-throw it.  We work around this by manually passing
+    // it to the MessageHandler.
+    MessageHandler(try_catch.Message(), try_catch.Exception());
     if (out_result_utf8) {
       *out_result_utf8 = ExceptionToString(try_catch);
     }
@@ -148,6 +165,10 @@ bool V8cGlobalEnvironment::EvaluateScript(
     if (!try_catch.HasCaught()) {
       LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
     }
+    // The MessageHandler appears to never get called under a |v8::TryCatch|
+    // block, even if we re-throw it.  We work around this by manually passing
+    // it to the MessageHandler.
+    MessageHandler(try_catch.Message(), try_catch.Exception());
     return false;
   }
 
@@ -328,6 +349,38 @@ bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
   // one.
   DCHECK_EQ(context->IsCodeGenerationFromStringsAllowed(), false);
   return context->IsCodeGenerationFromStringsAllowed();
+}
+
+// static
+void V8cGlobalEnvironment::MessageHandler(v8::Local<v8::Message> message,
+                                          v8::Local<v8::Value> data) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  V8cGlobalEnvironment* global_environment =
+      V8cGlobalEnvironment::GetFromIsolate(isolate);
+  if (isolate->GetEnteredContext().IsEmpty()) {
+    return;
+  }
+  if (message->ErrorLevel() != v8::Isolate::kMessageError) {
+    return;
+  }
+
+  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  ErrorReport error_report;
+  error_report.message = *v8::String::Utf8Value(message->Get());
+  error_report.filename = ToStringOrNull(message->GetScriptResourceName());
+  int line_number = 0;
+  int column_number = 0;
+  if (message->GetLineNumber(context).To(&line_number) &&
+      message->GetStartColumn(context).To(&column_number)) {
+    column_number++;
+  }
+  error_report.line_number = line_number;
+  error_report.column_number = column_number;
+  error_report.is_muted = message->IsSharedCrossOrigin();
+  error_report.error.reset(new V8cValueHandleHolder(isolate, data));
+  if (!global_environment->report_error_callback_.is_null()) {
+    global_environment->report_error_callback_.Run(error_report);
+  }
 }
 
 v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(

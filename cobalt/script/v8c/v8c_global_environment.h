@@ -139,6 +139,9 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   static bool AllowCodeGenerationFromStringsCallback(
       v8::Local<v8::Context> context, v8::Local<v8::String> source);
 
+  static void MessageHandler(v8::Local<v8::Message> message,
+                             v8::Local<v8::Value> data);
+
   v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
       const scoped_refptr<SourceCode>& source_code);
 
