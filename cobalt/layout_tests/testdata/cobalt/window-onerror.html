@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>window-onerror</title>
+  <style>
+    #result {
+      width: 100px;
+      height:100px;
+      background-color:#0047AB;
+    }
+  </style>
+</head>
+<body>
+
+<div id="result"></div>
+
+<script>
+
+function expect(condition, message) {
+  if (!condition) {
+    document.querySelector('#result').style.display = 'none';
+    const fullMessage = `failed expectation at:
+${new Error().stack}
+${typeof message === 'undefined' ? '' : 'with message: ' + message}`;
+    console.error(fullMessage);
+  }
+}
+
+let windowOnErrorWasCalled = false;
+window.onerror = (message, filename, lineno, colno, error) => {
+  if (typeof message === 'object') {
+    // The code below is to work around Cobalt's window.onerror signature not being correct
+    // (although weird, the spec says you're supposed to expand the event into its attributes before
+    // dispatching it).  It is still important to test the rest of window.onerror support, despite
+    // this known issue.
+    const errorEvent = message;
+    message = errorEvent.message;
+    filename = errorEvent.filename;
+    lineno = errorEvent.lineno;
+    colno = errorEvent.colno;
+    error = errorEvent.error;
+  }
+
+  // We allow anything that ends with "myCoolMessage" to pass, Chrome/Firefox behavior differs here
+  // (Chrome: "Uncaught Error: myCoolMessage", Firefox: "Error: myCoolMessage").
+  expect(/.*myCoolMessage/.test(message), message);
+  // Allow any filename that ends with "window-onerror.html", in order to not couple too heavily to
+  // the implementation of layout_tests.
+  expect(/.*window-onerror.html/.test(filename), filename);
+  expect(lineno === 72, lineno);
+  // The value of the column number is not standard across major browsers.
+  //   Chrome: 1 without devtools open, 7 with devtools open.
+  //   Edge: Always 1.
+  //   Firefox: Always 7.
+  //   Safari: 18.
+  expect(colno === 1 || colno === 7 || colno === 18, colno);
+  expect(typeof error === 'object', typeof error);
+  expect(String(error) === 'Error: myCoolMessage', String(error));
+
+  windowOnErrorWasCalled = true;
+};
+
+if (window.testRunner) {
+  window.testRunner.waitUntilDone();
+}
+setTimeout(() => {
+  expect(windowOnErrorWasCalled);
+  if (window.testRunner) {
+    window.testRunner.notifyDone();
+  }
+}, 1);
+throw new Error('myCoolMessage');
+
+</script>
+
+</body>
+</html>
