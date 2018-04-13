@@ -27,21 +27,19 @@ namespace dom {
 class VideoPlaybackQuality : public script::Wrappable {
  public:
   VideoPlaybackQuality(double creation_time, uint32 total_video_frames,
-                       uint32 dropped_video_frames,
-                       uint32 corrupted_video_frames, double total_frame_delay)
+                       uint32 dropped_video_frames)
       : creation_time_(creation_time),
         total_video_frames_(total_video_frames),
-        dropped_video_frames_(dropped_video_frames),
-        corrupted_video_frames_(corrupted_video_frames),
-        total_frame_delay_(total_frame_delay) {}
+        dropped_video_frames_(dropped_video_frames) {}
 
   // Web API: VideoPlaybackQuality
   //
   double creation_time() const { return creation_time_; }
   uint32 total_video_frames() const { return total_video_frames_; }
   uint32 dropped_video_frames() const { return dropped_video_frames_; }
-  uint32 corrupted_video_frames() const { return corrupted_video_frames_; }
-  double total_frame_delay() const { return total_frame_delay_; }
+  // Always returns 0 as Cobalt simply stops the playback on encountering
+  // corrupted video frames.
+  uint32 corrupted_video_frames() const { return 0; }
 
   DEFINE_WRAPPABLE_TYPE(VideoPlaybackQuality);
 
@@ -49,8 +47,6 @@ class VideoPlaybackQuality : public script::Wrappable {
   double creation_time_;
   uint32 total_video_frames_;
   uint32 dropped_video_frames_;
-  uint32 corrupted_video_frames_;
-  double total_frame_delay_;
 };
 
 }  // namespace dom

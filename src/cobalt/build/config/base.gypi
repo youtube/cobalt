@@ -65,38 +65,22 @@
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency for different font package sizes.
     # The font package can be one of the following options:
-    #   'expanded' -- The largest package. It includes everything in the
-    #                 'standard' package, along with 'bold' weight CJK. It is
-    #                 recommended that 'local_font_cache_size_in_bytes' be
-    #                 increased to 24MB when using this package to account for
-    #                 the extra memory required by bold CJK. This package is
-    #                 ~48.7MB.
     #   'standard' -- The default package. It includes all sans-serif, serif,
     #                 and FCC fonts, non-CJK fallback fonts in both 'normal' and
-    #                 'bold' weights, and 'normal' weight CJK ('bold' weight CJK
-    #                 is synthesized from it). This package is ~29.4MB.
-    #   'limited_with_jp' -- A significantly smaller package than 'standard'.
-    #                 This package removes all but 'normal' and 'bold' weighted
+    #                 'bold' weights, and 'normal' weight CJK ('bold' weight
+    #                 CJK is synthesized from it). This package is ~29.4MB.
+    #   'limited'  -- A significantly smaller package than 'standard'. This
+    #                 package removes all but 'normal' and 'bold' weighted
     #                 sans-serif and serif, removes the FCC fonts (which must be
     #                 provided by the system or downloaded from the web),
-    #                 removes the 'bold' weighted non-CJK fallback fonts (the
-    #                 'normal' weight is still included and is used to
-    #                 synthesize bold), and replaces standard CJK with low
-    #                 quality CJK. However, higher quality Japanese is still
-    #                 included. Because low quality CJK cannot synthesize bold,
-    #                 bold glyphs are unavailable in Chinese and Korean. This
-    #                 package is ~10.9MB.
-    #   'limited'  -- A smaller package than 'limited_with_jp'. The two packages
-    #                 are identical with the exception that 'limited' does not
-    #                 include the higher quality Japanese font; instead it
-    #                 relies on low quality CJK for all CJK characters. Because
+    #                 and replaces standard CJK with low quality CJK. Because
     #                 low quality CJK cannot synthesize bold, bold glyphs are
-    #                 unavailable in Chinese, Japanese, and Korean. This package
+    #                 unavailable in Chinese, Japanese and Korean. This package
     #                 is ~7.7MB.
     #   'minimal'  -- The smallest possible font package. It only includes
     #                 Roboto's Basic Latin characters. Everything else must be
     #                 provided by the system or downloaded from the web. This
-    #                 package is ~16.4KB.
+    #                 package is ~35.4KB.
     # NOTE: When bold is needed, but unavailable, it is typically synthesized,
     #       resulting in lower quality glyphs than those generated directly from
     #       a bold font. However, this does not occur with low quality CJK,
@@ -129,7 +113,6 @@
     'cobalt_font_package_override_fallback_lang_non_cjk%': -1,
     'cobalt_font_package_override_fallback_lang_cjk%': -1,
     'cobalt_font_package_override_fallback_lang_cjk_low_quality%': -1,
-    'cobalt_font_package_override_fallback_lang_jp%': -1,
     'cobalt_font_package_override_fallback_emoji%': -1,
     'cobalt_font_package_override_fallback_symbols%': -1,
 
@@ -559,6 +542,17 @@
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
     'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
+
+    # Specifies the duration threshold of media source garbage collection.  When
+    # the accumulated duration in a source buffer exceeds this value, the media
+    # source implementation will try to eject existing buffers from the cache.
+    # This is usually triggered when the video being played has a simple content
+    # and the encoded data is small.  In such case this can limit how much is
+    # allocated for the book keeping data of the media buffers and avoid OOM of
+    # system heap.
+    # This should be set to 170 for most of the platforms.  But it can be
+    # further reduced on systems with extremely low memory.
+    'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': 170,
   },
 
   'target_defaults': {
@@ -585,6 +579,7 @@
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
+      'COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=<(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],

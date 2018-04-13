@@ -111,35 +111,38 @@ scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
   size_t channels = static_cast<size_t>(buffer_->number_of_channels());
 
   if (sample_type == kSampleTypeFloat32) {
-    std::vector<float*> audio_buffer(channels, NULL);
+    std::vector<scoped_refptr<dom::Float32Array>> audio_buffer_storages(
+        channels);
+    std::vector<float*> audio_buffers(channels, NULL);
     for (size_t i = 0; i < channels; ++i) {
       scoped_refptr<dom::Float32Array> buffer_data =
           buffer_->GetChannelData(static_cast<uint32>(i), NULL);
-      scoped_refptr<dom::Float32Array> sub_array = buffer_data->Subarray(
+      audio_buffer_storages[i] = buffer_data->Subarray(
           NULL, read_index_, read_index_ + number_of_frames);
-      audio_buffer[i] = sub_array->data();
+      audio_buffers[i] = audio_buffer_storages[i]->data();
     }
 
     read_index_ += number_of_frames;
 
-    scoped_ptr<ShellAudioBus> audio_bus(
-        new ShellAudioBus(static_cast<size_t>(number_of_frames), audio_buffer));
+    scoped_ptr<ShellAudioBus> audio_bus(new ShellAudioBus(
+        static_cast<size_t>(number_of_frames), audio_buffers));
 
     return audio_bus.Pass();
   } else if (sample_type == kSampleTypeInt16) {
-    std::vector<int16*> audio_buffer(channels, NULL);
+    std::vector<scoped_refptr<dom::Int16Array>> audio_buffer_storages(channels);
+    std::vector<int16*> audio_buffers(channels, NULL);
     for (size_t i = 0; i < channels; ++i) {
       scoped_refptr<dom::Int16Array> buffer_data =
           buffer_->GetChannelDataInt16(static_cast<uint32>(i), NULL);
-      scoped_refptr<dom::Int16Array> sub_array = buffer_data->Subarray(
+      audio_buffer_storages[i] = buffer_data->Subarray(
           NULL, read_index_, read_index_ + number_of_frames);
-      audio_buffer[i] = sub_array->data();
+      audio_buffers[i] = audio_buffer_storages[i]->data();
     }
 
     read_index_ += number_of_frames;
 
-    scoped_ptr<ShellAudioBus> audio_bus(
-        new ShellAudioBus(static_cast<size_t>(number_of_frames), audio_buffer));
+    scoped_ptr<ShellAudioBus> audio_bus(new ShellAudioBus(
+        static_cast<size_t>(number_of_frames), audio_buffers));
 
     return audio_bus.Pass();
   }

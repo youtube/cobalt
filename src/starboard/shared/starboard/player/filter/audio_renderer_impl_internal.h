@@ -44,8 +44,20 @@ namespace filter {
 // |AudioDecoder| interface, rather than a platform specific implementation.
 class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
  public:
+  static const size_t kDefaultMaxCachedFrames = 256 * 1024;
+  static const size_t kDefaultMaxFramesPerAppend = 16384;
+
+  // |max_cached_frames| is a soft limit for the max audio frames this class can
+  // cache so it can:
+  // 1. Avoid using too much memory.
+  // 2. Have the audio cache full to simulate the state that the renderer can no
+  //    longer accept more data.
+  // |max_frames_per_append| is the max number of frames that the audio renderer
+  // tries to append to the sink buffer at once.
   AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
-                    const SbMediaAudioHeader& audio_header);
+                    const SbMediaAudioHeader& audio_header,
+                    size_t max_cached_frames = kDefaultMaxCachedFrames,
+                    size_t max_frames_per_append = kDefaultMaxFramesPerAppend);
   ~AudioRendererImpl() SB_OVERRIDE;
 
   void Initialize(const Closure& error_cb) SB_OVERRIDE;
@@ -69,6 +81,16 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   SbMediaTime GetCurrentTime() SB_OVERRIDE;
 
  protected:
+  enum EOSState {
+    kEOSNotReceived,
+    kEOSWrittenToDecoder,
+    kEOSDecoded,
+    kEOSSentToSink
+  };
+
+  const size_t max_cached_frames_;
+  const size_t max_frames_per_append_;
+
   atomic_bool paused_;
   atomic_bool consume_frames_called_;
   atomic_bool seeking_;
@@ -85,22 +107,6 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   atomic_double playback_rate_;
 
  private:
-  enum EOSState {
-    kEOSNotReceived,
-    kEOSWrittenToDecoder,
-    kEOSDecoded,
-    kEOSSentToSink
-  };
-
-  // Set a soft limit for the max audio frames we can cache so we can:
-  // 1. Avoid using too much memory.
-  // 2. Have the audio cache full to simulate the state that the renderer can no
-  //    longer accept more data.
-  static const size_t kMaxCachedFrames = 256 * 1024;
-  // The audio renderer tries to append |kAppendFrameUnit| frames every time to
-  // the sink buffer.
-  static const size_t kFrameAppendUnit = 16384;
-
   void CreateAudioSinkAndResampler();
   void UpdateSourceStatus(int* frames_in_buffer,
                           int* offset_in_frames,
@@ -113,7 +119,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   void OnDecoderOutput();
   void ProcessAudioData();
   void FillResamplerAndTimeStretcher();
-  bool AppendAudioToFrameBuffer();
+  bool AppendAudioToFrameBuffer(bool* is_frame_buffer_full);
 
   // SbAudioSink callbacks
   static void UpdateSourceStatusFunc(int* frames_in_buffer,

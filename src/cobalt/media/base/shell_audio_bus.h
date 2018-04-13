@@ -63,6 +63,8 @@ class COBALT_EXPORT ShellAudioBus {
   size_t GetSampleSizeInBytes() const;
   const uint8* interleaved_data() const;
   const uint8* planar_data(size_t channel) const;
+  uint8* interleaved_data();
+  uint8* planar_data(size_t channel);
 
   int16 GetInt16Sample(size_t channel, size_t frame) const {
     DCHECK_EQ(sample_type_, kInt16);
@@ -130,9 +132,11 @@ class COBALT_EXPORT ShellAudioBus {
         GetSamplePtrForType<SampleTypeName, T>(channel, frame));
   }
 
-  template <typename SourceSampleType, typename DestSampleType,
-            StorageType SourceStorageType, StorageType DestStorageType>
-  void MixForTypes(const ShellAudioBus& source);
+  template <StorageType SourceStorageType, StorageType DestStorageType>
+  void MixFloatSamples(const ShellAudioBus& source);
+
+  template <StorageType SourceStorageType, StorageType DestStorageType>
+  void MixInt16Samples(const ShellAudioBus& source);
 
  private:
   void SetFloat32Sample(size_t channel, size_t frame, float sample) {

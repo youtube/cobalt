@@ -231,8 +231,6 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   // This is called by Audio thread.
   owner_node_->audio_lock()->AssertLocked();
 
-  *silence = true;
-
   // TODO: Consider computing computedNumberOfChannels and do up-mix or
   // down-mix base on computedNumberOfChannels. The current implementation
   // is based on the fact that the channelCountMode is max.
@@ -251,8 +249,12 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
         output_audio_bus->sample_type());
 
     if (audio_bus) {
-      MixAudioBuffer(owner_node_->channel_interpretation(), audio_bus.get(),
-                     output_audio_bus);
+      if (*silence && audio_bus->channels() == output_audio_bus->channels()) {
+        output_audio_bus->Assign(*audio_bus);
+      } else {
+        MixAudioBuffer(owner_node_->channel_interpretation(), audio_bus.get(),
+                       output_audio_bus);
+      }
       *silence = false;
     }
   }

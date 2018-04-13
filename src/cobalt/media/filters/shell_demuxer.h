@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/base/decoder_buffer.h"
@@ -150,12 +149,11 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   void ParseConfigDone(const PipelineStatusCB& status_cb,
                        PipelineStatus status);
   void DataSourceStopped(const base::Closure& callback);
+  bool HasStopCalled();
 
   // methods that perform blocking I/O, and are therefore run on the
-  // blocking_thread_
-  // download enough of the stream to parse the configuration. returns
-  // false on error.
-  PipelineStatus ParseConfigBlocking(const PipelineStatusCB& status_cb);
+  // blocking_thread_ download enough of the stream to parse the configuration.
+  void ParseConfigBlocking(const PipelineStatusCB& status_cb);
   void AllocateBuffer();
   void Download(scoped_refptr<DecoderBuffer> buffer);
   void IssueNextRequest();
@@ -171,6 +169,7 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<MediaLog> media_log_;
   scoped_refptr<ShellDataSourceReader> reader_;
 
+  base::Lock lock_for_stopped_;
   bool stopped_;
   bool flushing_;
 
@@ -181,8 +180,6 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
   scoped_refptr<ShellAU> requested_au_;
   bool audio_reached_eos_;
   bool video_reached_eos_;
-
-  base::WeakPtrFactory<ShellDemuxer> weak_ptr_factory_;
 };
 
 }  // namespace media

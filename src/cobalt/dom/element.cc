@@ -242,7 +242,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
     named_node_map_->SetAttributeInternal(attr_name, value);
   }
 
-  if (document) {
+  if (document && GetRootNode() == document) {
     document->OnDOMMutation();
   }
   OnSetAttribute(name, value);
@@ -307,7 +307,7 @@ void Element::RemoveAttribute(const std::string& name) {
     named_node_map_->RemoveAttributeInternal(attr_name);
   }
 
-  if (document) {
+  if (document && GetRootNode() == document) {
     document->OnDOMMutation();
   }
   OnRemoveAttribute(name);

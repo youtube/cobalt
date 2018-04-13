@@ -115,7 +115,7 @@ AudioResampler::AudioResampler(
 AudioResampler::~AudioResampler() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   avresample_close(context_);
-  av_free(context_);
+  av_freep(&context_);
 }
 
 scoped_refptr<AudioResampler::DecodedAudio> AudioResampler::Resample(

@@ -109,6 +109,10 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
     window = node_document()->default_view();
   }
 
+  if (window) {
+    window->OnStartDispatchEvent(event);
+  }
+
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
   for (Node* current = this->parent_node(); current != NULL;
@@ -158,6 +162,10 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   }
 
   event->set_event_phase(Event::kNone);
+
+  if (window) {
+    window->OnStopDispatchEvent(event);
+  }
 
   // The event has completed being dispatched. Stop tracking it in the global
   // stats.
