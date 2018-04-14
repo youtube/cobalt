@@ -95,7 +95,7 @@ void V8cGlobalEnvironment::CreateGlobalObject() {
 }
 
 bool V8cGlobalEnvironment::EvaluateScript(
-    const scoped_refptr<SourceCode>& source_code, bool mute_errors,
+    const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
@@ -106,7 +106,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
   v8::TryCatch try_catch(isolate_);
 
   v8::Local<v8::Value> result;
-  if (!EvaluateScriptInternal(source_code, mute_errors).ToLocal(&result)) {
+  if (!EvaluateScriptInternal(source_code).ToLocal(&result)) {
     if (!try_catch.HasCaught()) {
       LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
       return false;
@@ -128,7 +128,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
-    const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+    const scoped_refptr<Wrappable>& owning_object,
     base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
@@ -139,7 +139,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
   v8::TryCatch try_catch(isolate_);
 
   v8::Local<v8::Value> result;
-  if (!EvaluateScriptInternal(source_code, mute_errors).ToLocal(&result)) {
+  if (!EvaluateScriptInternal(source_code).ToLocal(&result)) {
     if (!try_catch.HasCaught()) {
       LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
     }
@@ -323,7 +323,7 @@ bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
 }
 
 v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
-    const scoped_refptr<SourceCode>& source_code, bool mute_errors) {
+    const scoped_refptr<SourceCode>& source_code) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -353,7 +353,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
       /*resource_column_offset=*/
       v8::Integer::New(isolate_, source_location.column_number - 1),
       /*resource_is_shared_cross_origin=*/
-      v8::Boolean::New(isolate_, !mute_errors));
+      v8::Boolean::New(isolate_, !v8c_source_code->is_muted()));
 
   v8::Local<v8::String> source;
   if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
@@ -396,7 +396,7 @@ void V8cGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,
   scoped_refptr<SourceCode> source_code =
       new V8cSourceCode(source, base::SourceLocation(filename, 1, 1));
   std::string result;
-  bool success = EvaluateScript(source_code, false /*mute_errors*/, &result);
+  bool success = EvaluateScript(source_code, &result);
   if (!success) {
     DLOG(FATAL) << result;
   }

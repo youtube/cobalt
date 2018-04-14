@@ -17,10 +17,11 @@
 namespace cobalt {
 namespace script {
 
+// static
 scoped_refptr<SourceCode> SourceCode::CreateSourceCode(
-    const std::string& script_utf8,
-    const base::SourceLocation& script_location) {
-  return new v8c::V8cSourceCode(script_utf8, script_location);
+    const std::string& script_utf8, const base::SourceLocation& script_location,
+    bool is_muted) {
+  return new v8c::V8cSourceCode(script_utf8, script_location, is_muted);
 }
 
 }  // namespace script

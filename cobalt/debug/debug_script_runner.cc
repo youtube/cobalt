@@ -82,8 +82,7 @@ bool DebugScriptRunner::EvaluateScript(const std::string& js_code,
       script::SourceCode::CreateSourceCode(js_code, GetInlineSourceLocation());
 
   ForceEnableEval();
-  bool succeeded = global_environment_->EvaluateScript(
-      source_code, false /*mute_errors*/, result);
+  bool succeeded = global_environment_->EvaluateScript(source_code, result);
   SetEvalAllowedFromCsp();
   return succeeded;
 }
