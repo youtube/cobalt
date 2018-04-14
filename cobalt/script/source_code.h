@@ -27,12 +27,11 @@ namespace script {
 // evaluated by a JavaScriptEngine
 class SourceCode : public base::RefCounted<SourceCode> {
  public:
-  // Convert the utf8 encoded string to an object that represents script that
-  // can be evaluated.
-  // Defined in the engine's implementation.
+  // Convert the UTF-8 encoded string to an object that represents script that
+  // can be evaluated. Defined in the engine's implementation.
   static scoped_refptr<SourceCode> CreateSourceCode(
       const std::string& script_utf8,
-      const base::SourceLocation& script_location);
+      const base::SourceLocation& script_location, bool is_muted = false);
 
  protected:
   SourceCode() {}
