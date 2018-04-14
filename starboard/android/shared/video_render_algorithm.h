@@ -45,7 +45,7 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
   };
 
   VideoFrameReleaseTimeHelper video_frame_release_time_helper_;
-  int dropped_frames_;
+  int dropped_frames_ = 0;
 };
 
 }  // namespace shared
