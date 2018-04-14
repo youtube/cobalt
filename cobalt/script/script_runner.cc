@@ -83,7 +83,7 @@ std::string ScriptRunnerImpl::Execute(
     const std::string& script_utf8, const base::SourceLocation& script_location,
     bool mute_errors, bool* out_succeeded) {
   scoped_refptr<SourceCode> source_code =
-      SourceCode::CreateSourceCode(script_utf8, script_location);
+      SourceCode::CreateSourceCode(script_utf8, script_location, mute_errors);
   if (out_succeeded) {
     *out_succeeded = false;
   }
@@ -92,7 +92,7 @@ std::string ScriptRunnerImpl::Execute(
     return "";
   }
   std::string result;
-  if (!global_environment_->EvaluateScript(source_code, mute_errors, &result)) {
+  if (!global_environment_->EvaluateScript(source_code, &result)) {
     LOG(WARNING) << "Failed to execute JavaScript: " << result;
 #if defined(HANDLE_CORE_DUMP)
     script_runner_log.Get().IncrementFailCount();

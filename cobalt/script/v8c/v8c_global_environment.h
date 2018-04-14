@@ -60,12 +60,12 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
       const scoped_refptr<GlobalInterface>& global_interface,
       EnvironmentSettings* environment_settings);
 
-  bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
+  bool EvaluateScript(const scoped_refptr<SourceCode>& script,
                       std::string* out_result_utf8) override;
 
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
-      const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+      const scoped_refptr<Wrappable>& owning_object,
       base::optional<ValueHandleHolder::Reference>* out_value_handle) override;
 
   std::vector<StackFrame> GetStackTrace(int max_frames) override;
@@ -140,7 +140,7 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
       v8::Local<v8::Context> context, v8::Local<v8::String> source);
 
   v8::MaybeLocal<v8::Value> EvaluateScriptInternal(
-      const scoped_refptr<SourceCode>& source_code, bool mute_errors);
+      const scoped_refptr<SourceCode>& source_code);
 
   void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
                               const char* filename);
