@@ -34,14 +34,20 @@ namespace mozjs {
 class MozjsSourceCode : public SourceCode {
  public:
   MozjsSourceCode(const std::string& source_utf8,
-                  const base::SourceLocation& source_location)
-      : source_utf8_(source_utf8), location_(source_location) {}
+                  const base::SourceLocation& source_location,
+                  bool is_muted = false)
+      : source_utf8_(source_utf8),
+        location_(source_location),
+        is_muted_(is_muted) {}
+
   const std::string& source_utf8() const { return source_utf8_; }
   const base::SourceLocation& location() const { return location_; }
+  bool is_muted() const { return is_muted_; }
 
  private:
   std::string source_utf8_;
   base::SourceLocation location_;
+  bool is_muted_;
 };
 
 }  // namespace mozjs

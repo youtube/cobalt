@@ -108,8 +108,7 @@ bool ErrorEventTest::EvaluateScript(const std::string& js_code,
 
   global_environment_->EnableEval();
   global_environment_->SetReportEvalCallback(base::Closure());
-  bool succeeded = global_environment_->EvaluateScript(
-      source_code, false /*mute_errors*/, result);
+  bool succeeded = global_environment_->EvaluateScript(source_code, result);
   return succeeded;
 }
 }  // namespace
