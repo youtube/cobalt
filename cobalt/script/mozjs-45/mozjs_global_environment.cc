@@ -212,7 +212,7 @@ void MozjsGlobalEnvironment::CreateGlobalObject() {
 }
 
 bool MozjsGlobalEnvironment::EvaluateScript(
-    const scoped_refptr<SourceCode>& source_code, bool mute_errors,
+    const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -225,8 +225,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   std::string error_message;
   last_error_message_ = &error_message;
 
-  bool success =
-      EvaluateScriptInternal(source_code, mute_errors, &result_value);
+  bool success = EvaluateScriptInternal(source_code, &result_value);
   if (out_result_utf8) {
     if (success) {
       MozjsExceptionState exception_state(context_);
@@ -244,7 +243,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
 
 bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
-    const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+    const scoped_refptr<Wrappable>& owning_object,
     base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -252,8 +251,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
   JS::AutoSaveExceptionState auto_save_exception_state(context_);
   JS::RootedValue result_value(context_);
-  bool success =
-      EvaluateScriptInternal(source_code, mute_errors, &result_value);
+  bool success = EvaluateScriptInternal(source_code, &result_value);
   if (success && out_value_handle) {
     MozjsValueHandleHolder mozjs_value_holder(context_, result_value);
     out_value_handle->emplace(owning_object.get(), mozjs_value_holder);
@@ -262,7 +260,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
 }
 
 bool MozjsGlobalEnvironment::EvaluateScriptInternal(
-    const scoped_refptr<SourceCode>& source_code, bool mute_errors,
+    const scoped_refptr<SourceCode>& source_code,
     JS::MutableHandleValue out_result) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -289,7 +287,7 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
 
   JS::CompileOptions options(context_);
   options.setFileAndLine(location.file_path.c_str(), location.line_number)
-      .setMutedErrors(mute_errors);
+      .setMutedErrors(mozjs_source_code->is_muted());
   bool success =
       JS::Evaluate(context_, options, inflated_buffer, length, out_result);
   if (!success && context_->isExceptionPending()) {
@@ -307,7 +305,7 @@ void MozjsGlobalEnvironment::EvaluateEmbeddedScript(
   scoped_refptr<SourceCode> source_code =
       new MozjsSourceCode(source, base::SourceLocation(filename, 1, 1));
   std::string result;
-  bool success = EvaluateScript(source_code, false /*mute_errors*/, &result);
+  bool success = EvaluateScript(source_code, &result);
   if (!success) {
     DLOG(FATAL) << result;
   }
