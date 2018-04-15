@@ -359,6 +359,7 @@ void VideoDecoder::ProcessOutputBuffer(
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
+  starboard::ScopedLock lock(decode_target_mutex_);
   // Record the latest width/height of the decoded input.
   SurfaceDimensions output_dimensions =
       media_codec_bridge->GetOutputDimensions();

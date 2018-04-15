@@ -71,6 +71,7 @@ class MediaCodecBridge {
   private static final int BITRATE_ADJUSTMENT_FPS = 30;
   private static final int MAXIMUM_INITIAL_FPS = 30;
 
+  private long mNativeMediaCodecBridge;
   private MediaCodec mMediaCodec;
   private boolean mFlushed;
   private long mLastPresentationTimeUs;
@@ -329,6 +330,7 @@ class MediaCodecBridge {
   }
 
   private MediaCodecBridge(
+      long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
       String mime,
       boolean adaptivePlaybackSupported,
@@ -336,17 +338,49 @@ class MediaCodecBridge {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
+    mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec = mediaCodec;
     mMime = mime; // TODO: Delete the unused mMime field
     mLastPresentationTimeUs = 0;
     mFlushed = true;
     mAdaptivePlaybackSupported = adaptivePlaybackSupported;
     mBitrateAdjustmentType = bitrateAdjustmentType;
+    mMediaCodec.setCallback(
+        new MediaCodec.Callback() {
+          @Override
+          public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+            nativeOnMediaCodecError(
+                mNativeMediaCodecBridge, e.isRecoverable(), e.isTransient(), e.getDiagnosticInfo());
+          }
+
+          @Override
+          public void onInputBufferAvailable(MediaCodec codec, int index) {
+            nativeOnMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
+          }
+
+          @Override
+          public void onOutputBufferAvailable(
+              MediaCodec codec, int index, MediaCodec.BufferInfo info) {
+            nativeOnMediaCodecOutputBufferAvailable(
+                mNativeMediaCodecBridge,
+                index,
+                info.flags,
+                info.offset,
+                info.presentationTimeUs,
+                info.size);
+          }
+
+          @Override
+          public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
+            nativeOnMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
+          }
+        });
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   public static MediaCodecBridge createAudioMediaCodecBridge(
+      long nativeMediaCodecBridge,
       String mime,
       boolean isSecure,
       boolean requireSoftwareCodec,
@@ -370,7 +404,8 @@ class MediaCodecBridge {
       return null;
     }
     MediaCodecBridge bridge =
-        new MediaCodecBridge(mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
     setFrameHasADTSHeader(mediaFormat);
@@ -391,6 +426,7 @@ class MediaCodecBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public static MediaCodecBridge createVideoMediaCodecBridge(
+      long nativeMediaCodecBridge,
       String mime,
       boolean isSecure,
       boolean requireSoftwareCodec,
@@ -425,7 +461,8 @@ class MediaCodecBridge {
       return null;
     }
     MediaCodecBridge bridge =
-        new MediaCodecBridge(mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
+        new MediaCodecBridge(
+            nativeMediaCodecBridge, mediaCodec, mime, true, BitrateAdjustmentTypes.NO_ADJUSTMENT);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, width, height, findVideoDecoderResult.videoCapabilities);
 
@@ -512,6 +549,7 @@ class MediaCodecBridge {
     try {
       mFlushed = true;
       mMediaCodec.flush();
+      mMediaCodec.setCallback(null);
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MEDIA_CODEC_ERROR;
@@ -950,4 +988,23 @@ class MediaCodecBridge {
         return AudioFormat.CHANNEL_OUT_DEFAULT;
     }
   }
+
+  private native void nativeOnMediaCodecError(
+      long nativeMediaCodecBridge,
+      boolean isRecoverable,
+      boolean isTransient,
+      String diagnosticInfo);
+
+  private native void nativeOnMediaCodecInputBufferAvailable(
+      long nativeMediaCodecBridge, int bufferIndex);
+
+  private native void nativeOnMediaCodecOutputBufferAvailable(
+      long nativeMediaCodecBridge,
+      int bufferIndex,
+      int flags,
+      int offset,
+      long presentationTimeUs,
+      int size);
+
+  private native void nativeOnMediaCodecOutputFormatChanged(long nativeMediaCodecBridge);
 }
