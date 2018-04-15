@@ -222,6 +222,8 @@ void AudioDecoder::ProcessOutputBuffer(
         dequeue_output_result.presentation_time_microseconds, size);
 
     SbMemoryCopy(decoded_audio->buffer(), data, size);
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
+
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
@@ -229,9 +231,9 @@ void AudioDecoder::ProcessOutputBuffer(
                           << decoded_audios_.front()->timestamp();
     }
     Schedule(output_cb_);
+  } else {
+    media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
   }
-
-  media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
 }
 
 void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
