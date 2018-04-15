@@ -77,10 +77,68 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 
 }  // namespace
 
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecError(
+    JniEnvExt* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge,
+    jboolean is_recoverable,
+    jboolean is_transient,
+    jstring diagnostic_info) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  std::string diagnostic_info_in_str =
+      env->GetStringStandardUTFOrAbort(diagnostic_info);
+  media_codec_bridge->OnMediaCodecError(is_recoverable, is_transient,
+                                        diagnostic_info_in_str);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecInputBufferAvailable(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge,
+    jint buffer_index) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecInputBufferAvailable(buffer_index);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputBufferAvailable(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge,
+    jint buffer_index,
+    jint flags,
+    jint offset,
+    jlong presentation_time_us,
+    jint size) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecOutputBufferAvailable(
+      buffer_index, flags, offset, presentation_time_us, size);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputFormatChanged(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecOutputFormatChanged();
+}
+
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     SbMediaAudioCodec audio_codec,
     const SbMediaAudioHeader& audio_header,
+    Handler* handler,
     jobject j_media_crypto) {
   const char* mime = SupportedAudioCodecToMimeType(audio_codec);
   if (!mime) {
@@ -88,11 +146,14 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
+  scoped_ptr<MediaCodecBridge> native_media_codec_bridge(
+      new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
-      "(Ljava/lang/String;ZZIILandroid/media/MediaCrypto;)Ldev/cobalt/media/"
+      "(JLjava/lang/String;ZZIILandroid/media/MediaCrypto;)Ldev/cobalt/media/"
       "MediaCodecBridge;",
-      j_mime.Get(), !!j_media_crypto, false, audio_header.samples_per_second,
+      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
+      !!j_media_crypto, false, audio_header.samples_per_second,
       audio_header.number_of_channels, j_media_crypto);
 
   if (!j_media_codec_bridge) {
@@ -100,8 +161,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
-  return scoped_ptr<MediaCodecBridge>(
-      new MediaCodecBridge(j_media_codec_bridge));
+  native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  return native_media_codec_bridge.Pass();
 }
 
 // static
@@ -109,6 +170,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
     int width,
     int height,
+    Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata) {
@@ -146,22 +208,25 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     }
   }
 
+  scoped_ptr<MediaCodecBridge> native_media_codec_bridge(
+      new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
-      "(Ljava/lang/String;ZZIILandroid/view/Surface;"
+      "(JLjava/lang/String;ZZIILandroid/view/Surface;"
       "Landroid/media/MediaCrypto;"
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;)"
       "Ldev/cobalt/media/MediaCodecBridge;",
-      j_mime.Get(), !!j_media_crypto, false, width, height, j_surface,
-      j_media_crypto, j_color_info.Get());
+      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
+      !!j_media_crypto, false, width, height, j_surface, j_media_crypto,
+      j_color_info.Get());
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
-  return scoped_ptr<MediaCodecBridge>(
-      new MediaCodecBridge(j_media_codec_bridge));
+  native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  return native_media_codec_bridge.Pass();
 }
 
 MediaCodecBridge::~MediaCodecBridge() {
@@ -325,12 +390,39 @@ AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
                                     "channelCount", "()I")};
 }
 
-MediaCodecBridge::MediaCodecBridge(jobject j_media_codec_bridge)
-    : j_media_codec_bridge_(j_media_codec_bridge),
-      j_reused_dequeue_input_result_(NULL),
-      j_reused_dequeue_output_result_(NULL),
-      j_reused_get_output_format_result_(NULL) {
-  SB_DCHECK(j_media_codec_bridge_);
+void MediaCodecBridge::OnMediaCodecError(bool is_recoverable,
+                                         bool is_transient,
+                                         const std::string& diagnostic_info) {
+  handler_->OnMediaCodecError(is_recoverable, is_transient, diagnostic_info);
+}
+
+void MediaCodecBridge::OnMediaCodecInputBufferAvailable(int buffer_index) {
+  handler_->OnMediaCodecInputBufferAvailable(buffer_index);
+}
+
+void MediaCodecBridge::OnMediaCodecOutputBufferAvailable(
+    int buffer_index,
+    int flags,
+    int offset,
+    long presentation_time_us,
+    int size) {
+  handler_->OnMediaCodecOutputBufferAvailable(buffer_index, flags, offset,
+                                              presentation_time_us, size);
+}
+
+void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
+  handler_->OnMediaCodecOutputFormatChanged();
+}
+
+MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
+  SB_DCHECK(handler_);
+}
+
+void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
+  SB_DCHECK(j_media_codec_bridge);
+
+  j_media_codec_bridge_ = j_media_codec_bridge;
+
   JniEnvExt* env = JniEnvExt::Get();
   SB_DCHECK(env->GetObjectRefType(j_media_codec_bridge_) == JNIGlobalRefType);
 
