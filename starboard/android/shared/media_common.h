@@ -85,11 +85,6 @@ class EventQueue {
     deque_.clear();
   }
 
-  size_t size() const {
-    ScopedLock lock(mutex_);
-    return deque_.size();
-  }
-
  private:
   ::starboard::Mutex mutex_;
   std::deque<E> deque_;
