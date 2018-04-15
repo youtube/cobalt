@@ -74,15 +74,36 @@ struct AudioOutputFormatResult {
 
 class MediaCodecBridge {
  public:
+  // The methods are called on the default Looper.  They won't get called after
+  // Flush() is returned.
+  class Handler {
+   public:
+    virtual void OnMediaCodecError(bool is_recoverable,
+                                   bool is_transient,
+                                   const std::string& diagnostic_info) = 0;
+    virtual void OnMediaCodecInputBufferAvailable(int buffer_index) = 0;
+    virtual void OnMediaCodecOutputBufferAvailable(int buffer_index,
+                                                   int flags,
+                                                   int offset,
+                                                   long presentation_time_us,
+                                                   int size) = 0;
+    virtual void OnMediaCodecOutputFormatChanged() = 0;
+
+   protected:
+    ~Handler() {}
+  };
+
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       SbMediaAudioCodec audio_codec,
       const SbMediaAudioHeader& audio_header,
+      Handler* handler,
       jobject j_media_crypto);
 
   static scoped_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
       SbMediaVideoCodec video_codec,
       int width,
       int height,
+      Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata);
@@ -114,20 +135,33 @@ class MediaCodecBridge {
   SurfaceDimensions GetOutputDimensions();
   AudioOutputFormatResult GetAudioOutputFormat();
 
+  void OnMediaCodecError(bool is_recoverable,
+                         bool is_transient,
+                         const std::string& diagnostic_info);
+  void OnMediaCodecInputBufferAvailable(int buffer_index);
+  void OnMediaCodecOutputBufferAvailable(int buffer_index,
+                                         int flags,
+                                         int offset,
+                                         long presentation_time_us,
+                                         int size);
+  void OnMediaCodecOutputFormatChanged();
+
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
-  explicit MediaCodecBridge(jobject j_media_codec_bridge);
+  explicit MediaCodecBridge(Handler* handler);
+  void Initialize(jobject j_media_codec_bridge);
 
-  jobject j_media_codec_bridge_;
+  Handler* handler_ = NULL;
+  jobject j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  jobject j_reused_dequeue_input_result_;
-  jobject j_reused_dequeue_output_result_;
-  jobject j_reused_get_output_format_result_;
+  jobject j_reused_dequeue_input_result_ = NULL;
+  jobject j_reused_dequeue_output_result_ = NULL;
+  jobject j_reused_get_output_format_result_ = NULL;
 
   SB_DISALLOW_COPY_AND_ASSIGN(MediaCodecBridge);
 };
