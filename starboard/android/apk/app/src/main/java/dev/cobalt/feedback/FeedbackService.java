@@ -27,7 +27,8 @@ public interface FeedbackService {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  void sendFeedback(HashMap<String, String> productSpecificData, Bitmap screenshot);
+  void sendFeedback(
+      HashMap<String, String> productSpecificData, String categoryTag, Bitmap screenshot);
 
   void connect();
 

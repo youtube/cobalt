@@ -16,6 +16,6 @@
 interface FeedbackService {
   // Send feedback.
   [RaisesException] void sendFeedback(any productSpecificData,
-                                      optional ArrayBuffer screenshotContents);
+                                      optional DOMString categoryTag = "",
+                                      optional ArrayBuffer screenshotData);
 };
-
