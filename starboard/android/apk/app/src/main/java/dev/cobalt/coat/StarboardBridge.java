@@ -381,7 +381,9 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void sendFeedback(HashMap<String, String> productSpecificData, byte[] screenshotData) {
+  void sendFeedback(
+      HashMap<String, String> productSpecificData, String categoryTag, byte[] screenshotData) {
+    // Convert the screenshot byte array into a Bitmap.
     Bitmap screenshotBitmap = null;
     if ((screenshotData != null) && (screenshotData.length > 0)) {
       screenshotBitmap = BitmapFactory.decodeByteArray(screenshotData, 0, screenshotData.length);
@@ -389,7 +391,7 @@ public class StarboardBridge {
         Log.e(TAG, "Unable to decode a screenshot from the data.");
       }
     }
-    feedbackService.sendFeedback(productSpecificData, screenshotBitmap);
+    feedbackService.sendFeedback(productSpecificData, categoryTag, screenshotBitmap);
   }
 
   @SuppressWarnings("unused")
