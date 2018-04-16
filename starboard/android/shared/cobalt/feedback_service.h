@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_COBALT_FEEDBACK_SERVICE_H_
 #define STARBOARD_ANDROID_SHARED_COBALT_FEEDBACK_SERVICE_H_
 
+#include <string>
+
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/value_handle.h"
@@ -26,9 +28,11 @@ namespace webapi_extension {
 class FeedbackService : public ::cobalt::script::Wrappable {
  public:
   void SendFeedback(const script::ValueHandleHolder& product_specific_data,
+                    const std::string& category_tag,
                     script::ExceptionState* exception_state);
 
   void SendFeedback(const script::ValueHandleHolder& product_specific_data,
+                    const std::string& category_tag,
                     const scoped_refptr<dom::ArrayBuffer>& screenshot_data,
                     script::ExceptionState* exception_state);
 
