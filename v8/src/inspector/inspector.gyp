@@ -76,7 +76,8 @@
           'action': [
             'python',
             '<(protocol_path)/CodeGenerator.py',
-            '--jinja_dir', '../../third_party',
+            # Redirect V8 to use Cobalt's jinja.
+            '--jinja_dir', '../../../third_party',
             '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
             '--config', 'inspector_protocol_config.json',
           ],
