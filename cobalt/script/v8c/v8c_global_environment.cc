@@ -71,6 +71,11 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
 
   isolate_->SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback);
+
+  isolate_->SetAllowWasmCodeGenerationCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+        return false;
+      });
 }
 
 V8cGlobalEnvironment::~V8cGlobalEnvironment() {
@@ -317,7 +322,10 @@ bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
     global_environment->report_eval_.Run();
   }
   // This callback should only be called while code generation from strings is
-  // not allowed from within V8, so this should always be false.
+  // not allowed from within V8, so this should always be false.  Note that
+  // WebAssembly code generation will fall back to this callback if a
+  // WebAssembly callback has not been explicitly set, however we *have* set
+  // one.
   DCHECK_EQ(context->IsCodeGenerationFromStringsAllowed(), false);
   return context->IsCodeGenerationFromStringsAllowed();
 }
