@@ -368,6 +368,12 @@ class Window : public EventTarget,
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
   void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
 
+  // |PointerState| will in general create reference cycles back to us, which is
+  // ok, as they are cleared over time.  During shutdown however, since no
+  // more queue progress can possibly be made, we must forcibly clear the
+  // queue.
+  void ClearPointerStateForShutdown();
+
   void TraceMembers(script::Tracer* tracer) override;
 
   void SetEnvironmentSettings(script::EnvironmentSettings* settings);

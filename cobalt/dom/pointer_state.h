@@ -72,6 +72,11 @@ class PointerState {
   void SetActive(int32_t pointer_id);
   void ClearActive(int32_t pointer_id);
 
+  // We will in general hold references back to window, which can result in
+  // leaking nearly the entire DOM if we don't forcibly clear them during
+  // shutdown.
+  void ClearForShutdown();
+
  private:
   // Stores pointer events until they are handled after a layout.
   std::queue<scoped_refptr<Event> > pointer_events_;
