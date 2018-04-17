@@ -106,6 +106,8 @@
         'trace_manager.h',
         'url_handler.cc',
         'url_handler.h',
+        'user_agent_string.cc',
+        'user_agent_string.h',
         'web_module.cc',
         'web_module.h',
         'web_module_stat_tracker.cc',
@@ -174,6 +176,10 @@
         # on this one.
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
+      'include_dirs': [
+        # For cobalt_build_id.h
+        '<(SHARED_INTERMEDIATE_DIR)',
+      ],
       'conditions': [
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
@@ -189,6 +195,9 @@
           'dependencies': [
             '<(DEPTH)/cobalt/media/media.gyp:media',
           ],
+        }],
+        ['cobalt_enable_lib == 1', {
+          'defines' : ['COBALT_ENABLE_LIB'],
         }],
         ['mesh_cache_size_in_bytes == "auto"', {
           'conditions': [
@@ -225,6 +234,7 @@
         'memory_settings/test_common.h',
         'memory_tracker/tool/tool_impl_test.cc',
         'memory_tracker/tool/util_test.cc',
+        'user_agent_string_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',

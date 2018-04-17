@@ -27,7 +27,6 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media_session/media_session.h"
-#include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/source_code.h"
@@ -56,7 +55,7 @@ class CustomEventTest : public ::testing::Test {
         message_loop_(MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
-        fetcher_factory_(new loader::FetcherFactory(&network_module_)),
+        fetcher_factory_(new loader::FetcherFactory(NULL)),
         local_storage_database_(NULL),
         url_("about:blank"),
         window_(new Window(
@@ -92,7 +91,6 @@ class CustomEventTest : public ::testing::Test {
   MockErrorCallback mock_error_callback_;
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
-  network::NetworkModule network_module_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;

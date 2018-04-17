@@ -19,6 +19,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/dom/window.h"
@@ -66,7 +67,10 @@ browser::WebModule::LayoutResults SnapshotURL(
   // Some layout tests test Content Security Policy; allow HTTP so we
   // don't interfere.
   net_options.https_requirement = network::kHTTPSOptional;
-  network::NetworkModule network_module(net_options);
+  network::NetworkModule network_module(
+      browser::CreateUserAgentString(
+          browser::GetUserAgentPlatformInfoFromSystem()),
+      NULL, NULL, net_options);
 
   // Use 128M of image cache to minimize the effect of image loading.
   const size_t kImageCacheCapacity = 128 * 1024 * 1024;
