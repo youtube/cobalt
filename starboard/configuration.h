@@ -134,6 +134,11 @@
 //   Please see the comment in audio_sink.h for more details.
 #define SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbAtomic8 type and memory access functions for it are
+//   introduced. They are required to be implemented if a platform wants to use
+//   V8 as its JavaScript engine.
+#define SB_INTRODUCE_ATOMIC8_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
