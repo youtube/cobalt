@@ -8,7 +8,7 @@ EXPORTS
     ; From starboard/shared/lib/exported/starboard_main.h:
     StarboardMain
 
-    ; From cobalt/network/lib/user_agent.h:
+    ; From cobalt/browser/lib/exported/user_agent.h:
     CbLibUserAgentSetPlatformNameSuffix
     CbLibUserAgentSetDeviceTypeOverride
     CbLibUserAgentSetBrandNameOverride
