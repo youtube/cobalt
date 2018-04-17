@@ -646,6 +646,10 @@ void Window::OnStopDispatchEvent(const scoped_refptr<dom::Event>& event) {
   }
 }
 
+void Window::ClearPointerStateForShutdown() {
+  document_->pointer_state()->ClearForShutdown();
+}
+
 void Window::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 

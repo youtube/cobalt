@@ -729,6 +729,7 @@ WebModule::Impl::~Impl() {
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
+  window_->ClearPointerStateForShutdown();
   window_ = NULL;
   media_source_registry_.reset();
   blob_registry_.reset();
