@@ -86,6 +86,7 @@ public class CobaltMediaSession
 
   // Accessed on the main looper thread only.
   private int playbackState = PLAYBACK_STATE_NONE;
+  private boolean transientPause = false;
   private boolean suspended = true;
 
   public CobaltMediaSession(
@@ -101,31 +102,37 @@ public class CobaltMediaSession
         new MediaSession.Callback() {
           @Override
           public void onFastForward() {
+            Log.i(TAG, "MediaSession action: FAST FORWARD");
             nativeInvokeAction(PlaybackState.ACTION_FAST_FORWARD);
           }
 
           @Override
           public void onPause() {
+            Log.i(TAG, "MediaSession action: PAUSE");
             nativeInvokeAction(PlaybackState.ACTION_PAUSE);
           }
 
           @Override
           public void onPlay() {
+            Log.i(TAG, "MediaSession action: PLAY");
             nativeInvokeAction(PlaybackState.ACTION_PLAY);
           }
 
           @Override
           public void onRewind() {
+            Log.i(TAG, "MediaSession action: REWIND");
             nativeInvokeAction(PlaybackState.ACTION_REWIND);
           }
 
           @Override
           public void onSkipToNext() {
+            Log.i(TAG, "MediaSession action: SKIP NEXT");
             nativeInvokeAction(PlaybackState.ACTION_SKIP_TO_NEXT);
           }
 
           @Override
           public void onSkipToPrevious() {
+            Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
             nativeInvokeAction(PlaybackState.ACTION_SKIP_TO_PREVIOUS);
           }
         });
@@ -143,6 +150,12 @@ public class CobaltMediaSession
    */
   private void configureMediaFocus(int playbackState) {
     checkMainLooperThread();
+    if (transientPause && playbackState == PLAYBACK_STATE_PAUSED) {
+      Log.i(TAG, "Media focus: paused (transient)");
+      // Don't release media focus while transiently paused, otherwise we won't get audiofocus back
+      // when the transient condition ends and we would leave playback paused.
+      return;
+    }
     Log.i(TAG, "Media focus: " + PLAYBACK_STATE_NAME[playbackState]);
     wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
     audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
@@ -163,10 +176,16 @@ public class CobaltMediaSession
 
   private void audioFocus(boolean focus) {
     if (focus) {
+      int res;
       if (Build.VERSION.SDK_INT < 26) {
-        requestAudioFocus();
+        res = requestAudioFocus();
       } else {
-        requestAudioFocusV26();
+        res = requestAudioFocusV26();
+      }
+      // This shouldn't happen, but pause playback to be nice if it does.
+      if (res != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+        Log.w(TAG, "Audiofocus action: PAUSE (not granted)");
+        nativeInvokeAction(PlaybackState.ACTION_PAUSE);
       }
     } else {
       if (Build.VERSION.SDK_INT < 26) {
@@ -178,13 +197,13 @@ public class CobaltMediaSession
   }
 
   @SuppressWarnings("deprecation")
-  private void requestAudioFocus() {
-    getAudioManager()
+  private int requestAudioFocus() {
+    return getAudioManager()
         .requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
   }
 
   @TargetApi(26)
-  private void requestAudioFocusV26() {
+  private int requestAudioFocusV26() {
     if (audioFocusRequest == null) {
       AudioAttributes audioAtrributes = new Builder()
           .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
@@ -194,7 +213,7 @@ public class CobaltMediaSession
           .setAudioAttributes(audioAtrributes)
           .build();
     }
-    getAudioManager().requestAudioFocus(audioFocusRequest);
+    return getAudioManager().requestAudioFocus(audioFocusRequest);
   }
 
   @SuppressWarnings("deprecation")
@@ -212,31 +231,40 @@ public class CobaltMediaSession
   /** AudioManager.OnAudioFocusChangeListener implementation. */
   @Override
   public void onAudioFocusChange(int focusChange) {
+    String logExtra = "";
     switch (focusChange) {
       case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+        logExtra = " (transient)";
+        // fall through
       case AudioManager.AUDIOFOCUS_LOSS:
+        Log.i(TAG, "Audiofocus loss" + logExtra);
         if (playbackState == PLAYBACK_STATE_PLAYING) {
+          Log.i(TAG, "Audiofocus action: PAUSE");
           nativeInvokeAction(PlaybackState.ACTION_PAUSE);
         }
         break;
       case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+        Log.i(TAG, "Audiofocus duck");
         // Lower the volume, keep current play state.
         // Starting with API 26 the system does automatic ducking without calling our listener,
         // but we still need this for API < 26.
         volumeListener.onUpdateVolume(AUDIO_FOCUS_DUCK_LEVEL);
         break;
-      case AudioManager.AUDIOFOCUS_GAIN_TRANSIENT:
       case AudioManager.AUDIOFOCUS_GAIN:
-      case AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK:
-        // The app has been granted audio focus again. Raise volume to normal,
+        Log.i(TAG, "Audiofocus gain");
+        // The app has been granted audio focus (again). Raise volume to normal,
         // restart playback if necessary.
         volumeListener.onUpdateVolume(1.0f);
-        if (playbackState != PLAYBACK_STATE_PLAYING) {
+        if (transientPause && playbackState == PLAYBACK_STATE_PAUSED) {
+          Log.i(TAG, "Audiofocus action: PLAY");
           nativeInvokeAction(PlaybackState.ACTION_PLAY);
         }
         break;
       default: // fall out
     }
+
+    // Keep track of whether we're currently paused because of a transient loss of audiofocus.
+    transientPause = (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT);
   }
 
   private AudioManager getAudioManager() {
@@ -305,6 +333,7 @@ public class CobaltMediaSession
 
     // Don't update anything while suspended.
     if (suspended) {
+      Log.i(TAG, "Playback state change while suspended: " + PLAYBACK_STATE_NAME[playbackState]);
       return;
     }
 
