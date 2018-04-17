@@ -42,21 +42,16 @@
         'proxy_config_service.h',
         'starboard/network_system.cc',
         'starboard/proxy_config_service.cc',
-        'starboard/user_agent_string_factory_starboard.cc',
         'switches.cc',
         'switches.h',
         'url_request_context.cc',
         'url_request_context.h',
         'url_request_context_getter.cc',
         'url_request_context_getter.h',
-        'user_agent_string_factory.cc',
-        'user_agent_string_factory.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
-        '<(DEPTH)/cobalt/script/engine.gyp:engine',
-        '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/cobalt/build/cobalt_build_id.gyp:cobalt_build_id',
@@ -80,9 +75,6 @@
           'defines': [
             'ENABLE_NETWORK_LOGGING',
           ],
-        }],
-        ['cobalt_enable_lib == 1', {
-          'defines' : ['COBALT_ENABLE_LIB'],
         }],
       ],
       'export_dependent_settings': [
@@ -109,7 +101,6 @@
       'sources': [
         'local_network_test.cc',
         'persistent_cookie_store_test.cc',
-        'user_agent_string_factory_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
