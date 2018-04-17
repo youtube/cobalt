@@ -100,6 +100,28 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
 }
 
+// 8-bit atomic operations.
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+static SB_C_FORCE_INLINE SbAtomic8
+SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
+                               SbAtomic8 old_value,
+                               SbAtomic8 new_value) {
+  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
+                              __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+  return old_value;
+}
+
+static SB_C_FORCE_INLINE void
+SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr, SbAtomic8 value) {
+  __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
+}
+
+static SB_C_FORCE_INLINE SbAtomic8
+SbAtomicNoBarrier_Load8(volatile const SbAtomic8* ptr) {
+  return __atomic_load_n(ptr, __ATOMIC_RELAXED);
+}
+#endif
+
 // 64-bit atomic operations (only available on 64-bit processors).
 #if SB_HAS(64_BIT_ATOMICS)
 static SB_C_FORCE_INLINE SbAtomic64
