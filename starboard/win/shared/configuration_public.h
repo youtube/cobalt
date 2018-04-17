@@ -20,7 +20,7 @@
 
 // The API version implemented by this platform. This will generally be set to
 // the current value of SB_MAXIMUM_API_VERSION at the time of implementation.
-#define SB_API_VERSION 7
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Architecture Configuration --------------------------------------------
 
@@ -128,6 +128,15 @@
 
 // Whether the current platform has a DRM session closed callback.
 #define SB_HAS_DRM_SESSION_CLOSED 1
+
+// Whether the current platform supports player_with_URL.
+#define SB_HAS_PLAYER_WITH_URL 0
+
+// Whether the current platform supports on screen keyboard.
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+// Whether the current platform supports captions.
+#define SB_HAS_CAPTIONS 0
 
 #if !defined(__WCHAR_MAX__)
 #include <wchar.h>
@@ -400,6 +409,13 @@
 // Specify the number of video frames to be cached during playback.  A large
 // value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
+
+// Specifies whether this platform updates audio frames asynchronously.  In such
+// case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
+// indicate the absolute time that the consumed audio frames are reported.
+// Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
+// details.
+#define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
 
 // --- Network Configuration -------------------------------------------------
 
