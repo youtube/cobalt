@@ -36,6 +36,7 @@
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/input_event_init.h"
@@ -232,8 +233,10 @@ BrowserModule::BrowserModule(const GURL& url,
                        options_.storage_manager_options),
       is_rendered_(false),
       can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
-      network_module_(&storage_manager_, event_dispatcher_,
-                      options_.network_module_options),
+      network_module_(
+          CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
+          &storage_manager_, event_dispatcher_,
+          options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
 #if SB_HAS(ON_SCREEN_KEYBOARD)
       on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
