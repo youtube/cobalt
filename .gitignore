@@ -249,6 +249,7 @@ v8.log
 /third_party/python_24
 /third_party/python_26
 /third_party/pywebsocket/src
+/third_party/quirc
 /third_party/repo-hooks
 /third_party/ruby
 /third_party/repo-publishing-toolkit
