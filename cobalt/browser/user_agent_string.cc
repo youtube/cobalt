@@ -47,11 +47,6 @@ char g_brand_name_override[kPropertyMaxLength] = {0};
 bool g_model_name_override_set = false;
 char g_model_name_override[kPropertyMaxLength] = {0};
 
-bool ShouldOverrideDevice() {
-  return g_device_type_override_set || g_brand_name_override_set ||
-         g_model_name_override_set;
-}
-
 bool CopyStringAndTestIfSuccess(char* out_value, size_t value_length,
                                 const char* from_value) {
   if (strlen(from_value) + 1 > value_length) return false;
