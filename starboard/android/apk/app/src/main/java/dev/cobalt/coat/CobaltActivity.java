@@ -65,7 +65,7 @@ public abstract class CobaltActivity extends NativeActivity {
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
-      getStarboardBridge().nativeHandleDeepLink(startDeepLink);
+      getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
     // super.onCreate() will cause an APP_CMD_START in native code,
@@ -110,7 +110,7 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   public boolean onSearchRequested() {
-    return getStarboardBridge().nativeOnSearchRequested();
+    return getStarboardBridge().onSearchRequested();
   }
 
   /** Returns true if the argument list contains an arg starting with argName. */
@@ -131,7 +131,7 @@ public abstract class CobaltActivity extends NativeActivity {
    */
   protected String[] getArgs() {
     Bundle extras = getIntent().getExtras();
-    CharSequence[] argsExtra = (extras == null || StarboardBridge.nativeReleaseBuild())
+    CharSequence[] argsExtra = (extras == null || StarboardBridge.isReleaseBuild())
         ? null : extras.getCharSequenceArray("args");
 
     List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
@@ -174,7 +174,7 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   protected void onNewIntent(Intent intent) {
-    getStarboardBridge().nativeHandleDeepLink(getIntentUrlAsString(intent));
+    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
   }
 
   /**

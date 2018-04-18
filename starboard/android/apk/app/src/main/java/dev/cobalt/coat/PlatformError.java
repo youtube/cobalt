@@ -145,5 +145,9 @@ public class PlatformError
   }
 
   /** Informs Starboard when the error is dismissed. */
-  protected native void onCleared(@PlatformError.Response int response, long data);
+  protected void onCleared(@PlatformError.Response int response, long data) {
+    nativeOnCleared(response, data);
+  }
+
+  private native void nativeOnCleared(@PlatformError.Response int response, long data);
 }
