@@ -55,7 +55,7 @@ public class VideoSurfaceView extends SurfaceView {
     getHolder().addCallback(new SurfaceHolderCallback());
   }
 
-  native void onVideoSurfaceChanged(Surface surface);
+  private native void nativeOnVideoSurfaceChanged(Surface surface);
 
   private class SurfaceHolderCallback implements SurfaceHolder.Callback {
 
@@ -63,7 +63,7 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      onVideoSurfaceChanged(holder.getSurface());
+      nativeOnVideoSurfaceChanged(holder.getSurface());
     }
 
     @Override
@@ -77,7 +77,7 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      onVideoSurfaceChanged(null);
+      nativeOnVideoSurfaceChanged(null);
     }
   }
 }
