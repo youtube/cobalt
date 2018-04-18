@@ -212,6 +212,14 @@ public class StarboardBridge {
 
   private static native boolean nativeIsReleaseBuild();
 
+  protected Context getAppContext() {
+    return appContext;
+  }
+
+  protected Holder<Activity> getActivityHolder() {
+    return activityHolder;
+  }
+
   @SuppressWarnings("unused")
   @UsedByNative
   protected String[] getArgs() {
@@ -221,7 +229,7 @@ public class StarboardBridge {
   /** Returns the URL from the Intent that started the app. */
   @SuppressWarnings("unused")
   @UsedByNative
-  String getStartDeepLink() {
+  protected String getStartDeepLink() {
     return startDeepLink;
   }
 
