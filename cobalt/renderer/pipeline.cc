@@ -43,8 +43,13 @@ const double kTimeToConvergeInMS = 500.0;
 
 // The stack size to be used for the renderer thread.  This is must be large
 // enough to support recursing on the render tree.
+#if defined(COBALT_BUILD_TYPE_DEBUG)
+const int kRendererThreadStackSize =
+    256 * 1024 + base::kAsanAdditionalStackSize;
+#else
 const int kRendererThreadStackSize =
     128 * 1024 + base::kAsanAdditionalStackSize;
+#endif
 
 // How many entries the rasterize periodic timer will contain before updating.
 const size_t kRasterizePeriodicTimerEntriesPerUpdate = 60;
