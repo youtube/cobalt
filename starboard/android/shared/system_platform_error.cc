@@ -76,7 +76,7 @@ void SbSystemClearPlatformError(SbSystemPlatformError handle) {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_dev_cobalt_coat_PlatformError_onCleared(
+void Java_dev_cobalt_coat_PlatformError_nativeOnCleared(
     JNIEnv* env, jobject unused_this, jint jni_response, jlong jni_data) {
   SB_UNREFERENCED_PARAMETER(unused_this);
   SbSystemPlatformError error_handle =

@@ -379,9 +379,9 @@ void ApplicationAndroid::SendKeyboardInject(SbKey key) {
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_CobaltA11yHelper_injectKeyEvent(JNIEnv* env,
-                                                     jobject unused_clazz,
-                                                     jint key) {
+Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
+                                                           jobject unused_clazz,
+                                                           jint key) {
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
