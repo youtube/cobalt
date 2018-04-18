@@ -195,7 +195,7 @@ extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_dev_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
+jboolean Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else

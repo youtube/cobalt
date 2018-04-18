@@ -183,7 +183,11 @@ public class StarboardBridge {
     }
   }
 
-  native boolean nativeOnSearchRequested();
+  public boolean onSearchRequested() {
+    return nativeOnSearchRequested();
+  }
+
+  private native boolean nativeOnSearchRequested();
 
   @SuppressWarnings("unused")
   @UsedByNative
@@ -200,7 +204,11 @@ public class StarboardBridge {
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
-  public static native boolean nativeReleaseBuild();
+  public static boolean isReleaseBuild() {
+    return nativeIsReleaseBuild();
+  }
+
+  private static native boolean nativeIsReleaseBuild();
 
   @SuppressWarnings("unused")
   @UsedByNative
@@ -216,7 +224,11 @@ public class StarboardBridge {
   }
 
   /** Sends an event to the web app to navigate to the given URL */
-  public native void nativeHandleDeepLink(String url);
+  public void handleDeepLink(String url) {
+    nativeHandleDeepLink(url);
+  }
+
+  private native void nativeHandleDeepLink(String url);
 
   /**
    * Returns the absolute path to the directory where application specific files should be written.

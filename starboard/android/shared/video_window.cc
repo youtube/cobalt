@@ -39,7 +39,7 @@ ANativeWindow* g_native_video_window = NULL;
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_VideoSurfaceView_onVideoSurfaceChanged(
+Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     JNIEnv* env,
     jobject unused_this,
     jobject surface) {

@@ -57,7 +57,7 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
     ViewCompat.setAccessibilityDelegate(view, this);
   }
 
-  private static native void injectKeyEvent(int key);
+  private static native void nativeInjectKeyEvent(int key);
 
   @Override
   protected int getVirtualViewAt(float x, float y) {
@@ -132,16 +132,16 @@ class CobaltA11yHelper extends ExploreByTouchHelper {
         // no move;
         break;
       case 2:
-        injectKeyEvent(SB_KEY_GAMEPAD_DPAD_UP);
+        nativeInjectKeyEvent(SB_KEY_GAMEPAD_DPAD_UP);
         break;
       case 4:
-        injectKeyEvent(SB_KEY_GAMEPAD_DPAD_LEFT);
+        nativeInjectKeyEvent(SB_KEY_GAMEPAD_DPAD_LEFT);
         break;
       case 6:
-        injectKeyEvent(SB_KEY_GAMEPAD_DPAD_RIGHT);
+        nativeInjectKeyEvent(SB_KEY_GAMEPAD_DPAD_RIGHT);
         break;
       case 8:
-        injectKeyEvent(SB_KEY_GAMEPAD_DPAD_DOWN);
+        nativeInjectKeyEvent(SB_KEY_GAMEPAD_DPAD_DOWN);
         break;
       default:
         // TODO: Could support diagonal movements, although it's likely
