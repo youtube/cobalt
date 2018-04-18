@@ -169,7 +169,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public void requestStop(int errorLevel) {
-    nativeStopApp(errorLevel);
+    if (!starboardStopped) {
+      nativeStopApp(errorLevel);
+    }
   }
 
   private native void nativeStopApp(int errorLevel);
