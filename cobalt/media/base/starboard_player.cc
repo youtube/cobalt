@@ -429,13 +429,19 @@ base::TimeDelta StarboardPlayer::GetDuration() {
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
-  DCHECK_NE(info.duration_pts, SB_PLAYER_NO_DURATION);
+  if (info.duration_pts == SB_PLAYER_NO_DURATION) {
+    // URL-based players may not have loaded assets yet, so map no duration to 0.
+    return base::TimeDelta();
+  }
   return base::TimeDelta::FromMicroseconds(
       SB_MEDIA_TIME_TO_SB_TIME(info.duration_pts));
 #else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
-  DCHECK_NE(info.duration, SB_PLAYER_NO_DURATION);
+  if (info.duration == SB_PLAYER_NO_DURATION) {
+    // URL-based players may not have loaded assets yet, so map no duration to 0.
+    return base::TimeDelta();
+  }
   return base::TimeDelta::FromMicroseconds(info.duration);
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 }
