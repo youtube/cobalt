@@ -17,6 +17,7 @@
 
 #include <list>
 
+#include "starboard/atomic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
@@ -45,6 +46,8 @@ class VideoRenderer {
  public:
   typedef VideoDecoder::ErrorCB ErrorCB;
 
+  // All of the functions are called on the PlayerWorker thread unless marked
+  // otherwise.
   VideoRenderer(scoped_ptr<VideoDecoder> decoder,
                 MediaTimeProvider* media_time_provider,
                 scoped_ptr<VideoRenderAlgorithm> algorithm,
@@ -52,7 +55,6 @@ class VideoRenderer {
   ~VideoRenderer();
 
   void Initialize(const ErrorCB& error_cb);
-  void SetBounds(int z_index, int x, int y, int width, int height);
   int GetDroppedFrames() const { return algorithm_->GetDroppedFrames(); }
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
@@ -65,39 +67,41 @@ class VideoRenderer {
   bool CanAcceptMoreData() const;
   bool UpdateAndRetrieveIsSeekingInProgress();
 
+  // Both of the following two functions can be called on any threads.
+  void SetBounds(int z_index, int x, int y, int width, int height);
   SbDecodeTarget GetCurrentDecodeTarget();
 
  private:
   typedef std::list<scoped_refptr<VideoFrame>> Frames;
 
+  // Both of the following two functions can be called on any threads.
   void OnDecoderStatus(VideoDecoder::Status status,
                        const scoped_refptr<VideoFrame>& frame);
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
 
   ThreadChecker thread_checker_;
-  Mutex mutex_;
 
   MediaTimeProvider* const media_time_provider_;
   scoped_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
-
-  bool seeking_;
-  SbTimeMonotonic absolute_time_of_first_input_;
-
-  Frames frames_;
-
-  SbTime seeking_to_time_;
-  bool end_of_stream_written_;
-  bool need_more_input_;
-
   scoped_ptr<VideoDecoder> decoder_;
 
+  SbTimeMonotonic absolute_time_of_first_input_ = 0;
   // Our owner will attempt to seek to time 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
   // some platforms, so we make an effort to improve playback startup
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
-  bool first_input_written_;
+  bool first_input_written_ = false;
+  bool end_of_stream_written_ = false;
+
+  atomic_bool need_more_input_;
+  atomic_bool seeking_;
+  SbTime seeking_to_time_ = 0;
+
+  atomic_int32_t number_of_frames_;
+  Mutex frames_mutex_;
+  Frames frames_;
 };
 
 }  // namespace filter
