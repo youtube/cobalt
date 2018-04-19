@@ -99,6 +99,7 @@
         'double_floor_test.cc',
         'double_is_finite_test.cc',
         'double_is_nan_test.cc',
+        'drm_create_system_test.cc',
         'file_can_open_test.cc',
         'file_close_test.cc',
         'file_get_info_test.cc',
