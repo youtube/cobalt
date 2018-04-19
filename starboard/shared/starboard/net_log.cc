@@ -166,7 +166,13 @@ class BufferedSocketWriter {
     }
     log_mutex_.Release();
 
-    SB_LOG_IF(ERROR, overflow) << "Net log dropped buffer data.";
+    if (overflow) {
+      // Can't use SB_LOG_IF() because SB_LOG_IF() might have triggered this
+      // call, and therefore would triggered reentrant behavior and then
+      // deadlock. SbLogRawFormat() is assumed to be safe to call. Note that
+      // NetLogWrite() ignores reentrant calls.
+      SbLogRaw("Net log dropped buffer data.");
+    }
   }
 
   void WaitUntilWritableOrConnectionReset(SbSocket sock) {
