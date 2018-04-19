@@ -18,6 +18,7 @@
 
     # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
     'uwp_incompatible_win32': [
+      '<(DEPTH)/starboard/shared/win32/system_symbolize.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
       '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
@@ -271,7 +272,6 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_has_capability.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
-        '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
         '<(DEPTH)/starboard/shared/win32/audio_sink.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.cc',
