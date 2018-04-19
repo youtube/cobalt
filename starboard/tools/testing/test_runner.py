@@ -30,7 +30,7 @@ from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools.testing import test_filter
-
+from starboard.tools.testing import build_tests
 
 _TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
@@ -254,39 +254,6 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _BuildTests(self, ninja_flags):
-    """Builds all specified test binaries.
-
-    Args:
-      ninja_flags: Command line flags to pass to ninja.
-    """
-    if not self.test_targets:
-      return
-
-    if self.out_directory:
-      build_dir = self.out_directory
-    else:
-      build_dir = abstract_launcher.DynamicallyBuildOutDirectory(
-          self.platform, self.config)
-
-    args_list = ["ninja", "-C", build_dir]
-    if self.dry_run:
-      args_list.append("-n")
-    args_list.extend([
-        "{}_deploy".format(test_name) for test_name in self.test_targets])
-    if ninja_flags:
-      args_list.append(ninja_flags)
-    if "TEST_RUNNER_BUILD_FLAGS" in os.environ:
-      args_list.append(os.environ["TEST_RUNNER_BUILD_FLAGS"])
-    sys.stderr.write("{}\n".format(args_list))
-    # We set shell=True because otherwise Windows doesn't recognize
-    # PATH properly.
-    #   https://bugs.python.org/issue15451
-    # We flatten the arguments to a string because with shell=True, Linux
-    # doesn't parse them properly.
-    #   https://bugs.python.org/issue6689
-    subprocess.check_call(" ".join(args_list), shell=True)
-
   def _RunTest(self, target_name):
     """Runs a single unit test binary and collects all of the output.
 
@@ -485,7 +452,20 @@ class TestRunner(object):
     result = True
 
     try:
-      self._BuildTests(ninja_flags)
+      if self.out_directory:
+        out_directory = self.out_directory
+      else:
+        out_directory = abstract_launcher.DynamicallyBuildOutDirectory(
+            self.platform, self.config)
+
+      if ninja_flags:
+        extra_flags = [ninja_flags]
+      else:
+        extra_flags = []
+
+      build_tests.BuildTargets(
+          self.test_targets, out_directory, self.dry_run, extra_flags)
+
     except subprocess.CalledProcessError as e:
       result = False
       sys.stderr.write("Error occurred during building.\n")
