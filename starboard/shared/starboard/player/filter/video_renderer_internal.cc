@@ -131,7 +131,8 @@ bool VideoRenderer::IsEndOfStreamPlayed() const {
 
 bool VideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  return number_of_frames_.load() < decoder_->GetMaxNumberOfCachedFrames() &&
+  return number_of_frames_.load() <
+             static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
          !end_of_stream_written_ && need_more_input_.load();
 }
 
@@ -190,7 +191,8 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
     }
 
     if (seeking_.load() &&
-        number_of_frames_.load() >= decoder_->GetPrerollFrameCount()) {
+        number_of_frames_.load() >=
+            static_cast<int32_t>(decoder_->GetPrerollFrameCount())) {
       seeking_.store(false);
     }
   }
@@ -201,7 +203,7 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
 void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   ScopedLock scoped_lock(frames_mutex_);
   algorithm_->Render(media_time_provider_, &frames_, draw_frame_cb);
-  number_of_frames_.store(frames_.size());
+  number_of_frames_.store(static_cast<int32_t>(frames_.size()));
 }
 
 }  // namespace filter
