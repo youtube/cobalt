@@ -23,7 +23,7 @@ namespace {
 
 TEST(SbDrmTest, AnySupportedKeySystems) {
   const char* key_systems[] = {
-      "com.widevine", "com.widevine.alpha", "com.youtube.playready",
+      "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
   };
   bool any_supported_key_systems = false;
   for (int i = 0; i < SB_ARRAY_SIZE_INT(key_systems); ++i) {
