@@ -337,13 +337,17 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
   }
   if (system_and_media_time_offset_ > 0) {
     SbTime offset = now - media_time;
-    SbTime diff = std::abs(offset - system_and_media_time_offset_);
-    max_offset_difference_ = std::max(diff, max_offset_difference_);
+    SbTime drift = offset - system_and_media_time_offset_;
+    min_drift_ = std::min(drift, min_drift_);
+    max_drift_ = std::max(drift, max_drift_);
     SB_LOG(ERROR) << "Media time stats: (" << now << "-"
                   << frames_consumed_set_at_ << "=" << elasped_since_last_set
                   << ") + " << total_frames_consumed_ << " => " << frames_played
-                  << " => " << media_time << "  diff: " << diff << "/"
-                  << max_offset_difference_;
+                  << " => " << media_time << "  drift: " << drift << "/ ("
+                  << min_drift_ << ", " << max_drift_ << ") "
+                  // How long the audio frames left in sink can be played.
+                  << (frames_sent_to_sink_ - frames_consumed_by_sink_) *
+                         kSbTimeSecond / samples_per_second;
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
 

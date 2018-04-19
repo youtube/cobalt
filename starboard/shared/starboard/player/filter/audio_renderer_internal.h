@@ -172,7 +172,8 @@ class AudioRenderer : public MediaTimeProvider,
 
 #if SB_LOG_MEDIA_TIME_STATS
   SbTime system_and_media_time_offset_ = -1;
-  SbTime max_offset_difference_ = 0;
+  SbTime min_drift_ = kSbTimeMax;
+  SbTime max_drift_ = 0;
   int64_t total_frames_consumed_ = 0;
 #endif  // SB_LOG_MEDIA_TIME_STATS
 };
