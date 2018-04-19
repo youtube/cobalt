@@ -95,9 +95,10 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
     return filters
 
   _FILTERED_TESTS = {
-      # The RasPi test devices don't have access to an IPV6 network, so
-      # disable the related tests.
       'nplb': [
+          'SbDrmTest.AnySupportedKeySystems',
+          # The RasPi test devices don't have access to an IPV6 network, so
+          # disable the related tests.
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/1',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
