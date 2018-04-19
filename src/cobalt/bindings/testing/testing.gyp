@@ -145,6 +145,7 @@
       'target_name': 'bindings_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'array_buffers_test.cc',
         'any_bindings_test.cc',
         'any_dictionary_bindings_test.cc',
         'boolean_type_bindings_test.cc',
@@ -203,7 +204,7 @@
       'variables': {
         'executable_name': 'bindings_test',
       },
-      'includes': [ '../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     {
@@ -230,7 +231,7 @@
       'variables': {
         'executable_name': 'bindings_sandbox',
       },
-      'includes': [ '../../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

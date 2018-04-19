@@ -63,7 +63,15 @@ typedef void (*SbAudioSinkUpdateSourceStatusFunc)(int* frames_in_buffer,
 
 // Callback used to report frames consumed.  The consumed frames will be
 // removed from the source frame buffer to free space for new audio frames.
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+// When |frames_consumed| is updated asynchnously and the last time that it has
+// been updated is known, it can be passed in |frames_consumed_at| so the audio
+// time calculating can be more accurate.
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 typedef void (*SbAudioSinkConsumeFramesFunc)(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                             SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                              void* context);
 
 // Well-defined value for an invalid audio sink.
@@ -81,7 +89,11 @@ SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 // audio sink, and returns an opaque handle to the audio sink.
 //
 // If the particular platform doesn't support the requested audio sink, the
-// function returns kSbAudioSinkInvalid without calling any of the callbacks.
+// function returns |kSbAudioSinkInvalid| without calling any of the callbacks.
+// If there is a platform limitation on how many audio sinks can coexist
+// simultaneously, then calls made to this function that attempt to exceed
+// that limit must return |kSbAudioSinkInvalid|. Multiple calls to
+// SbAudioSinkCreate must not cause a crash.
 //
 // |channels|: The number of audio channels, such as left and right channels
 // in stereo audio.

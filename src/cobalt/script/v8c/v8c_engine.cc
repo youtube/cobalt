@@ -171,8 +171,6 @@ bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
   return true;
 }
 
-void V8cEngine::SetGcThreshold(int64_t bytes) { NOTIMPLEMENTED(); }
-
 HeapStatistics V8cEngine::GetHeapStatistics() {
   v8::HeapStatistics v8_heap_statistics;
   isolate_->GetHeapStatistics(&v8_heap_statistics);
@@ -187,6 +185,10 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new v8c::V8cEngine(options));
+}
+
+std::string GetJavaScriptEngineNameAndVersion() {
+  return std::string("V8/") + v8::V8::GetVersion();
 }
 
 }  // namespace script

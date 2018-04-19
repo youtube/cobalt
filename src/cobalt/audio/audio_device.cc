@@ -60,7 +60,11 @@ class AudioDevice::Impl {
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
                                      int* offset_in_frames, bool* is_playing,
                                      bool* is_eos_reached, void* context);
-  static void ConsumeFramesFunc(int frames_consumed, void* context);
+  static void ConsumeFramesFunc(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                void* context);
 
   void UpdateSourceStatus(int* frames_in_buffer, int* offset_in_frames,
                           bool* is_playing, bool* is_eos_reached);
@@ -150,7 +154,15 @@ void AudioDevice::Impl::UpdateSourceStatusFunc(int* frames_in_buffer,
 }
 
 // static
-void AudioDevice::Impl::ConsumeFramesFunc(int frames_consumed, void* context) {
+void AudioDevice::Impl::ConsumeFramesFunc(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                          SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                          void* context) {
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  UNREFERENCED_PARAMETER(frames_consumed_at);
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+
   AudioDevice::Impl* impl = reinterpret_cast<AudioDevice::Impl*>(context);
   DCHECK(impl);
 

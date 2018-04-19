@@ -17,6 +17,7 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 void SbPlayerSeek(SbPlayer player, SbMediaTime seek_to_pts, int ticket) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -25,3 +26,4 @@ void SbPlayerSeek(SbPlayer player, SbMediaTime seek_to_pts, int ticket) {
 
   player->Seek(SB_MEDIA_TIME_TO_SB_TIME(seek_to_pts), ticket);
 }
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION

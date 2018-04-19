@@ -55,6 +55,13 @@ std::string ExceptionToString(const v8::TryCatch& try_catch) {
   return string;
 }
 
+std::string ToStringOrNull(v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || !value->IsString()) {
+    return "";
+  }
+  return *v8::String::Utf8Value(value.As<v8::String>());
+}
+
 }  // namespace
 
 V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
@@ -71,6 +78,17 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
 
   isolate_->SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback);
+
+  isolate_->SetAllowWasmCodeGenerationCallback(
+      [](v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+        return false;
+      });
+
+  isolate_->AddMessageListenerWithErrorLevel(
+      MessageHandler,
+      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+          v8::Isolate::kMessageLog);
 }
 
 V8cGlobalEnvironment::~V8cGlobalEnvironment() {
@@ -95,7 +113,7 @@ void V8cGlobalEnvironment::CreateGlobalObject() {
 }
 
 bool V8cGlobalEnvironment::EvaluateScript(
-    const scoped_refptr<SourceCode>& source_code, bool mute_errors,
+    const scoped_refptr<SourceCode>& source_code,
     std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
@@ -106,11 +124,15 @@ bool V8cGlobalEnvironment::EvaluateScript(
   v8::TryCatch try_catch(isolate_);
 
   v8::Local<v8::Value> result;
-  if (!EvaluateScriptInternal(source_code, mute_errors).ToLocal(&result)) {
+  if (!EvaluateScriptInternal(source_code).ToLocal(&result)) {
     if (!try_catch.HasCaught()) {
       LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
       return false;
     }
+    // The MessageHandler appears to never get called under a |v8::TryCatch|
+    // block, even if we re-throw it.  We work around this by manually passing
+    // it to the MessageHandler.
+    MessageHandler(try_catch.Message(), try_catch.Exception());
     if (out_result_utf8) {
       *out_result_utf8 = ExceptionToString(try_catch);
     }
@@ -118,7 +140,9 @@ bool V8cGlobalEnvironment::EvaluateScript(
   }
 
   if (out_result_utf8) {
-    *out_result_utf8 = *v8::String::Utf8Value(isolate_, result);
+    V8cExceptionState exception_state(isolate_);
+    FromJSValue(isolate_, result, kNoConversionFlags, &exception_state,
+                out_result_utf8);
   }
 
   return true;
@@ -126,7 +150,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
-    const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+    const scoped_refptr<Wrappable>& owning_object,
     base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
@@ -137,10 +161,14 @@ bool V8cGlobalEnvironment::EvaluateScript(
   v8::TryCatch try_catch(isolate_);
 
   v8::Local<v8::Value> result;
-  if (!EvaluateScriptInternal(source_code, mute_errors).ToLocal(&result)) {
+  if (!EvaluateScriptInternal(source_code).ToLocal(&result)) {
     if (!try_catch.HasCaught()) {
       LOG(WARNING) << "Script evaluation failed with no JavaScript exception.";
     }
+    // The MessageHandler appears to never get called under a |v8::TryCatch|
+    // block, even if we re-throw it.  We work around this by manually passing
+    // it to the MessageHandler.
+    MessageHandler(try_catch.Message(), try_catch.Exception());
     return false;
   }
 
@@ -176,6 +204,14 @@ std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
   }
 
   return result;
+}
+
+void V8cGlobalEnvironment::AddRoot(Traceable* traceable) {
+  V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->AddRoot(traceable);
+}
+
+void V8cGlobalEnvironment::RemoveRoot(Traceable* traceable) {
+  V8cEngine::GetFromIsolate(isolate_)->heap_tracer()->RemoveRoot(traceable);
 }
 
 void V8cGlobalEnvironment::PreventGarbageCollection(
@@ -307,13 +343,48 @@ bool V8cGlobalEnvironment::AllowCodeGenerationFromStringsCallback(
     global_environment->report_eval_.Run();
   }
   // This callback should only be called while code generation from strings is
-  // not allowed from within V8, so this should always be false.
+  // not allowed from within V8, so this should always be false.  Note that
+  // WebAssembly code generation will fall back to this callback if a
+  // WebAssembly callback has not been explicitly set, however we *have* set
+  // one.
   DCHECK_EQ(context->IsCodeGenerationFromStringsAllowed(), false);
   return context->IsCodeGenerationFromStringsAllowed();
 }
 
+// static
+void V8cGlobalEnvironment::MessageHandler(v8::Local<v8::Message> message,
+                                          v8::Local<v8::Value> data) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  V8cGlobalEnvironment* global_environment =
+      V8cGlobalEnvironment::GetFromIsolate(isolate);
+  if (isolate->GetEnteredContext().IsEmpty()) {
+    return;
+  }
+  if (message->ErrorLevel() != v8::Isolate::kMessageError) {
+    return;
+  }
+
+  v8::Local<v8::Context> context = isolate->GetEnteredContext();
+  ErrorReport error_report;
+  error_report.message = *v8::String::Utf8Value(message->Get());
+  error_report.filename = ToStringOrNull(message->GetScriptResourceName());
+  int line_number = 0;
+  int column_number = 0;
+  if (message->GetLineNumber(context).To(&line_number) &&
+      message->GetStartColumn(context).To(&column_number)) {
+    column_number++;
+  }
+  error_report.line_number = line_number;
+  error_report.column_number = column_number;
+  error_report.is_muted = message->IsSharedCrossOrigin();
+  error_report.error.reset(new V8cValueHandleHolder(isolate, data));
+  if (!global_environment->report_error_callback_.is_null()) {
+    global_environment->report_error_callback_.Run(error_report);
+  }
+}
+
 v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
-    const scoped_refptr<SourceCode>& source_code, bool mute_errors) {
+    const scoped_refptr<SourceCode>& source_code) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -343,7 +414,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
       /*resource_column_offset=*/
       v8::Integer::New(isolate_, source_location.column_number - 1),
       /*resource_is_shared_cross_origin=*/
-      v8::Boolean::New(isolate_, !mute_errors));
+      v8::Boolean::New(isolate_, !v8c_source_code->is_muted()));
 
   v8::Local<v8::String> source;
   if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
@@ -386,7 +457,7 @@ void V8cGlobalEnvironment::EvaluateEmbeddedScript(const unsigned char* data,
   scoped_refptr<SourceCode> source_code =
       new V8cSourceCode(source, base::SourceLocation(filename, 1, 1));
   std::string result;
-  bool success = EvaluateScript(source_code, false /*mute_errors*/, &result);
+  bool success = EvaluateScript(source_code, &result);
   if (!success) {
     DLOG(FATAL) << result;
   }

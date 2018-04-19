@@ -18,6 +18,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/optional.h"
 #include "starboard/log.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/socket_internal.h"
@@ -110,6 +111,13 @@ void EraseIndexFromVector(T* collection_pointer, std::size_t index) {
   collection.resize(new_size);
 }
 
+SbSocketWaiterInterest CombineInterests(
+    SbSocketWaiterInterest a, SbSocketWaiterInterest b) {
+  int a_int = static_cast<int>(a);
+  int b_int = static_cast<int>(b);
+  return static_cast<SbSocketWaiterInterest>(a_int | b_int);
+}
+
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
@@ -173,7 +181,7 @@ bool SbSocketWaiterPrivate::Add(SbSocket socket,
     return false;
   }
 
-  long network_event_interests = 0;
+  int network_event_interests = 0;
   if (interests & kSbSocketWaiterInterestRead) {
     network_event_interests |= FD_READ | FD_ACCEPT | FD_CLOSE;
   }
@@ -260,10 +268,6 @@ bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(SbSocket socket) {
   }
 
   if (socket->waiter != this) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") "
-                   << "is watched by Waiter (" << socket->waiter << "), "
-                   << "not this Waiter (" << this << ").";
-    SB_DSTACK(ERROR);
     return false;
   }
 
@@ -305,13 +309,34 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
     // There should always be a wakeup event.
     SB_DCHECK(number_events > 0);
 
-    DWORD return_value = WSAWaitForMultipleEvents(
-        number_events, waitees_.GetHandleArray(), false, millis, false);
+    SbSocket maybe_writable_socket = kSbSocketInvalid;
+    for (auto& it : waitees_.GetWaitees()) {
+      if (!it) {
+        continue;
+      }
+      if ((it->interests & kSbSocketWaiterInterestWrite) == 0) {
+        continue;
+      }
+      if (it->socket->writable.load()) {
+        maybe_writable_socket = it->socket;
+        break;
+      }
+    }
 
-    if ((return_value >= WSA_WAIT_EVENT_0) &&
-        (return_value < (WSA_WAIT_EVENT_0 + number_events))) {
-      int64_t socket_index = static_cast<int64_t>(return_value) -
-                             static_cast<int64_t>(WSA_WAIT_EVENT_0);
+    bool has_writable = (maybe_writable_socket != kSbSocketInvalid);
+    DWORD return_value = WSAWaitForMultipleEvents(
+        number_events, waitees_.GetHandleArray(),
+        false, has_writable ? 0 : millis, false);
+
+    if (has_writable || ((return_value >= WSA_WAIT_EVENT_0) &&
+        (return_value < (WSA_WAIT_EVENT_0 + number_events)))) {
+      int64_t socket_index;
+      if (has_writable) {
+        socket_index = waitees_.GetIndex(maybe_writable_socket).value();
+      } else {
+        socket_index = static_cast<int64_t>(return_value) -
+                       static_cast<int64_t>(WSA_WAIT_EVENT_0);
+      }
       SB_DCHECK(socket_index >= 0);
       if (socket_index < 0) {
         SB_NOTREACHED() << "Bad socket_index. " << socket_index;
@@ -341,8 +366,15 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
         void* context = waitee->context;
 
         // Note: this should also go before Remove().
-        const SbSocketWaiterInterest interests =
+        SbSocketWaiterInterest interests =
             DiscoverNetworkEventInterests(socket->socket_handle);
+
+        if ((waitee->interests & kSbSocketWaiterInterestWrite) &&
+              socket->writable.load()) {
+          interests = CombineInterests(interests, kSbSocketWaiterInterestWrite);
+        } else if (interests & kSbSocketWaiterInterestWrite) {
+          socket->writable.store(true);
+        }
 
         if (!waitee->persistent) {
           Remove(waitee->socket);
@@ -387,11 +419,20 @@ void SbSocketWaiterPrivate::WakeUp() {
 
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
     SbSocket socket) {
-  auto iterator = socket_to_index_map_.find(socket);
-  if (iterator == socket_to_index_map_.end()) {
+  starboard::optional<int64_t> token = GetIndex(socket);
+  if (!token) {
     return nullptr;
   }
-  return waitees_[iterator->second].get();
+  return waitees_[token.value()].get();
+}
+
+starboard::optional<int64_t>
+SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(SbSocket socket) {
+  auto iterator = socket_to_index_map_.find(socket);
+  if (iterator == socket_to_index_map_.end()) {
+    return starboard::nullopt;
+  }
+  return iterator->second;
 }
 
 SbSocketWaiterPrivate::WaiteeRegistry::LookupToken

@@ -18,7 +18,7 @@ import inspect
 import logging
 import os
 
-import _env  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import, relative-import
 from starboard.build.application_configuration import ApplicationConfiguration
 from starboard.tools import environment
 from starboard.tools import paths
@@ -121,8 +121,9 @@ class PlatformConfiguration(object):
         configuration_class = _GetApplicationConfigurationClass(
             configuration_path)
         if configuration_class:
-          logging.info('Using platform-specific ApplicationConfiguration for '
-                       '%s.', application_name)
+          logging.info(
+              'Using platform-specific ApplicationConfiguration for '
+              '%s.', application_name)
           break
 
       if not configuration_class:
@@ -216,6 +217,19 @@ class PlatformConfiguration(object):
         # Whether to build with clang's Thread Sanitizer instrumentation.
         'use_tsan': use_tsan,
 
+        # Which JavaScript engine to use.  Currently, both SpiderMonkey 45 and
+        # V8 are supported.  Note that V8 can only be used on platforms that
+        # support JIT.
+        'javascript_engine': 'mozjs-45',
+
+        # Disable JIT and run in interpreter-only mode by default. It can be
+        # set to 1 to run in JIT mode.  For SpiderMonkey in particular, we
+        # have found that disabling JIT often results in faster JavaScript
+        # execution and lower memory usage.  Setting this to 0 for engine that
+        # requires JIT, or 1 on a platform that does not support JIT, is a
+        # usage error.
+        'cobalt_enable_jit': 0,
+
         # TODO: Remove these compatibility variables.
         'cobalt_config': config_name,
         'cobalt_fastbuild': 0,
@@ -289,6 +303,7 @@ class PlatformConfiguration(object):
     return [
         'nplb',
         'nplb_blitter_pixel_tests',
+        'player_filter_tests',
         'starboard_platform_tests',
     ]
 

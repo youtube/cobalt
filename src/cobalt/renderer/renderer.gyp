@@ -126,7 +126,7 @@
       'variables': {
         'executable_name': 'renderer_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     {
@@ -152,7 +152,7 @@
       'variables': {
         'executable_name': 'renderer_benchmark',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

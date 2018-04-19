@@ -24,6 +24,7 @@
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "starboard/once.h"
+#include "third_party/mozjs-45/cobalt_config/include/js-confdefs.h"
 #include "third_party/mozjs-45/js/public/Initialization.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/vm/Runtime.h"
@@ -189,11 +190,6 @@ bool MozjsEngine::RegisterErrorHandler(ErrorHandler handler) {
   return true;
 }
 
-void MozjsEngine::SetGcThreshold(int64_t bytes) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  runtime_->gc.setMaxMallocBytes(static_cast<size_t>(bytes));
-}
-
 HeapStatistics MozjsEngine::GetHeapStatistics() {
   DCHECK(thread_checker_.CalledOnValidThread());
   // There is unfortunately no easy way to get used vs total in SpiderMonkey,
@@ -260,6 +256,10 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(options));
+}
+
+std::string GetJavaScriptEngineNameAndVersion() {
+  return std::string("SpiderMonkey/") + MOZILLA_VERSION;
 }
 
 }  // namespace script

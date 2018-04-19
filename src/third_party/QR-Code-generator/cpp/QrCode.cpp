@@ -30,6 +30,10 @@
 #include "BitBuffer.hpp"
 #include "QrCode.hpp"
 
+#include "starboard/log.h"
+
+#define throw SB_CHECK(false) <<
+
 using std::int8_t;
 using std::uint8_t;
 using std::size_t;
@@ -46,6 +50,7 @@ int QrCode::getFormatBits(Ecc ecl) {
 		case Ecc::HIGH    :  return 2;
 		default:  throw "Assertion error";
 	}
+	return 0;
 }
 
 
@@ -490,11 +495,12 @@ long QrCode::getPenaltyScore() const {
 
 
 vector<int> QrCode::getAlignmentPatternPositions(int ver) {
-	if (ver < MIN_VERSION || ver > MAX_VERSION)
+	if (ver < MIN_VERSION || ver > MAX_VERSION) {
 		throw "Version number out of range";
-	else if (ver == 1)
 		return vector<int>();
-	else {
+	} else if (ver == 1) {
+		return vector<int>();
+	} else {
 		int numAlign = ver / 7 + 2;
 		int step;
 		if (ver != 32) {

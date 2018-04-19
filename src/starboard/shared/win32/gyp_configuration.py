@@ -13,40 +13,43 @@
 # limitations under the License.
 """Starboard win32 shared platform configuration for gyp_cobalt."""
 
-import config.base
 import logging
 import os
 import re
 import subprocess
 import sys
 
+import config.base
 import starboard.shared.win32.sdk_configuration as sdk_configuration
 from starboard.tools.paths import STARBOARD_ROOT
 from starboard.tools.testing import test_filter
 
+
 def GetWindowsVersion():
-  out = subprocess.check_output('ver', universal_newlines = True, shell=True)
-  lines = [l for l in out.split('\n') if len(l) > 0]
+  out = subprocess.check_output('ver', universal_newlines=True, shell=True)
+  lines = [l for l in out.split('\n') if l]
   for l in lines:
-    m = re.search(r"Version\s([0-9\.]+)", out)
+    m = re.search(r'Version\s([0-9\.]+)', out)
     if m and m.group(1):
       major, minor, build = m.group(1).split('.')
       return (int(major), int(minor), int(build))
-  raise IOError("Could not retrieve windows version")
+  raise IOError('Could not retrieve windows version')
+
 
 def _QuotePath(path):
   return '"' + path + '"'
 
-class PlatformConfig(config.base.PlatformConfigBase):
+
+class Win32Configuration(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
   def __init__(self, platform):
-    super(PlatformConfig, self).__init__(platform)
+    super(Win32Configuration, self).__init__(platform)
     self.sdk = sdk_configuration.SdkConfiguration()
 
   def GetVariables(self, configuration):
     sdk = self.sdk
-    variables = super(PlatformConfig, self).GetVariables(configuration)
+    variables = super(Win32Configuration, self).GetVariables(configuration)
     variables.update({
         'visual_studio_install_path': sdk.vs_install_dir_with_version,
         'windows_sdk_path': sdk.windows_sdk_path,
@@ -96,20 +99,18 @@ class PlatformConfig(config.base.PlatformConfigBase):
     return generator_variables
 
   def GetToolchain(self):
-    sys.path.append(
-        os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
+    sys.path.append(os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
     from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
     return MSVCUWPToolchain()
 
   def IsWin10orHigher(self):
     try:
       # Both Win10 and Win2016-Server will return 10.0+
-      major, minor, build = GetWindowsVersion()
+      major, _, _ = GetWindowsVersion()
       return major >= 10
     except Exception as e:
-        print("Error while getting version for windows: " + str(e))
+      print 'Error while getting version for windows: ' + str(e)
     return False
-
 
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
@@ -119,34 +120,35 @@ class PlatformConfig(config.base.PlatformConfigBase):
     """
 
     if not self.IsWin10orHigher():
-        logging.error("Tests can only be executed on Win10 and higher.")
-        return [ test_filter.DISABLE_TESTING ]
+      logging.error('Tests can only be executed on Win10 and higher.')
+      return [test_filter.DISABLE_TESTING]
     else:
-      return [
-        # Fails on JSC.
-        test_filter.TestFilter(
-            'bindings_test', ('EvaluateScriptTest.ThreeArguments')),
-        test_filter.TestFilter(
-            'bindings_test', ('GarbageCollectionTest.*')),
+      filters = super(Win32Configuration, self).GetTestFilters()
+      for target, tests in self._FILTERED_TESTS.iteritems():
+        filters.extend(test_filter.TestFilter(target, test) for test in tests)
+      return filters
 
-        test_filter.TestFilter('nplb', test_filter.FILTER_ALL),
-        test_filter.TestFilter('poem_unittests', test_filter.FILTER_ALL),
+  _FILTERED_TESTS = {
+      'bindings_test': [
+          'EvaluateScriptTest.ThreeArguments',
+          'GarbageCollectionTest.*',
+      ],
+      'nplb': [test_filter.FILTER_ALL],
+      'nplb_blitter_pixel_tests': [test_filter.FILTER_ALL],
+      'poem_unittests': [test_filter.FILTER_ALL],
+      'starboard_platform_tests': [test_filter.FILTER_ALL],
+      'webdriver_test': [test_filter.FILTER_ALL],
 
-        # The Windows platform uses D3D9 which doesn't let you create a D3D
-        # device without a display, causing these unit tests to erroneously
-        # fail on the buildbots, so they are disabled for Windows only.
-        test_filter.TestFilter('layout_tests', test_filter.FILTER_ALL),
-        test_filter.TestFilter('renderer_test', test_filter.FILTER_ALL),
+      # The Windows platform uses D3D9 which doesn't let you create a D3D
+      # device without a display, causing these unit tests to erroneously
+      # fail on the buildbots, so they are disabled for Windows only.
+      'layout_tests': [test_filter.FILTER_ALL],
+      'renderer_test': [test_filter.FILTER_ALL],
 
-        # No network on Windows, yet.
-        test_filter.TestFilter('web_platform_tests', test_filter.FILTER_ALL),
-        test_filter.TestFilter('net_unittests', test_filter.FILTER_ALL),
+      # TODO: enable player filter tests.
+      'player_filter_tests': [test_filter.FILTER_ALL],
 
-        test_filter.TestFilter('starboard_platform_tests',
-                               test_filter.FILTER_ALL),
-        test_filter.TestFilter('nplb_blitter_pixel_tests',
-                               test_filter.FILTER_ALL),
-        test_filter.TestFilter('webdriver_test',
-                               test_filter.FILTER_ALL)
-
-      ]
+      # No network on Windows, yet.
+      'web_platform_tests': [test_filter.FILTER_ALL],
+      'net_unittests': [test_filter.FILTER_ALL],
+  }

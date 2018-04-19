@@ -60,6 +60,8 @@
         'memory_tracker/tool/compressed_time_series_tool.cc',
         'memory_tracker/tool/compressed_time_series_tool.h',
         'memory_tracker/tool/histogram_table_csv_base.h',
+        'memory_tracker/tool/internal_fragmentation_tool.cc',
+        'memory_tracker/tool/internal_fragmentation_tool.h',
         'memory_tracker/tool/leak_finder_tool.cc',
         'memory_tracker/tool/leak_finder_tool.h',
         'memory_tracker/tool/log_writer_tool.cc',
@@ -86,6 +88,8 @@
         'on_screen_keyboard_starboard_bridge.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
+        'screen_shot_writer.cc',
+        'screen_shot_writer.h',
         'splash_screen.cc',
         'splash_screen.h',
         'splash_screen_cache.cc',
@@ -102,6 +106,8 @@
         'trace_manager.h',
         'url_handler.cc',
         'url_handler.h',
+        'user_agent_string.cc',
+        'user_agent_string.h',
         'web_module.cc',
         'web_module.h',
         'web_module_stat_tracker.cc',
@@ -141,8 +147,10 @@
         '<(DEPTH)/cobalt/media_capture/media_capture.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
+        '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:overlay_info',
         '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
+        '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/sso/sso.gyp:sso',
@@ -154,7 +162,6 @@
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
         '<(DEPTH)/nb/nb.gyp:nb',
         'browser_bindings.gyp:bindings',
-        'screen_shot_writer',
         '<(cobalt_webapi_extension_gyp_target)',
       ],
       # This target doesn't generate any headers, but it exposes generated
@@ -168,6 +175,10 @@
         # headers are put on the include directories for targets that depend
         # on this one.
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+      ],
+      'include_dirs': [
+        # For cobalt_build_id.h
+        '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'conditions': [
         ['enable_about_scheme == 1', {
@@ -184,6 +195,9 @@
           'dependencies': [
             '<(DEPTH)/cobalt/media/media.gyp:media',
           ],
+        }],
+        ['cobalt_enable_lib == 1', {
+          'defines' : ['COBALT_ENABLE_LIB'],
         }],
         ['mesh_cache_size_in_bytes == "auto"', {
           'conditions': [
@@ -206,34 +220,6 @@
     },
 
     {
-      # This target provides functionality for creating screenshots of a
-      # render tree and writing it to disk.
-      'target_name': 'screen_shot_writer',
-      'type': 'static_library',
-      'variables': {
-        # This target includes non-Cobalt code that produces pendantic
-        # warnings as errors.
-        'sb_pedantic_warnings': 0,
-      },
-      'conditions': [
-        ['enable_screenshot==1', {
-          'sources': [
-            'screen_shot_writer.h',
-            'screen_shot_writer.cc',
-          ],
-          'dependencies': [
-            '<(DEPTH)/cobalt/base/base.gyp:base',
-            '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
-            '<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
-          ],
-          'all_dependent_settings': {
-            'defines': [ 'ENABLE_SCREENSHOT', ],
-          },
-        }],
-      ],
-    },
-
-    {
       'target_name': 'browser_test',
       'type': '<(gtest_target_type)',
       'sources': [
@@ -248,6 +234,7 @@
         'memory_settings/test_common.h',
         'memory_tracker/tool/tool_impl_test.cc',
         'memory_tracker/tool/util_test.cc',
+        'user_agent_string_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -272,7 +259,7 @@
       'variables': {
         'executable_name': 'browser_test',
       },
-      'includes': [ '../../starboard/build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
     {

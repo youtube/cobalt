@@ -14,6 +14,8 @@
 
 #include "cobalt/dom/pointer_state.h"
 
+#include <algorithm>
+
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/wheel_event.h"
@@ -244,6 +246,17 @@ void PointerState::SetActive(int32_t pointer_id) {
 
 void PointerState::ClearActive(int32_t pointer_id) {
   active_pointers_.erase(pointer_id);
+}
+
+void PointerState::ClearForShutdown() {
+  {
+    decltype(pointer_events_) empty_queue;
+    std::swap(pointer_events_, empty_queue);
+  }
+  target_override_.clear();
+  pending_target_override_.clear();
+  active_pointers_.clear();
+  pointers_with_active_buttons_.clear();
 }
 
 }  // namespace dom

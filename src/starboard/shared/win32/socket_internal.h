@@ -18,6 +18,7 @@
 #include <winsock2.h>
 #include <WS2tcpip.h>
 
+#include "starboard/atomic.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/auto_event_handle.h"
 #include "starboard/socket.h"
@@ -42,6 +43,7 @@ struct SbSocketPrivate {
         protocol(protocol),
         socket_handle(handle),
         socket_event(WSA_INVALID_EVENT),
+        writable(0),
         error(kSbSocketOk),
         waiter(kSbSocketWaiterInvalid),
         bound_to(bound_to) {}
@@ -58,6 +60,16 @@ struct SbSocketPrivate {
 
   // The event related to the socket_handle.  Used for SbSocketWaiter.
   sbwin32::AutoEventHandle socket_event;
+
+  // Set to true between when socket is shown as writable via WSAEventSelect/
+  // WSAWaitForMultipleEvents and when writing to the socket returns
+  // fails with WSAEWOULDBLOCK.
+  //
+  // Used to work around the fact that WSAEventSelect for FD_WRITE is
+  // edge-triggered, unlike other events.
+  //
+  // See MSDN documentato n for WSAEventSelect FD_WRITE for more info.
+  starboard::atomic_bool writable;
 
   // The last error that occurred on this socket, or kSbSocketOk.
   SbSocketError error;

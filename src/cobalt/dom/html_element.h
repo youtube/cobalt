@@ -340,6 +340,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Purge the cached background images on only this node.
   void PurgeCachedBackgroundImages();
 
+  // Helper function that hosts the shared code between
+  // InvalidateLayoutBoxesOfNodeAndAncestors() and
+  // InvalidateLayoutBoxesOfNodeAndDescendants().
+  void InvalidateLayoutBoxes();
+
   bool locked_for_focus_;
 
   // The directionality of the html element is determined by the 'dir'

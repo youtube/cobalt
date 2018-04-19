@@ -15,7 +15,9 @@
 #ifndef STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 #define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
+#include <D3D12.h>
 #include <agile.h>
+
 #include <string>
 #include <unordered_map>
 
@@ -112,6 +114,12 @@ class ApplicationUwp : public shared::starboard::Application,
   // Returns true on success.
   bool TurnOffHdcp();
 
+  Microsoft::WRL::ComPtr<ID3D12Device> GetD3D12Device() { return d3d12device_; }
+
+  void SetD3D12Device(const Microsoft::WRL::ComPtr<ID3D12Device>& device) {
+    d3d12device_ = device;
+  }
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() override { return false; }
@@ -147,6 +155,7 @@ class ApplicationUwp : public shared::starboard::Application,
   std::unordered_map<SbEventId, Windows::System::Threading::ThreadPoolTimer^>
       timer_event_map_;
 
+  Microsoft::WRL::ComPtr<ID3D12Device> d3d12device_;
   int device_id_;
 
   // |hdcp_session_| is locked by |hdcp_session_mutex_|.

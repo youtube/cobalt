@@ -49,6 +49,8 @@
 #define SB_HAS_64_BIT_LONG 0
 #define SB_HAS_64_BIT_POINTERS 1
 
+#define SB_HAS_SOCKET_ERROR_CONNECTION_RESET_SUPPORT 1
+
 // Configuration parameters that allow the application to make some general
 // compile-time decisions with respect to the the number of cores likely to be
 // available on this platform. For a definitive measure, the application should

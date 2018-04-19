@@ -27,13 +27,12 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
  public:
   void CreateGlobalObject() override {}
   bool EvaluateScript(const scoped_refptr<SourceCode>& /*script_utf8*/,
-                      bool /*mute_errors*/,
                       std::string* /*out_result*/) override {
     return false;
   }
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& /*script_utf8*/,
-      const scoped_refptr<Wrappable>& /*owning_object*/, bool /*mute_errors*/,
+      const scoped_refptr<Wrappable>& /*owning_object*/,
       base::optional<ValueHandleHolder::Reference>* /*out_value_handle*/)
       override {
     return false;
@@ -47,6 +46,8 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
       const scoped_refptr<Wrappable>& /*wrappable*/) override {}
   void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& /*wrappable*/) override {}
+  void AddRoot(Traceable* /*traceable*/) override {}
+  void RemoveRoot(Traceable* /*traceable*/) override {}
   void DisableEval(const std::string& /*message*/) override {}
   void EnableEval() override {}
   void DisableJit() override {}

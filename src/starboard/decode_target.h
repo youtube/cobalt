@@ -135,6 +135,12 @@ typedef enum SbDecodeTargetFormat {
   // A decoder target format consisting of Y, U, and V planes, in that order.
   kSbDecodeTargetFormat3PlaneYUVI420,
 
+#if SB_API_VERSION >= SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION
+  // A decoder target format consisting of 10bit Y, U, and V planes, in that
+  // order.
+  kSbDecodeTargetFormat3Plane10BitYUVI420,
+#endif
+
 #if SB_API_VERSION >= 6
   // A decoder target format consisting of a single plane with pixels layed out
   // in the format UYVY.  Since there are two Y values per sample, but only one
@@ -334,6 +340,9 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
       return 1;
     case kSbDecodeTargetFormat2PlaneYUVNV12:
       return 2;
+#if SB_API_VERSION >= SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION
+    case kSbDecodeTargetFormat3Plane10BitYUVI420:
+#endif
     case kSbDecodeTargetFormat3PlaneYUVI420:
       return 3;
     default:

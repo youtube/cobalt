@@ -219,7 +219,6 @@ class WebModule::Impl {
       media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
-  void SetJavascriptGcThreshold(int64_t bytes);
 
   // Sets the application state, asserts preconditions to transition to that
   // state, and dispatches any precipitate web events.
@@ -579,6 +578,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
+  mutation_observer_task_manager_.RegisterAsTracingRoot(global_environment_);
+
   execution_state_ =
       script::ExecutionState::CreateExecutionState(global_environment_);
   DCHECK(execution_state_);
@@ -626,6 +627,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStartDispatchEvent,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
+      data.options.provide_screenshot_function,
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -648,6 +650,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       global_environment_.get(), &mutation_observer_task_manager_,
       data.options.dom_settings_options));
   DCHECK(environment_settings_);
+
+  window_->SetEnvironmentSettings(environment_settings_.get());
 
   global_environment_->CreateGlobalObject(window_, environment_settings_.get());
 
@@ -725,6 +729,7 @@ WebModule::Impl::~Impl() {
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
+  window_->ClearPointerStateForShutdown();
   window_ = NULL;
   media_source_registry_.reset();
   blob_registry_.reset();
@@ -1001,10 +1006,6 @@ void WebModule::Impl::SetImageCacheCapacity(int64_t bytes) {
 
 void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   remote_typeface_cache_->SetCapacity(static_cast<uint32>(bytes));
-}
-
-void WebModule::Impl::SetJavascriptGcThreshold(int64_t bytes) {
-  javascript_engine_->SetGcThreshold(bytes);
 }
 
 void WebModule::Impl::SetSize(math::Size window_dimensions,
@@ -1454,9 +1455,9 @@ void WebModule::InjectCaptionSettingsChangedEvent() {
                "WebModule::InjectCaptionSettingsChangedEvent()");
   DCHECK(message_loop());
   DCHECK(impl_);
-  message_loop()->PostTask(FROM_HERE,
-      base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
-                 base::Unretained(impl_.get())));
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectCaptionSettingsChangedEvent,
+                            base::Unretained(impl_.get())));
 }
 
 std::string WebModule::ExecuteJavascript(
@@ -1563,12 +1564,6 @@ void WebModule::SetImageCacheCapacity(int64_t bytes) {
 void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::SetRemoteTypefaceCacheCapacity,
-                            base::Unretained(impl_.get()), bytes));
-}
-
-void WebModule::SetJavascriptGcThreshold(int64_t bytes) {
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetJavascriptGcThreshold,
                             base::Unretained(impl_.get()), bytes));
 }
 

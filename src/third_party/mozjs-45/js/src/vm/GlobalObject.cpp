@@ -420,10 +420,23 @@ GlobalObject::initSelfHostingBuiltins(JSContext* cx, Handle<GlobalObject*> globa
            JS_DefineFunctions(cx, global, builtins);
 }
 
+#if defined(COBALT)
 /* static */ bool
-GlobalObject::isRuntimeCodeGenEnabled(JSContext* cx, Handle<GlobalObject*> global)
+GlobalObject::isRuntimeCodeGenEnabled(JSContext *cx, Handle<GlobalObject*> global)
 {
-    HeapSlot& v = global->getSlotRef(RUNTIME_CODEGEN_ENABLED);
+    /*
+     * For Cobalt, do not cache the value. Allow the callback to be triggered
+     * every time so we can do proper CSP reporting.
+     */
+    JSCSPEvalChecker allows = cx->runtime()->securityCallbacks->contentSecurityPolicyAllows;
+    return !allows || allows(cx);
+}
+#else
+
+/* static */ bool
+GlobalObject::isRuntimeCodeGenEnabled(JSContext *cx, Handle<GlobalObject*> global)
+{
+    HeapSlot &v = global->getSlotRef(RUNTIME_CODEGEN_ENABLED);
     if (v.isUndefined()) {
         /*
          * If there are callbacks, make sure that the CSP callback is installed
@@ -435,6 +448,7 @@ GlobalObject::isRuntimeCodeGenEnabled(JSContext* cx, Handle<GlobalObject*> globa
     }
     return !v.isFalse();
 }
+#endif
 
 /* static */ bool
 GlobalObject::warnOnceAbout(JSContext* cx, HandleObject obj, WarnOnceFlag flag,

@@ -57,6 +57,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   // Called to perform a synchronous layout.
   void DoSynchronousLayout();
+  scoped_refptr<render_tree::Node> DoSynchronousLayoutAndGetRenderTree();
 
   void Suspend();
   void Resume();
@@ -183,6 +184,8 @@ LayoutManager::Impl::Impl(
   window_->document()->AddObserver(this);
   window_->SetSynchronousLayoutCallback(
       base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
+  window_->SetSynchronousLayoutAndProduceRenderTreeCallback(base::Bind(
+      &Impl::DoSynchronousLayoutAndGetRenderTree, base::Unretained(this)));
 
   UErrorCode status = U_ZERO_ERROR;
   line_break_iterator_ =
@@ -235,9 +238,35 @@ void LayoutManager::Impl::OnMutation() {
   }
 }
 
+scoped_refptr<render_tree::Node>
+LayoutManager::Impl::DoSynchronousLayoutAndGetRenderTree() {
+  TRACE_EVENT0("cobalt::layout",
+               "LayoutManager::Impl::DoSynchronousLayoutAndGetRenderTree()");
+  DoSynchronousLayout();
+
+  scoped_refptr<render_tree::Node> render_tree_root =
+      layout::GenerateRenderTreeFromBoxTree(used_style_provider_.get(),
+                                            layout_stat_tracker_,
+                                            &initial_containing_block_);
+
+  base::optional<double> current_time_milliseconds =
+      this->window_->document()->timeline()->current_time();
+  DCHECK(current_time_milliseconds.has_engaged());
+  base::TimeDelta current_time =
+      base::TimeDelta::FromMillisecondsD(*current_time_milliseconds);
+
+  using render_tree::animations::AnimateNode;
+  AnimateNode* animate_node =
+      base::polymorphic_downcast<AnimateNode*>(render_tree_root.get());
+  AnimateNode::AnimateResults results = animate_node->Apply(current_time);
+
+  return results.animated->source();
+}
+
 void LayoutManager::Impl::DoSynchronousLayout() {
   TRACE_EVENT0("cobalt::layout", "LayoutManager::Impl::DoSynchronousLayout()");
   if (suspended_) {
+    DLOG(WARNING) << "Skipping layout since Cobalt is in a suspended state.";
     return;
   }
 
@@ -364,14 +393,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
-    if (are_computed_styles_and_box_tree_dirty_) {
-      layout::UpdateComputedStylesAndLayoutBoxTree(
-          locale_, window_->document(), dom_max_element_depth_,
-          used_style_provider_.get(), layout_stat_tracker_,
-          line_break_iterator_.get(), character_break_iterator_.get(),
-          &initial_containing_block_);
-      are_computed_styles_and_box_tree_dirty_ = false;
-    }
+    DoSynchronousLayout();
 
     // If no render tree has been produced yet, check if html display
     // should prevent the first render tree.

@@ -23,26 +23,22 @@
 #include "base/threading/thread.h"
 #include "cobalt/network/network_system.h"
 #include "cobalt/network/switches.h"
-#include "cobalt/network/user_agent_string_factory.h"
 #include "net/url_request/static_http_user_agent_settings.h"
 
 namespace cobalt {
 namespace network {
 
-NetworkModule::NetworkModule() : storage_manager_(NULL) {
-  Initialize(NULL /* event_dispatcher */);
-}
-
 NetworkModule::NetworkModule(const Options& options)
     : storage_manager_(NULL), options_(options) {
-  Initialize(NULL /* event_dispatcher */);
+  Initialize("Null user agent string.", NULL);
 }
 
-NetworkModule::NetworkModule(storage::StorageManager* storage_manager,
+NetworkModule::NetworkModule(const std::string& user_agent_string,
+                             storage::StorageManager* storage_manager,
                              base::EventDispatcher* event_dispatcher,
                              const Options& options)
     : storage_manager_(storage_manager), options_(options) {
-  Initialize(event_dispatcher);
+  Initialize(user_agent_string, event_dispatcher);
 }
 
 NetworkModule::~NetworkModule() {
@@ -86,15 +82,15 @@ void NetworkModule::SetProxy(const std::string& custom_proxy_rules) {
                             custom_proxy_rules));
 }
 
-void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
+void NetworkModule::Initialize(const std::string& user_agent_string,
+                               base::EventDispatcher* event_dispatcher) {
   thread_.reset(new base::Thread("NetworkModule"));
 #if !defined(OS_STARBOARD)
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
 #endif
   network_system_ = NetworkSystem::Create(event_dispatcher);
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
-      options_.preferred_language, "utf-8",
-      UserAgentStringFactory::ForCurrentPlatform()->CreateUserAgentString()));
+      options_.preferred_language, "utf-8", user_agent_string));
 
 #if defined(ENABLE_NETWORK_LOGGING)
   CommandLine* command_line = CommandLine::ForCurrentProcess();

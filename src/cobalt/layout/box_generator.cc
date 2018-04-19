@@ -103,14 +103,14 @@ BoxGenerator::BoxGenerator(
       context_(context) {}
 
 BoxGenerator::~BoxGenerator() {
-  if (generating_html_element_) {
-    scoped_ptr<LayoutBoxes> layout_boxes;
-    if (!boxes_.empty()) {
-      layout_boxes = make_scoped_ptr(new LayoutBoxes());
-      layout_boxes->SwapBoxes(boxes_);
-    }
+  // Later code assumes that if layout_boxes() is non-null, then it contains
+  // more than one box.  This allows us to avoid some allocations of LayoutBoxes
+  // objects.  We don't need to worry about setting layout_boxes() back to
+  // null because this should end up being done in html_element.cc when the
+  // boxes become invalidated.
+  if (generating_html_element_ && !boxes_.empty()) {
     generating_html_element_->set_layout_boxes(
-        layout_boxes.PassAs<dom::LayoutBoxes>());
+        scoped_ptr<dom::LayoutBoxes>(new LayoutBoxes(std::move(boxes_))));
   }
 }
 
@@ -133,9 +133,7 @@ void BoxGenerator::Visit(dom::Element* element) {
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // If the html element already has layout boxes, we can reuse them.
-  if (partial_layout_is_enabled && html_element->layout_boxes() &&
-      html_element->layout_boxes()->type() ==
-          dom::LayoutBoxes::kLayoutLayoutBoxes) {
+  if (partial_layout_is_enabled && html_element->layout_boxes()) {
     LayoutBoxes* layout_boxes =
         base::polymorphic_downcast<LayoutBoxes*>(html_element->layout_boxes());
     DCHECK(boxes_.empty());
@@ -805,66 +803,81 @@ void BoxGenerator::AppendPseudoElementToLine(
   //   https://www.w3.org/TR/CSS21/generate.html#before-after-content
   dom::PseudoElement* pseudo_element =
       html_element->pseudo_element(pseudo_element_type);
-  if (pseudo_element) {
-    ContainerBoxGenerator pseudo_element_box_generator(
-        dom::kNoExplicitDirectionality,
-        pseudo_element->css_computed_style_declaration(), paragraph_, context_);
-    pseudo_element->computed_style()->display()->Accept(
-        &pseudo_element_box_generator);
-    scoped_refptr<ContainerBox> pseudo_element_box =
-        pseudo_element_box_generator.container_box();
-    // A pseudo element with "display: none" generates no boxes and has no
-    // effect on layout.
-    if (pseudo_element_box != NULL) {
-      // Generate the box(es) to be added to the associated html element, using
-      // the computed style of the pseudo element.
+  if (!pseudo_element) {
+    return;
+  }
 
-      // The generated content is a text node with the string value of the
-      // 'content' property.
-      ContentProvider content_provider;
-      pseudo_element->computed_style()->content()->Accept(&content_provider);
-      if (content_provider.is_element_generated()) {
-        scoped_refptr<dom::Text> child_node(new dom::Text(
-            html_element->node_document(), content_provider.content_string()));
+  // We assume that if our parent element's boxes are being regenerated, then we
+  // should regenerate the pseudo element boxes.  There are some cases where
+  // the parent element may be regenerating its boxes even if it already had
+  // some, such as if its boxes were inline level.  In that case, pseudo
+  // elements may also have boxes, so we make it clear that we will not be
+  // reusing pseudo element boxes even if they exist by explicitly resetting
+  // them now.
+  pseudo_element->reset_layout_boxes();
 
-        // In the case where the pseudo element has no color property of its
-        // own, but is directly inheriting a color property from its parent html
-        // element, we use the parent's animations if the pseudo element has
-        // none and the parent has only color property animations. This allows
-        // the child text boxes to animate properly and fixes bugs, while
-        // keeping the impact of the fix as small as possible to minimize the
-        // risk of introducing new bugs.
-        // TODO: Remove this logic when support for inheriting
-        // animations on inherited properties is added.
-        bool use_html_element_animations =
-            !pseudo_element->computed_style()->IsDeclared(
-                cssom::kColorProperty) &&
-            html_element->computed_style()->IsDeclared(cssom::kColorProperty) &&
-            pseudo_element->css_computed_style_declaration()
-                ->animations()
-                ->IsEmpty() &&
-            HasOnlyColorPropertyAnimations(
-                html_element->css_computed_style_declaration()->animations());
+  ContainerBoxGenerator pseudo_element_box_generator(
+      dom::kNoExplicitDirectionality,
+      pseudo_element->css_computed_style_declaration(), paragraph_, context_);
+  pseudo_element->computed_style()->display()->Accept(
+      &pseudo_element_box_generator);
+  scoped_refptr<ContainerBox> pseudo_element_box =
+      pseudo_element_box_generator.container_box();
+  // A pseudo element with "display: none" generates no boxes and has no
+  // effect on layout.
+  if (pseudo_element_box == NULL) {
+    return;
+  }
 
-        BoxGenerator child_box_generator(
-            pseudo_element->css_computed_style_declaration(),
-            use_html_element_animations ? html_element->animations()
-                                        : pseudo_element->animations(),
-            paragraph_, dom_element_depth_ + 1, context_);
-        child_node->Accept(&child_box_generator);
-        const Boxes& child_boxes = child_box_generator.boxes();
-        for (Boxes::const_iterator child_box_iterator = child_boxes.begin();
-             child_box_iterator != child_boxes.end(); ++child_box_iterator) {
-          if (!pseudo_element_box->TryAddChild(*child_box_iterator)) {
-            return;
-          }
-        }
+  // Generate the box(es) to be added to the associated html element, using
+  // the computed style of the pseudo element.
 
-        // Add the box(es) from the pseudo element to the associated element.
-        AppendChildBoxToLine(pseudo_element_box);
-      }
+  // The generated content is a text node with the string value of the
+  // 'content' property.
+  ContentProvider content_provider;
+  pseudo_element->computed_style()->content()->Accept(&content_provider);
+  if (!content_provider.is_element_generated()) {
+    return;
+  }
+
+  scoped_refptr<dom::Text> child_node(new dom::Text(
+      html_element->node_document(), content_provider.content_string()));
+
+  // In the case where the pseudo element has no color property of its
+  // own, but is directly inheriting a color property from its parent html
+  // element, we use the parent's animations if the pseudo element has
+  // none and the parent has only color property animations. This allows
+  // the child text boxes to animate properly and fixes bugs, while
+  // keeping the impact of the fix as small as possible to minimize the
+  // risk of introducing new bugs.
+  // TODO: Remove this logic when support for inheriting
+  // animations on inherited properties is added.
+  bool use_html_element_animations =
+      !pseudo_element->computed_style()->IsDeclared(cssom::kColorProperty) &&
+      html_element->computed_style()->IsDeclared(cssom::kColorProperty) &&
+      pseudo_element->css_computed_style_declaration()
+          ->animations()
+          ->IsEmpty() &&
+      HasOnlyColorPropertyAnimations(
+          html_element->css_computed_style_declaration()->animations());
+
+  BoxGenerator child_box_generator(
+      pseudo_element->css_computed_style_declaration(),
+      use_html_element_animations ? html_element->animations()
+                                  : pseudo_element->animations(),
+      paragraph_, dom_element_depth_ + 1, context_);
+  child_node->Accept(&child_box_generator);
+  for (const auto& child_box : child_box_generator.boxes()) {
+    if (!pseudo_element_box->TryAddChild(child_box)) {
+      return;
     }
   }
+
+  pseudo_element->set_layout_boxes(
+      scoped_ptr<dom::LayoutBoxes>(new LayoutBoxes({pseudo_element_box})));
+
+  // Add the box(es) from the pseudo element to the associated element.
+  AppendChildBoxToLine(pseudo_element_box);
 }
 
 namespace {

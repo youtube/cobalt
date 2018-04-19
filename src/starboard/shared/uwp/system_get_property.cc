@@ -202,10 +202,12 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         os_name_and_version.c_str());
     }
+#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
     case kSbSystemPropertyPlatformUuid: {
       SB_NOTIMPLEMENTED();
       return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
     }
+#endif  // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;

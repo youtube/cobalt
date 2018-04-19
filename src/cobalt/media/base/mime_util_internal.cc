@@ -251,7 +251,15 @@ VideoCodec MimeUtilToVideoCodec(MimeUtil::Codec codec) {
       return kCodecVP9;
     case MimeUtil::THEORA:
       return kCodecTheora;
-    default:
+    case MimeUtil::INVALID_CODEC:
+    case MimeUtil::PCM:
+    case MimeUtil::MP3:
+    case MimeUtil::AC3:
+    case MimeUtil::EAC3:
+    case MimeUtil::MPEG2_AAC:
+    case MimeUtil::MPEG4_AAC:
+    case MimeUtil::VORBIS:
+    case MimeUtil::OPUS:
       break;
   }
   return kUnknownVideoCodec;

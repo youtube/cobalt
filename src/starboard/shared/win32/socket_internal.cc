@@ -44,6 +44,7 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     SB_API_VERSION >= 9
     case WSAECONNRESET:
     case WSAENETRESET:
+    case WSAECONNABORTED:
       return kSbSocketErrorConnectionReset;
 
     // Microsoft System Error codes:

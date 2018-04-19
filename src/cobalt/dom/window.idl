@@ -50,6 +50,8 @@
   // Mozilla's non-standard minimize() function.
   // https://developer.mozilla.org/en-US/docs/Web/API/Window/minimize
   void minimize();
+
+  Promise<Screenshot> screenshot();
 };
 Window implements GlobalEventHandlers;
 Window implements WindowEventHandlers;

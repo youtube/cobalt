@@ -612,7 +612,11 @@ DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(random_gc_interval, 0,
            "Collect garbage after random(0, X) allocations. It overrides "
            "gc_interval.")
+#if defined(COBALT_GC_ZEAL)
+DEFINE_INT(gc_interval, 1200, "garbage collect after <n> allocations")
+#else
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
+#endif
 DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
 DEFINE_BOOL(trace_gc, false,

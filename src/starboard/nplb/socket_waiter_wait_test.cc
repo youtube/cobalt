@@ -104,6 +104,20 @@ TEST_P(PairSbSocketWaiterWaitTest, SunnyDay) {
   EXPECT_EQ(&values, values.context);
   EXPECT_EQ(kSbSocketWaiterInterestWrite, values.ready_interests);
 
+  // Try again to make sure writable sockets are still writable
+  values.count = 0;
+  EXPECT_TRUE(SbSocketWaiterAdd(
+      waiter, trio.client_socket, &values, &TestSocketWaiterCallback,
+      kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite, false));
+
+  WaitShouldNotBlock(waiter);
+
+  EXPECT_EQ(1, values.count);  // Check that the callback was called once.
+  EXPECT_EQ(waiter, values.waiter);
+  EXPECT_EQ(trio.client_socket, values.socket);
+  EXPECT_EQ(&values, values.context);
+  EXPECT_EQ(kSbSocketWaiterInterestWrite, values.ready_interests);
+
   // The client socket should become ready to read after we write some data to
   // it.
   values.count = 0;

@@ -61,6 +61,7 @@ class StarboardPlayer {
   StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                   const std::string& url, SbWindow window, Host* host,
                   SbPlayerSetBoundsHelper* set_bounds_helper,
+                  bool allow_resume_after_suspend,
                   bool prefer_decode_to_texture,
                   const OnEncryptedMediaInitDataEncounteredCB&
                       encrypted_media_init_data_encountered_cb,
@@ -71,6 +72,7 @@ class StarboardPlayer {
                   const VideoDecoderConfig& video_config, SbWindow window,
                   SbDrmSystem drm_system, Host* host,
                   SbPlayerSetBoundsHelper* set_bounds_helper,
+                  bool allow_resume_after_suspend,
                   bool prefer_decode_to_texture,
                   VideoFrameProvider* const video_frame_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -160,6 +162,8 @@ class StarboardPlayer {
   void CreatePlayer();
 
   void WriteNextBufferFromCache(DemuxerStream::Type type);
+  void WriteBufferInternal(DemuxerStream::Type type,
+                           const scoped_refptr<DecoderBuffer>& buffer);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   void UpdateBounds_Locked();
@@ -208,21 +212,21 @@ class StarboardPlayer {
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   const SbWindow window_;
-  SbDrmSystem drm_system_;
+  SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
   // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
+  const bool allow_resume_after_suspend_;
 
   // The following variables are only changed or accessed from the
   // |message_loop_|.
-  int frame_width_;
-  int frame_height_;
+  int frame_width_ = 1;
+  int frame_height_ = 1;
   DecodingBuffers decoding_buffers_;
-  int ticket_;
-  float volume_;
-  double playback_rate_;
-  bool paused_;
-  bool seek_pending_;
+  int ticket_ = SB_PLAYER_INITIAL_TICKET;
+  float volume_ = 1.0f;
+  double playback_rate_ = 0.0;
+  bool seek_pending_ = false;
   DecoderBufferCache decoder_buffer_cache_;
 
   // The following variables can be accessed from GetInfo(), which can be called
@@ -232,7 +236,7 @@ class StarboardPlayer {
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
   base::optional<int> set_bounds_z_index_;
   base::optional<gfx::Rect> set_bounds_rect_;
-  State state_;
+  State state_ = kPlaying;
   SbPlayer player_;
   uint32 cached_video_frames_decoded_;
   uint32 cached_video_frames_dropped_;

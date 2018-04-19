@@ -141,17 +141,19 @@ ElementDriver* LookUpElementDriverOrReturnInvalidResponse(
 
 // Helper struct for getting a PNG screenshot synchronously.
 struct ScreenshotResultContext {
-  ScreenshotResultContext() : num_bytes(0), complete_event(true, false) {}
-  scoped_array<uint8> png_data;
-  size_t num_bytes;
+  ScreenshotResultContext() : complete_event(true, false) {}
+  scoped_refptr<loader::image::EncodedStaticImage> compressed_file;
   base::WaitableEvent complete_event;
 };
 
 // Callback function to be called when PNG encoding is complete.
 void OnPNGEncodeComplete(ScreenshotResultContext* context,
-                         scoped_array<uint8> png_data, size_t num_bytes) {
-  context->png_data = png_data.Pass();
-  context->num_bytes = num_bytes;
+                         const scoped_refptr<loader::image::EncodedStaticImage>&
+                             compressed_image_data) {
+  DCHECK(context);
+  DCHECK(compressed_image_data->GetImageFormat() ==
+         loader::image::EncodedStaticImage::ImageFormat::kPNG);
+  context->compressed_file = compressed_image_data;
   context->complete_event.Signal();
 }
 
@@ -744,8 +746,11 @@ util::CommandResult<std::string> WebDriverModule::RequestScreenshotInternal() {
   get_screenshot_function_.Run(
       base::Bind(&OnPNGEncodeComplete, base::Unretained(&context)));
   context.complete_event.Wait();
+  DCHECK(context.compressed_file);
 
-  if (context.num_bytes == 0 || !context.png_data.get()) {
+  uint32 file_size_in_bytes =
+      context.compressed_file->GetEstimatedSizeInBytes();
+  if (file_size_in_bytes == 0 || !context.compressed_file->GetMemory()) {
     return CommandResult(protocol::Response::kUnknownError,
                          "Failed to take screenshot.");
   }
@@ -755,8 +760,9 @@ util::CommandResult<std::string> WebDriverModule::RequestScreenshotInternal() {
   {
     // base64 encode the contents of the file to be returned to the client.
     if (!base::Base64Encode(
-            base::StringPiece(reinterpret_cast<char*>(context.png_data.get()),
-                              context.num_bytes),
+            base::StringPiece(
+                reinterpret_cast<char*>(context.compressed_file->GetMemory()),
+                file_size_in_bytes),
             &encoded)) {
       return CommandResult(protocol::Response::kUnknownError,
                            "Failed to base64 encode screenshot file contents.");

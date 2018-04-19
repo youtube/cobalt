@@ -46,7 +46,10 @@ int SbSocketSendTo(SbSocket socket,
     }
 
     int last_error = WSAGetLastError();
-    if (last_error != EWOULDBLOCK) {
+
+    if ((last_error == WSAEWOULDBLOCK) || (last_error == WSAECONNABORTED)) {
+      socket->writable.store(false);
+    } else {
       SB_DLOG(ERROR) << "send failed, last_error = " << last_error;
     }
     socket->error = sbwin32::TranslateSocketErrorStatus(last_error);

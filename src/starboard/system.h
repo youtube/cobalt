@@ -534,6 +534,17 @@ SB_EXPORT void SbSystemSort(void* base,
 // from any thread and must be idempotent.
 SB_EXPORT void SbSystemHideSplashScreen();
 
+#if SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+// Returns false if the platform doesn't need resume after suspend support. In
+// such case Cobalt will free up the resource it retains for resume after
+// suspend.
+// Note that if this function returns false, the Starboard implementation cannot
+// send kSbEventTypeResume to the event handler.
+// The return value of this function cannot change over the life time of the
+// application.
+bool SbSystemSupportsResume();
+#endif  // SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

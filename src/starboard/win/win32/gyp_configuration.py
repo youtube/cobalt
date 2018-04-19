@@ -24,9 +24,10 @@ import sys
 sys.path.append(
     os.path.realpath(
         os.path.join(
-            os.path.dirname(__file__), os.pardir,
-            os.pardir, 'shared', 'win32')))
+            os.path.dirname(__file__), os.pardir, os.pardir, 'shared',
+            'win32')))
 import gyp_configuration
+
 
 def CreatePlatformConfig():
   try:
@@ -36,7 +37,8 @@ def CreatePlatformConfig():
     logging.critical(e)
     return None
 
-class WinWin32PlatformConfig(gyp_configuration.PlatformConfig):
+
+class WinWin32PlatformConfig(gyp_configuration.Win32Configuration):
   """Starboard win-32 platform configuration."""
 
   def __init__(self, platform):
@@ -44,8 +46,8 @@ class WinWin32PlatformConfig(gyp_configuration.PlatformConfig):
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
-    module_path = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), 'launcher.py'))
+    module_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), 'launcher.py'))
 
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module

@@ -19,8 +19,10 @@
 bool SbAudioSinkIsAudioSampleTypeSupported(
     SbMediaAudioSampleType audio_sample_type) {
   switch (audio_sample_type) {
+#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
     case kSbMediaAudioSampleTypeInt16:
       return true;
+#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
     case kSbMediaAudioSampleTypeFloat32:
       return true;
     default:

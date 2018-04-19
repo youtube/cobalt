@@ -6004,7 +6004,9 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   DCHECK(!name->AsArrayIndex(&index));
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
+#if !defined(COBALT_ARRAY_BUFFER_COLLISION_WORKAROUND)
   DCHECK(!it.IsFound());
+#endif
   DCHECK(object->map()->is_extensible() || name->IsPrivate());
 #endif
   CHECK(AddDataProperty(&it, value, attributes, kThrowOnError,
@@ -16775,7 +16777,9 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
     PropertyCellType original_cell_type = cell->property_details().cell_type();
     DCHECK(original_cell_type == PropertyCellType::kInvalidated ||
            original_cell_type == PropertyCellType::kUninitialized);
+#if !defined(COBALT_ARRAY_BUFFER_COLLISION_WORKAROUND)
     DCHECK(cell->value()->IsTheHole(isolate));
+#endif
     if (original_cell_type == PropertyCellType::kInvalidated) {
       cell = PropertyCell::InvalidateEntry(dictionary, entry);
     }

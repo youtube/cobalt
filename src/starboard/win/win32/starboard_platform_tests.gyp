@@ -38,7 +38,7 @@
       'variables': {
         'executable_name': 'starboard_platform_tests',
       },
-      'includes': [ '../../build/deploy.gypi' ],
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

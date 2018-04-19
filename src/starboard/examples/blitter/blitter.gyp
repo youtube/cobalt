@@ -36,6 +36,7 @@
       'variables': {
         'executable_name': 'starboard_blitter_example',
       },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

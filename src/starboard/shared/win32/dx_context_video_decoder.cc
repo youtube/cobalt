@@ -39,7 +39,7 @@ HardwareDecoderContext GetDirectXForHardwareDecoding() {
   PFNEGLQUERYDEVICEATTRIBEXTPROC query_device;
   query_device = reinterpret_cast<PFNEGLQUERYDEVICEATTRIBEXTPROC>(
       eglGetProcAddress("eglQueryDeviceAttribEXT"));
-  SB_DCHECK(query_display != nullptr);
+  SB_DCHECK(query_device != nullptr);
 
   intptr_t egl_device = 0;
   query_display(display, EGL_DEVICE_EXT, &egl_device);

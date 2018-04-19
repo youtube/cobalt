@@ -17,6 +17,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "base/hash_tables.h"
@@ -65,12 +66,12 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
       const scoped_refptr<GlobalInterface>& global_interface,
       EnvironmentSettings* environment_settings);
 
-  bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
+  bool EvaluateScript(const scoped_refptr<SourceCode>& script,
                       std::string* out_result_utf8) override;
 
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
-      const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+      const scoped_refptr<Wrappable>& owning_object,
       base::optional<ValueHandleHolder::Reference>* out_value_handle) override;
 
   std::vector<StackFrame> GetStackTrace(int max_frames) override;
@@ -81,6 +82,10 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) override;
+
+  void AddRoot(Traceable* traceable) override;
+
+  void RemoveRoot(Traceable* traceable) override;
 
   void DisableEval(const std::string& message) override;
 
@@ -169,7 +174,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void EvaluateAutomatics();
 
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
-                              bool mute_errors,
                               JS::MutableHandleValue out_result);
 
   void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
@@ -190,6 +194,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
   base::hash_set<Traceable*> visited_traceables_;
+  std::unordered_multiset<Traceable*> roots_;
 
   // Store the result of "Promise" immediately after evaluating the
   // promise polyfill in order to defend against application JavaScript

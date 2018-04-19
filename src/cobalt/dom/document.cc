@@ -562,6 +562,20 @@ void Document::DoSynchronousLayout() {
   }
 }
 
+scoped_refptr<render_tree::Node>
+Document::DoSynchronousLayoutAndGetRenderTree() {
+  TRACE_EVENT0("cobalt::dom",
+               "Document::DoSynchronousLayoutAndGetRenderTree()");
+
+  if (synchronous_layout_and_produce_render_tree_callback_.is_null()) {
+    DLOG(WARNING)
+        << "|synchronous_layout_and_produce_render_tree_callback_| is null";
+    return nullptr;
+  }
+
+  return synchronous_layout_and_produce_render_tree_callback_.Run();
+}
+
 void Document::NotifyUrlChanged(const GURL& url) {
   location_->set_url(url);
   csp_delegate_->NotifyUrlChanged(url);

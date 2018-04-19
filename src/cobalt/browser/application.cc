@@ -693,8 +693,10 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         GetWebDriverPort(), GetWebDriverListenIp(),
         base::Bind(&BrowserModule::CreateSessionDriver,
                    base::Unretained(browser_module_.get())),
+        // Webdriver spec requires us to encode to PNG format.
         base::Bind(&BrowserModule::RequestScreenshotToBuffer,
-                   base::Unretained(browser_module_.get())),
+                   base::Unretained(browser_module_.get()),
+                   loader::image::EncodedStaticImage::ImageFormat::kPNG),
         base::Bind(&BrowserModule::SetProxy,
                    base::Unretained(browser_module_.get())),
         base::Bind(&Application::Quit, base::Unretained(this))));
@@ -916,6 +918,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       DLOG(INFO) << "Finished suspending.";
       break;
     case kSbEventTypeResume:
+#if SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+      DCHECK(SbSystemSupportsResume());
+#endif  // SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
       DLOG(INFO) << "Got resume event.";
       app_status_ = kPausedAppStatus;
       ++app_resume_count_;

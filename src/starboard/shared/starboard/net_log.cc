@@ -102,6 +102,26 @@ class FunctionThread : public Thread {
   JoinFunction join_function_;
 };
 
+std::string ToString(SbSocketError error) {
+  switch (error) {
+    case kSbSocketOk: { return "kSbSocketOk"; }
+    case kSbSocketPending: { return "kSbSocketErrorConnectionReset"; }
+    case kSbSocketErrorFailed: { return "kSbSocketErrorFailed"; }
+
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
+  SB_API_VERSION >= 9
+    case kSbSocketErrorConnectionReset: {
+      return "kSbSocketErrorConnectionReset";
+    }
+#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
+      // SB_API_VERSION >= 9
+  }
+  SB_NOTREACHED() << "Unexpected case " << error;
+  std::stringstream ss;
+  ss << "Unknown-" << error;
+  return ss.str();
+}
+
 scoped_ptr<Socket> CreateListenSocket() {
   scoped_ptr<Socket> socket(
       new Socket(NET_LOG_IP_VERSION, kSbSocketProtocolTcp));
@@ -127,6 +147,131 @@ scoped_ptr<Socket> CreateListenSocket() {
   }
   return socket.Pass();
 }
+
+class BufferedSocketWriter {
+ public:
+  BufferedSocketWriter(int in_memory_buffer_size, int chunk_size)
+      : max_memory_buffer_size_(in_memory_buffer_size),
+        chunk_size_(chunk_size) {}
+
+  void Append(const char* data, size_t data_n) {
+    bool overflow = false;
+    log_mutex_.Acquire();
+    for (const char* curr = data; curr != data + data_n; ++curr) {
+      log_.push_back(*curr);
+      if (log_.size() > max_memory_buffer_size_) {
+        overflow = true;
+        log_.pop_front();
+      }
+    }
+    log_mutex_.Release();
+
+    SB_LOG_IF(ERROR, overflow) << "Net log dropped buffer data.";
+  }
+
+  void WaitUntilWritableOrConnectionReset(SbSocket sock) {
+    SbSocketWaiter waiter = SbSocketWaiterCreate();
+
+    struct F {
+      static void WakeUp(SbSocketWaiter waiter, SbSocket, void*, int) {
+        SbSocketWaiterWakeUp(waiter);
+      }
+    };
+
+    SbSocketWaiterAdd(waiter,
+                      sock,
+                      NULL,
+                      &F::WakeUp,
+                      kSbSocketWaiterInterestWrite,
+                      false);  // false means one shot.
+
+    SbSocketWaiterWait(waiter);
+    SbSocketWaiterRemove(waiter, sock);
+    SbSocketWaiterDestroy(waiter);
+  }
+
+  bool IsConnectionReset(SbSocketError err) {
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
+    SB_API_VERSION >= 9
+    return err == kSbSocketErrorConnectionReset;
+#else
+    return false;
+#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
+        // SB_API_VERSION >= 9
+  }
+
+  // Will flush data through to the dest_socket. Returns |true| if
+  // flushed, else connection was dropped or an error occured.
+  bool Flush(SbSocket dest_socket) {
+    std::string curr_write_block;
+    while (TransferData(chunk_size_, &curr_write_block)) {
+      while (!curr_write_block.empty()) {
+        int bytes_to_write = static_cast<int>(curr_write_block.size());
+        int result = SbSocketSendTo(dest_socket, curr_write_block.c_str(),
+                                    bytes_to_write, NULL);
+
+        if (result < 0) {
+          SbSocketError err = SbSocketGetLastError(dest_socket);
+          SbSocketClearLastError(dest_socket);
+          if (err == kSbSocketPending) {
+            blocked_counts_.increment();
+            WaitUntilWritableOrConnectionReset(dest_socket);
+            continue;
+          } else if (IsConnectionReset(err)) {
+            return false;
+          } else {
+            SB_LOG(ERROR) << "An error happened while writing to socket: "
+                          << ToString(err);
+            return false;
+          }
+          break;
+        } else if (result == 0) {
+          // Socket has closed.
+          return false;
+        } else {
+          // Expected condition. Partial or full write was successful.
+          size_t bytes_written = static_cast<size_t>(result);
+          SB_DCHECK(bytes_written <= bytes_to_write);
+          curr_write_block.erase(0, bytes_written);
+        }
+      }
+    }
+    return true;
+  }
+
+  int32_t blocked_counts() const { return blocked_counts_.load(); }
+
+ private:
+  bool TransferData(size_t max_size, std::string* destination) {
+    ScopedLock lock_log(log_mutex_);
+    size_t log_size = log_.size();
+    if (log_size == 0) {
+      return false;
+    }
+
+    size_t size = std::min<size_t>(max_size, log_size);
+    std::deque<char>::iterator begin_it = log_.begin();
+    std::deque<char>::iterator end_it = begin_it;
+    std::advance(end_it, size);
+
+    destination->assign(begin_it, end_it);
+    log_.erase(begin_it, end_it);
+    return true;
+  }
+
+  void PrependData(const std::string& curr_write_block) {
+    ScopedLock lock_log(log_mutex_);
+    log_.insert(log_.begin(),
+                curr_write_block.begin(),
+                curr_write_block.end());
+  }
+
+  int max_memory_buffer_size_;
+  int chunk_size_;
+  Mutex log_mutex_;
+  std::deque<char> log_;
+  atomic_int32_t blocked_counts_;
+};
 
 // This class will listen to the provided socket for a client
 // connection. When a client connection is established, a
@@ -168,7 +313,8 @@ class SocketListener {
 class NetLogServer {
  public:
   static NetLogServer* Instance();
-  NetLogServer() {
+  NetLogServer() : buffered_socket_writer_(NET_LOG_MAX_IN_MEMORY_BUFFER,
+                                           NET_LOG_SOCKET_SEND_SIZE) {
     ScopedLock lock(socket_mutex_);
     listen_socket_ = CreateListenSocket();
     ListenForClient();
@@ -206,7 +352,7 @@ class NetLogServer {
   }
 
   void OnLog(const char* msg) {
-    AppendToLog(msg);
+    buffered_socket_writer_.Append(msg, SbStringGetLength(msg));
     writer_thread_sema_.Put();
   }
 
@@ -215,13 +361,24 @@ class NetLogServer {
     writer_thread_.reset(nullptr);
     socket_listener_.reset();
 
-    InternalFlush();  // One last flush to the socket.
+    Flush();  // One last flush to the socket.
     ScopedLock lock(socket_mutex_);
     client_socket_.reset();
     listen_socket_.reset();
   }
 
-  bool Flush() { return InternalFlush(); }
+  // Return |true| if the data was written out to a connected socket,
+  // else |false| if
+  // 1. There was no connected client.
+  // 2. The connection was dropped.
+  // 3. Some other connection error happened.
+  bool Flush() {
+    ScopedLock lock(socket_mutex_);
+    if (!client_socket_) {
+      return false;
+    }
+    return buffered_socket_writer_.Flush(client_socket_->socket());
+  }
 
  private:
   void OnWriterTaskJoined() {
@@ -229,7 +386,6 @@ class NetLogServer {
   }
 
   void WriterTask(Semaphore* /*joined_sema*/, atomic_bool* is_joined) {
-    std::string curr_log_data;
     while (true) {
       writer_thread_sema_.Take();
 
@@ -244,113 +400,15 @@ class NetLogServer {
     }
   }
 
-  std::string ToString(SbSocketError error) {
-    switch (error) {
-      case kSbSocketOk: { return "kSbSocketOk"; }
-      case kSbSocketPending: { return "kSbSocketErrorConnectionReset"; }
-      case kSbSocketErrorFailed: { return "kSbSocketErrorFailed"; }
-
-#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= 9
-      case kSbSocketErrorConnectionReset: {
-        return "kSbSocketErrorConnectionReset";
-      }
-#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= 9
-    }
-    SB_NOTREACHED() << "Unexpected case " << error;
-    std::stringstream ss;
-    ss << "Unknown-" << error;
-    return ss.str();
-  }
-
-  // Return false if socket disconnected.
-  bool InternalFlush() {
-    ScopedLock lock(socket_mutex_);
-    if (!client_socket_) {
-      return false;
-    }
-    // Dummy read from client socket. This is required by the socket api.
-    char buff[2048];
-    client_socket_->ReceiveFrom(buff, sizeof(buff), NULL);
-    std::string curr_write_block;
-    while (TransferLog(NET_LOG_SOCKET_SEND_SIZE, &curr_write_block)) {
-      while (!curr_write_block.empty()) {
-        int bytes_to_write = static_cast<int>(curr_write_block.size());
-        int result = client_socket_->SendTo(curr_write_block.c_str(),
-                                            bytes_to_write,
-                                            NULL);
-        if (result < 0) {
-          SbSocketError err = client_socket_->GetLastError();
-          client_socket_->ClearLastError();
-          if (err == kSbSocketPending) {
-            // Buffer was full.
-            SbThreadSleep(kSbTimeMillisecond);
-            continue;
-          } else {
-            // Unexpected error. Clear the current write block to prevent
-            // endless loop.
-            SB_LOG(ERROR) << "An error happened while writing to socket: "
-                          << ToString(err);
-            curr_write_block.clear();
-          }
-          break;
-        } else if (result == 0) {
-          // Socket has closed.
-          return false;
-        } else {
-          // Expected condition. Partial or full write was successful.
-          size_t bytes_written = static_cast<size_t>(result);
-          SB_DCHECK(bytes_written <= bytes_to_write);
-          curr_write_block.erase(0, bytes_written);
-        }
-      }
-    }
-    return true;
-  }
-
-  bool TransferLog(size_t max_size, std::string* destination) {
-    ScopedLock lock_log(log_mutex_);
-    size_t log_size = log_.size();
-    if (log_size == 0) {
-      return false;
-    }
-
-    size_t size = std::min<size_t>(max_size, log_size);
-    std::deque<char>::iterator begin_it = log_.begin();
-    std::deque<char>::iterator end_it = begin_it;
-    std::advance(end_it, size);
-
-    destination->assign(begin_it, end_it);
-    log_.erase(begin_it, end_it);
-    return true;
-  }
-
-  void AppendToLog(const char* msg) {
-    size_t str_len = SbStringGetLength(msg);
-    bool overflow = false;
-    log_mutex_.Acquire();
-    for (const char* curr = msg; curr != msg + str_len; ++curr) {
-      log_.push_back(*curr);
-      if (log_.size() > NET_LOG_MAX_IN_MEMORY_BUFFER) {
-        overflow = true;
-        log_.pop_front();
-      }
-    }
-    log_mutex_.Release();
-
-    SB_LOG_IF(ERROR, overflow) << "Net log dropped buffer data.";
-  }
-
   scoped_ptr<Socket> listen_socket_;
   scoped_ptr<Socket> client_socket_;
   Mutex socket_mutex_;
-  std::deque<char> log_;
-  Mutex log_mutex_;
 
   scoped_ptr<SocketListener> socket_listener_;
   scoped_ptr<Thread> writer_thread_;
   Semaphore writer_thread_sema_;
+
+  BufferedSocketWriter buffered_socket_writer_;
 };
 
 class ThreadLocalBoolean {

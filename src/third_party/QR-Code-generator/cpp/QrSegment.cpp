@@ -26,6 +26,10 @@
 #include <utility>
 #include "QrSegment.hpp"
 
+#include "starboard/log.h"
+
+#define throw SB_CHECK(false) <<
+
 using std::uint8_t;
 using std::vector;
 
@@ -50,6 +54,7 @@ int QrSegment::Mode::numCharCountBits(int ver) const {
 	else if (10 <= ver && ver <= 26)  return numBitsCharCount[1];
 	else if (27 <= ver && ver <= 40)  return numBitsCharCount[2];
 	else  throw "Version number out of range";
+	return 0;
 }
 
 

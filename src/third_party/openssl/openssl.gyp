@@ -683,6 +683,7 @@
           },
           'dependencies': [
             '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
+            '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
           ],
         }],
         ['OS=="lb_shell"', {

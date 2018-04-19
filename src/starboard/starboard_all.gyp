@@ -27,6 +27,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:*',
+        '<(DEPTH)/starboard/client_porting/eztime/eztime_test.gyp:*',
         '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:*',
         '<(DEPTH)/starboard/client_porting/poem/poem.gyp:*',
         '<(DEPTH)/starboard/examples/examples.gyp:*',

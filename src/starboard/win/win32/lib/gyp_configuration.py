@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Starboard win-win32-lib platform configuration for gyp_cobalt."""
 
 import logging
 import os
@@ -20,14 +21,14 @@ import sys
 sys.path.append(
     os.path.realpath(
         os.path.join(
-            os.path.dirname(__file__), os.pardir,
-            os.pardir, os.pardir, 'shared', 'win32')))
+            os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
+            'shared', 'win32')))
 import gyp_configuration
 
 
 def CreatePlatformConfig():
   try:
-    return gyp_configuration.PlatformConfig('win-win32-lib')
+    return gyp_configuration.Win32Configuration('win-win32-lib')
   except RuntimeError as e:
     logging.critical(e)
     return None

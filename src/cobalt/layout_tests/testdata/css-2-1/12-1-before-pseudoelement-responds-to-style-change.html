@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<!--
+ | Use the :before pseudo element and checks that it partially re-lays out correctly
+ | after that element's style is changed.
+-->
+<head>
+  <style>
+    body {
+      background-color: white;
+    }
+
+    .test-block::before {
+      content: "";
+      background-color: red;
+      width:100px;
+      height:100px;
+      position: absolute;
+    }
+
+    .focused::before {
+      background-color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-block"></div>
+
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    window.addEventListener('load', function() {
+      if (window.testRunner) {
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      var testBlock = document.getElementsByClassName('test-block')[0];
+      testBlock.classList.add('focused');
+
+      if (window.testRunner) {
+        window.testRunner.notifyDone();
+      }
+    });
+  </script>
+</body>
+</html>

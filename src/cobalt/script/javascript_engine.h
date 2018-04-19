@@ -72,9 +72,6 @@ class JavaScriptEngine {
   // Returns true if the error handler could be installed. False otherwise.
   virtual bool RegisterErrorHandler(ErrorHandler handler) = 0;
 
-  // Adjusts the memory threshold to force garbage collection.
-  virtual void SetGcThreshold(int64_t bytes) = 0;
-
   // Get the current |HeapStatistics| measurements for this engine.  Note that
   // engines will implement this to the best of their ability, but will likely
   // be unable to provide perfectly accurate values.
@@ -84,6 +81,10 @@ class JavaScriptEngine {
   virtual ~JavaScriptEngine() {}
   friend class scoped_ptr<JavaScriptEngine>;
 };
+
+// Returns the name and version of the JavaScript engine being used, joined
+// by "/". Example output (when using V8) will look like "V8/6.5.254.28".
+std::string GetJavaScriptEngineNameAndVersion();
 
 }  // namespace script
 }  // namespace cobalt

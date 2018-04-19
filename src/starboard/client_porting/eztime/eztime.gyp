@@ -22,35 +22,11 @@
         'eztime.h',
       ],
       'dependencies': [
-        '<(DEPTH)/starboard/starboard.gyp:starboard',
+        '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
         '<(DEPTH)/starboard/client_porting/icu_init/icu_init.gyp:icu_init',
         '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
-    },
-    {
-      'target_name': 'eztime_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        '<(DEPTH)/starboard/common/test_main.cc',
-        'test_constants.h',
-        'eztime_test.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-        'eztime',
-      ],
-    },
-    {
-      'target_name': 'eztime_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'eztime_test',
-      ],
-      'variables': {
-        'executable_name': 'eztime_test',
-      },
     },
   ],
 }

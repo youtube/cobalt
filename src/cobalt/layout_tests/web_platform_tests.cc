@@ -199,6 +199,8 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
   scoped_ptr<base::Value> root;
   base::JSONReader reader;
   root.reset(reader.ReadToValue(json_results));
+  // Expect that parsing test result succeeded.
+  EXPECT_EQ(base::JSONReader::JSON_NO_ERROR, reader.error_code());
   if (!root) {
     // Unparseable JSON, or empty string.
     return test_results;

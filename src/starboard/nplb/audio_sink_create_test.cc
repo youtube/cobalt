@@ -35,7 +35,12 @@ void UpdateSourceStatusFuncStub(int* frames_in_buffer,
   *is_eos_reached = false;
 }
 
-void ConsumeFramesFuncStub(int frames_consumed, void* context) {}
+void ConsumeFramesFuncStub(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                           SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                           void* context) {
+}
 
 }  // namespace
 
@@ -54,6 +59,34 @@ TEST(SbAudioSinkCreateTest, SunnyDay) {
   EXPECT_TRUE(SbAudioSinkIsValid(audio_sink));
   SbAudioSinkDestroy(audio_sink);
 }
+
+#if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+TEST(SbAudioSinkCreateTest, MultiSink) {
+  ASSERT_GE(SbAudioSinkGetMaxChannels(), 1);
+
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
+
+  const int kMaxSinks = 16;
+  std::vector<SbAudioSink> created_sinks;
+  for (int i = 0; i < kMaxSinks; ++i) {
+    created_sinks.push_back(SbAudioSinkCreate(
+        frame_buffers.channels(),
+        SbAudioSinkGetNearestSupportedSampleFrequency(44100),
+        frame_buffers.sample_type(), frame_buffers.storage_type(),
+        frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+        UpdateSourceStatusFuncStub, ConsumeFramesFuncStub,
+        reinterpret_cast<void*>(1)));
+    if (!SbAudioSinkIsValid(created_sinks[i])) {
+      created_sinks.pop_back();
+      break;
+    }
+  }
+  SB_DLOG(INFO) << "Created " << created_sinks.size() << " valid audio sinks";
+  for (auto sink : created_sinks) {
+    SbAudioSinkDestroy(sink);
+  }
+}
+#endif  // SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
 
 TEST(SbAudioSinkCreateTest, SunnyDayAllCombinations) {
   std::vector<SbMediaAudioSampleType> sample_types;

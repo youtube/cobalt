@@ -59,7 +59,6 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // If out_result is non-NULL, it will be set to hold the result of the script
   // evaluation if the script succeeds, or an exception message if it fails.
   virtual bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
-                              bool mute_errors,
                               std::string* out_result_utf8) = 0;
 
   // Evaluate the JavaScript source code. Returns true on success,
@@ -68,7 +67,7 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // of the script that is owned by |owner|.
   virtual bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
-      const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+      const scoped_refptr<Wrappable>& owning_object,
       base::optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
 
   // Returns the stack trace as a vector of individual frames.
@@ -94,6 +93,14 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // collected.
   virtual void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) = 0;
+
+  // Register |traceable| as a member of the root set, i.e., an a priori
+  // reachable node.  In a manner similar to |PreventGarbageCollection|,
+  // multiple calls are supported.
+  virtual void AddRoot(Traceable* traceable) = 0;
+
+  // Undo a registration from |AddRoot|.
+  virtual void RemoveRoot(Traceable* traceable) = 0;
 
   // Disable eval() and specify the message to report in the exception.
   virtual void DisableEval(const std::string& message) = 0;

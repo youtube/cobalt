@@ -105,11 +105,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // When calling this, the |audio_source_provider| and
   // |audio_renderer_sink| arguments should be the same object.
 
-  WebMediaPlayerImpl(
-      PipelineWindow window, WebMediaPlayerClient* client,
-      WebMediaPlayerDelegate* delegate,
-      DecoderBuffer::Allocator* buffer_allocator,
-      const scoped_refptr<MediaLog>& media_log);
+  WebMediaPlayerImpl(PipelineWindow window, WebMediaPlayerClient* client,
+                     WebMediaPlayerDelegate* delegate,
+                     DecoderBuffer::Allocator* buffer_allocator,
+                     bool allow_resume_after_suspend,
+                     const scoped_refptr<MediaLog>& media_log);
   ~WebMediaPlayerImpl() override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -298,6 +298,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* client_;
   WebMediaPlayerDelegate* delegate_;
   DecoderBuffer::Allocator* buffer_allocator_;
+  bool allow_resume_after_suspend_;
   scoped_refptr<VideoFrameProvider> video_frame_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;

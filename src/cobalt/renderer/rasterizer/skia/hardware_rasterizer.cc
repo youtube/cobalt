@@ -340,6 +340,15 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
           hardware_image->GetHardwareFrontendImage(1), stereo_mode);
       result.textures[2] = GetTextureFromHardwareFrontendImage(
           hardware_image->GetHardwareFrontendImage(2), stereo_mode);
+    } else if (hardware_image->GetFormat() ==
+               render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020) {
+      result.type = egl::TexturedMeshRenderer::Image::YUV_3PLANE_10BIT_BT2020;
+      result.textures[0] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(0), stereo_mode);
+      result.textures[1] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(1), stereo_mode);
+      result.textures[2] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(2), stereo_mode);
     }
   } else {
     NOTREACHED();

@@ -321,6 +321,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
 
+#if SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   const int kPlaybackRate = 2;
 
@@ -393,6 +394,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
+#endif  // SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 
 TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   {

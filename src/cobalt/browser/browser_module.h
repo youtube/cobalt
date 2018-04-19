@@ -54,6 +54,8 @@
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
+#include "cobalt/overlay_info/qr_code_overlay.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/renderer_module.h"
@@ -130,16 +132,17 @@ class BrowserModule {
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
-#if defined(ENABLE_SCREENSHOT)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
-  void RequestScreenshotToFile(const FilePath& path,
-                               const base::Closure& done_cb);
+  void RequestScreenshotToFile(
+      const FilePath& path,
+      loader::image::EncodedStaticImage::ImageFormat image_format,
+      const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
   void RequestScreenshotToBuffer(
-      const ScreenShotWriter::PNGEncodeCompleteCallback& screenshot_ready);
-#endif
+      loader::image::EncodedStaticImage::ImageFormat image_format,
+      const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 
 #if defined(ENABLE_WEBDRIVER)
   scoped_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -224,6 +227,13 @@ class BrowserModule {
       const browser::WebModule::LayoutResults& layout_results);
   void OnSplashScreenRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
+
+  // Glue function to deal with the production of the qr code overlay render
+  // tree, and will manage handing it off to the renderer.
+  void QueueOnQrCodeOverlayRenderTreeProduced(
+      const scoped_refptr<render_tree::Node>& render_tree);
+  void OnQrCodeOverlayRenderTreeProduced(
+      const scoped_refptr<render_tree::Node>& render_tree);
 
   // Saves/loads the debug console mode to/from local storage so we can
   // persist the user's preference.
@@ -456,11 +466,10 @@ class BrowserModule {
 #if defined(ENABLE_DEBUG_CONSOLE)
   scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+  scoped_ptr<RenderTreeCombiner::Layer> qr_overlay_info_layer_;
 
-#if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
   scoped_ptr<ScreenShotWriter> screen_shot_writer_;
-#endif  // defined(ENABLE_SCREENSHOT)
 
   // Keeps track of all messages containing render tree submissions that will
   // ultimately reference the |render_tree_combiner_| and the
@@ -520,10 +529,8 @@ class BrowserModule {
   // Command handler object for setting media module config.
   base::ConsoleCommandManager::CommandHandler set_media_config_command_handler_;
 
-#if defined(ENABLE_SCREENSHOT)
   // Command handler object for screenshot command from the debug console.
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
-#endif  // defined(ENABLE_SCREENSHOT)
 
   base::optional<SuspendFuzzer> suspend_fuzzer_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -534,6 +541,9 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
+
+  // The qr code overlay to display qr codes on top of all layers.
+  scoped_ptr<overlay_info::QrCodeOverlay> qr_code_overlay_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
@@ -606,6 +616,11 @@ class BrowserModule {
   // to another (in which case it may need to clear its submission queue).
   int current_splash_screen_timeline_id_;
   int current_main_web_module_timeline_id_;
+
+  // Remember the first set value for JavaScript's GC threshold setting computed
+  // by automem.  We want this so that we can check that it never changes, since
+  // we do not have the ability to modify it after startup.
+  base::optional<int64_t> javascript_gc_threshold_in_bytes_;
 };
 
 }  // namespace browser

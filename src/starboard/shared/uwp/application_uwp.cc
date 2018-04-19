@@ -337,6 +337,12 @@ ref class App sealed : public IFrameworkView {
   void OnActivated(
       CoreApplicationView^ application_view, IActivatedEventArgs^ args) {
     SB_LOG(INFO) << "OnActivated";
+    ApplicationUwp* application_uwp = ApplicationUwp::Get();
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
+    HRESULT hr =
+        D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+    SB_DCHECK(SUCCEEDED(hr));
+    application_uwp->SetD3D12Device(device);
     std::string start_url = entry_point_;
     bool command_line_set = false;
 
@@ -356,7 +362,6 @@ ref class App sealed : public IFrameworkView {
       // The starboard: scheme provides commandline arguments, but that's
       // only allowed during a process's first activation.
       std::string scheme = sbwin32::platformStringToString(uri->SchemeName);
-
       if (!previously_activated_ && ends_with(scheme, "-starboard")) {
         std::string uri_string = wchar_tToUTF8(uri->RawUri->Data());
         // args_ is a vector of std::string, but argv_ is a vector of
@@ -445,7 +450,6 @@ ref class App sealed : public IFrameworkView {
             static_cast<int>(argv_.size()), argv_.data());
       }
 
-      ApplicationUwp* application_uwp = ApplicationUwp::Get();
       const CommandLine* command_line =
           ::starboard::shared::uwp::GetCommandLinePointer(application_uwp);
 

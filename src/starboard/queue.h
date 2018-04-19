@@ -130,6 +130,16 @@ class Queue {
                  queue_.end());
   }
 
+  void Clear() {
+    ScopedLock lock(mutex_);
+    queue_.clear();
+  }
+
+  size_t Size() {
+    ScopedLock lock(mutex_);
+    return queue_.size();
+  }
+
  private:
   Mutex mutex_;
   ConditionVariable condition_;

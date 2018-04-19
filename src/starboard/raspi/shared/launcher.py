@@ -141,9 +141,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
         command, timeout=Launcher._PEXPECT_TIMEOUT)
     retry_count = 0
     while True:
+      expected_prompts = [
+          r'.*Are\syou\ssure.*',  # Fingerprint verification
+          r'\S+ password:',  # Password prompt
+      ]
       try:
-        self.pexpect_process.expect(r'\S+ password:')
-        break
+        i = self.pexpect_process.expect(expected_prompts)
+        if i == 0:
+          self.pexpect_process.sendline('yes')
+        else:
+          self.pexpect_process.sendline(Launcher._RASPI_PASSWORD)
+          break
       except pexpect.TIMEOUT:
         if self.shutdown_initiated.is_set():
           return
@@ -153,7 +161,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
         if retry_count > Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES:
           exc_info = sys.exc_info()
           raise exc_info[0], exc_info[1], exc_info[2]
-    self.pexpect_process.sendline(Launcher._RASPI_PASSWORD)
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""

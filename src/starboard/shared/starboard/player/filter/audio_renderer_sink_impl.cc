@@ -133,13 +133,21 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
 
 // static
 void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+                                              SbTime frames_consumed_at,
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                               void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
   SB_DCHECK(audio_renderer_sink);
   SB_DCHECK(audio_renderer_sink->render_callback_);
 
+#if SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
+  audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
+                                                       frames_consumed_at);
+#else   // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
   audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed);
+#endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 }
 
 }  // namespace filter

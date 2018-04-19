@@ -11,10 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X64 X11 future platform configuration."""
+"""Starboard Linux X64 X11 mozjs platform configuration."""
 
 from starboard.linux.x64x11 import gyp_configuration as linux_configuration
 
 
+class LinuxX64X11MozjsConfiguration(
+    linux_configuration.LinuxX64X11Configuration):
+  """Starboard Linux X64 X11 mozjs platform configuration."""
+
+  def GetVariables(self, config_name):
+    variables = super(LinuxX64X11MozjsConfiguration,
+                      self).GetVariables(config_name)
+    variables.update({
+        'javascript_engine': 'mozjs-45',
+        'cobalt_enable_jit': 0,
+    })
+    return variables
+
+
 def CreatePlatformConfig():
-  return linux_configuration.LinuxX64X11Configuration('linux-x64x11-mozjs')
+  return LinuxX64X11MozjsConfiguration('linux-x64x11-mozjs')

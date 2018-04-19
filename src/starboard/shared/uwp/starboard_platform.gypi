@@ -84,6 +84,7 @@
       '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
     ]
   }
 }

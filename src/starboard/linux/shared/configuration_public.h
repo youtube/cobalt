@@ -273,6 +273,13 @@
 // non-zero on platforms with webm/vp9 support.
 #define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
 
+// Specifies whether this platform updates audio frames asynchronously.  In such
+// case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
+// indicate the absolute time that the consumed audio frames are reported.
+// Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
+// details.
+#define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
+
 // Specifies the stack size for threads created inside media stack.  Set to 0 to
 // use the default thread stack size.  Set to non-zero to explicitly set the
 // stack size for media stack threads.

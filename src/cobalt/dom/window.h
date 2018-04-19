@@ -22,6 +22,7 @@
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/timer.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
@@ -38,6 +39,7 @@
 #include "cobalt/dom/on_screen_keyboard.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/screenshot_manager.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
@@ -49,6 +51,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
@@ -116,6 +119,7 @@ class Window : public EventTarget,
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
   typedef base::Callback<SbWindow()> GetSbWindowCallback;
+
   enum ClockType { kClockTypeTestRunner, kClockTypeSystemTime };
 
   Window(
@@ -156,6 +160,8 @@ class Window : public EventTarget,
       const OnStartDispatchEventCallback&
           start_tracking_dispatch_event_callback,
       const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
+      const ScreenshotManager::ProvideScreenshotFunctionCallback&
+          screenshot_function_callback,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
@@ -182,6 +188,8 @@ class Window : public EventTarget,
   }
 
   const scoped_refptr<Navigator>& navigator() const;
+
+  script::Handle<ScreenshotManager::InterfacePromise> Screenshot();
 
   // Web API: CSSOM (partial interface)
   // Returns the computed style of the given element, as described in
@@ -309,8 +317,13 @@ class Window : public EventTarget,
   scoped_refptr<Window> opener() const { return NULL; }
 
   // Sets the function to call to trigger a synchronous layout.
+  using SynchronousLayoutAndProduceRenderTreeCallback =
+      base::Callback<scoped_refptr<render_tree::Node>()>;
   void SetSynchronousLayoutCallback(
       const base::Closure& synchronous_layout_callback);
+  void SetSynchronousLayoutAndProduceRenderTreeCallback(
+      const SynchronousLayoutAndProduceRenderTreeCallback&
+          synchronous_layout_callback);
 
   void SetSize(int width, int height, float device_pixel_ratio);
 
@@ -355,8 +368,17 @@ class Window : public EventTarget,
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
   void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
 
-  DEFINE_WRAPPABLE_TYPE(Window);
+  // |PointerState| will in general create reference cycles back to us, which is
+  // ok, as they are cleared over time.  During shutdown however, since no
+  // more queue progress can possibly be made, we must forcibly clear the
+  // queue.
+  void ClearPointerStateForShutdown();
+
   void TraceMembers(script::Tracer* tracer) override;
+
+  void SetEnvironmentSettings(script::EnvironmentSettings* settings);
+
+  DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
   void StartDocumentLoad(
@@ -425,6 +447,10 @@ class Window : public EventTarget,
 
   OnStartDispatchEventCallback on_start_dispatch_event_callback_;
   OnStopDispatchEventCallback on_stop_dispatch_event_callback_;
+
+  ScreenshotManager screenshot_manager_;
+
+  script::EnvironmentSettings* environment_settings_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<!--
+ | Test case which ensures that when a pseudo-element whose parent element has
+ | its display set to none, all running transitions on the pseudo-element are
+ | immediately ended.
+ | While the specification doesn't seem to say anything about this, it is
+ | how Chrome and Firefox both work, and it is also intuitively in line with
+ | the following behavior specified for CSS Animations:
+ | From https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animations,
+ | "Setting the display property to ‘none’ will terminate any running animation
+ |  applied to the element and its descendants. If an element has a display of
+ |  ‘none’, updating display to a value other than ‘none’ will start all
+ |  animations applied to the element by the ‘animation-name’ property, as well
+ |  as all animations applied to descendants with display other than ‘none’."
+ -->
+<html>
+<head>
+  <style>
+    #block {
+      width: 100px;
+      height: 100px;
+      background-color: yellow;
+      font-size: 30px;
+    }
+    #block::after {
+      content: "";
+      display:block;
+      transform: translateX(100px);
+      width: 100px;
+      height: 100px;
+      background-color: #0f0;
+      transition: background-color 1s linear;
+    }
+  </style>
+</head>
+<body>
+  <div id="block"></div>
+
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    var blockDiv = document.getElementById('block');
+
+    window.addEventListener('load', function() {
+      if (window.testRunner) {
+        // Do a layout upon the load event so that we setup our source styles
+        // that we will be transitioning from.
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      // Modify the rule that targets the pseudo-element, to trigger the
+      // transition.
+      var sheet = document.styleSheets[0];
+      var rules = sheet.cssRules;
+      rules[1].style.backgroundColor = '#00f';
+
+      if (window.testRunner) {
+        // Do a layout to start the transition.
+        window.testRunner.DoNonMeasuredLayout();
+        window.testRunner.AdvanceClockByMs(500);
+      }
+
+      blockDiv.style.display = "none";
+
+      if (window.testRunner) {
+        window.testRunner.DoNonMeasuredLayout();
+      }
+
+      blockDiv.style.display = "block";
+
+      if (window.testRunner) {
+        // Measure that the transition should now appear to be fully completed.
+        window.testRunner.notifyDone();
+      }
+    });
+  </script>
+
+</body>
+</html>

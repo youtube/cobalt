@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbMediaTime is deprecated (for SbTime).
+#define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Minimum API version where supporting player error messages is required.
 #define SB_PLAYER_ERROR_MESSAGE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
@@ -76,6 +79,14 @@
 
 // Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Minimum API version where calling SbPlayerCreate mutiple times (without
+// calling SbPlayerDestroy in between) must not crash, and likewise calling
+// SbAudioSinkCreate multiple times (without calling SbAudioSinkDestroy in
+// between) must not crash. SbPlayerCreate may return kSbPlayerInvalid if
+// additional players are not supported. SbAudioSinkCreate may return
+// kSbAudionSinkInvalid if additional audio sinks are not supported.
+#define SB_MULTI_PLAYER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // API version where DRM session closed callback is required.
 //   Add a callback to SbDrmCreateSystem that allows a DRM system to
@@ -98,6 +109,30 @@
 //   SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES has to be defined to continue
 //   support int16 audio samples after this version.
 #define SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where SbSystemSupportsResume() is supported.
+//   Platforms doesn't need to resume after suspend can return false in
+//   SbSystemSupportsResume() to free up the resource used by resume after
+//   suspend.
+//   Please see the comment in system.h for more details.
+#define SB_ALLOW_DISABLE_RESUME_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Minimum API version for supporting the kSbKeyMicrophone keycode
+#define SB_MICROPHONE_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add support for new decode target type,
+// kSbDecodeTargetFormat3Plane10BitYUVI420.
+//   Added kSbDecodeTargetFormat3Plane10BitYUVI420 to the SbDecodeTargetFormat
+//   enum in order to support 10-bit YUV textures.
+#define SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
+
+// API version where SbAudioSinkConsumeFramesFunc() can optional take an
+//   absolute timestamp to indicate when the frames are consumed.
+//   Platforms that have the |frames_consumed| updated asynchronously can have
+//   more accurate audio time reporting with this extra parameter.
+//   Please see the comment in audio_sink.h for more details.
+#define SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -624,6 +659,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
 #endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 #endif  // SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
+
+#if SB_API_VERSION >= SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION
+#if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#error Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API \
+    version SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION or later.
+#endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
+#endif  // SB_API_VERSION >= SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 

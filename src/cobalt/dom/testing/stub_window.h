@@ -26,7 +26,6 @@
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media_session/media_session.h"
-#include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "googleurl/src/gurl.h"
@@ -43,7 +42,7 @@ class StubWindow {
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(base::Bind(&StubErrorCallback))),
-        fetcher_factory_(new loader::FetcherFactory(&network_module_)),
+        fetcher_factory_(new loader::FetcherFactory(NULL)),
         local_storage_database_(NULL),
         url_("about:blank"),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
@@ -61,7 +60,8 @@ class StubWindow {
         dom::Window::CloseCallback() /* window_close */,
         base::Closure() /* window_minimize */, NULL, NULL, NULL,
         dom::Window::OnStartDispatchEventCallback(),
-        dom::Window::OnStopDispatchEventCallback());
+        dom::Window::OnStopDispatchEventCallback(),
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback());
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 
@@ -77,7 +77,6 @@ class StubWindow {
   MessageLoop message_loop_;
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
-  network::NetworkModule network_module_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
