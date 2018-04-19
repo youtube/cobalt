@@ -321,7 +321,9 @@ void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   handler_->Stop();
-  UpdatePlayerState(kSbPlayerStateDestroyed);
+  if (!error_occurred_) {
+    UpdatePlayerState(kSbPlayerStateDestroyed);
+  }
   job_queue_->StopSoon();
 }
 
