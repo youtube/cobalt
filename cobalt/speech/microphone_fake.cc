@@ -30,11 +30,7 @@
 namespace cobalt {
 namespace speech {
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
-typedef media::ShellAudioBus ShellAudioBus;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-typedef ::media::ShellAudioBus ShellAudioBus;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+typedef audio::ShellAudioBus ShellAudioBus;
 
 namespace {
 
@@ -49,6 +45,7 @@ const int kReadRange = 300;
 // The possiblity of microphone close failed is 1/20.
 const int kCloseRange = 20;
 const int kFailureNumber = 5;
+const int kSupportedMonoChannel = 1;
 
 bool ShouldFail(int range) {
   return base::RandGenerator(range) == kFailureNumber;
@@ -89,9 +86,13 @@ MicrophoneFake::MicrophoneFake(const Options& options)
     }
   } else {
     file_length_ = std::min(options.audio_data_size, kMaxBufferSize);
-    DCHECK(file_length_ > 0);
-    file_buffer_.reset(new uint8[file_length_]);
-    SbMemoryCopy(file_buffer_.get(), options.external_audio_data, file_length_);
+    DCHECK_GT(file_length_, 0);
+    audio_bus_.reset(new ShellAudioBus(
+        kSupportedMonoChannel,
+        file_length_ / audio::GetSampleTypeSize(ShellAudioBus::kInt16),
+        ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
+    SbMemoryCopy(audio_bus_->interleaved_data(), options.external_audio_data,
+                 file_length_);
   }
 }
 
@@ -105,7 +106,7 @@ bool MicrophoneFake::Open() {
 
   if (read_data_from_file_) {
     // Read from local files.
-    DCHECK(file_paths_.size() != 0);
+    DCHECK_NE(file_paths_.size(), 0u);
     size_t random_index =
         static_cast<size_t>(base::RandGenerator(file_paths_.size()));
     starboard::ScopedFile file(file_paths_[random_index].value().c_str(),
@@ -113,7 +114,7 @@ bool MicrophoneFake::Open() {
     DCHECK(file.IsValid());
     int file_buffer_size =
         std::min(static_cast<int>(file.GetSize()), kMaxBufferSize);
-    DCHECK(file_buffer_size > 0);
+    DCHECK_GT(file_buffer_size, 0);
 
     scoped_array<char> audio_input(new char[file_buffer_size]);
     int read_bytes = file.ReadAll(audio_input.get(), file_buffer_size);
@@ -125,11 +126,14 @@ bool MicrophoneFake::Open() {
         reinterpret_cast<const uint8*>(audio_input.get()), file_buffer_size,
         audio::kSampleTypeInt16));
     const float kSupportedSampleRate = 16000.0f;
-    const int kSupportedMonoChannel = 1;
     if (!reader) {
       // If it is not a WAV file, read audio data as raw audio.
-      file_buffer_.reset(new uint8[file_buffer_size]);
-      SbMemoryCopy(file_buffer_.get(), audio_input.get(), file_buffer_size);
+      audio_bus_.reset(new ShellAudioBus(
+          kSupportedMonoChannel,
+          file_buffer_size / audio::GetSampleTypeSize(ShellAudioBus::kInt16),
+          ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
+      SbMemoryCopy(audio_bus_->interleaved_data(), audio_input.get(),
+                   file_buffer_size);
       file_length_ = file_buffer_size;
     } else if (reader->sample_type() != ShellAudioBus::kInt16 ||
                reader->sample_rate() != kSupportedSampleRate ||
@@ -138,13 +142,10 @@ bool MicrophoneFake::Open() {
       // it as an error.
       return false;
     } else {
-      // Read WAV PCM16 audio data.
-      int size =
+      audio_bus_ = reader->ResetAndReturnAudioBus().Pass();
+      file_length_ =
           static_cast<int>(reader->number_of_frames() *
                            audio::GetSampleTypeSize(reader->sample_type()));
-      file_buffer_.reset(new uint8[size]);
-      SbMemoryCopy(file_buffer_.get(), reader->sample_data().get(), size);
-      file_length_ = size;
     }
   }
   return true;
@@ -159,7 +160,8 @@ int MicrophoneFake::Read(char* out_data, int data_size) {
   }
 
   int copy_bytes = std::min(file_length_ - read_index_, data_size);
-  SbMemoryCopy(out_data, file_buffer_.get() + read_index_, copy_bytes);
+  SbMemoryCopy(out_data, audio_bus_->interleaved_data() + read_index_,
+               copy_bytes);
   read_index_ += copy_bytes;
   if (read_index_ == file_length_) {
     read_index_ = 0;
@@ -172,7 +174,7 @@ bool MicrophoneFake::Close() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (read_data_from_file_) {
-    file_buffer_.reset();
+    audio_bus_.reset();
     file_length_ = -1;
   }
 

@@ -15,8 +15,7 @@
 #ifndef COBALT_AUDIO_AUDIO_FILE_READER_H_
 #define COBALT_AUDIO_AUDIO_FILE_READER_H_
 
-#include "base/memory/scoped_ptr.h"  // For scoped_array
-
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/audio/audio_helpers.h"
 
 namespace cobalt {
@@ -29,14 +28,12 @@ class AudioFileReader {
   static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
                                                SampleType sample_type);
 
-  // Returns the sample data stored as float sample in planar form.  Note that
-  // this function transfers the ownership of the data to the caller so it can
-  // only be called once.
-  virtual scoped_array<uint8> sample_data() = 0;
   virtual float sample_rate() const = 0;
   virtual int32 number_of_frames() const = 0;
   virtual int32 number_of_channels() const = 0;
   virtual SampleType sample_type() const = 0;
+
+  virtual scoped_ptr<ShellAudioBus> ResetAndReturnAudioBus() = 0;
 };
 
 }  // namespace audio

@@ -21,6 +21,7 @@
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/endian_util.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace audio {
@@ -105,7 +106,7 @@ bool AudioFileReaderWAV::ParseRIFFHeader(const uint8* data, size_t size) {
 
 void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
   uint32 offset = kWAVRIFFChunkHeaderSize;
-  bool is_sample_in_float = false;
+  bool is_src_sample_in_float = false;
   // If the WAV file is PCM format, it has two sub-chunks: first one is "fmt"
   // and the second one is "data".
   // TODO: support the cases that the WAV file is non-PCM format and the
@@ -124,12 +125,12 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
     }
 
     if (chunk_id == kWAVChunkID_fmt && i == 0) {
-      if (!ParseWAV_fmt(data, offset, chunk_size, &is_sample_in_float)) {
+      if (!ParseWAV_fmt(data, offset, chunk_size, &is_src_sample_in_float)) {
         DLOG(WARNING) << "Parse fmt chunk failed.";
         break;
       }
     } else if (chunk_id == kWAVChunkID_data && i == 1) {
-      if (!ParseWAV_data(data, offset, chunk_size, is_sample_in_float)) {
+      if (!ParseWAV_data(data, offset, chunk_size, is_src_sample_in_float)) {
         DLOG(WARNING) << "Parse data chunk failed.";
         break;
       }
@@ -143,7 +144,10 @@ void AudioFileReaderWAV::ParseChunks(const uint8* data, size_t size) {
 }
 
 bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
-                                      size_t size, bool* is_sample_in_float) {
+                                      size_t size,
+                                      bool* is_src_sample_in_float) {
+  DCHECK(is_src_sample_in_float);
+
   // Check size for complete header.
   if (size < kWAVfmtChunkHeaderSize) {
     return false;
@@ -157,7 +161,7 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
     return false;
   }
 
-  *is_sample_in_float = format_code == kWAVFormatCodeFloat;
+  *is_src_sample_in_float = format_code == kWAVFormatCodeFloat;
 
   // Load channel count.
   number_of_channels_ = load_uint16_little_endian(data + offset + 2);
@@ -176,8 +180,8 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
 
   // Check sample size, we only support 32 bit floats or 16 bit PCM.
   uint16 bits_per_sample = load_uint16_little_endian(data + offset + 14);
-  if ((*is_sample_in_float && bits_per_sample != 32) ||
-      (!*is_sample_in_float && bits_per_sample != 16)) {
+  if ((*is_src_sample_in_float && bits_per_sample != 32) ||
+      (!*is_src_sample_in_float && bits_per_sample != 16)) {
     DLOG(ERROR) << "Bad bits per sample on WAV. "
                 << "Bits per sample: " << bits_per_sample;
     return false;
@@ -187,57 +191,92 @@ bool AudioFileReaderWAV::ParseWAV_fmt(const uint8* data, size_t offset,
 }
 
 bool AudioFileReaderWAV::ParseWAV_data(const uint8* data, size_t offset,
-                                       size_t size, bool is_sample_in_float) {
-  const uint8* data_samples = data + offset;
-
+                                       size_t size,
+                                       bool is_src_sample_in_float) {
   // Set number of frames based on size of data chunk.
-  const int32 bytes_per_src_sample =
-      static_cast<int32>(is_sample_in_float ? sizeof(float) : sizeof(int16));
+  const int32 bytes_per_src_sample = static_cast<int32>(
+      is_src_sample_in_float ? sizeof(float) : sizeof(int16));
   number_of_frames_ =
       static_cast<int32>(size / (bytes_per_src_sample * number_of_channels_));
-  const int32 bytes_per_dest_sample =
-      static_cast<int32>(GetSampleTypeSize(sample_type_));
-  const bool is_dest_float = sample_type_ == kSampleTypeFloat32;
 
   // We store audio samples in the current platform's preferred format.
-  sample_data_.reset(new uint8[static_cast<size_t>(
-      number_of_frames_ * number_of_channels_ * bytes_per_dest_sample)]);
+  audio_bus_.reset(new ShellAudioBus(number_of_channels_, number_of_frames_,
+                                     sample_type_,
+                                     ShellAudioBus::kInterleaved));
 
-  // Here we handle all 4 possible conversion cases.  Also note that the
-  // source data is stored interleaved, and that need to convert it to planar.
-  uint8* dest_sample = sample_data_.get();
-  for (int32 i = 0; i < number_of_channels_; ++i) {
-    const uint8* src_samples = data_samples + i * bytes_per_src_sample;
+// Both the source data and the destination data are stored in interleaved.
+#if SB_IS(LITTLE_ENDIAN)
+  if ((!is_src_sample_in_float && sample_type_ == kSampleTypeInt16) ||
+      (is_src_sample_in_float && sample_type_ == kSampleTypeFloat32)) {
+    SbMemoryCopy(audio_bus_->interleaved_data(), data + offset, size);
+  } else if (!is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
+    // Convert from int16 to float32
+    const int16* src_samples = reinterpret_cast<const int16*>(data + offset);
+    float* dest_samples =
+        reinterpret_cast<float*>(audio_bus_->interleaved_data());
 
-    for (int32 j = 0; j < number_of_frames_; ++j) {
-      if (is_dest_float) {
-        float sample;
-        if (is_sample_in_float) {
-          uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
-          sample = bit_cast<float>(sample_as_uint32);
-        } else {
-          uint16 sample_pcm_unsigned = load_uint16_little_endian(src_samples);
-          int16 sample_pcm = bit_cast<int16>(sample_pcm_unsigned);
-          sample = ConvertSample<int16, float>(sample_pcm);
-        }
-        reinterpret_cast<float*>(dest_sample)[i * number_of_frames_ + j] =
-            sample;
-        src_samples += bytes_per_src_sample * number_of_channels_;
-      } else {
-        int16 sample;
-        if (is_sample_in_float) {
-          uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
-          float value = bit_cast<float>(sample_as_uint32);
-          sample = ConvertSample<float, int16>(value);
-        } else {
-          sample = bit_cast<int16>(load_uint16_little_endian(src_samples));
-        }
-        reinterpret_cast<int16*>(dest_sample)[i * number_of_frames_ + j] =
-            sample;
-        src_samples += bytes_per_src_sample * number_of_channels_;
-      }
+    for (int32 i = 0; i < number_of_frames_ * number_of_channels_; ++i) {
+      *dest_samples = ConvertSample<int16, float>(*src_samples);
+      ++src_samples;
+      ++dest_samples;
+    }
+  } else {
+    // Convert from float32 to int16
+    const float* src_samples = reinterpret_cast<const float*>(data + offset);
+    int16* dest_samples =
+        reinterpret_cast<int16*>(audio_bus_->interleaved_data());
+
+    for (int32 i = 0; i < number_of_frames_ * number_of_channels_; ++i) {
+      *dest_samples = ConvertSample<float, int16>(*src_samples);
+      ++src_samples;
+      ++dest_samples;
     }
   }
+#else   // SB_IS(LITTLE_ENDIAN)
+  if (!is_src_sample_in_float && sample_type_ == kSampleTypeInt16) {
+    const uint8_t* src_samples = data + offset;
+    int16* dest_samples =
+        reinterpret_cast<int16*>(audio_bus_->interleaved_data());
+    for (int32 i = 0; i < number_of_frames_ * number_of_channels_; ++i) {
+      *dest_samples = load_uint16_little_endian(src_samples);
+      src_samples += bytes_per_src_sample;
+      ++dest_samples;
+    }
+  } else if (is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
+    const uint8_t* src_samples = data + offset;
+    float* dest_samples =
+        reinterpret_cast<float*>(audio_bus_->interleaved_data());
+    for (int32 i = 0; i < number_of_frames_ * number_of_channels_; ++i) {
+      uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
+      *dest_samples = bit_cast<float>(sample_as_uint32);
+      src_samples += bytes_per_src_sample;
+      ++dest_samples;
+    }
+  } else if (!is_src_sample_in_float && sample_type_ == kSampleTypeFloat32) {
+    // Convert from int16 to float32
+    const uint8_t* src_samples = data + offset;
+    float* dest_samples =
+        reinterpret_cast<float*>(audio_bus_->interleaved_data());
+    for (int32 i = 0; i < number_of_frames_ * number_of_channels_; ++i) {
+      int16 sample_as_int16 = load_int16_little_endian(src_samples);
+      *dest_samples = ConvertSample<int16, float>(sample_as_int16);
+      src_samples += bytes_per_src_sample;
+      ++dest_samples;
+    }
+  } else {
+    // Convert from float32 to int16
+    const uint8_t* src_samples = data + offset;
+    int16* dest_samples =
+        reinterpret_cast<int16*>(audio_bus_->interleaved_data());
+    for (int32 i = 0; i < number_of_frames_ * number_of_channels_; ++i) {
+      uint32 sample_as_uint32 = load_uint32_little_endian(src_samples);
+      *dest_samples =
+          ConvertSample<float, int16>(bit_cast<float>(sample_as_uint32));
+      src_samples += bytes_per_src_sample;
+      ++dest_samples;
+    }
+  }
+#endif  // SB_IS(LITTLE_ENDIAN)
 
   return true;
 }
