@@ -10,6 +10,8 @@
 #include "src/conversions-inl.h"
 #include "src/factory.h"
 
+#include "starboard/log.h"
+
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
 // https://github.com/tc39/ecmascript_sharedmem
@@ -19,7 +21,51 @@ namespace internal {
 
 namespace {
 
-#if V8_CC_GNU
+#if defined(STARBOARD)
+
+template <typename T>
+inline T ExchangeSeqCst(T* p, T value) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+template <typename T>
+inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+template <typename T>
+inline T AddSeqCst(T* p, T value) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+template <typename T>
+inline T SubSeqCst(T* p, T value) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+template <typename T>
+inline T AndSeqCst(T* p, T value) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+template <typename T>
+inline T OrSeqCst(T* p, T value) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+template <typename T>
+inline T XorSeqCst(T* p, T value) {
+  SB_NOTREACHED();
+  return 0;
+}
+
+#elif V8_CC_GNU
 
 template <typename T>
 inline T ExchangeSeqCst(T* p, T value) {
