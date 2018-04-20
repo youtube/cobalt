@@ -132,6 +132,8 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
 
   isolate_->AddGCPrologueCallback(GCPrologueCallback);
   isolate_->AddGCEpilogueCallback(GCEpilogueCallback);
+
+  isolate_->SetStackLimit((3 * cobalt::browser::kWebModuleStackSize) / 4);
 }
 
 V8cEngine::~V8cEngine() {
