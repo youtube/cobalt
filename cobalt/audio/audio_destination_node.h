@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "base/message_loop.h"
 #include "cobalt/audio/audio_device.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node.h"
@@ -55,14 +56,16 @@ class AudioDestinationNode : public AudioNode,
 
   // From AudioNode.
   void OnInputNodeConnected() override;
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 /*number_of_frames*/,
-                                                   SampleType) override {
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
+      int32 /*number_of_frames*/, SampleType /*sample_type*/,
+      bool* /*finished*/) override {
     NOTREACHED();
     return scoped_ptr<ShellAudioBus>();
   }
 
   // From AudioDevice::RenderCallback.
-  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) override;
+  void FillAudioBus(bool all_consumed, ShellAudioBus* audio_bus,
+                    bool* silence) override;
 
   DEFINE_WRAPPABLE_TYPE(AudioDestinationNode);
 
@@ -70,9 +73,13 @@ class AudioDestinationNode : public AudioNode,
   ~AudioDestinationNode() override;
 
  private:
+  void DestroyAudioDevice();
+
+  MessageLoop* message_loop_;
   uint32 max_channel_count_;
 
   scoped_ptr<AudioDevice> audio_device_;
+  AudioDevice* audio_device_to_delete_ = NULL;
 
   DISALLOW_COPY_AND_ASSIGN(AudioDestinationNode);
 };
