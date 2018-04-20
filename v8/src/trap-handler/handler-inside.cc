@@ -65,6 +65,17 @@ class SigUnmaskStack {
 }  // namespace
 
 #if V8_TRAP_HANDLER_SUPPORTED && V8_OS_LINUX
+#if defined(STARBOARD)
+bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
+  SB_NOTREACHED();
+  return false;
+}
+
+bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
+  SB_NOTREACHED()
+  return false;
+}
+#else
 bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
   // Bail out early in case we got called for the wrong kind of signal.
   if (signum != SIGSEGV) {
@@ -154,6 +165,7 @@ bool TryFindLandingPad(uintptr_t fault_addr, uintptr_t* landing_pad) {
   }
   return false;
 }
+#endif  // STARBOARD
 #endif  // V8_TRAP_HANDLER_SUPPORTED && V8_OS_LINUX
 
 #if V8_TRAP_HANDLER_SUPPORTED
