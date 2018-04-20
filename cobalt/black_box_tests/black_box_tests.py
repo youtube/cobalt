@@ -5,9 +5,6 @@ from __future__ import print_function
 import argparse
 import importlib
 import logging
-import os
-import socket
-import subprocess
 import sys
 import unittest
 
@@ -33,8 +30,6 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'disable_eval_with_csp',
 ]
-# Port number of the HTTP server serving test data.
-_DEFAULT_TEST_DATA_SERVER_PORT = 8000
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
 # Platform dependent device parameters.
@@ -49,17 +44,6 @@ def GetDeviceParams():
   sys.argv = sys.argv[:1]
 
 
-def GetDefaultBlackBoxTestDataAddress():
-  """Gets the ip address with port for the server hosting test data."""
-  # We are careful to choose this method that allows external device to connect
-  # to the host running the web server hosting test data.
-  address_pack_list = socket.getaddrinfo(socket.gethostname(),
-                                         _DEFAULT_TEST_DATA_SERVER_PORT)
-  first_address_pack = address_pack_list[0]
-  ip_address, port = first_address_pack[4]
-  return 'http://{}:{}/'.format(ip_address, port)
-
-
 class BlackBoxTestCase(unittest.TestCase):
 
   def __init__(self, *args, **kwargs):
@@ -72,9 +56,6 @@ class BlackBoxTestCase(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     print('Done ' + cls.__name__)
-
-  def GetURL(self, file_name):
-    return GetDefaultBlackBoxTestDataAddress() + file_name
 
   def CreateCobaltRunner(self, url, target_params=None):
     new_runner = black_box_cobalt_runner.BlackBoxCobaltRunner(
@@ -113,9 +94,6 @@ class BlackBoxTests(object):
     self.test_name = test_name
 
   def Run(self):
-
-    if not self._StartTestdataServer():
-      return 1
     logging.basicConfig(level=logging.DEBUG)
     GetDeviceParams()
     if self.test_name:
@@ -125,35 +103,7 @@ class BlackBoxTests(object):
       suite = LoadTests(_device_params.platform, _device_params.config)
     return_code = not unittest.TextTestRunner(
         verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
-    self._KillTestdataServer()
     return return_code
-
-  def _StartTestdataServer(self):
-    """Start a local server to serve test data."""
-    # Some tests like preload_font requires server feature support.
-    # Using HTTP URL instead of file URL also saves the trouble to
-    # deploy test data to device.
-    self.default_test_data_server_process = subprocess.Popen(
-        [
-            'python', '-m', 'SimpleHTTPServer',
-            '{}'.format(_DEFAULT_TEST_DATA_SERVER_PORT)
-        ],
-        cwd=os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), 'testdata'),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
-    if self.default_test_data_server_process.returncode is not None:
-      # If the return code is not None now, server is not running normally.
-      print('can not start default test data server.')
-      return False
-    else:
-      print('Starting HTTP server on port: {}'.format(
-          _DEFAULT_TEST_DATA_SERVER_PORT))
-      return True
-
-  def _KillTestdataServer(self):
-    """Exit black_box_test_runner with test result."""
-    self.default_test_data_server_process.kill()
 
 
 def main():
