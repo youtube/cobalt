@@ -20,6 +20,7 @@ import android.media.AudioManager;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 
@@ -30,7 +31,7 @@ public class AudioTrackBridge {
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
 
-  public AudioTrackBridge(int sampleType, int sampleRate, int channelCount) {
+  public AudioTrackBridge(int sampleType, int sampleRate, int channelCount, int framesPerChannel) {
     int channelConfig;
     switch (channelCount) {
       case 1:
@@ -59,13 +60,36 @@ public class AudioTrackBridge {
             .build();
 
     int minBufferSizeBytes = AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType);
-    audioTrack =
-        new AudioTrack(
-            attributes,
-            format,
-            minBufferSizeBytes,
-            AudioTrack.MODE_STREAM,
-            AudioManager.AUDIO_SESSION_ID_GENERATE);
+    int audioTrackBufferSize = minBufferSizeBytes;
+    // Use framesPerChannel to determine the buffer size.  To use a large buffer on a small
+    // framesPerChannel may lead to audio playback not able to start.
+    while (audioTrackBufferSize < framesPerChannel) {
+      audioTrackBufferSize *= 2;
+    }
+    while (audioTrackBufferSize > 0) {
+      try {
+        audioTrack =
+            new AudioTrack(
+                attributes,
+                format,
+                audioTrackBufferSize,
+                AudioTrack.MODE_STREAM,
+                AudioManager.AUDIO_SESSION_ID_GENERATE);
+      } catch (Exception e) {
+        audioTrack = null;
+      }
+      // AudioTrack ctor can fail in multiple, platform specific ways, so do a thorough check
+      // before proceed.
+      if (audioTrack != null && audioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
+        break;
+      }
+      audioTrackBufferSize /= 2;
+    }
+    Log.i(
+        "AudioTrack",
+        String.format(
+            "AudioTrack created with buffer size %d.  The minimum buffer size is %d.",
+            audioTrackBufferSize, minBufferSizeBytes));
   }
 
   public void release() {
