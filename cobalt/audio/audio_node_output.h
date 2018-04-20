@@ -52,7 +52,8 @@ class AudioNodeOutput : public base::RefCountedThreadSafe<AudioNodeOutput> {
   void DisconnectAll();
 
   scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames,
-                                                   SampleType sample_type);
+                                                   SampleType sample_type,
+                                                   bool* finished);
 
  private:
   AudioNode* const owner_node_;

@@ -102,16 +102,12 @@ void AudioContext::DecodeAudioDataInternal(
 // Success callback and error callback should be scheduled to run on the main
 // thread's event loop.
 void AudioContext::DecodeFinish(int callback_id, float sample_rate,
-                                int32 number_of_frames,
-                                int32 number_of_channels,
-                                scoped_array<uint8> channels_data,
-                                SampleType sample_type) {
+                                scoped_ptr<ShellAudioBus> audio_bus) {
   if (!main_message_loop_->BelongsToCurrentThread()) {
     main_message_loop_->PostTask(
         FROM_HERE,
         base::Bind(&AudioContext::DecodeFinish, weak_this_, callback_id,
-                   sample_rate, number_of_frames, number_of_channels,
-                   base::Passed(&channels_data), sample_type));
+                   sample_rate, base::Passed(&audio_bus)));
     return;
   }
 
@@ -122,10 +118,9 @@ void AudioContext::DecodeFinish(int callback_id, float sample_rate,
   scoped_ptr<DecodeCallbackInfo> info(info_iterator->second);
   pending_decode_callbacks_.erase(info_iterator);
 
-  if (channels_data) {
+  if (audio_bus) {
     const scoped_refptr<AudioBuffer>& audio_buffer =
-        new AudioBuffer(info->env_settings, sample_rate, number_of_frames,
-                        number_of_channels, channels_data.Pass(), sample_type);
+        new AudioBuffer(sample_rate, audio_bus.Pass());
     info->success_callback.value().Run(audio_buffer);
   } else if (info->error_callback) {
     info->error_callback.value().value().Run();

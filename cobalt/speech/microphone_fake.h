@@ -26,6 +26,7 @@
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/audio/audio_helpers.h"
 #include "cobalt/speech/microphone.h"
 
 namespace cobalt {
@@ -50,7 +51,7 @@ class MicrophoneFake : public Microphone {
 
   bool read_data_from_file_;
   std::vector<FilePath> file_paths_;
-  scoped_array<uint8> file_buffer_;
+  scoped_ptr<audio::ShellAudioBus> audio_bus_;
   int file_length_;
   int read_index_;
   bool is_valid_;
