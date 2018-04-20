@@ -13,6 +13,8 @@
 #include "src/flags.h"
 #include "src/globals.h"
 
+#include "starboard/log.h"
+
 #if V8_OS_LINUX
 #include <ucontext.h>
 #endif
@@ -57,6 +59,7 @@ int RegisterHandlerData(void* base, size_t size,
 /// to using size_t for index and not need kInvalidIndex.
 void ReleaseHandlerData(int index);
 
+#if !defined(STARBOARD)
 #if V8_OS_WIN
 #define THREAD_LOCAL __declspec(thread)
 #elif V8_OS_ANDROID
@@ -65,14 +68,26 @@ void ReleaseHandlerData(int index);
 #else
 #define THREAD_LOCAL __thread
 #endif
+#endif
 
 inline bool IsTrapHandlerEnabled() {
   return FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED;
 }
 
+#if defined(STARBOARD)
+inline bool IsThreadInWasm() {
+  SB_NOTREACHED();
+  return false;
+}
+inline void SetThreadInWasm() { SB_NOTREACHED(); }
+inline void ClearThreadInWasm() { SB_NOTREACHED(); }
+#else
 extern THREAD_LOCAL int g_thread_in_wasm_code;
 
-inline bool IsThreadInWasm() { return g_thread_in_wasm_code; }
+inline bool IsThreadInWasm() {
+  SB_NOTIMPLEMENTED();
+  return g_thread_in_wasm_code;
+}
 
 inline void SetThreadInWasm() {
   if (IsTrapHandlerEnabled()) {
@@ -87,6 +102,7 @@ inline void ClearThreadInWasm() {
     g_thread_in_wasm_code = false;
   }
 }
+#endif
 
 bool RegisterDefaultSignalHandler();
 V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
