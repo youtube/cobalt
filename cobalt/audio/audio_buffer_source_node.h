@@ -77,8 +77,9 @@ class AudioBufferSourceNode : public AudioNode {
     SetAttributeEventListener(base::Tokens::ended(), event_listener);
   }
 
-  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32 number_of_frames, SampleType sample_type) override;
+  scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 number_of_frames,
+                                                   SampleType sample_type,
+                                                   bool* finished) override;
 
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
   void TraceMembers(script::Tracer* tracer) override;
@@ -90,7 +91,7 @@ class AudioBufferSourceNode : public AudioNode {
   enum State {
     kNone,
     kStarted,
-    kStoped,
+    kStopped,
   };
 
   scoped_refptr<AudioBuffer> buffer_;
