@@ -47,6 +47,7 @@
     'defines': [
       'V8_OS_STARBOARD=1',
     ],
+    'msvs_disabled_warnings': [4267, 4312, 4351, 4355, 4800, 4838],
     'conditions': [
       ['cobalt_config == "debug"', {
         'defines': [
