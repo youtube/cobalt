@@ -32,7 +32,7 @@ namespace {
 // write request. If we don't set this cap for writing frames to audio track,
 // we will repeatedly allocate a large byte array which cannot be consumed by
 // audio track completely.
-const int kMaxFramesPerRequest = 2048;
+const int kMaxFramesPerRequest = 65536;
 
 const jint kNoOffset = 0;
 
@@ -157,9 +157,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
           "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
   jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
-      "(III)Ldev/cobalt/media/AudioTrackBridge;",
-      GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_,
-      channels_);
+      "(IIII)Ldev/cobalt/media/AudioTrackBridge;",
+      GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_, channels_,
+      frames_per_channel);
   j_audio_track_bridge_ = env->ConvertLocalRefToGlobalRef(j_audio_track_bridge);
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     j_audio_data_ = env->NewFloatArray(channels_ * kMaxFramesPerRequest);
@@ -216,6 +216,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(j_audio_track_bridge_, "play", "()V");
 
+  bool was_playing = true;
+
   while (!quit_) {
     ScopedLocalJavaRef<jobject> j_audio_timestamp(
         env->CallObjectMethodOrAbort(j_audio_track_bridge_, "getAudioTimestamp",
@@ -248,24 +250,24 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
 
-    bool is_playback_rate_zero = false;
     {
       ScopedLock lock(mutex_);
-      is_playback_rate_zero = playback_rate_ == 0.0;
+      if (playback_rate_ == 0.0) {
+        is_playing = false;
+      }
     }
 
-    if (!is_playing || frames_in_buffer == 0 || is_playback_rate_zero) {
-      // Wait for 5ms if we are idle.
-      SbThreadSleep(5 * kSbTimeMillisecond);
+    if (was_playing && !is_playing) {
+      was_playing = false;
+      env->CallVoidMethodOrAbort(j_audio_track_bridge_, "pause", "()V");
+    } else if (!was_playing && is_playing) {
+      was_playing = true;
+      env->CallVoidMethodOrAbort(j_audio_track_bridge_, "play", "()V");
+    }
+
+    if (!is_playing || frames_in_buffer == 0) {
+      SbThreadSleep(10 * kSbTimeMillisecond);
       continue;
-    } else {
-      // Wait for 1 ms before checking if more frames have been consumed.
-      // MediaTrack's getFramePosition() updates very coarsely, it is
-      // witnessed to update at ~1024 frame chunks, which would take roughly
-      // ~21.3ms to consume, so 1ms should be negligible on that scale (e.g.
-      // at worse, we may take ~22.3ms to update the number of frames
-      // consumed).
-      SbThreadSleep(kSbTimeMillisecond);
     }
 
     int start_position =
@@ -287,6 +289,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
+    bool written_fully = false;
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
       int expected_written_size = expected_written_frames * channels_;
@@ -302,6 +305,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       SB_DCHECK(written >= 0);
       SB_DCHECK(written % channels_ == 0);
       written_frames_ += written / channels_;
+      written_fully = (written == expected_written_frames);
     } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
       int expected_written_size =
           expected_written_frames * channels_ * GetSampleSize(sample_type_);
@@ -317,8 +321,24 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       SB_DCHECK(written >= 0);
       SB_DCHECK(written % (channels_ * GetSampleSize(sample_type_)) == 0);
       written_frames_ += written / (channels_ * GetSampleSize(sample_type_));
+      written_fully = (written == expected_written_frames);
     } else {
       SB_NOTREACHED();
+    }
+
+    auto unplayed_frames_in_time =
+        written_frames_ * kSbTimeSecond / sampling_frequency_hz_ -
+        (SbTimeGetMonotonicNow() - frames_consumed_at);
+    // As long as there is enough data in the buffer, run the loop in lower
+    // frequency to avoid taking too much CPU.  Note that the threshold should
+    // be big enough to account for the unstable playback head reported at the
+    // beginning of the playback and during underrun.
+    if (playback_head_position > 0 &&
+        unplayed_frames_in_time > 500 * kSbTimeMillisecond) {
+      SbThreadSleep(40 * kSbTimeMillisecond);
+    } else if (!written_fully) {
+      // Only sleep if the buffer is nearly full and the last write is partial.
+      SbThreadSleep(1 * kSbTimeMillisecond);
     }
   }
 
