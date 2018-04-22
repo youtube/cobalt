@@ -38,10 +38,10 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 
-#if defined(COMPILER_MSVC)
-#include <malloc.h>
-#elif defined(OS_STARBOARD)
+#if defined(OS_STARBOARD)
 #include "starboard/memory.h"
+#elif defined(COMPILER_MSVC)
+#include <malloc.h>
 #else
 #include <stdlib.h>
 #endif
@@ -96,10 +96,10 @@ BASE_DECL_ALIGNED_MEMORY(4096);
 BASE_EXPORT void* AlignedAlloc(size_t size, size_t alignment);
 
 inline void AlignedFree(void* ptr) {
-#if defined(COMPILER_MSVC)
-  _aligned_free(ptr);
-#elif defined(OS_STARBOARD)
+#if defined(OS_STARBOARD)
   SbMemoryDeallocateAligned(ptr);
+#elif defined(COMPILER_MSVC)
+  _aligned_free(ptr);
 #else
   free(ptr);
 #endif
