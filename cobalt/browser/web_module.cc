@@ -578,8 +578,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
-  mutation_observer_task_manager_.RegisterAsTracingRoot(global_environment_);
-
   execution_state_ =
       script::ExecutionState::CreateExecutionState(global_environment_);
   DCHECK(execution_state_);
@@ -597,6 +595,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
+
+  // These members will reference other |Traceable|s, however are not
+  // accessible from |Window|, so we must explicitly add them as roots.
+  global_environment_->AddRoot(&mutation_observer_task_manager_);
+  global_environment_->AddRoot(media_source_registry_.get());
 
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
