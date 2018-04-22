@@ -135,6 +135,11 @@ size_t ShellAudioBus::GetSampleSizeInBytes() const {
   return sizeof(float);
 }
 
+uint8* ShellAudioBus::interleaved_data() {
+  DCHECK_EQ(storage_type_, kInterleaved);
+  return channel_data_[0];
+}
+
 const uint8* ShellAudioBus::interleaved_data() const {
   DCHECK_EQ(storage_type_, kInterleaved);
   return channel_data_[0];
