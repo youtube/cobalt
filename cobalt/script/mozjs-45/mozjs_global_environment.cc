@@ -352,11 +352,15 @@ void MozjsGlobalEnvironment::AllowGarbageCollection(
 }
 
 void MozjsGlobalEnvironment::AddRoot(Traceable* traceable) {
+  DCHECK(traceable);
   roots_.insert(traceable);
 }
 
 void MozjsGlobalEnvironment::RemoveRoot(Traceable* traceable) {
-  roots_.erase(traceable);
+  DCHECK(traceable);
+  auto it = roots_.find(traceable);
+  DCHECK(it != roots_.end());
+  roots_.erase(it);
 }
 
 void MozjsGlobalEnvironment::DisableEval(const std::string& message) {
