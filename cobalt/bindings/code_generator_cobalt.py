@@ -566,6 +566,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     if interface.parent:
       context['parent_interface'] = self.path_builder.BindingsClass(
           interface.parent)
+      context['parent_interface_name'] = interface.parent
     context['is_exception_interface'] = interface.is_exception
     context['forward_declarations'] = sorted(
         referenced_class_contexts, key=lambda x: x['fully_qualified_name'])
