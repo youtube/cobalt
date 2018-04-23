@@ -133,7 +133,14 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
   isolate_->AddGCPrologueCallback(GCPrologueCallback);
   isolate_->AddGCEpilogueCallback(GCEpilogueCallback);
 
-  isolate_->SetStackLimit((3 * cobalt::browser::kWebModuleStackSize) / 4);
+  // The V8 |SetStackLimit|'s parameter is the memory address that it should not
+  // pass, as opposed to the size of the stack that it should use.  We set it
+  // to 3/4 of the main thread's stack size to cover for the space underneath
+  // the stack currently, and the space we want to reserve on top of the stack
+  // for when JavaScript calls back into C++ bindings.
+  uintptr_t here = reinterpret_cast<uintptr_t>(&here);
+  isolate_->SetStackLimit(here -
+                          (3 * cobalt::browser::kWebModuleStackSize) / 4);
 }
 
 V8cEngine::~V8cEngine() {
