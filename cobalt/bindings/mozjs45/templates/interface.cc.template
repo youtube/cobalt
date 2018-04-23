@@ -731,6 +731,11 @@ void InitializePrototypeAndInterfaceObject(
 {% if parent_interface %}
   JS::RootedObject parent_prototype(
       context, {{parent_interface}}::GetPrototype(context, global_object));
+  static_assert(
+      std::is_base_of<{{parent_interface_name}}, {{interface_name}}>::value,
+      "Expected {{interface_name}} to have C++ parent class "
+      "{{parent_interface_name}}, because that is its WebIDL parent.");
+
 {% elif is_exception_interface %}
   // Get Error prototype.
   JS::RootedObject parent_prototype(context);
