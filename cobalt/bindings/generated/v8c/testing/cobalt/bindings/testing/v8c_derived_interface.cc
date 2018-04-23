@@ -239,6 +239,10 @@ void InitializeTemplate(v8::Isolate* isolate) {
     // inherited interface.
     v8::Local<v8::FunctionTemplate> parent_template = V8cBaseInterface::GetTemplate(isolate);
     function_template->Inherit(parent_template);
+    static_assert(
+        std::is_base_of<BaseInterface, DerivedInterface>::value,
+        "Expected DerivedInterface to have C++ parent class "
+        "BaseInterface, because that is its WebIDL parent.");
   }
 
   // https://heycam.github.io/webidl/#es-constants
