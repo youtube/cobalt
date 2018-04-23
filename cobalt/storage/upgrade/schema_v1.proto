@@ -36,7 +36,7 @@ message SaveData {
   repeated LocalStorageEntry local_storage_entries = 2;
 
   // A single cookie.
-  mesage Cookie {
+  message Cookie {
     // URL in canonical form, e.g. "https://www.example.com/". Must be provided
     // or the cookie will be ignored.
     string url = 1;
