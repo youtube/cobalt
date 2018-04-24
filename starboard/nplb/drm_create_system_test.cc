@@ -52,10 +52,11 @@ void DummySessionClosedFunc(SbDrmSystem drm_system,
                             const void* session_id,
                             int session_id_size) {}
 
+const char* kKeySystems[] = {
+    "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
+};
+
 TEST(SbDrmTest, AnySupportedKeySystems) {
-  const char* kKeySystems[] = {
-      "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
-  };
   bool any_supported_key_systems = false;
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
@@ -88,9 +89,6 @@ TEST(SbDrmTest, AnySupportedKeySystems) {
 
 #if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 TEST(SbDrmTest, NullCallbacks) {
-  const char* kKeySystems[] = {
-      "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
-  };
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
 #if SB_HAS(DRM_SESSION_CLOSED)
@@ -161,6 +159,46 @@ TEST(SbDrmTest, NullCallbacks) {
   }
 }
 #endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+
+#if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+TEST(SbDrmTest, MultiDrm) {
+  const int kMaxPlayersPerKeySystem = 16;
+  std::vector<SbDrmSystem> created_drm_systems;
+  int number_of_drm_systems = 0;
+  for (int i = 0; i < kMaxPlayersPerKeySystem; ++i) {
+    for (int j = 0; j < SB_ARRAY_SIZE_INT(kKeySystems); ++j) {
+      const char* key_system = kKeySystems[j];
+#if SB_HAS(DRM_SESSION_CLOSED)
+      created_drm_systems.push_back(SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+          DummySessionClosedFunc));
+#elif SB_HAS(DRM_KEY_STATUSES)
+      created_drm_systems.push_back(SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc));
+#else   // SB_HAS(DRM_KEY_STATUSES)
+      created_drm_systems.push_back(SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc));
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+      if (!SbDrmSystemIsValid(created_drm_systems.back())) {
+        created_drm_systems.pop_back();
+      }
+    }
+    if (created_drm_systems.size() == number_of_drm_systems) {
+      break;
+    }
+    number_of_drm_systems = created_drm_systems.size();
+  }
+  SB_DLOG(INFO) << "Created " << number_of_drm_systems
+                << " DRM systems in total.";
+  for (auto drm_system : created_drm_systems) {
+    SbDrmDestroySystem(drm_system);
+  }
+}
+#endif  // SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
