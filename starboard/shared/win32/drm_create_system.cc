@@ -27,13 +27,17 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionClosedFunc session_closed_callback) {
   using ::starboard::shared::win32::SbDrmSystemPlayready;
 
+  if (!update_request_callback || !session_updated_callback ||
+      !key_statuses_changed_callback || !session_closed_callback) {
+    return kSbDrmSystemInvalid;
+  }
+
   if (SbStringCompareAll(key_system, "com.youtube.playready") != 0) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
     return kSbDrmSystemInvalid;
   }
 
-  return new SbDrmSystemPlayready(context, update_request_callback,
-                                  session_updated_callback,
-                                  key_statuses_changed_callback,
-                                  session_closed_callback);
+  return new SbDrmSystemPlayready(
+      context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback, session_closed_callback);
 }

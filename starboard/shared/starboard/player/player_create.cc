@@ -59,6 +59,14 @@ SbPlayer SbPlayerCreate(SbWindow window,
   SB_UNREFERENCED_PARAMETER(duration_pts);
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
+  if (!sample_deallocate_func || !decoder_status_func || !player_status_func
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      || !player_error_func
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+      ) {
+    return kSbPlayerInvalid;
+  }
+
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone &&
       !SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
