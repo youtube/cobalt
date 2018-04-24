@@ -183,7 +183,7 @@ bool SelectorTree::ValidateVersionCompatibility() const {
 SelectorTree::Node* SelectorTree::GetOrCreateNodeForComplexSelector(
     ComplexSelector* complex_selector) {
   CompoundSelector* selector = complex_selector->first_selector();
-  Node* node = GetOrCreateNodeForCompoundSelector(selector, &root_,
+  Node* node = GetOrCreateNodeForCompoundSelector(selector, &root_node_,
                                                   kDescendantCombinator);
 
   while (selector->right_combinator()) {
