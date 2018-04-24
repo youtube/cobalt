@@ -88,6 +88,11 @@
 // kSbAudionSinkInvalid if additional audio sinks are not supported.
 #define SB_MULTI_PLAYER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where passing NULL callbacks to SbPlayerCreate or
+// SbPlayerCreateWithUrl or SbDrmCreateSystem must result in invalid return
+// (|kSbPlayerInvalid| or |kSbDrmSystemInvalid| appropriately).
+#define SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // API version where DRM session closed callback is required.
 //   Add a callback to SbDrmCreateSystem that allows a DRM system to
 //   signal that a DRM session has closed from the Starboard layer.

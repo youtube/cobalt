@@ -21,28 +21,57 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
+                                   void* context,
+                                   int ticket,
+                                   const void* session_id,
+                                   int session_id_size,
+                                   const void* content,
+                                   int content_size,
+                                   const char* url) {}
+
+void DummySessionUpdatedFunc(SbDrmSystem drm_system,
+                             void* context,
+                             int ticket,
+                             const void* session_id,
+                             int session_id_size,
+                             bool succeeded) {}
+
+#if SB_HAS(DRM_KEY_STATUSES)
+void DummySessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
+                                        void* context,
+                                        const void* session_id,
+                                        int session_id_size,
+                                        int number_of_keys,
+                                        const SbDrmKeyId* key_ids,
+                                        const SbDrmKeyStatus* key_statuses) {}
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+
+void DummySessionClosedFunc(SbDrmSystem drm_system,
+                            void* context,
+                            const void* session_id,
+                            int session_id_size) {}
+
 TEST(SbDrmTest, AnySupportedKeySystems) {
-  const char* key_systems[] = {
+  const char* kKeySystems[] = {
       "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
   };
   bool any_supported_key_systems = false;
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(key_systems); ++i) {
-    const char* key_system = key_systems[i];
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
+    const char* key_system = kKeySystems[i];
 #if SB_HAS(DRM_SESSION_CLOSED)
     SbDrmSystem drm_system = SbDrmCreateSystem(
-        key_system, NULL /* context */, NULL /* update_request_callback */,
-        NULL /* session_updated_callback */,
-        NULL /* key_statuses_changed_callback*/,
-        NULL /* session_closed_callback */);
+        key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+        DummySessionClosedFunc);
 #elif SB_HAS(DRM_KEY_STATUSES)
     SbDrmSystem drm_system = SbDrmCreateSystem(
-        key_system, NULL /* context */, NULL /* update_request_callback */,
-        NULL /* session_updated_callback */,
-        NULL /* key_statuses_changed_callback*/);
+        key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc);
 #else   // SB_HAS(DRM_KEY_STATUSES)
-    SbDrmSystem drm_system = SbDrmCreateSystem(
-        key_system, NULL /* context */, NULL /* update_request_callback */,
-        NULL /* session_updated_callback */);
+    SbDrmSystem drm_system = SbDrmCreateSystem(key_system, NULL /* context */,
+                                               DummySessionUpdateRequestFunc,
+                                               DummySessionUpdatedFunc);
 #endif  // SB_HAS(DRM_KEY_STATUSES)
     if (SbDrmSystemIsValid(drm_system)) {
       SB_DLOG(INFO) << "Drm system with key system " << key_system
@@ -52,9 +81,86 @@ TEST(SbDrmTest, AnySupportedKeySystems) {
                     << " is NOT valid.";
     }
     any_supported_key_systems |= SbDrmSystemIsValid(drm_system);
+    SbDrmDestroySystem(drm_system);
   }
   EXPECT_TRUE(any_supported_key_systems) << " no DRM key systems supported";
 }
+
+#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+TEST(SbDrmTest, NullCallbacks) {
+  const char* kKeySystems[] = {
+      "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
+  };
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
+    const char* key_system = kKeySystems[i];
+#if SB_HAS(DRM_SESSION_CLOSED)
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */,
+          NULL /* session_update_request_func */, DummySessionUpdatedFunc,
+          DummySessionKeyStatusesChangedFunc,
+          NULL /* session_closed_callback */);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          NULL /*session_updated_func */, DummySessionKeyStatusesChangedFunc,
+          NULL /* session_closed_callback */);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, NULL /* session_key_statuses_changed_func */,
+          NULL /* session_closed_callback */);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+#elif SB_HAS(DRM_KEY_STATUSES)
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */,
+          NULL /* session_update_request_func */, DummySessionUpdatedFunc,
+          DummySessionKeyStatusesChangedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          NULL /* session_updated_func */, DummySessionKeyStatusesChangedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc,
+          NULL /* session_key_statuses_changed_func */);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+#else
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */,
+          NULL /* session_update_request_func */, DummySessionUpdatedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          NULL /* session_updated_func */);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+  }
+}
+#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

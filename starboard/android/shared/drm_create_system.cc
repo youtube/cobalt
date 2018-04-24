@@ -22,9 +22,14 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
-    SbDrmSessionClosedFunc) {
+    SbDrmSessionClosedFunc session_closed_callback) {
   using starboard::android::shared::DrmSystem;
   using starboard::android::shared::IsWidevine;
+
+  if (!update_request_callback || !session_updated_callback ||
+      !key_statuses_changed_callback || !session_closed_callback) {
+    return kSbDrmSystemInvalid;
+  }
 
   if (!IsWidevine(key_system)) {
     return kSbDrmSystemInvalid;
