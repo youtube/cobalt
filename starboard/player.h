@@ -314,19 +314,22 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 
 #if SB_HAS(PLAYER_WITH_URL)
 
-// Creates a URL-based SbPlayer that will be displayed on |window| for
-// the specified URL |url|, acquiring all resources needed to operate
-// it, and returning an opaque handle to it. The expectation is that a
-// new player will be created and destroyed for every playback.
+// Creates a URL-based SbPlayer that will be displayed on |window| for the
+// specified URL |url|, acquiring all resources needed to operate it, and
+// returning an opaque handle to it. The expectation is that a new player will
+// be created and destroyed for every playback.
 //
-// In many ways this function is similar to SbPlayerCreate, but it is
-// missing the input arguments related to the configuration and format
-// of the audio and video stream, as well as the DRM system. The DRM
-// system for a player created with SbPlayerCreateWithUrl can be set
-// after creation using SbPlayerSetDrmSystem. Because the DRM system
-// is not available at the time of SbPlayerCreateWithUrl, it takes in
-// a callback, |encrypted_media_init_data_encountered_cb|, which is
-// run when encrypted media initial data is encountered.
+// In many ways this function is similar to SbPlayerCreate, but it is missing
+// the input arguments related to the configuration and format of the audio and
+// video stream, as well as the DRM system. The DRM system for a player created
+// with SbPlayerCreateWithUrl can be set after creation using
+// SbPlayerSetDrmSystem. Because the DRM system is not available at the time of
+// SbPlayerCreateWithUrl, it takes in a callback,
+// |encrypted_media_init_data_encountered_cb|, which is run when encrypted media
+// initial data is encountered.
+#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+// If the callback is |NULL|, then |kSbPlayerInvalid| must be returned.
+#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 SB_EXPORT SbPlayer
 SbPlayerCreateWithUrl(const char* url,
                       SbWindow window,
@@ -445,6 +448,12 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   provider may not always be needed by the player, but if it is needed, and
 //   the provider is not given, the player will fail by returning
 //   |kSbPlayerInvalid|.
+//
+#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+// If |NULL| is passed to any of the callbacks (|sample_deallocator_func|,
+// |decoder_status_func|, |player_status_func|, or |player_error_func| if it
+// applies), then |kSbPlayerInvalid| must be returned.
+#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbWindow window,
                SbMediaVideoCodec video_codec,
