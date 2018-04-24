@@ -83,7 +83,7 @@ void RuleMatchingTest::UpdateAllMatchingRules() {
   while (child) {
     if (child->AsElement()) {
       DCHECK(child->AsElement()->AsHTMLElement());
-      UpdateMatchingRules(child->AsElement()->AsHTMLElement());
+      UpdateElementMatchingRules(child->AsElement()->AsHTMLElement());
     }
     child = iterator.Next();
   }
@@ -591,7 +591,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorMatch) {
             (*matching_rules)[0].first);
 }
 
-// "span + span" shouldm't match first span in <span/><span/>.
+// "span + span" shouldn't match first span in <span/><span/>.
 TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorNoMatch) {
   head_->set_inner_html("<style>span + span {}</style>");
   body_->set_inner_html("<span/><span/>");
@@ -865,6 +865,386 @@ TEST_F(RuleMatchingTest, StyleElementReorderingTwoMatching) {
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// div:hover should match after hover added to element.
+TEST_F(RuleMatchingTest, HoverPseudoClassSelectorAddHoverToElement) {
+  head_->set_inner_html("<style>div:hover {}</style>");
+  body_->set_inner_html("<div/>");
+
+  document_->SetIndicatedElement(body_->first_element_child()->AsHTMLElement());
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  document_->SetIndicatedElement(NULL);
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// div:hover should not match after hover removed from element.
+TEST_F(RuleMatchingTest, HoverPseudoClassSelectorRemoveHoverFromElement) {
+  head_->set_inner_html("<style>div:hover {}</style>");
+  body_->set_inner_html("<div/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  document_->SetIndicatedElement(body_->first_element_child()->AsHTMLElement());
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// div:hover should match after hover added to element's descendant.
+TEST_F(RuleMatchingTest, HoverPseudoClassSelectorAddHoverToDescendant) {
+  head_->set_inner_html("<style>div:hover {}</style>");
+  body_->set_inner_html("<div><span/></div>");
+
+  document_->SetIndicatedElement(
+      body_->first_element_child()->first_element_child()->AsHTMLElement());
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  document_->SetIndicatedElement(NULL);
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// div:hover should not match after hover removed from element's descendant.
+TEST_F(RuleMatchingTest, HoverPseudoClassSelectorRemoveHoverFromDescendant) {
+  head_->set_inner_html("<style>div:hover {}</style>");
+  body_->set_inner_html("<div><span/></div>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  document_->SetIndicatedElement(
+      body_->first_element_child()->first_element_child()->AsHTMLElement());
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// .my-class should match after class "my-class" set on element.
+TEST_F(RuleMatchingTest, ClassSelectorSetClassOnElement) {
+  head_->set_inner_html("<style>.my-class {}</style>");
+  body_->set_inner_html("<div class=\"other-class\"/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// .my-class should not match after class removed from element.
+TEST_F(RuleMatchingTest, ClassSelectorRemoveClassOnElement) {
+  head_->set_inner_html("<style>.my-class {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->RemoveAttribute("class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// Child should add matching rule from newly added matching node.
+TEST_F(RuleMatchingTest, ChildMatchingNodeAdded) {
+  head_->set_inner_html("<style>div.my-class > div {}</style>");
+  body_->set_inner_html("<div class=\"other-class\"><div/></div>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// Child should remove matching rule from newly removed matching node.
+TEST_F(RuleMatchingTest, ChildMatchingNodeRemoved) {
+  head_->set_inner_html("<style>div.my-class > div {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"><div/></div>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->RemoveAttribute("class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// Descendant should add matching rule from newly added matching node.
+TEST_F(RuleMatchingTest, DescendantMatchingNodeAdded) {
+  head_->set_inner_html("<style>div.my-class div {}</style>");
+  body_->set_inner_html("<div class=\"other-class\"><div/></div>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// Descendant should remove matching rule from newly removed matching node.
+TEST_F(RuleMatchingTest, DescendantMatchingNodeRemoved) {
+  head_->set_inner_html("<style>div.my-class div {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"><div/></div>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->first_element_child()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->RemoveAttribute("class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// Next sibling should add matching rule from newly added matching node.
+TEST_F(RuleMatchingTest, NextSiblingMatchingNodeAdded) {
+  head_->set_inner_html("<style>div.my-class + div {}</style>");
+  body_->set_inner_html("<div class=\"other-class\"/><div/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->next_element_sibling()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// Next sibling should remove matching rule from newly removed matching node.
+TEST_F(RuleMatchingTest, NextSiblingMatchingNodeRemoved) {
+  head_->set_inner_html("<style>div.my-class + div {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/><div/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->next_element_sibling()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->RemoveAttribute("class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// Following sibling should add matching rule from newly added matching node.
+TEST_F(RuleMatchingTest, FollowingSiblingMatchingNodeAdded) {
+  head_->set_inner_html("<style>div.my-class ~ div {}</style>");
+  body_->set_inner_html("<div class=\"other-class\"/><div/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->next_element_sibling()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+
+  body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// Following sibling should remove matching rule from newly removed matching
+// node.
+TEST_F(RuleMatchingTest, FollowingSiblingMatchingNodeRemoved) {
+  head_->set_inner_html("<style>div.my-class ~ div {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/><div/>");
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()
+          ->next_element_sibling()
+          ->AsHTMLElement()
+          ->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->RemoveAttribute("class");
+
+  UpdateAllMatchingRules();
+
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+// After pseudo element should add matching rule from newly added matching node.
+TEST_F(RuleMatchingTest, AfterPseudoElementMatchingNodeRemoved) {
+  head_->set_inner_html(
+      "<style>div.my-class:after {}</style>"
+      "<style>div:after {}</style>");
+  body_->set_inner_html("<div class=\"my-class\"/><div/>");
+
+  UpdateAllMatchingRules();
+
+  HTMLElement* html_element = body_->first_element_child()->AsHTMLElement();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      html_element->matching_rules();
+  EXPECT_EQ(0, matching_rules->size());
+  ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
+  matching_rules =
+      html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
+  ASSERT_EQ(2, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->RemoveAttribute("class");
+
+  UpdateAllMatchingRules();
+
+  matching_rules = html_element->matching_rules();
+  EXPECT_EQ(0, matching_rules->size());
+  ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
+  matching_rules =
+      html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+// After pseudo element should remove matching rule from newly removed matching
+// node.
+TEST_F(RuleMatchingTest, AfterPseudoElementMatchingNodeAdded) {
+  head_->set_inner_html(
+      "<style>div.my-class:after {}</style>"
+      "<style>div:after {}</style>");
+  body_->set_inner_html("<div class=\"other-class\"/><div/>");
+
+  UpdateAllMatchingRules();
+
+  HTMLElement* html_element = body_->first_element_child()->AsHTMLElement();
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      html_element->matching_rules();
+  EXPECT_EQ(0, matching_rules->size());
+  ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
+  matching_rules =
+      html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
+            (*matching_rules)[0].first);
+
+  body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
+
+  UpdateAllMatchingRules();
+
+  matching_rules = html_element->matching_rules();
+  EXPECT_EQ(0, matching_rules->size());
+  ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
+  matching_rules =
+      html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
+  ASSERT_EQ(2, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
