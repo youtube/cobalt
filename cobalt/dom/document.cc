@@ -500,12 +500,22 @@ void Document::SetActiveElement(Element* active_element) {
 
 void Document::SetIndicatedElement(HTMLElement* indicated_element) {
   if (indicated_element != indicated_element_) {
-    is_selector_tree_dirty_ = true;
     if (indicated_element_) {
+      // Clear the rule matching state on this element and its ancestors, as
+      // their hover state may be changing. However, the tree's matching rules
+      // only need to be invalidated once, so only do it here if it won't occur
+      // below.
+      bool invalidate_tree_matching_rules = (indicated_element == NULL);
+      indicated_element_->ClearRuleMatchingStateOnElementAndAncestors(
+          invalidate_tree_matching_rules);
       indicated_element_->OnCSSMutation();
     }
     if (indicated_element) {
       indicated_element_ = base::AsWeakPtr(indicated_element);
+      // Clear the rule matching state on this element and its ancestors, as
+      // their hover state may be changing.
+      indicated_element_->ClearRuleMatchingStateOnElementAndAncestors(
+          true /*invalidate_tree_matching_rules*/);
       indicated_element_->OnCSSMutation();
     } else {
       indicated_element_.reset();
@@ -611,7 +621,7 @@ void Document::OnCSSMutation() {
 
 void Document::OnDOMMutation() {
   // Something in the document's DOM has been modified, but we don't know what,
-  // so set the flag indicating that rule matching needs to be done.
+  // so set the flag indicating that computed styles need to be updated.
   is_computed_style_dirty_ = true;
 
   RecordMutation();
@@ -720,12 +730,15 @@ void Document::UpdateComputedStyles() {
     scoped_refptr<HTMLElement> root = html();
     if (root) {
       DCHECK_EQ(this, root->parent_node());
-      // First update the computed style for root element.
+      // First, update the matching rules for all elements.
+      root->UpdateMatchingRulesRecursively();
+
+      // Then, update the computed style for the root element.
       root->UpdateComputedStyle(
           initial_computed_style_declaration_, initial_computed_style_data_,
           style_change_event_time, HTMLElement::kAncestorsAreDisplayed);
 
-      // Then update the computed styles for the other elements.
+      // Finally, update the computed styles for the other elements.
       root->UpdateComputedStyleRecursively(
           root->css_computed_style_declaration(), root->computed_style(),
           style_change_event_time, true, 0 /* current_element_depth */);
@@ -781,9 +794,13 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   for (std::vector<HTMLElement*>::reverse_iterator it = ancestors.rbegin();
        it != ancestors.rend(); ++it) {
     HTMLElement* current_element = *it;
-    bool is_valid = ancestors_were_valid &&
-                    current_element->matching_rules_valid() &&
-                    current_element->computed_style_valid();
+
+    // Ensure that the matching rules are up to date prior to updating the
+    // computed style.
+    current_element->UpdateMatchingRules();
+
+    bool is_valid =
+        ancestors_were_valid && current_element->AreComputedStylesValid();
     if (!is_valid) {
       DCHECK(initial_computed_style_declaration_);
       DCHECK(initial_computed_style_data_);
@@ -921,7 +938,7 @@ void Document::UpdateSelectorTree() {
 
     scoped_refptr<HTMLHtmlElement> current_html = html();
     if (current_html) {
-      current_html->InvalidateMatchingRulesRecursively();
+      current_html->ClearRuleMatchingStateOnElementAndDescendants();
     }
 
     is_selector_tree_dirty_ = false;
