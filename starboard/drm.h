@@ -182,8 +182,13 @@ static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
 // SbDrmUpdateSession() is called.
 // |key_statuses_changed_callback|: A function that can be called to indicate
 // that key statuses have changed.
-// |session_closed_callback|: A function that can be called to indicate that
-// a session has closed.
+// |session_closed_callback|: A function that can be called to indicate that a
+// session has closed.
+#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+//  If |NULL| is passed for any of the callbacks (|update_request_callback|,
+// |session_updated_callback|, |key_statuses_changed_callback|, or
+// |session_closed_callback|), then |kSbDrmSystemInvalid| must be returned.
+#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 #if SB_HAS(DRM_SESSION_CLOSED)
 
 #if !SB_HAS(DRM_KEY_STATUSES)

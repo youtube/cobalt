@@ -35,6 +35,28 @@ class SbPlayerTest : public ::testing::Test {
   FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
+void DummyDeallocateSampleFunc(SbPlayer player,
+                               void* context,
+                               const void* sample_buffer) {}
+
+void DummyDecoderStatusFunc(SbPlayer player,
+                            void* context,
+                            SbMediaType type,
+                            SbPlayerDecoderState state,
+                            int ticket) {}
+
+void DummyStatusFunc(SbPlayer player,
+                     void* context,
+                     SbPlayerState state,
+                     int ticket) {}
+
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void DummyErrorFunc(SbPlayer player,
+                    void* context,
+                    SbPlayerError error,
+                    const char* message) {}
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+
 TEST_F(SbPlayerTest, SunnyDay) {
   SbMediaAudioHeader audio_header;
 
@@ -66,11 +88,12 @@ TEST_F(SbPlayerTest, SunnyDay) {
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-        kSbDrmSystemInvalid, &audio_header, NULL, NULL, NULL,
+        kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
+        DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-        NULL,
+        DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-        NULL, output_mode,
+        NULL /* context */, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_TRUE(SbPlayerIsValid(player));
 
@@ -81,6 +104,110 @@ TEST_F(SbPlayerTest, SunnyDay) {
     SbPlayerDestroy(player);
   }
 }
+
+#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+TEST_F(SbPlayerTest, NullCallbacks) {
+  SbMediaAudioHeader audio_header;
+
+  audio_header.format_tag = 0xff;
+  audio_header.number_of_channels = 2;
+  audio_header.samples_per_second = 22050;
+  audio_header.block_alignment = 4;
+  audio_header.bits_per_sample = 32;
+  audio_header.audio_specific_config_size = 0;
+  audio_header.average_bytes_per_second = audio_header.samples_per_second *
+                                          audio_header.number_of_channels *
+                                          audio_header.bits_per_sample / 8;
+
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
+  SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
+    SbPlayerOutputMode output_mode = output_modes[i];
+    if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
+      continue;
+    }
+
+    {
+      SbPlayer player = SbPlayerCreate(
+          fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+          kSbMediaAudioCodecAac,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          kSbDrmSystemInvalid, &audio_header, NULL /* deallocate_sample_func */,
+          DummyDecoderStatusFunc, DummyStatusFunc,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+          DummyErrorFunc,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+          NULL /* context */, output_mode,
+          fake_graphics_context_provider_.decoder_target_provider());
+      EXPECT_FALSE(SbPlayerIsValid(player));
+
+      SbPlayerDestroy(player);
+    }
+
+    {
+      SbPlayer player = SbPlayerCreate(
+          fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+          kSbMediaAudioCodecAac,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
+          NULL /* decoder_status_func */, DummyStatusFunc,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+          DummyErrorFunc,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+          NULL /* context */, output_mode,
+          fake_graphics_context_provider_.decoder_target_provider());
+      EXPECT_FALSE(SbPlayerIsValid(player));
+
+      SbPlayerDestroy(player);
+    }
+
+    {
+      SbPlayer player = SbPlayerCreate(
+          fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+          kSbMediaAudioCodecAac,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
+          DummyDecoderStatusFunc, NULL /*status_func */,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+          DummyErrorFunc,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+          NULL /* context */, output_mode,
+          fake_graphics_context_provider_.decoder_target_provider());
+      EXPECT_FALSE(SbPlayerIsValid(player));
+
+      SbPlayerDestroy(player);
+    }
+
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    {
+      SbPlayer player = SbPlayerCreate(
+          fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+          kSbMediaAudioCodecAac,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+          kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
+          DummyDecoderStatusFunc, DummyStatusFunc, NULL /*error_func */,
+          NULL /* context */, output_mode,
+          fake_graphics_context_provider_.decoder_target_provider());
+      EXPECT_FALSE(SbPlayerIsValid(player));
+
+      SbPlayerDestroy(player);
+    }
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+  }
+}
+#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 
 #if SB_HAS(AUDIOLESS_VIDEO)
 TEST_F(SbPlayerTest, Audioless) {
@@ -102,11 +229,12 @@ TEST_F(SbPlayerTest, Audioless) {
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-        kSbDrmSystemInvalid, NULL, NULL, NULL, NULL,
+        kSbDrmSystemInvalid, NULL /* audio_header */, DummyDeallocateSampleFunc,
+        DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-        NULL,
+        DummyErrorFunc,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-        NULL, output_mode,
+        NULL /* context */, output_mode,
         fake_graphics_context_provider_.decoder_target_provider());
     EXPECT_TRUE(SbPlayerIsValid(player));
 
@@ -192,8 +320,10 @@ TEST_F(SbPlayerTest, MultiPlayer) {
         for (int l = 0; l < SB_ARRAY_SIZE_INT(kVideoCodecs); ++l) {
           created_players.push_back(SbPlayerCreate(
               fake_graphics_context_provider_.window(), kVideoCodecs[l],
-              kAudioCodecs[k], kSbDrmSystemInvalid, &audio_header, NULL, NULL,
-              NULL, NULL, NULL, kOutputModes[j],
+              kAudioCodecs[k], kSbDrmSystemInvalid, &audio_header,
+              DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
+              DummyStatusFunc, DummyErrorFunc, NULL /* context */,
+              kOutputModes[j],
               fake_graphics_context_provider_.decoder_target_provider()));
           if (!SbPlayerIsValid(created_players.back())) {
             created_players.pop_back();
