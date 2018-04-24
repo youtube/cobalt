@@ -24,6 +24,10 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+  if (!update_request_callback || !session_updated_callback ||
+      !key_statuses_changed_callback) {
+    return kSbDrmSystemInvalid;
+  }
   if (SbStringCompareAll(key_system, "com.widevine") != 0 &&
       SbStringCompareAll(key_system, "com.widevine.alpha")) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
