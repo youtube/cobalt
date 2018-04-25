@@ -147,7 +147,7 @@ void AnimateCB(math::Size screen_size,
 
   TRACE_EVENT0("cobalt::overlay_info", "AnimateCB()");
 
-  OverlayInfoRegistry::Register("overlay_info", &s_frame_count_,
+  OverlayInfoRegistry::Register("overlay_info:frame_count", &s_frame_count_,
                                 sizeof(s_frame_count_));
   ++s_frame_count_;
 
