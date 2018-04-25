@@ -29,6 +29,7 @@
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/create_default_camera_3d.h"
 #include "cobalt/input/input_poller_impl.h"
+#include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/system_window/input_event.h"
 
 namespace cobalt {
@@ -219,6 +220,10 @@ void InputDeviceManagerDesktop::HandleKeyboardEvent(
   keyboard_event.set_char_code(key_code);
   keyboard_event.set_key_code(key_code);
   keypress_generator_filter_.HandleKeyboardEvent(type, keyboard_event);
+
+  int32_t key_code_in_int32 = static_cast<int32_t>(key_code);
+  overlay_info::OverlayInfoRegistry::Register(
+      "input_manager:keydown", &key_code_in_int32, sizeof(key_code_in_int32));
 }
 
 void InputDeviceManagerDesktop::HandlePointerEvent(
