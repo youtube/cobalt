@@ -36,14 +36,18 @@
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
 #include "starboard/atomic.h"
+#endif
+
+#if SB_API_VERSION < SB_INTRODUCE_ATOMIC8_VERSION
+#error Your version of Starboard must support SbAtomic8 in order to use V8.
 #endif
 
 namespace v8 {
 namespace base {
 
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#ifdef V8_OS_STARBOARD
 typedef SbAtomic8 Atomic8;
 typedef SbAtomic32 Atomic32;
 #ifdef V8_HOST_ARCH_64_BIT
@@ -61,11 +65,11 @@ typedef int64_t Atomic64;
 typedef intptr_t Atomic64;
 #endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
-#endif  // undefined(V8_OS_STARBOARD)
+#endif  // V8_OS_STARBOARD
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
 typedef SbAtomicPtr AtomicWord;
 #else
 typedef intptr_t AtomicWord;
