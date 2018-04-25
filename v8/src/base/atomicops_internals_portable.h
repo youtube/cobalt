@@ -31,7 +31,7 @@
 
 #include <atomic>
 
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
 #include "starboard/atomic.h"
 #endif
 
@@ -45,7 +45,7 @@ namespace base {
 // atomicops.h.
 
 inline void SeqCst_MemoryFence() {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   SbAtomicMemoryBarrier();
 #else
 #if defined(__GLIBCXX__)
@@ -60,7 +60,7 @@ inline void SeqCst_MemoryFence() {
 
 inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value, Atomic32 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_CompareAndSwap(ptr, old_value, new_value);
 #else
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -71,7 +71,7 @@ inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
 
 inline Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr,
                                        Atomic32 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Exchange(ptr, new_value);
 #else
   return __atomic_exchange_n(ptr, new_value, __ATOMIC_RELAXED);
@@ -80,7 +80,7 @@ inline Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr,
 
 inline Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr,
                                         Atomic32 increment) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Increment(ptr, increment);
 #else
   return increment + __atomic_fetch_add(ptr, increment, __ATOMIC_RELAXED);
@@ -89,7 +89,7 @@ inline Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr,
 
 inline Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
                                         Atomic32 increment) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicBarrier_Increment(ptr, increment);
 #else
   return increment + __atomic_fetch_add(ptr, increment, __ATOMIC_SEQ_CST);
@@ -98,7 +98,7 @@ inline Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
 
 inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value, Atomic32 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicAcquire_CompareAndSwap(ptr, old_value, new_value);
 #else
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -109,7 +109,7 @@ inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
 
 inline Atomic8 Release_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
                                       Atomic8 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicRelease_CompareAndSwap8(ptr, old_value, new_value);
 #else
   bool result = __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -121,7 +121,7 @@ inline Atomic8 Release_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
 
 inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value, Atomic32 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicRelease_CompareAndSwap(ptr, old_value, new_value);
 #else
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -131,7 +131,7 @@ inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
 }
 
 inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   SbAtomicNoBarrier_Store8(ptr, value);
 #else
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
@@ -139,7 +139,7 @@ inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
 }
 
 inline void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   SbAtomicNoBarrier_Store(ptr, value);
 #else
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
@@ -147,7 +147,7 @@ inline void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value) {
 }
 
 inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   SbAtomicRelease_Store(ptr, value);
 #else
   __atomic_store_n(ptr, value, __ATOMIC_RELEASE);
@@ -155,7 +155,7 @@ inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
 }
 
 inline Atomic8 Relaxed_Load(volatile const Atomic8* ptr) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Load8(ptr);
 #else
   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
@@ -163,7 +163,7 @@ inline Atomic8 Relaxed_Load(volatile const Atomic8* ptr) {
 }
 
 inline Atomic32 Relaxed_Load(volatile const Atomic32* ptr) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Load(ptr);
 #else
   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
@@ -171,7 +171,7 @@ inline Atomic32 Relaxed_Load(volatile const Atomic32* ptr) {
 }
 
 inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicAcquire_Load(ptr);
 #else
   return __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
@@ -182,7 +182,7 @@ inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
 
 inline Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr,
                                        Atomic64 old_value, Atomic64 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_CompareAndSwap64(ptr, old_value, new_value);
 #else
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -193,7 +193,7 @@ inline Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr,
 
 inline Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr,
                                        Atomic64 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Exchange64(ptr, new_value);
 #else
   return __atomic_exchange_n(ptr, new_value, __ATOMIC_RELAXED);
@@ -202,7 +202,7 @@ inline Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr,
 
 inline Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr,
                                         Atomic64 increment) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Increment64(ptr, increment);
 #else
   return increment + __atomic_fetch_add(ptr, increment, __ATOMIC_RELAXED);
@@ -211,7 +211,7 @@ inline Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr,
 
 inline Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr,
                                         Atomic64 increment) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicBarrier_Increment64(ptr, increment);
 #else
   return increment + __atomic_fetch_add(ptr, increment, __ATOMIC_SEQ_CST);
@@ -220,7 +220,7 @@ inline Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr,
 
 inline Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
                                        Atomic64 old_value, Atomic64 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicAcquire_CompareAndSwap64(ptr, old_value, new_value);
 #else
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -231,7 +231,7 @@ inline Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
 
 inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
                                        Atomic64 old_value, Atomic64 new_value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicRelease_CompareAndSwap64(ptr, old_value, new_value);
 #else
   __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
@@ -241,7 +241,7 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
 }
 
 inline void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   SbAtomicNoBarrier_Store64(ptr, value);
 #else
   __atomic_store_n(ptr, value, __ATOMIC_RELAXED);
@@ -249,7 +249,7 @@ inline void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value) {
 }
 
 inline void Release_Store(volatile Atomic64* ptr, Atomic64 value) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   SbAtomicRelease_Store64(ptr, value);
 #else
   __atomic_store_n(ptr, value, __ATOMIC_RELEASE);
@@ -257,7 +257,7 @@ inline void Release_Store(volatile Atomic64* ptr, Atomic64 value) {
 }
 
 inline Atomic64 Relaxed_Load(volatile const Atomic64* ptr) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicNoBarrier_Load64(ptr);
 #else
   return __atomic_load_n(ptr, __ATOMIC_RELAXED);
@@ -265,7 +265,7 @@ inline Atomic64 Relaxed_Load(volatile const Atomic64* ptr) {
 }
 
 inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
-#if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if defined(V8_OS_STARBOARD)
   return SbAtomicAcquire_Load64(ptr);
 #else
   return __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
