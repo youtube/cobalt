@@ -154,6 +154,7 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 DecoderBufferAllocator::ReuseAllcator::ReuseAllcator(
     Allocator* fallback_allocator, std::size_t initial_capacity,
     std::size_t allocation_increment)
@@ -231,6 +232,6 @@ void DecoderBufferAllocator::UpdateAllocationRecord(
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
-
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }  // namespace media
 }  // namespace cobalt
