@@ -46,7 +46,9 @@ namespace base {
 #if defined(V8_OS_STARBOARD) && SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
 typedef SbAtomic8 Atomic8;
 typedef SbAtomic32 Atomic32;
+#ifdef V8_HOST_ARCH_64_BIT
 typedef SbAtomic64 Atomic64;
+#endif
 #else
 typedef char Atomic8;
 typedef int32_t Atomic32;
