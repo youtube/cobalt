@@ -159,20 +159,14 @@ void AnimateCB(math::Size screen_size,
     return;
   }
 
-  // TODO: Explore the option to store the whole |infos| binary into one giant
-  //       QR code or combine the values into several large QR codes.
+  // Use a vector in case we decide to switch back to multiple qr codes.
   std::vector<QrCode> qr_codes;
-  for (size_t i = 0; i < infos.size(); ++i) {
-    DCHECK_LT(infos[i] + i, infos.size());
-    std::vector<uint8_t> data(infos.begin() + i + 1,
-                              infos.begin() + i + 1 + infos[i]);
-    qr_codes.emplace_back(QrCode::encodeBinary(data, QrCode::Ecc::LOW));
-    i += infos[i];
-  }
+  qr_codes.emplace_back(QrCode::encodeBinary(infos, QrCode::Ecc::LOW));
 
   image_node->source =
       CreateImageForQrCodes(qr_codes, screen_size, resource_provider);
   auto image_size = image_node->source->GetSize();
+  // TODO: Move the QR code between draws to avoid tearing.
   image_node->destination_rect =
       math::RectF(kScreenMarginInPixels, kScreenMarginInPixels,
                   image_size.width(), image_size.height());
