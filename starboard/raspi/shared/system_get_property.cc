@@ -75,10 +75,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return true;
     }
 
-    case kSbSystemPropertyPlatformUuid:
-      SB_NOTIMPLEMENTED();
-      return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
-
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;
