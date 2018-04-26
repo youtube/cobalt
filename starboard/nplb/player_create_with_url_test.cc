@@ -57,11 +57,13 @@ TEST(SbPlayerUrlTest, SunnyDay) {
       continue;
     }
     char url[] = "about:blank";
-    SbPlayer player = SbPlayerCreateWithUrl(url, window,
+    SbPlayer player = SbPlayerCreateWithUrl(
+        url, window,
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-                                            SB_PLAYER_NO_DURATION,
+        SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-                                            NULL, NULL, NULL, NULL);
+        DummyPlayerStatusFunc, DummyEncryptedMediaInitaDataEncounteredFunc,
+        DummyPlayerErrorFunc, NULL);
 
     EXPECT_TRUE(SbPlayerIsValid(player));
 
