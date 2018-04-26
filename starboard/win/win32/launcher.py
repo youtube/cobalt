@@ -25,36 +25,84 @@ import traceback
 import starboard.tools.abstract_launcher as abstract_launcher
 
 class Launcher(abstract_launcher.AbstractLauncher):
-
   def __init__(self, platform, target_name, config, device_id, **kwargs):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
-    self.executable = self.GetTargetPath()
+    self.executable_path = self.GetTargetPath()
+
+    self.executable_mini_dump_path = self.executable_path + '.dmp'
+    if os.path.exists(self.executable_mini_dump_path):
+      self.LogLn('Found previous crash mini dump: deleting.')
+      os.remove(self.executable_mini_dump_path)
 
   def Run(self):
-    sys.stderr.write('\n***Running Launcher***\n')
-    """Runs launcher's executable."""
+    self.LogLn('\n***Running Launcher***')
+    """Runs launcher's executable_path."""
     self.proc = subprocess.Popen(
-        [self.executable] + self.target_command_line_params,
+        [self.executable_path] + self.target_command_line_params,
         stdout=self.output_file,
         stderr=self.output_file)
     self.pid = self.proc.pid
     self.proc.communicate()
     self.proc.poll()
-    return self.proc.returncode
+    rtn_code = self.proc.returncode
+    self.DetectAndHandleCrashDump()
+    self.LogLn('Finished running executable.')
+    return rtn_code
 
   def Kill(self):
-    sys.stderr.write("\n***Killing Launcher***\n")
+    self.LogLn("\n***Killing Launcher***")
     if self.pid:
       try:
         self.proc.kill()
       except OSError:
-        sys.stderr.write("Error killing launcher with SIGKILL:\n")
-        traceback.print_exc(file=sys.stderr)
+        self.LogLn("Error killing launcher with SIGKILL:")
+        traceback.print_exc(file=sys.stdout)
         # If for some reason Kill() fails then os_.exit(1) will kill the
         # child process without cleanup. Otherwise the process will hang.
         os._exit(1)
     else:
-      sys.stderr.write("Kill() called before Run(), cannot kill.\n")
-
+      self.LogLn("Kill() called before Run(), cannot kill.")
     return
+
+  def Log(self, s):
+    self.output_file.write(s);
+
+  def LogLn(self, s):
+    self.Log(s + '\n');
+
+  def DetectAndHandleCrashDump(self):
+    if not os.path.exists(self.executable_mini_dump_path):
+      return
+    self.LogLn('\n*** Found crash dump! ***\nMinDumpPath:'\
+               + self.executable_mini_dump_path)
+    # This tool is part of the debugging package, it will allow mini dump analysis
+    # and printing.
+    tool_path = "C:/Program Files (x86)/Windows Kits/10/Debuggers/x64/cdb.exe"
+    tool_path = os.path.abspath(tool_path)
+    if not os.path.isfile(tool_path):
+      self.LogLn('Could not perform crash analysis because ' + tool_path +
+                 ' could not be found.')
+      return
+
+    dump_log = self.executable_mini_dump_path + '.log'
+    cmd = "\"{0}\" -z \"{1}\" -c \"!analyze -v;q\" > {2}" \
+          .format(tool_path, self.executable_mini_dump_path, dump_log)
+
+    try:
+      self.LogLn('Running command:\n' + cmd)
+      subprocess.check_output(cmd, shell=True, universal_newlines=True)
+
+      if not os.path.exists(dump_log):
+        self.LogLn('Error - mini dump log ' + dump_log + ' was not found.')
+        return
+      with open(dump_log) as f:
+        self.LogLn(f.read())
+        self.LogLn('*** Finished printing mini dump '\
+                   + self.executable_mini_dump_path + ' ***\n'\
+                   + 'For more information, use visual studio '\
+                   + 'to load the minidump.')
+
+    except CalledProcessError as err:
+      self.LogLn("Error running \"" + cmd + "\"\n" + "because of error: "\
+                 + str(err))

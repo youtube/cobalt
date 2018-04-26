@@ -25,12 +25,14 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/win32/dialog.h"
 #include "starboard/shared/win32/error_utils.h"
+#include "starboard/shared/win32/minidump.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/shared/win32/window_internal.h"
 #include "starboard/system.h"
 
 using starboard::shared::starboard::Application;
+using starboard::shared::starboard::CommandLine;
 using starboard::shared::win32::ApplicationWin32;
 using starboard::shared::win32::CStringToWString;
 using starboard::shared::win32::DebugLogWinError;
@@ -40,6 +42,7 @@ namespace {
 static const int kSbMouseDeviceId = 1;
 
 static const TCHAR kWindowClassName[] = L"window_class_name";
+const char kMiniDumpFilePath[] = "mini_dump_file_path";
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM w_param, LPARAM l_param) {
   return ApplicationWin32::Get()->WindowProcess(hWnd, msg, w_param, l_param);
@@ -89,6 +92,25 @@ HWND CreateWindowInstance(const SbWindowOptions& options) {
   }
 
   return window;
+}
+
+void AttachMiniDumpHandler(const CommandLine& cmd_line) {
+  std::string file_path;
+  if (cmd_line.HasSwitch(kMiniDumpFilePath)) {
+    // If there is a mini dump file path then use that.
+    file_path = cmd_line.GetSwitchValue(kMiniDumpFilePath);
+  } else {
+    // Otherwise use the file path and append ".dmp" to it.
+    const auto& args = cmd_line.argv();
+    if (!args.empty()) {
+      file_path = args[0];
+      file_path.append(".dmp");
+    }
+  }
+
+  if (!file_path.empty()) {
+    starboard::shared::win32::InitMiniDumpHandler(file_path.c_str());
+  }
 }
 
 }  // namespace
@@ -248,6 +270,8 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
 }
 
 int ApplicationWin32::Run(int argc, char** argv) {
+  CommandLine cmd_line(argc, argv);
+  AttachMiniDumpHandler(cmd_line);
   int return_val = Application::Run(argc, argv);
   return return_val;
 }

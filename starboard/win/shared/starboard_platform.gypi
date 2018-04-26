@@ -18,7 +18,6 @@
 
     # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
     'uwp_incompatible_win32': [
-      '<(DEPTH)/starboard/shared/win32/system_symbolize.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
       '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
@@ -31,6 +30,8 @@
       '<(DEPTH)/starboard/shared/win32/log_raw_format.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_audio_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/minidump.cc',
+      '<(DEPTH)/starboard/shared/win32/minidump.h',
       '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
       '<(DEPTH)/starboard/shared/win32/playready_license.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
@@ -40,6 +41,7 @@
       '<(DEPTH)/starboard/shared/win32/system_get_total_cpu_memory.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_used_cpu_memory.cc',
       '<(DEPTH)/starboard/shared/win32/system_raise_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/system_symbolize.cc',
       '<(DEPTH)/starboard/shared/win32/window_create.cc',
       '<(DEPTH)/starboard/shared/win32/window_destroy.cc',
       '<(DEPTH)/starboard/shared/win32/window_get_platform_handle.cc',
