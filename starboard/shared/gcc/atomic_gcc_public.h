@@ -106,8 +106,9 @@ static SB_C_FORCE_INLINE SbAtomic8
 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
                                SbAtomic8 old_value,
                                SbAtomic8 new_value) {
-  __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
+  bool result = __atomic_compare_exchange_n(ptr, &old_value, new_value, false,
                               __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+  SB_UNREFERENCED_PARAMETER(result);  // Make gcc compiler happy.
   return old_value;
 }
 

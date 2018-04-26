@@ -18,7 +18,7 @@
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 6
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- System Header Configuration -------------------------------------------
 
@@ -312,6 +312,10 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+#define SB_HAS_PLAYER_WITH_URL 0
 
 // --- Tuneable Parameters ---------------------------------------------------
 
