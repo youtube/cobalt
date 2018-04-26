@@ -16,5 +16,5 @@
 
 bool SbAudioSinkIsAudioSampleTypeSupported(
     SbMediaAudioSampleType audio_sample_type) {
-  return audio_sample_type == kSbMediaAudioSampleTypeInt16;
+  return audio_sample_type == kSbMediaAudioSampleTypeFloat32;
 }
