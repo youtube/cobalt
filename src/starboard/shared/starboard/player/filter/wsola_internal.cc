@@ -303,7 +303,6 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
                  Interval exclude_interval) {
   int channels = search_block->channels();
   SB_DCHECK(channels == target_block->channels());
-  SB_DCHECK(sample_type == kSbMediaAudioSampleTypeFloat32);
   SB_DCHECK(storage_type == kSbMediaAudioFrameStorageTypeInterleaved);
 
   int target_size = target_block->frames();

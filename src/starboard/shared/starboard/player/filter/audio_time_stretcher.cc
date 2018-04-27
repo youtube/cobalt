@@ -23,6 +23,7 @@
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
 namespace starboard {
@@ -81,7 +82,8 @@ static const int kMaxCapacityInSeconds = 3;
 static const int kStartingCapacityInMs = 200;
 
 AudioTimeStretcher::AudioTimeStretcher()
-    : channels_(0),
+    : sink_sample_type_(kSbMediaAudioSampleTypeFloat32),
+      channels_(0),
       bytes_per_frame_(0),
       samples_per_second_(0),
       muted_partial_frame_(0),
@@ -99,9 +101,11 @@ AudioTimeStretcher::AudioTimeStretcher()
 
 AudioTimeStretcher::~AudioTimeStretcher() {}
 
-void AudioTimeStretcher::Initialize(int channels, int samples_per_second) {
+void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sink_sample_type,
+    int channels, int samples_per_second) {
+  sink_sample_type_ = sink_sample_type;
   channels_ = channels;
-  bytes_per_frame_ = sizeof(float) * channels_;
+  bytes_per_frame_ = media::GetBytesPerSample(sink_sample_type_) * channels_;
   samples_per_second_ = samples_per_second;
   initial_capacity_ = capacity_ =
       ConvertMillisecondsToFrames(kStartingCapacityInMs);
@@ -145,21 +149,21 @@ void AudioTimeStretcher::Initialize(int channels, int samples_per_second) {
                                       transition_window_.get());
 
   wsola_output_ =
-      new DecodedAudio(channels_, kSbMediaAudioSampleTypeFloat32,
+      new DecodedAudio(channels_, sink_sample_type_,
                        kSbMediaAudioFrameStorageTypeInterleaved, 0,
                        (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
   // Initialize for overlap-and-add of the first block.
   SbMemorySet(wsola_output_->buffer(), 0, wsola_output_->size());
 
   // Auxiliary containers.
-  optimal_block_ = new DecodedAudio(channels_, kSbMediaAudioSampleTypeFloat32,
+  optimal_block_ = new DecodedAudio(channels_, sink_sample_type_,
                                     kSbMediaAudioFrameStorageTypeInterleaved, 0,
                                     ola_window_size_ * bytes_per_frame_);
   search_block_ = new DecodedAudio(
-      channels_, kSbMediaAudioSampleTypeFloat32,
+      channels_, sink_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, 0,
       (num_candidate_blocks_ + (ola_window_size_ - 1)) * bytes_per_frame_);
-  target_block_ = new DecodedAudio(channels_, kSbMediaAudioSampleTypeFloat32,
+  target_block_ = new DecodedAudio(channels_, sink_sample_type_,
                                    kSbMediaAudioFrameStorageTypeInterleaved, 0,
                                    ola_window_size_ * bytes_per_frame_);
 }
@@ -170,7 +174,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   SB_DCHECK(playback_rate >= 0);
 
   scoped_refptr<DecodedAudio> dest =
-      new DecodedAudio(channels_, kSbMediaAudioSampleTypeFloat32,
+      new DecodedAudio(channels_, sink_sample_type_,
                        kSbMediaAudioFrameStorageTypeInterleaved, 0,
                        requested_frames * bytes_per_frame_);
 
@@ -382,7 +386,7 @@ void AudioTimeStretcher::GetOptimalBlock() {
     // |search_block_|.
     optimal_index = internal::OptimalIndex(
         search_block_.get(), target_block_.get(),
-        kSbMediaAudioSampleTypeFloat32,
+        sink_sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved, exclude_iterval);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
