@@ -1,0 +1,320 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "bd559f65_c6323c93",
+        "filename": "src/third_party/libvpx/ads2gas.gypi",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "It looks like this is copied from Chromium, so include the copyright from the Chromium file:\n# Copyright (c) 2015 The Chromium Authors. All rights reserved.\n# Use of this source code is governed by a BSD-style license that can be\n# found in the LICENSE file.",
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "fd58e1d9_1cff3918",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 26,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Use spaces not tab",
+      "range": {
+        "startLine": 26,
+        "startChar": 0,
+        "endLine": 26,
+        "endChar": 5
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "07cd1269_2fc91237",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "nit: alphabetically, \u0027vp9/common/arm/neon/vp9_iht4x4_add_neon.c\u0027 comes before \u0027vp9/common/arm/neon/vp9_iht8x8_add_neon.c\u0027, please swap the order",
+      "range": {
+        "startLine": 27,
+        "startChar": 5,
+        "endLine": 27,
+        "endChar": 49
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "22468dc9_b594a1bf",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Use spaces not tab",
+      "range": {
+        "startLine": 27,
+        "startChar": 0,
+        "endLine": 27,
+        "endChar": 5
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4ec980f5_0c753d64",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 31,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line",
+      "range": {
+        "startLine": 31,
+        "startChar": 47,
+        "endLine": 31,
+        "endChar": 49
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "2c1058b0_ddfee3a0",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 32,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Use spaces not tab",
+      "range": {
+        "startLine": 32,
+        "startChar": 0,
+        "endLine": 32,
+        "endChar": 5
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d8f009f9_2cad1db6",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line",
+      "range": {
+        "startLine": 34,
+        "startChar": 49,
+        "endLine": 34,
+        "endChar": 51
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "9464728c_b98a8723",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 36,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line",
+      "range": {
+        "startLine": 36,
+        "startChar": 47,
+        "endLine": 36,
+        "endChar": 49
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "8fba272f_937d4a72",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 38,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line",
+      "range": {
+        "startLine": 38,
+        "startChar": 47,
+        "endLine": 38,
+        "endChar": 50
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "0bd9089c_581b2324",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Use spaces not tab",
+      "range": {
+        "startLine": 45,
+        "startChar": 0,
+        "endLine": 45,
+        "endChar": 5
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "c9731b14_665855d1",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 1
+      },
+      "lineNbr": 60,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Use spaces not tab",
+      "range": {
+        "startLine": 54,
+        "startChar": 0,
+        "endLine": 60,
+        "endChar": 5
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "6cfc4d37_ec387c0d",
+        "filename": "src/third_party/libvpx/platforms/arm/README.md",
+        "patchSetId": 1
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line",
+      "range": {
+        "startLine": 4,
+        "startChar": 28,
+        "endLine": 4,
+        "endChar": 30
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "31072335_5a1e9d05",
+        "filename": "src/third_party/libvpx/platforms/arm/README.md",
+        "patchSetId": 1
+      },
+      "lineNbr": 35,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line",
+      "range": {
+        "startLine": 35,
+        "startChar": 52,
+        "endLine": 35,
+        "endChar": 54
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "687e5c1e_5bc3bf2c",
+        "filename": "src/third_party/libvpx/platforms/arm/vpx_config.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 11,
+      "author": {
+        "id": 5075
+      },
+      "writtenOn": "2018-04-27T18:42:02Z",
+      "side": 1,
+      "message": "Remove spaces at end of line (unless this is generated)",
+      "range": {
+        "startLine": 11,
+        "startChar": 16,
+        "endLine": 11,
+        "endChar": 20
+      },
+      "revId": "d4b97a413232de6a33ad9971dde2d4564edc42e0",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
