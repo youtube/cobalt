@@ -252,6 +252,7 @@
         '<(DEPTH)/starboard/shared/starboard/log_message.cc',
         '<(DEPTH)/starboard/shared/starboard/media/mime_type.cc',
         '<(DEPTH)/starboard/shared/starboard/media/mime_type.h',
+        '<(DEPTH)/starboard/shared/starboard/native_display_type.cc',
         '<(DEPTH)/starboard/shared/starboard/string_concat.cc',
         '<(DEPTH)/starboard/shared/starboard/string_concat_wide.cc',
         '<(DEPTH)/starboard/shared/starboard/string_copy.cc',

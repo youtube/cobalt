@@ -29,6 +29,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
+#include "starboard/native_display_type.h"
 
 namespace starboard {
 namespace testing {
@@ -136,7 +137,7 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 
 #if SB_HAS(GLES2)
 void FakeGraphicsContextProvider::InitializeEGL() {
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  display_ = eglGetDisplay(SbNativeDisplayType());
   SB_CHECK(EGL_SUCCESS == eglGetError());
   SB_CHECK(EGL_NO_DISPLAY != display_);
 

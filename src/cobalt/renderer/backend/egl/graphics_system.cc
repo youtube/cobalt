@@ -33,6 +33,8 @@
 #include "glimp/tracing/tracing.h"
 #endif
 
+#include "starboard/native_display_type.h"
+
 namespace cobalt {
 namespace renderer {
 namespace backend {
@@ -131,7 +133,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   glimp::SetTraceEventImplementation(&s_glimp_to_base_trace_event_bridge);
 #endif  // #if defined(ENABLE_GLIMP_TRACING)
 
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  display_ = eglGetDisplay(SbNativeDisplayType());
   CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 

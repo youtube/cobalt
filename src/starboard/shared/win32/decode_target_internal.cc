@@ -17,6 +17,7 @@
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/native_display_type.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
@@ -158,7 +159,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(
                                       EGL_TEXTURE_RGBA,
                                       EGL_NONE};
 
-  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  EGLDisplay display = eglGetDisplay(SbNativeDisplayType());
 
   EGLConfig config;
   EGLint attribute_list[] = {
@@ -256,7 +257,7 @@ SbDecodeTargetPrivate::~SbDecodeTargetPrivate() {
   glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneY].texture));
   glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneUV].texture));
 
-  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  EGLDisplay display = eglGetDisplay(SbNativeDisplayType());
 
   eglReleaseTexImage(display, surface[0], EGL_BACK_BUFFER);
   eglDestroySurface(display, surface[0]);

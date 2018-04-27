@@ -22,6 +22,7 @@
 #include "starboard/input.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/native_display_type.h"
 #include "starboard/system.h"
 #include "starboard/window.h"
 
@@ -87,7 +88,7 @@ Application::Application() {
   window_ = SbWindowCreate(&options);
   SB_CHECK(SbWindowIsValid(window_));
 
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  display_ = eglGetDisplay(SbNativeDisplayType());
   SB_CHECK(EGL_SUCCESS == eglGetError());
   SB_CHECK(EGL_NO_DISPLAY != display_);
 

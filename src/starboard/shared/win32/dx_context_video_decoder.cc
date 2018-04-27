@@ -22,6 +22,7 @@
 #include "third_party/angle/include/EGL/eglext.h"
 
 #include "starboard/log.h"
+#include "starboard/native_display_type.h"
 
 namespace starboard {
 namespace shared {
@@ -29,7 +30,7 @@ namespace win32 {
 
 HardwareDecoderContext GetDirectXForHardwareDecoding() {
   HRESULT result = S_OK;
-  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  EGLDisplay display = eglGetDisplay(SbNativeDisplayType());
   PFNEGLQUERYDISPLAYATTRIBEXTPROC query_display;
 
   query_display = reinterpret_cast<PFNEGLQUERYDISPLAYATTRIBEXTPROC>(
