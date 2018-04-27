@@ -15,7 +15,7 @@
 #include "cobalt/loader/image/image_encoder.h"
 
 #include "cobalt/renderer/test/png_utils/png_encode.h"
-#include "third_party/libwebp/webp/encode.h"
+#include "third_party/libwebp/src/webp/encode.h"
 
 namespace cobalt {
 namespace loader {
