@@ -32,6 +32,9 @@
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
 
+      # Force char to be signed.
+      '-fsigned-char',
+
       # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
       '-ffunction-sections',
       '-funwind-tables',
