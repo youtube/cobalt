@@ -20,7 +20,7 @@
 
 #include "cobalt/loader/image/animated_webp_image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
-#include "third_party/libwebp/webp/decode.h"
+#include "third_party/libwebp/src/webp/decode.h"
 
 namespace cobalt {
 namespace loader {
