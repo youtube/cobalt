@@ -14,7 +14,6 @@
 # limitations under the License.
 """Starboard win-win32 platform configuration for gyp_cobalt."""
 
-
 from __future__ import print_function
 
 import os
@@ -22,6 +21,7 @@ import subprocess
 import sys
 import traceback
 
+import starboard.shared.win32.mini_dump_printer as mini_dump_printer
 import starboard.tools.abstract_launcher as abstract_launcher
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -76,33 +76,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       return
     self.LogLn('\n*** Found crash dump! ***\nMinDumpPath:'\
                + self.executable_mini_dump_path)
-    # This tool is part of the debugging package, it will allow mini dump analysis
-    # and printing.
-    tool_path = "C:/Program Files (x86)/Windows Kits/10/Debuggers/x64/cdb.exe"
-    tool_path = os.path.abspath(tool_path)
-    if not os.path.isfile(tool_path):
-      self.LogLn('Could not perform crash analysis because ' + tool_path +
-                 ' could not be found.')
-      return
-
-    dump_log = self.executable_mini_dump_path + '.log'
-    cmd = "\"{0}\" -z \"{1}\" -c \"!analyze -v;q\" > {2}" \
-          .format(tool_path, self.executable_mini_dump_path, dump_log)
-
-    try:
-      self.LogLn('Running command:\n' + cmd)
-      subprocess.check_output(cmd, shell=True, universal_newlines=True)
-
-      if not os.path.exists(dump_log):
-        self.LogLn('Error - mini dump log ' + dump_log + ' was not found.')
-        return
-      with open(dump_log) as f:
-        self.LogLn(f.read())
-        self.LogLn('*** Finished printing mini dump '\
-                   + self.executable_mini_dump_path + ' ***\n'\
-                   + 'For more information, use visual studio '\
-                   + 'to load the minidump.')
-
-    except CalledProcessError as err:
-      self.LogLn("Error running \"" + cmd + "\"\n" + "because of error: "\
-                 + str(err))
+    mini_dump_printer.PrintMiniDump(
+        self.executable_mini_dump_path,
+        self.executable_path,
+        self.output_file)
