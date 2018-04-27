@@ -49,9 +49,8 @@ class IdentityAudioResampler : public AudioResampler {
   bool eos_reached_;
 };
 
-// AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate
-// and AudioTimeStretcher can only process float32 samples.  So we try to use
-// kSbMediaAudioSampleTypeFloat32 and only use
+// AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate.
+// So we try to use kSbMediaAudioSampleTypeFloat32 and only use
 // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.  To use
 // kSbMediaAudioSampleTypeFloat32 will cause an extra conversion from float32 to
 // int16 before the samples are sent to the audio sink.
@@ -436,18 +435,18 @@ void AudioRenderer::OnFirstOutput() {
   int destination_sample_rate =
       audio_renderer_sink_->GetNearestSupportedSampleFrequency(
           *decoder_sample_rate_);
-  time_stretcher_.Initialize(channels_, destination_sample_rate);
+  time_stretcher_.Initialize(sink_sample_type_, channels_,
+      destination_sample_rate);
 
   SbMediaAudioSampleType source_sample_type = decoder_->GetSampleType();
   SbMediaAudioFrameStorageType source_storage_type = decoder_->GetStorageType();
 
-  // AudioTimeStretcher only supports interleaved float32 samples.
   if (*decoder_sample_rate_ != destination_sample_rate ||
-      source_sample_type != kSbMediaAudioSampleTypeFloat32 ||
+      source_sample_type != sink_sample_type_ ||
       source_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
     resampler_ = AudioResampler::Create(
         decoder_->GetSampleType(), decoder_->GetStorageType(),
-        *decoder_sample_rate_, kSbMediaAudioSampleTypeFloat32,
+        *decoder_sample_rate_, sink_sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
         channels_);
     SB_DCHECK(resampler_);
