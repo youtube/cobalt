@@ -111,7 +111,6 @@ class AndroidConfiguration(PlatformConfiguration):
       'nplb': [
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
-          'SbCharIsSignedTest.SunnyDay',
           'SbPlayerTest.MultiPlayer',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
