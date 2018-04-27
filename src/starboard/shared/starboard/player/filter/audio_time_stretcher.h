@@ -53,7 +53,8 @@ class AudioTimeStretcher {
   ~AudioTimeStretcher();
 
   // Initializes this object with information about the audio stream.
-  void Initialize(int channels, int samples_per_second);
+  void Initialize(SbMediaAudioSampleType sink_sample_type, int channels,
+      int samples_per_second);
 
   // Tries to fill |requested_frames| frames into |dest| with possibly scaled
   // data from our |audio_buffer_|. Data is scaled based on |playback_rate|,
@@ -125,6 +126,9 @@ class AudioTimeStretcher {
 
   // Converts a time in milliseconds to frames using |samples_per_second_|.
   int ConvertMillisecondsToFrames(int ms) const;
+
+  // Audio sink sample type.
+  SbMediaAudioSampleType sink_sample_type_;
 
   // Number of channels in audio stream.
   int channels_;
