@@ -15,7 +15,10 @@
 #ifndef STARBOARD_SHARED_WAYLAND_APPLICATION_WAYLAND_H_
 #define STARBOARD_SHARED_WAYLAND_APPLICATION_WAYLAND_H_
 
+#if defined(COBALT_TIZEN)
 #include <tizen-extension-client-protocol.h>
+#endif
+
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
@@ -51,8 +54,10 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   wl_compositor* GetCompositor() { return compositor_; }
   void SetShell(wl_shell* shell) { shell_ = shell; }
   wl_shell* GetShell() { return shell_; }
+#if defined(COBALT_TIZEN)
   void SetPolicy(tizen_policy* policy) { tz_policy_ = policy; }
   tizen_policy* GetPolicy() { return tz_policy_; }
+#endif
   void WindowRaise();
   wl_display* GetWLDisplay() { return display_; }
 
@@ -71,8 +76,8 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   void CreateKey(int key, int state, bool is_repeat);
 
   // state change
-  void Pause(void* context, EventHandledCallback callback) override;
-  void Unpause(void* context, EventHandledCallback callback) override;
+  void Pause(void* context, EventHandledCallback callback);
+  void Unpause(void* context, EventHandledCallback callback);
 
   // state change observer
   class StateObserver {
@@ -111,7 +116,9 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   wl_display* display_;
   wl_compositor* compositor_;
   wl_shell* shell_;
+#if defined(COBALT_TIZEN)
   tizen_policy* tz_policy_;
+#endif
 
   // input devices
   wl_seat* seat_;

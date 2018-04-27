@@ -443,9 +443,11 @@ static void RegistryAddObject(void* data,
     wayland_window_->SetSeat(static_cast<wl_seat*>(
         wl_registry_bind(registry, name, &wl_seat_interface, 1)));
     wl_seat_add_listener(wayland_window_->GetSeat(), &seat_listener, data);
+#if defined(COBALT_TIZEN)
   } else if (!strcmp(interface, "tizen_policy")) {
-    wayland_window_->SetPolicy(static_cast<tizen_policy*>(
-        wl_registry_bind(registry, name, &tizen_policy_interface, 1)));
+    wayland_window_->SetPolicy(static_cast<tizen_policy*>(wl_registry_bind(
+        registry, name, &tizen_policy_interface, SB_TIZEN_POLICY_VERSION)));
+#endif
   }
 }
 
@@ -480,6 +482,7 @@ static void ShellSurfacePopupDone(void*, struct wl_shell_surface*) {}
 static struct wl_shell_surface_listener shell_surface_listener = {
     &ShellSurfacePing, &ShellSurfaceConfigure, &ShellSurfacePopupDone};
 
+#if defined(COBALT_TIZEN)
 static void WindowCbVisibilityChange(void* data,
                                      struct tizen_visibility* tizen_visibility
                                          EINA_UNUSED,
@@ -499,6 +502,7 @@ static void WindowCbVisibilityChange(void* data,
 
 static const struct tizen_visibility_listener tizen_visibility_listener = {
     WindowCbVisibilityChange};
+#endif
 
 }  // namespace wayland
 }  // namespace shared

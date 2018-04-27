@@ -17,7 +17,9 @@
 
 #include <Elementary.h>
 #include <string.h>
+#if defined(COBALT_TIZEN)
 #include <tizen-extension-client-protocol.h>
+#endif
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
@@ -31,12 +33,8 @@ struct SbWindowPrivate {
   struct wl_surface* surface;
   struct wl_shell_surface* shell_surface;
   struct wl_egl_window* egl_window;
+#if defined(COBALT_TIZEN)
   struct tizen_visibility* tz_visibility;
-
-#if SB_CAN(USE_WAYLAND_VIDEO_WINDOW)
-  wl_display* video_window;
-#else
-  Evas_Object* video_window;
 #endif
 
   // The width, height, pixel ratio of this window.

@@ -20,6 +20,7 @@
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/wayland/dev_input.h"
 #include "starboard/shared/wayland/window_internal.h"
 #include "starboard/time.h"
@@ -45,23 +46,14 @@ ApplicationWayland::ApplicationWayland(float video_pixel_ratio)
       keyboard_(NULL),
       key_repeat_event_id_(kSbEventIdInvalid),
       key_repeat_interval_(kKeyHoldTime),
-      key_modifiers_(0) {}
+      key_modifiers_(0) {
+  SbAudioSinkPrivate::Initialize();
+}
 
 SbWindow ApplicationWayland::CreateWindow(const SbWindowOptions* options) {
   SB_DLOG(INFO) << "CreateWindow";
   SbWindow window = new SbWindowPrivate(options, video_pixel_ratio_);
   window_ = window;
-
-// Video Plane
-#if SB_CAN(USE_WAYLAND_VIDEO_WINDOW)
-  window->video_window = display_;
-#else
-  window->video_window = elm_win_add(NULL, "Cobalt_Video", ELM_WIN_BASIC);
-  elm_win_title_set(window->video_window, "Cobalt_Video");
-  elm_win_autodel_set(window->video_window, EINA_TRUE);
-  evas_object_resize(window->video_window, window->width, window->height);
-  evas_object_hide(window->video_window);
-#endif
 
   // Graphics Plane
   window->surface = wl_compositor_create_surface(compositor_);
@@ -69,11 +61,13 @@ SbWindow ApplicationWayland::CreateWindow(const SbWindowOptions* options) {
   wl_shell_surface_add_listener(window->shell_surface, &shell_surface_listener,
                                 window);
 
+#if defined(COBALT_TIZEN)
   window->tz_visibility =
       tizen_policy_get_visibility(tz_policy_, window->surface);
   tizen_visibility_add_listener(window->tz_visibility,
                                 &tizen_visibility_listener, window);
   tizen_policy_activate(tz_policy_, window->surface);
+#endif
   wl_shell_surface_set_title(window->shell_surface, "cobalt");
   WindowRaise();
 
@@ -96,14 +90,10 @@ bool ApplicationWayland::DestroyWindow(SbWindow window) {
     return false;
   }
 
-// Video Plane
-#if !SB_CAN(USE_WAYLAND_VIDEO_WINDOW)
-  evas_object_hide(window->video_window);
-#endif
-  window->video_window = NULL;
-
   // Graphics Plane
+#if defined(COBALT_TIZEN)
   tizen_visibility_destroy(window->tz_visibility);
+#endif
   wl_egl_window_destroy(window->egl_window);
   wl_shell_surface_destroy(window->shell_surface);
   wl_surface_destroy(window->surface);
@@ -140,6 +130,7 @@ void ApplicationWayland::Teardown() {
   wl_display_flush(display_);
   wl_display_disconnect(display_);
 
+  SbAudioSinkPrivate::TearDown();
   // Close wakeup event
   close(wakeup_fd_);
 }
@@ -282,8 +273,10 @@ void ApplicationWayland::CreateKey(int key, int state, bool is_repeat) {
 }
 
 void ApplicationWayland::WindowRaise() {
+#if defined(COBALT_TIZEN)
   if (tz_policy_)
     tizen_policy_raise(tz_policy_, window_->surface);
+#endif
   if (window_->shell_surface)
     wl_shell_surface_set_toplevel(window_->shell_surface);
 }
@@ -323,7 +316,7 @@ void ApplicationWayland::Deeplink(char* payload) {
   const size_t payload_size = strlen(payload) + 1;
   char* copied_payload = new char[payload_size];
   snprintf(copied_payload, payload_size, "%s", payload);
-  Inject(new Event(kSbEventTypeLink, copiedPayload,
+  Inject(new Event(kSbEventTypeLink, copied_payload,
                    [](void* data) { delete[] reinterpret_cast<char*>(data); }));
 }
 
