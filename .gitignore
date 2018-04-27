@@ -216,6 +216,7 @@ v8.log
 /third_party/libvpx
 /third_party/libvpx_gpu
 /third_party/libvpx_xb1
+/third_party/libwebp
 /third_party/libyuv
 /third_party/lighttpd
 /third_party/llvm
