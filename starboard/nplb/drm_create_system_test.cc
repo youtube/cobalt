@@ -96,8 +96,7 @@ TEST(SbDrmTest, NullCallbacks) {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */,
           NULL /* session_update_request_func */, DummySessionUpdatedFunc,
-          DummySessionKeyStatusesChangedFunc,
-          NULL /* session_closed_callback */);
+          DummySessionKeyStatusesChangedFunc, DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
       SbDrmDestroySystem(drm_system);
     }
@@ -105,7 +104,7 @@ TEST(SbDrmTest, NullCallbacks) {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */, DummySessionUpdateRequestFunc,
           NULL /*session_updated_func */, DummySessionKeyStatusesChangedFunc,
-          NULL /* session_closed_callback */);
+          DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
       SbDrmDestroySystem(drm_system);
     }
@@ -113,7 +112,15 @@ TEST(SbDrmTest, NullCallbacks) {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */, DummySessionUpdateRequestFunc,
           DummySessionUpdatedFunc, NULL /* session_key_statuses_changed_func */,
-          NULL /* session_closed_callback */);
+          DummySessionClosedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+          NULL /* session_closed_func */);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
       SbDrmDestroySystem(drm_system);
     }
