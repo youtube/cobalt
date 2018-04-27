@@ -132,13 +132,19 @@ void OS::SetRandomMmapSeed(int64_t seed) { SB_NOTIMPLEMENTED(); }
 void* OS::GetRandomMmapAddr() { return nullptr; }
 
 void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
-  // Starboard has no concept of changing permissions after allocating memory,
-  // so we have to allocate everything with rwx permissions and then no-op on
-  // changes.  TODO: Actually use |access| once Starboard supports changing
-  // permissions after allocation.
-  SB_UNREFERENCED_PARAMETER(access);
-  SbMemoryMapFlags sb_flags =
-      SbMemoryMapFlags(kSbMemoryMapProtectReadWrite | kSbMemoryMapProtectExec);
+  SbMemoryMapFlags sb_flags;
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+      sb_flags = SbMemoryMapFlags(0);
+      break;
+    case OS::MemoryPermission::kReadWrite:
+      sb_flags = SbMemoryMapFlags(kSbMemoryMapProtectReadWrite);
+      break;
+    default:
+      SB_LOG(ERROR) << "The requested memory allocation access is not"
+      " implemented for Starboard: " << static_cast<int>(access);
+      return nullptr;
+  }
   void* result = SbMemoryMap(size, sb_flags, "v8::Base::Allocate");
   if (result == SB_MEMORY_MAP_FAILED) {
     return nullptr;
@@ -192,7 +198,23 @@ bool OS::Release(void* address, size_t size) {
 
 // static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
-  return true;
+  SbMemoryMapFlags new_protection;
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+      new_protection = SbMemoryMapFlags(0);
+      break;
+    case OS::MemoryPermission::kReadWrite:
+      new_protection = SbMemoryMapFlags(kSbMemoryMapProtectReadWrite);
+      break;
+    case OS::MemoryPermission::kReadExecute:
+      new_protection = SbMemoryMapFlags(kSbMemoryMapProtectRead |
+                                        kSbMemoryMapProtectExec);
+      break;
+    default:
+      // All other types are not supported by Starboard.
+      return false;
+  }
+  return SbMemoryProtect(address, size, new_protection);
 }
 
 // static
