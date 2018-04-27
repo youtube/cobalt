@@ -214,6 +214,7 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
+        '<(DEPTH)/starboard/shared/wayland/native_display_type.cc',
         '<(DEPTH)/starboard/shared/wayland/window_create.cc',
         '<(DEPTH)/starboard/shared/wayland/window_destroy.cc',
         '<(DEPTH)/starboard/shared/wayland/window_get_platform_handle.cc',

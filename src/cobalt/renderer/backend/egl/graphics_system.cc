@@ -131,7 +131,12 @@ GraphicsSystemEGL::GraphicsSystemEGL(
   glimp::SetTraceEventImplementation(&s_glimp_to_base_trace_event_bridge);
 #endif  // #if defined(ENABLE_GLIMP_TRACING)
 
-  display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  #if SB_HAS_QUIRK(ENABLE_EGL_DEFAULT_DISPLAY_OVERRIDE)
+  NativeDisplayType default_display = SB_EGL_DEFAULT_DISPLAY_OVERRIDE;
+  #else
+  NativeDisplayType default_display = EGL_DEFAULT_DISPLAY;
+  #endif
+  display_ = eglGetDisplay(default_display);
   CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 

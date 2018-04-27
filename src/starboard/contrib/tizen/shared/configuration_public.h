@@ -286,4 +286,24 @@
 #error "Tizen builds need a GCC-like compiler (for the moment)."
 #endif
 
+// Tizen override EGL_DEFAULT_DISPLAY to SbNativeDisplayType()
+// Since wayland use wl_display
+
+#ifndef STARBOARD_NATIVE_DISPLAY_TYPE
+#define STARBOARD_NATIVE_DISPLAY_TYPE
+#include <EGL/egl.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+NativeDisplayType SbNativeDisplayType();
+
+#ifdef __cplusplus
+}
+#endif
+#endif // STARBOARD_NATIVE_DISPLAY_TYPE
+
+#define SB_HAS_QUIRK_ENABLE_EGL_DEFAULT_DISPLAY_OVERRIDE 1
+#define SB_EGL_DEFAULT_DISPLAY_OVERRIDE SbNativeDisplayType()
+
 #endif  // STARBOARD_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
