@@ -114,6 +114,7 @@
         '<(DEPTH)/starboard/contrib/tizen/shared/ffmpeg/ffmpeg_video_decoder.h',
         '<(DEPTH)/starboard/contrib/tizen/shared/main.cc',
         '<(DEPTH)/starboard/contrib/tizen/shared/player/filter/ffmpeg_player_components_impl.cc',
+        '<(DEPTH)/starboard/contrib/tizen/shared/system_get_default_display.cc',
         '<(DEPTH)/starboard/contrib/tizen/shared/system_get_path.cc',
         'atomic_public.h',
         'configuration_public.h',
