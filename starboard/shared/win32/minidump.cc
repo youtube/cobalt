@@ -55,25 +55,24 @@ class DumpHandler {
     initialized_ = true;
   }
 
-  std::string GetFilePath() {
-    ScopedLock lock(mutex_);
-    return file_path_;
-  }
-
  private:
+  static LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* pep) {
+    DumpHandler::Instance()->DumpStack(pep);
+    return EXCEPTION_EXECUTE_HANDLER;
+  }
   DumpHandler() {}
 
-  static LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* pep) {
-    std::string dmp_path = DumpHandler::Instance()->GetFilePath();
-    if (dmp_path.empty()) {
-      return EXCEPTION_EXECUTE_HANDLER;
+  void DumpStack(EXCEPTION_POINTERS* pep) {
+    ScopedLock lock(mutex_);
+    if (file_path_.empty()) {
+      SbLogRaw("Could not write minidump because the dump path is missing.");
+      return;
     }
-    // Attempt to use SbFile
     bool out_created = false;
     SbFileError out_error = kSbFileOk;
 
     HANDLE file_handle = OpenFileOrDirectory(
-        dmp_path.c_str(), kSbFileCreateAlways | kSbFileWrite,
+        file_path_.c_str(), kSbFileCreateAlways | kSbFileWrite,
         &out_created, &out_error);
 
     const bool file_ok = out_created && (out_error == kSbFileOk) &&
@@ -84,7 +83,7 @@ class DumpHandler {
       std::stringstream ss;
       ss << "CreateFile failed. Error: " << GetLastError() << "\n";
       SbLogRaw(ss.str().c_str());
-      return EXCEPTION_EXECUTE_HANDLER;
+      return;
     }
 
     // Create the minidump.
@@ -107,13 +106,11 @@ class DumpHandler {
     if (!rv) {
       ss << "Minidump write failed. Error: " << GetLastError() << "\n";
     } else {
-      ss << "Minidump " << dmp_path << "created.\n";
+      ss << "Minidump " << file_path_ << "created.\n";
     }
     // Lower level loggin than SbLogRaw().
     SbLogRaw(ss.str().c_str());
     CloseHandle(file_handle);
-
-    return EXCEPTION_EXECUTE_HANDLER;
   }
 
   std::string file_path_;
