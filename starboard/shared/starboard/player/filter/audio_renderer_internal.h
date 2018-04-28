@@ -169,6 +169,7 @@ class AudioRenderer : public MediaTimeProvider,
   int64_t offset_in_frames_on_sink_thread_ = 0;
   int64_t frames_consumed_on_sink_thread_ = 0;
   SbTime frames_consumed_set_at_on_sink_thread_ = 0;
+  int64_t silence_frames_written_after_eos_on_sink_thread_ = 0;
 
 #if SB_LOG_MEDIA_TIME_STATS
   SbTime system_and_media_time_offset_ = -1;
