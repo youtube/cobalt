@@ -261,6 +261,7 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
   frames_in_buffer_on_sink_thread_ = 0;
   offset_in_frames_on_sink_thread_ = 0;
   frames_consumed_on_sink_thread_ = 0;
+  silence_frames_written_after_eos_on_sink_thread_ = 0;
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -378,6 +379,20 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
   } else {
     *frames_in_buffer = *offset_in_frames = 0;
   }
+
+  if (*is_eos_reached && *frames_in_buffer < max_cached_frames_) {
+    // Fill silence frames on EOS to ensure keep the audio sink playing.
+    auto silence_frames_to_write = std::min(
+        max_cached_frames_ - *frames_in_buffer, max_frames_per_append_);
+    auto start_offset =
+        (*offset_in_frames + *frames_in_buffer) % max_cached_frames_;
+    silence_frames_to_write =
+        std::min(silence_frames_to_write, max_cached_frames_ - start_offset);
+    SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+                silence_frames_to_write * bytes_per_frame_);
+    silence_frames_written_after_eos_on_sink_thread_ += silence_frames_to_write;
+    *frames_in_buffer += silence_frames_to_write;
+  }
 }
 
 void AudioRenderer::ConsumeFrames(int frames_consumed
@@ -416,21 +431,30 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
   mutex_.DCheckAcquired();
 
   if (frames_consumed_on_sink_thread_ > 0) {
-    frames_consumed_by_sink_ += frames_consumed_on_sink_thread_;
-    SB_DCHECK(frames_consumed_by_sink_ <= frames_sent_to_sink_);
+    SB_DCHECK(frames_consumed_by_sink_ + frames_consumed_on_sink_thread_ <=
+              frames_sent_to_sink_ +
+                  silence_frames_written_after_eos_on_sink_thread_);
+    auto non_silence_frames_consumed =
+        std::min(frames_sent_to_sink_ - frames_consumed_by_sink_,
+                 frames_consumed_on_sink_thread_);
+    frames_consumed_by_sink_ += non_silence_frames_consumed;
     frames_consumed_by_sink_since_last_get_current_time_ +=
-        frames_consumed_on_sink_thread_;
-    frames_consumed_set_at_ = system_time_on_consume_frames;
+        non_silence_frames_consumed;
+    if (non_silence_frames_consumed != 0) {
+      frames_consumed_set_at_ = system_time_on_consume_frames;
+    }
     consume_frames_called_ = true;
-    frames_consumed_on_sink_thread_ = 0;
+    frames_consumed_on_sink_thread_ -= non_silence_frames_consumed;
   }
 
   is_eos_reached_on_sink_thread_ = eos_state_ >= kEOSSentToSink;
   is_playing_on_sink_thread_ = !paused_ && !seeking_;
-  frames_in_buffer_on_sink_thread_ =
-      static_cast<int>(frames_sent_to_sink_ - frames_consumed_by_sink_);
+  frames_in_buffer_on_sink_thread_ = static_cast<int>(
+      frames_sent_to_sink_ + silence_frames_written_after_eos_on_sink_thread_ -
+      frames_consumed_by_sink_ - frames_consumed_on_sink_thread_);
   offset_in_frames_on_sink_thread_ =
-      frames_consumed_by_sink_ % max_cached_frames_;
+      (frames_consumed_by_sink_ + frames_consumed_on_sink_thread_) %
+      max_cached_frames_;
 }
 
 void AudioRenderer::OnFirstOutput() {
