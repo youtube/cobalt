@@ -19,7 +19,9 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#if !SB_HAS_QUIRK(DOES_NOT_SUPPORT_AVRESAMPLE)
 #include <libavresample/avresample.h>
+#endif
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/opt.h>

@@ -282,6 +282,9 @@
 // instead of Evas_Object
 #define SB_CAN_USE_WAYLAND_VIDEO_WINDOW 0
 
+// Tizen libav does not enable resample
+#define SB_HAS_QUIRK_DOES_NOT_SUPPORT_AVRESAMPLE 1
+
 #if !defined(__GNUC__)
 #error "Tizen builds need a GCC-like compiler (for the moment)."
 #endif
