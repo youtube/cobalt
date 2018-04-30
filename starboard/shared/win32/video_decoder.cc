@@ -17,9 +17,9 @@
 #include <functional>
 
 #include "starboard/log.h"
-#include "starboard/shared/win32/decode_target_internal.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
+#include "starboard/shared/win32/hardware_decode_target_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -313,8 +313,11 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
     if (prev_decode_targets_.size() >= kDecodeTargetCacheSize) {
       decode_target = prev_decode_targets_.front();
       prev_decode_targets_.pop_front();
-      if (!decode_target->Update(d3d_device_, video_device_, video_context_,
-              video_enumerator_, video_processor_, video_sample, video_area)) {
+      auto hardware_decode_target =
+          reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
+      if (!hardware_decode_target->Update(
+              d3d_device_, video_device_, video_context_, video_enumerator_,
+              video_processor_, video_sample, video_area)) {
         // The cached decode target was not compatible; just release it.
         SbDecodeTargetRelease(decode_target);
         decode_target = kSbDecodeTargetInvalid;
@@ -322,9 +325,9 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
     }
 
     if (!SbDecodeTargetIsValid(decode_target)) {
-      decode_target = new SbDecodeTargetPrivate(d3d_device_, video_device_,
-          video_context_, video_enumerator_, video_processor_,
-          video_sample, video_area);
+      decode_target = new HardwareDecodeTargetPrivate(
+          d3d_device_, video_device_, video_context_, video_enumerator_,
+          video_processor_, video_sample, video_area);
     }
 
     // Release the video_sample before releasing the reset lock.
