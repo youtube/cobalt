@@ -35,6 +35,7 @@
       '<(DEPTH)/starboard/shared/alsa/audio_sink_is_audio_frame_storage_type_supported.cc',
       '<(DEPTH)/starboard/shared/alsa/audio_sink_is_audio_sample_type_supported.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
+      '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
       '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
       '<(DEPTH)/starboard/shared/gcc/atomic_gcc_public.h',
       '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
