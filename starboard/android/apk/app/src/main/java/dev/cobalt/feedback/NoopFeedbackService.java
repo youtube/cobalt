@@ -17,6 +17,7 @@ package dev.cobalt.feedback;
 import static dev.cobalt.util.Log.TAG;
 
 import android.graphics.Bitmap;
+import android.text.TextUtils;
 import android.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.HashMap;
@@ -35,7 +36,7 @@ public class NoopFeedbackService implements FeedbackService {
     if (screenshot != null) {
       Log.i(TAG, "Screenshot dimensions: " + screenshot.getWidth() + "x" + screenshot.getHeight());
     }
-    if (!categoryTag.isEmpty()) {
+    if (!TextUtils.isEmpty(categoryTag)) {
       Log.i(TAG, "Category tag: " + categoryTag);
     }
   }
