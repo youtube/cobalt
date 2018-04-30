@@ -325,6 +325,7 @@
         '<(DEPTH)/starboard/shared/win32/memory_free_aligned.cc',
         '<(DEPTH)/starboard/shared/win32/memory_get_stack_bounds.cc',
         '<(DEPTH)/starboard/shared/win32/memory_map.cc',
+        '<(DEPTH)/starboard/shared/win32/memory_protect.cc',
         '<(DEPTH)/starboard/shared/win32/memory_reallocate_unchecked.cc',
         '<(DEPTH)/starboard/shared/win32/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/win32/mutex_acquire.cc',
