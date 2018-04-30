@@ -210,6 +210,14 @@ SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 // |SbMemoryUnmap(0xA000, 0x2000)| should free both regions.
 SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
 
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+// Change the protection of |size_bytes| of physical pages, starting from
+// |virtual_address|, to |flags|, returning |true| on success.
+SB_EXPORT bool SbMemoryProtect(void* virtual_address,
+                               int64_t size_bytes,
+                               int flags);
+#endif
+
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
 // Flushes any data in the given virtual address range that is cached locally in
 // the current processor core to physical memory, ensuring that data and

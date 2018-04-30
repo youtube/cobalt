@@ -84,6 +84,13 @@ bool SbPageUnmapUntracked(void* ptr, size_t size_bytes) {
   return munmap(ptr, size_bytes) == 0;
 }
 
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags) {
+  int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
+  return mprotect(virtual_address, size_bytes, mmap_protect) == 0;
+}
+#endif
+
 size_t SbPageGetTotalPhysicalMemoryBytes() {
   // Limit ourselves to remain similar to more constrained platforms.
   return 1024U * 1024 * 1024;

@@ -113,6 +113,7 @@
         '<(DEPTH)/starboard/shared/stub/memory_get_stack_bounds.cc',
         '<(DEPTH)/starboard/shared/stub/memory_map.cc',
         '<(DEPTH)/starboard/shared/stub/memory_move.cc',
+        '<(DEPTH)/starboard/shared/stub/memory_protect.cc',
         '<(DEPTH)/starboard/shared/stub/memory_reallocate_unchecked.cc',
         '<(DEPTH)/starboard/shared/stub/memory_set.cc',
         '<(DEPTH)/starboard/shared/stub/memory_unmap.cc',
