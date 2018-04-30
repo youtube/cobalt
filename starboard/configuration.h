@@ -144,6 +144,11 @@
 //   V8 as its JavaScript engine.
 #define SB_INTRODUCE_ATOMIC8_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbMemoryProtect was introduced.  Allows memory
+//   permissions to be changed with `SbMemoryProtect` after they are mapped
+//   with `SbMemoryMap`.
+#define SB_MEMORY_PROTECT_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
