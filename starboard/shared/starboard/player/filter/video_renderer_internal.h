@@ -31,7 +31,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/thread_checker.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -42,9 +42,11 @@ namespace filter {
 
 // A class that sits in between the video decoder, the video sink and the
 // pipeline to coordinate data transfer between these parties.
-class VideoRenderer {
+class VideoRenderer : JobQueue::JobOwner {
  public:
   typedef VideoDecoder::ErrorCB ErrorCB;
+  typedef std::function<void()> PrerolledCB;
+  typedef std::function<void()> EndedCB;
 
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
@@ -54,7 +56,9 @@ class VideoRenderer {
                 scoped_refptr<VideoRendererSink> sink);
   ~VideoRenderer();
 
-  void Initialize(const ErrorCB& error_cb);
+  void Initialize(const ErrorCB& error_cb,
+                  const PrerolledCB& prerolled_cb,
+                  const EndedCB& ended_cb);
   int GetDroppedFrames() const { return algorithm_->GetDroppedFrames(); }
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
@@ -62,10 +66,8 @@ class VideoRenderer {
 
   void Seek(SbTime seek_to_time);
 
-  bool IsEndOfStreamWritten() const { return end_of_stream_written_; }
-  bool IsEndOfStreamPlayed() const;
+  bool IsEndOfStreamWritten() const { return end_of_stream_written_.load(); }
   bool CanAcceptMoreData() const;
-  bool UpdateAndRetrieveIsSeekingInProgress();
 
   // Both of the following two functions can be called on any threads.
   void SetBounds(int z_index, int x, int y, int width, int height);
@@ -78,13 +80,15 @@ class VideoRenderer {
   void OnDecoderStatus(VideoDecoder::Status status,
                        const scoped_refptr<VideoFrame>& frame);
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
-
-  ThreadChecker thread_checker_;
+  void OnSeekTimeout();
 
   MediaTimeProvider* const media_time_provider_;
   scoped_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
   scoped_ptr<VideoDecoder> decoder_;
+
+  PrerolledCB prerolled_cb_;
+  EndedCB ended_cb_;
 
   SbTimeMonotonic absolute_time_of_first_input_ = 0;
   // Our owner will attempt to seek to time 0 when playback begins.  In
@@ -93,7 +97,8 @@ class VideoRenderer {
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
-  bool end_of_stream_written_ = false;
+  atomic_bool end_of_stream_written_;
+  atomic_bool ended_cb_called_;
 
   atomic_bool need_more_input_;
   atomic_bool seeking_;

@@ -44,6 +44,7 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SaveArg;
 
+// TODO: Write tests to cover callbacks.
 class AudioRendererTest : public ::testing::Test {
  protected:
   static const int kDefaultNumberOfChannels = 2;
@@ -109,7 +110,10 @@ class AudioRendererTest : public ::testing::Test {
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioHeader(), kMaxCachedFrames, kMaxFramesPerAppend));
-    audio_renderer_->Initialize(std::bind(&AudioRendererTest::OnError, this));
+    audio_renderer_->Initialize(
+        std::bind(&AudioRendererTest::OnError, this),
+        std::bind(&AudioRendererTest::OnPrerolled, this),
+        std::bind(&AudioRendererTest::OnEnded, this));
   }
 
   // Creates audio buffers, decodes them, and passes them onto the renderer,
@@ -194,6 +198,8 @@ class AudioRendererTest : public ::testing::Test {
   }
 
   void OnError() {}
+  void OnPrerolled() {}
+  void OnEnded() {}
 
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;

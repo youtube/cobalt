@@ -23,8 +23,14 @@ namespace starboard {
 namespace player {
 namespace filter {
 
+namespace {
+
 using std::placeholders::_1;
 using std::placeholders::_2;
+
+const SbTime kSeekTimeoutRetryInterval = 25 * kSbTimeMillisecond;
+
+}  // namespace
 
 VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
                              MediaTimeProvider* media_time_provider,
@@ -34,6 +40,8 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
       algorithm_(algorithm.Pass()),
       sink_(sink),
       decoder_(decoder.Pass()),
+      end_of_stream_written_(false),
+      ended_cb_called_(false),
       need_more_input_(true),
       seeking_(false),
       number_of_frames_(0) {
@@ -43,7 +51,7 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
 }
 
 VideoRenderer::~VideoRenderer() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
 
   sink_ = NULL;
 
@@ -58,8 +66,17 @@ VideoRenderer::~VideoRenderer() {
   decoder_.reset();
 }
 
-void VideoRenderer::Initialize(const ErrorCB& error_cb) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+void VideoRenderer::Initialize(const ErrorCB& error_cb,
+                               const PrerolledCB& prerolled_cb,
+                               const EndedCB& ended_cb) {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(prerolled_cb);
+  SB_DCHECK(ended_cb);
+  SB_DCHECK(!prerolled_cb_);
+  SB_DCHECK(!ended_cb_);
+
+  prerolled_cb_ = prerolled_cb;
+  ended_cb_ = ended_cb;
 
   decoder_->Initialize(std::bind(&VideoRenderer::OnDecoderStatus, this, _1, _2),
                        error_cb);
@@ -70,10 +87,10 @@ void VideoRenderer::Initialize(const ErrorCB& error_cb) {
 
 void VideoRenderer::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
-  if (end_of_stream_written_) {
+  if (end_of_stream_written_.load()) {
     SB_LOG(ERROR) << "Appending video sample at " << input_buffer->timestamp()
                   << " after EOS reached.";
     return;
@@ -91,20 +108,24 @@ void VideoRenderer::WriteSample(
 }
 
 void VideoRenderer::WriteEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
 
-  SB_LOG_IF(WARNING, end_of_stream_written_)
+  SB_LOG_IF(WARNING, end_of_stream_written_.load())
       << "Try to write EOS after EOS is reached";
-  if (end_of_stream_written_) {
+  if (end_of_stream_written_.load()) {
     return;
   }
-  end_of_stream_written_ = true;
+  end_of_stream_written_.store(true);
+  if (!first_input_written_ && !ended_cb_called_.load()) {
+    ended_cb_called_.store(true);
+    Schedule(ended_cb_);
+  }
   first_input_written_ = true;
   decoder_->WriteEndOfStream();
 }
 
 void VideoRenderer::Seek(SbTime seek_to_time) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
   if (first_input_written_) {
@@ -116,35 +137,27 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
   // WriteSample().  So it is safe to modify |seeking_to_time_| here.
   seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
   seeking_.store(true);
-  end_of_stream_written_ = false;
+  end_of_stream_written_.store(false);
+  ended_cb_called_.store(false);
   need_more_input_.store(true);
+
+  CancelPendingJobs();
+
+  auto preroll_timeout = decoder_->GetPrerollTimeout();
+  if (preroll_timeout != kSbTimeMax) {
+    Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this), preroll_timeout);
+  }
 
   ScopedLock scoped_lock(frames_mutex_);
   frames_.clear();
   number_of_frames_.store(0);
 }
 
-bool VideoRenderer::IsEndOfStreamPlayed() const {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  return end_of_stream_written_ && number_of_frames_.load() <= 1;
-}
-
 bool VideoRenderer::CanAcceptMoreData() const {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
   return number_of_frames_.load() <
              static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
-         !end_of_stream_written_ && need_more_input_.load();
-}
-
-bool VideoRenderer::UpdateAndRetrieveIsSeekingInProgress() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  if (seeking_.load() && number_of_frames_.load() > 0) {
-    auto elapsed = SbTimeGetMonotonicNow() - absolute_time_of_first_input_;
-    if (elapsed >= decoder_->GetPrerollTimeout()) {
-      seeking_.store(false);
-    }
-  }
-  return seeking_.load();
+         !end_of_stream_written_.load() && need_more_input_.load();
 }
 
 void VideoRenderer::SetBounds(int z_index,
@@ -180,6 +193,7 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
     if (seeking_.load()) {
       if (frame->is_end_of_stream()) {
         seeking_.store(false);
+        Schedule(prerolled_cb_);
       } else if (frame->timestamp() < seeking_to_time_) {
         frame_too_early = true;
       }
@@ -194,6 +208,7 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
         number_of_frames_.load() >=
             static_cast<int32_t>(decoder_->GetPrerollFrameCount())) {
       seeking_.store(false);
+      Schedule(prerolled_cb_);
     }
   }
 
@@ -204,6 +219,24 @@ void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   ScopedLock scoped_lock(frames_mutex_);
   algorithm_->Render(media_time_provider_, &frames_, draw_frame_cb);
   number_of_frames_.store(static_cast<int32_t>(frames_.size()));
+  if (number_of_frames_.load() == 1 && end_of_stream_written_.load() &&
+      !ended_cb_called_.load()) {
+    ended_cb_called_.store(true);
+    Schedule(ended_cb_);
+  }
+}
+
+void VideoRenderer::OnSeekTimeout() {
+  SB_DCHECK(BelongsToCurrentThread());
+  if (seeking_.load()) {
+    if (number_of_frames_.load() > 0) {
+      seeking_.store(false);
+      Schedule(prerolled_cb_);
+    } else {
+      Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this),
+               kSeekTimeoutRetryInterval);
+    }
+  }
 }
 
 }  // namespace filter

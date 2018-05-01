@@ -66,18 +66,22 @@ class AudioRenderer : public MediaTimeProvider,
                 int max_frames_per_append);
   ~AudioRenderer();
 
-  void Initialize(const AudioDecoder::ErrorCB& error_cb);
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
   void SetVolume(double volume);
 
+  // TODO: Remove the eos state querying functions and their tests.
   bool IsEndOfStreamWritten() const;
   bool IsEndOfStreamPlayed() const;
   bool CanAcceptMoreData() const;
+  // TODO: Remove the following function and its tests.
   bool IsSeekingInProgress() const;
 
   // MediaTimeProvider methods
+  void Initialize(const ErrorCB& error_cb,
+                  const PrerolledCB& prerolled_cb,
+                  const EndedCB& ended_cb) override;
   void Play() override;
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
@@ -95,6 +99,9 @@ class AudioRenderer : public MediaTimeProvider,
   const int max_cached_frames_;
   const int max_frames_per_append_;
 
+  PrerolledCB prerolled_cb_;
+  EndedCB ended_cb_;
+
   Mutex mutex_;
 
   bool paused_;
@@ -103,6 +110,7 @@ class AudioRenderer : public MediaTimeProvider,
   SbTime seeking_to_time_;
   SbTime last_media_time_;
   AudioFrameTracker audio_frame_tracker_;
+  bool ended_cb_called_;
 
   int64_t frames_sent_to_sink_;
   int64_t frames_consumed_by_sink_;
