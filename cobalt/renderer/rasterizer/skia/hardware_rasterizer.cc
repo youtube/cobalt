@@ -431,6 +431,10 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   // order.
   draw_state->render_target->flush();
 
+  // This may be the first use of the render target, so ensure it is bound.
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
+      draw_state->render_target->getRenderTargetHandle()));
+
   SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
   GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
 
@@ -500,6 +504,10 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
   // are rendered so that the following draw command will appear in the correct
   // order.
   draw_state->render_target->flush();
+
+  // This may be the first use of the render target, so ensure it is bound.
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
+      draw_state->render_target->getRenderTargetHandle()));
 
   // We setup our viewport to fill the entire canvas.
   GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
@@ -626,11 +634,6 @@ void HardwareRasterizer::Impl::Submit(
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
-  // Make sure the render target's framebuffer is bound before continuing.
-  // Skia will usually do this, but it is possible for some render trees to
-  // have non-skia draw calls only, in which case this needs to be done.
-  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
-                            render_target_egl->GetPlatformHandle()));
 
   // First reset the graphics context state for the pending render tree
   // draw calls, in case we have modified state in between.
