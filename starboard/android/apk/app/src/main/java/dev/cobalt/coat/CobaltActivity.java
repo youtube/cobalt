@@ -131,7 +131,7 @@ public abstract class CobaltActivity extends NativeActivity {
    */
   protected String[] getArgs() {
     Bundle extras = getIntent().getExtras();
-    CharSequence[] argsExtra = (extras == null || StarboardBridge.isReleaseBuild())
+    CharSequence[] argsExtra = (extras == null || isReleaseBuild())
         ? null : extras.getCharSequenceArray("args");
 
     List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
@@ -170,6 +170,10 @@ public abstract class CobaltActivity extends NativeActivity {
     }
 
     return args.toArray(new String[0]);
+  }
+
+  protected boolean isReleaseBuild() {
+    return StarboardBridge.isReleaseBuild();
   }
 
   @Override
