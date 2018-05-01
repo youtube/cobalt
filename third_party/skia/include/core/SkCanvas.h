@@ -180,6 +180,15 @@ public:
      */
     virtual GrContext* getGrContext();
 
+#if defined(COBALT)
+    /**
+     * Return the framebuffer object identifier for the render target, if
+     * applicable.
+     * NOTE: This will cause a flush, so use sparingly.
+     */
+    intptr_t getRenderTargetHandle() const;
+#endif
+
     ///////////////////////////////////////////////////////////////////////////
 
     /**
