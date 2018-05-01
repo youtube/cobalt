@@ -18,6 +18,10 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 
+SbDecodeTargetPrivate::SbDecodeTargetPrivate() : refcount(1) {
+  SbMemorySet(&info, 0, sizeof(info));
+}
+
 void SbDecodeTargetPrivate::AddRef() {
   SbAtomicBarrier_Increment(&refcount, 1);
 }

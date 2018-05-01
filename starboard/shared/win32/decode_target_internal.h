@@ -24,7 +24,7 @@ struct SbDecodeTargetPrivate {
   // Publicly accessible information about the decode target.
   SbDecodeTargetInfo info;
 
-  SbDecodeTargetPrivate() : refcount(1) {}
+  SbDecodeTargetPrivate();
   virtual ~SbDecodeTargetPrivate() {}
 
   void AddRef();
