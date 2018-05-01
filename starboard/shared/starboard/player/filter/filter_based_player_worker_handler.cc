@@ -36,7 +36,7 @@ typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
 // TODO: Make this configurable inside SbPlayerCreate().
-const SbTimeMonotonic kUpdateInterval = 5 * kSbTimeMillisecond;
+const SbTimeMonotonic kUpdateInterval = 200 * kSbTimeMillisecond;
 
 class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
   SbTimeMonotonic GetMonotonicNow() const override {
@@ -133,15 +133,21 @@ bool FilterBasedPlayerWorkerHandler::Init(
     audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
     SB_DCHECK(audio_renderer_);
     if (audio_renderer_) {
+      audio_renderer_->Initialize(
+          std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+          std::bind(&FilterBasedPlayerWorkerHandler::OnAudioPrerolled, this),
+          std::bind(&FilterBasedPlayerWorkerHandler::OnAudioEnded, this));
       audio_renderer_->SetPlaybackRate(playback_rate_);
       audio_renderer_->SetVolume(volume_);
-      audio_renderer_->Initialize(
-          std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
     }
   } else {
     media_time_provider_impl_.reset(
         new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
             new MonotonicSystemTimeProviderImpl)));
+    media_time_provider_impl_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioPrerolled, this),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioEnded, this));
     media_time_provider_impl_->SetPlaybackRate(playback_rate_);
   }
 
@@ -159,7 +165,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
   SB_DCHECK(video_renderer_);
   if (video_renderer_) {
     video_renderer_->Initialize(
-        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoPrerolled, this),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoEnded, this));
   }
 
   update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
@@ -183,6 +191,8 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   GetMediaTimeProvider()->Pause();
   video_renderer_->Seek(seek_to_time);
   GetMediaTimeProvider()->Seek(seek_to_time);
+  audio_prerolled_ = false;
+  video_prerolled_ = false;
   return true;
 }
 
@@ -373,7 +383,70 @@ void FilterBasedPlayerWorkerHandler::OnError() {
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
-// TODO: This should be driven by callbacks instead polling.
+void FilterBasedPlayerWorkerHandler::OnAudioPrerolled() {
+  if (!job_queue_->BelongsToCurrentThread()) {
+    job_queue_->Schedule(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioPrerolled, this));
+    return;
+  }
+
+  SB_DCHECK((*player_worker_.*get_player_state_cb_)() ==
+            kSbPlayerStatePrerolling)
+      << "Invalid player state " << (*player_worker_.*get_player_state_cb_)();
+
+  audio_prerolled_ = true;
+  if (video_prerolled_) {
+    (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
+    if (!paused_) {
+      GetMediaTimeProvider()->Play();
+    }
+  }
+}
+
+void FilterBasedPlayerWorkerHandler::OnAudioEnded() {
+  if (!job_queue_->BelongsToCurrentThread()) {
+    job_queue_->Schedule(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioEnded, this));
+    return;
+  }
+  audio_ended_ = true;
+  if (video_ended_) {
+    (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
+  }
+}
+
+void FilterBasedPlayerWorkerHandler::OnVideoPrerolled() {
+  if (!job_queue_->BelongsToCurrentThread()) {
+    job_queue_->Schedule(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoPrerolled, this));
+    return;
+  }
+
+  SB_DCHECK((*player_worker_.*get_player_state_cb_)() ==
+            kSbPlayerStatePrerolling)
+      << "Invalid player state " << (*player_worker_.*get_player_state_cb_)();
+
+  video_prerolled_ = true;
+  if (audio_prerolled_) {
+    (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
+    if (!paused_) {
+      GetMediaTimeProvider()->Play();
+    }
+  }
+}
+
+void FilterBasedPlayerWorkerHandler::OnVideoEnded() {
+  if (!job_queue_->BelongsToCurrentThread()) {
+    job_queue_->Schedule(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoEnded, this));
+    return;
+  }
+  video_ended_ = true;
+  if (audio_ended_) {
+    (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
+  }
+}
+
 void FilterBasedPlayerWorkerHandler::Update() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -381,27 +454,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     return;
   }
 
-  if ((*player_worker_.*get_player_state_cb_)() == kSbPlayerStatePrerolling) {
-    bool audio_seek_in_progress =
-        audio_renderer_ && audio_renderer_->IsSeekingInProgress();
-    if (!audio_seek_in_progress &&
-        !video_renderer_->UpdateAndRetrieveIsSeekingInProgress()) {
-      (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
-      if (!paused_) {
-        GetMediaTimeProvider()->Play();
-      }
-    }
-  }
-
   if ((*player_worker_.*get_player_state_cb_)() == kSbPlayerStatePresenting) {
-    bool is_audio_playing;
-    bool is_audio_eos_played;
-    GetMediaTimeProvider()->GetCurrentMediaTime(&is_audio_playing,
-                                                &is_audio_eos_played);
-    if (is_audio_eos_played && video_renderer_->IsEndOfStreamPlayed()) {
-      (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
-    }
-
     player_worker_->UpdateDroppedVideoFrames(
         video_renderer_->GetDroppedFrames());
     bool is_playing;

@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_H_
 
+#include <functional>
+
 #include "starboard/media.h"
 
 namespace starboard {
@@ -25,6 +27,13 @@ namespace filter {
 
 class MediaTimeProvider {
  public:
+  typedef std::function<void()> ErrorCB;
+  typedef std::function<void()> PrerolledCB;
+  typedef std::function<void()> EndedCB;
+
+  virtual void Initialize(const ErrorCB& error_cb,
+                          const PrerolledCB& prerolled_cb,
+                          const EndedCB& ended_cb) = 0;
   virtual void Play() = 0;
   virtual void Pause() = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;
