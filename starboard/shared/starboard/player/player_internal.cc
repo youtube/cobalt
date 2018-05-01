@@ -20,9 +20,11 @@ using starboard::shared::starboard::player::InputBuffer;
 
 namespace {
 
-SbTime GetMediaTime(SbTime media_time, SbTimeMonotonic media_time_update_time) {
+SbTime GetMediaTime(SbTime media_time,
+                    SbTimeMonotonic media_time_update_time,
+                    double playback_rate) {
   SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_time_update_time;
-  return media_time + elapsed;
+  return media_time + static_cast<SbTime>(elapsed * playback_rate);
 }
 
 }  // namespace
@@ -41,10 +43,10 @@ SbPlayerPrivate::SbPlayerPrivate(
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       media_time_(0),
-      media_time_update_time_(SbTimeGetMonotonicNow()),
+      media_time_updated_at_(SbTimeGetMonotonicNow()),
       frame_width_(0),
       frame_height_(0),
-      is_paused_(true),
+      is_paused_(false),
       playback_rate_(1.0),
       volume_(1.0),
       total_video_frames_(0),
@@ -66,7 +68,7 @@ void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
     starboard::ScopedLock lock(mutex_);
     SB_DCHECK(ticket_ != ticket);
     media_time_ = seek_to_time;
-    media_time_update_time_ = SbTimeGetMonotonicNow();
+    media_time_updated_at_ = SbTimeGetMonotonicNow();
     ticket_ = ticket;
   }
 
@@ -119,7 +121,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
     out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(media_time_);
   } else {
     out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(
-        GetMediaTime(media_time_, media_time_update_time_));
+        GetMediaTime(media_time_, media_time_updated_at_, playback_rate_));
   }
 #else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   out_player_info->duration = SB_PLAYER_NO_DURATION;
@@ -127,7 +129,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
     out_player_info->current_media_timestamp = media_time_;
   } else {
     out_player_info->current_media_timestamp =
-        GetMediaTime(media_time_, media_time_update_time_);
+        GetMediaTime(media_time_, media_time_updated_at_, playback_rate_);
   }
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
@@ -142,6 +144,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
 }
 
 void SbPlayerPrivate::SetPause(bool pause) {
+  is_paused_ = pause;
   worker_->SetPause(pause);
 }
 
@@ -161,7 +164,7 @@ void SbPlayerPrivate::UpdateMediaTime(SbTime media_time, int ticket) {
     return;
   }
   media_time_ = media_time;
-  media_time_update_time_ = SbTimeGetMonotonicNow();
+  media_time_updated_at_ = SbTimeGetMonotonicNow();
 }
 
 void SbPlayerPrivate::UpdateDroppedVideoFrames(int dropped_video_frames) {

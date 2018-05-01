@@ -72,6 +72,10 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 
   void Update();
   void OnError();
+  void OnAudioPrerolled();
+  void OnAudioEnded();
+  void OnVideoPrerolled();
+  void OnVideoEnded();
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
   MediaTimeProvider* GetMediaTimeProvider() const;
@@ -109,6 +113,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   PlayerWorker::Bounds bounds_;
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
+
+  bool audio_ended_ = false;
+  bool video_ended_ = false;
+  bool audio_prerolled_ = false;
+  bool video_prerolled_ = false;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |video_renderer_| object.  This is necessary because calls to

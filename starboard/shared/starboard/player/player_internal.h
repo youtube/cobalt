@@ -73,7 +73,7 @@ struct SbPlayerPrivate
   starboard::Mutex mutex_;
   int ticket_;
   SbTime media_time_;
-  SbTimeMonotonic media_time_update_time_;
+  SbTimeMonotonic media_time_updated_at_;
   int frame_width_;
   int frame_height_;
   bool is_paused_;
