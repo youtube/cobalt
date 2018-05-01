@@ -18,6 +18,8 @@
 
     # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
     'uwp_incompatible_win32': [
+      '<(DEPTH)/starboard/shared/starboard/net_args.cc',
+      '<(DEPTH)/starboard/shared/starboard/net_args.h',
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
       '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
