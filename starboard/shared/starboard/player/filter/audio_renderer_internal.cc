@@ -82,6 +82,7 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       seeking_(false),
       seeking_to_time_(0),
       last_media_time_(0),
+      ended_cb_called_(false),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       frames_sent_to_sink_(0),
       pending_decoder_outputs_(0),
@@ -113,11 +114,6 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
 
 AudioRenderer::~AudioRenderer() {
   SB_DCHECK(BelongsToCurrentThread());
-}
-
-void AudioRenderer::Initialize(const AudioDecoder::ErrorCB& error_cb) {
-  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
-                       error_cb);
 }
 
 void AudioRenderer::WriteSample(
@@ -184,6 +180,21 @@ bool AudioRenderer::IsSeekingInProgress() const {
   return seeking_;
 }
 
+void AudioRenderer::Initialize(const ErrorCB& error_cb,
+                               const PrerolledCB& prerolled_cb,
+                               const EndedCB& ended_cb) {
+  SB_DCHECK(prerolled_cb);
+  SB_DCHECK(ended_cb);
+  SB_DCHECK(!prerolled_cb_);
+  SB_DCHECK(!ended_cb_);
+
+  prerolled_cb_ = prerolled_cb;
+  ended_cb_ = ended_cb;
+
+  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
+                       error_cb);
+}
+
 void AudioRenderer::Play() {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -237,6 +248,7 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
     eos_state_ = kEOSNotReceived;
     seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
     last_media_time_ = seek_to_time;
+    ended_cb_called_ = false;
     seeking_ = true;
   }
 
@@ -292,6 +304,10 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
 
     *is_playing = !paused_ && !seeking_;
     *is_eos_played = IsEndOfStreamPlayed_Locked();
+    if (*is_eos_played && !ended_cb_called_) {
+      ended_cb_called_ = true;
+      Schedule(ended_cb_);
+    }
 
     if (seeking_ || !decoder_sample_rate_) {
       return seeking_to_time_;
@@ -577,7 +593,10 @@ void AudioRenderer::ProcessAudioData() {
       {
         ScopedLock lock(mutex_);
         eos_state_ = kEOSDecoded;
-        seeking_ = false;
+        if (seeking_) {
+          seeking_ = false;
+          Schedule(prerolled_cb_);
+        }
       }
 
       resampled_audio = resampler_->WriteEndOfStream();
@@ -628,6 +647,7 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   if (seeking_ && time_stretcher_.IsQueueFull()) {
     ScopedLock lock(mutex_);
     seeking_ = false;
+    Schedule(prerolled_cb_);
   }
 
   if (seeking_ || playback_rate_ == 0.0) {

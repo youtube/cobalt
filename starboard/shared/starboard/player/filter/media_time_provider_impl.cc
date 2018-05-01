@@ -28,20 +28,22 @@ MediaTimeProviderImpl::MediaTimeProviderImpl(
   SB_DCHECK(system_time_provider_);
 }
 
-void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+void MediaTimeProviderImpl::Initialize(const ErrorCB& error_cb,
+                                       const PrerolledCB& prerolled_cb,
+                                       const EndedCB& ended_cb) {
+  SB_UNREFERENCED_PARAMETER(error_cb);
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(prerolled_cb);
+  SB_DCHECK(ended_cb);
+  SB_DCHECK(!prerolled_cb_);
+  SB_DCHECK(!ended_cb_);
 
-  if (playback_rate_ == playback_rate) {
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  seek_to_time_ = GetCurrentMediaTime_Locked(&seek_to_time_set_at_);
-  playback_rate_ = playback_rate;
+  prerolled_cb_ = prerolled_cb;
+  ended_cb_ = ended_cb;
 }
 
 void MediaTimeProviderImpl::Play() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
 
   if (is_playing_) {
     return;
@@ -53,7 +55,7 @@ void MediaTimeProviderImpl::Play() {
 }
 
 void MediaTimeProviderImpl::Pause() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
 
   if (!is_playing_) {
     return;
@@ -64,8 +66,21 @@ void MediaTimeProviderImpl::Pause() {
   is_playing_ = false;
 }
 
+void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  if (playback_rate_ == playback_rate) {
+    return;
+  }
+
+  ScopedLock scoped_lock(mutex_);
+  seek_to_time_ = GetCurrentMediaTime_Locked(&seek_to_time_set_at_);
+  playback_rate_ = playback_rate;
+}
+
 void MediaTimeProviderImpl::Seek(SbTime seek_to_time) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(prerolled_cb_);
 
   ScopedLock scoped_lock(mutex_);
 
@@ -73,10 +88,15 @@ void MediaTimeProviderImpl::Seek(SbTime seek_to_time) {
   seek_to_time_set_at_ = system_time_provider_->GetMonotonicNow();
   video_duration_ = nullopt;
   is_video_end_of_stream_reached_ = false;
+
+  CancelPendingJobs();
+  Schedule(prerolled_cb_);
 }
 
 SbTime MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
                                                   bool* is_eos_played) {
+  SB_DCHECK(ended_cb_);
+
   ScopedLock scoped_lock(mutex_);
 
   SbTime current = GetCurrentMediaTime_Locked();
@@ -86,6 +106,7 @@ SbTime MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
       is_video_end_of_stream_reached_ &&
       (!video_duration_.has_engaged() || current >= video_duration_.value());
 
+  Schedule(ended_cb_);
   return current;
 }
 
