@@ -14,7 +14,11 @@
 #ifndef WEBP_ENC_HISTOGRAM_ENC_H_
 #define WEBP_ENC_HISTOGRAM_ENC_H_
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #include <string.h>
+#endif
 
 #include "src/enc/backward_references_enc.h"
 #include "src/webp/format_constants.h"
