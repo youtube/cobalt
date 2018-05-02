@@ -23,7 +23,9 @@
 
 #include "starboard/string.h"
 
+#undef strcasecmp
 #define strcasecmp(s1, s2) SbStringCompareNoCase(s1, s2)
+#undef strncasecmp
 #define strncasecmp(s1, s2) SbStringCompareNoCaseN(s1, s2)
 
 #endif  // POEM_NO_EMULATION
