@@ -44,16 +44,23 @@ static SB_C_INLINE int PoemAbs(int x) {
 #endif
 
 // number conversion functions
+#undef strtol
 #define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
+#undef atoi
 #define atoi(v) SbStringAToI(v)
+#undef atol
 #define atol(v) SbStringAToL(v)
-#define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
+#undef strtoul
 #define strtoul(s, o, b) SbStringParseUnsignedInteger(s, o, b)
+#undef strtoull
 #define strtoull(s, o, b) SbStringParseUInt64(s, o, b)
+#undef strtod
 #define strtod(s, o) SbStringParseDouble(s, o)
 
+#undef qsort
 #define qsort(b, ec, ew, c) SbSystemSort(b, ec, ew, c);
 
+#undef abs
 #define abs(x) PoemAbs(x)
 
 #endif  // POEM_NO_EMULATION
