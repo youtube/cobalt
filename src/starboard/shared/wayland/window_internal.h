@@ -15,29 +15,23 @@
 #ifndef STARBOARD_SHARED_WAYLAND_WINDOW_INTERNAL_H_
 #define STARBOARD_SHARED_WAYLAND_WINDOW_INTERNAL_H_
 
-#include <Elementary.h>
-#include <string.h>
-#include <tizen-extension-client-protocol.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  explicit SbWindowPrivate(const SbWindowOptions* options,
+  explicit SbWindowPrivate(wl_compositor* compositor,
+                           wl_shell* shell,
+                           const SbWindowOptions* options,
                            float pixel_ratio = 1.0);
-  ~SbWindowPrivate() {}
+  virtual ~SbWindowPrivate();
+
+  virtual void WindowRaise();
 
   struct wl_surface* surface;
   struct wl_shell_surface* shell_surface;
   struct wl_egl_window* egl_window;
-  struct tizen_visibility* tz_visibility;
-
-#if SB_CAN(USE_WAYLAND_VIDEO_WINDOW)
-  wl_display* video_window;
-#else
-  Evas_Object* video_window;
-#endif
 
   // The width, height, pixel ratio of this window.
   int width;
