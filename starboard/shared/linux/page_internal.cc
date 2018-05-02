@@ -70,6 +70,13 @@ void* SbPageMap(size_t size_bytes, int flags, const char* /*unused_name*/) {
 void* SbPageMapUntracked(size_t size_bytes,
                          int flags,
                          const char* /*unused_name*/) {
+#if SB_CAN(MAP_EXECUTABLE_MEMORY) \
+    && SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+  if (flags & kSbMemoryMapProtectExec) {
+    // Cobalt does not allow mapping executable memory directly.
+    return SB_MEMORY_MAP_FAILED;
+  }
+#endif
   int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
   void* mem = mmap(0, size_bytes, mmap_protect, MAP_PRIVATE | MAP_ANON, -1, 0);
   return mem;
