@@ -11,6 +11,10 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include "src/enc/cost_enc.h"
 
 //------------------------------------------------------------------------------

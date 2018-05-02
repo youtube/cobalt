@@ -14,7 +14,10 @@
 #ifndef WEBP_DEC_VP8I_DEC_H_
 #define WEBP_DEC_VP8I_DEC_H_
 
+#if !defined(STARBOARD)
 #include <string.h>     // for memcpy()
+#endif
+
 #include "src/dec/common_dec.h"
 #include "src/dec/vp8li_dec.h"
 #include "src/utils/bit_reader_utils.h"

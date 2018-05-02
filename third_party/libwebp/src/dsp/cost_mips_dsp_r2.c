@@ -13,6 +13,11 @@
 
 #if defined(WEBP_USE_MIPS_DSP_R2)
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include "src/enc/cost_enc.h"
 
 static int GetResidualCost_MIPSdspR2(int ctx0, const VP8Residual* const res) {
