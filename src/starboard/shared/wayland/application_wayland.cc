@@ -17,75 +17,74 @@
 #include <EGL/egl.h>
 #include <poll.h>
 #include <sys/eventfd.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
-#include "starboard/shared/wayland/dev_input.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/wayland/window_internal.h"
 #include "starboard/time.h"
-
-// YouTube Technical Requirement 2018 (2016/11/1 - Initial draft)
-// 9.5 The device MUST dispatch the following key events, as appropriate:
-//  * Window.keydown
-//      * After a key is held down for 500ms, the Window.keydown event
-//        MUST repeat every 50ms until a user stops holding the key down.
-//  * Window.keyup
-static const SbTime kKeyHoldTime = 500 * kSbTimeMillisecond;
-static const SbTime kKeyRepeatTime = 50 * kSbTimeMillisecond;
 
 namespace starboard {
 namespace shared {
 namespace wayland {
 
-// Tizen application engine using the generic queue and a tizen implementation.
+namespace {
 
+// registry_listener
+void GlobalObjectAvailable(void* data,
+                           struct wl_registry* registry,
+                           uint32_t name,
+                           const char* interface,
+                           uint32_t version) {
+  ApplicationWayland* app_wl = reinterpret_cast<ApplicationWayland*>(data);
+  SB_DCHECK(app_wl);
+  app_wl->OnGlobalObjectAvailable(registry, name, interface, version);
+}
+
+void GlobalObjectRemove(void*, struct wl_registry*, uint32_t) {}
+
+static struct wl_registry_listener registry_listener = {
+    &GlobalObjectAvailable,
+    &GlobalObjectRemove
+};
+
+}
+
+// Tizen application engine using the generic queue and a tizen implementation.
 ApplicationWayland::ApplicationWayland(float video_pixel_ratio)
-    : video_pixel_ratio_(video_pixel_ratio),
-      seat_(NULL),
-      keyboard_(NULL),
-      key_repeat_event_id_(kSbEventIdInvalid),
-      key_repeat_interval_(kKeyHoldTime),
-      key_modifiers_(0) {}
+    : video_pixel_ratio_(video_pixel_ratio) {
+  SbAudioSinkPrivate::Initialize();
+}
+
+void ApplicationWayland::InjectInputEvent(SbInputData* data) {
+  Inject(new Event(kSbEventTypeInput, data,
+                   &Application::DeleteDestructor<SbInputData>));
+}
+
+bool ApplicationWayland::OnGlobalObjectAvailable(struct wl_registry* registry,
+                                                 uint32_t name,
+                                                 const char* interface,
+                                                 uint32_t version) {
+  if (strcmp(interface, "wl_compositor") == 0) {
+    compositor_ = static_cast<wl_compositor*>(
+        wl_registry_bind(registry, name, &wl_compositor_interface, 1));
+    return true;
+  }
+  if (strcmp(interface, "wl_shell") == 0) {
+    shell_ = static_cast<wl_shell*>(
+        wl_registry_bind(registry, name, &wl_shell_interface, 1));
+    return true;
+  }
+  return dev_input_.OnGlobalObjectAvailable(registry, name, interface, version);
+}
 
 SbWindow ApplicationWayland::CreateWindow(const SbWindowOptions* options) {
   SB_DLOG(INFO) << "CreateWindow";
-  SbWindow window = new SbWindowPrivate(options, video_pixel_ratio_);
-  window_ = window;
-
-// Video Plane
-#if SB_CAN(USE_WAYLAND_VIDEO_WINDOW)
-  window->video_window = display_;
-#else
-  window->video_window = elm_win_add(NULL, "Cobalt_Video", ELM_WIN_BASIC);
-  elm_win_title_set(window->video_window, "Cobalt_Video");
-  elm_win_autodel_set(window->video_window, EINA_TRUE);
-  evas_object_resize(window->video_window, window->width, window->height);
-  evas_object_hide(window->video_window);
-#endif
-
-  // Graphics Plane
-  window->surface = wl_compositor_create_surface(compositor_);
-  window->shell_surface = wl_shell_get_shell_surface(shell_, window->surface);
-  wl_shell_surface_add_listener(window->shell_surface, &shell_surface_listener,
-                                window);
-
-  window->tz_visibility =
-      tizen_policy_get_visibility(tz_policy_, window->surface);
-  tizen_visibility_add_listener(window->tz_visibility,
-                                &tizen_visibility_listener, window);
-  tizen_policy_activate(tz_policy_, window->surface);
-  wl_shell_surface_set_title(window->shell_surface, "cobalt");
-  WindowRaise();
-
-  struct wl_region* region;
-  region = wl_compositor_create_region(compositor_);
-  wl_region_add(region, 0, 0, window->width, window->height);
-  wl_surface_set_opaque_region(window->surface, region);
-  wl_region_destroy(region);
-
-  window->egl_window =
-      wl_egl_window_create(window->surface, window->width, window->height);
-
+  SbWindow window =
+      new SbWindowPrivate(compositor_, shell_, options, video_pixel_ratio_);
+  dev_input_.SetSbWindow(window);
   return window;
 }
 
@@ -95,26 +94,13 @@ bool ApplicationWayland::DestroyWindow(SbWindow window) {
     SB_DLOG(WARNING) << "wayland window destroy failed!!";
     return false;
   }
-
-// Video Plane
-#if !SB_CAN(USE_WAYLAND_VIDEO_WINDOW)
-  evas_object_hide(window->video_window);
-#endif
-  window->video_window = NULL;
-
-  // Graphics Plane
-  tizen_visibility_destroy(window->tz_visibility);
-  wl_egl_window_destroy(window->egl_window);
-  wl_shell_surface_destroy(window->shell_surface);
-  wl_surface_destroy(window->surface);
-
+  dev_input_.SetSbWindow(kSbWindowInvalid);
+  delete window;
   return true;
 }
 
 void ApplicationWayland::Initialize() {
   SB_DLOG(INFO) << "Initialize";
-  // Video Plane
-  elm_policy_set(ELM_POLICY_QUIT, ELM_POLICY_QUIT_LAST_WINDOW_CLOSED);
 
   // Graphics Plane
   display_ = wl_display_connect(NULL);
@@ -133,13 +119,14 @@ void ApplicationWayland::Initialize() {
 
 void ApplicationWayland::Teardown() {
   SB_DLOG(INFO) << "Teardown";
-  DeleteRepeatKey();
+  dev_input_.DeleteRepeatKey();
 
   TerminateEgl();
 
   wl_display_flush(display_);
   wl_display_disconnect(display_);
 
+  SbAudioSinkPrivate::TearDown();
   // Close wakeup event
   close(wakeup_fd_);
 }
@@ -234,60 +221,6 @@ void ApplicationWayland::WakeSystemEventWait() {
   write(wakeup_fd_, &u, sizeof(uint64_t));
 }
 
-void ApplicationWayland::CreateRepeatKey() {
-  if (!key_repeat_state_) {
-    return;
-  }
-
-  if (key_repeat_interval_) {
-    key_repeat_interval_ = kKeyRepeatTime;
-  }
-
-  CreateKey(key_repeat_key_, key_repeat_state_, true);
-}
-
-void ApplicationWayland::DeleteRepeatKey() {
-  if (key_repeat_event_id_ != kSbEventIdInvalid) {
-    SbEventCancel(key_repeat_event_id_);
-    key_repeat_event_id_ = kSbEventIdInvalid;
-  }
-}
-
-void ApplicationWayland::CreateKey(int key, int state, bool is_repeat) {
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
-  data->window = window_;
-  data->type = (state == 0 ? kSbInputEventTypeUnpress : kSbInputEventTypePress);
-  data->device_type = kSbInputDeviceTypeRemote;
-  data->device_id = 1;                           // kKeyboardDeviceId;
-  data->key = KeyCodeToSbKey(key);
-  data->key_location = KeyCodeToSbKeyLocation(key);
-  data->key_modifiers = key_modifiers_;
-  Inject(new Event(kSbEventTypeInput, data,
-                   &Application::DeleteDestructor<SbInputData>));
-
-  DeleteRepeatKey();
-
-  if (is_repeat && state) {
-    key_repeat_key_ = key;
-    key_repeat_state_ = state;
-    key_repeat_event_id_ = SbEventSchedule([](void* window) {
-      ApplicationWayland* application =
-          reinterpret_cast<ApplicationWayland*>(window);
-      application->CreateRepeatKey();
-    }, this, key_repeat_interval_);
-  } else {
-    key_repeat_interval_ = kKeyHoldTime;
-  }
-}
-
-void ApplicationWayland::WindowRaise() {
-  if (tz_policy_)
-    tizen_policy_raise(tz_policy_, window_->surface);
-  if (window_->shell_surface)
-    wl_shell_surface_set_toplevel(window_->shell_surface);
-}
-
 void ApplicationWayland::Pause(void* context, EventHandledCallback callback) {
   Application::Pause(context, callback);
 
@@ -323,7 +256,7 @@ void ApplicationWayland::Deeplink(char* payload) {
   const size_t payload_size = strlen(payload) + 1;
   char* copied_payload = new char[payload_size];
   snprintf(copied_payload, payload_size, "%s", payload);
-  Inject(new Event(kSbEventTypeLink, copiedPayload,
+  Inject(new Event(kSbEventTypeLink, copied_payload,
                    [](void* data) { delete[] reinterpret_cast<char*>(data); }));
 }
 
