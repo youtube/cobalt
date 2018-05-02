@@ -35,10 +35,10 @@ bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
       break;
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-    case kSbMemoryMapProtectExecute:
+    case kSbMemoryMapProtectExec:
       new_protection = PAGE_EXECUTE;
       break;
-    case kSbMemoryMapProtectRead | kSbMemoryMapProtectExecute:
+    case kSbMemoryMapProtectRead | kSbMemoryMapProtectExec:
       new_protection = PAGE_EXECUTE_READ;
       break;
 #endif
