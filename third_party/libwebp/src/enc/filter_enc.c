@@ -11,7 +11,12 @@
 //
 // Author: somnath@google.com (Somnath Banerjee)
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #include <assert.h>
+#endif
 #include "src/enc/vp8i_enc.h"
 #include "src/dsp/dsp.h"
 

@@ -19,8 +19,13 @@
 #include "src/webp/config.h"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#else
 #include <assert.h>
 #include <limits.h>
+#endif
 
 #include "src/dsp/dsp.h"
 #include "src/webp/types.h"
@@ -62,15 +67,18 @@ WEBP_EXTERN void WebPSafeFree(void* const ptr);
 #define WEBP_ALIGN_CST 31
 #define WEBP_ALIGN(PTR) (((uintptr_t)(PTR) + WEBP_ALIGN_CST) & ~WEBP_ALIGN_CST)
 
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
+
 // memcpy() is the safe way of moving potentially unaligned 32b memory.
 static WEBP_INLINE uint32_t WebPMemToUint32(const uint8_t* const ptr) {
   uint32_t A;
-  memcpy(&A, ptr, sizeof(A));
+  SbMemoryCopy(&A, ptr, sizeof(A));
   return A;
 }
 static WEBP_INLINE void WebPUint32ToMem(uint8_t* const ptr, uint32_t val) {
-  memcpy(ptr, &val, sizeof(val));
+  SbMemoryCopy(ptr, &val, sizeof(val));
 }
 
 //------------------------------------------------------------------------------
@@ -91,13 +99,13 @@ static WEBP_INLINE uint32_t GetLE32(const uint8_t* const data) {
 
 // Store 16, 24 or 32 bits in little-endian order.
 static WEBP_INLINE void PutLE16(uint8_t* const data, int val) {
-  assert(val < (1 << 16));
+  SB_DCHECK(val < (1 << 16));
   data[0] = (val >> 0);
   data[1] = (val >> 8);
 }
 
 static WEBP_INLINE void PutLE24(uint8_t* const data, int val) {
-  assert(val < (1 << 24));
+  SB_DCHECK(val < (1 << 24));
   PutLE16(data, val & 0xffff);
   data[2] = (val >> 16);
 }
@@ -122,12 +130,12 @@ static WEBP_INLINE int WebPLog2FloorC(uint32_t n) {
 
 // Returns (int)floor(log2(n)). n must be > 0.
 // use GNU builtins where available.
-#if defined(__GNUC__) && \
+#if !defined(STARBOARD) && defined(__GNUC__) && \
     ((__GNUC__ == 3 && __GNUC_MINOR__ >= 4) || __GNUC__ >= 4)
 static WEBP_INLINE int BitsLog2Floor(uint32_t n) {
   return 31 ^ __builtin_clz(n);
 }
-#elif defined(_MSC_VER) && _MSC_VER > 1310 && \
+#elif !defined(STARBOARD) && defined(_MSC_VER) && _MSC_VER > 1310 && \
       (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
 #pragma intrinsic(_BitScanReverse)

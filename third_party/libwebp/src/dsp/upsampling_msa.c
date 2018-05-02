@@ -11,7 +11,11 @@
 //
 // Author: Prashant Patil (prashant.patil@imgtec.com)
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #include <string.h>
+#endif
 #include "src/dsp/dsp.h"
 
 #if defined(WEBP_USE_MSA)

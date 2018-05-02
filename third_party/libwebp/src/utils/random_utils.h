@@ -14,7 +14,11 @@
 #ifndef WEBP_UTILS_RANDOM_UTILS_H_
 #define WEBP_UTILS_RANDOM_UTILS_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <assert.h>
+#endif
 #include "src/webp/types.h"
 
 #ifdef __cplusplus
@@ -39,7 +43,7 @@ void VP8InitRandom(VP8Random* const rg, float dithering);
 static WEBP_INLINE int VP8RandomBits2(VP8Random* const rg, int num_bits,
                                       int amp) {
   int diff;
-  assert(num_bits + VP8_RANDOM_DITHER_FIX <= 31);
+  SB_DCHECK(num_bits + VP8_RANDOM_DITHER_FIX <= 31);
   diff = rg->tab_[rg->index1_] - rg->tab_[rg->index2_];
   if (diff < 0) diff += (1u << 31);
   rg->tab_[rg->index1_] = diff;

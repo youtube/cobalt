@@ -12,9 +12,15 @@
 // Author: Skal (pascal.massimino@gmail.com)
 //         Vikas Arora (vikaas.arora@gmail.com)
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else
 #include <assert.h>
 #include <string.h>   // for memcpy()
 #include <stdlib.h>
+#endif
 
 #include "src/utils/bit_writer_utils.h"
 #include "src/utils/endian_inl_utils.h"

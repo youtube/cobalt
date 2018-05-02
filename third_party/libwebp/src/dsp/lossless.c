@@ -15,9 +15,16 @@
 
 #include "src/dsp/dsp.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/math_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#else
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
+#endif
+
 #include "src/dec/vp8li_dec.h"
 #include "src/utils/endian_inl_utils.h"
 #include "src/dsp/lossless.h"

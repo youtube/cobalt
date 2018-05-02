@@ -15,7 +15,11 @@
 #ifndef WEBP_UTILS_COLOR_CACHE_UTILS_H_
 #define WEBP_UTILS_COLOR_CACHE_UTILS_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <assert.h>
+#endif
 
 #include "src/webp/types.h"
 
@@ -38,13 +42,13 @@ static WEBP_INLINE int VP8LHashPix(uint32_t argb, int shift) {
 
 static WEBP_INLINE uint32_t VP8LColorCacheLookup(
     const VP8LColorCache* const cc, uint32_t key) {
-  assert((key >> cc->hash_bits_) == 0u);
+  SB_DCHECK((key >> cc->hash_bits_) == 0u);
   return cc->colors_[key];
 }
 
 static WEBP_INLINE void VP8LColorCacheSet(const VP8LColorCache* const cc,
                                           uint32_t key, uint32_t argb) {
-  assert((key >> cc->hash_bits_) == 0u);
+  SB_DCHECK((key >> cc->hash_bits_) == 0u);
   cc->colors_[key] = argb;
 }
 
