@@ -195,7 +195,9 @@ SB_DEPRECATED_EXTERNAL(
 //
 // |size_bytes|: The amount of physical memory pages to be allocated.
 // |flags|: The bitwise OR of the protection flags for the mapped memory
-//   as specified in |SbMemoryMapFlags|.
+//   as specified in |SbMemoryMapFlags|. Allocating executable memory is not
+//   allowed and will fail. If executable memory is needed, map non-executable
+//   memory first and then switch access to executable using SbMemoryProtect.
 // |name|: A value that appears in the debugger on some platforms. The value
 //   can be up to 32 bytes.
 SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
