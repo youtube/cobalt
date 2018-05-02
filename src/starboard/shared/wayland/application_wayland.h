@@ -15,16 +15,17 @@
 #ifndef STARBOARD_SHARED_WAYLAND_APPLICATION_WAYLAND_H_
 #define STARBOARD_SHARED_WAYLAND_APPLICATION_WAYLAND_H_
 
-#include <tizen-extension-client-protocol.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
 #include <deque>
 
 #include "starboard/configuration.h"
+#include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/wayland/dev_input.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
@@ -36,7 +37,7 @@ namespace wayland {
 
 class ApplicationWayland : public shared::starboard::QueueApplication {
  public:
-  explicit ApplicationWayland(float video_pixel_ratio);
+  explicit ApplicationWayland(float video_pixel_ratio = 1.0f);
   ~ApplicationWayland() override{};
 
   static ApplicationWayland* Get() {
@@ -44,35 +45,22 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
         shared::starboard::Application::Get());
   }
 
-  // window
-  SbWindow CreateWindow(const SbWindowOptions* options);
-  bool DestroyWindow(SbWindow window);
-  void SetCompositor(wl_compositor* compositor) { compositor_ = compositor; }
-  wl_compositor* GetCompositor() { return compositor_; }
-  void SetShell(wl_shell* shell) { shell_ = shell; }
-  wl_shell* GetShell() { return shell_; }
-  void SetPolicy(tizen_policy* policy) { tz_policy_ = policy; }
-  tizen_policy* GetPolicy() { return tz_policy_; }
-  void WindowRaise();
+  // wl registry add listener
+  virtual bool OnGlobalObjectAvailable(struct wl_registry* registry,
+                                       uint32_t name,
+                                       const char* interface,
+                                       uint32_t version);
+
+  // display
   wl_display* GetWLDisplay() { return display_; }
 
-  // input devices
-  void SetKeyboard(wl_keyboard* keyboard) { keyboard_ = keyboard; }
-  wl_keyboard* GetKeyboard() { return keyboard_; }
-  void SetSeat(wl_seat* seat) { seat_ = seat; }
-  wl_seat* GetSeat() { return seat_; }
-
-  // key event
-  void UpdateKeyModifiers(unsigned int modifiers) {
-    key_modifiers_ = modifiers;
-  }
-  void CreateRepeatKey();
-  void DeleteRepeatKey();
-  void CreateKey(int key, int state, bool is_repeat);
+  // window
+  virtual SbWindow CreateWindow(const SbWindowOptions* options);
+  bool DestroyWindow(SbWindow window);
 
   // state change
-  void Pause(void* context, EventHandledCallback callback) override;
-  void Unpause(void* context, EventHandledCallback callback) override;
+  void Pause(void* context, EventHandledCallback callback);
+  void Unpause(void* context, EventHandledCallback callback);
 
   // state change observer
   class StateObserver {
@@ -88,6 +76,8 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   // deeplink
   void Deeplink(char* payload);
 
+  void InjectInputEvent(SbInputData* data);
+
  protected:
   // --- Application overrides ---
   void Initialize() override;
@@ -101,26 +91,16 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   Event* WaitForSystemEventWithTimeout(SbTime time) override;
   void WakeSystemEventWait() override;
 
- private:
-  void InitializeEgl();
-  void TerminateEgl();
-
-  // window
-  SbWindow window_;
-  float video_pixel_ratio_;
+ protected:
   wl_display* display_;
   wl_compositor* compositor_;
   wl_shell* shell_;
-  tizen_policy* tz_policy_;
+  DevInput dev_input_;
+  float video_pixel_ratio_;
 
-  // input devices
-  wl_seat* seat_;
-  wl_keyboard* keyboard_;
-  int key_repeat_key_;
-  int key_repeat_state_;
-  SbEventId key_repeat_event_id_;
-  SbTime key_repeat_interval_;
-  unsigned int key_modifiers_;
+ private:
+  void InitializeEgl();
+  void TerminateEgl();
 
   // wakeup event
   int wakeup_fd_;
