@@ -14,6 +14,11 @@
 #ifndef WEBP_WEBP_TYPES_H_
 #define WEBP_WEBP_TYPES_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/types.h"
+#define WEBP_INLINE SB_C_INLINE
+#else
 #include <stddef.h>  // for size_t
 
 #ifndef _MSC_VER
@@ -35,6 +40,7 @@ typedef unsigned long long int uint64_t;
 typedef long long int int64_t;
 #define WEBP_INLINE __forceinline
 #endif  /* _MSC_VER */
+#endif  /* defined(STARBOARD) */
 
 #ifndef WEBP_EXTERN
 // This explicitly marks library functions and allows for changing the

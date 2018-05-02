@@ -14,7 +14,11 @@
 #ifndef WEBP_UTILS_HUFFMAN_UTILS_H_
 #define WEBP_UTILS_HUFFMAN_UTILS_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <assert.h>
+#endif
 #include "src/webp/format_constants.h"
 #include "src/webp/types.h"
 
