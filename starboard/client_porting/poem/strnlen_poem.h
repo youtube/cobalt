@@ -28,6 +28,7 @@ static SB_C_INLINE size_t StringGetLengthFixed(const char* s, size_t maxlen) {
   return i;
 }
 
+#undef strnlen
 #define strnlen(s, maxlen) StringGetLengthFixed(s, maxlen)
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRNLEN_POEM_H_
