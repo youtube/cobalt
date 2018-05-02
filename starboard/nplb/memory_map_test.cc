@@ -196,27 +196,36 @@ std::pair<::testing::AssertionResult, SumFunction> CopySumFunctionIntoMemory(
   return {::testing::AssertionSuccess(), mapped_function};
 }
 
-// This test is known to run on x64, ARM, and MIPS32 with MIPS32 and MIPS16
-// instructions.
-TEST(SbMemoryMapTest, CanExecuteMappedMemoryWithExecFlag) {
-  void* memory = SbMemoryMap(
-      kSize, kSbMemoryMapProtectReadWrite | kSbMemoryMapProtectExec, "test");
-  ASSERT_NE(kFailed, memory);
-
-  auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
-  ASSERT_TRUE(copy_sum_function_result.first);
-  SumFunction mapped_function = copy_sum_function_result.second;
-
-  EXPECT_EQ(Sum(1, 3), (*mapped_function)(1, 3));
-  EXPECT_EQ(Sum(10, -5), (*mapped_function)(10, -5));
-
-  EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+// Cobalt can not map executable memory. If executable memory is needed, map
+// non-executable memory first and use SbMemoryProtect to change memory accesss
+// to executable.
+TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
+  SbMemoryMapFlags exec_flags[] = {
+    SbMemoryMapFlags(kSbMemoryMapProtectExec),
+    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec),
+    SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectExec),
+    SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectWrite |
+                     kSbMemoryMapProtectExec),
+  };
+  for (auto exec_flag : exec_flags) {
+    void* memory = SbMemoryMap(kSize, exec_flag, "test");
+    ASSERT_EQ(kFailed, memory);
+    EXPECT_FALSE(SbMemoryUnmap(memory, 0));
+  }
 }
+#endif  // SB_MEMORY_PROTECT_API_VERSION
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
 #if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
 TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
-  SbMemoryMapFlags all_flags[] = {
+  SbMemoryMapFlags all_from_flags[] = {
+    SbMemoryMapFlags(0),
+    SbMemoryMapFlags(kSbMemoryMapProtectRead),
+    SbMemoryMapFlags(kSbMemoryMapProtectWrite),
+    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
+  };
+  SbMemoryMapFlags all_to_flags[] = {
     SbMemoryMapFlags(0),
     SbMemoryMapFlags(kSbMemoryMapProtectRead),
     SbMemoryMapFlags(kSbMemoryMapProtectWrite),
@@ -224,14 +233,11 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
     SbMemoryMapFlags(kSbMemoryMapProtectExec),
     SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec),
-    SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectExec),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite |
-                     kSbMemoryMapProtectExec),
 #endif
   };
 
-  for (SbMemoryMapFlags from_flags : all_flags) {
-    for (SbMemoryMapFlags to_flags : all_flags) {
+  for (SbMemoryMapFlags from_flags : all_from_flags) {
+    for (SbMemoryMapFlags to_flags : all_to_flags) {
       void* memory = SbMemoryMap(kSize, from_flags, "test");
       // If the platform does not support a particular protection flags
       // configuration in the first place, then just give them a pass, knowing
@@ -258,12 +264,6 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
       }
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      if ((to_flags & kSbMemoryMapProtectWrite & kSbMemoryMapProtectExec) &&
-          mapped_function == nullptr) {
-        auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
-        ASSERT_TRUE(copy_sum_function_result.first);
-        mapped_function = copy_sum_function_result.second;
-      }
       if ((to_flags & kSbMemoryMapProtectExec) && mapped_function != nullptr) {
         EXPECT_EQ(Sum(0xc0ba178, 0xbadf00d),
                   mapped_function(0xc0ba178, 0xbadf00d));
