@@ -182,6 +182,7 @@
         '<(DEPTH)/starboard/types.h',
         '<(DEPTH)/starboard/window.h',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
+        '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/gcc/atomic_gcc_public.h',
         '<(DEPTH)/starboard/shared/gles/gl_call.h',
