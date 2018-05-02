@@ -18,29 +18,23 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
-#include "starboard/shared/wayland/application_wayland.h"
+#include "starboard/shared/starboard/link_receiver.h"
+#include "starboard/contrib/tizen/shared/wayland/application_tizen.h"
 
-SbThread cobalt_thread_;
-bool first_launch = true;
+namespace {
 
-static void* runCobalt(void* data) {
-  // Add proper argument here. Run(argc, argv)
-  starboard::shared::starboard::Application::Get()->Run(0, NULL);
-  return NULL;
-}
+int g_argc;
+char** g_argv;
 
 int aul_handler(aul_type type, bundle* kb, void* data) {
   switch (type) {
     case AUL_START: {
       SB_DLOG(INFO) << "AUL_START";
-      if (first_launch) {
-        cobalt_thread_ =
-            SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity,
-                           true, "tizen_cobalt", runCobalt, NULL);
-        SB_DCHECK(SbThreadIsValid(cobalt_thread_));
-        first_launch = false;
-      } else {
-        starboard::shared::wayland::ApplicationWayland::Get()->WindowRaise();
+      starboard::shared::wayland::ApplicationWayland* app =
+          starboard::shared::wayland::ApplicationWayland::Get();
+      if (app) {
+        starboard::shared::starboard::LinkReceiver receiver(app);
+        app->Run(g_argc, g_argv);
       }
       break;
     }
@@ -51,7 +45,6 @@ int aul_handler(aul_type type, bundle* kb, void* data) {
     case AUL_TERMINATE: {
       SB_DLOG(INFO) << "AUL_TERMINATE";
       starboard::shared::starboard::Application::Get()->Stop(0);
-      SbThreadJoin(cobalt_thread_, NULL);
       elm_exit();
       break;
     }
@@ -62,7 +55,12 @@ int aul_handler(aul_type type, bundle* kb, void* data) {
   return 0;
 }
 
+}
+
 int main(int argc, char** argv) {
+  g_argc = argc;
+  g_argv = argv;
+
   elm_init(0, NULL);
 
   aul_launch_init(aul_handler, NULL);
@@ -70,7 +68,7 @@ int main(int argc, char** argv) {
 
   starboard::shared::signal::InstallCrashSignalHandlers();
   starboard::shared::signal::InstallSuspendSignalHandlers();
-  starboard::shared::wayland::ApplicationWayland application;
+  starboard::shared::wayland::ApplicationWaylandTizen application;
 
   elm_run();
 
