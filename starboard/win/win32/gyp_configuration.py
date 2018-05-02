@@ -131,3 +131,12 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
 
       'player_filter_tests': [ test_filter.FILTER_ALL ],
   }
+
+  def GetVariables(self, configuration):
+    variables = super(WinWin32PlatformConfig, self).GetVariables(configuration)
+    # These variables will tell gyp to compile with V8.
+    variables.update({
+        'javascript_engine': 'v8',
+        'cobalt_enable_jit': 1,
+    })
+    return variables

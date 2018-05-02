@@ -382,7 +382,7 @@
 
 // Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
 // required for platforms that want to JIT.
-#define SB_CAN_MAP_EXECUTABLE_MEMORY 0
+#define SB_CAN_MAP_EXECUTABLE_MEMORY 1
 
 // Whether this platform has and should use an growable heap (e.g. with sbrk())
 // to map physical memory to the virtual address space.
