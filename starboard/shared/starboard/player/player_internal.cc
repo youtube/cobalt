@@ -29,6 +29,8 @@ SbTime GetMediaTime(SbTime media_time,
 
 }  // namespace
 
+int SbPlayerPrivate::number_of_players_ = 0;
+
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -61,6 +63,7 @@ SbPlayerPrivate::SbPlayerPrivate(
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                                this,
                                context)) {
+  ++number_of_players_;
 }
 
 void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
