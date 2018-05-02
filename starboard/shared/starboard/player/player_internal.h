@@ -62,6 +62,10 @@ struct SbPlayerPrivate
 
   SbDecodeTarget GetCurrentDecodeTarget();
 
+  ~SbPlayerPrivate() { --number_of_players_; }
+
+  static int number_of_players() { return number_of_players_; }
+
  private:
   // PlayerWorker::Host methods.
   void UpdateMediaTime(SbTime media_time, int ticket) override;
@@ -83,6 +87,8 @@ struct SbPlayerPrivate
   int dropped_video_frames_;
 
   starboard::scoped_ptr<PlayerWorker> worker_;
+
+  static int number_of_players_;
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_

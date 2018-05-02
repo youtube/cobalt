@@ -76,6 +76,10 @@ void ClearVideoWindow() {
 
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   eglInitialize(display, NULL, NULL);
+  if (display == EGL_NO_DISPLAY) {
+    SB_DLOG(ERROR) << "Found no EGL display in ClearVideoWindow";
+    return;
+  }
 
   const EGLint kAttributeList[] = {
       EGL_RED_SIZE,
@@ -115,6 +119,10 @@ void ClearVideoWindow() {
     surface = eglCreateWindowSurface(display, config, native_window, NULL);
     if (eglGetError() == EGL_SUCCESS)
       break;
+  }
+  if (surface == EGL_NO_SURFACE) {
+    SB_DLOG(ERROR) << "Found no EGL surface in ClearVideoWindow";
+    return;
   }
   SB_DCHECK(surface != EGL_NO_SURFACE);
 
