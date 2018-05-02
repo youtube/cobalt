@@ -89,6 +89,7 @@
         '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_free_aligned.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
+        '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/gcc/atomic_gcc.h',
