@@ -81,6 +81,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+  // TODO: increase this once we support multiple video windows.
+  const int kMaxNumberOfPlayers = 1;
+  if (SbPlayerPrivate::number_of_players() >= kMaxNumberOfPlayers) {
+    return kSbPlayerInvalid;
+  }
+
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(

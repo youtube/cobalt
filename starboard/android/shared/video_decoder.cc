@@ -305,7 +305,11 @@ bool VideoDecoder::InitializeCodec() {
   SB_DCHECK(j_output_surface);
 
   ANativeWindow* video_window = GetVideoWindow();
-  SB_DCHECK(video_window);
+  if (!video_window) {
+    SB_LOG(ERROR)
+        << "Can't initialize the codec since we don't have a video window.";
+    return false;
+  }
   int width = ANativeWindow_getWidth(video_window);
   int height = ANativeWindow_getHeight(video_window);
 

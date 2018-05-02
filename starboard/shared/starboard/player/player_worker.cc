@@ -75,7 +75,10 @@ PlayerWorker::PlayerWorker(Host* host,
   thread_ = SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
                            "player_worker", &PlayerWorker::ThreadEntryPoint,
                            &thread_param);
-  SB_DCHECK(SbThreadIsValid(thread_));
+  if (!SbThreadIsValid(thread_)) {
+    SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
+    return;
+  }
   ScopedLock scoped_lock(thread_param.mutex);
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
