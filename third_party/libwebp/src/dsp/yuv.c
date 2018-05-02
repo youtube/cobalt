@@ -105,11 +105,19 @@ WEBP_DSP_INIT_FUNC(WebPInitSamplers) {
       WebPInitSamplersMIPS32();
     }
 #endif  // WEBP_USE_MIPS32
+#if !defined(STARBOARD)
+    // Unfortunately, on at least one Starboard MIPS platform the MIPS DSP (r2)
+    // code was found to produce erroneous results (most pixels end up either
+    // white or purple).  It is disabled for now out of lack of time and
+    // priority for investigation, but if additional performance is required,
+    // the issue should be investigated and fixed properly.
+
 #if defined(WEBP_USE_MIPS_DSP_R2)
     if (VP8GetCPUInfo(kMIPSdspR2)) {
       WebPInitSamplersMIPSdspR2();
     }
 #endif  // WEBP_USE_MIPS_DSP_R2
+#endif
   }
 }
 

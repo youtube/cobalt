@@ -142,7 +142,12 @@ extern "C" {
 #endif
 
 #if defined(WEBP_USE_THREAD) && !defined(_WIN32)
+#if !defined(STARBOARD)
+// TODO: If not including this is a problem on a Starboard platform, then
+//       we should implement this functionality with Starboard threading
+//       primitives instead.
 #include <pthread.h>  // NOLINT
+#endif
 
 #define WEBP_DSP_INIT(func) do {                                    \
   static volatile VP8CPUInfo func ## _last_cpuinfo_used =           \
@@ -203,11 +208,17 @@ extern "C" {
 #endif
 
 // some endian fix (e.g.: mips-gcc doesn't define __BIG_ENDIAN__)
+#if defined(STARBOARD)
+#if SB_IS(BIG_ENDIAN)
+#define WORDS_BIGENDIAN
+#endif
+#else
 #if !defined(WORDS_BIGENDIAN) && \
     (defined(__BIG_ENDIAN__) || defined(_M_PPC) || \
      (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)))
 #define WORDS_BIGENDIAN
 #endif
+#endif  // defined(STARBOARD)
 
 typedef enum {
   kSSE2,

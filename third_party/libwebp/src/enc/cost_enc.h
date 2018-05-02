@@ -14,8 +14,13 @@
 #ifndef WEBP_ENC_COST_ENC_H_
 #define WEBP_ENC_COST_ENC_H_
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#else
 #include <assert.h>
 #include <stdlib.h>
+#endif
+
 #include "src/enc/vp8i_enc.h"
 
 #ifdef __cplusplus

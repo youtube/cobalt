@@ -51,7 +51,7 @@ static WEBP_INLINE void StopwatchReset(Stopwatch* watch) {
 static WEBP_INLINE double StopwatchReadAndReset(Stopwatch* watch) {
   struct timeval old_value;
   double delta_sec, delta_usec;
-  memcpy(&old_value, watch, sizeof(old_value));
+  SbMemoryCopy(&old_value, watch, sizeof(old_value));
   gettimeofday(watch, NULL);
   delta_sec = (double)watch->tv_sec - old_value.tv_sec;
   delta_usec = (double)watch->tv_usec - old_value.tv_usec;

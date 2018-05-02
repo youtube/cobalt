@@ -13,7 +13,12 @@
 #include "src/webp/config.h"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/assert_poem.h"
+#include "starboard/client_porting/poem/math_poem.h"
+#else
 #include <math.h>
+#endif
 
 #include "src/enc/backward_references_enc.h"
 #include "src/enc/histogram_enc.h"

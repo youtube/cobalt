@@ -20,7 +20,9 @@
 #include "src/webp/config.h"
 #endif
 
+#if !defined(STARBOARD)
 #include <string.h>  // for memcpy
+#endif
 
 #include "src/dsp/dsp.h"
 #include "src/utils/bit_reader_utils.h"
@@ -56,7 +58,7 @@ void VP8LoadFinalBytes(VP8BitReader* const br);
 // makes sure br->value_ has at least BITS bits worth of data
 static WEBP_UBSAN_IGNORE_UNDEF WEBP_INLINE
 void VP8LoadNewBytes(VP8BitReader* const br) {
-  assert(br != NULL && br->buf_ != NULL);
+  SB_DCHECK(br != NULL && br->buf_ != NULL);
   // Read 'BITS' bits at a time if possible.
   if (br->buf_ < br->buf_max_) {
     // convert memory type to register type (with some zero'ing!)
@@ -77,7 +79,7 @@ void VP8LoadNewBytes(VP8BitReader* const br) {
     );
 #else
     lbit_t in_bits;
-    memcpy(&in_bits, br->buf_, sizeof(in_bits));
+    SbMemoryCopy(&in_bits, br->buf_, sizeof(in_bits));
 #endif
     br->buf_ += BITS >> 3;
 #if !defined(WORDS_BIGENDIAN)
