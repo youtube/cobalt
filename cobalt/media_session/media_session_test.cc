@@ -44,13 +44,24 @@ namespace {
 
 class MockCallbackFunction : public MediaSession::MediaSessionActionHandler {
  public:
-  MOCK_CONST_METHOD0(Run, ReturnValue());
+  MOCK_CONST_METHOD1(Run, ReturnValue(
+      const scoped_refptr<MediaSessionActionDetails>& action_details));
 };
 
 class MockMediaSessionClient : public MediaSessionClient {
  public:
   MOCK_METHOD0(OnMediaSessionChanged, void());
 };
+
+MATCHER_P(SeekTime, time, "") {
+  return arg->action() ==  kMediaSessionActionSeek
+      && arg->seek_time() == time;
+}
+
+MATCHER_P2(SeekOffset, action, offset, "") {
+  return arg->action() ==  action
+      && arg->seek_offset() == offset;
+}
 
 TEST(MediaSessionTest, MediaSessionTest) {
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
@@ -130,7 +141,7 @@ TEST(MediaSessionTest, NullActionClears) {
   EXPECT_EQ(0, client.GetAvailableActions().to_ulong());
 
   MockCallbackFunction cf;
-  EXPECT_CALL(cf, Run())
+  EXPECT_CALL(cf, Run(_))
       .Times(1)
       .WillRepeatedly(Return(CallbackResult<void>()));
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
@@ -162,7 +173,7 @@ TEST(MediaSessionTest, GetAvailableActions) {
   EXPECT_EQ(0, client.GetAvailableActions().to_ulong());
 
   MockCallbackFunction cf;
-  EXPECT_CALL(cf, Run()).Times(0);
+  EXPECT_CALL(cf, Run(_)).Times(0);
   FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
 
   session->SetActionHandler(kMediaSessionActionPlay, holder);
@@ -173,7 +184,7 @@ TEST(MediaSessionTest, GetAvailableActions) {
 
   EXPECT_EQ(1, client.GetAvailableActions().to_ulong());
 
-  session->SetActionHandler(kMediaSessionActionSeekbackward, holder);
+  session->SetActionHandler(kMediaSessionActionSeek, holder);
 
   EXPECT_EQ(5, client.GetAvailableActions().to_ulong());
 
@@ -218,6 +229,55 @@ TEST(MediaSessionTest, GetAvailableActions) {
   EXPECT_EQ(5, client.GetAvailableActions().to_ulong());
 
   run_loop.Run();
+}
+
+TEST(MediaSessionTest, SeekDetails) {
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::RunLoop run_loop;
+
+  MockMediaSessionClient client;
+
+  ON_CALL(client, OnMediaSessionChanged())
+      .WillByDefault(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+  EXPECT_CALL(client, OnMediaSessionChanged()).Times(AtLeast(0));
+
+  scoped_refptr<MediaSession> session = client.GetMediaSession();
+
+  MockCallbackFunction cf;
+  FakeScriptValue<MediaSession::MediaSessionActionHandler> holder(&cf);
+
+  session->SetActionHandler(kMediaSessionActionSeek, holder);
+  session->SetActionHandler(kMediaSessionActionSeekforward, holder);
+  session->SetActionHandler(kMediaSessionActionSeekbackward, holder);
+
+  EXPECT_CALL(cf, Run(SeekTime(0.0)))
+      .WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(kMediaSessionActionSeek);
+
+  EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 0.0)))
+      .WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(kMediaSessionActionSeekforward);
+
+  EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 0.0)))
+      .WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(kMediaSessionActionSeekbackward);
+
+  EXPECT_CALL(cf, Run(SeekTime(1.2)))
+      .WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
+      new MediaSessionActionDetails::Data(kMediaSessionActionSeek, 1.2)));
+
+  EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekforward, 3.4)))
+      .WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
+      new MediaSessionActionDetails::Data(
+          kMediaSessionActionSeekforward, 3.4)));
+
+  EXPECT_CALL(cf, Run(SeekOffset(kMediaSessionActionSeekbackward, 5.6)))
+      .WillOnce(Return(CallbackResult<void>()));
+  client.InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
+      new MediaSessionActionDetails::Data(
+          kMediaSessionActionSeekbackward, 5.6)));
 }
 
 }  // namespace
