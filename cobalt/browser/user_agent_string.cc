@@ -126,16 +126,6 @@ namespace browser {
 
 namespace {
 
-#if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
-const char kStarboardStabilitySuffix[] = "-Experimental";
-#elif defined(SB_RELEASE_CANDIDATE_API_VERSION) &&        \
-    SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION && \
-    SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-const char kStarboardStabilitySuffix[] = "-ReleaseCandidate";
-#else
-const char kStarboardStabilitySuffix[] = "";
-#endif
-
 struct SanitizeReplacements {
   const char* replace_chars;
   const char* replace_with;
@@ -204,7 +194,7 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   UserAgentPlatformInfo platform_info;
 
   platform_info.starboard_version = base::StringPrintf(
-      "Starboard/%d%s", SB_API_VERSION, kStarboardStabilitySuffix);
+      "Starboard/%d", SB_API_VERSION);
 
   const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
