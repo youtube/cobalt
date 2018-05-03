@@ -27,7 +27,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
+import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,6 +69,8 @@ public abstract class CobaltActivity extends NativeActivity {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
+
+    MediaCodecUtil.setDisplaySize(DisplayUtil.getDisplaySize(this));
 
     // super.onCreate() will cause an APP_CMD_START in native code,
     // so make sure to initialize any state beforehand that might be touched by
@@ -131,8 +135,8 @@ public abstract class CobaltActivity extends NativeActivity {
    */
   protected String[] getArgs() {
     Bundle extras = getIntent().getExtras();
-    CharSequence[] argsExtra = (extras == null || isReleaseBuild())
-        ? null : extras.getCharSequenceArray("args");
+    CharSequence[] argsExtra =
+        (extras == null || isReleaseBuild()) ? null : extras.getCharSequenceArray("args");
 
     List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
     if (argsExtra != null) {
