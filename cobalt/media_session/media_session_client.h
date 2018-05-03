@@ -17,9 +17,11 @@
 
 #include <bitset>
 
+#include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
 
 #include "cobalt/media_session/media_session.h"
+#include "cobalt/media_session/media_session_action_details.h"
 
 namespace cobalt {
 namespace media_session {
@@ -60,7 +62,15 @@ class MediaSessionClient {
   // Invokes a given media session action
   // https://wicg.github.io/mediasession/#actions-model
   // Can be invoked from any thread.
-  void InvokeAction(MediaSessionAction action);
+  void InvokeAction(MediaSessionAction action) {
+    InvokeActionInternal(scoped_ptr<MediaSessionActionDetails::Data>(
+        new MediaSessionActionDetails::Data(action)));
+  }
+
+  // Invokes a given media session action that takes additional data.
+  void InvokeAction(scoped_ptr<MediaSessionActionDetails::Data> data) {
+    InvokeActionInternal(data.Pass());
+  }
 
   // Invoked on the browser thread when any metadata, playback state,
   // or supported session actions change.
@@ -70,6 +80,8 @@ class MediaSessionClient {
   base::ThreadChecker thread_checker_;
   scoped_refptr<MediaSession> media_session_;
   MediaSessionPlaybackState platform_playback_state_;
+
+  void InvokeActionInternal(scoped_ptr<MediaSessionActionDetails::Data> data);
 
   DISALLOW_COPY_AND_ASSIGN(MediaSessionClient);
 };
