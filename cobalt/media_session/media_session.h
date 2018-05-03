@@ -24,9 +24,11 @@
 #include "base/logging.h"
 #include "base/message_loop_proxy.h"
 #include "cobalt/media_session/media_session_action.h"
+#include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_playback_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace media_session {
@@ -37,7 +39,9 @@ class MediaSession : public script::Wrappable {
   friend class MediaSessionClient;
 
  public:
-  typedef script::CallbackFunction<void()> MediaSessionActionHandler;
+  typedef script::CallbackFunction<void(
+      const scoped_refptr<MediaSessionActionDetails>& action_details)>
+          MediaSessionActionHandler;
   typedef script::ScriptValue<MediaSessionActionHandler>
       MediaSessionActionHandlerHolder;
   typedef script::ScriptValue<MediaSessionActionHandler>::Reference

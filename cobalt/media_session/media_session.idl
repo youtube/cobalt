@@ -15,7 +15,8 @@
 // MediaSession interface
 // https://wicg.github.io/mediasession
 
-callback MediaSessionActionHandler = void();
+// Cobalt customization - details parameter is not part of spec.
+callback MediaSessionActionHandler = void(MediaSessionActionDetails details);
 
 interface MediaSession {
   attribute MediaMetadata? metadata;
