@@ -38,7 +38,6 @@ _TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
 _TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
 _SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
 
-
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
 
