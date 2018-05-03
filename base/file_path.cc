@@ -514,7 +514,8 @@ FilePath FilePath::Append(const FilePath& component) const {
 }
 
 FilePath FilePath::AppendASCII(const base::StringPiece& component) const {
-  DCHECK(IsStringASCII(component));
+  DCHECK(IsStringASCII(component))
+      << "invalid component " << component << " being appended to " << value();
 #if defined(OS_WIN)
   return Append(ASCIIToUTF16(component.as_string()));
 #elif defined(OS_POSIX) || defined(OS_STARBOARD)
