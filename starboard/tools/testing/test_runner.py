@@ -371,6 +371,11 @@ class TestRunner(object):
         failed_tests.append(test_failed_match.group(1))
     return failed_tests
 
+  def _GetFilteredTestList(self, target_name):
+    return _FilterTests(
+          [target_name], self._GetTestFilters(),
+          self.config).get(target_name, [])
+
   def _ProcessAllTestResults(self, results):
     """Collects and returns output for all selected tests.
 
@@ -387,6 +392,7 @@ class TestRunner(object):
     total_run_count = 0
     total_passed_count = 0
     total_failed_count = 0
+    total_filtered_count = 0
 
     # If the number of run tests from a test binary cannot be
     # determined, assume an error occurred while running it.
@@ -423,6 +429,10 @@ class TestRunner(object):
         print "\n  FAILED TESTS:"
         for line in failed_tests:
           print "    {}".format(line)
+      filtered_count = len(self._GetFilteredTestList(target_name))
+      if filtered_count > 0:
+        print "  FILTERED: {}".format(filtered_count)
+        total_filtered_count += filtered_count
       # Print a single newline to separate results from each test run
       print
 
@@ -437,6 +447,7 @@ class TestRunner(object):
     print "  TOTAL TESTS RUN: {}".format(total_run_count)
     print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
     print "  TOTAL TESTS FAILED: {}".format(total_failed_count)
+    print "  TOTAL TESTS FILTERED: {}".format(total_filtered_count)
 
     return result
 
