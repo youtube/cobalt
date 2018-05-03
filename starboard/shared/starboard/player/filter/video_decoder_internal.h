@@ -21,6 +21,7 @@
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/callback.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
@@ -54,7 +55,7 @@ class VideoDecoder {
   typedef std::function<void(Status status,
                              const scoped_refptr<VideoFrame>& frame)>
       DecoderStatusCB;
-  typedef std::function<void()> ErrorCB;
+  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
 
   virtual ~VideoDecoder() {}
 
