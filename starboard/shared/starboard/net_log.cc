@@ -349,6 +349,7 @@ class NetLogServer {
     ScopedLock lock(socket_mutex_);
     client_socket_ = client_socket.Pass();
     client_socket_->SetSendBufferSize(NET_LOG_SOCKET_BUFFER_SIZE);
+    client_socket_->SetTcpKeepAlive(true, kSbTimeSecond);
   }
 
   // Has a client ever connected?
@@ -498,7 +499,9 @@ void NetLogFlushThenClose() {
 #if !SB_LOGGING_IS_OFFICIAL_BUILD
   ScopeGuard guard;
   if (guard.IsEnabled()) {
-    NetLogServer::Instance()->Close();
+    NetLogServer* net_log = NetLogServer::Instance();
+    net_log->OnLog("Netlog is closing down\n");
+    net_log->Close();
   }
 #endif
 }
