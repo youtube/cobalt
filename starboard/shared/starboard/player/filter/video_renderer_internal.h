@@ -24,6 +24,7 @@
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/callback.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -44,10 +45,6 @@ namespace filter {
 // pipeline to coordinate data transfer between these parties.
 class VideoRenderer : JobQueue::JobOwner {
  public:
-  typedef VideoDecoder::ErrorCB ErrorCB;
-  typedef std::function<void()> PrerolledCB;
-  typedef std::function<void()> EndedCB;
-
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
   VideoRenderer(scoped_ptr<VideoDecoder> decoder,

@@ -28,6 +28,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/callback.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -39,7 +40,7 @@ namespace shared {
 //       need to talk directly to the MediaCodecBridge.
 class MediaDecoder {
  public:
-  typedef std::function<void()> ErrorCB;
+  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
   // This class should be implemented by the users of MediaDecoder to receive
