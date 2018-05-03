@@ -258,6 +258,7 @@
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
+        '../media_session/media_session_action_details.idl',
         '../media_session/media_session_playback_state.idl',
         '../page_visibility/visibility_state.idl',
         '../speech/speech_recognition_error_code.idl',
