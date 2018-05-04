@@ -23,12 +23,12 @@
   <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
   <uses-feature android:glEsVersion="0x00020000" android:required="true" />
 
-  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
   <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
   <uses-permission android:name="android.permission.USE_CREDENTIALS" android:maxSdkVersion="22"/>
-  <uses-permission android:name="android.permission.INTERNET" />
-  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
   <application
     android:name="dev.cobalt.app.CobaltApplication"
@@ -41,12 +41,12 @@
       android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode"
       android:screenOrientation="sensorLandscape"
       android:theme="@style/CobaltTheme">
-      <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv" />
-      <meta-data android:name="cobalt.SPLASH_URL" android:value="h5vcc-embedded://cobalt_splash_screen.html" />
-      <meta-data android:name="android.app.lib_name" android:value="coat" />
+      <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv"/>
+      <meta-data android:name="cobalt.SPLASH_URL" android:value="h5vcc-embedded://cobalt_splash_screen.html"/>
+      <meta-data android:name="android.app.lib_name" android:value="coat"/>
       <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
         <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
         <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
