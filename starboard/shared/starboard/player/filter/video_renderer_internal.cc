@@ -219,7 +219,7 @@ void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   ScopedLock scoped_lock(frames_mutex_);
   algorithm_->Render(media_time_provider_, &frames_, draw_frame_cb);
   number_of_frames_.store(static_cast<int32_t>(frames_.size()));
-  if (number_of_frames_.load() == 1 && end_of_stream_written_.load() &&
+  if (number_of_frames_.load() <= 1 && end_of_stream_written_.load() &&
       !ended_cb_called_.load()) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);
