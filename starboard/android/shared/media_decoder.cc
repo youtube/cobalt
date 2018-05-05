@@ -173,6 +173,7 @@ void MediaDecoder::DecoderThreadFunc() {
   // TODO: Replace |pending_work| with a single object instead of using a deque.
   std::deque<Event> pending_work;
 
+  // TODO: Refactor the i/o logic using async based decoder.
   while (!destroying_.load()) {
     if (pending_work.empty()) {
       Event event = event_queue_.PollFront();
@@ -184,15 +185,24 @@ void MediaDecoder::DecoderThreadFunc() {
       }
     }
 
-    bool did_work = false;
-    did_work |= ProcessOneInputBuffer(&pending_work);
-    did_work |= host_->Tick(media_codec_bridge_.get());
-    did_work |= DequeueAndProcessOutputBuffer();
-    did_work |= host_->Tick(media_codec_bridge_.get());
-
-    if (pending_work.empty() && !did_work) {
-      SbThreadSleep(kSbTimeMillisecond);
+    if (media_type_ == kSbMediaTypeAudio) {
+      if (!ProcessOneInputBuffer(&pending_work) &&
+          !DequeueAndProcessOutputBuffer()) {
+        SbThreadSleep(kSbTimeMillisecond);
+      }
       continue;
+    }
+
+    SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+    // Call Tick() to give the video decoder a chance to release the frames
+    // after each input or output operations.
+    if (!ProcessOneInputBuffer(&pending_work) &&
+        !host_->Tick(media_codec_bridge_.get())) {
+      SbThreadSleep(kSbTimeMillisecond);
+    }
+    if (!DequeueAndProcessOutputBuffer() &&
+        !host_->Tick(media_codec_bridge_.get())) {
+      SbThreadSleep(kSbTimeMillisecond);
     }
   }
 
