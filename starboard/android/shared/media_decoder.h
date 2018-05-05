@@ -51,9 +51,8 @@ class MediaDecoder {
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
-    // This function gets called immediately after ProcessOutputBuffer() or
-    // RefreshOutputFormat() is called to give the Host (especially the video
-    // decoder) a chance to process.
+    // This function gets called frequently on the decoding thread to give the
+    // Host a chance to process when the MediaDecoder is decoding video.
     // TODO: Revise the scheduling logic to give the host a chance to process in
     //       a more elegant way.
     virtual bool Tick(MediaCodecBridge* media_codec_bridge) = 0;
