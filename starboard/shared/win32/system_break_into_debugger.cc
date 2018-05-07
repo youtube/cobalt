@@ -23,7 +23,5 @@ void SbSystemBreakIntoDebugger() {
   // on some Windows platforms (eg UWP) so we use __debugbreak()
   // instead.
   starboard::shared::starboard::NetLogFlush();
-  if (SbSystemIsDebuggerAttached()) {
-    __debugbreak();
-  }
+  __debugbreak();
 }
