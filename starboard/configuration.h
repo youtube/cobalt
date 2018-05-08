@@ -80,6 +80,9 @@
 // Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version where supporting audio only video playback is required.
+#define SB_AUDIO_ONLY_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Minimum API version where calling SbPlayerCreate mutiple times (without
 // calling SbPlayerDestroy in between) must not crash, and likewise calling
 // SbAudioSinkCreate multiple times (without calling SbAudioSinkDestroy in
