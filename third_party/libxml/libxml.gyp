@@ -297,6 +297,9 @@
                 # trio_is_special_quantity and trio_is_negative are only
                 # used with certain preprocessor defines set.
                 '-Wno-unused-function',
+                # xpath.c xmlXPathNodeCollectAndTest compares 'xmlElementType'
+                # and 'xmlXPathTypeVal'.
+                '-Wno-enum-compare',
               ],
             }],
           ],
