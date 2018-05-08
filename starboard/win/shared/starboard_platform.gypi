@@ -184,6 +184,9 @@
           ]
         }]
       ],
+      'variables': {
+        'starboard_platform_dependencies%': '',
+      },
       'sources': [
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -414,6 +417,7 @@
         'ENABLE_VP9_8K_SUPPORT',
       ],
       'dependencies': [
+        '<@(starboard_platform_dependencies)',
         'convert_i18n_data',
       ],
     },
