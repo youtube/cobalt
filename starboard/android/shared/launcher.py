@@ -47,7 +47,8 @@ _QUEUE_CODE_CRASHED = 'crashed'
 
 # Args to ***REMOVED***crow, which is started if no other device is attached.
 _CROW_COMMANDLINE = ['/***REMOVED***/teams/mobile_eng_prod/crow/crow.par',
-                     '--api_level', '24', '--device', 'tv', '--open_gl',
+                     '--api_level', '24', '--device', 'tv',
+                     '--open_gl_driver', 'host',
                      '--noenable_g3_monitor']
 
 _DEV_NULL = open('/dev/null')
