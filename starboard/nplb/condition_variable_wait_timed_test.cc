@@ -128,7 +128,9 @@ TEST(SbConditionVariableWaitTimedTest, SunnyDayNearMaxTime) {
 
   // We should have waited at least the delay_after_signal amount, but not the
   // full delay.
-  EXPECT_LT(context.delay_after_signal, SbTimeGetMonotonicNow() - start);
+  // Add some padding to tolerate slightly imprecise sleeps.
+  EXPECT_LT(context.delay_after_signal, SbTimeGetMonotonicNow() - start +
+                                            (context.delay_after_signal / 10));
   EXPECT_GT(kDelay, SbTimeGetMonotonicNow() - start);
 
   EXPECT_TRUE(SbMutexRelease(&context.mutex));
