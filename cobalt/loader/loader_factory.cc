@@ -97,6 +97,51 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
   return loader.Pass();
 }
 
+scoped_ptr<Loader> LoaderFactory::CreateLinkLoader(
+    const GURL& url, const Origin& origin,
+    const csp::SecurityCallback& url_security_callback,
+    const loader::RequestMode cors_mode,
+    const TextDecoder::SuccessCallback& success_callback,
+    const Loader::OnErrorFunction& loader_error_callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  scoped_ptr<loader::Decoder> decoder(
+      new loader::TextDecoder(success_callback));
+
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, cors_mode, origin);
+  scoped_ptr<Loader> loader(new Loader(
+      fetcher_creator, decoder.Pass(), loader_error_callback,
+
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
+      is_suspended_));
+
+  OnLoaderCreated(loader.get());
+  return loader.Pass();
+}
+
+scoped_ptr<Loader> LoaderFactory::CreateScriptLoader(
+    const GURL& url, const Origin& origin,
+    const csp::SecurityCallback& url_security_callback,
+    const TextDecoder::SuccessCallback& success_callback,
+    const Loader::OnErrorFunction& loader_error_callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  scoped_ptr<loader::Decoder> decoder(
+      new loader::TextDecoder(success_callback));
+
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
+  scoped_ptr<Loader> loader(new Loader(
+      fetcher_creator, decoder.Pass(), loader_error_callback,
+
+      base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
+      is_suspended_));
+
+  OnLoaderCreated(loader.get());
+  return loader.Pass();
+}
+
 Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin) {

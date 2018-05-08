@@ -50,8 +50,8 @@ class WindowTest : public ::testing::Test {
         window_(new Window(
             1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
             dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL,
-            NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, url_, "", "en-US", "en",
+            NULL, NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, url_, "", "en-US", "en",
             base::Callback<void(const GURL &)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),

@@ -34,9 +34,10 @@ namespace loader {
 // results.
 class TextDecoder : public Decoder {
  public:
-  explicit TextDecoder(
-      base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
-          done_callback)
+  typedef base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
+      SuccessCallback;
+
+  explicit TextDecoder(const SuccessCallback& done_callback)
       : done_callback_(done_callback), suspended_(false) {}
   ~TextDecoder() override {}
 
@@ -97,8 +98,7 @@ class TextDecoder : public Decoder {
 
  private:
   base::ThreadChecker thread_checker_;
-  base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
-      done_callback_;
+  SuccessCallback done_callback_;
   loader::Origin last_url_origin_;
   scoped_ptr<std::string> text_;
   bool suspended_;
