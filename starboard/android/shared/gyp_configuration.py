@@ -119,8 +119,6 @@ class AndroidConfiguration(PlatformConfiguration):
           '.SunnyDaySourceForDestination/1',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDaySourceNotLoopback/0',
-          'SbSocketBindTest.SunnyDayLocalInterface',
-          'SbSocketGetLocalAddressTest.SunnyDayBoundSpecified',
           'SpeechRecognizerTest.StartIsCalledMultipleTimes',
           'SpeechRecognizerTest.StartRecognizerWith10MaxAlternatives',
           'SpeechRecognizerTest.StartRecognizerWithContinuousRecognition',
