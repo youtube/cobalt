@@ -58,7 +58,6 @@ class NetLog:
       # An empty string is a flag that the connection has closed.
       if len(result) == 0:
         return None
-
       return result
     except socket.error as (err_no, err_str):
       if err_no == 10035:  # Data not ready yet.
