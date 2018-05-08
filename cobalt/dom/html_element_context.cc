@@ -21,6 +21,7 @@ namespace dom {
 
 HTMLElementContext::HTMLElementContext()
     : fetcher_factory_(NULL),
+      loader_factory_(NULL),
       css_parser_(NULL),
       dom_parser_(NULL),
       can_play_type_handler_(NULL),
@@ -42,7 +43,8 @@ HTMLElementContext::HTMLElementContext()
 }
 
 HTMLElementContext::HTMLElementContext(
-    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
+    loader::FetcherFactory* fetcher_factory,
+    loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner,
@@ -60,6 +62,7 @@ HTMLElementContext::HTMLElementContext(
     base::WaitableEvent* synchronous_loader_interrupt,
     float video_playback_rate_multiplier)
     : fetcher_factory_(fetcher_factory),
+      loader_factory_(loader_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
       can_play_type_handler_(can_play_type_handler),
