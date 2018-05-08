@@ -83,7 +83,7 @@ def main(argv):
   parser.add_argument('--host', type=str, required = False,
                       default = 'localhost',
                       help = "Example localhost or 1.2.3.4")
-  parser.add_argument('--port', type=int, required = False, default = '49354')
+  parser.add_argument('--port', type=int, required = False, default = '49355')
   parser.add_argument('--arg', type=str, required = True)
   args = parser.parse_args(argv)
 
