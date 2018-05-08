@@ -57,7 +57,7 @@ void DummyErrorFunc(SbPlayer player,
                     const char* message) {}
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
-TEST_F(SbPlayerTest, SunnyDay) {
+SbMediaAudioHeader GetDefaultAudioHeader() {
   SbMediaAudioHeader audio_header;
 
   audio_header.format_tag = 0xff;
@@ -70,6 +70,11 @@ TEST_F(SbPlayerTest, SunnyDay) {
                                           audio_header.number_of_channels *
                                           audio_header.bits_per_sample / 8;
 
+  return audio_header;
+}
+
+TEST_F(SbPlayerTest, SunnyDay) {
+  SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
@@ -107,18 +112,7 @@ TEST_F(SbPlayerTest, SunnyDay) {
 
 #if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 TEST_F(SbPlayerTest, NullCallbacks) {
-  SbMediaAudioHeader audio_header;
-
-  audio_header.format_tag = 0xff;
-  audio_header.number_of_channels = 2;
-  audio_header.samples_per_second = 22050;
-  audio_header.block_alignment = 4;
-  audio_header.bits_per_sample = 32;
-  audio_header.audio_specific_config_size = 0;
-  audio_header.average_bytes_per_second = audio_header.samples_per_second *
-                                          audio_header.number_of_channels *
-                                          audio_header.bits_per_sample / 8;
-
+  SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
@@ -224,7 +218,7 @@ TEST_F(SbPlayerTest, Audioless) {
     }
 
     SbPlayer player = SbPlayerCreate(
-        fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+        fake_graphics_context_provider_.window(), kVideoCodec,
         kSbMediaAudioCodecNone,
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
         SB_PLAYER_NO_DURATION,
@@ -247,20 +241,49 @@ TEST_F(SbPlayerTest, Audioless) {
 }
 #endif  // SB_HAS(AUDIOLESS_VIDEO)
 
+#if SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+TEST_F(SbPlayerTest, AudioOnly) {
+  SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
+  SbMediaAudioCodec kAudioCodec = kSbMediaAudioCodecAac;
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
+  SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
+    SbPlayerOutputMode output_mode = output_modes[i];
+    if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
+      continue;
+    }
+
+    SbPlayer player = SbPlayerCreate(
+        fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
+        kAudioCodec,
+#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+        SB_PLAYER_NO_DURATION,
+#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+        kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
+        DummyDecoderStatusFunc, DummyStatusFunc,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+        DummyErrorFunc,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+        NULL /* context */, output_mode,
+        fake_graphics_context_provider_.decoder_target_provider());
+    EXPECT_TRUE(SbPlayerIsValid(player));
+
+    if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+      SbDecodeTarget current_frame = SbPlayerGetCurrentFrame(player);
+    }
+
+    SbPlayerDestroy(player);
+  }
+}
+#endif  // SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+
 #if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
 TEST_F(SbPlayerTest, MultiPlayer) {
-  SbMediaAudioHeader audio_header;
-
-  audio_header.format_tag = 0xff;
-  audio_header.number_of_channels = 2;
-  audio_header.samples_per_second = 22050;
-  audio_header.block_alignment = 4;
-  audio_header.bits_per_sample = 32;
-  audio_header.audio_specific_config_size = 0;
-  audio_header.average_bytes_per_second = audio_header.samples_per_second *
-                                          audio_header.number_of_channels *
-                                          audio_header.bits_per_sample / 8;
-
+  SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
   constexpr SbPlayerOutputMode kOutputModes[] = {

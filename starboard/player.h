@@ -381,6 +381,10 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 // |video_codec|: The video codec used for the player. If |video_codec| is
 //   |kSbMediaVideoCodecNone|, the player is an audio-only player. If
 //   |video_codec| is any other value, the player is an audio/video decoder.
+#if SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+//   This can be set to |kSbMediaVideoCodecNone| to play a video with only an
+//   audio track.
+#endif  // SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
 //
 // |audio_codec|: The audio codec used for the player. The value should never
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
