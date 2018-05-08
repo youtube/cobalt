@@ -152,25 +152,27 @@ bool FilterBasedPlayerWorkerHandler::Init(
     media_time_provider_impl_->SetPlaybackRate(playback_rate_);
   }
 
-  PlayerComponents::VideoParameters video_parameters = {
-      player_,    video_codec_, drm_system_,
-      job_queue_, output_mode_, decode_target_graphics_context_provider_};
+  if (video_codec_ != kSbMediaVideoCodecNone) {
+    PlayerComponents::VideoParameters video_parameters = {
+        player_,    video_codec_, drm_system_,
+        job_queue_, output_mode_, decode_target_graphics_context_provider_};
 
-  ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
+    ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
 
-  auto media_time_provider = GetMediaTimeProvider();
-  SB_DCHECK(media_time_provider);
+    auto media_time_provider = GetMediaTimeProvider();
+    SB_DCHECK(media_time_provider);
 
-  video_renderer_ = player_components->CreateVideoRenderer(video_parameters,
-                                                           media_time_provider);
-  if (!video_renderer_) {
-    SB_DLOG(ERROR) << "Failed to create video renderer";
-    return false;
+    video_renderer_ = player_components->CreateVideoRenderer(
+        video_parameters, media_time_provider);
+    if (!video_renderer_) {
+      SB_DLOG(ERROR) << "Failed to create video renderer";
+      return false;
+    }
+    video_renderer_->Initialize(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoPrerolled, this),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoEnded, this));
   }
-  video_renderer_->Initialize(
-      std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-      std::bind(&FilterBasedPlayerWorkerHandler::OnVideoPrerolled, this),
-      std::bind(&FilterBasedPlayerWorkerHandler::OnVideoEnded, this));
 
   update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
 
@@ -181,7 +183,7 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   SB_UNREFERENCED_PARAMETER(ticket);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  if (!GetMediaTimeProvider() || !video_renderer_) {
+  if (!GetMediaTimeProvider()) {
     return false;
   }
 
@@ -191,7 +193,9 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time, int ticket) {
   }
 
   GetMediaTimeProvider()->Pause();
-  video_renderer_->Seek(seek_to_time);
+  if (video_renderer_) {
+    video_renderer_->Seek(seek_to_time);
+  }
   GetMediaTimeProvider()->Seek(seek_to_time);
   audio_prerolled_ = false;
   video_prerolled_ = false;
@@ -397,7 +401,7 @@ void FilterBasedPlayerWorkerHandler::OnAudioPrerolled() {
       << "Invalid player state " << (*player_worker_.*get_player_state_cb_)();
 
   audio_prerolled_ = true;
-  if (video_prerolled_) {
+  if (!video_renderer_ || video_prerolled_) {
     (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
     if (!paused_) {
       GetMediaTimeProvider()->Play();
@@ -412,7 +416,7 @@ void FilterBasedPlayerWorkerHandler::OnAudioEnded() {
     return;
   }
   audio_ended_ = true;
-  if (video_ended_) {
+  if (!video_renderer_ || video_ended_) {
     (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
   }
 }
@@ -452,13 +456,15 @@ void FilterBasedPlayerWorkerHandler::OnVideoEnded() {
 void FilterBasedPlayerWorkerHandler::Update() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  if (!GetMediaTimeProvider() || !video_renderer_) {
+  if (!GetMediaTimeProvider()) {
     return;
   }
 
   if ((*player_worker_.*get_player_state_cb_)() == kSbPlayerStatePresenting) {
-    player_worker_->UpdateDroppedVideoFrames(
-        video_renderer_->GetDroppedFrames());
+    if (video_renderer_) {
+      player_worker_->UpdateDroppedVideoFrames(
+          video_renderer_->GetDroppedFrames());
+    }
     bool is_playing;
     bool is_eos_played;
     (*player_worker_.*
