@@ -51,7 +51,8 @@ class HTMLElementContext {
 
   HTMLElementContext();
   HTMLElementContext(
-      loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
+      loader::FetcherFactory* fetcher_factory,
+      loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
       Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
       media::WebMediaPlayerFactory* web_media_player_factory,
       script::ScriptRunner* script_runner,
@@ -71,6 +72,8 @@ class HTMLElementContext {
   ~HTMLElementContext();
 
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
+
+  loader::LoaderFactory* loader_factory() { return loader_factory_; }
 
   cssom::CSSParser* css_parser() { return css_parser_; }
 
@@ -144,6 +147,7 @@ class HTMLElementContext {
 
  private:
   loader::FetcherFactory* const fetcher_factory_;
+  loader::LoaderFactory* const loader_factory_;
   cssom::CSSParser* const css_parser_;
   Parser* const dom_parser_;
   media::CanPlayTypeHandler* can_play_type_handler_;

@@ -92,6 +92,7 @@ Window::Window(
     base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
+    loader::LoaderFactory* loader_factory,
     render_tree::ResourceProvider** resource_provider,
     loader::image::AnimatedImageTracker* animated_image_tracker,
     loader::image::ImageCache* image_cache,
@@ -139,13 +140,14 @@ Window::Window(
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
       html_element_context_(new HTMLElementContext(
-          fetcher_factory, css_parser, dom_parser, can_play_type_handler,
-          web_media_player_factory, script_runner, script_value_factory,
-          media_source_registry, resource_provider, animated_image_tracker,
-          image_cache, reduced_image_cache_capacity_manager,
-          remote_typeface_cache, mesh_cache, dom_stat_tracker,
-          font_language_script, initial_application_state,
-          synchronous_loader_interrupt, video_playback_rate_multiplier)),
+          fetcher_factory, loader_factory, css_parser, dom_parser,
+          can_play_type_handler, web_media_player_factory, script_runner,
+          script_value_factory, media_source_registry, resource_provider,
+          animated_image_tracker, image_cache,
+          reduced_image_cache_capacity_manager, remote_typeface_cache,
+          mesh_cache, dom_stat_tracker, font_language_script,
+          initial_application_state, synchronous_loader_interrupt,
+          video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
           clock_type == kClockTypeTestRunner
