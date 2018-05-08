@@ -317,6 +317,12 @@
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
                ],
             }],
+            ['(OS=="starboard") and (target_os=="android")', {
+              'cflags_cc': [
+                # reldtfmt.cpp compares 'UDateFormatStyle' and 'EStyle'.
+                '-Wno-enum-compare-switch',
+              ],
+            }],
             ['(OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux" or clang==1)', {
               'cflags_cc': [
                 '-frtti',
