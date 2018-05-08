@@ -33,6 +33,7 @@ int SbPlayerPrivate::number_of_players_ = 0;
 
 SbPlayerPrivate::SbPlayerPrivate(
     SbMediaAudioCodec audio_codec,
+    SbMediaVideoCodec video_codec,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -55,6 +56,7 @@ SbPlayerPrivate::SbPlayerPrivate(
       dropped_video_frames_(0),
       worker_(new PlayerWorker(this,
                                audio_codec,
+                               video_codec,
                                player_worker_handler.Pass(),
                                decoder_status_func,
                                player_status_func,
