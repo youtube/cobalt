@@ -77,7 +77,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int kDefaultFrameWidth = 0;
   const int kDefaultFrameHeight = 0;
   const int kDefaultFrameRate = 0;
-  if (!SbMediaIsVideoSupported(video_codec, kDefaultFrameWidth,
+  if (video_codec != kSbMediaVideoCodecNone &&
+      !SbMediaIsVideoSupported(video_codec, kDefaultFrameWidth,
                                kDefaultFrameHeight, kDefaultBitRate,
                                kDefaultFrameRate)) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
@@ -87,6 +88,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
   if (audio_codec != kSbMediaAudioCodecNone && !audio_header) {
     SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader "
                   << "when |audio_codec| is not kSbMediaAudioCodecNone";
+    return kSbPlayerInvalid;
+  }
+
+  if (audio_codec == kSbMediaAudioCodecNone &&
+      video_codec == kSbMediaVideoCodecNone) {
+    SB_LOG(ERROR) << "SbPlayerCreate() requires at least one audio track or"
+                  << " one video track.";
     return kSbPlayerInvalid;
   }
 
@@ -101,12 +109,13 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
 
-  SbPlayer player = new SbPlayerPrivate(audio_codec, sample_deallocate_func,
-                                        decoder_status_func, player_status_func,
+  SbPlayer player =
+      new SbPlayerPrivate(audio_codec, video_codec, sample_deallocate_func,
+                          decoder_status_func, player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-                                        player_error_func,
+                          player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-                                        context, handler.Pass());
+                          context, handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
