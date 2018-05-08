@@ -19,11 +19,13 @@
 
 #include "base/threading/thread.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/fetcher.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/typeface_decoder.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/mesh/mesh_decoder.h"
+#include "cobalt/loader/text_decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
 
@@ -59,6 +61,21 @@ class LoaderFactory {
       const csp::SecurityCallback& url_security_callback,
       const mesh::MeshDecoder::SuccessCallback& success_callback,
       const mesh::MeshDecoder::ErrorCallback& error_callback);
+
+  // Creates a loader that fetches and decodes a Javascript resource.
+  scoped_ptr<Loader> CreateScriptLoader(
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
+      const TextDecoder::SuccessCallback& success_callback,
+      const Loader::OnErrorFunction& loader_error_callback);
+
+  // Creates a loader that fetches and decodes a link resources.
+  scoped_ptr<Loader> CreateLinkLoader(
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
+      const loader::RequestMode cors_mode,
+      const TextDecoder::SuccessCallback& success_callback,
+      const Loader::OnErrorFunction& loader_error_callback);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.

@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/custom_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
@@ -26,6 +27,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader_factory.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -56,13 +58,15 @@ class CustomEventTest : public ::testing::Test {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
+        loader_factory_(new loader::LoaderFactory(
+            fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
         local_storage_database_(NULL),
         url_("about:blank"),
         window_(new Window(
             1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-            dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL,
-            NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, url_, "", "en-US", "en",
+            dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
+            NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
+            NULL, NULL, NULL, NULL, NULL, NULL, url_, "", "en-US", "en",
             base::Callback<void(const GURL&)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
@@ -93,6 +97,7 @@ class CustomEventTest : public ::testing::Test {
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  scoped_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
   const scoped_refptr<Window> window_;
