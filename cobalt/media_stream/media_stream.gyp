@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
+# Copyright 2018 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,33 +18,19 @@
   },
   'targets': [
     {
-      'target_name': 'media_capture',
-      'type': 'static_library',
+      'target_name': 'media_stream',
+      'type': 'none',
       'sources': [
-        'media_devices.cc',
-        'media_devices.h',
-        'media_device_info.cc',
-        'media_device_info.h',
-        'media_recorder.cc',
-        'media_recorder.h',
+        'media_stream.h',
+        'media_stream_track.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-        '<(DEPTH)/cobalt/media_stream/media_stream.gyp:media_stream',
       ],
       'export_dependent_settings': [
-        # Additionally, ensure that the include directories for generated
-        # headers are put on the include directories for targets that depend
-        # on this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-      ],
-      'conditions': [
-        ['sb_disable_microphone_idl==1', {
-          'defines': [
-            'DISABLE_MICROPHONE_IDL',
-          ],
-        }],
       ],
     },
   ],
 }
+
