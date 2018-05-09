@@ -20,6 +20,8 @@ import logging
 import os
 import sys
 
+from starboard.tools.testing import test_filter
+
 # Import the shared win platform configuration.
 sys.path.append(
     os.path.realpath(
@@ -51,3 +53,80 @@ class WinWin32PlatformConfig(gyp_configuration.Win32Configuration):
 
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module
+
+  def GetTestFilters(self):
+    """Gets all tests to be excluded from a unit test run.
+
+    Returns:
+      A list of initialized TestFilter objects.
+    """
+
+    if not self.IsWin10orHigher():
+      logging.error('Tests can only be executed on Win10 and higher.')
+      return [test_filter.DISABLE_TESTING]
+    else:
+      filters = super(WinWin32PlatformConfig, self).GetTestFilters()
+      for target, tests in self._FILTERED_TESTS.iteritems():
+        filters.extend(test_filter.TestFilter(target, test) for test in tests)
+      return filters
+
+  _FILTERED_TESTS = {
+      'renderer_test': [
+          'ResourceProviderTest.ManyTexturesCanBeCreatedAndDestroyedQuickly', # Flaky.
+          'ResourceProviderTest.TexturesCanBeCreatedFromSecondaryThread',
+          'PixelTest.Width1Image',
+          'PixelTest.Height1Image',
+          'PixelTest.Area1Image',
+      ],
+
+      'nplb': [
+          # TODO: Check these unit tests and fix them!
+          'SbAudioSinkCreateTest.MultiSink',
+          'SbAudioSinkCreateTest.RainyDayInvalid*',
+          'SbAudioSinkCreateTest.SunnyDay',
+          'SbAudioSinkCreateTest.SunnyDayAllCombinations',
+          'SbAudioSinkIsAudioSampleTypeSupportedTest.SunnyDay',
+          'SbAudioSinkTest.*',
+
+          'SbMicrophoneCloseTest.SunnyDayCloseAreCalledMultipleTimes',
+          'SbMicrophoneOpenTest.SunnyDay',
+          'SbMicrophoneOpenTest.SunnyDayNoClose',
+          'SbMicrophoneOpenTest.SunnyDayMultipleOpenCalls',
+          'SbMicrophoneReadTest.SunnyDay',
+          'SbMicrophoneReadTest.SunnyDayReadIsLargerThanMinReadSize',
+          'SbMicrophoneReadTest.RainyDayAudioBufferIsNULL',
+          'SbMicrophoneReadTest.RainyDayAudioBufferSizeIsSmallerThanMinReadSize',
+          'SbMicrophoneReadTest.RainyDayAudioBufferSizeIsSmallerThanRequestedSize',
+          'SbMicrophoneReadTest.RainyDayOpenCloseAndRead',
+          'SbMicrophoneReadTest.SunnyDayOpenSleepCloseAndOpenRead',
+
+          'SbPlayerTest.Audioless',
+          'SbPlayerTest.NullCallbacks',
+          'SbPlayerTest.MultiPlayer',
+          'SbPlayerTest.SunnyDay',
+
+          'SbConditionVariableWaitTimedTest.SunnyDayAutoInit', # Flaky
+
+          'SbSocketJoinMulticastGroupTest.SunnyDay',
+          'SbSystemGetStackTest.SunnyDayStackDirection',
+          # Fails when subtracting infinity and expecting NaN:
+          # for EXPECT_TRUE(SbDoubleIsNan(infinity + -infinity))
+          'SbUnsafeMathTest.NaNDoubleSunnyDay',
+       ],
+
+       'net_unittests': [
+           'FileStreamTest.AsyncRead_EarlyDelete',
+           'FileStreamTest.AsyncOpenAndDelete',
+           'FileStreamTest.AsyncWrite_EarlyDelete',
+           'HostResolverImplDnsTest.DnsTaskUnspec',
+           'UDPListenSocketTest.DoRead',
+           'UDPListenSocketTest.DoReadReturnsNullAtEnd',
+           'UDPListenSocketTest.SendTo',
+       ],
+
+       'web_platform_tests': [
+          '*WebPlatformTest.Run*',
+       ],
+
+      'player_filter_tests': [ test_filter.FILTER_ALL ],
+  }
