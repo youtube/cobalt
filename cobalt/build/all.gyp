@@ -56,6 +56,8 @@
         '<(DEPTH)/cobalt/media_capture/media_capture.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session_test.gyp:*',
+        '<(DEPTH)/cobalt/media_stream/media_stream.gyp:*',
+        '<(DEPTH)/cobalt/media_stream/media_stream_test.gyp:*',
         '<(DEPTH)/cobalt/network/network.gyp:*',
         '<(DEPTH)/cobalt/overlay_info/overlay_info.gyp:*',
         '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:*',
