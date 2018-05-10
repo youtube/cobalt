@@ -74,7 +74,6 @@ class PlayerWorker {
     // All the following functions return false to signal a fatal error.  The
     // event processing loop in PlayerWorker will termimate in this case.
     virtual bool Init(PlayerWorker* player_worker,
-                      JobQueue* job_queue,
                       SbPlayer player,
                       UpdateMediaTimeCB update_media_time_cb,
                       GetPlayerStateCB get_player_state_cb,

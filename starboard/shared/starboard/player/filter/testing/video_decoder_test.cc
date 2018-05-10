@@ -113,7 +113,6 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
         &player_,
         dmp_reader_.video_codec(),
         kSbDrmSystemInvalid,
-        &job_queue_,
         output_mode,
         fake_graphics_context_provider_.decoder_target_provider()};
 
@@ -428,7 +427,6 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               &players[i],
               dmp_reader_.video_codec(),
               kSbDrmSystemInvalid,
-              &job_queue_,
               output_mode,
               fake_graphics_context_provider_.decoder_target_provider()};
 

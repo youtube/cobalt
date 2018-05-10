@@ -14,7 +14,6 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
-#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -32,16 +31,14 @@ const SbTimeMonotonic kUpdateInterval = 5 * kSbTimeMillisecond;
 
 }  // namespace
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec, JobQueue* job_queue)
+VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
     : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       eos_written_(false),
       thread_(kSbThreadInvalid),
-      request_thread_termination_(false),
-      job_queue_(job_queue) {
+      request_thread_termination_(false) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
-  SB_DCHECK(job_queue_ != NULL);
   update_job_ = std::bind(&VideoDecoder::Update, this);
-  update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateInterval);
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -52,7 +49,7 @@ VideoDecoder::~VideoDecoder() {
     }
     SbThreadJoin(thread_, NULL);
   }
-  job_queue_->RemoveJobByToken(update_job_token_);
+  RemoveJobByToken(update_job_token_);
 }
 
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -99,7 +96,7 @@ void VideoDecoder::Update() {
   if (eos_written_) {
     TryToDeliverOneFrame();
   }
-  update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateInterval);
 }
 
 bool VideoDecoder::TryToDeliverOneFrame() {
