@@ -29,6 +29,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 // TODO: Write test for HE-AAC
 
 namespace starboard {
@@ -350,3 +351,4 @@ INSTANTIATE_TEST_CASE_P(AudioDecoderTests,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)
