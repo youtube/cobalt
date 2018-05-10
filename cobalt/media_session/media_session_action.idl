@@ -18,7 +18,6 @@
 enum MediaSessionAction {
   "play",
   "pause",
-  "seek",  // Cobalt customization.
   "seekbackward",
   "seekforward",
   "previoustrack",
