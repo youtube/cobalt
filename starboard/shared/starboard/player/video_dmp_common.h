@@ -23,6 +23,7 @@
 #include "starboard/media.h"
 #include "starboard/memory.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -168,4 +169,5 @@ void Write(const WriteCB& write_cb,
 }  // namespace shared
 }  // namespace starboard
 
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_COMMON_H_

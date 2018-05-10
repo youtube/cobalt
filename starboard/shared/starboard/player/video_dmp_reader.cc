@@ -16,6 +16,7 @@
 
 #include <functional>
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -213,3 +214,4 @@ int VideoDmpReader::ReadFromFile(void* buffer, int bytes_to_read) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)

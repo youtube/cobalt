@@ -27,6 +27,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -260,6 +261,8 @@ TEST_F(AudioRendererTest, StateAfterConstructed) {
   EXPECT_FALSE(is_eos_played);
 }
 
+// TODO: adapt these tests for async audio frames reporting.
+#if !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 TEST_F(AudioRendererTest, SunnyDay) {
   {
     InSequence seq;
@@ -781,6 +784,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
+#endif  // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
 // TODO: Add more Seek tests.
 
@@ -791,3 +795,4 @@ TEST_F(AudioRendererTest, Seek) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)
