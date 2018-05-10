@@ -207,8 +207,11 @@ void DrmSystem::UpdateSession(int ticket,
   jboolean status = JniEnvExt::Get()->CallBooleanMethodOrAbort(
       j_media_drm_bridge_, "updateSession", "([B[B)Z", j_session_id.Get(),
       j_response.Get());
-  session_updated_callback_(this, context_, ticket, session_id, session_id_size,
-                            status == JNI_TRUE);
+  session_updated_callback_(this, context_, ticket,
+                            status == JNI_TRUE
+                                ? kSbDrmSessionStatusSuccess
+                                : kSbDrmSessionStatusUnknownError,
+                            NULL, session_id, session_id_size);
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
@@ -248,8 +251,10 @@ void DrmSystem::CallUpdateRequestCallback(int ticket,
                                           const void* content,
                                           int content_size,
                                           const char* url) {
-  update_request_callback_(this, context_, ticket, session_id, session_id_size,
-                           content, content_size, url);
+  update_request_callback_(this, context_, ticket, kSbDrmSessionStatusSuccess,
+                           kSbDrmSessionRequestTypeLicenseRequest, NULL,
+                           session_id, session_id_size, content, content_size,
+                           url);
 }
 
 void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(

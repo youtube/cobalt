@@ -21,6 +21,30 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+
+void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
+                                   void* context,
+                                   int ticket,
+                                   SbDrmSessionStatus status,
+                                   SbDrmSessionRequestType type,
+                                   const char* error_message,
+                                   const void* session_id,
+                                   int session_id_size,
+                                   const void* content,
+                                   int content_size,
+                                   const char* url) {}
+
+void DummySessionUpdatedFunc(SbDrmSystem drm_system,
+                             void* context,
+                             int ticket,
+                             SbDrmSessionStatus status,
+                             const char* error_message,
+                             const void* session_id,
+                             int session_id_size) {}
+
+#else  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+
 void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
                                    void* context,
                                    int ticket,
@@ -36,6 +60,8 @@ void DummySessionUpdatedFunc(SbDrmSystem drm_system,
                              const void* session_id,
                              int session_id_size,
                              bool succeeded) {}
+
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 
 #if SB_HAS(DRM_KEY_STATUSES)
 void DummySessionKeyStatusesChangedFunc(SbDrmSystem drm_system,

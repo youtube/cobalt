@@ -99,11 +99,16 @@
 // (|kSbPlayerInvalid| or |kSbDrmSystemInvalid| appropriately).
 #define SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where DRM session closed callback is required.
-//   Add a callback to SbDrmCreateSystem that allows a DRM system to
-//   signal that a DRM session has closed from the Starboard layer.
-//   Previously, DRM sessions could only be closed from the application layer.
-#define SB_DRM_SESSION_CLOSED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+// API version where the following DRM refinements are available.
+//   1. Add a callback to SbDrmCreateSystem that allows a DRM system to
+//      signal that a DRM session has closed from the Starboard layer.
+//      Previously, DRM sessions could only be closed from the application
+//      layer.
+//   2. Allow calling |SbDrmSessionUpdateRequestFunc| and
+//      |SbDrmSessionUpdatedFunc| with extra status and optional error message.
+//   3. Add request type parameter to |SbDrmSessionUpdateRequestFunc| to support
+//      individualization, license renewal, and license release.
+#define SB_DRM_REFINEMENT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // API version where kSbSystemPathSourceDirectory is removed.
 //   Test code looking for its static input files should instead use the `test`
@@ -633,7 +638,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 #endif  // SB_API_VERSION >= 6
 
-#if SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #if !SB_HAS(DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
@@ -641,7 +646,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_SESSION_CLOSED)
 #define SB_HAS_DRM_SESSION_CLOSED 1
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
