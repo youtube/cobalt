@@ -70,11 +70,15 @@ class MediaKeySession : public EventTarget {
 
   void OnSessionUpdateRequestGenerated(
       VoidPromiseValue::Reference* promise_reference,
-      scoped_array<uint8> message, int message_size);
+      SbDrmSessionRequestType type, scoped_array<uint8> message,
+      int message_size);
   void OnSessionUpdateRequestDidNotGenerate(
-      VoidPromiseValue::Reference* promise_reference);
+      VoidPromiseValue::Reference* promise_reference, SbDrmSessionStatus status,
+      const std::string& error_message);
   void OnSessionUpdated(VoidPromiseValue::Reference* promise_reference);
-  void OnSessionDidNotUpdate(VoidPromiseValue::Reference* promise_reference);
+  void OnSessionDidNotUpdate(VoidPromiseValue::Reference* promise_reference,
+                             SbDrmSessionStatus status,
+                             const std::string& error_message);
   void OnSessionUpdateKeyStatuses(
       const std::vector<std::string>& key_ids,
       const std::vector<SbDrmKeyStatus>& key_statuses);

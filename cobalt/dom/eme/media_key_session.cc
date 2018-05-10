@@ -28,6 +28,40 @@ namespace cobalt {
 namespace dom {
 namespace eme {
 
+namespace {
+
+void RejectSessionPromise(
+    MediaKeySession::VoidPromiseValue::Reference* promise_reference,
+    SbDrmSessionStatus status, const std::string& error_message) {
+  switch (status) {
+    case kSbDrmSessionStatusSuccess:
+      NOTREACHED() << "'kSbDrmSessionStatusSuccess' is not an error.";
+      break;
+    case kSbDrmSessionStatusTypeError:
+      // TODO: Pass |error_message| once we support message on simple errors.
+      promise_reference->value().Reject(script::kTypeError);
+      break;
+    case kSbDrmSessionStatusNotSupportedError:
+      promise_reference->value().Reject(
+          new DOMException(DOMException::kNotSupportedErr, error_message));
+      break;
+    case kSbDrmSessionStatusInvalidStateError:
+      promise_reference->value().Reject(
+          new DOMException(DOMException::kInvalidStateErr, error_message));
+      break;
+    case kSbDrmSessionStatusQuotaExceededError:
+      promise_reference->value().Reject(
+          new DOMException(DOMException::kQuotaExceededErr, error_message));
+      break;
+    case kSbDrmSessionStatusUnknownError:
+      promise_reference->value().Reject(
+          new DOMException(DOMException::kNone, error_message));
+      break;
+  }
+}
+
+}  // namespace
+
 // See step 3.1 of
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
 MediaKeySession::MediaKeySession(
@@ -232,7 +266,8 @@ void MediaKeySession::TraceMembers(script::Tracer* tracer) {
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestGenerated(
-    VoidPromiseValue::Reference* promise_reference, scoped_array<uint8> message,
+    VoidPromiseValue::Reference* promise_reference,
+    SbDrmSessionRequestType type, scoped_array<uint8> message,
     int message_size) {
   MediaKeyMessageEventInit media_key_message_event_init;
   // 10.9.4. If a license request for the requested license type can be
@@ -251,8 +286,24 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
   //
   // TODO: Introduce message type parameter to |SbDrmSessionUpdateRequestFunc|
   //       and stop pretending that all messages are license requests.
-  media_key_message_event_init.set_message_type(
-      kMediaKeyMessageTypeLicenseRequest);
+  switch (type) {
+    case kSbDrmSessionRequestTypeLicenseRequest:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeLicenseRequest);
+      break;
+    case kSbDrmSessionRequestTypeLicenseRenewal:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeLicenseRenewal);
+      break;
+    case kSbDrmSessionRequestTypeLicenseRelease:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeLicenseRelease);
+      break;
+    case kSbDrmSessionRequestTypeIndividualizationRequest:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeIndividualizationRequest);
+      break;
+  }
 
   // 10.3. Let this object's callable value be true.
   callable_ = true;
@@ -279,12 +330,12 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestDidNotGenerate(
-    VoidPromiseValue::Reference* promise_reference) {
+    VoidPromiseValue::Reference* promise_reference, SbDrmSessionStatus status,
+    const std::string& error_message) {
   // 10.10.1. If any of the preceding steps failed, reject promise with a new
   //          DOMException whose name is the appropriate error name.
   //
-  // TODO: Introduce Starboard API that allows CDM to propagate error codes.
-  promise_reference->value().Reject(new DOMException(DOMException::kNone));
+  RejectSessionPromise(promise_reference, status, error_message);
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
@@ -307,12 +358,12 @@ void MediaKeySession::OnSessionUpdated(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
 void MediaKeySession::OnSessionDidNotUpdate(
-    VoidPromiseValue::Reference* promise_reference) {
+    VoidPromiseValue::Reference* promise_reference, SbDrmSessionStatus status,
+    const std::string& error_message) {
   // 8.1.3. If any of the preceding steps failed, reject promise with a new
   //        DOMException whose name is the appropriate error name.
   //
-  // TODO: Introduce Starboard API that allows CDM to propagate error codes.
-  promise_reference->value().Reject(new DOMException(DOMException::kNone));
+  RejectSessionPromise(promise_reference, status, error_message);
 }
 
 // See https://www.w3.org/TR/encrypted-media/#update-key-statuses.
