@@ -250,6 +250,16 @@ class Application {
                    int width,
                    int height);
 
+  // This is called immediately when SbPlayerSetBounds is called for punch-out
+  // video. Subclasses may override this to better synchronize the punch-out
+  // video bounds with the upcoming render output.
+  virtual void PlayerSetBounds(SbPlayer /* player */,
+                               int /* z_index */,
+                               int /* x */,
+                               int /* y */,
+                               int /* width */,
+                               int /* height */) {}
+
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
   void RegisterTeardownCallback(TeardownCallback callback) {
