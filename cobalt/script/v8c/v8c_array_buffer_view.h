@@ -19,9 +19,9 @@
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/type_traits.h"
+#include "cobalt/script/v8c/v8c_array_buffer.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
-#include "cobalt/script/v8c/weak_heap_object.h"
 
 namespace cobalt {
 namespace script {
@@ -32,8 +32,8 @@ class V8cArrayBufferView final : public ScopedPersistent<v8::Value>,
  public:
   using BaseType = ArrayBufferView;
 
-  V8cArrayBufferView(v8::Isolate* isolate, JS::HandleValue value)
-      : isolate_(isolate), weak_heap_object_(isolate, value) {
+  V8cArrayBufferView(v8::Isolate* isolate, v8::Local<v8::Value> value)
+      : isolate_(isolate), ScopedPersistent(isolate, value) {
     DCHECK(value->IsArrayBufferView());
   }
 
@@ -79,7 +79,6 @@ inline void ToJSValue(
     v8::Isolate* isolate,
     const ScriptValue<ArrayBufferView>* array_buffer_view_value,
     v8::Local<v8::Value>* out_value) {
-  TRACK_MEMORY_SCOPE("Javascript");
 
   if (!array_buffer_view_value) {
     *out_value = v8::Null(isolate);
@@ -95,7 +94,6 @@ inline void FromJSValue(
     v8::Isolate* isolate, v8::Local<v8::Value> value, int conversion_flags,
     ExceptionState* exception_state,
     V8cUserObjectHolder<V8cArrayBufferView>* out_array_buffer_view) {
-  TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(0, conversion_flags);
   DCHECK(out_array_buffer_view);
 
