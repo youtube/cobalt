@@ -109,6 +109,9 @@
     # Used to pick a proper media platform.
     'sb_media_platform%': 'starboard',
 
+    # Used to indicate that the player is filter based.
+    'sb_filter_based_player%': 1,
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker

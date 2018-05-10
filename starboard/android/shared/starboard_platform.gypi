@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'includes': [
+    '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+  ],
   'targets': [
     {
       'target_name': 'starboard_base_symbolize',
@@ -39,6 +42,7 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        '<@(filter_based_player_sources)',
         'accessibility_get_caption_settings.cc',
         'accessibility_get_display_settings.cc',
         'accessibility_get_text_to_speech_settings.cc',
@@ -368,30 +372,6 @@
         '<(DEPTH)/starboard/shared/starboard/new.cc',
         '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_decoder_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/video_decoder_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/video_frame_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/wsola_internal.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/wsola_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
