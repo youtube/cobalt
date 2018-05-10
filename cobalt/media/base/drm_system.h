@@ -35,11 +35,16 @@ namespace media {
 // from the same thread where |DrmSystem| was instantiated.
 class DrmSystem : public base::RefCounted<DrmSystem> {
  public:
-  typedef base::Callback<void(scoped_array<uint8> message, int message_size)>
+  typedef base::Callback<void(SbDrmSessionRequestType type,
+                              scoped_array<uint8> message, int message_size)>
       SessionUpdateRequestGeneratedCallback;
-  typedef base::Callback<void()> SessionUpdateRequestDidNotGenerateCallback;
+  typedef base::Callback<void(SbDrmSessionStatus status,
+                              const std::string& error_message)>
+      SessionUpdateRequestDidNotGenerateCallback;
   typedef base::Callback<void()> SessionUpdatedCallback;
-  typedef base::Callback<void()> SessionDidNotUpdateCallback;
+  typedef base::Callback<void(SbDrmSessionStatus status,
+                              const std::string& error_message)>
+      SessionDidNotUpdateCallback;
 #if SB_HAS(DRM_KEY_STATUSES)
   typedef base::Callback<void(const std::vector<std::string>& key_ids,
                               const std::vector<SbDrmKeyStatus>& key_statuses)>
@@ -169,6 +174,13 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   };
   typedef base::hash_map<int, SessionUpdate> TicketToSessionUpdateMap;
 
+  // Defined to work around the limitation on number of parameters of
+  // base::Bind().
+  struct SessionTicketAndOptionalId {
+    int ticket;
+    base::optional<std::string> id;
+  };
+
   // Private API for |Session|.
   void GenerateSessionUpdateRequest(
       Session* session, const std::string& type, const uint8_t* init_data,
@@ -185,9 +197,13 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   // Called on the constructor thread, parameters are copied and owned by these
   // methods.
   void OnSessionUpdateRequestGenerated(
-      int ticket, const base::optional<std::string>& session_id,
-      scoped_array<uint8> message, int message_size);
-  void OnSessionUpdated(int ticket, bool succeeded);
+      SessionTicketAndOptionalId ticket_and_optional_id,
+      SbDrmSessionStatus status, SbDrmSessionRequestType type,
+      const std::string& error_message, scoped_array<uint8> message,
+      int message_size);
+  void OnSessionUpdated(int ticket, SbDrmSessionStatus status,
+                        const std::string& error_message);
+
 #if SB_HAS(DRM_KEY_STATUSES)
   void OnSessionKeyStatusChanged(
       const std::string& session_id, const std::vector<std::string>& key_ids,
@@ -197,6 +213,20 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   void OnSessionClosed(const std::string& session_id);
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
   // Called on any thread, parameters need to be copied immediately.
+
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+  static void OnSessionUpdateRequestGeneratedFunc(
+      SbDrmSystem wrapped_drm_system, void* context, int ticket,
+      SbDrmSessionStatus status, SbDrmSessionRequestType type,
+      const char* error_message, const void* session_id, int session_id_size,
+      const void* content, int content_size, const char* url);
+  static void OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
+                                   void* context, int ticket,
+                                   SbDrmSessionStatus status,
+                                   const char* error_message,
+                                   const void* session_id,
+                                   int session_id_length);
+#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
   static void OnSessionUpdateRequestGeneratedFunc(
       SbDrmSystem wrapped_drm_system, void* context, int ticket,
       const void* session_id, int session_id_size, const void* content,
@@ -205,6 +235,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                    void* context, int ticket,
                                    const void* session_id,
                                    int session_id_length, bool succeeded);
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+
 #if SB_HAS(DRM_KEY_STATUSES)
   static void OnSessionKeyStatusesChangedFunc(
       SbDrmSystem wrapped_drm_system, void* context, const void* session_id,
