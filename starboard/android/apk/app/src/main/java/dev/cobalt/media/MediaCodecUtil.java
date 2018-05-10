@@ -612,7 +612,7 @@ public class MediaCodecUtil {
               TAG,
               String.format(
                   "Rejecting %s, reason: size %d x %d is not supported",
-                  name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
+                  name, frameWidth, frameHeight));
           continue;
         }
         // getSupportedFrameRates and getSupportedFrameRatesFor are intentionally not called here,
