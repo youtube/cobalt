@@ -30,9 +30,7 @@ class VideoRendererSinkImpl
     : public ::starboard::shared::starboard::player::filter::VideoRendererSink,
       private ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
-
-  VideoRendererSinkImpl(SbPlayer player, JobQueue* job_queue);
+  explicit VideoRendererSinkImpl(SbPlayer player);
   ~VideoRendererSinkImpl() override;
 
  private:
