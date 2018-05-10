@@ -75,7 +75,7 @@ class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
 
     PlayerComponents::AudioParameters audio_parameters = {
         dmp_reader_.audio_codec(), dmp_reader_.audio_header(),
-        kSbDrmSystemInvalid, &job_queue_};
+        kSbDrmSystemInvalid};
 
     scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
     components->CreateAudioComponents(audio_parameters, &audio_decoder_,
@@ -241,7 +241,7 @@ TEST_P(AudioDecoderTest, ThreeMoreDecoders) {
 
   PlayerComponents::AudioParameters audio_parameters = {
       dmp_reader_.audio_codec(), dmp_reader_.audio_header(),
-      kSbDrmSystemInvalid, &job_queue_};
+      kSbDrmSystemInvalid};
 
   scoped_ptr<PlayerComponents> components = PlayerComponents::Create();
   scoped_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];

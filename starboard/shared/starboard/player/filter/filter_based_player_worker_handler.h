@@ -37,7 +37,8 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
+class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
+                                       private JobQueue::JobOwner {
  public:
   FilterBasedPlayerWorkerHandler(
       SbMediaVideoCodec video_codec,
@@ -50,7 +51,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
  private:
   bool IsPunchoutMode() const;
   bool Init(PlayerWorker* player_worker,
-            JobQueue* job_queue,
             SbPlayer player,
             UpdateMediaTimeCB update_media_time_cb,
             GetPlayerStateCB get_player_state_cb,
@@ -81,7 +81,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   MediaTimeProvider* GetMediaTimeProvider() const;
 
   PlayerWorker* player_worker_ = NULL;
-  JobQueue* job_queue_ = NULL;
   SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaTimeCB update_media_time_cb_ = NULL;
   GetPlayerStateCB get_player_state_cb_ = NULL;
