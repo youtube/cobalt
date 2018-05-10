@@ -80,7 +80,7 @@ class RendererModule {
     // a sub-pixel offset that is different from when the cache was created.
     // This caching mechanism should only be disabled for testing purposes
     // (e.g. screenshot diff tools).
-    bool disable_rasterizer_caching;
+    bool force_deterministic_rendering;
 
     // If this flag is set to true, the pipeline will not re-submit a render
     // tree if it has not changed from the previous submission.  This can save

@@ -32,7 +32,7 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.offscreen_target_cache_size_in_bytes,
 #endif
           options.purge_skia_font_caches_on_destruction,
-          options.disable_rasterizer_caching));
+          options.force_deterministic_rendering));
 }
 }  // namespace
 
