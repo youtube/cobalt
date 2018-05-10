@@ -51,7 +51,7 @@ class HardwareRasterizer::Impl {
                 int scratch_surface_cache_size_in_bytes,
                 int offscreen_target_cache_size_in_bytes,
                 bool purge_skia_font_caches_on_destruction,
-                bool disable_rasterizer_caching);
+                bool force_deterministic_rendering);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -82,6 +82,7 @@ class HardwareRasterizer::Impl {
                      const math::Rect& content_rect);
 
   sk_sp<SkSurface> CreateFallbackSurface(
+      bool force_deterministic_rendering,
       const backend::RenderTarget* render_target);
 
   scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
@@ -99,11 +100,12 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int scratch_surface_cache_size_in_bytes,
                                int offscreen_target_cache_size_in_bytes,
                                bool purge_skia_font_caches_on_destruction,
-                               bool disable_rasterizer_caching)
+                               bool force_deterministic_rendering)
     : fallback_rasterizer_(new skia::HardwareRasterizer(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          purge_skia_font_caches_on_destruction)),
+          purge_skia_font_caches_on_destruction,
+          force_deterministic_rendering)),
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
@@ -117,9 +119,9 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   offscreen_target_manager_.reset(new OffscreenTargetManager(
       graphics_context_,
       base::Bind(&HardwareRasterizer::Impl::CreateFallbackSurface,
-                 base::Unretained(this)),
+                 base::Unretained(this), force_deterministic_rendering),
       offscreen_target_cache_size_in_bytes));
-  if (disable_rasterizer_caching) {
+  if (force_deterministic_rendering) {
     offscreen_target_manager_->SetCacheErrorThreshold(0.0f);
   }
 }
@@ -281,6 +283,7 @@ void HardwareRasterizer::Impl::RasterizeTree(
 }
 
 sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
+    bool force_deterministic_rendering,
     const backend::RenderTarget* render_target) {
   // Wrap the given render target in a new skia surface.
   GrBackendRenderTargetDesc skia_desc;
@@ -292,9 +295,16 @@ sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
   skia_desc.fStencilBits = 0;
   skia_desc.fRenderTargetHandle = render_target->GetPlatformHandle();
 
-  SkSurfaceProps skia_surface_props(
-      SkSurfaceProps::kUseDistanceFieldFonts_Flag,
-      SkSurfaceProps::kLegacyFontHost_InitType);
+  uint32_t flags = 0;
+  if (!force_deterministic_rendering) {
+    // Distance field fonts are known to result in non-deterministic graphical,
+    // since the output depends on the size of the glyph that enters the atlas
+    // first (which would get re-used for similarly but unequal sized
+    // subsequent glyphs).
+    flags = SkSurfaceProps::kUseDistanceFieldFonts_Flag;
+  }
+  SkSurfaceProps skia_surface_props(flags,
+                                    SkSurfaceProps::kLegacyFontHost_InitType);
   return SkSurface::MakeFromBackendRenderTarget(GetFallbackContext(), skia_desc,
                                                 &skia_surface_props);
 }
@@ -305,13 +315,13 @@ HardwareRasterizer::HardwareRasterizer(
     int scratch_surface_cache_size_in_bytes,
     int offscreen_target_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction,
-    bool disable_rasterizer_caching)
-    : impl_(new Impl(
-          graphics_context, skia_atlas_width, skia_atlas_height,
-          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          offscreen_target_cache_size_in_bytes,
-          purge_skia_font_caches_on_destruction, disable_rasterizer_caching)) {
-}
+    bool force_deterministic_rendering)
+    : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
+                     skia_cache_size_in_bytes,
+                     scratch_surface_cache_size_in_bytes,
+                     offscreen_target_cache_size_in_bytes,
+                     purge_skia_font_caches_on_destruction,
+                     force_deterministic_rendering)) {}
 
 HardwareRasterizer::~HardwareRasterizer() {}
 

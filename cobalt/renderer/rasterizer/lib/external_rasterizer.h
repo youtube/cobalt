@@ -41,7 +41,7 @@ class ExternalRasterizer : public Rasterizer {
                      int rasterizer_gpu_cache_size_in_bytes,
 #endif
                      bool purge_skia_font_caches_on_destruction,
-                     bool disable_rasterizer_caching);
+                     bool force_deterministic_rendering);
   virtual ~ExternalRasterizer();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
