@@ -35,10 +35,21 @@ const char kDisableImageAnimations[] = "disable_image_animations";
 const char kDisableImageAnimationsHelp[] =
     "Enables/disables animations on animated images (e.g. animated WebP).";
 
+const char kForceDeterministicRendering[] = "force_deterministic_rendering";
+const char kForceDeterministicRenderingHelp[] =
+    "Forces the renderer to avoid doing anything that may result in "
+    "1-pixel-off non-deterministic rendering output.  For example, a renderer "
+    "may implement an optimization where text glyphs are rendered once and "
+    "cached and re-used in situations where the cached glyph is approximately "
+    "very similar, even if it is not exactly the same.  Setting this flag "
+    "avoids that kind of behavior, allowing strict screen-diff tests to pass.";
+
 const char kDisableRasterizerCaching[] = "disable_rasterizer_caching";
 const char kDisableRasterizerCachingHelp[] =
     "Disables caching of rasterized render tree nodes; caching improves "
-    "performance but may result in sub-pixel differences.";
+    "performance but may result in sub-pixel differences.  Note that this "
+    "is deprecated, the '--force_deterministic_rendering' flag should be "
+    "used instead which does the same thing.";
 
 const char kDisableSignIn[] = "disable_sign_in";
 const char kDisableSignInHelp[] =
@@ -325,6 +336,7 @@ std::string HelpMessage() {
     {kAudioDecoderStub, kAudioDecoderStubHelp},
         {kDebugConsoleMode, kDebugConsoleModeHelp},
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
+        {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
         {kDisableSignIn, kDisableSignInHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
