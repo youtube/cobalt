@@ -26,17 +26,9 @@ namespace shared {
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-VideoRendererSinkImpl::VideoRendererSinkImpl(SbPlayer player,
-                                             JobQueue* job_queue)
-    : JobOwner(job_queue),
-      player_(player),
-      z_index_(0),
-      x_(0),
-      y_(0),
-      width_(0),
-      height_(0) {
+VideoRendererSinkImpl::VideoRendererSinkImpl(SbPlayer player)
+    : player_(player), z_index_(0), x_(0), y_(0), width_(0), height_(0) {
   SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(job_queue);
 }
 
 VideoRendererSinkImpl::~VideoRendererSinkImpl() {

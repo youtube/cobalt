@@ -162,14 +162,14 @@ void PlayerWorker::RunLoop() {
 void PlayerWorker::DoInit() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  if (handler_->Init(
-          this, job_queue_.get(), player_, &PlayerWorker::UpdateMediaTime,
-          &PlayerWorker::player_state, &PlayerWorker::UpdatePlayerState
+  if (handler_->Init(this, player_, &PlayerWorker::UpdateMediaTime,
+                     &PlayerWorker::player_state,
+                     &PlayerWorker::UpdatePlayerState
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-          ,
-          &PlayerWorker::UpdatePlayerError
+                     ,
+                     &PlayerWorker::UpdatePlayerError
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-          )) {
+                     )) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
     UpdatePlayerError("Failed to initialize PlayerWorker.");
@@ -331,6 +331,8 @@ void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   handler_->Stop();
+  handler_.reset();
+
   if (!error_occurred_) {
     UpdatePlayerState(kSbPlayerStateDestroyed);
   }

@@ -67,11 +67,9 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(video_render_algorithm);
     SB_DCHECK(video_renderer_sink);
 
-    video_decoder->reset(new VideoDecoderImpl(video_parameters.video_codec,
-                                              video_parameters.job_queue));
+    video_decoder->reset(new VideoDecoderImpl(video_parameters.video_codec));
     video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-    *video_renderer_sink = new VideoRendererSinkImpl(
-        video_parameters.player, video_parameters.job_queue);
+    *video_renderer_sink = new VideoRendererSinkImpl(video_parameters.player);
   }
 
   void GetAudioRendererParams(int* max_cached_frames,
