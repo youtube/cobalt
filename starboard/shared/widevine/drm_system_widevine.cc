@@ -28,6 +28,54 @@ namespace starboard {
 namespace shared {
 namespace widevine {
 
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+namespace {
+
+SbDrmSessionStatus ConvertCdmStatusToDrmSessionStatus(cdm::Status status) {
+  switch (status) {
+    case cdm::kSuccess:
+      return kSbDrmSessionStatusSuccess;
+    case cdm::kNoKey:
+      SB_NOTREACHED();
+      return kSbDrmSessionStatusUnknownError;
+    case cdm::kSessionError:
+      return kSbDrmSessionStatusInvalidStateError;
+    case cdm::kDecryptError:
+    case cdm::kDecodeError:
+    case cdm::kRetry:
+      SB_NOTREACHED();
+      return kSbDrmSessionStatusUnknownError;
+    case cdm::kNeedsDeviceCertificate:
+      return kSbDrmSessionStatusUnknownError;
+  }
+  SB_NOTREACHED();
+  return kSbDrmSessionStatusUnknownError;
+}
+
+const char* ConvertCdmStatusToErrorMessage(cdm::Status status) {
+  switch (status) {
+    case cdm::kSuccess:
+      return NULL;
+    case cdm::kNoKey:
+      return "The required decryption key is not available.";
+    case cdm::kSessionError:
+      return "Session management error.";
+    case cdm::kDecryptError:
+      return "Decryption failed.";
+    case cdm::kDecodeError:
+      return "Error decoding audio or video.";
+    case cdm::kRetry:
+      return "Buffer temporarily cannot be accepted, delay and retry.";
+    case cdm::kNeedsDeviceCertificate:
+      return "A certificate is required for licensing.";
+  }
+  SB_NOTREACHED();
+  return "Unknown error.";
+}
+
+}  // namespace
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+
 class SbDrmSystemWidevine::BufferImpl : public cdm::Buffer {
  public:
   BufferImpl() : size_(0) {}
@@ -151,9 +199,15 @@ void SbDrmSystemWidevine::GenerateSessionUpdateRequest(
 
     SB_DLOG(ERROR) << "GenerateKeyRequest status " << status;
     // Send an empty request to signal an error.
-    session_update_request_callback_(this, context_,
-                                     ticket,
-                                     NULL, 0, NULL, 0, NULL);
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+    session_update_request_callback_(
+        this, context_, ticket, ConvertCdmStatusToDrmSessionStatus(status),
+        kSbDrmSessionRequestTypeLicenseRequest,
+        ConvertCdmStatusToErrorMessage(status), NULL, 0, NULL, 0, NULL);
+#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+    session_update_request_callback_(this, context_, ticket, NULL, 0, NULL, 0,
+                                     NULL);
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
   }
 }
 
@@ -168,9 +222,14 @@ void SbDrmSystemWidevine::UpdateSession(
                    reinterpret_cast<const uint8_t*>(key), key_size, NULL, 0);
   bool succeeded = status == cdm::kSuccess;
   SB_DLOG_IF(ERROR, !succeeded) << "AddKey status " << status;
-  session_updated_callback_(this, context_,
-                            ticket,
-                            session_id, session_id_size, succeeded);
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+  session_updated_callback_(
+      this, context_, ticket, ConvertCdmStatusToDrmSessionStatus(status),
+      ConvertCdmStatusToErrorMessage(status), session_id, session_id_size);
+#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+  session_updated_callback_(this, context_, ticket, session_id, session_id_size,
+                            succeeded);
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 
 #if SB_HAS(DRM_KEY_STATUSES)
 #if ENABLE_KEY_STATUSES_CALLBACK
@@ -296,10 +355,16 @@ void SbDrmSystemWidevine::SendKeyMessage(const char* web_session_id,
     SetTicket(kSbDrmTicketInvalid);
   }
 
-  session_update_request_callback_(this, context_,
-                                   ticket,
-                                   web_session_id, web_session_id_length,
-                                   message, message_length, default_url);
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+  session_update_request_callback_(
+      this, context_, ticket, kSbDrmSessionStatusSuccess,
+      kSbDrmSessionRequestTypeLicenseRequest, NULL, web_session_id,
+      web_session_id_length, message, message_length, default_url);
+#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+  session_update_request_callback_(this, context_, ticket, web_session_id,
+                                   web_session_id_length, message,
+                                   message_length, default_url);
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 }
 
 void SbDrmSystemWidevine::SendKeyError(const char* web_session_id,
