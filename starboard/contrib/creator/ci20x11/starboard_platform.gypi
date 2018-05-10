@@ -23,6 +23,7 @@
       '<(DEPTH)/starboard/contrib/creator/ci20x11/system_get_property.cc',
       '<(DEPTH)/starboard/shared/starboard/link_receiver.cc',
       '<(DEPTH)/starboard/shared/x11/application_x11.cc',
+      '<(DEPTH)/starboard/shared/x11/egl_swap_buffers.cc',
       '<(DEPTH)/starboard/shared/x11/window_create.cc',
       '<(DEPTH)/starboard/shared/x11/window_destroy.cc',
       '<(DEPTH)/starboard/shared/x11/window_get_platform_handle.cc',

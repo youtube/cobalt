@@ -14,6 +14,17 @@
 
 {
   'variables': {
+    # This platform uses a compositor to present the rendering output, so
+    # set the swap interval to update the buffer immediately. That buffer
+    # will then be presented by the compositor on its own time.
+    'cobalt_egl_swap_interval': 0,
+
+    # Hook into the swap buffers call to facilitate synchronization of the
+    # OpenGL output with the punch-through video layer.
+    'linker_flags': [
+      '-Wl,--wrap=eglSwapBuffers',
+    ],
+
     'platform_libraries': [
       '-lEGL',
       '-lGLESv2',
