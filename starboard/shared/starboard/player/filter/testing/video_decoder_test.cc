@@ -36,6 +36,7 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 // This has to be defined in the global namespace as its instance will be used
 // as SbPlayer.
 struct SbPlayerPrivate {};
@@ -668,3 +669,4 @@ INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)

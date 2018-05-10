@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'includes': [
+    '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+  ],
   'variables': {
     'sb_pedantic_warnings': 1,
     'winrt%': 1,
@@ -94,6 +97,7 @@
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.h',
     ],
     'win32_shared_media_player_files': [
+      '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
       '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
@@ -101,24 +105,6 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_frame_internal.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm_impl.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/wsola_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
       '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
@@ -140,12 +126,6 @@
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample2.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
-
-      # Shared renderers
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
     ],
 
     'win32_shared_misc_files': [

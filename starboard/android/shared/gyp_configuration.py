@@ -134,6 +134,17 @@ class AndroidConfiguration(PlatformConfiguration):
           'SpeechRecognizerTest.StartWithInvalidSpeechRecognizer',
           'SpeechRecognizerTest.StopIsCalledMultipleTimes',
       ],
-      # TODO: enable player filter tests.
-      'player_filter_tests': [test_filter.FILTER_ALL],
+      'player_filter_tests': [
+          # TODO: debug this crash.
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders'
+          # TODO: debug these failures.
+          'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
+          'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
+          'VideoDecoderTests/VideoDecoderTest.GetCurrentDecodeTargetBeforeWriteInputBuffer',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP',
+      ],
   }

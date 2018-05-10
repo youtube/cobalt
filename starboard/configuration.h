@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where compiling player_filter_tests is required.
+#define SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // API version where SbMediaTime is deprecated (for SbTime).
 #define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
@@ -666,6 +669,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
 #define SB_HAS_AUDIOLESS_VIDEO 1
+#endif
+
+#if SB_API_VERSION >= SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION
+#define SB_HAS_PLAYER_FILTER_TESTS 1
 #endif
 
 #if SB_API_VERSION >= SB_PLAYER_ERROR_MESSAGE_API_VERSION
