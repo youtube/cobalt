@@ -60,7 +60,8 @@ class HardwareRasterizer::Impl {
   Impl(backend::GraphicsContext* graphics_context, int skia_atlas_width,
        int skia_atlas_height, int skia_cache_size_in_bytes,
        int scratch_surface_cache_size_in_bytes,
-       bool purge_skia_font_caches_on_destruction);
+       bool purge_skia_font_caches_on_destruction,
+       bool force_deterministic_rendering);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -133,13 +134,25 @@ class HardwareRasterizer::Impl {
   // or not since Skia does not let us pull that information out of the
   // SkCanvas object (which Skia would internally use to get this information).
   base::optional<GrSurfaceOrigin> current_surface_origin_;
+
+  // If true, rasterizer will eschew performance optimizations in favor of
+  // ensuring that each rasterization is pixel-wise deterministic, given
+  // the same render tree.
+  bool force_deterministic_rendering_;
 };
 
 namespace {
 
-SkSurfaceProps GetRenderTargetSurfaceProps() {
-  return SkSurfaceProps(SkSurfaceProps::kUseDistanceFieldFonts_Flag,
-                        SkSurfaceProps::kLegacyFontHost_InitType);
+SkSurfaceProps GetRenderTargetSurfaceProps(bool force_deterministic_rendering) {
+  uint32_t flags = 0;
+  if (!force_deterministic_rendering) {
+    // Distance field fonts are known to result in non-deterministic graphical
+    // output since the output depends on the size of the glyph that enters the
+    // atlas first (which would get re-used for similarly but unequal sized
+    // subsequent glyphs).
+    flags = SkSurfaceProps::kUseDistanceFieldFonts_Flag;
+  }
+  return SkSurfaceProps(flags, SkSurfaceProps::kLegacyFontHost_InitType);
 }
 
 // Takes meta-data from a Cobalt RenderTarget object and uses it to fill out
@@ -553,10 +566,12 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
-                               bool purge_skia_font_caches_on_destruction)
+                               bool purge_skia_font_caches_on_destruction,
+                               bool force_deterministic_rendering)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
-              graphics_context)) {
+              graphics_context)),
+      force_deterministic_rendering_(force_deterministic_rendering) {
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Impl::Impl()");
 
   DLOG(INFO) << "skia_cache_size_in_bytes: " << skia_cache_size_in_bytes;
@@ -693,7 +708,8 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
       CobaltRenderTargetToSkiaBackendRenderTargetDesc(*render_target);
   skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
 
-  SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
+  SkSurfaceProps surface_props =
+      GetRenderTargetSurfaceProps(force_deterministic_rendering_);
   sk_sp<SkSurface> sk_output_surface = SkSurface::MakeFromBackendRenderTarget(
       gr_context_.get(), skia_desc, &surface_props);
   SkCanvas* canvas = sk_output_surface->getCanvas();
@@ -764,7 +780,8 @@ SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
 
     // Create an SkSurface from the render target so that we can acquire a
     // SkCanvas object from it in Submit().
-    SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
+    SkSurfaceProps surface_props =
+        GetRenderTargetSurfaceProps(force_deterministic_rendering_);
     // Create a canvas from the render target.
     GrBackendRenderTargetDesc skia_desc =
         CobaltRenderTargetToSkiaBackendRenderTargetDesc(*render_target);
@@ -818,11 +835,13 @@ HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes,
-    bool purge_skia_font_caches_on_destruction)
+    bool purge_skia_font_caches_on_destruction,
+    bool force_deterministic_rendering)
     : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
                      skia_cache_size_in_bytes,
                      scratch_surface_cache_size_in_bytes,
-                     purge_skia_font_caches_on_destruction)) {}
+                     purge_skia_font_caches_on_destruction,
+                     force_deterministic_rendering)) {}
 
 HardwareRasterizer::~HardwareRasterizer() {}
 

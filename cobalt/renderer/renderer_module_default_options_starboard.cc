@@ -49,7 +49,7 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.scratch_surface_cache_size_in_bytes,
           options.offscreen_target_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction,
-          options.disable_rasterizer_caching));
+          options.force_deterministic_rendering));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
@@ -57,7 +57,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
-          options.purge_skia_font_caches_on_destruction));
+          options.purge_skia_font_caches_on_destruction,
+          options.force_deterministic_rendering));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #elif SB_HAS(BLITTER)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
