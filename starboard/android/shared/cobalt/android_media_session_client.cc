@@ -14,9 +14,7 @@
 
 #include "starboard/android/shared/cobalt/android_media_session_client.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/sequence.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -34,12 +32,10 @@ using ::cobalt::media_session::MediaImage;
 using ::cobalt::media_session::MediaMetadata;
 using ::cobalt::media_session::MediaSession;
 using ::cobalt::media_session::MediaSessionAction;
-using ::cobalt::media_session::MediaSessionActionDetails;
 using ::cobalt::media_session::MediaSessionClient;
 using ::cobalt::media_session::MediaSessionPlaybackState;
 using ::cobalt::media_session::kMediaSessionActionPause;
 using ::cobalt::media_session::kMediaSessionActionPlay;
-using ::cobalt::media_session::kMediaSessionActionSeek;
 using ::cobalt::media_session::kMediaSessionActionSeekbackward;
 using ::cobalt::media_session::kMediaSessionActionSeekforward;
 using ::cobalt::media_session::kMediaSessionActionPrevioustrack;
@@ -56,15 +52,12 @@ using ::starboard::android::shared::ScopedLocalJavaRef;
 namespace {
 
 // These constants are from android.media.session.PlaybackState
-const jlong kPlaybackStateActionStop = 1 << 0;  // not supported
 const jlong kPlaybackStateActionPause = 1 << 1;
 const jlong kPlaybackStateActionPlay = 1 << 2;
 const jlong kPlaybackStateActionRewind = 1 << 3;
 const jlong kPlaybackStateActionSkipToPrevious = 1 << 4;
 const jlong kPlaybackStateActionSkipToNext = 1 << 5;
 const jlong kPlaybackStateActionFastForward = 1 << 6;
-const jlong kPlaybackStateActionSetRating = 1 << 7;  // not supported
-const jlong kPlaybackStateActionSeekTo = 1 << 8;
 
 // Converts a MediaSessionClient::AvailableActions bitset into
 // a android.media.session.PlaybackState jlong bitset.
@@ -88,9 +81,6 @@ jlong MediaSessionActionsToPlaybackStateActions(
   }
   if (actions[kMediaSessionActionSeekforward]) {
     result |= kPlaybackStateActionFastForward;
-  }
-  if (actions[kMediaSessionActionSeek]) {
-    result |= kPlaybackStateActionSeekTo;
   }
   return result;
 }
@@ -127,9 +117,6 @@ MediaSessionAction PlaybackStateActionToMediaSessionAction(jlong action) {
       break;
     case kPlaybackStateActionFastForward:
       result = kMediaSessionActionSeekforward;
-      break;
-    case kPlaybackStateActionSeekTo:
-      result = kMediaSessionActionSeek;
       break;
     default:
       SB_NOTREACHED() << "Unsupported MediaSessionAction 0x"
@@ -173,16 +160,14 @@ class AndroidMediaSessionClient : public MediaSessionClient {
   static void OnceInit() { SbMutexCreate(&mutex); }
 
  public:
-  static void NativeInvokeAction(jlong action, jlong seek_ms) {
+  static void NativeInvokeAction(jlong action) {
     SbOnce(&once_flag, OnceInit);
     SbMutexAcquire(&mutex);
 
     if (active_client != NULL) {
       MediaSessionAction cobalt_action =
           PlaybackStateActionToMediaSessionAction(action);
-      active_client->InvokeAction(scoped_ptr<MediaSessionActionDetails::Data>(
-          new MediaSessionActionDetails::Data(cobalt_action,
-                                              seek_ms / 1000.0)));
+      active_client->InvokeAction(cobalt_action);
     }
 
     SbMutexRelease(&mutex);
@@ -311,9 +296,8 @@ extern "C" SB_EXPORT_PLATFORM
 void Java_dev_cobalt_media_CobaltMediaSession_nativeInvokeAction(
     JNIEnv* env,
     jclass unused_clazz,
-    jlong action,
-    jlong seek_ms) {
-  AndroidMediaSessionClient::NativeInvokeAction(action, seek_ms);
+    jlong action) {
+  AndroidMediaSessionClient::NativeInvokeAction(action);
 }
 
 namespace cobalt {
