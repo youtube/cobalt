@@ -172,8 +172,12 @@ void DrmSystem::CloseSession(const std::string& session_id) {
 }
 
 void DrmSystem::OnSessionUpdateRequestGenerated(
-    int ticket, const base::optional<std::string>& session_id,
-    scoped_array<uint8> message, int message_size) {
+    SessionTicketAndOptionalId ticket_and_optional_id,
+    SbDrmSessionStatus status, SbDrmSessionRequestType type,
+    const std::string& error_message, scoped_array<uint8> message,
+    int message_size) {
+  int ticket = ticket_and_optional_id.ticket;
+  const base::optional<std::string>& session_id = ticket_and_optional_id.id;
   if (SbDrmTicketIsValid(ticket)) {
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
 
@@ -197,11 +201,12 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
       id_to_session_map_.insert(
           std::make_pair(*session_id, session_update_request.session));
 
-      session_update_request.generated_callback.Run(message.Pass(),
+      session_update_request.generated_callback.Run(type, message.Pass(),
                                                     message_size);
     } else {
       // Failure during request generation.
-      session_update_request.did_not_generate_callback.Run();
+      session_update_request.did_not_generate_callback.Run(status,
+                                                           error_message);
     }
 
     // Sweep the context of |GenerateSessionUpdateRequest|.
@@ -226,12 +231,13 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
     }
     Session* session = session_iterator->second;
 
-    session->update_request_generated_callback().Run(message.Pass(),
+    session->update_request_generated_callback().Run(type, message.Pass(),
                                                      message_size);
   }
 }
 
-void DrmSystem::OnSessionUpdated(int ticket, bool succeeded) {
+void DrmSystem::OnSessionUpdated(int ticket, SbDrmSessionStatus status,
+                                 const std::string& error_message) {
   // Restore the context of |UpdateSession|.
   TicketToSessionUpdateMap::iterator session_update_iterator =
       ticket_to_session_update_map_.find(ticket);
@@ -242,10 +248,10 @@ void DrmSystem::OnSessionUpdated(int ticket, bool succeeded) {
   const SessionUpdate& session_update = session_update_iterator->second;
 
   // Interpret the result.
-  if (succeeded) {
+  if (status == kSbDrmSessionStatusSuccess) {
     session_update.updated_callback.Run();
   } else {
-    session_update.did_not_update_callback.Run();
+    session_update.did_not_update_callback.Run(status, error_message);
   }
 
   // Sweep the context of |UpdateSession|.
@@ -286,10 +292,22 @@ void DrmSystem::OnSessionClosed(const std::string& session_id) {
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
 
 // static
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
+    SbDrmSystem wrapped_drm_system, void* context, int ticket,
+    SbDrmSessionStatus status, SbDrmSessionRequestType type,
+    const char* error_message, const void* session_id, int session_id_size,
+    const void* content, int content_size, const char* url) {
+#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
     SbDrmSystem wrapped_drm_system, void* context, int ticket,
     const void* session_id, int session_id_size, const void* content,
     int content_size, const char* url) {
+  SbDrmSessionStatus status =
+      session_id ? kSbDrmSessionStatusSuccess : kSbDrmSessionStatusUnknownError;
+  SbDrmSessionRequestType type = kSbDrmSessionRequestTypeLicenseRequest;
+  const char* error_message = NULL;
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
   DCHECK(context);
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
@@ -306,23 +324,39 @@ void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
   }
 
   drm_system->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&DrmSystem::OnSessionUpdateRequestGenerated,
-                            drm_system->weak_this_, ticket, session_id_copy,
-                            base::Passed(&content_copy), content_size));
+      FROM_HERE,
+      base::Bind(&DrmSystem::OnSessionUpdateRequestGenerated,
+                 drm_system->weak_this_,
+                 SessionTicketAndOptionalId{ticket, session_id_copy}, status,
+                 type, error_message ? std::string(error_message) : "",
+                 base::Passed(&content_copy), content_size));
 }
 
 // static
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
+                                     void* context, int ticket,
+                                     SbDrmSessionStatus status,
+                                     const char* error_message,
+                                     const void* /*session_id*/,
+                                     int /*session_id_size*/) {
+#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
                                      void* context, int ticket,
                                      const void* /*session_id*/,
                                      int /*session_id_size*/, bool succeeded) {
+  SbDrmSessionStatus status =
+      succeeded ? kSbDrmSessionStatusSuccess : kSbDrmSessionStatusUnknownError;
+  const char* error_message = NULL;
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
   DCHECK(context);
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
 
   drm_system->message_loop_->PostTask(
-      FROM_HERE, base::Bind(&DrmSystem::OnSessionUpdated,
-                            drm_system->weak_this_, ticket, succeeded));
+      FROM_HERE,
+      base::Bind(&DrmSystem::OnSessionUpdated, drm_system->weak_this_, ticket,
+                 status, error_message ? std::string(error_message) : ""));
 }
 
 #if SB_HAS(DRM_KEY_STATUSES)
