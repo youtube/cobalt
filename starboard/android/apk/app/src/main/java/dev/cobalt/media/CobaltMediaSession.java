@@ -135,12 +135,6 @@ public class CobaltMediaSession
             Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
             nativeInvokeAction(PlaybackState.ACTION_SKIP_TO_PREVIOUS);
           }
-
-          @Override
-          public void onSeekTo(long pos) {
-            Log.i(TAG, "MediaSession action: SEEK " + pos);
-            nativeInvokeAction(PlaybackState.ACTION_SEEK_TO, pos);
-          }
         });
   }
 
@@ -315,11 +309,7 @@ public class CobaltMediaSession
     configureMediaFocus(PLAYBACK_STATE_NONE);
   }
 
-  private static void nativeInvokeAction(long action) {
-    nativeInvokeAction(action, 0);
-  }
-
-  private static native void nativeInvokeAction(long action, long seekMs);
+  private static native void nativeInvokeAction(long action);
 
   public void updateMediaSession(final int playbackState, final long actions,
       final String title, final String artist, final String album,
