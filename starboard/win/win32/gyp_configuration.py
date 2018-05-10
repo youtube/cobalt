@@ -101,6 +101,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32Configuration):
           'SbMicrophoneReadTest.SunnyDayOpenSleepCloseAndOpenRead',
 
           'SbPlayerTest.Audioless',
+          'SbPlayerTest.AudioOnly',
           'SbPlayerTest.NullCallbacks',
           'SbPlayerTest.MultiPlayer',
           'SbPlayerTest.SunnyDay',
