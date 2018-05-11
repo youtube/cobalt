@@ -24,6 +24,10 @@ from starboard.build.platform_configuration import PlatformConfiguration
 from starboard.tools.testing import test_filter
 
 
+_APK_BUILD_ID_FILE = os.path.join(os.path.dirname(__file__), os.path.pardir,
+    'apk', 'build.id')
+
+
 class AndroidConfiguration(PlatformConfiguration):
   """Starboard Android platform configuration."""
 
@@ -80,6 +84,9 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetEnvironmentVariables(self):
     sdk_utils.InstallSdkIfNeeded(self.android_abi)
+    with open(_APK_BUILD_ID_FILE, "w") as build_id_file:
+      build_id_file.write('{}'.format(gyp_utils.GetBuildNumber()))
+
     env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
     env_variables.update(self.host_compiler_environment)
     # Android builds tend to consume significantly more memory than the
