@@ -21,6 +21,7 @@
 
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {
@@ -70,7 +71,13 @@ struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
   SbMediaAudioHeaderWithConfig(const SbMediaAudioHeaderWithConfig& that)
       : SbMediaAudioHeader(that),
         stored_audio_specific_config(that.stored_audio_specific_config) {
+#if SB_API_VERSION >= 6
     audio_specific_config = stored_audio_specific_config.data();
+#else
+    SB_DCHECK(8 >= stored_audio_specific_config.size());
+    SbMemoryCopy(audio_specific_config, stored_audio_specific_config.data(),
+                 stored_audio_specific_config.size());
+#endif
   }
   void operator=(const SbMediaAudioHeaderWithConfig& that) = delete;
 
