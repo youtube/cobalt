@@ -89,15 +89,6 @@ class Tracer {
     }
   }
 
-  template <typename T>
-  void TraceSequence(const Sequence<T>& sequence) {
-    // TODO: Consider making |Sequence| more vector-like and just using the
-    // iterator version.
-    for (size_t i = 0; i < sequence.size(); i++) {
-      Trace(sequence.at(i));
-    }
-  }
-
   // Note: If your new class wants to own a container of |Traceable|s that
   // does not have an iteration helper function here, you should add one.
 };
