@@ -40,16 +40,16 @@ def _QuotePath(path):
   return '"' + path + '"'
 
 
-class Win32Configuration(config.base.PlatformConfigBase):
+class Win32SharedConfiguration(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
   def __init__(self, platform):
-    super(Win32Configuration, self).__init__(platform)
+    super(Win32SharedConfiguration, self).__init__(platform)
     self.sdk = sdk_configuration.SdkConfiguration()
 
   def GetVariables(self, configuration):
     sdk = self.sdk
-    variables = super(Win32Configuration, self).GetVariables(configuration)
+    variables = super(Win32SharedConfiguration, self).GetVariables(configuration)
     variables.update({
         'visual_studio_install_path': sdk.vs_install_dir_with_version,
         'windows_sdk_path': sdk.windows_sdk_path,
@@ -111,3 +111,24 @@ class Win32Configuration(config.base.PlatformConfigBase):
     except Exception as e:
       print 'Error while getting version for windows: ' + str(e)
     return False
+
+  def GetTestFilters(self):
+    """Gets all tests to be excluded from a unit test run.
+
+    Returns:
+      A list of initialized TestFilter objects.
+    """
+    if not self.IsWin10orHigher():
+      logging.error('Tests can only be executed on Win10 and higher.')
+      return [test_filter.DISABLE_TESTING]
+
+    filters = super(Win32SharedConfiguration, self).GetTestFilters()
+    for target, tests in self._FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
+
+  # All windows flavors do not use player_filter_tests. If this is not included
+  # then the the ninja build will fail due to missing player_filter_tests.
+  _FILTERED_TESTS = {
+      'player_filter_tests': [ test_filter.FILTER_ALL ],
+  }

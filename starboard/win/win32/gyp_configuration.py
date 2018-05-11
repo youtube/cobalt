@@ -40,7 +40,7 @@ def CreatePlatformConfig():
     return None
 
 
-class WinWin32PlatformConfig(gyp_configuration.Win32Configuration):
+class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
   """Starboard win-32 platform configuration."""
 
   def __init__(self, platform):
