@@ -33,31 +33,26 @@ namespace script {
 template <typename T>
 class Sequence {
  public:
-  Sequence() {}
-  Sequence(const Sequence& other) { *this = other; }
-
-  void clear() { sequence_.erase(sequence_.begin(), sequence_.end()); }
-
-  Sequence& operator=(const Sequence& other) {
-    clear();
-    size_type max = other.size();
-    for (size_type i = 0; i < max; ++i) {
-      push_back(other.at(i));
-    }
-    return *this;
-  }
-
   typedef std::vector<T> SequenceType;
 
   // --- Vector partial emulation ---
   typedef typename SequenceType::size_type size_type;
   typedef typename SequenceType::reference reference;
   typedef typename SequenceType::const_reference const_reference;
+  typedef typename SequenceType::iterator iterator;
+  typedef typename SequenceType::const_iterator const_iterator;
   void push_back(const_reference value) { sequence_.push_back(value); }
   size_type size() const { return sequence_.size(); }
   bool empty() const { return sequence_.empty(); }
   const_reference at(size_type index) const { return sequence_.at(index); }
   void swap(Sequence<T>& other) { sequence_.swap(other.sequence_); }
+  iterator begin() { return sequence_.begin(); }
+  const_iterator begin() const { return sequence_.begin(); }
+  const_iterator cbegin() const { return sequence_.cbegin(); }
+  iterator end() { return sequence_.end(); }
+  const_iterator end() const { return sequence_.end(); }
+  const_iterator cend() const { return sequence_.cend(); }
+  void clear() { sequence_.clear(); }
 
  private:
   SequenceType sequence_;
