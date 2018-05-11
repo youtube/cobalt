@@ -34,7 +34,7 @@
     android:name="dev.cobalt.app.CobaltApplication"
     android:icon="@mipmap/ic_app"
     android:banner="@drawable/app_banner"
-    android:label="@string/app_name">
+    android:label="${applicationName}">
 
     <activity android:name="dev.cobalt.app.MainActivity"
       android:launchMode="singleTask"

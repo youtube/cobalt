@@ -8,3 +8,4 @@
 .externalNativeBuild
 CMakeCache.txt
 CMakeFiles/
+build.id
