@@ -71,7 +71,6 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
     with open(BUILD_ID_PATH, 'r') as build_id_file:
       build_number = int(build_id_file.read().replace('\n', ''))
       logging.info('Retrieving build number from %s', BUILD_ID_PATH)
-      logging.info('Build Number: %d', build_number)
       return build_number
 
   revinfo = GetRevinfo()
@@ -99,7 +98,6 @@ def GetBuildNumber(version_server=_VERSION_SERVER_URL):
     data = data[len(_XSSI_PREFIX):]
   results = json.loads(data)
   build_number = results.get('build_number', 0)
-  logging.info('Build Number: %d', build_number)
   return build_number
 
 

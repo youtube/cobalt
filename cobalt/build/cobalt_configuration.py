@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base cobalt configuration for GYP."""
 
+import logging
 import os
 
 import _env  # pylint: disable=unused-import
@@ -52,6 +53,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         # Whether to enable VR.
         'enable_vr': int(os.environ.get('USE_VR', 0)),
     }
+    logging.info('Build Number: {}'.format(variables['cobalt_version']))
     return variables
 
   def GetPostIncludes(self):
