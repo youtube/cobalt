@@ -101,9 +101,19 @@ class VideoRenderer : JobQueue::JobOwner {
   atomic_bool seeking_;
   SbTime seeking_to_time_ = 0;
 
+  // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
   atomic_int32_t number_of_frames_;
-  Mutex frames_mutex_;
-  Frames frames_;
+  // |sink_frames_| is locked inside VideoRenderer::Render() when calling
+  // algorithm_->Render().  So OnDecoderStatus() won't try to lock and append
+  // the decoded frames to |sink_frames_| directly to avoid being blocked.  It
+  // will append newly decoded frames to |decoder_frames_| instead.  Note that
+  // both |decoder_frames_| and |sink_frames_| can be used on multiple threads.
+  // When they are being modified at the same time, |decoder_frames_mutex_|
+  // should always be locked before |sink_frames_mutex_| to avoid deadlock.
+  Mutex decoder_frames_mutex_;
+  Frames decoder_frames_;
+  Mutex sink_frames_mutex_;
+  Frames sink_frames_;
 };
 
 }  // namespace filter
