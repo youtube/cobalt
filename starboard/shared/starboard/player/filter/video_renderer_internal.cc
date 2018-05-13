@@ -61,8 +61,11 @@ VideoRenderer::~VideoRenderer() {
     decoder_->Reset();
   }
 
-  frames_.clear();
+  // Now both the decoder thread and the sink thread should have been shutdown.
+  decoder_frames_.clear();
+  sink_frames_.clear();
   number_of_frames_.store(0);
+
   decoder_.reset();
 }
 
@@ -148,8 +151,10 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
     Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this), preroll_timeout);
   }
 
-  ScopedLock scoped_lock(frames_mutex_);
-  frames_.clear();
+  ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+  ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+  decoder_frames_.clear();
+  sink_frames_.clear();
   number_of_frames_.store(0);
 }
 
@@ -180,8 +185,10 @@ SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
 void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
                                     const scoped_refptr<VideoFrame>& frame) {
   if (status == VideoDecoder::kReleaseAllFrames) {
-    ScopedLock scoped_lock(frames_mutex_);
-    frames_.clear();
+    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+    ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+    decoder_frames_.clear();
+    sink_frames_.clear();
     number_of_frames_.store(0);
     return;
   }
@@ -199,8 +206,8 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
       }
     }
     if (!frame_too_early) {
-      ScopedLock scoped_lock(frames_mutex_);
-      frames_.push_back(frame);
+      ScopedLock scoped_lock(decoder_frames_mutex_);
+      decoder_frames_.push_back(frame);
       number_of_frames_.increment();
     }
 
@@ -216,14 +223,23 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
 }
 
 void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
-  ScopedLock scoped_lock(frames_mutex_);
-  algorithm_->Render(media_time_provider_, &frames_, draw_frame_cb);
-  number_of_frames_.store(static_cast<int32_t>(frames_.size()));
+  {
+    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+    sink_frames_mutex_.Acquire();
+    sink_frames_.insert(sink_frames_.end(), decoder_frames_.begin(),
+                        decoder_frames_.end());
+    decoder_frames_.clear();
+  }
+  size_t number_of_sink_frames = sink_frames_.size();
+  algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
+  number_of_frames_.fetch_sub(
+      static_cast<int32_t>(number_of_sink_frames - sink_frames_.size()));
   if (number_of_frames_.load() <= 1 && end_of_stream_written_.load() &&
       !ended_cb_called_.load()) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);
   }
+  sink_frames_mutex_.Release();
 }
 
 void VideoRenderer::OnSeekTimeout() {
