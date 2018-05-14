@@ -16,9 +16,9 @@
 
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/player/player_internal.h"
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
 using starboard::shared::media_session::kNone;
 using starboard::shared::media_session::
@@ -30,10 +30,10 @@ void SbPlayerDestroy(SbPlayer player) {
   }
   UpdateActiveSessionPlatformPlaybackState(kNone);
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerDestroy(player);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
   delete player;
 }
