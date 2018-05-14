@@ -23,9 +23,8 @@ import starboard.android.shared.sdk_utils as sdk_utils
 from starboard.build.platform_configuration import PlatformConfiguration
 from starboard.tools.testing import test_filter
 
-
-_APK_BUILD_ID_FILE = os.path.join(os.path.dirname(__file__), os.path.pardir,
-    'apk', 'build.id')
+_APK_BUILD_ID_FILE = os.path.join(
+    os.path.dirname(__file__), os.path.pardir, 'apk', 'build.id')
 
 
 class AndroidConfiguration(PlatformConfiguration):
@@ -84,7 +83,7 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetEnvironmentVariables(self):
     sdk_utils.InstallSdkIfNeeded(self.android_abi)
-    with open(_APK_BUILD_ID_FILE, "w") as build_id_file:
+    with open(_APK_BUILD_ID_FILE, 'w') as build_id_file:
       build_id_file.write('{}'.format(gyp_utils.GetBuildNumber()))
 
     env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
@@ -142,16 +141,16 @@ class AndroidConfiguration(PlatformConfiguration):
           'SpeechRecognizerTest.StopIsCalledMultipleTimes',
       ],
       'player_filter_tests': [
-          # TODO: debug this crash.
-          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders'
-          # TODO: debug these failures.
+          # TODO: debug these crashes & failures.
           'AudioDecoderTests/AudioDecoderTest.SingleInput/0',
           'AudioDecoderTests/AudioDecoderTest.EndOfStreamWithoutAnyInput/0',
           'AudioDecoderTests/AudioDecoderTest.ResetBeforeInput/0',
-          'VideoDecoderTests/VideoDecoderTest.GetCurrentDecodeTargetBeforeWriteInputBuffer',
-          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput',
-          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput',
-          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull',
-          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP',
+          'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
+          'VideoDecoderTests/VideoDecoderTest'
+          '.GetCurrentDecodeTargetBeforeWriteInputBuffer/*',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/*',
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/*',
+          'VideoDecoderTests/VideoDecoderTest.HoldFramesUntilFull/*',
+          'VideoDecoderTests/VideoDecoderTest.DecodeFullGOP/*',
       ],
   }
