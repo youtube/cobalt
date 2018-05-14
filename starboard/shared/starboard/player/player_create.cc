@@ -22,9 +22,9 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
 using starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
@@ -117,11 +117,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
                           context, handler.Pass());
 
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
   VideoDmpWriter::OnPlayerCreate(player, video_codec, audio_codec, drm_system,
                                  audio_header);
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
   return player;
 }
