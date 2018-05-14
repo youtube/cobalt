@@ -70,9 +70,17 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (video_codec != kSbMediaVideoCodecH264 &&
+  if (video_codec != kSbMediaVideoCodecNone &&
+      video_codec != kSbMediaVideoCodecH264 &&
       video_codec != kSbMediaVideoCodecVp9) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
+    return kSbPlayerInvalid;
+  }
+
+  if (audio_codec == kSbMediaAudioCodecNone &&
+      video_codec == kSbMediaVideoCodecNone) {
+    SB_LOG(ERROR) << "SbPlayerCreate() requires at least one audio track or"
+                  << " one video track.";
     return kSbPlayerInvalid;
   }
 
