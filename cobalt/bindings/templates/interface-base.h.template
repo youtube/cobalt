@@ -36,6 +36,11 @@
 #define {{binding_class}}_h
 
 {% if conditional %}
+
+// This must be included above the check for {{conditional}}, since
+// {{conditional}} may be defined within.
+#include "cobalt/bindings/shared/idl_conditional_macros.h"
+
 #if defined({{conditional}})
 
 {% endif %}

@@ -400,7 +400,8 @@
       ],
       'sources': [
         '<@(source_idl_files)',
-        '<@(generated_header_idl_files)'
+        '<@(generated_header_idl_files)',
+        'shared/idl_conditional_macros.h',
       ],
       'actions': [{
         'action_name': 'generate_type_conversion_header',

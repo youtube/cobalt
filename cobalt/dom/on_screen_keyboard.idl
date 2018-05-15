@@ -15,7 +15,9 @@
 // Custom API for hiding, showing, focusing, blurring, and receiving input
 // from an on screen keyboard.
 
-interface OnScreenKeyboard : EventTarget {
+[
+  Conditional=COBALT_ENABLE_ON_SCREEN_KEYBOARD
+] interface OnScreenKeyboard : EventTarget {
   Promise<void> show();
   Promise<void> hide();
   Promise<void> focus();
