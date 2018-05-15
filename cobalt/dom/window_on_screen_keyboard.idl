@@ -16,5 +16,5 @@
 // screen keyboard.
 
 partial interface Window {
-  readonly attribute OnScreenKeyboard onScreenKeyboard;
+[ Conditional=COBALT_ENABLE_ON_SCREEN_KEYBOARD ] readonly attribute OnScreenKeyboard onScreenKeyboard;
 };
