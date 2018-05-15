@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/renderer/rasterizer/lib/external_rasterizer.h"
+#include "cobalt/renderer/renderer_module.h"
 
 namespace cobalt {
 namespace renderer {
@@ -36,12 +37,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 }
 }  // namespace
 
-void RendererModule::Options::SetPerPlatformDefaultOptions() {
-  // Ensure the scene is re-rasterized even if the render tree is unchanged so
-  // that headset look changes are properly rendered.
-  submit_even_if_render_tree_is_unchanged = true;
-
-  create_rasterizer_function = base::Bind(&CreateRasterizer);
+RasterizerInfo GetDefaultRasterizerForPlatform() {
+  return {"external", base::Bind(&CreateRasterizer)};
 }
 
 }  // namespace renderer
