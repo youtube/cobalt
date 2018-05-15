@@ -28,6 +28,7 @@
         'pipeline.h',
         'renderer_module.cc',
         'renderer_module.h',
+        'renderer_module_default_options.cc',
         'smoothed_value.cc',
         'smoothed_value.h',
         'submission.h',
