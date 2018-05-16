@@ -50,16 +50,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
  private:
   bool IsPunchoutMode() const;
-  bool Init(PlayerWorker* player_worker,
-            SbPlayer player,
-            UpdateMediaTimeCB update_media_time_cb,
+  bool Init(SbPlayer player,
+            UpdateMediaInfoCB update_media_info_cb,
             GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-            ,
-            UpdatePlayerErrorCB update_player_error_cb
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-            ) override;
+            UpdatePlayerStateCB update_player_state_cb,
+            UpdatePlayerErrorCB update_player_error_cb) override;
   bool Seek(SbTime seek_to_time, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                    bool* written) override;
@@ -80,14 +75,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbDecodeTarget GetCurrentDecodeTarget() override;
   MediaTimeProvider* GetMediaTimeProvider() const;
 
-  PlayerWorker* player_worker_ = NULL;
   SbPlayer player_ = kSbPlayerInvalid;
-  UpdateMediaTimeCB update_media_time_cb_ = NULL;
-  GetPlayerStateCB get_player_state_cb_ = NULL;
-  UpdatePlayerStateCB update_player_state_cb_ = NULL;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-  UpdatePlayerErrorCB update_player_error_cb_ = NULL;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+  UpdateMediaInfoCB update_media_info_cb_;
+  GetPlayerStateCB get_player_state_cb_;
+  UpdatePlayerStateCB update_player_state_cb_;
+  UpdatePlayerErrorCB update_player_error_cb_;
 
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;

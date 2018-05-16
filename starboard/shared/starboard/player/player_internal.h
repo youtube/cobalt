@@ -24,8 +24,7 @@
 #include "starboard/time.h"
 #include "starboard/window.h"
 
-struct SbPlayerPrivate
-    : starboard::shared::starboard::player::PlayerWorker::Host {
+struct SbPlayerPrivate {
  public:
   typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
 
@@ -68,9 +67,7 @@ struct SbPlayerPrivate
   static int number_of_players() { return number_of_players_; }
 
  private:
-  // PlayerWorker::Host methods.
-  void UpdateMediaTime(SbTime media_time, int ticket) override;
-  void UpdateDroppedVideoFrames(int dropped_video_frames) override;
+  void UpdateMediaInfo(SbTime media_time, int dropped_video_frames, int ticket);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
