@@ -14,16 +14,10 @@
 
 // Implements a subset of the specification at:
 // https://www.w3.org/TR/mediastream-recording/#mediarecorder-api
-[Constructor(MediaStream stream, optional MediaRecorderOptions options),
- ConstructorCallWith = EnvironmentSettings]
-interface MediaRecorder : EventTarget {
-  readonly attribute DOMString mimeType;
-  attribute EventHandler ondataavailable;
-  attribute EventHandler onerror;
 
-  [RaisesException] void start(optional long timeslice);
-  [RaisesException] void stop();
-
-  static boolean isTypeSupported(DOMString type);
+enum RecordingState {
+  "inactive",
+  "recording",
+  "paused"
 };
 
