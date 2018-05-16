@@ -72,19 +72,22 @@ Blob::Blob(script::EnvironmentSettings* settings,
 // so the media type can be exposed and used, as described in:
 //    https://www.w3.org/TR/FileAPI/#constructorBlob
 Blob::Blob(script::EnvironmentSettings* settings,
-           script::Sequence<BlobPart> blobParts, const BlobPropertyBag& options)
+           const script::Sequence<BlobPart>& blob_parts,
+           const BlobPropertyBag& options)
     : buffer_(new ArrayBuffer(settings, 0)), type_(options.type()) {
   size_t byte_length = 0;
-  for (script::Sequence<BlobPart>::size_type i = 0; i < blobParts.size(); i++) {
-    byte_length += DataLength(blobParts.at(i));
+  for (script::Sequence<BlobPart>::size_type i = 0; i < blob_parts.size();
+       ++i) {
+    byte_length += DataLength(blob_parts.at(i));
   }
   buffer_ = new ArrayBuffer(settings, static_cast<uint32>(byte_length));
 
   uint8* destination = buffer_->data();
   size_t offset = 0;
-  for (script::Sequence<BlobPart>::size_type i = 0; i < blobParts.size(); i++) {
-    const uint8* source = DataStart(blobParts.at(i));
-    uint64 count = DataLength(blobParts.at(i));
+  for (script::Sequence<BlobPart>::size_type i = 0; i < blob_parts.size();
+       ++i) {
+    const uint8* source = DataStart(blob_parts.at(i));
+    uint64 count = DataLength(blob_parts.at(i));
 
     std::copy(source, source + count, destination + offset);
     offset += count;
