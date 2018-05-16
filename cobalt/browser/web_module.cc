@@ -763,6 +763,8 @@ WebModule::Impl::~Impl() {
 
 void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
                                        const scoped_refptr<dom::Event>& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::Impl::InjectInputEvent()",
+               "event", event->type().c_str());
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
@@ -770,7 +772,17 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
   if (element) {
     element->DispatchEvent(event);
   } else {
-    window_->InjectEvent(event);
+    if (dom::PointerState::CanQueueEvent(event)) {
+      // As an optimization we batch together pointer/mouse events for as long
+      // as we can get away with it (e.g. until a non-pointer event is received
+      // or whenever the next layout occurs).
+      window_->document()->pointer_state()->QueuePointerEvent(event);
+    } else {
+      // In order to maintain the correct input event ordering, we first
+      // dispatch any queued pending pointer events.
+      HandlePointerEvents();
+      window_->InjectEvent(event);
+    }
   }
 }
 
