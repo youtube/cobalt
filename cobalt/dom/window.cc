@@ -489,6 +489,9 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
 }
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
+  TRACE_EVENT1("cobalt::dom", "Window::InjectEvent()", "event",
+               event->type().c_str());
+
   // Forward the event on to the correct object in DOM.
   if (event->GetWrappableType() == base::GetTypeId<KeyboardEvent>()) {
     // Event.target:focused element processing the key event or if no element
@@ -506,10 +509,6 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
     if (on_screen_keyboard_) {
       on_screen_keyboard_->DispatchEvent(event);
     }
-  } else if (event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
-             event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
-             event->GetWrappableType() == base::GetTypeId<WheelEvent>()) {
-    document_->pointer_state()->QueuePointerEvent(event);
   } else {
     SB_NOTREACHED();
   }
