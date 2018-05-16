@@ -188,6 +188,7 @@
         '../media_capture/media_recorder.idl',
         '../media_session/media_metadata.idl',
         '../media_session/media_session.idl',
+        '../media_session/media_session_action_details.idl',
         '../media_stream/media_stream.idl',
         '../media_stream/media_stream_track.idl',
 
@@ -262,7 +263,6 @@
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
-        '../media_session/media_session_action_details.idl',
         '../media_session/media_session_playback_state.idl',
         '../media_stream/media_track_settings.idl',
         '../page_visibility/visibility_state.idl',
