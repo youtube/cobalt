@@ -260,6 +260,7 @@
         '../dom/wheel_event_init.idl',
         '../media_capture/media_device_kind.idl',
         '../media_capture/media_recorder_options.idl',
+        '../media_capture/recording_state.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
