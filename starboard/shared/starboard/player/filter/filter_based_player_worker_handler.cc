@@ -83,35 +83,30 @@ bool FilterBasedPlayerWorkerHandler::IsPunchoutMode() const {
 }
 
 bool FilterBasedPlayerWorkerHandler::Init(
-    PlayerWorker* player_worker,
     SbPlayer player,
-    UpdateMediaTimeCB update_media_time_cb,
+    UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
-    UpdatePlayerStateCB update_player_state_cb
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-    ,
-    UpdatePlayerErrorCB update_player_error_cb
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-    ) {
+    UpdatePlayerStateCB update_player_state_cb,
+    UpdatePlayerErrorCB update_player_error_cb) {
   // This function should only be called once.
-  SB_DCHECK(player_worker_ == NULL);
+  SB_DCHECK(update_media_info_cb_ == NULL);
 
   // All parameters have to be valid.
-  SB_DCHECK(player_worker);
   SB_DCHECK(SbPlayerIsValid(player));
-  SB_DCHECK(update_media_time_cb);
+  SB_DCHECK(update_media_info_cb);
   SB_DCHECK(get_player_state_cb);
   SB_DCHECK(update_player_state_cb);
 
   AttachToCurrentThread();
 
-  player_worker_ = player_worker;
   player_ = player;
-  update_media_time_cb_ = update_media_time_cb;
+  update_media_info_cb_ = update_media_info_cb;
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
   update_player_error_cb_ = update_player_error_cb;
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
+  SB_DCHECK(!update_player_error_cb);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
   scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
@@ -379,11 +374,10 @@ void FilterBasedPlayerWorkerHandler::OnError() {
 
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
   if (update_player_error_cb_) {
-    (*player_worker_.*
-     update_player_error_cb_)("FilterBasedPlayerWorkerHandler error.");
+    update_player_error_cb_("FilterBasedPlayerWorkerHandler error.");
   }
 #else   // SB_HAS(PLAYER_ERROR_MESSAGE)
-  (*player_worker_.*update_player_state_cb_)(kSbPlayerStateError);
+  update_player_state_cb_(kSbPlayerStateError);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
@@ -394,13 +388,12 @@ void FilterBasedPlayerWorkerHandler::OnAudioPrerolled() {
     return;
   }
 
-  SB_DCHECK((*player_worker_.*get_player_state_cb_)() ==
-            kSbPlayerStatePrerolling)
-      << "Invalid player state " << (*player_worker_.*get_player_state_cb_)();
+  SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
+      << "Invalid player state " << get_player_state_cb_();
 
   audio_prerolled_ = true;
   if (!video_renderer_ || video_prerolled_) {
-    (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
+    update_player_state_cb_(kSbPlayerStatePresenting);
     if (!paused_) {
       GetMediaTimeProvider()->Play();
     }
@@ -414,7 +407,7 @@ void FilterBasedPlayerWorkerHandler::OnAudioEnded() {
   }
   audio_ended_ = true;
   if (!video_renderer_ || video_ended_) {
-    (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
+    update_player_state_cb_(kSbPlayerStateEndOfStream);
   }
 }
 
@@ -425,13 +418,12 @@ void FilterBasedPlayerWorkerHandler::OnVideoPrerolled() {
     return;
   }
 
-  SB_DCHECK((*player_worker_.*get_player_state_cb_)() ==
-            kSbPlayerStatePrerolling)
-      << "Invalid player state " << (*player_worker_.*get_player_state_cb_)();
+  SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
+      << "Invalid player state " << get_player_state_cb_();
 
   video_prerolled_ = true;
   if (audio_prerolled_) {
-    (*player_worker_.*update_player_state_cb_)(kSbPlayerStatePresenting);
+    update_player_state_cb_(kSbPlayerStatePresenting);
     if (!paused_) {
       GetMediaTimeProvider()->Play();
     }
@@ -445,7 +437,7 @@ void FilterBasedPlayerWorkerHandler::OnVideoEnded() {
   }
   video_ended_ = true;
   if (audio_ended_) {
-    (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
+    update_player_state_cb_(kSbPlayerStateEndOfStream);
   }
 }
 
@@ -456,16 +448,16 @@ void FilterBasedPlayerWorkerHandler::Update() {
     return;
   }
 
-  if ((*player_worker_.*get_player_state_cb_)() == kSbPlayerStatePresenting) {
+  if (get_player_state_cb_() == kSbPlayerStatePresenting) {
+    int dropped_frames = 0;
     if (video_renderer_) {
-      player_worker_->UpdateDroppedVideoFrames(
-          video_renderer_->GetDroppedFrames());
+      dropped_frames = video_renderer_->GetDroppedFrames();
     }
     bool is_playing;
     bool is_eos_played;
-    (*player_worker_.*
-     update_media_time_cb_)(GetMediaTimeProvider()->GetCurrentMediaTime(
-        &is_playing, &is_eos_played));
+    auto media_time = GetMediaTimeProvider()->GetCurrentMediaTime(
+        &is_playing, &is_eos_played);
+    update_media_info_cb_(media_time, dropped_frames);
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateInterval);
