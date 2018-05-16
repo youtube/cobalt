@@ -14,11 +14,16 @@
 
 #include "starboard/shared/starboard/player/player_internal.h"
 
+#include <functional>
+
 #include "starboard/log.h"
 
-using starboard::shared::starboard::player::InputBuffer;
-
 namespace {
+
+using starboard::shared::starboard::player::InputBuffer;
+using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
 
 SbTime GetMediaTime(SbTime media_time,
                     SbTimeMonotonic media_time_update_time,
@@ -54,17 +59,18 @@ SbPlayerPrivate::SbPlayerPrivate(
       volume_(1.0),
       total_video_frames_(0),
       dropped_video_frames_(0),
-      worker_(new PlayerWorker(this,
-                               audio_codec,
-                               video_codec,
-                               player_worker_handler.Pass(),
-                               decoder_status_func,
-                               player_status_func,
+      worker_(new PlayerWorker(
+          audio_codec,
+          video_codec,
+          player_worker_handler.Pass(),
+          std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3),
+          decoder_status_func,
+          player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-                               player_error_func,
+          player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-                               this,
-                               context)) {
+          this,
+          context)) {
   ++number_of_players_;
 }
 
@@ -163,17 +169,15 @@ void SbPlayerPrivate::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivate::UpdateMediaTime(SbTime media_time, int ticket) {
+void SbPlayerPrivate::UpdateMediaInfo(SbTime media_time,
+                                      int dropped_video_frames,
+                                      int ticket) {
   starboard::ScopedLock lock(mutex_);
   if (ticket_ != ticket) {
     return;
   }
   media_time_ = media_time;
   media_time_updated_at_ = SbTimeGetMonotonicNow();
-}
-
-void SbPlayerPrivate::UpdateDroppedVideoFrames(int dropped_video_frames) {
-  starboard::ScopedLock lock(mutex_);
   dropped_video_frames_ = dropped_video_frames;
 }
 
