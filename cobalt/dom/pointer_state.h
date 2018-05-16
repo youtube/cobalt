@@ -77,6 +77,8 @@ class PointerState {
   // shutdown.
   void ClearForShutdown();
 
+  static bool CanQueueEvent(const scoped_refptr<Event>& event);
+
  private:
   // Stores pointer events until they are handled after a layout.
   std::queue<scoped_refptr<Event> > pointer_events_;
