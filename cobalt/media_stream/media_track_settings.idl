@@ -15,4 +15,6 @@
 // https://www.w3.org/TR/mediacapture-streams/#media-track-settings
 dictionary MediaTrackSettings {
   long sampleRate;
+  long sampleSize;
+  long channelCount;
 };
