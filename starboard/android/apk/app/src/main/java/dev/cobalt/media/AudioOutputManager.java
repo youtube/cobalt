@@ -14,11 +14,14 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +49,10 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleType, int sampleRate, int channelCount, int framesPerChannel) {
     AudioTrackBridge audioTrackBridge =
         new AudioTrackBridge(sampleType, sampleRate, channelCount, framesPerChannel);
+    if (!audioTrackBridge.isAudioTrackValid()) {
+      Log.e(TAG, "AudioTrackBridge has invalid audio track");
+      return null;
+    }
     audioTrackBridgeList.add(audioTrackBridge);
     return audioTrackBridge;
   }
