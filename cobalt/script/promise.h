@@ -67,6 +67,27 @@ class Promise<void> : public Promise<PromiseResultUndefined> {
   void Resolve() const { Resolve(PromiseResultUndefined()); }
 };
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+
+inline std::ostream& operator<<(std::ostream& os, const PromiseState state) {
+  switch (state) {
+    case PromiseState::kFulfilled:
+      os << "Fulfilled";
+      return os;
+    case PromiseState::kPending:
+      os << "Pending";
+      return os;
+    case PromiseState::kRejected:
+      os << "Rejected";
+      return os;
+  }
+  DCHECK(false);
+  os << "Unknown promise state";
+  return os;
+}
+
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
 }  // namespace script
 }  // namespace cobalt
 
