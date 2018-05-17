@@ -1311,7 +1311,7 @@ class Map {
       GOOGLE_DCHECK(n >= kMinTableSize);
       GOOGLE_DCHECK_EQ(n & (n - 1), 0);
       void** result = Alloc<void*>(n);
-      memset(result, 0, n * sizeof(result[0]));
+      ::memset(result, 0, n * sizeof(result[0]));
       return result;
     }
 
