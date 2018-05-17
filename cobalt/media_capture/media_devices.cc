@@ -18,6 +18,7 @@
 
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/speech/microphone.h"
+#include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
 #include "starboard/string.h"
 
@@ -30,13 +31,28 @@ namespace media_capture {
 
 namespace {
 
-scoped_ptr<speech::Microphone> CreateMicrophone() {
-  scoped_ptr<speech::Microphone> mic;
-#ifdef ENABLE_MICROPHONE_IDL
+using speech::Microphone;
+
+scoped_ptr<Microphone> CreateMicrophone(const Microphone::Options& options) {
+#if defined(ENABLE_FAKE_MICROPHONE)
+  if (options.enable_fake_microphone) {
+    return make_scoped_ptr<speech::Microphone>(
+        new speech::MicrophoneFake(options));
+  }
+#else
+  UNREFERENCED_PARAMETER(options);
+#endif  // defined(ENABLE_FAKE_MICROPHONE)
+
+  scoped_ptr<Microphone> mic;
+
+#if defined(ENABLE_MICROPHONE_IDL)
   mic.reset(new speech::MicrophoneStarboard(
       speech::MicrophoneStarboard::kDefaultSampleRate,
-      speech::MicrophoneStarboard::kDefaultSampleRate));
-#endif
+      /* Buffer for one second. */
+      speech::MicrophoneStarboard::kDefaultSampleRate *
+          speech::MicrophoneStarboard::kDefaultSampleSizeInBytes));
+#endif  // defined(ENABLE_MICROPHONE_IDL)
+
   return mic.Pass();
 }
 
@@ -44,14 +60,18 @@ scoped_ptr<speech::Microphone> CreateMicrophone() {
 
 MediaDevices::MediaDevices(script::ScriptValueFactory* script_value_factory)
     : script_value_factory_(script_value_factory) {
+  DCHECK(script_value_factory);
 }
 
 script::Handle<MediaDevices::MediaInfoSequencePromise>
 MediaDevices::EnumerateDevices() {
+  DCHECK(settings_);
   script::Handle<MediaInfoSequencePromise> promise =
       script_value_factory_->CreateBasicPromise<MediaInfoSequence>();
   script::Sequence<scoped_refptr<Wrappable>> output;
-  scoped_ptr<speech::Microphone> microphone = CreateMicrophone();
+
+  scoped_ptr<speech::Microphone> microphone =
+      CreateMicrophone(settings_->microphone_options());
   if (microphone) {
     scoped_refptr<Wrappable> media_device(
         new MediaDeviceInfo(script_value_factory_, kMediaDeviceKindAudioinput,

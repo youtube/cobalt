@@ -17,8 +17,13 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/media_device_info.h"
+#include "cobalt/media_stream/media_stream.h"
+#include "cobalt/media_stream/media_stream_constraints.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
@@ -40,10 +45,15 @@ class MediaDevices : public dom::EventTarget {
 
   script::Handle<MediaInfoSequencePromise> EnumerateDevices();
 
+  void SetEnvironmentSettings(script::EnvironmentSettings* settings) {
+    settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  }
+
   DEFINE_WRAPPABLE_TYPE(MediaDevices);
 
  private:
   script::ScriptValueFactory* script_value_factory_;
+  dom::DOMSettings* settings_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(MediaDevices);
 };
