@@ -14,6 +14,8 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -86,44 +88,70 @@ public class AudioTrackBridge {
       audioTrackBufferSize /= 2;
     }
     Log.i(
-        "AudioTrack",
+        TAG,
         String.format(
             "AudioTrack created with buffer size %d.  The minimum buffer size is %d.",
             audioTrackBufferSize, minBufferSizeBytes));
   }
 
+  public Boolean isAudioTrackValid() {
+    return audioTrack != null;
+  }
+
   public void release() {
-    audioTrack.release();
+    if (audioTrack != null) {
+      audioTrack.release();
+    }
     audioTrack = null;
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   public int setVolume(float gain) {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to setVolume with NULL audio track.");
+      return 0;
+    }
     return audioTrack.setVolume(gain);
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   private void play() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to play with NULL audio track.");
+      return;
+    }
     audioTrack.play();
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   private void pause() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to pause with NULL audio track.");
+      return;
+    }
     audioTrack.pause();
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   private void flush() {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to flush with NULL audio track.");
+      return;
+    }
     audioTrack.flush();
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   private int write(byte[] audioData, int sizeInBytes) {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to write with NULL audio track.");
+      return 0;
+    }
     if (Build.VERSION.SDK_INT >= 23) {
       return audioTrack.write(audioData, 0, sizeInBytes, AudioTrack.WRITE_NON_BLOCKING);
     } else {
@@ -135,6 +163,10 @@ public class AudioTrackBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   private int write(float[] audioData, int sizeInFloats) {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to write with NULL audio track.");
+      return 0;
+    }
     return audioTrack.write(audioData, 0, sizeInFloats, AudioTrack.WRITE_NON_BLOCKING);
   }
 
@@ -143,6 +175,10 @@ public class AudioTrackBridge {
   private AudioTimestamp getAudioTimestamp() {
     // TODO: Consider calling with TIMEBASE_MONOTONIC and returning that
     // information to the starboard audio sink.
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to getAudioTimestamp with NULL audio track.");
+      return audioTimestamp;
+    }
     if (audioTrack.getTimestamp(audioTimestamp)) {
       // This conversion is safe, as only the lower bits will be set, since we
       // called |getTimestamp| without a timebase.
