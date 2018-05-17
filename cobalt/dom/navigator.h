@@ -80,6 +80,10 @@ class Navigator : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Navigator);
   void TraceMembers(script::Tracer* tracer) override;
 
+  void SetEnvironmentSettings(script::EnvironmentSettings* settings) {
+    media_devices_->SetEnvironmentSettings(settings);
+  }
+
  private:
   ~Navigator() override {}
 
