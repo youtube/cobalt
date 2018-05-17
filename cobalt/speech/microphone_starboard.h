@@ -30,6 +30,8 @@ namespace speech {
 class MicrophoneStarboard : public Microphone {
  public:
   static const int kDefaultSampleRate = 16000;
+  // Starboard uses int16 as sample size.
+  static const int kDefaultSampleSizeInBytes = 2;
 
   MicrophoneStarboard(int sample_rate, int buffer_size_bytes);
   ~MicrophoneStarboard() override;
