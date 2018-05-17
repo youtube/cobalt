@@ -92,6 +92,7 @@ Document::Document(HTMLElementContext* html_element_context,
       user_agent_style_sheet_(options.user_agent_style_sheet),
       initial_computed_style_declaration_(
           new cssom::CSSComputedStyleDeclaration()),
+      ready_state_(kDocumentReadyStateComplete),
       dom_max_element_depth_(options.dom_max_element_depth),
       render_postponed_(false) {
   DCHECK(html_element_context_);
