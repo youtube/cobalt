@@ -80,6 +80,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       void* context);
   ~AudioTrackAudioSink() override;
 
+  bool IsAudioTrackValid() const { return j_audio_track_bridge_; }
   bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override {
     SB_DCHECK(playback_rate >= 0.0);
@@ -160,6 +161,9 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       "(IIII)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_, channels_,
       frames_per_channel);
+  if (!j_audio_track_bridge) {
+    return;
+  }
   j_audio_track_bridge_ = env->ConvertLocalRefToGlobalRef(j_audio_track_bridge);
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     j_audio_data_ = env->NewFloatArray(channels_ * kMaxFramesPerRequest);
@@ -371,10 +375,17 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
-  return new AudioTrackAudioSink(this, channels, sampling_frequency_hz,
-                                 audio_sample_type, frame_buffers,
-                                 frames_per_channel, update_source_status_func,
-                                 consume_frames_func, context);
+  AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
+      this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      frames_per_channel, update_source_status_func, consume_frames_func,
+      context);
+  if (!audio_sink->IsAudioTrackValid()) {
+    SB_DLOG(ERROR)
+        << "AudioTrackAudioSinkType::Create failed to create audio track";
+    Destroy(audio_sink);
+    return kSbAudioSinkInvalid;
+  }
+  return audio_sink;
 }
 
 }  // namespace shared
