@@ -279,7 +279,6 @@ bool VideoDecoder::InitializeCodec() {
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       j_output_surface = GetVideoSurface();
-      SB_DCHECK(j_output_surface);
     } break;
     case kSbPlayerOutputModeDecodeToTexture: {
       // A width and height of (0, 0) is provided here because Android doesn't
@@ -302,7 +301,10 @@ bool VideoDecoder::InitializeCodec() {
       SB_NOTREACHED();
     } break;
   }
-  SB_DCHECK(j_output_surface);
+  if (!j_output_surface) {
+    SB_LOG(ERROR) << "Video surface does not exist.";
+    return false;
+  }
 
   ANativeWindow* video_window = GetVideoWindow();
   if (!video_window) {
