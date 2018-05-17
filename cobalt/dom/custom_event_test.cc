@@ -61,26 +61,25 @@ class CustomEventTest : public ::testing::Test {
         loader_factory_(new loader::LoaderFactory(
             fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
         local_storage_database_(NULL),
-        url_("about:blank"),
-        window_(new Window(
-            1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-            dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
-            NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
-            NULL, NULL, NULL, NULL, NULL, NULL, url_, "", "en-US", "en",
-            base::Callback<void(const GURL&)>(),
-            base::Bind(&MockErrorCallback::Run,
-                       base::Unretained(&mock_error_callback_)),
-            NULL, network_bridge::PostSender(), csp::kCSPRequired,
-            kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
-            base::Closure() /* ran_animation_frame_callbacks */,
-            dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */, NULL, NULL, NULL,
-            dom::Window::OnStartDispatchEventCallback(),
-            dom::Window::OnStopDispatchEventCallback(),
-            dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
-            NULL)) {
+        url_("about:blank") {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
+    window_ = new Window(
+        1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
+        dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(), NULL,
+        NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL, NULL,
+        NULL, NULL, global_environment_->script_value_factory(), NULL, NULL,
+        url_, "", "en-US", "en", base::Callback<void(const GURL&)>(),
+        base::Bind(&MockErrorCallback::Run,
+                   base::Unretained(&mock_error_callback_)),
+        NULL, network_bridge::PostSender(), csp::kCSPRequired,
+        kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
+        base::Closure() /* ran_animation_frame_callbacks */,
+        dom::Window::CloseCallback() /* window_close */,
+        base::Closure() /* window_minimize */, NULL, NULL, NULL,
+        dom::Window::OnStartDispatchEventCallback(),
+        dom::Window::OnStopDispatchEventCallback(),
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
   }
@@ -100,7 +99,7 @@ class CustomEventTest : public ::testing::Test {
   scoped_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
-  const scoped_refptr<Window> window_;
+  scoped_refptr<Window> window_;
 };
 
 bool CustomEventTest::EvaluateScript(const std::string& js_code,

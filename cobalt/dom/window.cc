@@ -677,6 +677,7 @@ void Window::TraceMembers(script::Tracer* tracer) {
 
 void Window::SetEnvironmentSettings(script::EnvironmentSettings* settings) {
   screenshot_manager_.SetEnvironmentSettings(settings);
+  navigator_->SetEnvironmentSettings(settings);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {
