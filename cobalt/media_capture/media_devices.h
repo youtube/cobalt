@@ -21,12 +21,14 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/media_device_info.h"
+#include "cobalt/media_stream/media_stream_constraints.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/speech/microphone.h"
 
 namespace cobalt {
 namespace media_capture {
@@ -38,10 +40,15 @@ class MediaDevices : public dom::EventTarget {
  public:
   using MediaInfoSequence = script::Sequence<scoped_refptr<script::Wrappable>>;
   using MediaInfoSequencePromise = script::Promise<MediaInfoSequence>;
+  using MediaStreamPromise =
+      script::Promise<script::ScriptValueFactory::WrappablePromise>;
 
   explicit MediaDevices(script::ScriptValueFactory* script_value_factory);
 
   script::Handle<MediaInfoSequencePromise> EnumerateDevices();
+  script::Handle<MediaStreamPromise> GetUserMedia();
+  script::Handle<MediaStreamPromise> GetUserMedia(
+      const media_stream::MediaStreamConstraints& constraints);
 
   void SetEnvironmentSettings(script::EnvironmentSettings* settings) {
     settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
@@ -50,8 +57,12 @@ class MediaDevices : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(MediaDevices);
 
  private:
+  void CreateMicrophoneIfNeeded();
+
   script::ScriptValueFactory* script_value_factory_;
   dom::DOMSettings* settings_ = nullptr;
+
+  scoped_ptr<speech::Microphone> microphone_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaDevices);
 };

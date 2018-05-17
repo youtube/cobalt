@@ -40,7 +40,10 @@ namespace testing {
 // stubbed out.
 class StubWindow {
  public:
-  StubWindow()
+  explicit StubWindow(
+      scoped_ptr<script::EnvironmentSettings> environment_settings =
+          scoped_ptr<script::EnvironmentSettings>(
+              new script::EnvironmentSettings))
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(base::Bind(&StubErrorCallback))),
@@ -49,7 +52,8 @@ class StubWindow {
             fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
         local_storage_database_(NULL),
         url_("about:blank"),
-        dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
+        dom_stat_tracker_(new dom::DomStatTracker("StubWindow")),
+        environment_settings_(environment_settings.Pass()) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     window_ = new dom::Window(
@@ -67,7 +71,8 @@ class StubWindow {
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
         dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
-    global_environment_->CreateGlobalObject(window_, &environment_settings_);
+    global_environment_->CreateGlobalObject(window_,
+                                            environment_settings_.get());
   }
 
   scoped_refptr<dom::Window> window() { return window_; }
@@ -75,6 +80,11 @@ class StubWindow {
     return global_environment_;
   }
   css_parser::Parser* css_parser() { return css_parser_.get(); }
+  script::EnvironmentSettings* environment_settings() {
+    return environment_settings_.get();
+  }
+
+  ~StubWindow() { window_->DestroyTimers(); }
 
  private:
   static void StubErrorCallback(const std::string& /*error*/) {}
@@ -87,7 +97,7 @@ class StubWindow {
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
   scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
-  script::EnvironmentSettings environment_settings_;
+  scoped_ptr<script::EnvironmentSettings> environment_settings_;
   scoped_ptr<script::JavaScriptEngine> engine_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
   scoped_refptr<dom::Window> window_;

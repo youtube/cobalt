@@ -49,6 +49,8 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "ReadOnlyError";
     case DOMException::kInvalidPointerIdErr:
       return "InvalidPointerId";
+    case DOMException::kNotAllowedErr:
+      return "NotAllowedError";
   }
   NOTREACHED();
   return "";
