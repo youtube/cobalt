@@ -72,7 +72,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/content/browser/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
