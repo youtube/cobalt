@@ -35,6 +35,7 @@
         'union_type_conversion_impl.h',
         'v8c_array_buffer.cc',
         'v8c_array_buffer.h',
+        'v8c_array_buffer_view.cc',
         'v8c_array_buffer_view.h',
         'v8c_callback_function.h',
         'v8c_callback_interface.cc',

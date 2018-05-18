@@ -122,7 +122,12 @@ class MediaStreamAudioDeliverer {
   }
 
   // Deliver data to all consumers. This method may be called on any thread.
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
   void OnData(const media::ShellAudioBus& audio_bus,
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+  void OnData(const ::media::ShellAudioBus& audio_bus,
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
               base::TimeTicks reference_time) {
     TRACE_EVENT1("media_stream", "MediaStreamAudioDeliverer::OnData",
                  "reference time (ms)",

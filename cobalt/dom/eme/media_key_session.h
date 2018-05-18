@@ -26,6 +26,7 @@
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media/base/drm_system.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value_factory.h"
 #include "starboard/drm.h"
@@ -58,7 +59,8 @@ class MediaKeySession : public EventTarget {
   const EventListenerScriptValue* onmessage() const;
   void set_onmessage(const EventListenerScriptValue& event_listener);
   script::Handle<script::Promise<void>> GenerateRequest(
-      const std::string& init_data_type, const BufferSource& init_data);
+      script::EnvironmentSettings* settings, const std::string& init_data_type,
+      const BufferSource& init_data);
   script::Handle<script::Promise<void>> Update(const BufferSource& response);
   script::Handle<script::Promise<void>> Close();
 
@@ -69,6 +71,7 @@ class MediaKeySession : public EventTarget {
   ~MediaKeySession() override;
 
   void OnSessionUpdateRequestGenerated(
+      script::EnvironmentSettings* settings,
       VoidPromiseValue::Reference* promise_reference,
       SbDrmSessionRequestType type, scoped_array<uint8> message,
       int message_size);

@@ -52,6 +52,10 @@ def is_promise_type(idl_type):
   return isinstance(idl_type, IdlPromiseType)
 
 
+def is_array_buffer_or_view_type(idl_type):
+  return idl_type.is_array_buffer_or_view_type
+
+
 def idl_literal_to_cobalt_literal(idl_type, idl_literal):
   """Map IDL literal to the corresponding cobalt value."""
   if idl_literal.is_null and not idl_type.is_interface_type:
@@ -112,16 +116,17 @@ def cobalt_type_is_optional(idl_type):
   Args:
     idl_type: An idl_types.IdlType object.
 
-  The Cobalt type for interfaces and callback functions are scoped_refptr, so
-  they can already be assigned a NULL value. Other types, such as primitives,
-  strings, and unions, need to be wrapped by base::optional<>, in which case
-  the IDL null value will map to base::nullopt_t.
+  The Cobalt type for interfaces and callback functions are scoped_refptr or
+  script::Handle, so they can already be assigned a NULL value. Other types,
+  such as primitives, strings, and unions, need to be wrapped by
+  base::optional<>, in which case the IDL null value will map to
+  base::nullopt_t.
   """
 
   # These never need base::optional<>
   if (idl_type.is_interface_type or idl_type.is_callback_function or
       idl_type.is_callback_interface or is_object_type(idl_type) or
-      is_any_type(idl_type)):
+      is_any_type(idl_type) or is_array_buffer_or_view_type(idl_type)):
     return False
 
   # We consider a union type to be nullable if either the entire union is
@@ -245,7 +250,15 @@ class ContextBuilder(object):
       else:
         flattened_types.append(member)
 
-    cobalt_types = [self.idl_type_to_cobalt_type(t) for t in flattened_types]
+    cobalt_types = []
+    for flattened_type in flattened_types:
+      cobalt_type = self.idl_type_to_cobalt_type(flattened_type)
+      # Some member types need to be wrapped with ScriptValue::Handle.
+      if is_any_type(flattened_type) or is_array_buffer_or_view_type(
+          flattened_type):
+        cobalt_type = '::cobalt::script::Handle<{}>'.format(cobalt_type)
+      cobalt_types.append(cobalt_type)
+
     return '::cobalt::script::UnionType%d<%s >' % (len(cobalt_types),
                                                    ', '.join(cobalt_types))
 
@@ -280,7 +293,8 @@ class ContextBuilder(object):
       cobalt_type = get_interface_name(idl_type)
     elif is_promise_type(idl_type):
       cobalt_type = '::cobalt::script::NativePromise'
-
+    elif is_array_buffer_or_view_type(idl_type):
+      cobalt_type = '::cobalt::script::{}'.format(idl_type.base_type)
     assert cobalt_type, 'Unsupported idl_type %s' % idl_type
 
     if cobalt_type_is_optional(idl_type):
@@ -307,9 +321,9 @@ class ContextBuilder(object):
     if (idl_type.is_callback_function or idl_type.is_object_type or
         idl_type.is_callback_interface):
       return base_type + '*'
-    if is_any_type(idl_type):
+    if is_any_type(idl_type) or is_array_buffer_or_view_type(idl_type):
       return 'const ::cobalt::script::ScriptValue<%s>*' % base_type
-    if idl_type.is_string_type or idl_type.is_interface_type:
+    elif idl_type.is_string_type or idl_type.is_interface_type:
       return 'const %s&' % base_type
     return base_type
 
@@ -459,9 +473,8 @@ class ContextBuilder(object):
 
   def attribute_context(self, interface, attribute, definitions):
     """Create template values for attribute bindings."""
-    cobalt_name = attribute.extended_attributes.get('ImplementedAs',
-                                                    convert_to_cobalt_name(
-                                                        attribute.name))
+    cobalt_name = attribute.extended_attributes.get(
+        'ImplementedAs', convert_to_cobalt_name(attribute.name))
     context = {
         'idl_name':
             attribute.name,
@@ -639,7 +652,8 @@ class ContextBuilder(object):
         'name':
             convert_to_cobalt_name(dictionary_member.name),
         'is_script_value':
-            is_any_type(dictionary_member.idl_type),
+            is_any_type(dictionary_member.idl_type)
+            or is_array_buffer_or_view_type(dictionary_member.idl_type),
         'idl_name':
             dictionary_member.name,
         'type':

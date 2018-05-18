@@ -389,7 +389,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     }
 
     if (!member_value->IsUndefined()) {
-      TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+      TypeTraits<::cobalt::script::ValueHandle>::ConversionType converted_value;
       FromJSValue(isolate,
                   member_value,
                   kNoConversionFlags,
@@ -409,7 +409,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     }
 
     if (!member_value->IsUndefined()) {
-      TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+      TypeTraits<::cobalt::script::ValueHandle>::ConversionType converted_value;
       FromJSValue(isolate,
                   member_value,
                   kNoConversionFlags,

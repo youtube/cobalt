@@ -22,6 +22,7 @@
 #include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
@@ -42,8 +43,7 @@ class StubWindow {
  public:
   explicit StubWindow(
       scoped_ptr<script::EnvironmentSettings> environment_settings =
-          scoped_ptr<script::EnvironmentSettings>(
-              new script::EnvironmentSettings))
+          scoped_ptr<script::EnvironmentSettings>())
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(base::Bind(&StubErrorCallback))),
@@ -52,8 +52,7 @@ class StubWindow {
             fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
         local_storage_database_(NULL),
         url_("about:blank"),
-        dom_stat_tracker_(new dom::DomStatTracker("StubWindow")),
-        environment_settings_(environment_settings.Pass()) {
+        dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     window_ = new dom::Window(
@@ -71,6 +70,13 @@ class StubWindow {
         dom::Window::OnStartDispatchEventCallback(),
         dom::Window::OnStopDispatchEventCallback(),
         dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+    environment_settings_ =
+        environment_settings.get()
+            ? environment_settings.Pass()
+            : scoped_ptr<script::EnvironmentSettings>(
+                  new DOMSettings(0, NULL, NULL, window_, NULL, NULL, NULL,
+                                  engine_.get(), global_environment(), NULL));
+    window_->SetEnvironmentSettings(environment_settings_.get());
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
   }

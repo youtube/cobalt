@@ -33,25 +33,25 @@ bool FetchInternal::IsUrlValid(script::EnvironmentSettings* settings,
 }
 
 // static
-scoped_refptr<dom::Uint8Array> FetchInternal::EncodeToUTF8(
+script::Handle<script::Uint8Array> FetchInternal::EncodeToUTF8(
     script::EnvironmentSettings* settings, const std::string& text,
     script::ExceptionState* exception_state) {
+  dom::DOMSettings* dom_settings =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings);
   // The conversion helper already translated the JSValue into a UTF-8 encoded
   // string. So just wrap the result in a Uint8Array.
-  return new dom::Uint8Array(settings,
-      reinterpret_cast<const uint8*>(text.c_str()),
-      static_cast<uint32>(text.size()),
-      exception_state);
+  return script::Uint8Array::New(dom_settings->global_environment(),
+                                 text.data(), text.size());
 }
 
 // static
 std::string FetchInternal::DecodeFromUTF8(
-    const scoped_refptr<dom::Uint8Array>& data,
+    const script::Handle<script::Uint8Array>& data,
     script::ExceptionState* exception_state) {
   // The conversion helper expects the return value to be a UTF-8 encoded
   // string.
-  base::StringPiece input(reinterpret_cast<const char*>(data->data()),
-                          data->length());
+  base::StringPiece input(reinterpret_cast<const char*>(data->Data()),
+                          data->Length());
 
   if (IsStringUTF8(input)) {
     // Input is already UTF-8. Just strip the byte order mark if it's present.

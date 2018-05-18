@@ -20,8 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"  // For scoped_array
 #include "cobalt/audio/audio_helpers.h"
-#include "cobalt/dom/float32_array.h"
-#include "cobalt/dom/int16_array.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 

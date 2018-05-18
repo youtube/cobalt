@@ -54,8 +54,9 @@ Handle<ArrayBuffer> ArrayBuffer::New(GlobalEnvironment* global_environment,
 }
 
 // static
-Handle<ArrayBuffer> ArrayBuffer::New(GlobalEnvironment* global_environment,
-                                     PreallocatedArrayBufferData* data) {
+Handle<ArrayBuffer> ArrayBuffer::New(
+    GlobalEnvironment* global_environment,
+    scoped_ptr<PreallocatedArrayBufferData> data) {
   auto* mozjs_global_environment =
       base::polymorphic_downcast<mozjs::MozjsGlobalEnvironment*>(
           global_environment);

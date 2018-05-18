@@ -40,6 +40,10 @@ class ExpressionGeneratorMozjs(ExpressionGenerator):
   def is_number(self, arg):
     return '%s.isNumber()' % arg
 
+  def is_type(self, interface_name, arg):
+    return ('{}.isObject() ? '
+            'JS_Is{}Object(object): false').format(arg, interface_name)
+
 
 class CodeGeneratorMozjs45(CodeGeneratorCobalt):
   """Code generator class for SpiderMonkey45 bindings."""

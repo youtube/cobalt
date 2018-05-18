@@ -16,9 +16,9 @@
 #define COBALT_SCRIPT_SCRIPT_VALUE_FACTORY_H_
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/script/array_buffer.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
-
 namespace cobalt {
 namespace script {
 

@@ -15,8 +15,10 @@
 #include "cobalt/dom/eme/media_key_status_map.h"
 
 #include "base/logging.h"
-#include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/array_buffer_view.h"
+#include "base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 
 namespace cobalt {
 namespace dom {
@@ -56,10 +58,14 @@ std::string ConvertKeyStatusToString(MediaKeyStatus key_status) {
   return "internal-error";
 }
 
-BufferSource ConvertStringToBufferSource(const std::string& str) {
-  scoped_refptr<ArrayBuffer> array_buffer =
-      new ArrayBuffer(NULL, reinterpret_cast<const uint8*>(str.c_str()),
-                      static_cast<uint32>(str.size()));
+BufferSource ConvertStringToBufferSource(script::EnvironmentSettings* settings,
+                                         const std::string& str) {
+  DCHECK(settings);
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  DCHECK(dom_settings->global_environment());
+  script::Handle<script::ArrayBuffer> array_buffer = script::ArrayBuffer::New(
+      dom_settings->global_environment(), str.data(), str.size());
   return BufferSource(array_buffer);
 }
 
@@ -72,12 +78,14 @@ void MediaKeyStatusMap::Add(const std::string& key_id,
   key_statuses_[key_id] = key_status;
 }
 
-void MediaKeyStatusMap::ForEach(const ForEachCallbackArg& callback) {
+void MediaKeyStatusMap::ForEach(script::EnvironmentSettings* settings,
+                                const ForEachCallbackArg& callback) {
   ForEachCallbackArg::Reference reference(this, callback);
 
   for (auto& key_status : key_statuses_) {
-    reference.value().Run(ConvertKeyStatusToString(key_status.second),
-                          ConvertStringToBufferSource(key_status.first), this);
+    reference.value().Run(
+        ConvertKeyStatusToString(key_status.second),
+        ConvertStringToBufferSource(settings, key_status.first), this);
   }
 }
 

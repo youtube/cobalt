@@ -23,8 +23,11 @@
 #include <string>
 
 #include "base/optional.h"
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/test_dictionary.h"
 

@@ -26,9 +26,9 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/media_error.h"
 #include "cobalt/dom/time_ranges.h"
-#include "cobalt/dom/uint8_array.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/typed_arrays.h"
 #include "googleurl/src/gurl.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_keys.h"
@@ -98,13 +98,12 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   script::Handle<script::Promise<void>> SetMediaKeys(
       const scoped_refptr<eme::MediaKeys>& media_keys);
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void GenerateKeyRequest(
-      const std::string& key_system,
-      const base::optional<scoped_refptr<Uint8Array> >& init_data,
-      script::ExceptionState* exception_state);
+  void GenerateKeyRequest(const std::string& key_system,
+                          const script::Handle<script::Uint8Array>& init_data,
+                          script::ExceptionState* exception_state);
   void AddKey(const std::string& key_system,
-              const scoped_refptr<const Uint8Array>& key,
-              const base::optional<scoped_refptr<Uint8Array> >& init_data,
+              const script::Handle<script::Uint8Array>& key,
+              const script::Handle<script::Uint8Array>& init_data,
               const base::optional<std::string>& session_id,
               script::ExceptionState* exception_state);
   void CancelKeyRequest(const std::string& key_system,

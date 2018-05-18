@@ -23,14 +23,14 @@
 #include "base/optional.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/message_event.h"
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/websocket/web_socket_event_interface.h"
 #include "cobalt/websocket/web_socket_impl.h"
@@ -84,9 +84,9 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   void Send(const std::string& data, script::ExceptionState* exception_state);
   void Send(const scoped_refptr<dom::Blob>& data,
             script::ExceptionState* exception_state);
-  void Send(const scoped_refptr<dom::ArrayBuffer>& data,
+  void Send(const script::Handle<script::ArrayBuffer>& data,
             script::ExceptionState* exception_state);
-  void Send(const scoped_refptr<dom::ArrayBufferView>& data,
+  void Send(const script::Handle<script::ArrayBufferView>& data,
             script::ExceptionState* exception_state);
 
   // EventHandlers.

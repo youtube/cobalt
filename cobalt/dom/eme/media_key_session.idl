@@ -22,8 +22,7 @@ interface MediaKeySession : EventTarget {
   readonly attribute MediaKeyStatusMap keyStatuses;
   attribute EventHandler onkeystatuseschange;
   attribute EventHandler onmessage;
-  Promise<void> generateRequest(DOMString initDataType,
-                                BufferSource initData);
+  [CallWith=EnvironmentSettings] Promise<void> generateRequest(DOMString initDataType, BufferSource initData);
   // TODO: Trivially implement persistent sessions.
   // Promise<boolean> load(DOMString sessionId);
   Promise<void> update(BufferSource response);
