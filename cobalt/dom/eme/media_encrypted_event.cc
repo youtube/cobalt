@@ -28,13 +28,12 @@ MediaEncryptedEvent::MediaEncryptedEvent(const std::string& type)
 MediaEncryptedEvent::MediaEncryptedEvent(
     const std::string& type, const MediaEncryptedEventInit& event_init_dict)
     : Event(base::Token(type), kNotBubbles, kNotCancelable),
-      init_data_type_(event_init_dict.init_data_type()),
-      init_data_(event_init_dict.init_data()) {}
-
-void MediaEncryptedEvent::TraceMembers(script::Tracer* tracer) {
-  Event::TraceMembers(tracer);
-
-  tracer->Trace(init_data_);
+      init_data_type_(event_init_dict.init_data_type()) {
+  if (event_init_dict.init_data() && !event_init_dict.init_data()->IsNull()) {
+    init_data_reference_.reset(
+        new script::ScriptValue<script::ArrayBuffer>::Reference(
+            this, *event_init_dict.init_data()));
+  }
 }
 
 }  // namespace eme

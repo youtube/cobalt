@@ -26,13 +26,7 @@ MediaKeyMessageEvent::MediaKeyMessageEvent(
     const std::string& type, const MediaKeyMessageEventInit& event_init_dict)
     : Event(base::Token(type), kNotBubbles, kNotCancelable),
       message_type_(event_init_dict.message_type()),
-      message_(event_init_dict.message()) {}
-
-void MediaKeyMessageEvent::TraceMembers(script::Tracer* tracer) {
-  Event::TraceMembers(tracer);
-
-  tracer->Trace(message_);
-}
+      message_reference_(this, *event_init_dict.message()) {}
 
 }  // namespace eme
 }  // namespace dom

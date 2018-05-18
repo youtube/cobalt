@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/v8c/scoped_persistent.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_array_buffer.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
@@ -32,6 +33,8 @@ class V8cArrayBufferView final : public ScopedPersistent<v8::Value>,
  public:
   using BaseType = ArrayBufferView;
 
+  // Default constructor should only be used by bindings code.
+  V8cArrayBufferView() = default;
   V8cArrayBufferView(v8::Isolate* isolate, v8::Local<v8::Value> value)
       : isolate_(isolate), ScopedPersistent(isolate, value) {
     DCHECK(value->IsArrayBufferView());
@@ -109,7 +112,7 @@ inline void FromJSValue(
   }
 
   *out_array_buffer_view =
-      V8cUserObjectHolder<V8cArrayBufferView>(isolate, value);
+      std::move(V8cUserObjectHolder<V8cArrayBufferView>(isolate, value));
 }
 
 }  // namespace v8c

@@ -16,13 +16,15 @@
 
 #include <type_traits>
 
-#include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/array_buffer_view.h"
+#include "base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_message_event.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
 #include "cobalt/dom/eme/media_keys.h"
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/script_value_factory.h"
 
 namespace cobalt {
@@ -98,7 +100,8 @@ void MediaKeySession::set_onmessage(
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
-    const std::string& init_data_type, const BufferSource& init_data) {
+    script::EnvironmentSettings* settings, const std::string& init_data_type,
+    const BufferSource& init_data) {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
 
@@ -137,7 +140,7 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
   drm_system_session_->GenerateUpdateRequest(
       init_data_type, init_data_buffer, init_data_buffer_size,
       base::Bind(&MediaKeySession::OnSessionUpdateRequestGenerated,
-                 base::AsWeakPtr(this),
+                 base::AsWeakPtr(this), settings,
                  base::Owned(new VoidPromiseValue::Reference(this, promise))),
       base::Bind(&MediaKeySession::OnSessionUpdateRequestDidNotGenerate,
                  base::AsWeakPtr(this),
@@ -233,9 +236,15 @@ void MediaKeySession::TraceMembers(script::Tracer* tracer) {
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestGenerated(
+    script::EnvironmentSettings* settings,
     VoidPromiseValue::Reference* promise_reference,
     SbDrmSessionRequestType type, scoped_array<uint8> message,
     int message_size) {
+  DCHECK(settings);
+  DOMSettings* dom_settings =
+      base::polymorphic_downcast<DOMSettings*>(settings);
+  auto* global_environment = dom_settings->global_environment();
+  DCHECK(global_environment);
   MediaKeyMessageEventInit media_key_message_event_init;
   // 10.9.4. If a license request for the requested license type can be
   //         generated based on the sanitized init data:
@@ -247,7 +256,8 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
   //           a license request request for the requested license type can be
   //           generated based on the sanitized init data.
   media_key_message_event_init.set_message(
-      new ArrayBuffer(NULL, message.Pass(), message_size));
+      script::ArrayBuffer::New(global_environment, message.get(), message_size)
+          .GetScriptValue());
   // 10.9.4.2. Let message type reflect the type of message, either
   //           "license-request" or "individualization-request".
   //

@@ -22,14 +22,15 @@
 #include "base/string_util_starboard.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
-#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/media_capture/blob_event.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/media_stream/media_track_settings.h"
+#include "cobalt/script/array_buffer.h"
 
 namespace {
 
@@ -246,8 +247,10 @@ void MediaRecorder::DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
 
   DCHECK_LE(data->size(), kuint32max);
 
-  auto array_buffer = make_scoped_refptr(new dom::ArrayBuffer(
-      settings_, data->data(), static_cast<uint32>(data->size())));
+  auto array_buffer = script::ArrayBuffer::New(
+      base::polymorphic_downcast<dom::DOMSettings*>(settings_)
+          ->global_environment(),
+      data->data(), data->size());
   data->clear();
 
   auto blob =

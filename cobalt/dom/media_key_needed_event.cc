@@ -21,11 +21,11 @@ namespace dom {
 
 MediaKeyNeededEvent::MediaKeyNeededEvent(
     const std::string& key_system, const std::string& session_id,
-    const scoped_refptr<Uint8Array>& init_data)
+    const script::Handle<script::Uint8Array>& init_data)
     : Event(base::Tokens::needkey(), kNotBubbles, kNotCancelable),
       key_system_(key_system),
       session_id_(session_id),
-      init_data_(init_data) {}
+      init_data_reference_(this, init_data) {}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -27,9 +27,13 @@
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
+#include "cobalt/script/mozjs-45/mozjs_array_buffer.h"
+#include "cobalt/script/mozjs-45/mozjs_array_buffer_view.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_interface_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_data_view.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
+#include "cobalt/script/mozjs-45/mozjs_typed_arrays.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
@@ -705,6 +709,27 @@ void ToJSValue(JSContext* context, const Handle<T>& handle,
                JS::MutableHandleValue out_value) {
   TRACK_MEMORY_SCOPE("Javascript");
   ToJSValue(context, handle.GetScriptValue(), out_value);
+}
+
+// script::Handle<JSValue> -> object
+template <typename T>
+inline void FromJSValue(JSContext* context, JS::HandleValue value,
+                        int conversion_flags, ExceptionState* exception_state,
+                        Handle<T>* out_object) {
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+      << "Unexpected conversion flags found.";
+
+  if (value.isNullOrUndefined()) {
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      exception_state->SetSimpleException(kNotNullableType);
+    }
+    return;
+  }
+
+  typename TypeTraits<T>::ConversionType temporary_holder;
+  FromJSValue(context, value, conversion_flags, exception_state,
+              &temporary_holder);
+  *out_object = std::move(Handle<T>(temporary_holder));
 }
 
 }  // namespace mozjs

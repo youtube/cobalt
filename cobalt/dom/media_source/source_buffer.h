@@ -54,8 +54,6 @@
 #include "base/optional.h"
 #include "base/timer.h"
 #include "cobalt/base/token.h"
-#include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
@@ -65,6 +63,8 @@
 #include "cobalt/dom/video_track_list.h"
 #include "cobalt/media/base/media_tracks.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/exception_state.h"
 
 namespace cobalt {
@@ -113,9 +113,9 @@ class SourceBuffer : public dom::EventTarget {
   }
   void set_append_window_end(double start,
                              script::ExceptionState* exception_state);
-  void AppendBuffer(const scoped_refptr<ArrayBuffer>& data,
+  void AppendBuffer(const script::Handle<script::ArrayBuffer>& data,
                     script::ExceptionState* exception_state);
-  void AppendBuffer(const scoped_refptr<ArrayBufferView>& data,
+  void AppendBuffer(const script::Handle<script::ArrayBufferView>& data,
                     script::ExceptionState* exception_state);
   void Abort(script::ExceptionState* exception_state);
   void Remove(double start, double end,
@@ -144,7 +144,7 @@ class SourceBuffer : public dom::EventTarget {
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
   bool EvictCodedFrames(size_t new_data_size);
-  void AppendBufferInternal(const unsigned char* data, uint32 size,
+  void AppendBufferInternal(const unsigned char* data, size_t size,
                             script::ExceptionState* exception_state);
   void OnAppendTimer();
   void AppendError();

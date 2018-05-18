@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "cobalt/dom/array_buffer.h"
+#include "cobalt/script/array_buffer.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -25,15 +25,17 @@ namespace dom {
 
 class Screenshot : public script::Wrappable {
  public:
-  explicit Screenshot(scoped_refptr<ArrayBuffer> pixel_data);
+  explicit Screenshot(const script::Handle<script::ArrayBuffer>& pixel_data);
 
   // Readonly Attributes.
-  const scoped_refptr<ArrayBuffer>& buffer() const { return pixel_data_; }
+  script::Handle<script::ArrayBuffer> buffer() const {
+    return script::Handle<script::ArrayBuffer>(pixel_data_reference_);
+  }
 
   DEFINE_WRAPPABLE_TYPE(Screenshot);
 
  private:
-  scoped_refptr<ArrayBuffer> pixel_data_;
+  script::ScriptValue<script::ArrayBuffer>::Reference pixel_data_reference_;
 
   Screenshot(const Screenshot&) = delete;
   Screenshot& operator=(const Screenshot&) = delete;

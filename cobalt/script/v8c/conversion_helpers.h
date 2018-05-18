@@ -34,8 +34,12 @@
 #include "cobalt/script/v8c/helpers.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/union_type_conversion_forward.h"
+#include "cobalt/script/v8c/v8c_array_buffer.h"
+#include "cobalt/script/v8c/v8c_array_buffer_view.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_data_view.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
+#include "cobalt/script/v8c/v8c_typed_arrays.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/value_handle.h"
@@ -706,6 +710,27 @@ void ToJSValue(v8::Isolate* isolate, const Handle<T>& local,
                v8::Local<v8::Value>* out_value) {
   TRACK_MEMORY_SCOPE("Javascript");
   ToJSValue(isolate, local.GetScriptValue(), out_value);
+}
+
+// script::Handle<JSValue> -> object
+template <typename T>
+inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                        int conversion_flags, ExceptionState* exception_state,
+                        Handle<T>* out_object) {
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+      << "Unexpected conversion flags found.";
+
+  if (value->IsNullOrUndefined()) {
+    if (!(conversion_flags & kConversionFlagNullable)) {
+      exception_state->SetSimpleException(kNotNullableType);
+    }
+    return;
+  }
+
+  typename TypeTraits<T>::ConversionType temporary_holder;
+  FromJSValue(isolate, value, conversion_flags, exception_state,
+              &temporary_holder);
+  *out_object = std::move(Handle<T>(temporary_holder));
 }
 
 }  // namespace v8c

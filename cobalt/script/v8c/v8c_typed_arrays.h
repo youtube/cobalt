@@ -34,6 +34,8 @@ class V8cTypedArray final : public ScopedPersistent<v8::Value>,
  public:
   using BaseType = TypedArray;
 
+  // Default constructor should only be used by bindings code.
+  V8cTypedArray() = default;
   V8cTypedArray(v8::Isolate* isolate, v8::Local<v8::Value> value)
       : isolate_(isolate), ScopedPersistent(isolate, value) {
     DCHECK(value->IsTypedArray());
@@ -113,8 +115,8 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     return;
   }
 
-  *out_typed_array =
-      V8cUserObjectHolder<V8cTypedArray>(isolate, value.As<v8::TypedArray>());
+  *out_typed_array = std::move(
+      V8cUserObjectHolder<V8cTypedArray>(isolate, value.As<v8::TypedArray>()));
 }
 
 template <typename CType, typename BaseTypeName, typename V8Type,
@@ -124,6 +126,8 @@ class V8cTypedArrayImpl final : public ScopedPersistent<v8::Value>,
  public:
   using BaseType = BaseTypeName;
 
+  // Default constructor should only be used by bindings code.
+  V8cTypedArrayImpl() = default;
   V8cTypedArrayImpl(v8::Isolate* isolate, v8::Local<v8::Value> value)
       : isolate_(isolate), ScopedPersistent(isolate, value) {
     DCHECK(((**value).*(V8ValueIsTypeFunction))());
@@ -174,42 +178,42 @@ class V8cTypedArrayImpl final : public ScopedPersistent<v8::Value>,
 COBALT_SCRIPT_TYPED_ARRAY_LIST(COBALT_SCRIPT_USING_V8C_ARRAY)
 #undef COBALT_SCRIPT_USING_V8C_ARRAY
 
-#define COBALT_SCRIPT_CONVERSION_BOILERPLATE(array, ctype)                  \
-  template <>                                                               \
-  struct TypeTraits<array> {                                                \
-    using ConversionType = V8cUserObjectHolder<V8c##array>;                 \
-    using ReturnType = const ScriptValue<array>*;                           \
-  };                                                                        \
-                                                                            \
-  inline void ToJSValue(v8::Isolate* isolate,                               \
-                        const ScriptValue<array>* array_value,              \
-                        v8::Local<v8::Value>* out_value) {                  \
-    if (!array_value) {                                                     \
-      *out_value = v8::Null(isolate);                                       \
-      return;                                                               \
-    }                                                                       \
-    const auto* v8c_array_value =                                           \
-        base::polymorphic_downcast<const V8cUserObjectHolder<V8c##array>*>( \
-            array_value);                                                   \
-    *out_value = v8c_array_value->v8_value();                               \
-  }                                                                         \
-                                                                            \
-  inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value, \
-                          int conversion_flags,                             \
-                          ExceptionState* exception_state,                  \
-                          V8cUserObjectHolder<V8c##array>* out_array) {     \
-    DCHECK_EQ(0, conversion_flags);                                         \
-    DCHECK(out_array);                                                      \
-    if (!value->IsObject()) {                                               \
-      exception_state->SetSimpleException(kNotObjectType);                  \
-      return;                                                               \
-    }                                                                       \
-    if (!value->Is##array()) {                                              \
-      exception_state->SetSimpleException(kTypeError,                       \
-                                          "Expected object of type array"); \
-      return;                                                               \
-    }                                                                       \
-    *out_array = V8cUserObjectHolder<V8c##array>(isolate, value);           \
+#define COBALT_SCRIPT_CONVERSION_BOILERPLATE(array, ctype)                   \
+  template <>                                                                \
+  struct TypeTraits<array> {                                                 \
+    using ConversionType = V8cUserObjectHolder<V8c##array>;                  \
+    using ReturnType = const ScriptValue<array>*;                            \
+  };                                                                         \
+                                                                             \
+  inline void ToJSValue(v8::Isolate* isolate,                                \
+                        const ScriptValue<array>* array_value,               \
+                        v8::Local<v8::Value>* out_value) {                   \
+    if (!array_value) {                                                      \
+      *out_value = v8::Null(isolate);                                        \
+      return;                                                                \
+    }                                                                        \
+    const auto* v8c_array_value =                                            \
+        base::polymorphic_downcast<const V8cUserObjectHolder<V8c##array>*>(  \
+            array_value);                                                    \
+    *out_value = v8c_array_value->v8_value();                                \
+  }                                                                          \
+                                                                             \
+  inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,  \
+                          int conversion_flags,                              \
+                          ExceptionState* exception_state,                   \
+                          V8cUserObjectHolder<V8c##array>* out_array) {      \
+    DCHECK_EQ(0, conversion_flags);                                          \
+    DCHECK(out_array);                                                       \
+    if (!value->IsObject()) {                                                \
+      exception_state->SetSimpleException(kNotObjectType);                   \
+      return;                                                                \
+    }                                                                        \
+    if (!value->Is##array()) {                                               \
+      exception_state->SetSimpleException(kTypeError,                        \
+                                          "Expected object of type array");  \
+      return;                                                                \
+    }                                                                        \
+    *out_array = std::move(V8cUserObjectHolder<V8c##array>(isolate, value)); \
   }
 COBALT_SCRIPT_TYPED_ARRAY_LIST(COBALT_SCRIPT_CONVERSION_BOILERPLATE)
 #undef COBALT_SCRIPT_CONVERSION_BOILERPLATE

@@ -18,10 +18,10 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
 #include "cobalt/dom/eme/media_key_message_type.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/script/array_buffer.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -39,14 +39,15 @@ class MediaKeyMessageEvent : public Event {
                        const MediaKeyMessageEventInit& event_init_dict);
 
   MediaKeyMessageType message_type() const { return message_type_; }
-  const scoped_refptr<ArrayBuffer>& message() const { return message_; }
+  script::Handle<script::ArrayBuffer> message() const {
+    return script::Handle<script::ArrayBuffer>(message_reference_);
+  }
 
   DEFINE_WRAPPABLE_TYPE(MediaKeyMessageEvent);
-  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   MediaKeyMessageType message_type_;
-  scoped_refptr<ArrayBuffer> message_;
+  script::ScriptValue<script::ArrayBuffer>::Reference message_reference_;
 };
 
 }  // namespace eme

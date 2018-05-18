@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_ARRAY_BUFFER_H_
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/script_exception.h"
 #include "cobalt/script/script_value.h"
@@ -37,7 +38,7 @@ class ArrayBuffer {
   // |byte_length|, and then copy |data| (which must be an allocation of size
   // |byte_length|) into the array buffer.
   static Handle<ArrayBuffer> New(GlobalEnvironment* global_environment,
-                                 void* data, size_t byte_length) {
+                                 const void* data, size_t byte_length) {
     Handle<ArrayBuffer> array_buffer = New(global_environment, byte_length);
     SbMemoryCopy(array_buffer->Data(), data, byte_length);
     return array_buffer;
@@ -46,7 +47,7 @@ class ArrayBuffer {
   // Create a new |ArrayBuffer| from existing block of memory.  See
   // |PreallocatedArrayBufferData| for details.
   static Handle<ArrayBuffer> New(GlobalEnvironment* global_environment,
-                                 PreallocatedArrayBufferData* data);
+                                 scoped_ptr<PreallocatedArrayBufferData> data);
 
   virtual ~ArrayBuffer() {}
 

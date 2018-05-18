@@ -15,7 +15,7 @@
 #ifndef COBALT_DOM_CRYPTO_H_
 #define COBALT_DOM_CRYPTO_H_
 
-#include "cobalt/dom/array_buffer_view.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
@@ -32,8 +32,8 @@ class Crypto : public script::Wrappable {
  public:
   // Web API:Crypto
   //
-  static scoped_refptr<dom::ArrayBufferView> GetRandomValues(
-      const scoped_refptr<dom::ArrayBufferView>& array,
+  static script::Handle<script::ArrayBufferView> GetRandomValues(
+      const script::Handle<script::ArrayBufferView>& array,
       script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(Crypto);
