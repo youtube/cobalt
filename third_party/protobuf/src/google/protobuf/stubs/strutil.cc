@@ -45,6 +45,9 @@
 #define PoemFindCharacterInString strchr
 #define SbStringFormatF snprintf
 #define SbStringFormatUnsafeF sprintf
+#define SbStringParseUnsignedInteger strtoul
+#define SbStringParseSignedInteger strtol
+#define SbStringParseDouble strtod
 
 #else  // STARBOARD
 
@@ -667,7 +670,7 @@ string CHexEscape(const string& src) {
 int32 strto32_adaptor(const char *nptr, char **endptr, int base) {
   const int saved_errno = errno;
   errno = 0;
-  const long result = strtol(nptr, endptr, base);
+  const long result = SbStringParseSignedInteger(nptr, endptr, base);
   if (errno == ERANGE && result == LONG_MIN) {
     return kint32min;
   } else if (errno == ERANGE && result == LONG_MAX) {
@@ -687,7 +690,7 @@ int32 strto32_adaptor(const char *nptr, char **endptr, int base) {
 uint32 strtou32_adaptor(const char *nptr, char **endptr, int base) {
   const int saved_errno = errno;
   errno = 0;
-  const unsigned long result = strtoul(nptr, endptr, base);
+  const unsigned long result = SbStringParseUnsignedInteger(nptr, endptr, base);
   if (errno == ERANGE && result == ULONG_MAX) {
     return kuint32max;
   } else if (errno == 0 && result > kuint32max) {
@@ -1304,7 +1307,7 @@ char* DoubleToBuffer(double value, char* buffer) {
   // of a double.  This long double may have extra bits that make it compare
   // unequal to "value" even though it would be exactly equal if it were
   // truncated to a double.
-  volatile double parsed_value = strtod(buffer, NULL);
+  volatile double parsed_value = SbStringParseDouble(buffer, NULL);
   if (parsed_value != value) {
     int snprintf_result =
       SbStringFormatF(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG+2, value);
@@ -1356,7 +1359,7 @@ bool safe_strtof(const char* str, float* value) {
   char* endptr;
   errno = 0;  // errno only gets set on errors
 #if defined(_WIN32) || defined (__hpux) || defined(STARBOARD)  // has no strtof()
-  *value = strtod(str, &endptr);
+  *value = SbStringParseDouble(str, &endptr);
 #else
   *value = strtof(str, &endptr);
 #endif
@@ -1365,7 +1368,7 @@ bool safe_strtof(const char* str, float* value) {
 
 bool safe_strtod(const char* str, double* value) {
   char* endptr;
-  *value = strtod(str, &endptr);
+  *value = SbStringParseDouble(str, &endptr);
   if (endptr != str) {
     while (ascii_isspace(*endptr)) ++endptr;
   }
