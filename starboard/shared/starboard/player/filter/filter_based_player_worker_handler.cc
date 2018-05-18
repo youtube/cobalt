@@ -131,8 +131,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
     }
     audio_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioPrerolled, this),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioEnded, this));
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeAudio),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeAudio));
     audio_renderer_->SetPlaybackRate(playback_rate_);
     audio_renderer_->SetVolume(volume_);
   } else {
@@ -141,8 +143,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
             new MonotonicSystemTimeProviderImpl)));
     media_time_provider_impl_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioPrerolled, this),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioEnded, this));
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeAudio),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeAudio));
     media_time_provider_impl_->SetPlaybackRate(playback_rate_);
   }
 
@@ -164,8 +168,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
     }
     video_renderer_->Initialize(
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoPrerolled, this),
-        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoEnded, this));
+        std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                  kSbMediaTypeVideo),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
+                  kSbMediaTypeVideo));
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateInterval);
@@ -381,18 +387,20 @@ void FilterBasedPlayerWorkerHandler::OnError() {
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
-void FilterBasedPlayerWorkerHandler::OnAudioPrerolled() {
+void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   if (!BelongsToCurrentThread()) {
-    Schedule(
-        std::bind(&FilterBasedPlayerWorkerHandler::OnAudioPrerolled, this));
+    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
+                       media_type));
     return;
   }
 
   SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
       << "Invalid player state " << get_player_state_cb_();
 
-  audio_prerolled_ = true;
-  if (!video_renderer_ || video_prerolled_) {
+  audio_prerolled_ |= media_type == kSbMediaTypeAudio;
+  video_prerolled_ |= media_type == kSbMediaTypeVideo;
+
+  if (audio_prerolled_ && (!video_renderer_ || video_prerolled_)) {
     update_player_state_cb_(kSbPlayerStatePresenting);
     if (!paused_) {
       GetMediaTimeProvider()->Play();
@@ -400,43 +408,16 @@ void FilterBasedPlayerWorkerHandler::OnAudioPrerolled() {
   }
 }
 
-void FilterBasedPlayerWorkerHandler::OnAudioEnded() {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnAudioEnded, this));
-    return;
-  }
-  audio_ended_ = true;
-  if (!video_renderer_ || video_ended_) {
-    update_player_state_cb_(kSbPlayerStateEndOfStream);
-  }
-}
-
-void FilterBasedPlayerWorkerHandler::OnVideoPrerolled() {
+void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
   if (!BelongsToCurrentThread()) {
     Schedule(
-        std::bind(&FilterBasedPlayerWorkerHandler::OnVideoPrerolled, this));
+        std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this, media_type));
     return;
   }
+  audio_ended_ |= media_type == kSbMediaTypeAudio;
+  video_ended_ |= media_type == kSbMediaTypeVideo;
 
-  SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
-      << "Invalid player state " << get_player_state_cb_();
-
-  video_prerolled_ = true;
-  if (audio_prerolled_) {
-    update_player_state_cb_(kSbPlayerStatePresenting);
-    if (!paused_) {
-      GetMediaTimeProvider()->Play();
-    }
-  }
-}
-
-void FilterBasedPlayerWorkerHandler::OnVideoEnded() {
-  if (!BelongsToCurrentThread()) {
-    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnVideoEnded, this));
-    return;
-  }
-  video_ended_ = true;
-  if (audio_ended_) {
+  if (audio_ended_ && (!video_renderer_ || video_ended_)) {
     update_player_state_cb_(kSbPlayerStateEndOfStream);
   }
 }
