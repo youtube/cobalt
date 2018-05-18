@@ -31,8 +31,26 @@
 // from google3/strings/strutil.cc
 
 #ifndef STARBOARD
+
 #include <stdio.h>
-#else
+
+// We need to be able to build this library using the host toolchain for some
+// platforms, and Starboard is not available there.  So we define these
+// "reverse poems" to move past this issue for host builds.  For why we don't
+// just use poems, see the comment in the #else clause.
+#define SbMemoryCopy memcpy
+#define SbMemoryMove memmove
+#define SbStringGetLength strlen
+#define SbStringCopyUnsafe strcpy
+#define PoemFindCharacterInString strchr
+#define SbStringFormatF snprintf
+#define SbStringFormatUnsafeF sprintf
+
+#else  // STARBOARD
+
+// We avoid using poems here because a subsequent #include of math.h may
+// result, on some platforms, of the indirect inclusion of stdlib.h, which
+// will then conflict with our poem includes.
 #define POEM_NO_EMULATION
 // For access to PoemFindCharacterInString() as a replacement for strchr().
 #include "starboard/client_porting/poem/string_poem.h"
@@ -40,6 +58,7 @@
 
 #include "starboard/memory.h"
 #include "starboard/string.h"
+
 #endif  // STARBOARD
 
 #include <errno.h>
