@@ -18,6 +18,8 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
 #include "starboard/string.h"
 
 namespace {
@@ -60,10 +62,13 @@ MessageEvent::ResponseType MessageEvent::data() const {
     data_length = data_->size();
   }
 
-  scoped_refptr<dom::ArrayBuffer> response_buffer;
+  auto* global_environment =
+      base::polymorphic_downcast<DOMSettings*>(settings_)->global_environment();
+  script::Handle<script::ArrayBuffer> response_buffer;
   if (response_type_ != kText) {
-    response_buffer = new dom::ArrayBuffer(
-        settings_, reinterpret_cast<const uint8*>(data_pointer), data_length);
+    auto buffer_copy =
+        script::ArrayBuffer::New(global_environment, data_pointer, data_length);
+    response_buffer = std::move(buffer_copy);
   }
 
   switch (response_type_) {

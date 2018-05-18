@@ -58,6 +58,9 @@ class JavaScriptEngine {
       const Options& options = Options());
 
   // Create a new JavaScript global object proxy.
+  // Note that in order to use (as in execute code, or create/interact with
+  // JavaScript objects) the newly created GlobalEnvironment, you must call
+  // CreateGlobalObject() on it.
   virtual scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() = 0;
 
   // Kick off the engine's garbage collection synchronously.

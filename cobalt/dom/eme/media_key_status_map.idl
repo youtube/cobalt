@@ -19,7 +19,7 @@ interface MediaKeyStatusMap {
   readonly attribute unsigned long size;
   boolean has(BufferSource keyId);
   any get(BufferSource keyId);
-  void forEach(ForEachCallback callback);
+  [CallWith=EnvironmentSettings] void forEach(ForEachCallback callback);
 };
 
 callback ForEachCallback = void (DOMString status, BufferSource key, MediaKeyStatusMap map);

@@ -213,7 +213,6 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
       scoped_array<uint8> message, int message_size);
   void OnSessionUpdated(int ticket, SbDrmStatus status,
                         const std::string& error_message);
-
 #if SB_HAS(DRM_KEY_STATUSES)
   void OnSessionKeyStatusChanged(
       const std::string& session_id, const std::vector<std::string>& key_ids,

@@ -56,8 +56,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions,
+  // dictionary.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -214,7 +214,40 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     return;
   }
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value->IsArrayBufferView()) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType2<T1, T2>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType2<T1, T2>(t2);
+      return;
+    }
+  }
+
+  // 17. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value->IsArrayBuffer()) {
+    if (UnionTypeTraitsT1::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType2<T1, T2>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType2<T1, T2>(t2);
+      return;
+    }
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -246,8 +279,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions,
+  // dictionary.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -450,7 +483,52 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     return;
   }
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value->IsArrayBufferView()) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType3<T1, T2, T3>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType3<T1, T2, T3>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType3<T1, T2, T3>(t3);
+      return;
+    }
+  }
+
+  // 17. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value->IsArrayBuffer()) {
+    if (UnionTypeTraitsT1::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType3<T1, T2, T3>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType3<T1, T2, T3>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType3<T1, T2, T3>(t3);
+      return;
+    }
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -486,8 +564,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   // JS -> IDL type conversion procedure described here:
   // http://heycam.github.io/webidl/#es-union
 
-  // TODO: Support Date, RegExp, DOMException, Error, ArrayBuffer, DataView,
-  //       TypedArrayName, callback functions, dictionary.
+  // TODO: Support Date, RegExp, DOMException, Error, callback functions,
+  // dictionary.
 
   // 1. If the union type includes a nullable type and |V| is null or undefined,
   // then return the IDL value null.
@@ -736,7 +814,64 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     return;
   }
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value->IsArrayBufferView()) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_array_buffer_view_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
+      return;
+    }
+  }
+
+  // 17. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value->IsArrayBuffer()) {
+    if (UnionTypeTraitsT1::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_script_value_type) {
+      FromJSValue(isolate, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
+      return;
+    }
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 

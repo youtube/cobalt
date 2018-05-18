@@ -15,9 +15,9 @@
 #include "cobalt/dom/screenshot_manager.h"
 
 #include "base/time.h"
-#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/screenshot.h"
 #include "cobalt/render_tree/node.h"
+#include "cobalt/script/array_buffer.h"
 
 #include "cobalt/render_tree/resource_provider_stub.h"
 
@@ -87,8 +87,7 @@ void ScreenshotManager::FillScreenshot(
     scoped_refptr<loader::image::EncodedStaticImage> encoded_image_data =
         CompressRGBAImage(desired_format, image_data.get(), image_dimensions);
 
-    int encoded_size =
-        static_cast<int>(encoded_image_data->GetEstimatedSizeInBytes());
+    size_t encoded_size = encoded_image_data->GetEstimatedSizeInBytes();
 
     if (encoded_image_data->GetEstimatedSizeInBytes() > kint32max) {
       NOTREACHED();
@@ -96,9 +95,11 @@ void ScreenshotManager::FillScreenshot(
       break;
     }
     DLOG(INFO) << "Filling data in for the screenshot.";
-    scoped_refptr<ArrayBuffer> pixel_data =
-        new ArrayBuffer(environment_settings_, encoded_image_data->GetMemory(),
-                        static_cast<int>(encoded_size));
+    DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(environment_settings_);
+    script::Handle<script::ArrayBuffer> pixel_data =
+        script::ArrayBuffer::New(dom_settings->global_environment(),
+                                 encoded_image_data->GetMemory(), encoded_size);
     scoped_refptr<script::Wrappable> promise_result =
         new dom::Screenshot(pixel_data);
     promise.Resolve(promise_result);

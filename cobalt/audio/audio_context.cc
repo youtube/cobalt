@@ -62,7 +62,7 @@ void AudioContext::TraceMembers(script::Tracer* tracer) {
 
 void AudioContext::DecodeAudioData(
     script::EnvironmentSettings* settings,
-    const scoped_refptr<dom::ArrayBuffer>& audio_data,
+    const script::Handle<script::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
@@ -73,7 +73,7 @@ void AudioContext::DecodeAudioData(
 
 void AudioContext::DecodeAudioData(
     script::EnvironmentSettings* settings,
-    const scoped_refptr<dom::ArrayBuffer>& audio_data,
+    const script::Handle<script::ArrayBuffer>& audio_data,
     const DecodeSuccessCallbackArg& success_handler,
     const DecodeErrorCallbackArg& error_handler) {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
@@ -90,13 +90,14 @@ void AudioContext::DecodeAudioDataInternal(
   const int callback_id = next_callback_id_++;
   CHECK(pending_decode_callbacks_.find(callback_id) ==
         pending_decode_callbacks_.end());
-  const scoped_refptr<dom::ArrayBuffer>& audio_data = info->audio_data;
+  script::Handle<script::ArrayBuffer> audio_data =
+      script::Handle<script::ArrayBuffer>(info->audio_data_reference);
   pending_decode_callbacks_[callback_id] = info.release();
 
   AsyncAudioDecoder::DecodeFinishCallback decode_callback = base::Bind(
       &AudioContext::DecodeFinish, base::Unretained(this), callback_id);
-  audio_decoder_.AsyncDecode(audio_data->data(), audio_data->byte_length(),
-                             decode_callback);
+  audio_decoder_.AsyncDecode(static_cast<const uint8*>(audio_data->Data()),
+                             audio_data->ByteLength(), decode_callback);
 }
 
 // Success callback and error callback should be scheduled to run on the main

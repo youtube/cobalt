@@ -22,26 +22,26 @@ namespace dom {
 
 // https://www.w3.org/TR/WebCryptoAPI/#dfn-Crypto-method-getRandomValues
 // static
-scoped_refptr<ArrayBufferView> Crypto::GetRandomValues(
-    const scoped_refptr<ArrayBufferView>& array,
+script::Handle<script::ArrayBufferView> Crypto::GetRandomValues(
+    const script::Handle<script::ArrayBufferView>& array,
     script::ExceptionState* exception_state) {
   // If the length of the array in bytes exceeds the following constant,
   // getRandomValues() should raise QuotaExceedErr instead of filling the array
   // with random values.
   uint32 kMaxArrayLengthInBytes = 65536;
-  if (!array) {
+  if (array.IsEmpty()) {
     // TODO: Also throw exception if element type of the array is
     // not one of the integer types.
     DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
     // Return value should be ignored.
-    return NULL;
+    return script::Handle<script::ArrayBufferView>();
   }
-  if (array->byte_length() > kMaxArrayLengthInBytes) {
+  if (array->ByteLength() > kMaxArrayLengthInBytes) {
     DOMException::Raise(DOMException::kQuotaExceededErr, exception_state);
     // Return value should be ignored.
-    return NULL;
+    return script::Handle<script::ArrayBufferView>();
   }
-  ::crypto::RandBytes(array->base_address(), array->byte_length());
+  ::crypto::RandBytes(array->RawData(), array->ByteLength());
   return array;
 }
 

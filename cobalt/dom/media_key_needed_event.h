@@ -19,7 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/event.h"
-#include "cobalt/dom/uint8_array.h"
+#include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -32,18 +32,20 @@ class MediaKeyNeededEvent : public Event {
  public:
   MediaKeyNeededEvent(const std::string& key_system,
                       const std::string& session_id,
-                      const scoped_refptr<Uint8Array>& init_data);
+                      const script::Handle<script::Uint8Array>& init_data);
 
   const std::string& key_system() const { return key_system_; }
   const std::string& session_id() const { return session_id_; }
-  const scoped_refptr<Uint8Array>& init_data() const { return init_data_; }
+  script::Handle<script::Uint8Array> init_data() const {
+    return script::Handle<script::Uint8Array>(init_data_reference_);
+  }
 
   DEFINE_WRAPPABLE_TYPE(MediaKeyNeededEvent);
 
  private:
   std::string key_system_;
   std::string session_id_;
-  scoped_refptr<Uint8Array> init_data_;
+  script::ScriptValue<script::Uint8Array>::Reference init_data_reference_;
 };
 
 }  // namespace dom

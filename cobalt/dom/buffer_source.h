@@ -15,16 +15,16 @@
 #ifndef COBALT_DOM_BUFFER_SOURCE_H_
 #define COBALT_DOM_BUFFER_SOURCE_H_
 
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/union_type.h"
 
 namespace cobalt {
 namespace dom {
 
-class ArrayBuffer;
-class ArrayBufferView;
-
-typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
-                           scoped_refptr<ArrayBuffer> > BufferSource;
+typedef script::UnionType2<script::Handle<script::ArrayBufferView>,
+                           script::Handle<script::ArrayBuffer> >
+    BufferSource;
 
 void GetBufferAndSize(const BufferSource& buffer_source, const uint8** buffer,
                       int* buffer_size);

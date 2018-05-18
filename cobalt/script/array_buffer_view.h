@@ -24,6 +24,11 @@ namespace script {
 // https://heycam.github.io/webidl/#ArrayBufferView
 class ArrayBufferView {
  public:
+  // This constructor is only used for the purpose of creating an empty class
+  // that has a valid ScriptValue*.
+  static Handle<ArrayBufferView> New(GlobalEnvironment* global_environment,
+                                     ArrayBufferView* copy_target);
+
   virtual ~ArrayBufferView() {}
 
   virtual Handle<ArrayBuffer> Buffer() const = 0;

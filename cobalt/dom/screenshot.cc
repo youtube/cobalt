@@ -20,9 +20,9 @@
 namespace cobalt {
 namespace dom {
 
-Screenshot::Screenshot(scoped_refptr<ArrayBuffer> pixel_data)
-    : pixel_data_(pixel_data) {
-  DCHECK(pixel_data);
+Screenshot::Screenshot(const script::Handle<script::ArrayBuffer>& pixel_data)
+    : pixel_data_reference_(this, pixel_data) {
+  DCHECK(!pixel_data.IsEmpty());
 }
 
 }  // namespace dom
