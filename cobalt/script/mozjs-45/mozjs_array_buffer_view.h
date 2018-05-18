@@ -17,6 +17,7 @@
 
 #include "base/logging.h"
 #include "cobalt/script/array_buffer_view.h"
+#include "cobalt/script/mozjs-45/mozjs_array_buffer.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/type_traits.h"

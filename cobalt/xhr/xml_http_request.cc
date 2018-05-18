@@ -194,7 +194,7 @@ void XMLHttpRequest::Abort() {
   ChangeState(kUnsent);
 
   response_body_.Clear();
-  response_array_buffer_ = NULL;
+  response_array_buffer_reference_.reset();
 }
 
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-open()-method
@@ -349,20 +349,21 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
         request_headers_.SetHeader(net::HttpRequestHeaders::kContentType,
                                    "text/plain;charset=UTF-8");
       }
-    } else if (request_body->IsType<scoped_refptr<dom::ArrayBufferView> >()) {
-      scoped_refptr<dom::ArrayBufferView> view =
-          request_body->AsType<scoped_refptr<dom::ArrayBufferView> >();
-      if (view->byte_length()) {
-        const char* start = reinterpret_cast<const char*>(view->base_address());
-        request_body_text_.assign(start + view->byte_offset(),
-                                  view->byte_length());
+    } else if (request_body
+                   ->IsType<script::Handle<script::ArrayBufferView> >()) {
+      script::Handle<script::ArrayBufferView> view =
+          request_body->AsType<script::Handle<script::ArrayBufferView> >();
+      if (view->ByteLength()) {
+        const char* start = reinterpret_cast<const char*>(view->RawData());
+        request_body_text_.assign(start + view->ByteOffset(),
+                                  view->ByteLength());
       }
-    } else if (request_body->IsType<scoped_refptr<dom::ArrayBuffer> >()) {
-      scoped_refptr<dom::ArrayBuffer> array_buffer =
-          request_body->AsType<scoped_refptr<dom::ArrayBuffer> >();
-      if (array_buffer->byte_length()) {
-        const char* start = reinterpret_cast<const char*>(array_buffer->data());
-        request_body_text_.assign(start, array_buffer->byte_length());
+    } else if (request_body->IsType<script::Handle<script::ArrayBuffer> >()) {
+      script::Handle<script::ArrayBuffer> array_buffer =
+          request_body->AsType<script::Handle<script::ArrayBuffer> >();
+      if (array_buffer->ByteLength()) {
+        const char* start = reinterpret_cast<const char*>(array_buffer->Data());
+        request_body_text_.assign(start, array_buffer->ByteLength());
       }
     }
   } else {
@@ -505,8 +506,14 @@ base::optional<XMLHttpRequest::ResponseType> XMLHttpRequest::response(
     case kDefault:
     case kText:
       return ResponseType(response_text(exception_state));
-    case kArrayBuffer:
-      return ResponseType(response_array_buffer());
+    case kArrayBuffer: {
+      script::Handle<script::ArrayBuffer> maybe_array_buffer_response =
+          response_array_buffer();
+      if (maybe_array_buffer_response.IsEmpty()) {
+        return base::nullopt;
+      }
+      return ResponseType(maybe_array_buffer_response);
+    }
     case kJson:
     case kDocument:
     case kBlob:
@@ -706,9 +713,9 @@ void XMLHttpRequest::OnURLFetchDownloadData(
   ChangeState(kLoading);
 
   if (fetch_callback_) {
-    scoped_refptr<dom::Uint8Array> data = new dom::Uint8Array(
-        settings_, reinterpret_cast<const uint8*>(download_data->data()),
-        static_cast<uint32>(download_data->size()), NULL);
+    script::Handle<script::Uint8Array> data =
+        script::Uint8Array::New(settings_->global_environment(),
+                                download_data->data(), download_data->size());
     fetch_callback_->value().Run(data);
   }
 
@@ -755,7 +762,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
 void XMLHttpRequest::PrepareForNewRequest() {
   response_body_.Clear();
   request_headers_.Clear();
-  response_array_buffer_ = NULL;
+  response_array_buffer_reference_.reset();
   // Below are variables used for CORS.
   request_body_text_.clear();
   is_cross_origin_ = false;
@@ -890,7 +897,6 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
 void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
   XMLHttpRequestEventTarget::TraceMembers(tracer);
 
-  tracer->Trace(response_array_buffer_);
   tracer->Trace(upload_);
 }
 
@@ -982,22 +988,29 @@ void XMLHttpRequest::ChangeState(XMLHttpRequest::State new_state) {
   }
 }
 
-scoped_refptr<dom::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
+script::Handle<script::ArrayBuffer> XMLHttpRequest::response_array_buffer() {
   TRACK_MEMORY_SCOPE("XHR");
   // https://www.w3.org/TR/XMLHttpRequest/#response-entity-body
   if (error_ || state_ != kDone) {
-    return NULL;
+    // Return a handle holding a nullptr.
+    return script::Handle<script::ArrayBuffer>();
   }
-  if (!response_array_buffer_) {
+  if (!response_array_buffer_reference_) {
     // The request is done so it is safe to only keep the ArrayBuffer and clear
     // |response_body_|.  As |response_body_| will not be used unless the
     // request is re-opened.
-    response_array_buffer_ =
-        new dom::ArrayBuffer(settings_, response_body_.data(),
-                             static_cast<uint32>(response_body_.size()));
+    auto array_buffer =
+        script::ArrayBuffer::New(settings_->global_environment(),
+                                 response_body_.data(), response_body_.size());
+    response_array_buffer_reference_.reset(
+        new script::ScriptValue<script::ArrayBuffer>::Reference(this,
+                                                                array_buffer));
     response_body_.Clear();
+    return array_buffer;
+  } else {
+    return script::Handle<script::ArrayBuffer>(
+        *response_array_buffer_reference_);
   }
-  return response_array_buffer_;
 }
 
 void XMLHttpRequest::UpdateProgress() {

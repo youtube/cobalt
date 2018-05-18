@@ -33,10 +33,14 @@
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/mozjs-45/callback_function_conversion.h"
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
+#include "cobalt/script/mozjs-45/mozjs_array_buffer.h"
+#include "cobalt/script/mozjs-45/mozjs_array_buffer_view.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_function.h"
+#include "cobalt/script/mozjs-45/mozjs_data_view.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
+#include "cobalt/script/mozjs-45/mozjs_typed_arrays.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/native_promise.h"
@@ -541,6 +545,7 @@ JSObject* MozjsExtendedIDLAttributesInterface::CreateProxy(
       MozjsGlobalEnvironment::GetFromContext(context)->global_object());
   DCHECK(global_object);
 
+  JSAutoCompartment auto_compartment(context, global_object);
   InterfaceData* interface_data = GetInterfaceData(context);
   JS::RootedObject prototype(context, GetPrototype(context, global_object));
   DCHECK(prototype);

@@ -25,6 +25,7 @@
         'interface_data.h',
         'mozjs_array_buffer.cc',
         'mozjs_array_buffer.h',
+        'mozjs_array_buffer_view.cc',
         'mozjs_array_buffer_view.h',
         'mozjs_callback_function.h',
         'mozjs_callback_interface.cc',

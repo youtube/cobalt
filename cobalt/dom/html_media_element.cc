@@ -382,7 +382,7 @@ void RaiseMediaKeyException(WebMediaPlayer::MediaKeyException exception,
 
 void HTMLMediaElement::GenerateKeyRequest(
     const std::string& key_system,
-    const base::optional<scoped_refptr<Uint8Array> >& init_data,
+    const script::Handle<script::Uint8Array>& init_data,
     script::ExceptionState* exception_state) {
   MLOG() << key_system;
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-generatekeyrequest
@@ -403,10 +403,10 @@ void HTMLMediaElement::GenerateKeyRequest(
   // The rest is handled by WebMediaPlayer::GenerateKeyRequest().
   WebMediaPlayer::MediaKeyException exception;
 
-  if (init_data) {
-    scoped_refptr<const Uint8Array> const_init_data = init_data.value();
-    exception = player_->GenerateKeyRequest(key_system, const_init_data->data(),
-                                            const_init_data->length());
+  if (!init_data.IsEmpty()) {
+    exception =
+        player_->GenerateKeyRequest(key_system, init_data->Data(),
+                                    static_cast<unsigned>(init_data->Length()));
   } else {
     exception = player_->GenerateKeyRequest(key_system, NULL, 0);
   }
@@ -418,21 +418,22 @@ void HTMLMediaElement::GenerateKeyRequest(
 }
 
 void HTMLMediaElement::AddKey(
-    const std::string& key_system, const scoped_refptr<const Uint8Array>& key,
-    const base::optional<scoped_refptr<Uint8Array> >& init_data,
+    const std::string& key_system,
+    const script::Handle<script::Uint8Array>& key,
+    const script::Handle<script::Uint8Array>& init_data,
     const base::optional<std::string>& session_id,
     script::ExceptionState* exception_state) {
   MLOG() << key_system;
   // https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-addkey
   // 1. If the first or second argument is null, throw a SYNTAX_ERR.
-  if (key_system.empty() || !key) {
+  if (key_system.empty() || key.IsEmpty()) {
     MLOG() << "syntax error";
     DOMException::Raise(DOMException::kSyntaxErr, exception_state);
     return;
   }
 
   // 2. If the second argument is an empty array, throw a TYPE_MISMATCH_ERR.
-  if (!key->length()) {
+  if (!key->Length()) {
     MLOG() << "type mismatch error";
     DOMException::Raise(DOMException::kTypeMismatchErr, exception_state);
     return;
@@ -448,13 +449,14 @@ void HTMLMediaElement::AddKey(
   // The rest is handled by WebMediaPlayer::AddKey().
   WebMediaPlayer::MediaKeyException exception;
 
-  if (init_data) {
-    scoped_refptr<const Uint8Array> const_init_data = init_data.value();
+  if (!init_data.IsEmpty()) {
     exception = player_->AddKey(
-        key_system, key->data(), key->length(), const_init_data->data(),
-        const_init_data->length(), session_id.value_or(""));
+        key_system, key->Data(), static_cast<unsigned>(key->Length()),
+        init_data->Data(), static_cast<unsigned>(init_data->Length()),
+        session_id.value_or(""));
   } else {
-    exception = player_->AddKey(key_system, key->data(), key->length(), NULL, 0,
+    exception = player_->AddKey(key_system, key->Data(),
+                                static_cast<unsigned>(key->Length()), NULL, 0,
                                 session_id.value_or(""));
   }
 
@@ -1869,8 +1871,12 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
                    node_document()->location()->GetOriginAsObject())) {
     media_encrypted_event_init.set_init_data_type(
         ToInitDataTypeString(init_data_type));
+    auto* global_environment =
+        html_element_context()->script_runner()->GetGlobalEnvironment();
     media_encrypted_event_init.set_init_data(
-        new ArrayBuffer(NULL, init_data, init_data_length));
+        script::ArrayBuffer::New(global_environment, init_data,
+                                 init_data_length)
+            .GetScriptValue());
   }
   event_queue_.Enqueue(
       new eme::MediaEncryptedEvent("encrypted", media_encrypted_event_init));
@@ -1920,9 +1926,12 @@ void HTMLMediaElement::KeyMessage(const std::string& key_system,
                                   unsigned int message_length,
                                   const std::string& default_url) {
   MLOG() << key_system;
-  event_queue_.Enqueue(new MediaKeyMessageEvent(
-      key_system, session_id,
-      new Uint8Array(NULL, message, message_length, NULL), default_url));
+  auto* global_environment =
+      html_element_context()->script_runner()->GetGlobalEnvironment();
+  script::Handle<script::Uint8Array> array_copy =
+      script::Uint8Array::New(global_environment, message, message_length);
+  event_queue_.Enqueue(new MediaKeyMessageEvent(key_system, session_id,
+                                                array_copy, default_url));
 }
 
 void HTMLMediaElement::KeyNeeded(const std::string& key_system,
@@ -1930,9 +1939,12 @@ void HTMLMediaElement::KeyNeeded(const std::string& key_system,
                                  const unsigned char* init_data,
                                  unsigned int init_data_length) {
   MLOG() << key_system;
-  event_queue_.Enqueue(new MediaKeyNeededEvent(
-      key_system, session_id,
-      new Uint8Array(NULL, init_data, init_data_length, NULL)));
+  auto* global_environment =
+      html_element_context()->script_runner()->GetGlobalEnvironment();
+  script::Handle<script::Uint8Array> array_copy =
+      script::Uint8Array::New(global_environment, init_data, init_data_length);
+  event_queue_.Enqueue(
+      new MediaKeyNeededEvent(key_system, session_id, array_copy));
 }
 
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)

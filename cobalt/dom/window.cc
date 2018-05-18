@@ -262,7 +262,7 @@ script::Handle<ScreenshotManager::InterfacePromise> Window::Screenshot() {
   script::Handle<ScreenshotManager::InterfacePromise> promise =
       html_element_context()
           ->script_value_factory()
-          ->CreateInterfacePromise<scoped_refptr<dom::ArrayBuffer>>();
+          ->CreateInterfacePromise<dom::Screenshot>();
 
   std::unique_ptr<ScreenshotManager::InterfacePromiseValue::Reference>
       promise_reference(new ScreenshotManager::InterfacePromiseValue::Reference(

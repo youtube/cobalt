@@ -47,8 +47,9 @@ Handle<ArrayBuffer> ArrayBuffer::New(GlobalEnvironment* global_environment,
 }
 
 // static
-Handle<ArrayBuffer> ArrayBuffer::New(GlobalEnvironment* global_environment,
-                                     PreallocatedArrayBufferData* data) {
+Handle<ArrayBuffer> ArrayBuffer::New(
+    GlobalEnvironment* global_environment,
+    scoped_ptr<PreallocatedArrayBufferData> data) {
   auto* v8c_global_environment =
       base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(
           global_environment);
