@@ -29,12 +29,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // from google3/strings/strutil.cc
-#include "starboard/client_porting/poem/stdlib_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 
 #ifndef STARBOARD
 #include <stdio.h>
+#else
+#define POEM_NO_EMULATION
+// For access to PoemFindCharacterInString() as a replacement for strchr().
+#include "starboard/client_porting/poem/string_poem.h"
+#undef POEM_NO_EMULATION
+
+#include "starboard/memory.h"
+#include "starboard/string.h"
 #endif  // STARBOARD
 
 #include <errno.h>
@@ -276,7 +281,7 @@ static void JoinStringsIterator(const ITERATOR& start,
                                 string* result) {
   GOOGLE_CHECK(result != NULL);
   result->clear();
-  int delim_length = strlen(delim);
+  int delim_length = SbStringGetLength(delim);
 
   // Precompute resulting length so we can reserve() memory in one shot.
   int length = 0;
@@ -515,7 +520,7 @@ int CEscapeInternal(const char* src, int src_len, char* dest,
              (last_hex_escape && isxdigit(*src)))) {
           if (dest_len - used < 4) // need space for 4 letter escape
             return -1;
-          sprintf(dest + used, (use_hex ? "\\x%02x" : "\\%03o"),
+          SbStringFormatUnsafeF(dest + used, (use_hex ? "\\x%02x" : "\\%03o"),
                   static_cast<uint8>(*src));
           is_hex_escape = use_hex;
           used += 4;
@@ -1225,7 +1230,7 @@ static inline bool IsValidFloatChar(char c) {
 void DelocalizeRadix(char* buffer) {
   // Fast check:  if the buffer has a normal decimal point, assume no
   // translation is needed.
-  if (strchr(buffer, '.') != NULL) return;
+  if (PoemFindCharacterInString(buffer, '.') != NULL) return;
 
   // Find the first unknown character.
   while (IsValidFloatChar(*buffer)) ++buffer;
@@ -1245,7 +1250,7 @@ void DelocalizeRadix(char* buffer) {
     // extra bytes.
     char* target = buffer;
     do { ++buffer; } while (!IsValidFloatChar(*buffer) && *buffer != '\0');
-    memmove(target, buffer, strlen(buffer) + 1);
+    SbMemoryMove(target, buffer, SbStringGetLength(buffer) + 1);
   }
 }
 
@@ -1257,20 +1262,20 @@ char* DoubleToBuffer(double value, char* buffer) {
   GOOGLE_COMPILE_ASSERT(DBL_DIG < 20, DBL_DIG_is_too_big);
 
   if (value == numeric_limits<double>::infinity()) {
-    strcpy(buffer, "inf");
+    SbStringCopyUnsafe(buffer, "inf");
     return buffer;
   } else if (value == -numeric_limits<double>::infinity()) {
-    strcpy(buffer, "-inf");
+    SbStringCopyUnsafe(buffer, "-inf");
     return buffer;
   } else if (MathLimits<double>::IsNaN(value)) {
-    strcpy(buffer, "nan");
+    SbStringCopyUnsafe(buffer, "nan");
     return buffer;
   }
 
   int snprintf_result =
-    snprintf(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG, value);
+    SbStringFormatF(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG, value);
 
-  // The snprintf should never overflow because the buffer is significantly
+  // The SbStringFormatF should never overflow because the buffer is significantly
   // larger than the precision we asked for.
   GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kDoubleToBufferSize);
 
@@ -1283,7 +1288,7 @@ char* DoubleToBuffer(double value, char* buffer) {
   volatile double parsed_value = strtod(buffer, NULL);
   if (parsed_value != value) {
     int snprintf_result =
-      snprintf(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG+2, value);
+      SbStringFormatF(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG+2, value);
 
     // Should never overflow; see above.
     GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kDoubleToBufferSize);
@@ -1375,27 +1380,27 @@ char* FloatToBuffer(float value, char* buffer) {
   GOOGLE_COMPILE_ASSERT(FLT_DIG < 10, FLT_DIG_is_too_big);
 
   if (value == numeric_limits<double>::infinity()) {
-    strcpy(buffer, "inf");
+    SbStringCopyUnsafe(buffer, "inf");
     return buffer;
   } else if (value == -numeric_limits<double>::infinity()) {
-    strcpy(buffer, "-inf");
+    SbStringCopyUnsafe(buffer, "-inf");
     return buffer;
   } else if (MathLimits<float>::IsNaN(value)) {
-    strcpy(buffer, "nan");
+    SbStringCopyUnsafe(buffer, "nan");
     return buffer;
   }
 
   int snprintf_result =
-    snprintf(buffer, kFloatToBufferSize, "%.*g", FLT_DIG, value);
+    SbStringFormatF(buffer, kFloatToBufferSize, "%.*g", FLT_DIG, value);
 
-  // The snprintf should never overflow because the buffer is significantly
-  // larger than the precision we asked for.
+  // The SbStringFormatF should never overflow because the buffer is
+  // significantly larger than the precision we asked for.
   GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kFloatToBufferSize);
 
   float parsed_value;
   if (!safe_strtof(buffer, &parsed_value) || parsed_value != value) {
     int snprintf_result =
-      snprintf(buffer, kFloatToBufferSize, "%.*g", FLT_DIG+2, value);
+      SbStringFormatF(buffer, kFloatToBufferSize, "%.*g", FLT_DIG+2, value);
 
     // Should never overflow; see above.
     GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kFloatToBufferSize);
@@ -1435,35 +1440,35 @@ AlphaNum::AlphaNum(strings::Hex hex) {
 //    of a mix of raw C strings, C++ strings, and integer values.
 // ----------------------------------------------------------------------
 
-// Append is merely a version of memcpy that returns the address of the byte
+// Append is merely a version of SbMemoryCopy that returns the address of the byte
 // after the area just overwritten.  It comes in multiple flavors to minimize
 // call overhead.
 static char *Append1(char *out, const AlphaNum &x) {
-  memcpy(out, x.data(), x.size());
+  SbMemoryCopy(out, x.data(), x.size());
   return out + x.size();
 }
 
 static char *Append2(char *out, const AlphaNum &x1, const AlphaNum &x2) {
-  memcpy(out, x1.data(), x1.size());
+  SbMemoryCopy(out, x1.data(), x1.size());
   out += x1.size();
 
-  memcpy(out, x2.data(), x2.size());
+  SbMemoryCopy(out, x2.data(), x2.size());
   return out + x2.size();
 }
 
 static char *Append4(char *out,
                      const AlphaNum &x1, const AlphaNum &x2,
                      const AlphaNum &x3, const AlphaNum &x4) {
-  memcpy(out, x1.data(), x1.size());
+  SbMemoryCopy(out, x1.data(), x1.size());
   out += x1.size();
 
-  memcpy(out, x2.data(), x2.size());
+  SbMemoryCopy(out, x2.data(), x2.size());
   out += x2.size();
 
-  memcpy(out, x3.data(), x3.size());
+  SbMemoryCopy(out, x3.data(), x3.size());
   out += x3.size();
 
-  memcpy(out, x4.data(), x4.size());
+  SbMemoryCopy(out, x4.data(), x4.size());
   return out + x4.size();
 }
 
@@ -2269,7 +2274,7 @@ int EncodeAsUTF8Char(uint32 code_point, char* output) {
     len = 4;
   }
   tmp = ghtonl(tmp);
-  memcpy(output, reinterpret_cast<const char*>(&tmp) + sizeof(tmp) - len, len);
+  SbMemoryCopy(output, reinterpret_cast<const char*>(&tmp) + sizeof(tmp) - len, len);
   return len;
 }
 
