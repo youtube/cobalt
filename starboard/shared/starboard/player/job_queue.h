@@ -27,6 +27,11 @@
 #error "Only C++ files can include this header."
 #endif
 
+// Uncomment the following statement to enable JobQueue profiling, which will
+// log the stack trace of the job that takes the longest time to execute every a
+// while.
+// #define ENABLE_JOB_QUEUE_PROFILING 1
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -112,12 +117,22 @@ class JobQueue {
   static JobQueue* current();
 
  private:
+#if ENABLE_JOB_QUEUE_PROFILING
+  // Reset the max value periodically to catch all local peaks.
+  static const SbTime kProfileResetInterval = kSbTimeSecond;
+  static const int kProfileStackDepth = 10;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+
   struct JobRecord {
     JobToken job_token;
     Job job;
     JobOwner* owner;
+#if ENABLE_JOB_QUEUE_PROFILING
+    void* stack[kProfileStackDepth];
+    int stack_size;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
   };
-  typedef std::multimap<SbTimeMonotonic, JobRecord> TimeToJobMap;
+  typedef std::multimap<SbTimeMonotonic, JobRecord> TimeToJobRecordMap;
 
   JobToken Schedule(Job job, JobOwner* owner, SbTimeMonotonic delay);
   void RemoveJobsByOwner(JobOwner* owner);
@@ -131,9 +146,15 @@ class JobQueue {
   SbThreadId thread_id_;
   Mutex mutex_;
   ConditionVariable condition_;
-  int64_t current_job_token_;
-  TimeToJobMap time_to_job_map_;
-  bool stopped_;
+  int64_t current_job_token_ = JobToken::kInvalidToken + 1;
+  TimeToJobRecordMap time_to_job_record_map_;
+  bool stopped_ = false;
+
+#if ENABLE_JOB_QUEUE_PROFILING
+  SbTimeMonotonic last_reset_time_ = SbTimeGetMonotonicNow();
+  JobRecord job_record_with_max_interval_;
+  SbTimeMonotonic max_job_interval_ = 0;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
 };
 
 }  // namespace player
