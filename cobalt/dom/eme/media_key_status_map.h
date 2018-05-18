@@ -22,6 +22,7 @@
 #include "cobalt/dom/buffer_source.h"
 #include "cobalt/dom/eme/media_key_status.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
@@ -64,7 +65,8 @@ class MediaKeyStatusMap : public script::Wrappable {
     return key_statuses_.find(key_id_copy) != key_statuses_.end();
   }
 
-  void ForEach(const ForEachCallbackArg& callback);
+  void ForEach(script::EnvironmentSettings* settings,
+               const ForEachCallbackArg& callback);
 
   DEFINE_WRAPPABLE_TYPE(MediaKeyStatusMap);
 

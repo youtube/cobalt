@@ -39,6 +39,10 @@ class ExpressionGeneratorV8c(ExpressionGenerator):
   def is_number(self, arg):
     return '{}->IsNumber()'.format(arg)
 
+  def is_type(self, interface_name, arg):
+    return ('{}->IsObject() ? '
+            'object->Is{}(): false').format(arg, interface_name)
+
 
 class CodeGeneratorV8c(CodeGeneratorCobalt):
   """Code generator class for V8 bindings."""

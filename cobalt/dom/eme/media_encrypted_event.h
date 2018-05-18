@@ -18,9 +18,9 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/script/array_buffer.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -39,14 +39,19 @@ class MediaEncryptedEvent : public Event {
                       const MediaEncryptedEventInit& event_init_dict);
 
   const std::string& init_data_type() const { return init_data_type_; }
-  const scoped_refptr<ArrayBuffer>& init_data() const { return init_data_; }
+  script::Handle<script::ArrayBuffer> init_data() const {
+    if (!init_data_reference_) {
+      return script::Handle<script::ArrayBuffer>();
+    }
+    return script::Handle<script::ArrayBuffer>(*init_data_reference_);
+  }
 
   DEFINE_WRAPPABLE_TYPE(MediaEncryptedEvent);
-  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   std::string init_data_type_;
-  scoped_refptr<ArrayBuffer> init_data_;
+  scoped_ptr<script::ScriptValue<script::ArrayBuffer>::Reference>
+      init_data_reference_;
 };
 
 }  // namespace eme

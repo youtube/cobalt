@@ -15,8 +15,6 @@
 #include "cobalt/dom/buffer_source.h"
 
 #include "base/logging.h"
-#include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/array_buffer_view.h"
 
 namespace cobalt {
 namespace dom {
@@ -26,16 +24,19 @@ void GetBufferAndSize(const BufferSource& buffer_source, const uint8** buffer,
   DCHECK(buffer);
   DCHECK(buffer_size);
 
-  if (buffer_source.IsType<scoped_refptr<ArrayBufferView> >()) {
-    scoped_refptr<ArrayBufferView> array_buffer_view =
-        buffer_source.AsType<scoped_refptr<ArrayBufferView> >();
-    *buffer = static_cast<const uint8*>(array_buffer_view->base_address());
-    *buffer_size = array_buffer_view->byte_length();
-  } else if (buffer_source.IsType<scoped_refptr<ArrayBuffer> >()) {
-    scoped_refptr<ArrayBuffer> array_buffer =
-        buffer_source.AsType<scoped_refptr<ArrayBuffer> >();
-    *buffer = array_buffer->data();
-    *buffer_size = array_buffer->byte_length();
+  if (buffer_source.IsType<script::Handle<script::ArrayBufferView> >()) {
+    script::Handle<script::ArrayBufferView> array_buffer_view =
+        buffer_source.AsType<script::Handle<script::ArrayBufferView> >();
+    *buffer = static_cast<const uint8*>(array_buffer_view->RawData());
+    DCHECK_LT(array_buffer_view->ByteLength(),
+              static_cast<const size_t>(INT_MAX));
+    *buffer_size = static_cast<int>(array_buffer_view->ByteLength());
+  } else if (buffer_source.IsType<script::Handle<script::ArrayBuffer> >()) {
+    script::Handle<script::ArrayBuffer> array_buffer =
+        buffer_source.AsType<script::Handle<script::ArrayBuffer> >();
+    *buffer = static_cast<const uint8*>(array_buffer->Data());
+    DCHECK_LT(array_buffer->ByteLength(), static_cast<const size_t>(INT_MAX));
+    *buffer_size = static_cast<int>(array_buffer->ByteLength());
   } else {
     NOTREACHED();
     *buffer = NULL;

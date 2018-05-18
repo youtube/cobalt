@@ -17,7 +17,6 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/url_registry.h"

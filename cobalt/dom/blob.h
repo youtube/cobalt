@@ -19,10 +19,10 @@
 #include <string>
 #include <vector>
 
-#include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/array_buffer_view.h"
-#include "cobalt/dom/data_view.h"
 #include "cobalt/dom/url_registry.h"
+#include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
+#include "cobalt/script/data_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/union_type.h"
@@ -44,30 +44,39 @@ class BlobPropertyBag;
 class Blob : public script::Wrappable {
  public:
   typedef UrlRegistry<Blob> Registry;
-  typedef script::UnionType4<
-      scoped_refptr<ArrayBuffer>, scoped_refptr<ArrayBufferView>,
-      scoped_refptr<DataView>, scoped_refptr<Blob> > BlobPart;
+  typedef script::UnionType4<script::Handle<script::ArrayBuffer>,
+                             script::Handle<script::ArrayBufferView>,
+                             script::Handle<script::DataView>,
+                             scoped_refptr<Blob> >
+      BlobPart;
 
+  // settings is non-nullable.
   Blob(script::EnvironmentSettings* settings,
-       const scoped_refptr<ArrayBuffer>& buffer = NULL,
+       const script::Handle<script::ArrayBuffer>& buffer =
+           script::Handle<script::ArrayBuffer>(),
        const BlobPropertyBag& options = EmptyBlobPropertyBag());
 
+  // settings is non-nullable.
   Blob(script::EnvironmentSettings* settings,
        const script::Sequence<BlobPart>& blob_parts,
        const BlobPropertyBag& options = EmptyBlobPropertyBag());
 
-  const uint8* data() { return buffer_->data(); }
+  const uint8* data() {
+    return static_cast<uint8*>(buffer_reference_.value().Data());
+  }
 
-  uint64 size() const { return static_cast<uint64>(buffer_->byte_length()); }
+  uint64 size() const {
+    return static_cast<uint64>(buffer_reference_.value().ByteLength());
+  }
+
   const std::string& type() const { return type_; }
 
   DEFINE_WRAPPABLE_TYPE(Blob);
-  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   static const BlobPropertyBag& EmptyBlobPropertyBag();
 
-  scoped_refptr<ArrayBuffer> buffer_;
+  script::ScriptValue<script::ArrayBuffer>::Reference buffer_reference_;
   std::string type_;
 
   DISALLOW_COPY_AND_ASSIGN(Blob);
