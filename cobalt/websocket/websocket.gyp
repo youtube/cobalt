@@ -41,7 +41,6 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
       ],
     },
