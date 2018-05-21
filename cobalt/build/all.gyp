@@ -74,6 +74,7 @@
         '<(DEPTH)/cobalt/speech/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/speech/speech.gyp:*',
         '<(DEPTH)/cobalt/storage/storage.gyp:*',
+        '<(DEPTH)/cobalt/storage/store/store.gyp:*',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:*',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:*',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:*',
