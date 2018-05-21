@@ -119,6 +119,7 @@ public class MediaCodecUtil {
     if (!IsEmulator.isEmulator()) {
       codecBlackList.add("OMX.ffmpeg.vp9.decoder");
       codecBlackList.add("OMX.Intel.sw_vd.vp9");
+      codecBlackList.add("OMX.MTK.VIDEO.DECODER.SW.VP9");
     }
 
     // Black list the Google software vp9 decoder both on hardware and on the emulator.
