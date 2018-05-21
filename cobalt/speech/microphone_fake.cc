@@ -46,7 +46,6 @@ const int kReadRange = 300;
 const int kCloseRange = 20;
 const int kFailureNumber = 5;
 const int kSupportedMonoChannel = 1;
-const char kMicrophoneLabel[] = "FakeMicrophone";
 
 bool ShouldFail(int range) {
   return base::RandGenerator(range) == kFailureNumber;
@@ -192,8 +191,6 @@ bool MicrophoneFake::Close() {
 int MicrophoneFake::MinMicrophoneReadInBytes() {
   return kMinMicrophoneReadInBytes;
 }
-
-const char* MicrophoneFake::Label() { return kMicrophoneLabel; }
 
 }  // namespace speech
 }  // namespace cobalt
