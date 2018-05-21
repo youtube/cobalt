@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5d584727_b394041b",
+        "filename": "src/starboard/linux/x64wl/egl/configuration_public.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 26,
+      "author": {
+        "id": 5490
+      },
+      "writtenOn": "2018-05-21T08:06:24Z",
+      "side": 1,
+      "message": "x64wl seems same level with x64x11, how about copy content from \"x64x11/configuration_public.h\"?\nOr move this file to \"linux/shared\"?",
+      "range": {
+        "startLine": 26,
+        "startChar": 26,
+        "endLine": 26,
+        "endChar": 32
+      },
+      "revId": "e7eb6456c1f9ceb158d3f91d679d12cd30410d31",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "8b6653aa_2e65ea47",
+        "filename": "src/starboard/linux/x64wl/egl/starboard_platform.gypi",
+        "patchSetId": 1
+      },
+      "lineNbr": 40,
+      "author": {
+        "id": 5490
+      },
+      "writtenOn": "2018-05-21T08:06:24Z",
+      "side": 1,
+      "message": "additional \"!\"",
+      "range": {
+        "startLine": 40,
+        "startChar": 5,
+        "endLine": 40,
+        "endChar": 18
+      },
+      "revId": "e7eb6456c1f9ceb158d3f91d679d12cd30410d31",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
