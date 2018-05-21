@@ -100,6 +100,9 @@
             'url_fetcher_fake.cc',
             'url_fetcher_fake.h',
           ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/audio/audio.gyp:audio',
+          ],
           'defines': [
             'ENABLE_FAKE_MICROPHONE',
           ],
