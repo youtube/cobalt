@@ -25,23 +25,20 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/storage/savegame_thread.h"
-#include "cobalt/storage/sql_vfs.h"
+#include "cobalt/storage/store/memory_store.h"
 #include "cobalt/storage/upgrade/upgrade_reader.h"
-#include "cobalt/storage/virtual_file_system.h"
-#include "sql/connection.h"
 
 namespace cobalt {
 namespace storage {
-class SqlContext;
 
-// StorageManager manages a SQLite database containing cookies and local
+// StorageManager manages a store containing cookies and local
 // storage data. On most platforms, this is written to disk as a savegame
 // using platform APIs. On Linux/Windows, it's a regular file.
 // Internally this runs two threads: one thread to perform blocking I/O,
-// and one where SQL operations occur.  Users are expected to access the
-// database via an SqlContext, which can be obtained with GetSqlContext().
-// The callback to GetSqlCallback will run on the SQL thread.
-// Operations on SqlContext will block the SQL thread until the savegame
+// and one where store operations occur.  Users are expected to access the
+// store via an MemoryStore, which can be obtained with GetReadOnlyMemoryStore()
+// or WithMemoryStore(). The callback to will run on the store thread.
+// Operations on MemoryStore will block the store thread until the savegame
 // is loaded.
 class StorageManager {
  public:
@@ -59,32 +56,17 @@ class StorageManager {
     Savegame::Options savegame_options;
   };
 
-  typedef base::Callback<void(SqlContext*)> SqlCallback;
-
-  // Database version "2" indicates that this was created by Steel v1.x.
-  // Database version "0" indicates that this was created by v2.x beta,
-  //   patches 0-3.  Version "0" is a default from sqlite3 because these
-  //   versions of the application did not set this value at all.
-  // Database version "3" indicates that the schema versions of individual
-  //   tables should be tracked in SchemaTable.
-  static const int kDatabaseUserVersion = 3;
-
-  // Schema-related error codes.  See GetSchemaVersion().
-  enum {
-    kSchemaTableIsNew = -1,
-    kSchemaVersionLost = -2,
-  };
+  typedef base::Callback<void(const MemoryStore&)> ReadOnlyMemoryStoreCallback;
+  typedef base::Callback<void(MemoryStore*)> MemoryStoreCallback;
 
   StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
                  const Options& options);
   virtual ~StorageManager();
 
-  // Obtain the SqlContext for our database.
-  // |callback| will be called with an SqlContext that can be used to operate on
-  // the database. The callback will run on the storage manager's message loop.
-  void GetSqlContext(const SqlCallback& callback);
+  void WithReadOnlyMemoryStore(const ReadOnlyMemoryStoreCallback& callback);
+  void WithMemoryStore(const MemoryStoreCallback& callback);
 
-  // Schedule a write of our database to disk to happen at some point in the
+  // Schedule a write of our memory store to disk to happen at some point in the
   // future after a change occurs. Multiple calls to Flush() do not necessarily
   // result in multiple writes to disk.
   // This call returns immediately.
@@ -109,15 +91,13 @@ class StorageManager {
   virtual void QueueFlush(const base::Closure& callback);
 
  private:
-  // SqlContext needs access to our internal APIs.
-  friend class SqlContext;
   // Give StorageManagerTest access, so we can more easily test some internals.
   friend class StorageManagerTest;
 
   // Flushes all queued flushes to the savegame thread.
   void FlushInternal();
 
-  // Initialize the SQLite database. This blocks until the savegame load is
+  // Initialize the store. This blocks until the savegame load is
   // complete.
   void FinishInit();
 
@@ -127,27 +107,22 @@ class StorageManager {
   // Callback when flush timer has elapsed.
   void OnFlushOnChangeTimerFired();
 
-  // Logic to be executed on the SQL thread when a flush completes.  Will
+  // Logic to be executed on the store thread when a flush completes.  Will
   // dispatch |flush_processing_callbacks_| callbacks and execute a new flush
   // if |flush_requested_| is true.
-  void OnFlushIOCompletedSQLCallback();
+  void OnFlushIOCompletedCallback();
 
   // This function will not return until all queued I/O is completed.  Since
-  // it will require the SQL message loop to process, it must be called from
-  // outside the SQL message loop (such as from StorageManager's destructor).
+  // it will require the store message loop to process, it must be called from
+  // outside the store message loop (such as from StorageManager's destructor).
   void FinishIO();
 
   // This function will immediately the on change timers if they are running.
   void FireRunningOnChangeTimers();
 
   // Called by the destructor, to ensure we destroy certain objects on the
-  // sql thread.
+  // store thread
   void OnDestroy();
-
-  // Internal API for use by SqlContext.
-  sql::Connection* sql_connection();
-  bool GetSchemaVersion(const char* table_name, int* schema_version);
-  void UpdateSchemaVersion(const char* table_name, int version);
 
   // Upgrade handler used if upgrade save data is detected.
   scoped_ptr<UpgradeHandler> upgrade_handler_;
@@ -155,26 +130,15 @@ class StorageManager {
   // Configuration options for the Storage Manager.
   Options options_;
 
-  // Storage manager runs on its own thread. This is where SQL database
+  // Storage manager runs on its own thread. This is where store
   // operations are done.
-  scoped_ptr<base::Thread> sql_thread_;
-  scoped_refptr<base::MessageLoopProxy> sql_message_loop_;
+  scoped_ptr<base::Thread> storage_thread_;
+  scoped_refptr<base::MessageLoopProxy> storage_message_loop_;
 
-  // An interface to the storage manager's SQL database that will run on
-  // the correct thread.
-  scoped_ptr<SqlContext> sql_context_;
-
-  // The in-memory database connection.
-  scoped_ptr<sql::Connection> connection_;
-
-  // Virtual file system that contains our in-memory SQLite database.
-  scoped_ptr<VirtualFileSystem> vfs_;
-
-  // An interface between Sqlite and VirtualFileSystem.
-  scoped_ptr<SqlVfs> sql_vfs_;
+  scoped_ptr<MemoryStore> memory_store_;
 
   // When the savegame is loaded at startup, we keep the raw data around
-  // until we can initialize the database on the correct thread.
+  // until we can initialize the store on the correct thread.
   scoped_ptr<Savegame::ByteVector> loaded_raw_bytes_;
 
   // Timers that start running when FlushOnChange() is called. When the time
@@ -191,7 +155,7 @@ class StorageManager {
 
   // See comments for for kDatabaseUserVersion.
   int loaded_database_version_;
-  // false until the SQL database is fully configured.
+  // false until the store is fully configured.
   bool initialized_;
 
   // True if a flush is currently being processed on the storage message loop.
@@ -220,51 +184,6 @@ class StorageManager {
   scoped_ptr<SavegameThread> savegame_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(StorageManager);
-};
-
-// Proxy for accessing StorageManager's SQL database in a thread-safe way.
-// All access to the StorageManager's database should be done via an SqlContext.
-// Only the StorageManager can create this class.
-class SqlContext {
- public:
-  sql::Connection* sql_connection() const {
-    return storage_manager_->sql_connection();
-  }
-
-  // Get the schema version for the given table.
-  // Returns false if the table does not exist, otherwise returns true
-  // and writes the version number to the schema_version pointer.
-  // schema_version will be set to kSchemaTableIsNew if the table exists,
-  // but the schema table was newly created in this session.
-  // schema_version will be set to kSchemaVersionLost if the table exists,
-  // and the schema table existed once before, but has since been lost.
-  // In this case, the schema version cannot be known or directly inferred.
-  bool GetSchemaVersion(const char* table_name, int* schema_version) {
-    return storage_manager_->GetSchemaVersion(table_name, schema_version);
-  }
-
-  // Updates the schema version for the given table.
-  // The version number must be greater than 0.
-  void UpdateSchemaVersion(const char* table_name, int version) {
-    return storage_manager_->UpdateSchemaVersion(table_name, version);
-  }
-
-  void FlushOnChange() { storage_manager_->FlushOnChange(); }
-
-  void FlushNow(const base::Closure& callback) {
-    storage_manager_->FlushNow(callback);
-  }
-
- private:
-  StorageManager* storage_manager_;
-
-  explicit SqlContext(StorageManager* storage_manager)
-      : storage_manager_(storage_manager) {}
-
-  friend StorageManager::StorageManager(
-      scoped_ptr<StorageManager::UpgradeHandler> upgrade_handler,
-      const Options& options);
-  DISALLOW_COPY_AND_ASSIGN(SqlContext);
 };
 
 }  // namespace storage
