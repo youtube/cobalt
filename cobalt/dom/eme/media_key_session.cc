@@ -19,6 +19,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_message_event.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
 #include "cobalt/dom/eme/media_keys.h"
@@ -27,40 +28,6 @@
 namespace cobalt {
 namespace dom {
 namespace eme {
-
-namespace {
-
-void RejectSessionPromise(
-    MediaKeySession::VoidPromiseValue::Reference* promise_reference,
-    SbDrmSessionStatus status, const std::string& error_message) {
-  switch (status) {
-    case kSbDrmSessionStatusSuccess:
-      NOTREACHED() << "'kSbDrmSessionStatusSuccess' is not an error.";
-      break;
-    case kSbDrmSessionStatusTypeError:
-      // TODO: Pass |error_message| once we support message on simple errors.
-      promise_reference->value().Reject(script::kTypeError);
-      break;
-    case kSbDrmSessionStatusNotSupportedError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kNotSupportedErr, error_message));
-      break;
-    case kSbDrmSessionStatusInvalidStateError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kInvalidStateErr, error_message));
-      break;
-    case kSbDrmSessionStatusQuotaExceededError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kQuotaExceededErr, error_message));
-      break;
-    case kSbDrmSessionStatusUnknownError:
-      promise_reference->value().Reject(
-          new DOMException(DOMException::kNone, error_message));
-      break;
-  }
-}
-
-}  // namespace
 
 // See step 3.1 of
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
@@ -330,12 +297,12 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestDidNotGenerate(
-    VoidPromiseValue::Reference* promise_reference, SbDrmSessionStatus status,
+    VoidPromiseValue::Reference* promise_reference, SbDrmStatus status,
     const std::string& error_message) {
   // 10.10.1. If any of the preceding steps failed, reject promise with a new
   //          DOMException whose name is the appropriate error name.
   //
-  RejectSessionPromise(promise_reference, status, error_message);
+  RejectPromise(promise_reference, status, error_message);
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
@@ -358,12 +325,12 @@ void MediaKeySession::OnSessionUpdated(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
 void MediaKeySession::OnSessionDidNotUpdate(
-    VoidPromiseValue::Reference* promise_reference, SbDrmSessionStatus status,
+    VoidPromiseValue::Reference* promise_reference, SbDrmStatus status,
     const std::string& error_message) {
   // 8.1.3. If any of the preceding steps failed, reject promise with a new
   //        DOMException whose name is the appropriate error name.
   //
-  RejectSessionPromise(promise_reference, status, error_message);
+  RejectPromise(promise_reference, status, error_message);
 }
 
 // See https://www.w3.org/TR/encrypted-media/#update-key-statuses.
