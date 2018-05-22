@@ -15,91 +15,18 @@
 #include <vector>
 
 #include "starboard/drm.h"
+#include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
-
-void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
-                                   void* context,
-                                   int ticket,
-                                   SbDrmSessionStatus status,
-                                   SbDrmSessionRequestType type,
-                                   const char* error_message,
-                                   const void* session_id,
-                                   int session_id_size,
-                                   const void* content,
-                                   int content_size,
-                                   const char* url) {}
-
-void DummySessionUpdatedFunc(SbDrmSystem drm_system,
-                             void* context,
-                             int ticket,
-                             SbDrmSessionStatus status,
-                             const char* error_message,
-                             const void* session_id,
-                             int session_id_size) {}
-
-#else  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
-
-void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
-                                   void* context,
-                                   int ticket,
-                                   const void* session_id,
-                                   int session_id_size,
-                                   const void* content,
-                                   int content_size,
-                                   const char* url) {}
-
-void DummySessionUpdatedFunc(SbDrmSystem drm_system,
-                             void* context,
-                             int ticket,
-                             const void* session_id,
-                             int session_id_size,
-                             bool succeeded) {}
-
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
-
-#if SB_HAS(DRM_KEY_STATUSES)
-void DummySessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
-                                        void* context,
-                                        const void* session_id,
-                                        int session_id_size,
-                                        int number_of_keys,
-                                        const SbDrmKeyId* key_ids,
-                                        const SbDrmKeyStatus* key_statuses) {}
-#endif  // SB_HAS(DRM_KEY_STATUSES)
-
-void DummySessionClosedFunc(SbDrmSystem drm_system,
-                            void* context,
-                            const void* session_id,
-                            int session_id_size) {}
-
-const char* kKeySystems[] = {
-    "com.widevine", "com.widevine.alpha", "com.youtube.playready", "fairplay",
-};
-
 TEST(SbDrmTest, AnySupportedKeySystems) {
   bool any_supported_key_systems = false;
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
-#if SB_HAS(DRM_SESSION_CLOSED)
-    SbDrmSystem drm_system = SbDrmCreateSystem(
-        key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-        DummySessionClosedFunc);
-#elif SB_HAS(DRM_KEY_STATUSES)
-    SbDrmSystem drm_system = SbDrmCreateSystem(
-        key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc);
-#else   // SB_HAS(DRM_KEY_STATUSES)
-    SbDrmSystem drm_system = SbDrmCreateSystem(key_system, NULL /* context */,
-                                               DummySessionUpdateRequestFunc,
-                                               DummySessionUpdatedFunc);
-#endif  // SB_HAS(DRM_KEY_STATUSES)
+    SbDrmSystem drm_system = CreateDummyDrmSystem(key_system);
     if (SbDrmSystemIsValid(drm_system)) {
       SB_DLOG(INFO) << "Drm system with key system " << key_system
                     << " is valid.";
@@ -117,7 +44,49 @@ TEST(SbDrmTest, AnySupportedKeySystems) {
 TEST(SbDrmTest, NullCallbacks) {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
-#if SB_HAS(DRM_SESSION_CLOSED)
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */,
+          NULL /* session_update_request_func */, DummySessionUpdatedFunc,
+          DummySessionKeyStatusesChangedFunc, DummyServerCertificateUpdatedFunc,
+          DummySessionClosedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          NULL /*session_updated_func */, DummySessionKeyStatusesChangedFunc,
+          DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, NULL /* session_key_statuses_changed_func */,
+          DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+          NULL /* server_certificatd_updated_func */, DummySessionClosedFunc);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+    {
+      SbDrmSystem drm_system = SbDrmCreateSystem(
+          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+          DummyServerCertificateUpdatedFunc, NULL /* session_closed_func */);
+      EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
+      SbDrmDestroySystem(drm_system);
+    }
+#elif SB_HAS(DRM_SESSION_CLOSED)
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */,
@@ -201,20 +170,7 @@ TEST(SbDrmTest, MultiDrm) {
   for (int i = 0; i < kMaxPlayersPerKeySystem; ++i) {
     for (int j = 0; j < SB_ARRAY_SIZE_INT(kKeySystems); ++j) {
       const char* key_system = kKeySystems[j];
-#if SB_HAS(DRM_SESSION_CLOSED)
-      created_drm_systems.push_back(SbDrmCreateSystem(
-          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-          DummySessionClosedFunc));
-#elif SB_HAS(DRM_KEY_STATUSES)
-      created_drm_systems.push_back(SbDrmCreateSystem(
-          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-          DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc));
-#else   // SB_HAS(DRM_KEY_STATUSES)
-      created_drm_systems.push_back(SbDrmCreateSystem(
-          key_system, NULL /* context */, DummySessionUpdateRequestFunc,
-          DummySessionUpdatedFunc));
-#endif  // SB_HAS(DRM_KEY_STATUSES)
+      created_drm_systems.push_back(CreateDummyDrmSystem(key_system));
       if (!SbDrmSystemIsValid(created_drm_systems.back())) {
         created_drm_systems.pop_back();
       }

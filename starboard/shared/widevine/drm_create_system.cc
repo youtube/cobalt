@@ -24,9 +24,11 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
   if (!update_request_callback || !session_updated_callback ||
-      !key_statuses_changed_callback || !session_closed_callback) {
+      !key_statuses_changed_callback || !server_certificate_updated_callback ||
+      !session_closed_callback) {
     return kSbDrmSystemInvalid;
   }
   if (SbStringCompareAll(key_system, "com.widevine") != 0 &&
