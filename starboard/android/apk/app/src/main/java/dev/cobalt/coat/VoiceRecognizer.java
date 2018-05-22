@@ -148,16 +148,18 @@ public class VoiceRecognizer {
    * false if the permission is not granted at this moment and starting to request RECORD_AUDIO
    * permission.
    */
+  // TODO: Refactor this to use the same functionality in AudioPermissionRequester.
   public synchronized boolean requestRecordAudioPermission() {
     Activity activity = activityHolder.get();
     if (activity == null) {
-      mainHandler.post(new Runnable() {
-        @Override
-        public void run() {
-          nativeOnError(
-              nativeSpeechRecognizerImpl, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
-        }
-      });
+      mainHandler.post(
+          new Runnable() {
+            @Override
+            public void run() {
+              nativeOnError(
+                  nativeSpeechRecognizerImpl, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
+            }
+          });
       return false;
     }
 
@@ -165,7 +167,7 @@ public class VoiceRecognizer {
         != PackageManager.PERMISSION_GRANTED) {
       if (!requestAudioPermissionStarted) {
         ActivityCompat.requestPermissions(
-            activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
+            activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio_vr);
         requestAudioPermissionStarted = true;
       }
       return false;
@@ -177,7 +179,7 @@ public class VoiceRecognizer {
   /** Handles the RECORD_AUDIO request result. */
   public synchronized void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
-    if (requestCode == R.id.rc_record_audio) {
+    if (requestCode == R.id.rc_record_audio_vr) {
       // If request is cancelled, the result arrays are empty.
       if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
         // Permission was granted.
@@ -198,8 +200,7 @@ public class VoiceRecognizer {
             if (Looper.myLooper() != Looper.getMainLooper()) {
               throw new RuntimeException("Must be called in main thread.");
             }
-            speechRecognizer =
-                SpeechRecognizer.createSpeechRecognizer(context);
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
             speechRecognizer.setRecognitionListener(new Listener());
             Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
             intent.putExtra(
