@@ -17,6 +17,5 @@
 interface MediaKeys {
   [RaisesException] MediaKeySession createSession(
       optional MediaKeySessionType sessionType = "temporary");
-  // TODO: Trivially implement server certificates.
-  // Promise<boolean> setServerCertificate(BufferSource serverCertificate);
+  Promise<boolean> setServerCertificate(BufferSource serverCertificate);
 };
