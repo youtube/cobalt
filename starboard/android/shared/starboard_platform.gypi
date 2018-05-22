@@ -413,6 +413,8 @@
         '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
+        '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
+        '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',

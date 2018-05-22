@@ -31,25 +31,25 @@ namespace widevine {
 #if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 namespace {
 
-SbDrmSessionStatus ConvertCdmStatusToDrmSessionStatus(cdm::Status status) {
+SbDrmStatus ConvertCdmStatusToDrmSessionStatus(cdm::Status status) {
   switch (status) {
     case cdm::kSuccess:
-      return kSbDrmSessionStatusSuccess;
+      return kSbDrmStatusSuccess;
     case cdm::kNoKey:
       SB_NOTREACHED();
-      return kSbDrmSessionStatusUnknownError;
+      return kSbDrmStatusUnknownError;
     case cdm::kSessionError:
-      return kSbDrmSessionStatusInvalidStateError;
+      return kSbDrmStatusInvalidStateError;
     case cdm::kDecryptError:
     case cdm::kDecodeError:
     case cdm::kRetry:
       SB_NOTREACHED();
-      return kSbDrmSessionStatusUnknownError;
+      return kSbDrmStatusUnknownError;
     case cdm::kNeedsDeviceCertificate:
-      return kSbDrmSessionStatusUnknownError;
+      return kSbDrmStatusUnknownError;
   }
   SB_NOTREACHED();
-  return kSbDrmSessionStatusUnknownError;
+  return kSbDrmStatusUnknownError;
 }
 
 const char* ConvertCdmStatusToErrorMessage(cdm::Status status) {
@@ -356,10 +356,10 @@ void SbDrmSystemWidevine::SendKeyMessage(const char* web_session_id,
   }
 
 #if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
-  session_update_request_callback_(
-      this, context_, ticket, kSbDrmSessionStatusSuccess,
-      kSbDrmSessionRequestTypeLicenseRequest, NULL, web_session_id,
-      web_session_id_length, message, message_length, default_url);
+  session_update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
+                                   kSbDrmSessionRequestTypeLicenseRequest, NULL,
+                                   web_session_id, web_session_id_length,
+                                   message, message_length, default_url);
 #else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
   session_update_request_callback_(this, context_, ticket, web_session_id,
                                    web_session_id_length, message,
