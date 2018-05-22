@@ -18,5 +18,6 @@
 <resources>
   <item name="rc_choose_account" type="id"/>
   <item name="rc_get_accounts_permission" type="id"/>
-  <item name="rc_record_audio" type="id"/>
+  <item name="rc_record_audio_vr" type="id"/>
+  <item name="rc_record_audio_apr" type="id"/>
 </resources>

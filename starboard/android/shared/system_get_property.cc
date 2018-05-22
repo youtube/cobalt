@@ -16,10 +16,6 @@
 
 #include "sys/system_properties.h"
 
-#ifdef SB_HAS_SPEECH_API_KEY
-#include "starboard/android/shared/private/keys.h"
-#endif  // SB_HAS_SPEECH_API_KEY
-
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/log.h"

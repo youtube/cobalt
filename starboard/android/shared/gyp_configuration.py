@@ -117,6 +117,7 @@ class AndroidConfiguration(PlatformConfiguration):
       'nplb': [
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
+          'SbMicrophoneGetAvailable.LabelIsValid',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
