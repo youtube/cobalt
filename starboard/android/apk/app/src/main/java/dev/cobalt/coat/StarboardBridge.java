@@ -63,6 +63,7 @@ public class StarboardBridge {
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private VoiceRecognizer voiceRecognizer;
+  private AudioPermissionRequester audioPermissionRequester;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -102,6 +103,7 @@ public class StarboardBridge {
     this.cobaltMediaSession =
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager);
     this.voiceRecognizer = new VoiceRecognizer(appContext, activityHolder);
+    this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     nativeInitialize();
   }
 
@@ -439,6 +441,13 @@ public class StarboardBridge {
     return voiceRecognizer;
   }
 
+  /** Returns Java layer implementation for AudioPermissionRequester */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  AudioPermissionRequester getAudioPermissionRequester() {
+    return audioPermissionRequester;
+  }
+
   void onActivityResult(int requestCode, int resultCode, Intent data) {
     userAuthorizer.onActivityResult(requestCode, resultCode, data);
   }
@@ -446,6 +455,7 @@ public class StarboardBridge {
   void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
     userAuthorizer.onRequestPermissionsResult(requestCode, permissions, grantResults);
     voiceRecognizer.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
   @SuppressWarnings("unused")
