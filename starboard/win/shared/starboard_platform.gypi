@@ -60,6 +60,9 @@
       '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
       '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
 
+      '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
+      '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
+
       '<(DEPTH)/starboard/shared/win32/drm_create_system.cc',
       '<(DEPTH)/starboard/shared/win32/drm_system_playready.cc',
       '<(DEPTH)/starboard/shared/win32/drm_system_playready.h',
