@@ -38,6 +38,7 @@ _TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
 _TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
 _SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
 
+
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
 
@@ -170,8 +171,14 @@ class TestLauncher(object):
 class TestRunner(object):
   """Runs unit tests."""
 
-  def __init__(self, platform, config, device_id, single_target,
-               target_params, out_directory, application_name=None,
+  def __init__(self,
+               platform,
+               config,
+               device_id,
+               single_target,
+               target_params,
+               out_directory,
+               application_name=None,
                dry_run=False):
     self.platform = platform
     self.config = config
@@ -279,9 +286,13 @@ class TestRunner(object):
     test_params.extend(self.target_params)
 
     launcher = abstract_launcher.LauncherFactory(
-        self.platform, target_name, self.config,
-        device_id=self.device_id, target_params=test_params,
-        output_file=write_pipe, out_directory=self.out_directory,
+        self.platform,
+        target_name,
+        self.config,
+        device_id=self.device_id,
+        target_params=test_params,
+        output_file=write_pipe,
+        out_directory=self.out_directory,
         env_variables=env)
 
     test_reader = TestLineReader(read_pipe)
@@ -291,9 +302,8 @@ class TestRunner(object):
     self.threads.append(test_reader)
 
     if self.dry_run:
-      sys.stdout.write(
-          "{} {}\n".format(target_name, test_params) if test_params
-          else "{}\n".format(target_name))
+      sys.stdout.write("{} {}\n".format(target_name, test_params)
+                       if test_params else "{}\n".format(target_name))
       write_pipe.close()
       read_pipe.close()
 
@@ -371,9 +381,8 @@ class TestRunner(object):
     return failed_tests
 
   def _GetFilteredTestList(self, target_name):
-    return _FilterTests(
-          [target_name], self._GetTestFilters(),
-          self.config).get(target_name, [])
+    return _FilterTests([target_name], self._GetTestFilters(), self.config).get(
+        target_name, [])
 
   def _ProcessAllTestResults(self, results):
     """Collects and returns output for all selected tests.
@@ -419,7 +428,7 @@ class TestRunner(object):
 
       print "{}: {}.".format(target_name, test_status)
       if run_count == 0:
-        print"  Results not available.  Did the test crash?\n"
+        print "  Results not available.  Did the test crash?\n"
         continue
 
       print "  TOTAL TESTS RUN: {}".format(run_count)
@@ -481,8 +490,8 @@ class TestRunner(object):
       else:
         extra_flags = []
 
-      build_tests.BuildTargets(
-          self.test_targets, out_directory, self.dry_run, extra_flags)
+      build_tests.BuildTargets(self.test_targets, out_directory, self.dry_run,
+                               extra_flags)
 
     except subprocess.CalledProcessError as e:
       result = False
@@ -526,9 +535,7 @@ def main():
       action="store_true",
       help="Specifies to show what would be done without actually doing it.")
   arg_parser.add_argument(
-      "-t",
-      "--target_name",
-      help="Name of executable target.")
+      "-t", "--target_name", help="Name of executable target.")
   arg_parser.add_argument(
       "-a",
       "--application_name",
@@ -584,6 +591,7 @@ def main():
     return 1
   else:
     return 0
+
 
 if __name__ == "__main__":
   sys.exit(main())
