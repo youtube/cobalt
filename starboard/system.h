@@ -175,10 +175,19 @@ typedef enum SbSystemCapabilityId {
   kSbSystemCapabilityReversedEnterAndBack,
 
   // Whether this system has the ability to report on GPU memory usage.
-  // If (and only if) a system has this capcability will
+  // If (and only if) a system has this capability will
   // SbSystemGetTotalGPUMemory() and SbSystemGetUsedGPUMemory() be valid to
   // call.
   kSbSystemCapabilityCanQueryGPUMemoryStats,
+
+#if SB_API_VERSION >= SB_INPUT_TIMESTAMP_API_VERSION
+  // Whether this system sets the |timestamp| field of SbInputData. If the
+  // system does not set this field, then it will automatically be set; however,
+  // the relative time between input events likely will not be preserved, so
+  // time-related calculations (e.g. velocity for move events) will be
+  // incorrect.
+  kSbSystemCapabilitySetsInputTimestamp,
+#endif
 } SbSystemCapabilityId;
 
 // Enumeration of possible values for the |type| parameter passed to  the
