@@ -23,10 +23,13 @@
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "base/tracked_objects.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/event_listener.h"
+#include "cobalt/dom/generic_event_handler_reference.h"
+#include "cobalt/dom/on_error_event_listener.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -42,7 +45,37 @@ namespace dom {
 class EventTarget : public script::Wrappable,
                     public base::SupportsWeakPtr<EventTarget> {
  public:
+  // EventHandlers are implemented as EventListener?, so use this to
+  // differentiate between the two.
+  enum Type {
+    kAttribute,
+    kNotAttribute,
+  };
+
+  // Helper enum to decide whether or not onerror event parameters should be
+  // unpacked or not (e.g. in the special case of the |window| object).
+  // This special handling is described in:
+  //   https://html.spec.whatwg.org/#event-handler-attributes
+  // (search for "onerror")
+  enum UnpackOnErrorEventsBool {
+    kUnpackOnErrorEvents,
+    kDoNotUnpackOnErrorEvents,
+  };
+
+  // The parameter |unpack_onerror_events| can be set to true (e.g. for the
+  // |window| object) in order to indicate that the ErrorEvent should have
+  // its members unpacked before calling its event handler.  This is to
+  // accommodate for a special case in the window.onerror handling.  This
+  // special handling
+  explicit EventTarget(
+      UnpackOnErrorEventsBool onerror_event_parameter_handling =
+          kDoNotUnpackOnErrorEvents)
+      : unpack_onerror_events_(onerror_event_parameter_handling ==
+                               kUnpackOnErrorEvents) {}
+
   typedef script::ScriptValue<EventListener> EventListenerScriptValue;
+  typedef script::ScriptValue<OnErrorEventListener>
+      OnErrorEventListenerScriptValue;
 
   // Web API: EventTarget
   //
@@ -100,11 +133,11 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::click(), event_listener);
   }
 
-  const EventListenerScriptValue* onerror() {
-    return GetAttributeEventListener(base::Tokens::error());
+  const OnErrorEventListenerScriptValue* onerror() {
+    return GetAttributeOnErrorEventListener(base::Tokens::error());
   }
-  void set_onerror(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::error(), event_listener);
+  void set_onerror(const OnErrorEventListenerScriptValue& event_listener) {
+    SetAttributeOnErrorEventListener(base::Tokens::error(), event_listener);
   }
 
   const EventListenerScriptValue* onfocus() {
@@ -393,6 +426,16 @@ class EventTarget : public script::Wrappable,
   const EventListenerScriptValue* GetAttributeEventListener(
       base::Token type) const;
 
+  // Similar to SetAttributeEventListener(), but this function should only
+  // be called with type == base::Tokens::error().
+  void SetAttributeOnErrorEventListener(
+      base::Token type, const OnErrorEventListenerScriptValue& listener);
+
+  // Similar to GetAttributeEventListener(), but this function should only
+  // be called with type == base::Tokens::error().
+  const OnErrorEventListenerScriptValue* GetAttributeOnErrorEventListener(
+      base::Token type) const;
+
   // Return true if one or more event listeners are registered
   bool HasOneOrMoreAttributeEventListener() const;
 
@@ -409,24 +452,33 @@ class EventTarget : public script::Wrappable,
 
  private:
   struct EventListenerInfo {
-    EventListenerInfo(base::Token type, EventTarget* const event_target,
-                      const EventListenerScriptValue& listener,
-                      bool use_capture, EventListener::Type listener_type);
+    EventListenerInfo(base::Token type,
+                      scoped_ptr<GenericEventHandlerReference> listener,
+                      bool use_capture, Type listener_type);
     ~EventListenerInfo();
 
     base::Token type;
-    script::ScriptValue<EventListener>::Reference listener;
+    scoped_ptr<GenericEventHandlerReference> listener;
     bool use_capture;
-    EventListener::Type listener_type;
+    Type listener_type;
   };
   typedef ScopedVector<EventListenerInfo> EventListenerInfos;
 
-  void AddEventListenerInternal(base::Token type,
-                                const EventListenerScriptValue& listener,
-                                bool use_capture,
-                                EventListener::Type listener_type);
+  void SetAttributeEventListenerInternal(
+      base::Token type, scoped_ptr<GenericEventHandlerReference> event_handler);
+  GenericEventHandlerReference* GetAttributeEventListenerInternal(
+      base::Token type) const;
+
+  void AddEventListenerInternal(
+      base::Token type, scoped_ptr<GenericEventHandlerReference> listener,
+      bool use_capture, Type listener_type);
 
   EventListenerInfos event_listener_infos_;
+
+  // Tracks whether this current event listener should unpack the onerror
+  // event object when calling its callback.  This is needed to implement
+  // the special case of window.onerror handling.
+  bool unpack_onerror_events_;
 };
 
 }  // namespace dom
