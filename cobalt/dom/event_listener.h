@@ -28,19 +28,6 @@ namespace dom {
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#eventtarget
 class EventListener {
  public:
-  // EventHandlers are implemented as EventListener?, so use this to
-  // differentiate between the two.
-  enum Type {
-    kAttribute,
-    kNotAttribute,
-  };
-
-  // Custom, not in any spec.
-  //
-  // Specify whether this is an attribute-type listener or not.
-  void HandleEvent(const scoped_refptr<Event>& event, Type listener_type) const;
-
- protected:
   // Web API: EventListener
   //
   // Cobalt's implementation of callback interfaces requires the 'callback this'
