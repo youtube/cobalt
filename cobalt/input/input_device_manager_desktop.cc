@@ -17,8 +17,10 @@
 #include <cmath>
 #include <string>
 
+#include "base/time.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/event.h"
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -34,6 +36,17 @@
 
 namespace cobalt {
 namespace input {
+
+namespace {
+void UpdateEventInit(const system_window::InputEvent* input_event,
+                     EventInit* event) {
+  if (input_event->timestamp() != 0) {
+    // Convert SbTimeMonotonic to DOMTimeStamp.
+    event->set_time_stamp(cobalt::dom::Event::GetEventTime(
+        input_event->timestamp()));
+  }
+}
+}
 
 InputDeviceManagerDesktop::InputDeviceManagerDesktop(
     const KeyboardEventCallback& keyboard_event_callback,
@@ -214,6 +227,7 @@ void InputDeviceManagerDesktop::HandleKeyboardEvent(
   dom::KeyboardEvent::KeyLocationCode location =
       dom::KeyboardEvent::KeyCodeToKeyLocation(key_code);
   dom::KeyboardEventInit keyboard_event;
+  UpdateEventInit(input_event, &keyboard_event);
   UpdateEventModifierInit(input_event, &keyboard_event);
   keyboard_event.set_location(location);
   keyboard_event.set_repeat(input_event->is_repeat());
@@ -229,6 +243,7 @@ void InputDeviceManagerDesktop::HandleKeyboardEvent(
 void InputDeviceManagerDesktop::HandlePointerEvent(
     base::Token type, const system_window::InputEvent* input_event) {
   dom::PointerEventInit pointer_event;
+  UpdateEventInit(input_event, &pointer_event);
   UpdateMouseEventInit(input_event, &pointer_event);
 
   switch (input_event->type()) {
@@ -267,6 +282,7 @@ void InputDeviceManagerDesktop::HandleWheelEvent(
     const system_window::InputEvent* input_event) {
   base::Token type = base::Tokens::wheel();
   dom::WheelEventInit wheel_event;
+  UpdateEventInit(input_event, &wheel_event);
   UpdateMouseEventInit(input_event, &wheel_event);
 
   wheel_event.set_delta_x(input_event->delta().x());
@@ -284,6 +300,7 @@ void InputDeviceManagerDesktop::HandleInputEvent(
   base::Token type = base::Tokens::input();
 
   dom::InputEventInit input_event;
+  UpdateEventInit(event, &input_event);
   input_event.set_data(event->input_text());
   // We do not handle composition sessions currently, so isComposing should
   // always be false.
