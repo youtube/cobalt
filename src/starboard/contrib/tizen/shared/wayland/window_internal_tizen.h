@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CONTRIB_TIZEN_SHAREDWAYLAND_WINDOW_INTERNAL_TIZEN_H_
-#define STARBOARD_CONTRIB_TIZEN_SHAREDWAYLAND_WINDOW_INTERNAL_TIZEN_H_
+#ifndef STARBOARD_CONTRIB_TIZEN_SHARED_WAYLAND_WINDOW_INTERNAL_TIZEN_H_
+#define STARBOARD_CONTRIB_TIZEN_SHARED_WAYLAND_WINDOW_INTERNAL_TIZEN_H_
 
 #include <Elementary.h>
 #include <tizen-extension-client-protocol.h>
@@ -41,4 +41,4 @@ struct SbWindowPrivateTizen : SbWindowPrivate {
 #endif
 };
 
-#endif  // STARBOARD_CONTRIB_TIZEN_SHAREDWAYLAND_WINDOW_INTERNAL_TIZEN_H_
+#endif  // STARBOARD_CONTRIB_TIZEN_SHARED_WAYLAND_WINDOW_INTERNAL_TIZEN_H_

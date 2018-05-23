@@ -16,10 +16,9 @@
 #include <Elementary.h>
 
 #include "starboard/configuration.h"
+#include "starboard/contrib/tizen/shared/wayland/application_tizen.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
-#include "starboard/shared/starboard/link_receiver.h"
-#include "starboard/contrib/tizen/shared/wayland/application_tizen.h"
 
 namespace {
 
@@ -33,8 +32,10 @@ int aul_handler(aul_type type, bundle* kb, void* data) {
       starboard::shared::wayland::ApplicationWayland* app =
           starboard::shared::wayland::ApplicationWayland::Get();
       if (app) {
-        starboard::shared::starboard::LinkReceiver receiver(app);
         app->Run(g_argc, g_argv);
+      } else {
+        SB_DLOG(ERROR) << "Get ApplicationWayland failed!";
+        elm_exit();
       }
       break;
     }
