@@ -13,43 +13,20 @@
 # limitations under the License.
 {
   'variables': {
-    'enable_map_to_mesh%': 1,
-    'target_arch': 'arm',
-    'gl_type%': 'system_gles2',
     'cobalt_platform_dependencies': [
       # GL Linux makes some GL calls within decode_target_internal.cc.
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
     ],
-  },
-  'target_defaults': {
-    'default_configuration': 'tizen-armv7l_debug',
-    'configurations': {
-      'tizen-armv7l_debug': {
-        'inherit_from': ['debug_base'],
-      },
-      'tizen-armv7l_devel': {
-        'inherit_from': ['devel_base'],
-      },
-      'tizen-armv7l_qa': {
-        'inherit_from': ['qa_base'],
-      },
-      'tizen-armv7l_gold': {
-        'inherit_from': ['gold_base'],
-      },
-    }, # end of configurations
-  },
 
-  'includes': [
-    'libraries.gypi',
-    '../shared/gyp_configuration.gypi',
-  ],
-  # with flto flag, we get below error
-  # plugin needed to handle lto object
-  # so remove flto flag
-  'compiler_flags_gold!': [
-    '-flto',
-  ],
-  'linker_flags_gold!': [
-    '-flto',
-  ],
+    'platform_libraries': [
+      '-lEGL',
+      '-lGLESv2',
+      '-lwayland-client',
+      '-lwayland-egl',
+      '-lasound',
+      '-lavcodec',
+      '-lavformat',
+      '-lavutil',
+    ],
+  },
 }

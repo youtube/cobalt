@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Tizen armv7l platform configuration for gyp_cobalt."""
+"""Starboard Tizen Armv7l platform configuration for gyp_cobalt."""
 
 import logging
 
-import config.base
-
+import config.starboard
 
 def CreatePlatformConfig():
   try:
@@ -25,8 +24,7 @@ def CreatePlatformConfig():
     logging.critical(e)
     return None
 
-
-class _PlatformConfig(config.base.PlatformConfigBase):
+class _PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Tizen Armv7l platform configuration."""
 
   def __init__(self, platform):
@@ -48,11 +46,3 @@ class _PlatformConfig(config.base.PlatformConfigBase):
         'CXX_host': 'armv7l-tizen-linux-gnueabi-g++',
     }
     return env_variables
-
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return []

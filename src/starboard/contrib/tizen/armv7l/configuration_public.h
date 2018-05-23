@@ -12,18 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Starboard configuration for armv7l Tizen. Other devices will have
-// specific Starboard implementations, even if they ultimately are running some
-// version of Tizen.
-
-// Other source files should never include this header directly, but should
-// include the generic "starboard/configuration.h" instead.
-
 #ifndef STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 4
+#define SB_API_VERSION 6
 
 // --- System Header Configuration -------------------------------------------
 
@@ -106,6 +99,14 @@
 
 // --- Media Configuration ---------------------------------------------------
 
+// Specifies whether this platform has support for a possibly-decrypting
+// elementary stream player for at least H.264/AAC (and AES-128-CTR, if
+// decrypting). A player is responsible for ingesting an audio and video
+// elementary stream, optionally-encrypted, and ultimately producing
+// synchronized audio/video. If a player is defined, it must choose one of the
+// supported composition methods below.
+#define SB_HAS_PLAYER 1
+
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 2M bytes per seconds which is more than enough for compressed
 // audio.
@@ -164,5 +165,8 @@
 // Whether this platform has an API to retrieve how long the current thread
 // has spent in the executing state.
 #define SB_HAS_TIME_THREAD_NOW 1
+
+// The tizen policy version
+#define SB_TIZEN_POLICY_VERSION 4
 
 #endif  // STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_

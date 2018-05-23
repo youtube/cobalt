@@ -245,7 +245,7 @@
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
-#define SB_HAS_IPV6 0
+#define SB_HAS_IPV6 1
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
