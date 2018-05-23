@@ -237,9 +237,12 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
                                                            error_message);
     }
 
-    // Sweep the context of |GenerateSessionUpdateRequest|.
-    ticket_to_session_update_request_map_.erase(
-        session_update_request_iterator);
+    // Sweep the context of |GenerateSessionUpdateRequest| once license updated,
+    // but not after just individualization done
+    if (type != kSbDrmSessionRequestTypeIndividualizationRequest) {
+      ticket_to_session_update_request_map_.erase(
+          session_update_request_iterator);
+    }
   } else {
     // Called back spontaneously by the underlying DRM system.
 
