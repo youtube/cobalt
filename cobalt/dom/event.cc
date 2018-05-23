@@ -23,42 +23,48 @@ namespace dom {
 
 Event::Event(UninitializedFlag /* uninitialized_flag */)
     : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(base::Token(), false, false);
 }
 
 Event::Event(const std::string& type)
     : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(base::Token(type), false, false);
 }
 
 Event::Event(const std::string& type, const EventInit& init_dict)
     : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   SB_DCHECK(init_dict.has_bubbles());
   SB_DCHECK(init_dict.has_cancelable());
+  if (init_dict.time_stamp() != 0) {
+    time_stamp_ = init_dict.time_stamp();
+  }
   InitEventInternal(base::Token(type), init_dict.bubbles(),
                     init_dict.cancelable());
 }
 
 Event::Event(base::Token type)
     : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(type, false, false);
 }
 
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
     : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   InitEventInternal(type, bubbles == kBubbles, cancelable == kCancelable);
 }
 
 Event::Event(base::Token type, const EventInit& init_dict)
     : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+      time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
   SB_DCHECK(init_dict.has_bubbles());
   SB_DCHECK(init_dict.has_cancelable());
+  if (init_dict.time_stamp() != 0) {
+    time_stamp_ = init_dict.time_stamp();
+  }
   InitEventInternal(type, init_dict.bubbles(), init_dict.cancelable());
 }
 
@@ -103,6 +109,15 @@ void Event::InitEventInternal(base::Token type, bool bubbles, bool cancelable) {
 void Event::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(target_);
   tracer->Trace(current_target_);
+}
+
+uint64 Event::GetEventTime(SbTimeMonotonic monotonic_time) {
+  // For now, continue using the old specification which specifies real time
+  // since 1970.
+  // https://www.w3.org/TR/dom/#dom-event-timestamp
+  SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
+  base::Time base_time = base::Time::FromSbTime(time_delta + monotonic_time);
+  return static_cast<uint64>(base_time.ToJsTime());
 }
 
 }  // namespace dom
