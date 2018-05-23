@@ -131,7 +131,10 @@ Window::Window(
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
     const scoped_refptr<captions::SystemCaptionSettings>& captions)
-    : width_(width),
+    // 'window' object EventTargets require special handling for onerror events,
+    // see EventTarget constructor for more details.
+    : EventTarget(kUnpackOnErrorEvents),
+      width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
