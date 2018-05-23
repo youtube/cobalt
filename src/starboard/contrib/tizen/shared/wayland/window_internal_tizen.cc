@@ -34,7 +34,8 @@ static void WindowCbVisibilityChange(void* data,
 }
 
 static const struct tizen_visibility_listener tizen_visibility_listener = {
-    WindowCbVisibilityChange};
+    WindowCbVisibilityChange
+};
 
 SbWindowPrivateTizen::SbWindowPrivateTizen(wl_display* display,
                                            tizen_policy* policy,

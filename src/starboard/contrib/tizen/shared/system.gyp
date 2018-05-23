@@ -58,6 +58,23 @@
       },
     }, # capi-media-audio-io
     {
+      'target_name': 'capi-network-connection',
+      'type': 'none',
+      'direct_dependent_settings': {
+        'cflags': [
+          '<!@(<(pkg-config) --cflags capi-network-connection)',
+        ],
+      },
+      'link_settings': {
+        'ldflags': [
+          '<!@(<(pkg-config) --libs-only-L --libs-only-other capi-network-connection)',
+        ],
+        'libraries': [
+          '<!@(<(pkg-config) --libs-only-l capi-network-connection)',
+        ],
+      },
+    }, # capi-network-connection
+    {
       'target_name': 'capi-system-info',
       'type': 'none',
       'direct_dependent_settings': {
