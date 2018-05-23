@@ -350,6 +350,43 @@ class ExecutableLinker(Tool):
     pass
 
 
+class SharedLibraryLinker(Tool):
+  """Links shared libraries."""
+
+  def IsPlatformAgnostic(self):
+    return False
+
+  def GetRuleName(self):
+    return 'link_shared'
+
+  def GetHeaderDependenciesFilePath(self):
+    # Only applicable to C family compilers.
+    return None
+
+  def GetHeaderDependenciesFormat(self):
+    # Only applicable to C family compilers.
+    return None
+
+  @abc.abstractmethod
+  def GetFlags(self, ldflags):
+    """Returns tool flags specific to a target.
+
+    This method translates platform-agnostic concepts into a command line
+    arguments understood by a tool.
+
+    Args:
+      ldflags: A list of GCC-style command-line flags. See
+        https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html#Link-Options for
+        details.
+
+    Returns:
+      A list of unquoted strings, one for each flag. It is a responsibility of a
+      caller to quote flags that contain special characters (as determined by a
+      shell) before passing to a tool.
+    """
+    pass
+
+
 class Stamp(Tool):
   """Updates the access and modification times of a file to the current time."""
 

@@ -17,8 +17,11 @@ from starboard.tools.toolchain import abstract
 from starboard.tools.toolchain import common
 
 
-class ExecutableLinker(abstract.ExecutableLinker):
-  """Links executables using Clang (invoked as clang++)."""
+class DynamicLinkerBase(object):
+  """A base class for Clang based linking of executables and shared libraries.
+
+  Invoked as clang++.
+  """
 
   def __init__(self, **kwargs):
     self._path = common.GetPath('clang++', **kwargs)
@@ -35,10 +38,6 @@ class ExecutableLinker(abstract.ExecutableLinker):
   def GetMaxConcurrentProcesses(self):
     return self._max_concurrent_processes
 
-  def GetCommand(self, path, extra_flags, flags, shell):
-    del shell  # Not used.
-    return '{0} {1} {2} @$rspfile -o $out'.format(path, extra_flags, flags)
-
   def GetDescription(self):
     return 'LINK $out'
 
@@ -50,3 +49,27 @@ class ExecutableLinker(abstract.ExecutableLinker):
 
   def GetFlags(self, ldflags):
     return ldflags
+
+
+class ExecutableLinker(DynamicLinkerBase, abstract.ExecutableLinker):
+  """Links executables using Clang (invoked as clang++)."""
+
+  def __init__(self, **kwargs):
+    super(ExecutableLinker, self).__init__(**kwargs)
+
+  def GetCommand(self, path, extra_flags, flags, shell):
+    del shell  # Not used.
+    return '{0} {1} {2} @$rspfile -o $out'.format(path, extra_flags, flags)
+
+
+class SharedLibraryLinker(DynamicLinkerBase, abstract.SharedLibraryLinker):
+  """Links shared libraries using Clang (invoked as clang++)."""
+
+  def __init__(self, **kwargs):
+    super(SharedLibraryLinker, self).__init__(**kwargs)
+
+  def GetCommand(self, path, extra_flags, flags, shell):
+    del shell  # Not used.
+    return ('{0} -shared {1} -o $out {2} -Wl,-soname=$soname '
+            '-Wl,--whole-archive @$rspfile -Wl,--no-whole-archive').format(
+                path, extra_flags, flags)
