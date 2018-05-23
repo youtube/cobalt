@@ -15,6 +15,7 @@
 #include "cobalt/loader/text_decoder.h"
 
 #include "base/bind.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,7 +24,7 @@ namespace loader {
 namespace {
 
 struct TextDecoderCallback {
-  void Callback(const std::string& value) { text = value; }
+  void Callback(scoped_ptr<std::string> value) { text = *value; }
   std::string text;
 };
 

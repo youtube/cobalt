@@ -66,7 +66,7 @@ class HTMLLinkElement : public HTMLElement {
   // From the spec: HTMLLinkElement.
   void Obtain();
 
-  void OnLoadingDone(const std::string& content);
+  void OnLoadingDone(scoped_ptr<std::string> content);
   void OnLoadingError(const std::string& error);
   void ReleaseLoader();
 

@@ -104,11 +104,11 @@ class DomStatTracker : public base::StopWatchOwner {
 
   // Tracking of videos produced by an event.
   base::StopWatch event_video_start_delay_stop_watch_;
-  base::CVal<base::TimeDelta> event_video_start_delay_;
+  base::CVal<base::TimeDelta, base::CValPublic> event_video_start_delay_;
 
   // Count of HtmlScriptElement::Execute() calls and time of last call.
-  base::CVal<int> script_element_execute_count_;
-  base::CVal<int64> script_element_execute_time_;
+  base::CVal<int, base::CValPublic> script_element_execute_count_;
+  base::CVal<int64, base::CValPublic> script_element_execute_time_;
 
   // Periodic counts. The counts are cleared after the CVals are updated in
   // |FlushPeriodicTracking|.

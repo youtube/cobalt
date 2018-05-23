@@ -99,6 +99,10 @@ class Window : public EventTarget {
       const base::SourceLocation&, const base::Closure&,
       const base::Callback<void(const std::string&)>&)>
       HTMLDecoderCreatorCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+      OnStartDispatchEventCallback;
+  typedef base::Callback<void(const scoped_refptr<dom::Event>& event)>
+      OnStopDispatchEventCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
   Window(
@@ -133,6 +137,9 @@ class Window : public EventTarget {
       system_window::SystemWindow* system_window,
       const scoped_refptr<input::InputPoller>& input_poller,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
+      const OnStartDispatchEventCallback&
+          start_tracking_dispatch_event_callback,
+      const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
 
   // Web API: Window
@@ -280,6 +287,9 @@ class Window : public EventTarget {
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -330,6 +340,9 @@ class Window : public EventTarget {
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;
 #endif  // ENABLE_TEST_RUNNER
+
+  OnStartDispatchEventCallback on_start_dispatch_event_callback_;
+  OnStopDispatchEventCallback on_stop_dispatch_event_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

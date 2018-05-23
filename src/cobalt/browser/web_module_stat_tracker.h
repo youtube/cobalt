@@ -34,7 +34,7 @@ namespace browser {
 class WebModuleStatTracker : public base::StopWatchOwner {
  public:
   WebModuleStatTracker(const std::string& name,
-                       bool should_track_injected_events);
+                       bool should_track_dispatched_events);
   ~WebModuleStatTracker();
 
   dom::DomStatTracker* dom_stat_tracker() const {
@@ -45,15 +45,16 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     return layout_stat_tracker_.get();
   }
 
-  // |OnStartInjectEvent| starts event stat tracking if
-  // |should_track_injected_events_| is true. Otherwise, it does nothing.
-  void OnStartInjectEvent(const scoped_refptr<dom::Event>& event);
+  // |OnStartDispatchEvent| starts event stat tracking if
+  // |should_track_dispatched_events_| is true. Otherwise, it does nothing.
+  void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
 
-  // |OnEndInjectEvent| notifies the event stat tracking that the event has
-  // finished being injected. If no animation frame callbacks and also no render
-  // tree is pending, it also ends tracking of the event.
-  void OnEndInjectEvent(bool are_animation_frame_callbacks_pending,
-                        bool is_new_render_tree_pending);
+  // |OnStopDispatchEvent| notifies the event stat tracking that |event| has
+  // finished being dispatched. If this is the event currently being tracked
+  // and nothing is pending, then it also ends tracking of the event.
+  void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event,
+                           bool are_animation_frame_callbacks_pending,
+                           bool is_new_render_tree_pending);
 
   // |OnRanAnimationFrameCallbacks| ends stat tracking for the current event
   // if no render tree is pending.
@@ -72,14 +73,15 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   enum StopWatchType {
     kStopWatchTypeEvent,
-    kStopWatchTypeInjectEvent,
+    kStopWatchTypeDispatchEvent,
     kNumStopWatchTypes,
   };
 
   struct EventStats {
     explicit EventStats(const std::string& name);
 
-    base::CVal<bool, base::CValPublic> produced_render_tree_;
+    base::CVal<int64, base::CValPublic> start_time;
+    base::CVal<bool, base::CValPublic> produced_render_tree;
 
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;
@@ -100,7 +102,7 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
     // Duration-related
     base::CVal<base::TimeDelta, base::CValPublic> duration_total;
-    base::CVal<base::TimeDelta, base::CValPublic> duration_dom_inject_event;
+    base::CVal<base::TimeDelta, base::CValPublic> duration_dom_dispatch_event;
     base::CVal<base::TimeDelta, base::CValPublic>
         duration_dom_run_animation_frame_callbacks;
     base::CVal<base::TimeDelta, base::CValPublic>
@@ -138,6 +140,10 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   // Event-related
   const bool should_track_event_stats_;
   EventType current_event_type_;
+  // Raw pointer to the current event. This is used to verify that the event in
+  // |OnStopDispatchEvent| is the dispatched event being tracked.
+  dom::Event* current_event_dispatched_event_;
+
   // Each individual |EventType| has its own entry in the vector.
   ScopedVector<EventStats> event_stats_;
 

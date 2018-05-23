@@ -106,25 +106,19 @@ void HTMLLinkElement::Obtain() {
   document->IncreaseLoadingCounter();
 }
 
-void HTMLLinkElement::OnLoadingDone(const std::string& content) {
-  TRACK_MEMORY_SCOPE("DOM");
+void HTMLLinkElement::OnLoadingDone(scoped_ptr<std::string> content) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(content);
+  TRACK_MEMORY_SCOPE("DOM");
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 
   Document* document = node_document();
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       document->html_element_context()->css_parser()->ParseStyleSheet(
-          content, base::SourceLocation(href(), 1, 1));
+          *content, base::SourceLocation(href(), 1, 1));
   style_sheet->SetLocationUrl(absolute_url_);
   document->style_sheets()->Append(style_sheet);
 
-  // Once the attempts to obtain the resource and its critical subresources are
-  // complete, the user agent must, if the loads were successful, queue a task
-  // to fire a simple event named load at the link element, or, if the resource
-  // or one of its critical subresources failed to completely load for any
-  // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
-  // closed, unsupported Content-Type), queue a task to fire a simple event
-  // named error at the link element.
   PostToDispatchEvent(FROM_HERE, base::Tokens::load());
 
   // The element must delay the load event of the element's document until all

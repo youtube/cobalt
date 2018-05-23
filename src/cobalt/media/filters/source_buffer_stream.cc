@@ -730,10 +730,30 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
     return false;
   }
 
-  // Return if we're under or at the memory limit.
-  if (ranges_size + newDataSize <= memory_limit_) return true;
+  base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
 
-  size_t bytes_to_free = ranges_size + newDataSize - memory_limit_;
+  size_t bytes_to_free = 0;
+
+  // Check if we're under or at the memory/duration limit.
+  const int64 kGcDurationThresholdInMilliseconds =
+      COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS *
+      1000;
+
+  if (ranges_size + newDataSize > memory_limit_) {
+    bytes_to_free = ranges_size + newDataSize - memory_limit_;
+  } else if (duration.InMilliseconds() > kGcDurationThresholdInMilliseconds) {
+    // Estimate the size to free.
+    int64 duration_to_free =
+        duration.InMilliseconds() - kGcDurationThresholdInMilliseconds;
+    bytes_to_free = static_cast<size_t>(ranges_size * duration_to_free /
+                                        duration.InMilliseconds());
+  }
+
+  if (bytes_to_free == 0) {
+    return true;
+  }
+
+  DCHECK_GT(bytes_to_free, 0);
 
   DVLOG(2) << __func__ << " " << GetStreamTypeName()
            << ": Before GC media_time=" << media_time.InSecondsF()
@@ -1831,6 +1851,16 @@ bool SourceBufferStream::SetPendingBuffer(
   pending_buffer_.swap(*out_buffer);
   pending_buffers_complete_ = false;
   return true;
+}
+
+base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
+    const {
+  base::TimeDelta duration;
+  for (RangeList::const_iterator itr = ranges_.begin(); itr != ranges_.end();
+       ++itr) {
+    duration += (*itr)->GetEndTimestamp() - (*itr)->GetStartTimestamp();
+  }
+  return duration;
 }
 
 }  // namespace media

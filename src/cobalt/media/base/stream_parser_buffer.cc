@@ -45,8 +45,13 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     Allocator* allocator, const uint8_t* data, int data_size, bool is_key_frame,
     Type type, TrackId track_id) {
-  return make_scoped_refptr(new StreamParserBuffer(
-      allocator, data, data_size, NULL, 0, is_key_frame, type, track_id));
+  scoped_refptr<StreamParserBuffer> stream_parser_buffer =
+      make_scoped_refptr(new StreamParserBuffer(
+          allocator, data, data_size, NULL, 0, is_key_frame, type, track_id));
+  if (stream_parser_buffer->has_data()) {
+    return stream_parser_buffer;
+  }
+  return NULL;
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
@@ -91,6 +96,10 @@ StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
   // is both a common and valid value and could lead to bugs.
   if (data) {
     set_duration(kNoTimestamp);
+  }
+
+  if (!has_data()) {
+    return;
   }
 
   if (is_key_frame) set_is_key_frame(true);

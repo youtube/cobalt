@@ -429,6 +429,17 @@
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
     'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
+
+    # Specifies the duration threshold of media source garbage collection.  When
+    # the accumulated duration in a source buffer exceeds this value, the media
+    # source implementation will try to eject existing buffers from the cache.
+    # This is usually triggered when the video being played has a simple content
+    # and the encoded data is small.  In such case this can limit how much is
+    # allocated for the book keeping data of the media buffers and avoid OOM of
+    # system heap.
+    # This should be set to 170 for most of the platforms.  But it can be
+    # further reduced on systems with extremely low memory.
+    'cobalt_media_source_garbage_collection_duration_threshold_in_seconds%': 170,
   },
 
   'target_defaults': {
@@ -451,6 +462,7 @@
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
       'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
       'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
+      'COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS=<(cobalt_media_source_garbage_collection_duration_threshold_in_seconds)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],

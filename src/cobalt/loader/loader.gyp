@@ -175,11 +175,17 @@
         'input_directory': 'embedded_resources',
       },
       'sources': [
+        '<(input_directory)/black_splash_screen.html',
         '<(input_directory)/equirectangular_40_40.msh',
-        '<(input_directory)/splash_screen.css',
-        '<(input_directory)/splash_screen.html',
-        '<(input_directory)/splash_screen.js',
-        '<(input_directory)/you_tube_logo.png',
+      ],
+      'conditions': [
+        ['target_arch == "ps3"', {
+          'sources': [
+            '<(input_directory)/youtube_splash_screen.css',
+            '<(input_directory)/youtube_splash_screen.html',
+            '<(input_directory)/youtube_splash_screen.png',
+          ],
+        }],
       ],
       'actions': [
         {

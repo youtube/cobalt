@@ -83,6 +83,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     SbSocket Release();
 
     int interests() const { return interests_; }
+    void set_interests(int interests) { interests_ = interests; }
 
     void set_pump(MessagePumpIOStarboard* pump) { pump_ = pump; }
     MessagePumpIOStarboard* pump() const { return pump_; }

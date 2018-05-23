@@ -188,6 +188,11 @@ void DebugWebServer::OnHttpRequest(int connection_id,
 
   // Construct the local disk path corresponding to the request path.
   FilePath file_path(content_root_dir_);
+  if (!IsStringASCII(url_path)) {
+    LOG(WARNING) << "Got HTTP request with non-ASCII URL path.";
+    server_->Send404(connection_id);
+    return;
+  }
   file_path = file_path.AppendASCII(url_path);
 
   // If the disk path is a directory, look for an index file.

@@ -165,7 +165,7 @@ blink-contrib/object-src-url-blocked.sub.html,DISABLE
 blink-contrib/policy-does-not-affect-child.sub.html,DISABLE
 
 blink-contrib/report-blocked-data-uri.sub.html,PASS
-blink-contrib/report-cross-origin-no-cookies.sub.html,PASS
+blink-contrib/report-cross-origin-no-cookies.sub.html,DISABLE
 
 blink-contrib/report-disallowed-from-meta.sub.html,PASS
 blink-contrib/report-same-origin-with-cookies.sub.html,PASS
