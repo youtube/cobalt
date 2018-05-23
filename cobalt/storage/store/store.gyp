@@ -18,6 +18,8 @@
       'target_name': 'memory_store',
       'type': 'static_library',
       'sources': [
+        'memory_store.h',
+        'memory_store.cc',
         'storage.pb.h',
         'storage.pb.cc',
       ],
@@ -38,6 +40,20 @@
         'GOOGLE_PROTOBUF_NO_RTTI',
         'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
         'HAVE_PTHREAD',
+      ],
+    },
+    {
+      'target_name': 'memory_store_test',
+      'type': '<(gtest_target_type)',
+      'sources': [
+        'memory_store_test.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        'memory_store',
       ],
     },
   ],
