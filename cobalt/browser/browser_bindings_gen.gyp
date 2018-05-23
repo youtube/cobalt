@@ -129,6 +129,7 @@
         '../dom/navigator.idl',
         '../dom/node.idl',
         '../dom/node_list.idl',
+        '../dom/on_error_event_listener.idl',
         '../dom/on_screen_keyboard.idl',
         '../dom/performance.idl',
         '../dom/performance_timing.idl',

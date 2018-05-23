@@ -7,6 +7,7 @@ divs-with-background-color-and-text
 fixed-width-divs-with-background-color
 font-weight
 image-from-blob
+image-onerror
 inline-box-with-overflow-words
 inline-style-allowed-while-cloning-objects
 interface-object-types-are-correct
