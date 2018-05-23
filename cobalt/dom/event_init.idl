@@ -17,4 +17,7 @@
 dictionary EventInit {
   boolean bubbles = false;
   boolean cancelable = false;
+
+  // Cobalt customization - timeStamp is not part of the spec.
+  DOMTimeStamp timeStamp = 0;
 };
