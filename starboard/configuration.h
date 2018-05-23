@@ -160,6 +160,10 @@
 //   with `SbMemoryMap`.
 #define SB_MEMORY_PROTECT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where SbInputData allows propagating a |timestamp| for the input
+//   event to the dom Event.
+#define SB_INPUT_TIMESTAMP_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
