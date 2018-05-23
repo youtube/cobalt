@@ -39,9 +39,6 @@ _RE_ADB_AM_MONITOR_ERROR = re.compile(r'\*\* ERROR')
 # Matches the prefix that logcat prepends to starboad log lines.
 _RE_STARBOARD_LOGCAT_PREFIX = re.compile(r'^.* starboard: ')
 
-# Matches an IPv4 address with an optional port number
-_RE_IP_ADDRESS = re.compile(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$')
-
 # String added to queue to indicate process has crashed
 _QUEUE_CODE_CRASHED = 'crashed'
 
@@ -161,6 +158,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # after this flag is set, it will not do anything.
     self.killed = threading.Event()
 
+  def _IsValidIPv4Address(self, address):
+    """Returns True if address is a valid IPv4 address, False otherwise."""
+    try:
+      # inet_aton throws an exception if the address is not a valid IPv4
+      # address. However addresses such as '127.1' might still be considered
+      # valid, hence the check for 3 '.' in the address.
+      if socket.inet_aton(address) and address.count('.') == 3:
+        return True
+    except:
+      pass
+    return False
+
   def _GetAdbDevices(self):
     """Returns a list of names of connected devices, or empty list if none."""
 
@@ -203,7 +212,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _ConnectIfNecessary(self):
     """Run ADB connect if needed for devices connected over IP."""
-    if not self.device_id or not re.search(_RE_IP_ADDRESS, self.device_id):
+    if not self._IsValidIPv4Address(self.device_id):
       return
     for device in self._GetAdbDevices():
       # Devices returned by _GetAdbDevices might include port number, so cannot
@@ -365,6 +374,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.output_file.flush()
 
   def GetHostAndPortGivenPort(self, port):
+    # For devices connected via IP we should directly use the IP and the
+    # given port, otherwise tests run in parallel on several devices might
+    # fail with errno 111.
+    if self._IsValidIPv4Address(self.device_id):
+      return self.device_id, port
+    # self.device_id is not a valid IPv4 address. Use port forwarding.
     forward_p = self._PopenAdb(
         'forward', 'tcp:0', 'tcp:{}'.format(port),
         stdout=subprocess.PIPE,
