@@ -391,6 +391,7 @@ class TestRunner(object):
     total_run_count = 0
     total_passed_count = 0
     total_failed_count = 0
+    total_flaky_failed_count = 0
     total_filtered_count = 0
 
     # If the number of run tests from a test binary cannot be
@@ -407,6 +408,9 @@ class TestRunner(object):
       failed_count = result_set[3]
       failed_tests = result_set[4]
       return_code = result_set[5]
+      flaky_failed_tests = [
+          test_name for test_name in failed_tests if ".FLAKY_" in test_name
+      ]
 
       test_status = "SUCCEEDED"
       if return_code != 0:
@@ -425,6 +429,7 @@ class TestRunner(object):
       if failed_count > 0:
         print "  FAILED: {}".format(failed_count)
         total_failed_count += failed_count
+        total_flaky_failed_count += len(flaky_failed_tests)
         print "\n  FAILED TESTS:"
         for line in failed_tests:
           print "    {}".format(line)
@@ -438,7 +443,9 @@ class TestRunner(object):
     overall_status = "SUCCEEDED"
     result = True
 
-    if error or total_failed_count > 0:
+    # If we only failed tests that are considered flaky, then count this run
+    # as a pass.
+    if error or total_failed_count - total_flaky_failed_count > 0:
       overall_status = "FAILED"
       result = False
 
@@ -447,6 +454,7 @@ class TestRunner(object):
     print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
     print "  TOTAL TESTS FAILED: {}".format(total_failed_count)
     print "  TOTAL TESTS FILTERED: {}".format(total_filtered_count)
+    print "  TOTAL FLAKY TESTS FAILED: {}".format(total_flaky_failed_count)
 
     return result
 
