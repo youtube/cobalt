@@ -20,6 +20,7 @@
 #include "cobalt/base/event.h"
 #include "cobalt/math/point_f.h"
 #include "starboard/event.h"
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace system_window {
@@ -55,20 +56,22 @@ class InputEvent : public base::Event {
     kForwardButton = 1 << 8,
   };
 
-  InputEvent(Type type, int device_id, int key_code, uint32 modifiers,
-             bool is_repeat, const math::PointF& position = math::PointF(),
+  InputEvent(SbTimeMonotonic timestamp, Type type, int device_id,
+             int key_code, uint32 modifiers, bool is_repeat,
+             const math::PointF& position = math::PointF(),
              const math::PointF& delta = math::PointF()
 #if SB_API_VERSION >= 6
-                 ,
+             ,
              float pressure = 0, const math::PointF& size = math::PointF(),
              const math::PointF& tilt = math::PointF()
 #endif
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-                 ,
+             ,
              const std::string& input_text = ""
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
              )
-      : type_(type),
+      : timestamp_(timestamp),
+        type_(type),
         device_id_(device_id),
         key_code_(key_code),
         modifiers_(modifiers),
@@ -90,6 +93,7 @@ class InputEvent : public base::Event {
 
   ~InputEvent() {}
 
+  SbTimeMonotonic timestamp() const { return timestamp_; }
   Type type() const { return type_; }
   int key_code() const { return key_code_; }
   int device_id() const { return device_id_; }
@@ -109,6 +113,7 @@ class InputEvent : public base::Event {
   BASE_EVENT_SUBCLASS(InputEvent);
 
  private:
+  SbTimeMonotonic timestamp_;
   Type type_;
   int device_id_;
   int key_code_;
