@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns="http://tizen.org/ns/packages" api-version="3.0" package="com.youtube.cobalt" version="1.0.0" install-location="internal-only">
+<manifest xmlns="http://tizen.org/ns/packages" api-version="3.0" smack-label="com.youtube.cobalt" package="com.youtube.cobalt" version="1.0.0" install-location="internal-only">
   <label>Cobalt</label>
-  <!-- TODO icon -->
-    <icon>org.tizen.browser.png</icon>
-    <author email="zapati.ahn@samsung.com" href="www.samsung.com">Youngjoon Ahn</author>
-    <description>Cobalt</description>
-    <ui-application  type="capp"  multiple="false" taskmanage="true" nodisplay="false" exec="/usr/apps/com.youtube.cobalt/bin/cobalt" appid="com.youtube.cobalt" process-pool="true">
-      <icon>org.tizen.browser.png</icon>
-      <label>Cobalt</label>
-    </ui-application>
+  <author email="zapati.ahn@samsung.com" href="www.samsung.com">Youngjoon Ahn</author>
+  <description>Cobalt WebContainer</description>
+  <ui-application appid="com.youtube.cobalt" exec="/usr/apps/com.youtube.cobalt/bin/cobalt" launch_mode="single" multiple="false" nodisplay="false" taskmanage="true" type="capp" process-pool="true">
+    <label>Cobalt</label>
+  </ui-application>
   <!-- Adding needed privileges as per Tizen 3.0 guide. Some may not be required. Revisit and remove unnecessary ones -->
   <privileges>
     <privilege>http://tizen.org/privilege/appmanager.launch</privilege>

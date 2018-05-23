@@ -13,11 +13,12 @@ Requires(postun): /sbin/ldconfig
 #####################
 # rpm require package
 #####################
-BuildRequires: cmake, bison, python, gperf
+BuildRequires: cmake, bison, python, gperf, ninja
 BuildRequires: libasound-devel
 BuildRequires: pkgconfig(aul)
 BuildRequires: pkgconfig(capi-appfw-application)
 BuildRequires: pkgconfig(capi-media-audio-io)
+BuildRequires: pkgconfig(capi-network-connection)
 BuildRequires: pkgconfig(capi-system-info)
 BuildRequires: pkgconfig(dlog)
 BuildRequires: pkgconfig(edbus)
@@ -30,18 +31,10 @@ BuildRequires: pkgconfig(openssl)
 BuildRequires: pkgconfig(tizen-extension-client)
 BuildRequires: pkgconfig(wayland-client)
 BuildRequires: pkgconfig(wayland-egl)
-%if "%{?target}" == "samsungtv"
-BuildRequires: pkgconfig(appcore-common)
-BuildRequires: pkgconfig(app-control-api)
-BuildRequires: pkgconfig(capi-media-player)
-BuildRequires: pkgconfig(drmdecrypt)
-BuildRequires: pkgconfig(soc-pq-interface)
-BuildRequires: pkgconfig(vconf-internal-keys-tv)
-%else
 BuildRequires: pkgconfig(libavcodec)
 BuildRequires: pkgconfig(libavformat)
 BuildRequires: pkgconfig(libavutil)
-%endif
+BuildRequires: pkgconfig(libpulse)
 
 %description
 Youtube Engine based on Cobalt
@@ -95,8 +88,7 @@ echo "Skip GYP"
 ./src/cobalt/build/gyp_cobalt -v -C %{_build_type} %{_target}-%{_chipset}
 %endif
 #ninja build
-src/cobalt/build/ninja/ninja-linux32.armv7l \
--C %{_outdir} %{_name}
+ninja -C %{_outdir} %{_name}
 
 %clean
 #Don't delete src/out
@@ -106,10 +98,13 @@ src/cobalt/build/ninja/ninja-linux32.armv7l \
 # rpm install
 #####################
 %install
+# directory
 rm -rf %{buildroot}
 install -d %{buildroot}%{_bindir}
 install -d %{buildroot}%{_manifestdir}
 install -d %{buildroot}%{_contentdir}/data/fonts/
+
+# binary
 %if "%{_name}" == "all"
 install -m 0755 %{_outdir}/accessibility_test %{_outdir}/audio_test %{_outdir}/base_test \
                 %{_outdir}/base_unittests %{_outdir}/bindings_sandbox %{_outdir}/bindings_test \
@@ -134,22 +129,23 @@ install -m 0755 %{_outdir}/accessibility_test %{_outdir}/audio_test %{_outdir}/b
 install -m 0755 %{_outdir}/%{_name} %{buildroot}%{_bindir}
 %endif
 
-%if "%{?target}" == "samsungtv"
-cp -rd src/third_party/starboard/samsungtv/%{_chipset}/fonts/fonts.xml %{buildroot}%{_contentdir}/data/fonts/
-%else
+# font
 cp -rd %{_outdir}/content/data/fonts %{buildroot}%{_contentdir}/data/
-%endif
 
+# ssl
 cp -rd %{_outdir}/content/data/ssl %{buildroot}%{_contentdir}/data/
 
+# debug resources
 %if %{_build_type} != "gold"
 cp -rd %{_outdir}/content/data/web %{buildroot}%{_contentdir}/data/
 %endif
 
+# test contents
 %if %{_name} != "cobalt"
 cp -rd %{_outdir}/content/dir_source_root %{buildroot}%{_contentdir}/
 %endif
 
+# package xml
 cp src/starboard/contrib/tizen/packaging/%{_pkgname}.xml %{buildroot}%{_manifestdir}
 
 %post
@@ -162,11 +158,7 @@ cp src/starboard/contrib/tizen/packaging/%{_pkgname}.xml %{buildroot}%{_manifest
 %files
 %manifest src/starboard/contrib/tizen/packaging/%{_pkgname}.manifest
 %defattr(-,root,root,-)
-%if "%{_name}" == "all"
 %{_bindir}/*
-%else
-%{_bindir}/%{_name}
-%endif
 %{_contentdir}/*
 %{_manifestdir}/*
 
