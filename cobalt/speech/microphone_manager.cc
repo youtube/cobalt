@@ -14,8 +14,6 @@
 
 #include "cobalt/speech/microphone_manager.h"
 
-#include "cobalt/speech/speech_recognition_error.h"
-
 namespace cobalt {
 namespace speech {
 
@@ -72,8 +70,8 @@ bool MicrophoneManager::CreateIfNecessary() {
     DLOG(WARNING) << "Microphone creation failed.";
     microphone_.reset();
     state_ = kError;
-    error_callback_.Run(new SpeechRecognitionError(
-        kSpeechRecognitionErrorCodeAudioCapture, "No microphone available."));
+    error_callback_.Run(MicrophoneError::kAudioCapture,
+                        "No microphone available.");
     return false;
   }
 }
@@ -89,8 +87,8 @@ void MicrophoneManager::OpenInternal() {
   DCHECK(microphone_);
   if (!microphone_->Open()) {
     state_ = kError;
-    error_callback_.Run(new SpeechRecognitionError(
-        kSpeechRecognitionErrorCodeAborted, "Microphone open failed."));
+    error_callback_.Run(MicrophoneError::kAborted,
+                        "Microphone open failed.");
     return;
   }
 
@@ -117,8 +115,8 @@ void MicrophoneManager::CloseInternal() {
   if (microphone_) {
     if (!microphone_->Close()) {
       state_ = kError;
-      error_callback_.Run(new SpeechRecognitionError(
-          kSpeechRecognitionErrorCodeAborted, "Microphone close failed."));
+      error_callback_.Run(MicrophoneError::kAborted,
+                          "Microphone close failed.");
       return;
     }
     completion_callback_.Run();
@@ -146,8 +144,8 @@ void MicrophoneManager::Read() {
     data_received_callback_.Run(output_audio_bus.Pass());
   } else if (read_bytes != 0) {
     state_ = kError;
-    error_callback_.Run(new SpeechRecognitionError(
-        kSpeechRecognitionErrorCodeAborted, "Microphone read failed."));
+    error_callback_.Run(MicrophoneError::kAborted,
+                        "Microphone read failed.");
     poll_mic_events_timer_->Stop();
   }
 }
