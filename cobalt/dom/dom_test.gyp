@@ -75,7 +75,7 @@
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
         '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
+        '<(DEPTH)/cobalt/dom/testing/dom_testing.gyp:dom_testing',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
         '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
