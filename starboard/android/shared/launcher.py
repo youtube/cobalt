@@ -158,6 +158,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # after this flag is set, it will not do anything.
     self.killed = threading.Event()
 
+    # Keep track of the port used by ADB forward in order to remove it later
+    # on.
+    self.local_port = None
+
   def _IsValidIPv4Address(self, address):
     """Returns True if address is a valid IPv4 address, False otherwise."""
     try:
@@ -348,7 +352,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     finally:
       self._Shutdown()
-      self._CallAdb('forward', '--remove-all')
+      if self.local_port is not None:
+        self._CallAdb('forward', '--remove', 'tcp:{}'.format(self.local_port))
       am_monitor.Shutdown()
       self.killed.set()
       run_timer.Stop()
@@ -374,19 +379,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.output_file.flush()
 
   def GetHostAndPortGivenPort(self, port):
-    # For devices connected via IP we should directly use the IP and the
-    # given port, otherwise tests run in parallel on several devices might
-    # fail with errno 111.
-    if self._IsValidIPv4Address(self.device_id):
-      return self.device_id, port
-    # self.device_id is not a valid IPv4 address. Use port forwarding.
     forward_p = self._PopenAdb(
         'forward', 'tcp:0', 'tcp:{}'.format(port),
         stdout=subprocess.PIPE,
         stderr=_DEV_NULL)
     forward_p.wait()
 
-    local_port = CleanLine(forward_p.stdout.readline()).rstrip('\n')
+    self.local_port = CleanLine(forward_p.stdout.readline()).rstrip('\n')
     sys.stderr.write('ADB forward local port {} '
-                     '=> device port {}\n'.format(local_port, port))
-    return socket.gethostbyname('localhost'), local_port
+                     '=> device port {}\n'.format(self.local_port, port))
+    return socket.gethostbyname('localhost'), self.local_port
