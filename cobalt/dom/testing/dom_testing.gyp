@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2018 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,27 +18,24 @@
   },
   'targets': [
     {
-      'target_name': 'dom_parser',
+      'target_name': 'dom_testing',
       'type': 'static_library',
       'sources': [
-        'html_decoder.cc',
-        'html_decoder.h',
-        'libxml_html_parser_wrapper.cc',
-        'libxml_html_parser_wrapper.h',
-        'libxml_parser_wrapper.cc',
-        'libxml_parser_wrapper.h',
-        'libxml_xml_parser_wrapper.cc',
-        'libxml_xml_parser_wrapper.h',
-        'parser.cc',
-        'parser.h',
-        'xml_decoder.cc',
-        'xml_decoder.h',
+        'gtest_workarounds.h',
+        'html_collection_testing.h',
+        'mock_event_listener.h',
+        'stub_css_parser.cc',
+        'stub_css_parser.h',
+        'stub_script_runner.cc',
+        'stub_script_runner.h',
+        'stub_window.h',
       ],
       'dependencies': [
-        '<(DEPTH)/cobalt/base/base.gyp:base',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/loader/loader.gyp:loader',
-        '<(DEPTH)/third_party/libxml/libxml.gyp:libxml',
+        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+        '<(DEPTH)/cobalt/browser/browser_bindings.gyp:bindings',
+        '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
+        '<(DEPTH)/cobalt/css_parser/css_parser.gyp:css_parser',
+        '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
       ],
     },
   ],

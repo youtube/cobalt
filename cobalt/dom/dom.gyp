@@ -376,25 +376,5 @@
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ],
     },
-
-    {
-      'target_name': 'dom_testing',
-      'type': 'static_library',
-      'sources': [
-        'testing/gtest_workarounds.h',
-        'testing/html_collection_testing.h',
-        'testing/mock_event_listener.h',
-        'testing/stub_css_parser.cc',
-        'testing/stub_css_parser.h',
-        'testing/stub_script_runner.cc',
-        'testing/stub_script_runner.h',
-        'testing/stub_window.h',
-      ],
-      'dependencies': [
-        # TODO: Remove the dependency below, it works around the fact that
-        #       ScriptValueFactory has non-virtual method CreatePromise().
-        '<(DEPTH)/cobalt/script/engine.gyp:engine',
-      ],
-    },
   ],
 }
