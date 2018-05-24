@@ -94,7 +94,6 @@
       'dependencies': [
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom_testing',
         '<(DEPTH)/net/net.gyp:http_server',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
