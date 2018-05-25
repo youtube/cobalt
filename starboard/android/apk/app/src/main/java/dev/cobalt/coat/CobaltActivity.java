@@ -70,7 +70,7 @@ public abstract class CobaltActivity extends NativeActivity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    MediaCodecUtil.setDisplaySize(DisplayUtil.getDisplaySize(this));
+    MediaCodecUtil.setDisplaySize(DisplayUtil.getSystemDisplaySize(this));
 
     // super.onCreate() will cause an APP_CMD_START in native code,
     // so make sure to initialize any state beforehand that might be touched by
