@@ -106,8 +106,7 @@
 // textures. These textures typically originate from video decoders.
 #define SB_HAS_NV12_TEXTURE_SUPPORT 1
 
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
+// --- Shared Configuration and Overrides ------------------------------------
 
 // Include the Linux configuration that's common between all Desktop Linuxes.
 #include "starboard/linux/shared/configuration_public.h"
@@ -115,6 +114,10 @@
 // The current platform has microphone supported.
 #undef SB_HAS_MICROPHONE
 #define SB_HAS_MICROPHONE 1
+
+// Whether the current platform has speech synthesis.
+#undef SB_HAS_SPEECH_SYNTHESIS
+#define SB_HAS_SPEECH_SYNTHESIS 0
 
 #if SB_API_VERSION >= 8
 // Whether the current platform implements the on screen keyboard interface.
