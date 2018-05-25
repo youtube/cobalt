@@ -70,6 +70,15 @@ TEST_F(DateBindingsTest, NiceDates) {
   EXPECT_STREQ("Invalid Date", result.c_str());
 }
 
+TEST_F(DateBindingsTest, PosixEpoch) {
+  std::string result;
+
+  EvaluateScript("Date.now();", &result);
+  auto js_now_ms = std::stoll(result);
+  auto posix_now_ms = SbTimeToPosix(SbTimeGetNow()) / kSbTimeMillisecond;
+  EXPECT_LT(std::abs(posix_now_ms - js_now_ms), 1000);
+}
+
 }  // namespace
 }  // namespace testing
 }  // namespace bindings
