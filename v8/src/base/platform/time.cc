@@ -420,7 +420,7 @@ struct timeval Time::ToTimeval() const {
 #elif V8_OS_STARBOARD
 
 Time Time::Now() {
-  return Time(SbTimeGetNow());
+  return Time(SbTimeToPosix(SbTimeGetNow()));
 }
 
 Time Time::NowFromSystemTime() {
