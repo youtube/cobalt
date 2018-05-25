@@ -470,12 +470,15 @@ public class MediaCodecUtil {
     Log.v(
         TAG,
         String.format(
-            "brand: %s, model: %s, version: %s, API level: %d, isVp9WhiteListed: %b",
+            "brand: %s, model: %s, version: %s, API level: %d, isVp9WhiteListed: %b, "
+                + "displayWidth: %d, displayHeight: %d",
             android.os.Build.BRAND,
             android.os.Build.MODEL,
             android.os.Build.VERSION.RELEASE,
             SDK_INT,
-            isVp9WhiteListed));
+            isVp9WhiteListed,
+            displaySize.getWidth(),
+            displaySize.getHeight()));
 
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -627,8 +630,9 @@ public class MediaCodecUtil {
           continue;
         }
         if (SDK_INT >= 24 && fps != 0) {
-          // We need to check the achievable frame rate if the frame rate is high, or the resolution
-          // is larger than the display.
+          // Assume that any device can play 30 fps at its native display resolution, but we need to
+          // check the achievable frame rate if the frame rate is high, or the resolution is larger
+          // than the display.
           if (fps > 30
               || frameWidth > displaySize.getWidth()
               || frameHeight > displaySize.getHeight()) {
@@ -663,8 +667,8 @@ public class MediaCodecUtil {
               Log.v(
                   TAG,
                   String.format(
-                      "Rejecting %s, reason: frame rate %d > %f not achievable",
-                      name, fps, maxPerformantFrameRate));
+                      "Rejecting %s, reason: unachievable frame rate %d > %f; %s / 3",
+                      name, fps, maxPerformantFrameRate, achievableFrameRates));
               continue;
             }
           }
