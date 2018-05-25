@@ -72,9 +72,6 @@
 // Whether the current platform is expected to have exactly 6 cores.
 #define SB_HAS_6_CORES 0
 
-// Whether the current platform supports thread priorities.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
-
 // Whether the current platform's thread scheduler will automatically balance
 // threads between cores, as opposed to systems where threads will only ever run
 // on the specifically pinned core.
@@ -116,27 +113,6 @@
 
 // Whether the current platform provides ssize_t.
 #define SB_HAS_SSIZE_T 0
-
-// Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
-// Whether the current platform has speech recognizer.
-#define SB_HAS_SPEECH_RECOGNIZER 0
-
-// Whether the current platform has a DRM session closed callback.
-#define SB_HAS_DRM_SESSION_CLOSED 1
-
-// Whether the current platform supports player_with_URL.
-#define SB_HAS_PLAYER_WITH_URL 0
-
-// Whether the current platform supports on screen keyboard.
-#define SB_HAS_ON_SCREEN_KEYBOARD 0
-
-// Whether the current platform supports captions.
-#define SB_HAS_CAPTIONS 0
 
 #if !defined(__WCHAR_MAX__)
 #include <wchar.h>
@@ -275,54 +251,6 @@
 // access time is of 1 day precision.
 #undef SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME
 
-// --- Memory Configuration --------------------------------------------------
-
-// The memory page size, which controls the size of chunks on memory that
-// allocators deal with, and the alignment of those chunks. This doesn't have to
-// be the hardware-defined physical page size, but it should be a multiple of
-// it.
-#define SB_MEMORY_PAGE_SIZE 4096
-
-// Whether this platform has and should use an MMAP function to map physical
-// memory to the virtual address space.
-#define SB_HAS_MMAP 1
-
-// Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
-// required for platforms that want to JIT.
-#define SB_CAN_MAP_EXECUTABLE_MEMORY 0
-
-// Whether this platform has and should use an growable heap (e.g. with sbrk())
-// to map physical memory to the virtual address space.
-#define SB_HAS_VIRTUAL_REGIONS 0
-
-// Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs
-// may require buffers to have a specific alignment, and this is the place to
-// specify that.
-#define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
-
-// Determines the alignment that allocations should have on this platform.
-#define SB_MALLOC_ALIGNMENT ((size_t)16U)
-
-// Determines the threshhold of allocation size that should be done with mmap
-// (if available), rather than allocated within the core heap.
-#define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
-
-// Defines the path where memory debugging logs should be written to.
-#define SB_MEMORY_LOG_PATH "/tmp/starboard"
-
-// --- Thread Configuration --------------------------------------------------
-
-// Defines the maximum number of simultaneous threads for this platform. Some
-// platforms require sharing thread handles with other kinds of system handles,
-// like mutexes, so we want to keep this managable.
-#define SB_MAX_THREADS 90
-
-// The maximum number of thread local storage keys supported by this platform.
-#define SB_MAX_THREAD_LOCAL_KEYS 512
-
-// The maximum length of the name for a thread, including the NULL-terminator.
-#define SB_MAX_THREAD_NAME_LENGTH 16;
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter
@@ -351,7 +279,30 @@
 
 #define SB_HAS_VIRTUAL_REALITY 0
 
+// --- I/O Configuration -----------------------------------------------------
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
+
+// Whether the current platform supports on screen keyboard.
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
+
+// Whether the current platform has speech recognizer.
+#define SB_HAS_SPEECH_RECOGNIZER 0
+
 // --- Media Configuration ---------------------------------------------------
+
+// Whether the current platform supports captions.
+#define SB_HAS_CAPTIONS 0
+
+// Whether the current platform has a DRM session closed callback.
+#define SB_HAS_DRM_SESSION_CLOSED 1
+
+// Whether the current platform supports player_with_URL.
+#define SB_HAS_PLAYER_WITH_URL 0
 
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the
@@ -417,6 +368,41 @@
 // details.
 #define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
 
+// --- Memory Configuration --------------------------------------------------
+
+// The memory page size, which controls the size of chunks on memory that
+// allocators deal with, and the alignment of those chunks. This doesn't have to
+// be the hardware-defined physical page size, but it should be a multiple of
+// it.
+#define SB_MEMORY_PAGE_SIZE 4096
+
+// Whether this platform has and should use an MMAP function to map physical
+// memory to the virtual address space.
+#define SB_HAS_MMAP 1
+
+// Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
+// required for platforms that want to JIT.
+#define SB_CAN_MAP_EXECUTABLE_MEMORY 0
+
+// Whether this platform has and should use an growable heap (e.g. with sbrk())
+// to map physical memory to the virtual address space.
+#define SB_HAS_VIRTUAL_REGIONS 0
+
+// Specifies the alignment for IO Buffers, in bytes. Some low-level network APIs
+// may require buffers to have a specific alignment, and this is the place to
+// specify that.
+#define SB_NETWORK_IO_BUFFER_ALIGNMENT 16
+
+// Determines the alignment that allocations should have on this platform.
+#define SB_MALLOC_ALIGNMENT ((size_t)16U)
+
+// Determines the threshhold of allocation size that should be done with mmap
+// (if available), rather than allocated within the core heap.
+#define SB_DEFAULT_MMAP_THRESHOLD ((size_t)(256 * 1024U))
+
+// Defines the path where memory debugging logs should be written to.
+#define SB_MEMORY_LOG_PATH "/tmp/starboard"
+
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
@@ -424,6 +410,28 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+// --- Thread Configuration --------------------------------------------------
+
+// Whether the current platform supports thread priorities.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
+
+// Defines the maximum number of simultaneous threads for this platform. Some
+// platforms require sharing thread handles with other kinds of system handles,
+// like mutexes, so we want to keep this managable.
+#define SB_MAX_THREADS 90
+
+// The maximum number of thread local storage keys supported by this platform.
+#define SB_MAX_THREAD_LOCAL_KEYS 512
+
+// The maximum length of the name for a thread, including the NULL-terminator.
+#define SB_MAX_THREAD_NAME_LENGTH 16
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 0
 
 // --- Tuneable Parameters ---------------------------------------------------
 
@@ -445,12 +453,6 @@
 
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
-
-// --- Timing API ------------------------------------------------------------
-
-// Whether this platform has an API to retrieve how long the current thread
-// has spent in the executing state.
-#define SB_HAS_TIME_THREAD_NOW 0
 
 // --- Platform Specific Audits ----------------------------------------------
 
