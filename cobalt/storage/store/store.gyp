@@ -55,6 +55,19 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'memory_store',
       ],
+      'include_dirs': [
+        # Get protobuf headers from the chromium tree.
+        '<(DEPTH)/third_party/protobuf/src',
+      ],
+      'defines': [
+        # The generated code needs to be compiled with the same flags as the protobuf library.
+        # Otherwise we get static initializers which are not thread safe.
+        # This macro must be defined to suppress the use of dynamic_cast<>,
+        # which requires RTTI.
+        'GOOGLE_PROTOBUF_NO_RTTI',
+        'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
+        'HAVE_PTHREAD',
+      ],
     },
   ],
 }
