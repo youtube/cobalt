@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Note, that despite the file extension ".gyp", this file is included by several
+# platform variants of linux-x64x11, like a ".gypi" file, since those platforms
+# have no need to modify this code.
 {
   'includes': [
     'starboard_platform.gypi'
