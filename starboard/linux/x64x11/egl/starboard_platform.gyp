@@ -13,23 +13,6 @@
 # limitations under the License.
 {
   'includes': [
-    '../starboard_platform.gypi'
-  ],
-  'targets': [
-    {
-      'target_name': 'starboard_platform',
-      'type': 'static_library',
-      'sources': [
-        '<@(starboard_platform_sources)',
-      ],
-      'defines': [
-        # This must be defined when building Starboard, and must not when
-        # building Starboard client code.
-        'STARBOARD_IMPLEMENTATION',
-      ],
-      'dependencies': [
-        '<@(starboard_platform_dependencies)',
-      ],
-    },
+    '../starboard_platform.gyp'
   ],
 }
