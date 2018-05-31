@@ -13,12 +13,14 @@
 // limitations under the License.
 
 #include "starboard/media.h"
-
 #include "starboard/string.h"
 
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system) {
+  SB_UNREFERENCED_PARAMETER(video_codec);
+  SB_UNREFERENCED_PARAMETER(audio_codec);
+
   return SbStringCompareAll(key_system, "com.widevine") == 0 ||
          SbStringCompareAll(key_system, "com.widevine.alpha") == 0;
 }
