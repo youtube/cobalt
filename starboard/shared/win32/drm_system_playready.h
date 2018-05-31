@@ -58,6 +58,8 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
       SbDrmSessionClosedFunc session_closed_callback);
   ~SbDrmSystemPlayready() override;
 
+  static bool IsKeySystemSupported(const char* key_system);
+
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,

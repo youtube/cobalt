@@ -27,19 +27,21 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
   using ::starboard::shared::win32::SbDrmSystemPlayready;
+  SB_UNREFERENCED_PARAMETER(server_certificate_updated_callback);
 
   if (!update_request_callback || !session_updated_callback ||
-      !key_statuses_changed_callback || !server_certificate_updated_callback ||
-      !session_closed_callback) {
+      !key_statuses_changed_callback || !session_closed_callback) {
+    SB_DLOG(WARNING) << "Callback functions not set on key system: "
+                     << key_system;
     return kSbDrmSystemInvalid;
   }
 
-  if (SbStringCompareAll(key_system, "com.youtube.playready") != 0) {
-    SB_DLOG(WARNING) << "Invalid key system " << key_system;
-    return kSbDrmSystemInvalid;
+  if (SbDrmSystemPlayready::IsKeySystemSupported(key_system)) {
+    return new SbDrmSystemPlayready(
+        context, update_request_callback, session_updated_callback,
+        key_statuses_changed_callback, session_closed_callback);
   }
 
-  return new SbDrmSystemPlayready(
-      context, update_request_callback, session_updated_callback,
-      key_statuses_changed_callback, session_closed_callback);
+  SB_DLOG(WARNING) << "Invalid key system " << key_system;
+  return kSbDrmSystemInvalid;
 }

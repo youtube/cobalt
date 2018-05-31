@@ -14,14 +14,16 @@
 
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/shared/win32/drm_system_playready.h"
 #include "starboard/string.h"
 
-// TODO: Fill this in for DRM.
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system) {
+  using ::starboard::shared::win32::SbDrmSystemPlayready;
+
   SB_UNREFERENCED_PARAMETER(video_codec);
   SB_UNREFERENCED_PARAMETER(audio_codec);
-  SB_UNREFERENCED_PARAMETER(key_system);
-  return 0 == SbStringCompareAll(key_system, "com.youtube.playready");
+
+  return SbDrmSystemPlayready::IsKeySystemSupported(key_system);
 }

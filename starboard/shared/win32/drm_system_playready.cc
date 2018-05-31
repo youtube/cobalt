@@ -28,6 +28,7 @@
 
 namespace {
 
+const char kPlayReadyKeySystem[] = "com.youtube.playready";
 const bool kLogPlayreadyChallengeResponse = false;
 
 std::string GetHexRepresentation(const void* data, size_t size) {
@@ -113,6 +114,10 @@ SbDrmSystemPlayready::~SbDrmSystemPlayready() {
   auto& active_systems = GetActiveDrmSystems()->active_systems_;
   active_systems.erase(std::remove(
       active_systems.begin(), active_systems.end(), this));
+}
+
+bool SbDrmSystemPlayready::IsKeySystemSupported(const char* key_system) {
+  return SbStringCompareAll(key_system, kPlayReadyKeySystem) == 0;
 }
 
 void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
