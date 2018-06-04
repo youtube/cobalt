@@ -392,6 +392,10 @@ class BrowserModule {
   // Get the SbWindow via |system_window_| or potentially NULL.
   SbWindow GetSbWindow();
 
+  // This returns the render tree of the most recent submission, with animations
+  // applied according to the current time.
+  scoped_refptr<render_tree::Node> GetLastSubmissionAnimated();
+
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
   //     own where it can ensure that its tasks are all resolved when it is
