@@ -15,7 +15,6 @@
 #include "cobalt/storage/store/memory_store.h"
 
 #include "base/debug/trace_event.h"
-#include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/storage.pb.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,6 +23,9 @@ namespace cobalt {
 namespace storage {
 
 namespace {
+
+constexpr char kHeader[] = "SAV1";
+constexpr int kHeaderSize = 4;
 
 class MemoryStoreTest : public ::testing::Test {
  protected:
@@ -43,11 +45,10 @@ class MemoryStoreTest : public ::testing::Test {
     cookie->set_http_only(true);
 
     size_t size = storage_proto_.ByteSize();
-    storage_data_.resize(size + kStorageHeaderSize);
-    memcpy(reinterpret_cast<char*>(&storage_data_[0]), kStorageHeader,
-           kStorageHeaderSize);
+    storage_data_.resize(size + kHeaderSize);
+    memcpy(reinterpret_cast<char*>(&storage_data_[0]), kHeader, kHeaderSize);
     storage_proto_.SerializeToArray(
-        reinterpret_cast<char*>(&storage_data_[kStorageHeaderSize]), size);
+        reinterpret_cast<char*>(&storage_data_[kHeaderSize]), size);
 
     memory_store_.Initialize(storage_data_);
 
@@ -207,14 +208,13 @@ TEST_F(MemoryStoreTest, ClearLocalStorage) {
 
 TEST_F(MemoryStoreTest, EmptyStorage) {
   MemoryStore empty_store;
-  std::vector<uint8> in(kStorageHeader, kStorageHeader + kStorageHeaderSize);
+  std::vector<uint8> in(kHeader, kHeader + kHeaderSize);
   empty_store.Initialize(in);
 
   std::vector<uint8> out;
   empty_store.Serialize(&out);
-  EXPECT_EQ(memcmp(kStorageHeader, reinterpret_cast<const char*>(&out[0]),
-                   kStorageHeaderSize),
-            0);
+  EXPECT_EQ(
+      memcmp(kHeader, reinterpret_cast<const char*>(&out[0]), kHeaderSize), 0);
 }
 }  // namespace
 }  // namespace storage
