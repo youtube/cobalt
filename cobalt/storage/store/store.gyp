@@ -20,10 +20,11 @@
       'sources': [
         'memory_store.h',
         'memory_store.cc',
-        'storage.pb.h',
         'storage.pb.cc',
+        'storage.pb.h',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/storage/storage_constants.gyp:storage_constants',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
@@ -68,6 +69,17 @@
         'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
         'HAVE_PTHREAD',
       ],
+    },
+    {
+      'target_name': 'memory_store_test_deploy',
+      'type': 'none',
+      'dependencies': [
+        'memory_store_test',
+      ],
+      'variables': {
+        'executable_name': 'memory_store_test',
+      },
+      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

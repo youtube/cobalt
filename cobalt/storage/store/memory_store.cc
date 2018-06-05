@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/debug/trace_event.h"
+#include "cobalt/storage/storage_constants.h"
 #include "cobalt/storage/store/storage.pb.h"
 #include "googleurl/src/gurl.h"
 #include "nb/memory_scope.h"
@@ -28,12 +29,9 @@ namespace cobalt {
 namespace storage {
 namespace {
 
-constexpr char kHeader[] = "SAV1";
-constexpr int kHeaderSize = 4;
-
 bool IsValidFormat(const std::vector<uint8>& buffer) {
-  return buffer.size() >= kHeaderSize &&
-         memcmp(buffer.data(), kHeader, kHeaderSize) == 0;
+  return buffer.size() >= kStorageHeaderSize &&
+         memcmp(buffer.data(), kStorageHeader, kStorageHeaderSize) == 0;
 }
 
 }  // namespace
@@ -49,17 +47,17 @@ class MemoryStore::Impl {
   bool Initialize(const std::vector<uint8>& in);
 
   // Serialization
-  bool Serialize(std::vector<uint8>* out);
+  bool Serialize(std::vector<uint8>* out) const;
 
   // Cookies
-  void GetAllCookies(std::vector<net::CanonicalCookie*>* cookies);
+  void GetAllCookies(std::vector<net::CanonicalCookie*>* cookies) const;
   void AddCookie(const net::CanonicalCookie& cc, int64 expiration_time_us);
   void UpdateCookieAccessTime(const net::CanonicalCookie& cc, int64 time_us);
   void DeleteCookie(const net::CanonicalCookie& cc);
 
   // Local Storage
   void ReadAllLocalStorage(const std::string& id,
-                           LocalStorageMap* local_storage_map);
+                           LocalStorageMap* local_storage_map) const;
 
   void WriteToLocalStorage(const std::string& id, const std::string& key,
                            const std::string& value);
@@ -90,8 +88,8 @@ bool MemoryStore::Impl::Initialize(const std::vector<uint8>& in) {
   }
   Storage storage_data;
   if (!storage_data.ParseFromArray(
-          reinterpret_cast<const char*>(in.data() + kHeaderSize),
-          in.size() - kHeaderSize)) {
+          reinterpret_cast<const char*>(in.data() + kStorageHeaderSize),
+          in.size() - kStorageHeaderSize)) {
     LOG(ERROR) << "Unable to parse storage with size" << in.size();
     return false;
   }
@@ -109,7 +107,7 @@ bool MemoryStore::Impl::Initialize(const std::vector<uint8>& in) {
   return true;
 }
 
-bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) {
+bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) const {
   TRACK_MEMORY_SCOPE("Storage");
   Storage storage_data;
   for (const auto& cookie_pair : cookies_map_) {
@@ -126,11 +124,11 @@ bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) {
     }
   }
   size_t size = storage_data.ByteSize();
-  out->resize(kHeaderSize + size);
+  out->resize(kStorageHeaderSize + size);
   char* buffer_ptr = reinterpret_cast<char*>(out->data());
-  memcpy(buffer_ptr, kHeader, kHeaderSize);
+  memcpy(buffer_ptr, kStorageHeader, kStorageHeaderSize);
   if (size > 0 &&
-      !storage_data.SerializeToArray(buffer_ptr + kHeaderSize, size)) {
+      !storage_data.SerializeToArray(buffer_ptr + kStorageHeaderSize, size)) {
     LOG(ERROR) << "Failed to serialize message with size=" << size;
     return false;
   }
@@ -139,7 +137,7 @@ bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) {
 }
 
 void MemoryStore::Impl::GetAllCookies(
-    std::vector<net::CanonicalCookie*>* cookies) {
+    std::vector<net::CanonicalCookie*>* cookies) const {
   TRACK_MEMORY_SCOPE("Storage");
   for (const auto& cookie_pair : cookies_map_) {
     // We create a CanonicalCookie directly through its constructor instead of
@@ -189,10 +187,13 @@ void MemoryStore::Impl::DeleteCookie(const net::CanonicalCookie& cc) {
 }
 
 void MemoryStore::Impl::ReadAllLocalStorage(
-    const std::string& id, LocalStorageMap* local_storage_map) {
+    const std::string& id, LocalStorageMap* local_storage_map) const {
   TRACK_MEMORY_SCOPE("Storage");
-  local_storage_map->insert(local_storage_by_id_map_[id].begin(),
-                            local_storage_by_id_map_[id].end());
+  const auto& it = local_storage_by_id_map_.find(id);
+
+  if (it != local_storage_by_id_map_.end()) {
+    local_storage_map->insert(it->second.begin(), it->second.end());
+  }
 }
 
 void MemoryStore::Impl::WriteToLocalStorage(const std::string& id,
@@ -219,11 +220,12 @@ bool MemoryStore::Initialize(const std::vector<uint8>& in) {
   return impl_->Initialize(in);
 }
 
-bool MemoryStore::Serialize(std::vector<uint8>* out) {
+bool MemoryStore::Serialize(std::vector<uint8>* out) const {
   return impl_->Serialize(out);
 }
 
-void MemoryStore::GetAllCookies(std::vector<net::CanonicalCookie*>* cookies) {
+void MemoryStore::GetAllCookies(
+    std::vector<net::CanonicalCookie*>* cookies) const {
   impl_->GetAllCookies(cookies);
 }
 
@@ -241,8 +243,8 @@ void MemoryStore::DeleteCookie(const net::CanonicalCookie& cc) {
   impl_->DeleteCookie(cc);
 }
 
-void MemoryStore::ReadAllLocalStorage(const std::string& id,
-                                      LocalStorageMap* local_storage_map) {
+void MemoryStore::ReadAllLocalStorage(
+    const std::string& id, LocalStorageMap* local_storage_map) const {
   impl_->ReadAllLocalStorage(id, local_storage_map);
 }
 
