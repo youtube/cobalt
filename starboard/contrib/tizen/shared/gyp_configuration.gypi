@@ -32,6 +32,7 @@
     'cobalt_enable_jit': 0,
 
     'linker_flags': [
+      '-Wl,--wrap=eglGetDisplay',
     ],
     'linker_flags_gold': [
       '-O3',
