@@ -22,7 +22,6 @@ from cobalt.tools import paths
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration
 
-
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
 
@@ -81,6 +80,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'loader_test',
         'math_test',
         'media_session_test',
+        'memory_store_test',
         'nb_test',
         'net_unittests',
         'network_test',
@@ -90,6 +90,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'renderer_test',
         'sql_unittests',
         'storage_test',
+        'storage_upgrade_test',
         'trace_event_test',
         'web_animations_test',
         'web_platform_tests',
