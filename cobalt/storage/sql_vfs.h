@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2015 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/storage/storage_constants.h"
+#ifndef COBALT_STORAGE_SQL_VFS_H_
+#define COBALT_STORAGE_SQL_VFS_H_
+
+#include <string>
+
+#include "base/memory/scoped_ptr.h"
+
+struct sqlite3_vfs;
 
 namespace cobalt {
 namespace storage {
 
-const char kStorageHeader[] = "SAV1";
-const char kOldStorageHeader[] = "SAV0";
+class VirtualFileSystem;
+
+// Implement the necessary APIs for a Sqlite virtual file system.
+// Dispatch calls to the owning VirtualFileSystem.
+class SqlVfs {
+ public:
+  SqlVfs(const std::string& name, VirtualFileSystem* vfs);
+  ~SqlVfs();
+
+ private:
+  scoped_ptr<sqlite3_vfs> sql_vfs_;
+};
 
 }  // namespace storage
 }  // namespace cobalt
+
+#endif  // COBALT_STORAGE_SQL_VFS_H_

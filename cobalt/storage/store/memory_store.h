@@ -35,17 +35,17 @@ class MemoryStore {
   bool Initialize(const std::vector<uint8>& in);
 
   // Serialization
-  bool Serialize(std::vector<uint8>* out) const;
+  bool Serialize(std::vector<uint8>* out);
 
   // Cookies
-  void GetAllCookies(std::vector<net::CanonicalCookie*>* cookies) const;
+  void GetAllCookies(std::vector<net::CanonicalCookie*>* cookies);
   void AddCookie(const net::CanonicalCookie& cc, int64 expiration_time_us);
   void UpdateCookieAccessTime(const net::CanonicalCookie& cc, int64 time_us);
   void DeleteCookie(const net::CanonicalCookie& cc);
 
   // Local Storage
   void ReadAllLocalStorage(const std::string& id,
-                           LocalStorageMap* local_storage_map) const;
+                           LocalStorageMap* local_storage_map);
 
   void WriteToLocalStorage(const std::string& id, const std::string& key,
                            const std::string& value);
