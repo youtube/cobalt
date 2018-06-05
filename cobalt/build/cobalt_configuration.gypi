@@ -366,7 +366,7 @@
     'cobalt_gc_zeal%': 0,
 
     # Use media source extension implementation that is conformed to the
-    # Candidate Recommandation of July 5th 2016.
+    # Candidate Recommendation of July 5th 2016.
     'cobalt_media_source_2016%': '<(cobalt_media_source_2016)',
 
     # Note that the following media buffer related variables are only used when
