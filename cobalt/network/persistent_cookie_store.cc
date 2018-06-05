@@ -20,59 +20,171 @@
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
 #include "googleurl/src/gurl.h"
+#include "sql/connection.h"
+#include "sql/statement.h"
 
 namespace cobalt {
 namespace network {
 
 namespace {
+const int kOriginalCookieSchemaVersion = 1;
+const int kLatestCookieSchemaVersion = 1;
 const base::TimeDelta kMaxCookieLifetime = base::TimeDelta::FromDays(365 * 2);
 
-std::vector<net::CanonicalCookie*> GetAllCookies(
-    const storage::MemoryStore& memory_store) {
+std::vector<net::CanonicalCookie*> GetAllCookies(sql::Connection* conn) {
   std::vector<net::CanonicalCookie*> actual_cookies;
+  sql::Statement get_all(conn->GetCachedStatement(
+      SQL_FROM_HERE,
+      "SELECT url, name, value, domain, path, mac_key, mac_algorithm, "
+      "creation, expiration, last_access, secure, http_only "
+      "FROM CookieTable"));
+  while (get_all.Step()) {
+    // We create a CanonicalCookie directly through its constructor instead of
+    // through CanonicalCookie::Create() and its sanitization because these
+    // values are just serialized from a former instance of a CanonicalCookie
+    // object that *was* created through CanonicalCookie::Create().
+    net::CanonicalCookie* cookie = new net::CanonicalCookie(
+        GURL(get_all.ColumnString(0)), get_all.ColumnString(1),
+        get_all.ColumnString(2), get_all.ColumnString(3),
+        get_all.ColumnString(4), get_all.ColumnString(5),
+        get_all.ColumnString(6),
+        base::Time::FromInternalValue(get_all.ColumnInt64(7)),
+        base::Time::FromInternalValue(get_all.ColumnInt64(8)),
+        base::Time::FromInternalValue(get_all.ColumnInt64(9)),
+        get_all.ColumnBool(10), get_all.ColumnBool(11));
+    actual_cookies.push_back(cookie);
+  }
 
-  memory_store.GetAllCookies(&actual_cookies);
   return actual_cookies;
 }
 
-void CookieStorageInit(
-    const PersistentCookieStore::LoadedCallback& loaded_callback,
-    const storage::MemoryStore& memory_store) {
-  TRACE_EVENT0("cobalt::network", "PersistentCookieStore::CookieStorageInit()");
-  loaded_callback.Run(GetAllCookies(memory_store));
+void SqlInit(const PersistentCookieStore::LoadedCallback& loaded_callback,
+             storage::SqlContext* sql_context) {
+  TRACE_EVENT0("cobalt::network", "PersistentCookieStore::SqlInit()");
+
+  sql::Connection* conn = sql_context->sql_connection();
+
+  // Check the table's schema version.
+  int schema_version;
+  bool table_exists =
+      sql_context->GetSchemaVersion("CookieTable", &schema_version);
+
+  if (table_exists) {
+    if (schema_version == storage::StorageManager::kSchemaTableIsNew) {
+      // This savegame predates the existence of the schema table.
+      // Since the cookie table did not change between the initial release of
+      // the app and the introduction of the schema table, assume that this
+      // existing cookie table is schema version 1.  This avoids a loss of
+      // cookies on upgrade.
+      DLOG(INFO) << "Updating CookieTable schema version to "
+                 << kOriginalCookieSchemaVersion;
+      sql_context->UpdateSchemaVersion("CookieTable",
+                                       kOriginalCookieSchemaVersion);
+    } else if (schema_version == storage::StorageManager::kSchemaVersionLost) {
+      // Since there has only been one schema so far, treat this the same as
+      // kSchemaTableIsNew.  When there are multiple schemas in the wild,
+      // we may want to drop the table instead.
+      sql_context->UpdateSchemaVersion("CookieTable",
+                                       kOriginalCookieSchemaVersion);
+    }
+  } else {
+    // The table does not exist, so create it in its latest form.
+    sql::Statement create_table(conn->GetUniqueStatement(
+        "CREATE TABLE CookieTable ("
+        "url TEXT, "
+        "name TEXT, "
+        "value TEXT, "
+        "domain TEXT, "
+        "path TEXT, "
+        "mac_key TEXT, "
+        "mac_algorithm TEXT, "
+        "creation INTEGER, "
+        "expiration INTEGER, "
+        "last_access INTEGER, "
+        "secure INTEGER, "
+        "http_only INTEGER, "
+        "UNIQUE(name, domain, path) ON CONFLICT REPLACE)"));
+    bool ok = create_table.Run();
+    DCHECK(ok);
+    sql_context->UpdateSchemaVersion("CookieTable", kLatestCookieSchemaVersion);
+  }
+
+  loaded_callback.Run(GetAllCookies(conn));
 }
 
-void CookieStorageAddCookie(const net::CanonicalCookie& cc,
-                            storage::MemoryStore* memory_store) {
+void SqlAddCookie(const net::CanonicalCookie& cc,
+                  storage::SqlContext* sql_context) {
+  base::Time maximum_expiry = base::Time::Now() + kMaxCookieLifetime;
+  base::Time expiry = cc.ExpiryDate();
+  if (expiry > maximum_expiry) {
+    expiry = maximum_expiry;
+  }
+  sql::Connection* conn = sql_context->sql_connection();
+  sql::Statement insert_cookie(conn->GetCachedStatement(
+      SQL_FROM_HERE,
+      "INSERT INTO CookieTable ("
+      "url, name, value, domain, path, mac_key, mac_algorithm, "
+      "creation, expiration, last_access, secure, http_only"
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+
+  insert_cookie.BindString(0, cc.Source());
+  insert_cookie.BindString(1, cc.Name());
+  insert_cookie.BindString(2, cc.Value());
+  insert_cookie.BindString(3, cc.Domain());
+  insert_cookie.BindString(4, cc.Path());
+  insert_cookie.BindString(5, cc.MACKey());
+  insert_cookie.BindString(6, cc.MACAlgorithm());
+  insert_cookie.BindInt64(7, cc.CreationDate().ToInternalValue());
+  insert_cookie.BindInt64(8, expiry.ToInternalValue());
+  insert_cookie.BindInt64(9, cc.LastAccessDate().ToInternalValue());
+  insert_cookie.BindBool(10, cc.IsSecure());
+  insert_cookie.BindBool(11, cc.IsHttpOnly());
+  bool ok = insert_cookie.Run();
+  DCHECK(ok);
+  sql_context->FlushOnChange();
+}
+
+void SqlUpdateCookieAccessTime(const net::CanonicalCookie& cc,
+                               storage::SqlContext* sql_context) {
+  sql::Connection* conn = sql_context->sql_connection();
+  sql::Statement touch_cookie(
+      conn->GetCachedStatement(SQL_FROM_HERE,
+                               "UPDATE CookieTable SET last_access = ? WHERE "
+                               "name = ? AND domain = ? AND path = ?"));
+
   base::Time maximum_expiry = base::Time::Now() + kMaxCookieLifetime;
   base::Time expiry = cc.ExpiryDate();
   if (expiry > maximum_expiry) {
     expiry = maximum_expiry;
   }
 
-  memory_store->AddCookie(cc, expiry.ToInternalValue());
+  touch_cookie.BindInt64(0, expiry.ToInternalValue());
+  touch_cookie.BindString(1, cc.Name());
+  touch_cookie.BindString(2, cc.Domain());
+  touch_cookie.BindString(3, cc.Path());
+  bool ok = touch_cookie.Run();
+  DCHECK(ok);
+  sql_context->FlushOnChange();
 }
 
-void CookieStorageCookieAccessTime(const net::CanonicalCookie& cc,
-                                   storage::MemoryStore* memory_store) {
-  base::Time maximum_expiry = base::Time::Now() + kMaxCookieLifetime;
-  base::Time expiry = cc.ExpiryDate();
-  if (expiry > maximum_expiry) {
-    expiry = maximum_expiry;
-  }
-
-  memory_store->UpdateCookieAccessTime(cc, expiry.ToInternalValue());
+void SqlDeleteCookie(const net::CanonicalCookie& cc,
+                     storage::SqlContext* sql_context) {
+  sql::Connection* conn = sql_context->sql_connection();
+  sql::Statement delete_cookie(conn->GetCachedStatement(
+      SQL_FROM_HERE,
+      "DELETE FROM CookieTable WHERE name = ? AND domain = ? AND path = ?"));
+  delete_cookie.BindString(0, cc.Name());
+  delete_cookie.BindString(1, cc.Domain());
+  delete_cookie.BindString(2, cc.Path());
+  bool ok = delete_cookie.Run();
+  DCHECK(ok);
+  sql_context->FlushOnChange();
 }
 
-void CookieStorageDeleteCookie(const net::CanonicalCookie& cc,
-                               storage::MemoryStore* memory_store) {
-  memory_store->DeleteCookie(cc);
-}
-
-void SendEmptyCookieList(
+void SqlSendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
-    const storage::MemoryStore& memory_store) {
-  UNREFERENCED_PARAMETER(memory_store);
+    storage::SqlContext* sql_context) {
+  UNREFERENCED_PARAMETER(sql_context);
   std::vector<net::CanonicalCookie*> empty_cookie_list;
   loaded_callback.Run(empty_cookie_list);
 }
@@ -85,34 +197,33 @@ PersistentCookieStore::PersistentCookieStore(storage::StorageManager* storage)
 PersistentCookieStore::~PersistentCookieStore() {}
 
 void PersistentCookieStore::Load(const LoadedCallback& loaded_callback) {
-  storage_->WithReadOnlyMemoryStore(
-      base::Bind(&CookieStorageInit, loaded_callback));
+  storage_->GetSqlContext(base::Bind(&SqlInit, loaded_callback));
 }
 
 void PersistentCookieStore::LoadCookiesForKey(
     const std::string& key, const LoadedCallback& loaded_callback) {
   UNREFERENCED_PARAMETER(key);
   // We don't support loading of individual cookies.
-  // This is always called after Load(), so just post the callback to the
-  // Storage thread to make sure it is run after Load() has finished. See
-  // comments in net/cookie_monster.cc for more information.
-  storage_->WithReadOnlyMemoryStore(
-      base::Bind(&SendEmptyCookieList, loaded_callback));
+  // This is always called after Load(), so just post the callback to the SQL
+  // thread to make sure it is run after Load() has finished.
+  // See comments in net/cookie_monster.cc for more information.
+  storage_->GetSqlContext(base::Bind(&SqlSendEmptyCookieList,
+                                     loaded_callback));
 }
 
 void PersistentCookieStore::AddCookie(const net::CanonicalCookie& cc) {
   // We expect that all cookies we are fed are meant to persist.
   DCHECK(cc.IsPersistent());
-  storage_->WithMemoryStore(base::Bind(&CookieStorageAddCookie, cc));
+  storage_->GetSqlContext(base::Bind(&SqlAddCookie, cc));
 }
 
 void PersistentCookieStore::UpdateCookieAccessTime(
     const net::CanonicalCookie& cc) {
-  storage_->WithMemoryStore(base::Bind(&CookieStorageCookieAccessTime, cc));
+  storage_->GetSqlContext(base::Bind(&SqlUpdateCookieAccessTime, cc));
 }
 
 void PersistentCookieStore::DeleteCookie(const net::CanonicalCookie& cc) {
-  storage_->WithMemoryStore(base::Bind(&CookieStorageDeleteCookie, cc));
+  storage_->GetSqlContext(base::Bind(&SqlDeleteCookie, cc));
 }
 
 void PersistentCookieStore::SetForceKeepSessionState() {
