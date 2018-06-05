@@ -24,6 +24,8 @@ namespace {
 
 #if SB_HAS(PLAYER_WITH_URL)
 
+const char kPlayerUrl[] = "about:blank";
+
 void DummyPlayerStatusFunc(SbPlayer player,
                            void* context,
                            SbPlayerState state,
@@ -56,9 +58,8 @@ TEST(SbPlayerUrlTest, SunnyDay) {
     if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
       continue;
     }
-    char url[] = "about:blank";
     SbPlayer player = SbPlayerCreateWithUrl(
-        url, window,
+        kPlayerUrl, window,
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
         SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
@@ -78,7 +79,7 @@ TEST(SbPlayerUrlTest, SunnyDay) {
 }
 
 #if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
-TEST_F(SbPlayerUrlTest, NullCallbacks) {
+TEST(SbPlayerUrlTest, NullCallbacks) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
 
@@ -93,12 +94,13 @@ TEST_F(SbPlayerUrlTest, NullCallbacks) {
 
   for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
     SbPlayerOutputMode output_mode = output_modes[i];
-    if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
+    if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
       continue;
     }
     {
       SbPlayer player =
-          SbPlayerCreateWithUrl(url, window, NULL /* player_status_func */,
+          SbPlayerCreateWithUrl(kPlayerUrl, window,
+                                NULL /* player_status_func */,
                                 DummyEncryptedMediaInitaDataEncounteredFunc,
                                 DummyPlayerErrorFunc, NULL /* context */);
       EXPECT_FALSE(SbPlayerIsValid(player));
@@ -106,7 +108,7 @@ TEST_F(SbPlayerUrlTest, NullCallbacks) {
     }
     {
       SbPlayer player = SbPlayerCreateWithUrl(
-          url, window, DummyPlayerStatusFunc,
+          kPlayerUrl, window, DummyPlayerStatusFunc,
           NULL /* encrypted_media_inita_data_encountered_func */,
           DummyPlayerErrorFunc, NULL /* context */);
       EXPECT_FALSE(SbPlayerIsValid(player));
@@ -114,7 +116,7 @@ TEST_F(SbPlayerUrlTest, NullCallbacks) {
     }
     {
       SbPlayer player = SbPlayerCreateWithUrl(
-          url, window, DummyPlayerStatusFunc,
+          kPlayerUrl, window, DummyPlayerStatusFunc,
           DummyEncryptedMediaInitaDataEncounteredFunc,
           NULL /* player_error_func */, NULL /* context */);
       EXPECT_FALSE(SbPlayerIsValid(player));
@@ -142,10 +144,9 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
     }
     const int kMaxPlayers = 16;
     std::vector<SbPlayer> created_players;
-    char url[] = "about:blank";
     for (int j = 0; j < kMaxPlayers; ++j) {
       created_players.push_back(
-          SbPlayerCreateWithUrl(url, window, NULL, NULL, NULL, NULL));
+          SbPlayerCreateWithUrl(kPlayerUrl, window, NULL, NULL, NULL, NULL));
       if (!SbPlayerIsValid(created_players[j])) {
         created_players.pop_back();
         break;
