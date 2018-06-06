@@ -608,6 +608,7 @@ void BrowserModule::RequestScreenshotToFile(
     const FilePath& path,
     loader::image::EncodedStaticImage::ImageFormat image_format,
     const base::Closure& done_callback) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK(screen_shot_writer_);
 
   scoped_refptr<render_tree::Node> render_tree = GetLastSubmissionAnimated();
@@ -623,6 +624,7 @@ void BrowserModule::RequestScreenshotToFile(
 void BrowserModule::RequestScreenshotToBuffer(
     loader::image::EncodedStaticImage::ImageFormat image_format,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToBuffer()");
   DCHECK(screen_shot_writer_);
 
   scoped_refptr<render_tree::Node> render_tree = GetLastSubmissionAnimated();
