@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/string_util.h"
@@ -200,8 +201,9 @@ WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
 
 void WebDriverServer::OnHttpRequest(int connection_id,
                                     const net::HttpServerRequestInfo& info) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::webdriver", "WebDriverServer::OnHttpRequest()");
 
+  DCHECK(thread_checker_.CalledOnValidThread());
   std::string path = info.path;
   size_t query_position = path.find("?");
   // Discard any URL variables from the path
