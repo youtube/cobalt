@@ -16,6 +16,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/file_util.h"
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -73,6 +74,7 @@ void ScreenShotWriter::EncodeData(
         void(const scoped_refptr<loader::image::EncodedStaticImage>&)>&
         done_encoding_callback,
     scoped_array<uint8> pixel_data, const math::Size& image_dimensions) {
+  TRACE_EVENT0("cobalt::browser", "ScreenshotWriter::EncodeData()");
   scoped_refptr<loader::image::EncodedStaticImage> image_data =
       loader::image::CompressRGBAImage(desired_format, pixel_data.get(),
                                        image_dimensions);
