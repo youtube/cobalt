@@ -37,13 +37,18 @@ import java.util.Set;
 public class MediaCodecUtil {
   // A low priority black list of codec names that should never be used.
   private static final Set<String> codecBlackList = new HashSet<>();
-  // A high priority white list of brands/model that should always attempt to
+  // A high priority white list of brands/models that should always attempt to
   // play vp9.
   private static final Map<String, Set<String>> vp9WhiteList = new HashMap<>();
   // Whether we should report vp9 codecs as supported or not.  Will be set
   // based on whether vp9WhiteList contains our brand/model.  If this is set
   // to true, then codecBlackList will be ignored.
-  private static boolean isVp9WhiteListed;
+  private static final boolean isVp9WhiteListed;
+  // A white list of brands/models that can support 60fps at native display resolution
+  // regardless of what their video capabilities claim.
+  private static final Map<String, Set<String>> hfrWhiteList = new HashMap<>();
+  // Frame rate we assume is supported at the physical display size.
+  private static final int fullResolutionFrameRate;
   // The physical display size in pixels. This is initialized by setDisplaySize, called by
   // CobaltActivity.onCreate.
   private static Size displaySize;
@@ -126,6 +131,7 @@ public class MediaCodecUtil {
     // On the emulator it fails with the log: "storeMetaDataInBuffers failed w/ err -1010"
     codecBlackList.add("OMX.google.vp9.decoder");
 
+    // VP9 white list
     vp9WhiteList.put("Amlogic", new HashSet<String>());
     vp9WhiteList.put("Arcadyan", new HashSet<String>());
     vp9WhiteList.put("arcelik", new HashSet<String>());
@@ -378,6 +384,16 @@ public class MediaCodecUtil {
     vp9WhiteList.get("ZTE TV").add("B860H");
 
     isVp9WhiteListed = vp9WhiteList.containsKey(brand) && vp9WhiteList.get(brand).contains(model);
+
+    // HFR white list
+    hfrWhiteList.put("NVIDIA", new HashSet<String>());
+    hfrWhiteList.put("Sony", new HashSet<String>());
+
+    hfrWhiteList.get("NVIDIA").add("SHIELD Android TV");
+    hfrWhiteList.get("Sony").add("BRAVIA 4K GB");
+
+    fullResolutionFrameRate =
+        (hfrWhiteList.containsKey(brand) && hfrWhiteList.get(brand).contains(model)) ? 60 : 30;
   }
 
   private MediaCodecUtil() {}
@@ -471,12 +487,13 @@ public class MediaCodecUtil {
         TAG,
         String.format(
             "brand: %s, model: %s, version: %s, API level: %d, isVp9WhiteListed: %b, "
-                + "displayWidth: %d, displayHeight: %d",
+                + "fullResolutionFrameRate: %d, displayWidth: %d, displayHeight: %d",
             android.os.Build.BRAND,
             android.os.Build.MODEL,
             android.os.Build.VERSION.RELEASE,
             SDK_INT,
             isVp9WhiteListed,
+            fullResolutionFrameRate,
             displaySize.getWidth(),
             displaySize.getHeight()));
 
@@ -542,7 +559,9 @@ public class MediaCodecUtil {
           continue;
         }
 
-        if (SDK_INT < 24 && fps > 30) {
+        // VideoCapabilities.getAchievableFrameRatesFor() is not available before API 23, and is not
+        // useful before API 24, so we limit to 30 fps (or 60 fps for HFR white listed devices).
+        if (SDK_INT < 24 && fps > fullResolutionFrameRate) {
           Log.v(
               TAG,
               String.format(
@@ -630,10 +649,10 @@ public class MediaCodecUtil {
           continue;
         }
         if (SDK_INT >= 24 && fps != 0) {
-          // Assume that any device can play 30 fps at its native display resolution, but we need to
-          // check the achievable frame rate if the frame rate is high, or the resolution is larger
-          // than the display.
-          if (fps > 30
+          // Assume that any device can play at least 30 fps (or 60 fps if HFR white listed) at its
+          // native display resolution, but we need to check the achievable frame rate if the frame
+          // rate is higher, or the resolution is larger than the display.
+          if (fps > fullResolutionFrameRate
               || frameWidth > displaySize.getWidth()
               || frameHeight > displaySize.getHeight()) {
             if (frameWidth == 0 || frameHeight == 0) {
