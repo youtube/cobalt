@@ -19,6 +19,7 @@
 
 #include "base/base64.h"
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/file_util.h"
 #include "base/values.h"
 #include "cobalt/webdriver/dispatcher.h"
@@ -150,6 +151,8 @@ struct ScreenshotResultContext {
 void OnPNGEncodeComplete(ScreenshotResultContext* context,
                          const scoped_refptr<loader::image::EncodedStaticImage>&
                              compressed_image_data) {
+  TRACE_EVENT0("cobalt::WebDriver", "WebDriverServer::onPNGEncodeComplete()");
+
   DCHECK(context);
   DCHECK(compressed_image_data->GetImageFormat() ==
          loader::image::EncodedStaticImage::ImageFormat::kPNG);
@@ -562,6 +565,7 @@ void WebDriverModule::RequestScreenshot(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  TRACE_EVENT0("cobalt::WebDriver", "WebDriverModule::RequestScreenshot()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
   SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
