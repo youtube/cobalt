@@ -179,7 +179,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
   int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
-    SbThreadSleep(1);
+    SbThreadSleep(kSbTimeMillisecond);
     int result = trio->client_socket->SendTo(buff, sizeof(buff), NULL);
 
     if (result < 0) {
