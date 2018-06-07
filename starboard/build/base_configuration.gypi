@@ -121,6 +121,9 @@
     'compiler_flags%': [],
     'linker_flags%': [],
 
+    # TODO: Replace linker_flags_(config) with linker_shared_flags_(config)
+    # and linker_executable_flags_(config) to distinguish the flags for
+    # SharedLibraryLinker and ExecutableLinker.
     'compiler_flags_debug%': [],
     'compiler_flags_c_debug%': [],
     'compiler_flags_cc_debug%': [],
