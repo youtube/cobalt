@@ -161,4 +161,5 @@ dependencies {
     implementation 'com.android.support:leanback-v17:27.1.0'
     implementation 'com.android.support:support-v4:27.1.0'
     implementation 'com.google.android.gms:play-services-auth:11.8.0'
+    implementation 'com.google.protobuf:protobuf-lite:3.0.1'
 }
