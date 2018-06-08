@@ -41,6 +41,11 @@
             '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
           ],
         }],
+        ['sb_filter_based_player==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gyp:*',
+          ],
+        }],
       ],
     },
   ],

@@ -21,7 +21,9 @@
 
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/memory.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -70,7 +72,13 @@ struct SbMediaAudioHeaderWithConfig : public SbMediaAudioHeader {
   SbMediaAudioHeaderWithConfig(const SbMediaAudioHeaderWithConfig& that)
       : SbMediaAudioHeader(that),
         stored_audio_specific_config(that.stored_audio_specific_config) {
+#if SB_API_VERSION >= 6
     audio_specific_config = stored_audio_specific_config.data();
+#else
+    SB_DCHECK(8 >= stored_audio_specific_config.size());
+    SbMemoryCopy(audio_specific_config, stored_audio_specific_config.data(),
+                 stored_audio_specific_config.size());
+#endif
   }
   void operator=(const SbMediaAudioHeaderWithConfig& that) = delete;
 
@@ -161,4 +169,5 @@ void Write(const WriteCB& write_cb,
 }  // namespace shared
 }  // namespace starboard
 
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_COMMON_H_

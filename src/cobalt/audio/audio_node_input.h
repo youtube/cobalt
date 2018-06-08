@@ -58,7 +58,8 @@ class AudioNodeInput : public base::RefCountedThreadSafe<AudioNodeInput> {
   // For each input, an AudioNode performs a mixing of all connections to that
   // input. FillAudioBus() performs that action. In the case of multiple
   // connections, it sums the result into |audio_bus|.
-  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence);
+  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence,
+                    bool* all_finished);
 
  private:
   AudioNode* const owner_node_;

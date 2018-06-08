@@ -33,12 +33,19 @@
 #undef timeval
 #define timeval EzTimeValue
 
+#undef gettimeofday
 #define gettimeofday(a, b) EzTimeValueGetNow(a, b)
+#undef gmtime_r
 #define gmtime_r(a, b) EzTimeTExplodeUTC(a, b)
+#undef localtime_r
 #define localtime_r(a, b) EzTimeTExplodeLocal(a, b)
+#undef mktime
 #define mktime(x) EzTimeTImplodeLocal(x)
+#undef time
 #define time(x) EzTimeTGetNow(x)
+#undef timegm
 #define timegm(x) EzTimeTImplodeUTC(x)
+#undef timelocal
 #define timelocal(x) EzTimeTImplodeLocal(x)
 
 #endif  // POEM_NO_EMULATION

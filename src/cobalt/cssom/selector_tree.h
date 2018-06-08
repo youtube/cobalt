@@ -43,84 +43,12 @@ class CSSStyleRule;
 // https://docs.google.com/document/d/1LTbSenGsGR94JTGg6DfZDXYB3MBBCp4C8dRC4rckt_8/
 class SelectorTree {
  public:
-  typedef std::vector<base::WeakPtr<CSSStyleRule> > Rules;
-
   class Node;
 
-  // This class can be used to store Nodes.  It stores the Nodes in its
-  // internal buffer whose size can be configured via template parameter.
-  // After the internal buffer is used up the extra Nodes will be stored inside
-  // the contained std::vector.
-  // TODO: Move this off to its own file if this can also be used by
-  // other code.
-  template <size_t InternalCacheSize>
-  class NodeSet {
-   public:
-    // Minimum interface for iterator.
-    class const_iterator {
-     public:
-      const_iterator(const NodeSet* set, size_t index)
-          : set_(set), index_(index) {}
-      void operator++() { ++index_; }
-      const Node* operator*() const { return set_->GetNode(index_); }
-      bool operator!=(const const_iterator& that) const {
-        return set_ != that.set_ || index_ != that.index_;
-      }
+  typedef std::vector<base::WeakPtr<CSSStyleRule>> Rules;
 
-     private:
-      const NodeSet* set_;
-      size_t index_;
-    };
-
-    NodeSet() : size_(0) {}
-    void insert(const Node* node, bool check_for_duplicate = false) {
-      // If |check_for_duplicate| is true, then check if the node is already
-      // contained. In nearly all cases, this check is unnecessary because it is
-      // already known that the node is not a duplicate. As a result, the caller
-      // must explicitly request the check when needed.
-      if (check_for_duplicate) {
-        for (size_t i = 0; i < size_; ++i) {
-          if (GetNode(i) == node) {
-            return;
-          }
-        }
-      }
-
-      if (size_ < InternalCacheSize) {
-        nodes_[size_] = node;
-      } else {
-        nodes_vector_.push_back(node);
-      }
-      ++size_;
-    }
-    template <class ConstIterator>
-    void insert(ConstIterator begin, ConstIterator end,
-                bool check_for_duplicate = false) {
-      while (begin != end) {
-        insert(*begin, check_for_duplicate);
-        ++begin;
-      }
-    }
-
-    const_iterator begin() const { return const_iterator(this, 0); }
-    const_iterator end() const { return const_iterator(this, size_); }
-    size_t size() const { return size_; }
-    void clear() {
-      size_ = 0;
-      nodes_vector_.clear();
-    }
-    const Node* GetNode(size_t index) const {
-      if (index < InternalCacheSize) {
-        return nodes_[index];
-      }
-      return nodes_vector_[index - InternalCacheSize];
-    }
-
-   private:
-    size_t size_;
-    const Node* nodes_[InternalCacheSize];
-    std::vector<const Node*> nodes_vector_;
-  };
+  typedef std::vector<const Node*> Nodes;
+  typedef std::vector<std::pair<const Node*, const Node*>> NodePairs;
 
   struct CompoundNodeLessThan {
     bool operator()(const CompoundSelector* lhs,
@@ -255,10 +183,16 @@ class SelectorTree {
     Rules rules_;
   };
 
-  SelectorTree() : has_sibling_combinators_(false) { root_set_.insert(&root_); }
+  SelectorTree() : has_sibling_combinators_(false) {
+    root_nodes_.push_back(&root_node_);
+  }
 
-  const Node* root() const { return &root_; }
-  const NodeSet<1>& root_set() const { return root_set_; }
+  const Node* root_node() const { return &root_node_; }
+  const Nodes& root_nodes() const { return root_nodes_; }
+
+  Nodes* scratchpad_nodes_1() { return &scratchpad_nodes_1_; }
+  Nodes* scratchpad_nodes_2() { return &scratchpad_nodes_2_; }
+  NodePairs* scratchpad_node_pairs() { return &scratchpad_node_pairs_; }
 
   bool has_sibling_combinators() const { return has_sibling_combinators_; }
 
@@ -284,8 +218,15 @@ class SelectorTree {
                                            Node* parent_node,
                                            CombinatorType combinator);
 
-  Node root_;
-  NodeSet<1> root_set_;
+  Node root_node_;
+  Nodes root_nodes_;
+
+  // These member variables are available for temporary operations, so that
+  // Node vectors associated with the SelectorTree don't have to be repeatedly
+  // re-allocated. This significantly speeds up rule matching.
+  Nodes scratchpad_nodes_1_;
+  Nodes scratchpad_nodes_2_;
+  NodePairs scratchpad_node_pairs_;
 
   // This variable maps from a parent Node and a combinator type to child Nodes
   // under the particular parent Node corresponding to the particular combinator

@@ -56,15 +56,16 @@ class DocumentLoader : public dom::DocumentObserver {
         dom_stat_tracker_(new dom::DomStatTracker("IsDisplayedTest")),
         resource_provider_(resource_provider_stub_.get()),
         html_element_context_(
-            &fetcher_factory_, css_parser_.get(), dom_parser_.get(),
-            NULL /* can_play_type_handler  */,
+            &fetcher_factory_, loader_factory_.get(), css_parser_.get(),
+            dom_parser_.get(), NULL /* can_play_type_handler  */,
             NULL /* web_media_player_factory */, &script_runner_,
             NULL /* script_value_factory */, NULL /* media_source_registry */,
             &resource_provider_, NULL /* animated_image_tracker */,
             image_cache_.get(), NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_font_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */,
-            base::kApplicationStateStarted) {}
+            base::kApplicationStateStarted,
+            NULL /* synchronous_loader_interrupt */) {}
   void Load(const GURL& url) {
     // Load the document in a nested message loop.
     dom::Document::Options options(url);

@@ -13,8 +13,11 @@
 # limitations under the License.
 """Starboard Raspberry Pi 2 platform configuration for gyp_cobalt."""
 
-from starboard.raspi.shared.gyp_configuration import RaspiPlatformConfig
+import importlib
 
+# pylint: disable=invalid-name
+Raspi2PlatformConfig = importlib.import_module(
+    'starboard.raspi.2.gyp_configuration').Raspi2PlatformConfig
 
 def CreatePlatformConfig():
-  return RaspiPlatformConfig('raspi-2-skia')
+  return Raspi2PlatformConfig('raspi-2-skia')

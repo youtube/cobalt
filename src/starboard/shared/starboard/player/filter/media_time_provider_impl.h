@@ -20,7 +20,7 @@
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
-#include "starboard/shared/starboard/thread_checker.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -30,7 +30,8 @@ namespace player {
 namespace filter {
 
 // This class provides the media playback time when there isn't an audio track.
-class MediaTimeProviderImpl : public MediaTimeProvider {
+class MediaTimeProviderImpl : public MediaTimeProvider,
+                              private JobQueue::JobOwner {
  public:
   class MonotonicSystemTimeProvider {
    public:
@@ -41,9 +42,12 @@ class MediaTimeProviderImpl : public MediaTimeProvider {
   explicit MediaTimeProviderImpl(
       scoped_ptr<MonotonicSystemTimeProvider> system_time_provider);
 
-  void SetPlaybackRate(double playback_rate) override;
+  void Initialize(const ErrorCB& error_cb,
+                  const PrerolledCB& prerolled_cb,
+                  const EndedCB& ended_cb) override;
   void Play() override;
   void Pause() override;
+  void SetPlaybackRate(double playback_rate) override;
   void Seek(SbTime seek_to_time) override;
   SbTime GetCurrentMediaTime(bool* is_playing, bool* is_eos_played) override;
 
@@ -61,9 +65,10 @@ class MediaTimeProviderImpl : public MediaTimeProvider {
   // should handle this properly.
   SbTime GetCurrentMediaTime_Locked(SbTimeMonotonic* current_time = NULL);
 
-  ThreadChecker thread_checker_;
-
   scoped_ptr<MonotonicSystemTimeProvider> system_time_provider_;
+
+  PrerolledCB prerolled_cb_;
+  EndedCB ended_cb_;
 
   Mutex mutex_;
 

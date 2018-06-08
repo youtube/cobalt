@@ -28,26 +28,13 @@ ${typeof message === 'undefined' ? '' : 'with message: ' + message}`;
 
 let windowOnErrorWasCalled = false;
 window.onerror = (message, filename, lineno, colno, error) => {
-  if (typeof message === 'object') {
-    // The code below is to work around Cobalt's window.onerror signature not being correct
-    // (although weird, the spec says you're supposed to expand the event into its attributes before
-    // dispatching it).  It is still important to test the rest of window.onerror support, despite
-    // this known issue.
-    const errorEvent = message;
-    message = errorEvent.message;
-    filename = errorEvent.filename;
-    lineno = errorEvent.lineno;
-    colno = errorEvent.colno;
-    error = errorEvent.error;
-  }
-
   // We allow anything that ends with "myCoolMessage" to pass, Chrome/Firefox behavior differs here
   // (Chrome: "Uncaught Error: myCoolMessage", Firefox: "Error: myCoolMessage").
   expect(/.*myCoolMessage/.test(message), message);
   // Allow any filename that ends with "window-onerror.html", in order to not couple too heavily to
   // the implementation of layout_tests.
   expect(/.*window-onerror.html/.test(filename), filename);
-  expect(lineno === 72, lineno);
+  expect(lineno === 83, lineno);
   // The value of the column number is not standard across major browsers.
   //   Chrome: 1 without devtools open, 7 with devtools open.
   //   Edge: Always 1.
@@ -60,11 +47,35 @@ window.onerror = (message, filename, lineno, colno, error) => {
   windowOnErrorWasCalled = true;
 };
 
+// Make sure that when an event handler is added for the 'error' event via
+// addEventListener, it assumes the usual function signature of just the event
+// object.
+let windowErrorEventHandlerCalled = false;
+window.addEventListener('error', (errorEvent) => {
+  expect(errorEvent.type == 'error', errorEvent.type);
+
+  // Check the same parameters as above in the onerror attribute event handler,
+  // just make sure they are passed through as an event object instead of
+  // expanded.
+  expect(/.*myCoolMessage/.test(errorEvent.message), errorEvent.message);
+  expect(/.*window-onerror.html/.test(errorEvent.filename),
+         errorEvent.filename);
+  expect(errorEvent.lineno === 83, errorEvent.lineno);
+  expect(errorEvent.colno === 1 || errorEvent.colno === 7 ||
+         errorEvent.colno === 18, errorEvent.colno);
+  expect(typeof errorEvent.error === 'object', typeof errorEvent.error);
+  expect(String(errorEvent.error) === 'Error: myCoolMessage',
+         String(errorEvent.error));
+
+  windowErrorEventHandlerCalled = true;
+});
+
 if (window.testRunner) {
   window.testRunner.waitUntilDone();
 }
 setTimeout(() => {
   expect(windowOnErrorWasCalled);
+  expect(windowErrorEventHandlerCalled);
   if (window.testRunner) {
     window.testRunner.notifyDone();
   }

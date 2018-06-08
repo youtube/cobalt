@@ -24,6 +24,25 @@ namespace {
 
 #if SB_HAS(PLAYER_WITH_URL)
 
+const char kPlayerUrl[] = "about:blank";
+
+void DummyPlayerStatusFunc(SbPlayer player,
+                           void* context,
+                           SbPlayerState state,
+                           int ticket) {}
+
+void DummyEncryptedMediaInitaDataEncounteredFunc(
+    SbPlayer player,
+    void* context,
+    const char* init_data_type,
+    const unsigned char* init_data,
+    unsigned int init_data_length) {}
+
+void DummyPlayerErrorFunc(SbPlayer player,
+                          void* context,
+                          SbPlayerError error,
+                          const char* message) {}
+
 TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -39,12 +58,13 @@ TEST(SbPlayerUrlTest, SunnyDay) {
     if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
       continue;
     }
-    char url[] = "about:blank";
-    SbPlayer player = SbPlayerCreateWithUrl(url, window,
+    SbPlayer player = SbPlayerCreateWithUrl(
+        kPlayerUrl, window,
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-                                            SB_PLAYER_NO_DURATION,
+        SB_PLAYER_NO_DURATION,
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-                                            NULL, NULL, NULL, NULL);
+        DummyPlayerStatusFunc, DummyEncryptedMediaInitaDataEncounteredFunc,
+        DummyPlayerErrorFunc, NULL);
 
     EXPECT_TRUE(SbPlayerIsValid(player));
 
@@ -57,6 +77,54 @@ TEST(SbPlayerUrlTest, SunnyDay) {
 
   SbWindowDestroy(window);
 }
+
+#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+TEST(SbPlayerUrlTest, NullCallbacks) {
+  SbWindowOptions window_options;
+  SbWindowSetDefaultOptions(&window_options);
+
+  SbWindow window = SbWindowCreate(&window_options);
+  EXPECT_TRUE(SbWindowIsValid(window));
+
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
+  SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                       kSbPlayerOutputModePunchOut};
+
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
+    SbPlayerOutputMode output_mode = output_modes[i];
+    if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
+      continue;
+    }
+    {
+      SbPlayer player =
+          SbPlayerCreateWithUrl(kPlayerUrl, window,
+                                NULL /* player_status_func */,
+                                DummyEncryptedMediaInitaDataEncounteredFunc,
+                                DummyPlayerErrorFunc, NULL /* context */);
+      EXPECT_FALSE(SbPlayerIsValid(player));
+      SbPlayerDestroy(player);
+    }
+    {
+      SbPlayer player = SbPlayerCreateWithUrl(
+          kPlayerUrl, window, DummyPlayerStatusFunc,
+          NULL /* encrypted_media_inita_data_encountered_func */,
+          DummyPlayerErrorFunc, NULL /* context */);
+      EXPECT_FALSE(SbPlayerIsValid(player));
+      SbPlayerDestroy(player);
+    }
+    {
+      SbPlayer player = SbPlayerCreateWithUrl(
+          kPlayerUrl, window, DummyPlayerStatusFunc,
+          DummyEncryptedMediaInitaDataEncounteredFunc,
+          NULL /* player_error_func */, NULL /* context */);
+      EXPECT_FALSE(SbPlayerIsValid(player));
+      SbPlayerDestroy(player);
+    }
+  }
+}
+#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
 
 #if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
 TEST(SbPlayerUrlTest, MultiPlayer) {
@@ -76,10 +144,9 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
     }
     const int kMaxPlayers = 16;
     std::vector<SbPlayer> created_players;
-    char url[] = "about:blank";
     for (int j = 0; j < kMaxPlayers; ++j) {
       created_players.push_back(
-          SbPlayerCreateWithUrl(url, window, NULL, NULL, NULL, NULL));
+          SbPlayerCreateWithUrl(kPlayerUrl, window, NULL, NULL, NULL, NULL));
       if (!SbPlayerIsValid(created_players[j])) {
         created_players.pop_back();
         break;

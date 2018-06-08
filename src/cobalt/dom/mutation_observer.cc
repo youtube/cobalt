@@ -157,7 +157,7 @@ bool MutationObserver::Notify() {
 
 void MutationObserver::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(observed_nodes_);
-  tracer->TraceSequence(record_queue_);
+  tracer->TraceItems(record_queue_);
 }
 
 void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {

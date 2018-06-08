@@ -78,7 +78,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
     return filters
 
   _FILTERED_TESTS = {
-      'starboard_platform_tests': [test_filter.FILTER_ALL],
+      'nplb': ['SbDrmTest.AnySupportedKeySystems',],
       'player_filter_tests': [
           # These tests have memory leaks related to av_malloc.
           'AudioDecoderTests/AudioDecoderTest.*',
@@ -86,5 +86,6 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
           # These tests fail on buildbot.
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/1',
-      ]
+      ],
+      'starboard_platform_tests': [test_filter.FILTER_ALL],
   }

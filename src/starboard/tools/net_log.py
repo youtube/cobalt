@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import argparse
 import pprint
+import select
 import socket
 import sys
 import time
@@ -47,18 +48,21 @@ class NetLog:
       else:
         return log
     except socket.error as (err_no, err_str):
-      print(err_no, err_str)
+      print(__file__ + ": Socket error while reading log:" \
+            + str(err_no) + " - " + str(err_str))
       self.server_socket = None
       return None
 
   # Private members
   def _TryRead(self):
     try:
+      ready_list, _, _ = select.select([self.server_socket], [], [])
+      if not ready_list:
+        return ''
       result = self.server_socket.recv(1024)
       # An empty string is a flag that the connection has closed.
       if len(result) == 0:
         return None
-
       return result
     except socket.error as (err_no, err_str):
       if err_no == 10035:  # Data not ready yet.
@@ -76,6 +80,7 @@ class NetLog:
     except socket.timeout as err:
       return None
     except socket.error as err:
+      print("Error while trying to create socket: " + str(err))
       return None
 
 

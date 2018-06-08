@@ -26,6 +26,7 @@
 #include "base/observer_list.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/css_keyframes_rule.h"
@@ -260,6 +261,14 @@ class Document : public Node,
   }
 
   cssom::SelectorTree* selector_tree() { return selector_tree_.get(); }
+
+  cssom::RulesWithCascadePrecedence* scratchpad_html_element_matching_rules() {
+    return &scratchpad_html_element_matching_rules_;
+  }
+  cssom::RulesWithCascadePrecedence* scratchpad_pseudo_element_matching_rules(
+      PseudoElementType element_type) {
+    return &(scratchpad_pseudo_element_matching_rules_[element_type]);
+  }
 
   // Returns a mapping from keyframes name to CSSKeyframesRule.  This can be
   // used to quickly lookup the @keyframes rule given a string identifier.
@@ -497,6 +506,11 @@ class Document : public Node,
   // recreate the selector tree than to attempt to manage updating all of its
   // internal state.
   bool should_recreate_selector_tree_;
+  // Matching rules that are available for temporary operations, so that the
+  // vectors don't have to be repeatedly re-allocated during rule matching.
+  cssom::RulesWithCascadePrecedence scratchpad_html_element_matching_rules_;
+  cssom::RulesWithCascadePrecedence
+      scratchpad_pseudo_element_matching_rules_[kMaxPseudoElementType];
   // The document's latest sample from the global clock, used for updating
   // animations.
   const scoped_refptr<base::Clock> navigation_start_clock_;

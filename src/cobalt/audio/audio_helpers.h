@@ -30,10 +30,12 @@ namespace cobalt {
 namespace audio {
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
+typedef media::ShellAudioBus ShellAudioBus;
 typedef media::ShellAudioBus::SampleType SampleType;
 const SampleType kSampleTypeInt16 = media::ShellAudioBus::kInt16;
 const SampleType kSampleTypeFloat32 = media::ShellAudioBus::kFloat32;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ShellAudioBus ShellAudioBus;
 typedef ::media::ShellAudioBus::SampleType SampleType;
 const SampleType kSampleTypeInt16 = ::media::ShellAudioBus::kInt16;
 const SampleType kSampleTypeFloat32 = ::media::ShellAudioBus::kFloat32;

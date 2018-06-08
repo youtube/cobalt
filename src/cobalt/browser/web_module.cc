@@ -43,6 +43,7 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -247,6 +248,8 @@ class WebModule::Impl {
   void LogScriptError(const base::SourceLocation& source_location,
                       const std::string& error_message);
 
+  void CancelSynchronousLoads();
+
  private:
   class DocumentLoadedObserver;
 
@@ -441,6 +444,13 @@ class WebModule::Impl {
 
   scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
       system_caption_settings_;
+
+  // This event is used to interrupt the loader when JavaScript is loaded
+  // synchronously.  It is manually reset so that events like Suspend can be
+  // correctly execute, even if there are multiple synchronous loads in queue
+  // before the suspend (or other) event handlers.
+  base::WaitableEvent synchronous_loader_interrupt_ = {
+      true /* manually reset */, false /* initially signaled */};
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -578,8 +588,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
-  mutation_observer_task_manager_.RegisterAsTracingRoot(global_environment_);
-
   execution_state_ =
       script::ExecutionState::CreateExecutionState(global_environment_);
   DCHECK(execution_state_);
@@ -598,11 +606,16 @@ WebModule::Impl::Impl(const ConstructionData& data)
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
 
+  // These members will reference other |Traceable|s, however are not
+  // accessible from |Window|, so we must explicitly add them as roots.
+  global_environment_->AddRoot(&mutation_observer_task_manager_);
+  global_environment_->AddRoot(media_source_registry_.get());
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
-      dom_parser_.get(), fetcher_factory_.get(), &resource_provider_,
-      animated_image_tracker_.get(), image_cache_.get(),
+      dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
+      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
       data.can_play_type_handler, data.web_media_player_factory,
@@ -627,7 +640,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnStartDispatchEvent,
                  base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnStopDispatchEvent, base::Unretained(this)),
-      data.options.provide_screenshot_function,
+      data.options.provide_screenshot_function, &synchronous_loader_interrupt_,
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -750,6 +763,8 @@ WebModule::Impl::~Impl() {
 
 void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
                                        const scoped_refptr<dom::Event>& event) {
+  TRACE_EVENT1("cobalt::browser", "WebModule::Impl::InjectInputEvent()",
+               "event", event->type().c_str());
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
@@ -757,7 +772,17 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
   if (element) {
     element->DispatchEvent(event);
   } else {
-    window_->InjectEvent(event);
+    if (dom::PointerState::CanQueueEvent(event)) {
+      // As an optimization we batch together pointer/mouse events for as long
+      // as we can get away with it (e.g. until a non-pointer event is received
+      // or whenever the next layout occurs).
+      window_->document()->pointer_state()->QueuePointerEvent(event);
+    } else {
+      // In order to maintain the correct input event ordering, we first
+      // dispatch any queued pending pointer events.
+      HandlePointerEvents();
+      window_->InjectEvent(event);
+    }
   }
 }
 
@@ -910,6 +935,10 @@ void WebModule::Impl::ProcessOnRenderTreeRasterized(
   if (produced_time >= last_render_tree_produced_time_) {
     is_render_tree_rasterization_pending_ = false;
   }
+}
+
+void WebModule::Impl::CancelSynchronousLoads() {
+  synchronous_loader_interrupt_.Signal();
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -1074,6 +1103,7 @@ void WebModule::Impl::Pause() {
 
 void WebModule::Impl::Unpause() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unpause()");
+  synchronous_loader_interrupt_.Reset();
   SetApplicationState(base::kApplicationStateStarted);
 }
 
@@ -1132,6 +1162,7 @@ void WebModule::Impl::FinishSuspend() {
 
 void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Resume()");
+  synchronous_loader_interrupt_.Reset();
   SetResourceProvider(resource_provider);
   SetApplicationState(base::kApplicationStatePaused);
 }
@@ -1142,6 +1173,7 @@ void WebModule::Impl::ReduceMemory() {
   if (!is_running_) {
     return;
   }
+  synchronous_loader_interrupt_.Reset();
 
   layout_manager_->Purge();
 
@@ -1599,6 +1631,8 @@ void WebModule::Pause() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
+  impl_->CancelSynchronousLoads();
+
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->PostBlockingTask(
@@ -1618,6 +1652,8 @@ void WebModule::Unpause() {
 void WebModule::Suspend() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
+
+  impl_->CancelSynchronousLoads();
 
   // We must block here so that we don't queue the finish until after
   // SuspendLoaders has run to completion, and therefore has already queued any
@@ -1646,6 +1682,8 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
 void WebModule::ReduceMemory() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
+
+  impl_->CancelSynchronousLoads();
 
   // We block here so that we block the Low Memory event handler until we have
   // reduced our memory consumption.

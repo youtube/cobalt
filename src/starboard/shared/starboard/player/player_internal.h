@@ -24,13 +24,13 @@
 #include "starboard/time.h"
 #include "starboard/window.h"
 
-struct SbPlayerPrivate
-    : starboard::shared::starboard::player::PlayerWorker::Host {
+struct SbPlayerPrivate {
  public:
   typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
 
   SbPlayerPrivate(
       SbMediaAudioCodec audio_codec,
+      SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -62,10 +62,12 @@ struct SbPlayerPrivate
 
   SbDecodeTarget GetCurrentDecodeTarget();
 
+  ~SbPlayerPrivate() { --number_of_players_; }
+
+  static int number_of_players() { return number_of_players_; }
+
  private:
-  // PlayerWorker::Host methods.
-  void UpdateMediaTime(SbTime media_time, int ticket) override;
-  void UpdateDroppedVideoFrames(int dropped_video_frames) override;
+  void UpdateMediaInfo(SbTime media_time, int dropped_video_frames, int ticket);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
@@ -73,7 +75,7 @@ struct SbPlayerPrivate
   starboard::Mutex mutex_;
   int ticket_;
   SbTime media_time_;
-  SbTimeMonotonic media_time_update_time_;
+  SbTimeMonotonic media_time_updated_at_;
   int frame_width_;
   int frame_height_;
   bool is_paused_;
@@ -83,6 +85,8 @@ struct SbPlayerPrivate
   int dropped_video_frames_;
 
   starboard::scoped_ptr<PlayerWorker> worker_;
+
+  static int number_of_players_;
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_

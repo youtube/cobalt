@@ -43,7 +43,6 @@ typedef std::pair<int, int> Interval;
 // |exclude_interval| is an interval that is excluded from the search.
 int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
                  const scoped_refptr<DecodedAudio>& target_block,
-                 SbMediaAudioSampleType sample_type,
                  SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval);
 

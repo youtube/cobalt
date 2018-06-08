@@ -33,7 +33,8 @@ class CSSComputedStyleDeclaration;
 
 // CSSComputedStyleData which has PropertyValue type properties only used
 // internally and it is not exposed to JavaScript.
-class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
+class CSSComputedStyleData
+    : public base::RefCountedThreadSafe<CSSComputedStyleData> {
  public:
   // This class provides the ability to determine whether the properties of two
   // CSSComputedStyleData objects match for a given set of property keys.

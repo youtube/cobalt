@@ -1679,6 +1679,19 @@ GrContext* SkCanvas::getGrContext() {
     return device ? device->context() : nullptr;
 }
 
+#if defined(COBALT)
+intptr_t SkCanvas::getRenderTargetHandle() const {
+    if (fSurfaceBase) {
+        GrBackendObject handle;
+        if (fSurfaceBase->getRenderTargetHandle(&handle,
+                SkSurface::kFlushRead_BackendHandleAccess)) {
+            return handle;
+        }
+    }
+    return 0;
+}
+#endif
+
 void SkCanvas::drawDRRect(const SkRRect& outer, const SkRRect& inner,
                           const SkPaint& paint) {
     TRACE_EVENT0("disabled-by-default-skia", "SkCanvas::drawDRRect()");

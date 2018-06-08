@@ -14,6 +14,7 @@
 
 #include "cobalt/layout/topmost_event_target.h"
 
+#include "base/debug/trace_event.h"
 #include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
@@ -29,8 +30,6 @@
 #include "cobalt/dom/pointer_state.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/wheel_event.h"
-#include "cobalt/layout/container_box.h"
-#include "cobalt/layout/used_style.h"
 #include "cobalt/math/vector2d.h"
 #include "cobalt/math/vector2d_f.h"
 
@@ -40,9 +39,15 @@ namespace layout {
 scoped_refptr<dom::HTMLElement> TopmostEventTarget::FindTopmostEventTarget(
     const scoped_refptr<dom::Document>& document,
     const math::Vector2dF& coordinate) {
+  TRACE_EVENT0("cobalt::layout",
+               "TopmostEventTarget::FindTopmostEventTarget()");
   DCHECK(document);
   DCHECK(!box_);
   DCHECK(render_sequence_.empty());
+
+  // Make sure the document's layout box tree is up-to-date.
+  document->DoSynchronousLayout();
+
   html_element_ = document->html();
   ConsiderElement(html_element_, coordinate);
   box_ = NULL;
@@ -291,6 +296,9 @@ void InitializePointerEventInitFromEvent(
 
 void TopmostEventTarget::MaybeSendPointerEvents(
     const scoped_refptr<dom::Event>& event) {
+  TRACE_EVENT0("cobalt::layout",
+               "TopmostEventTarget::MaybeSendPointerEvents()");
+
   const dom::MouseEvent* const mouse_event =
       base::polymorphic_downcast<const dom::MouseEvent* const>(event.get());
   DCHECK(mouse_event);

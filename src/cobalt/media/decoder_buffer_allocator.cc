@@ -178,6 +178,7 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 
 void DecoderBufferAllocator::UpdateVideoConfig(
     const VideoDecoderConfig& config) {
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
   if (!reuse_allocator_) {
     return;
   }
@@ -185,8 +186,10 @@ void DecoderBufferAllocator::UpdateVideoConfig(
   if (reuse_allocator_->max_capacity() && resolution > kVideoResolution1080p) {
     reuse_allocator_->set_max_capacity(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
   }
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 DecoderBufferAllocator::ReuseAllocator::ReuseAllocator(
     Allocator* fallback_allocator, std::size_t initial_capacity,
     std::size_t allocation_increment, std::size_t max_capacity)
@@ -276,6 +279,6 @@ bool DecoderBufferAllocator::UpdateAllocationRecord(
         // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0
   return true;
 }
-
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }  // namespace media
 }  // namespace cobalt

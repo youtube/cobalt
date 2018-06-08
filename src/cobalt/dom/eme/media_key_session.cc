@@ -19,6 +19,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_message_event.h"
 #include "cobalt/dom/eme/media_key_message_event_init.h"
 #include "cobalt/dom/eme/media_keys.h"
@@ -232,7 +233,8 @@ void MediaKeySession::TraceMembers(script::Tracer* tracer) {
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestGenerated(
-    VoidPromiseValue::Reference* promise_reference, scoped_array<uint8> message,
+    VoidPromiseValue::Reference* promise_reference,
+    SbDrmSessionRequestType type, scoped_array<uint8> message,
     int message_size) {
   MediaKeyMessageEventInit media_key_message_event_init;
   // 10.9.4. If a license request for the requested license type can be
@@ -251,8 +253,24 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
   //
   // TODO: Introduce message type parameter to |SbDrmSessionUpdateRequestFunc|
   //       and stop pretending that all messages are license requests.
-  media_key_message_event_init.set_message_type(
-      kMediaKeyMessageTypeLicenseRequest);
+  switch (type) {
+    case kSbDrmSessionRequestTypeLicenseRequest:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeLicenseRequest);
+      break;
+    case kSbDrmSessionRequestTypeLicenseRenewal:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeLicenseRenewal);
+      break;
+    case kSbDrmSessionRequestTypeLicenseRelease:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeLicenseRelease);
+      break;
+    case kSbDrmSessionRequestTypeIndividualizationRequest:
+      media_key_message_event_init.set_message_type(
+          kMediaKeyMessageTypeIndividualizationRequest);
+      break;
+  }
 
   // 10.3. Let this object's callable value be true.
   callable_ = true;
@@ -279,12 +297,12 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestDidNotGenerate(
-    VoidPromiseValue::Reference* promise_reference) {
+    VoidPromiseValue::Reference* promise_reference, SbDrmStatus status,
+    const std::string& error_message) {
   // 10.10.1. If any of the preceding steps failed, reject promise with a new
   //          DOMException whose name is the appropriate error name.
   //
-  // TODO: Introduce Starboard API that allows CDM to propagate error codes.
-  promise_reference->value().Reject(new DOMException(DOMException::kNone));
+  RejectPromise(promise_reference, status, error_message);
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
@@ -307,12 +325,12 @@ void MediaKeySession::OnSessionUpdated(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
 void MediaKeySession::OnSessionDidNotUpdate(
-    VoidPromiseValue::Reference* promise_reference) {
+    VoidPromiseValue::Reference* promise_reference, SbDrmStatus status,
+    const std::string& error_message) {
   // 8.1.3. If any of the preceding steps failed, reject promise with a new
   //        DOMException whose name is the appropriate error name.
   //
-  // TODO: Introduce Starboard API that allows CDM to propagate error codes.
-  promise_reference->value().Reject(new DOMException(DOMException::kNone));
+  RejectPromise(promise_reference, status, error_message);
 }
 
 // See https://www.w3.org/TR/encrypted-media/#update-key-statuses.

@@ -15,6 +15,8 @@
 #ifndef COBALT_SPEECH_COBALT_SPEECH_RECOGNIZER_H_
 #define COBALT_SPEECH_COBALT_SPEECH_RECOGNIZER_H_
 
+#include <string>
+
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/endpointer_delegate.h"
 #include "cobalt/speech/google_speech_service.h"
@@ -58,7 +60,8 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
-  void OnMicError(const scoped_refptr<dom::Event>& event);
+  void OnMicError(MicrophoneManager::MicrophoneError error,
+                  const std::string& error_message);
 
   // Callbacks from recognizer.
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);

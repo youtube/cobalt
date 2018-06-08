@@ -110,6 +110,30 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
   return 0;
 }
 
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+SB_C_FORCE_INLINE SbAtomic8
+SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
+                               SbAtomic8 old_value,
+                               SbAtomic8 new_value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(old_value);
+  SB_UNREFERENCED_PARAMETER(new_value);
+  return 0;
+}
+
+SB_C_FORCE_INLINE void
+SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr, SbAtomic8 value) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  SB_UNREFERENCED_PARAMETER(value);
+}
+
+SB_C_FORCE_INLINE SbAtomic8
+SbAtomicNoBarrier_Load8(volatile const SbAtomic8* ptr) {
+  SB_UNREFERENCED_PARAMETER(ptr);
+  return 0;
+}
+#endif
+
 // 64-bit atomic operations (only available on 64-bit processors).
 #if SB_HAS(64_BIT_ATOMICS)
 SB_C_FORCE_INLINE SbAtomic64

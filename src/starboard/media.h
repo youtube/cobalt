@@ -35,8 +35,14 @@ extern "C" {
 // Time represented in 90KHz ticks.
 typedef int64_t SbMediaTime;
 
-#define SB_MEDIA_TIME_TO_SB_TIME(media) (media * 100 / 9)
-#define SB_TIME_TO_SB_MEDIA_TIME(time) (time * 9 / 100)
+#define SB_MEDIA_TIME_TO_SB_TIME(media) \
+  (((media == SB_PLAYER_NO_DURATION)    \
+        ? SB_PLAYER_NO_DURATION         \
+        : ((media == kSbInt64Max) ? kSbInt64Max : (media * 100 / 9))))
+#define SB_TIME_TO_SB_MEDIA_TIME(time) \
+  (((time == SB_PLAYER_NO_DURATION)    \
+        ? SB_PLAYER_NO_DURATION        \
+        : ((time == kSbInt64Max) ? kSbInt64Max : (time * 9 / 100))))
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
 // Types of media component streams.
