@@ -85,6 +85,7 @@
       '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
       '<(DEPTH)/starboard/shared/starboard/system_supports_resume.cc',
+      '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
     ]
   }
 }

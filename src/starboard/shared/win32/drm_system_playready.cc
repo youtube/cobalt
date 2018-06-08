@@ -134,8 +134,9 @@ void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
   if (challenge.empty()) {
     // Signal an error with |session_id| as NULL.
     SB_LOG(ERROR) << "Failed to generate license challenge";
-    session_update_request_callback_(this, context_, ticket, NULL, 0, NULL, 0,
-                                     NULL);
+    session_update_request_callback_(
+        this, context_, ticket, kSbDrmStatusUnknownError,
+        kSbDrmSessionRequestTypeLicenseRequest, NULL, NULL, 0, NULL, 0, NULL);
     return;
   }
 
@@ -145,10 +146,11 @@ void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
   SB_LOG_IF(INFO, kLogPlayreadyChallengeResponse)
       << GetHexRepresentation(challenge.data(), challenge.size());
 
-  session_update_request_callback_(this, context_, ticket, session_id.c_str(),
-                                   static_cast<int>(session_id.size()),
-                                   challenge.c_str(),
-                                   static_cast<int>(challenge.size()), NULL);
+  session_update_request_callback_(
+      this, context_, ticket, kSbDrmStatusSuccess,
+      kSbDrmSessionRequestTypeLicenseRequest, NULL, session_id.c_str(),
+      static_cast<int>(session_id.size()), challenge.c_str(),
+      static_cast<int>(challenge.size()), NULL);
   pending_requests_[session_id] = license;
 }
 
@@ -186,8 +188,8 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
       successful_requests_[iter->first] =
           LicenseInfo(kSbDrmKeyStatusUsable, license);
     }
-    session_updated_callback_(this, context_, ticket, session_id,
-                              session_id_size, true);
+    session_updated_callback_(this, context_, ticket, kSbDrmStatusSuccess, NULL,
+                              session_id, session_id_size);
 
     {
       ScopedLock lock(mutex_);
@@ -198,8 +200,8 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
     SB_LOG(INFO) << "Failed to add key for session " << session_id_copy;
     // Don't report it as a failure as otherwise the JS player is going to
     // terminate the video.
-    session_updated_callback_(this, context_, ticket, session_id,
-                              session_id_size, true);
+    session_updated_callback_(this, context_, ticket, kSbDrmStatusSuccess, NULL,
+                              session_id, session_id_size);
     // When UpdateLicense() fails, the |license| must have generated a new
     // challenge internally.  Send this challenge again.
     const std::string& challenge = license->license_challenge();
@@ -214,11 +216,13 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
     SB_LOG_IF(INFO, kLogPlayreadyChallengeResponse)
         << GetHexRepresentation(challenge.data(), challenge.size());
 
-    // We have use |kSbDrmTicketInvalid| as the license challenge is not a
+    // We have to use |kSbDrmTicketInvalid| as the license challenge is not a
     // result of GenerateSessionUpdateRequest().
     session_update_request_callback_(
-        this, context_, kSbDrmTicketInvalid, session_id, session_id_size,
-        challenge.c_str(), static_cast<int>(challenge.size()), NULL);
+        this, context_, kSbDrmTicketInvalid, kSbDrmStatusSuccess,
+        kSbDrmSessionRequestTypeLicenseRequest, NULL, session_id,
+        session_id_size, challenge.c_str(), static_cast<int>(challenge.size()),
+        NULL);
   }
 }
 

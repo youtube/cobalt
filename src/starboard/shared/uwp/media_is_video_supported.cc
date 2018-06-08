@@ -24,6 +24,9 @@
 #include "third_party/libvpx_xb1/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx_xb1/libvpx/vpx/vpx_decoder.h"
 
+// When enabled, the desktop version of UWP will disable the gpu vp9 decoder.
+#define VP9_GPU_DECODER_DISABLED_ON_DESKTOP
+
 namespace {
 
 using ::starboard::shared::uwp::ApplicationUwp;
@@ -82,18 +85,30 @@ SB_EXPORT bool IsVp9HwDecoderSupported() {
 }
 
 SB_EXPORT bool IsVp9GPUDecoderSupported() {
+#ifdef VP9_GPU_DECODER_DISABLED_ON_DESKTOP
+  if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
+    SB_LOG(WARNING) << "VP9 GPU decoder disabled on Desktop.";
+    return false;
+  }
+#endif  // VP9_GPU_DECODER_DISABLED_ON_DESKTOP
   if (s_vp9_gpu_support == kVp9SupportUnknown) {
     D3D12_COMMAND_QUEUE_DESC desc = {};
     desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> d3d12queue;
     ApplicationUwp* application_uwp = ApplicationUwp::Get();
-    SB_CHECK(application_uwp->GetD3D12Device());
+    if (!application_uwp->GetD3D12Device()) {
+      SB_DLOG(WARNING)
+          << "Could not access DX12 device: cannot use GPU VP9.";
+      s_vp9_gpu_support = kVp9SupportNo;
+      return false;
+    }
     HRESULT hr = application_uwp->GetD3D12Device()->CreateCommandQueue(
         &desc, IID_PPV_ARGS(&d3d12queue));
     if (FAILED(hr)) {
-      SB_LOG(WARNING)
-          << "Could not create DX12 command queue: cannot use GPU VP9";
+      SB_DLOG(WARNING)
+          << "Could not create DX12 command queue: cannot use GPU VP9.";
+      s_vp9_gpu_support = kVp9SupportNo;
       return false;
     }
     vpx_codec_ctx vpx_context = {};
@@ -134,6 +149,10 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   int max_width = 1920;
   int max_height = 1080;
 
+  // Maximum supported GPU VP9 resolution for High Frame Rate video.
+  const int kMaxHfrGpuVp9Width = 1920;
+  const int kMaxHfrGpuVp9Height = 1080;
+
   if (video_codec == kSbMediaVideoCodecVp9) {
 // Vp9 supports 8k only in whitelisted platforms, up to 4k in the others.
 #ifdef ENABLE_VP9_8K_SUPPORT
@@ -168,10 +187,16 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return true;
   }
   if (video_codec == kSbMediaVideoCodecVp9) {
-    if (IsVp9HwDecoderSupported())
+    if (IsVp9HwDecoderSupported()) {
       return true;
-    if (IsVp9GPUDecoderSupported())
+    }
+    if (IsVp9GPUDecoderSupported()) {
+      if ((fps > 30) && ((frame_width > kMaxHfrGpuVp9Width) ||
+                         (frame_height > kMaxHfrGpuVp9Height))) {
+        return false;
+      }
       return true;
+    }
   }
   return false;
 }

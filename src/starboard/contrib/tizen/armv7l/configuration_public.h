@@ -25,17 +25,6 @@
 // The API version implemented by this platform.
 #define SB_API_VERSION 4
 
-// --- System Header Configuration -------------------------------------------
-
-// Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
-
-// Whether the current platform has speech recognizer.
-#define SB_HAS_SPEECH_RECOGNIZER 0
-
-// Whether the current platform has speech synthesis.
-#define SB_HAS_SPEECH_SYNTHESIS 0
-
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
@@ -104,6 +93,17 @@
 // on the specifically pinned core.
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
+// --- I/O Configuration -----------------------------------------------------
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
+
+// Whether the current platform has speech recognizer.
+#define SB_HAS_SPEECH_RECOGNIZER 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
+
 // --- Media Configuration ---------------------------------------------------
 
 // The maximum audio bitrate the platform can decode.  The following value
@@ -149,6 +149,12 @@
 // value leads to more stable fps but also causes the app to use more memory.
 #define SB_MEDIA_MAXIMUM_VIDEO_FRAMES 12
 
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
+
 // --- Common Configuration ---------------------------------------------------
 
 // Include the Tizen configuration that's common between all Tizen.
@@ -157,12 +163,7 @@
 // --- User Configuration ----------------------------------------------------
 
 // The maximum number of users that can be signed in at the same time.
+#undef SB_USER_MAX_SIGNED_IN
 #define SB_USER_MAX_SIGNED_IN 1
-
-// --- Timing API ------------------------------------------------------------
-
-// Whether this platform has an API to retrieve how long the current thread
-// has spent in the executing state.
-#define SB_HAS_TIME_THREAD_NOW 1
 
 #endif  // STARBOARD_CONTRIB_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_

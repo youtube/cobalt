@@ -25,10 +25,15 @@ sys.path.append(
             'shared', 'win32')))
 import gyp_configuration
 
+class WinLibConfiguration(gyp_configuration.Win32SharedConfiguration):
+  """Starboard XB1 platform configuration."""
+
+  def __init__(self, platform):
+    super(WinLibConfiguration, self).__init__(platform)
 
 def CreatePlatformConfig():
   try:
-    return gyp_configuration.Win32Configuration('win-win32-lib')
+    return WinLibConfiguration('win-win32-lib')
   except RuntimeError as e:
     logging.critical(e)
     return None

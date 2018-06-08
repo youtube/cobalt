@@ -37,6 +37,7 @@ struct UserAgentPlatformInfo {
   std::string aux_field;
   base::optional<SbSystemConnectionType> connection_type;
   std::string javascript_engine_version;
+  std::string rasterizer_type;
 
   std::string cobalt_version;
   std::string cobalt_build_version_number;

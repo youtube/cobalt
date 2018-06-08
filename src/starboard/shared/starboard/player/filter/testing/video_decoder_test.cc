@@ -36,6 +36,7 @@
 #include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 // This has to be defined in the global namespace as its instance will be used
 // as SbPlayer.
 struct SbPlayerPrivate {};
@@ -112,7 +113,6 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
         &player_,
         dmp_reader_.video_codec(),
         kSbDrmSystemInvalid,
-        &job_queue_,
         output_mode,
         fake_graphics_context_provider_.decoder_target_provider()};
 
@@ -427,7 +427,6 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               &players[i],
               dmp_reader_.video_codec(),
               kSbDrmSystemInvalid,
-              &job_queue_,
               output_mode,
               fake_graphics_context_provider_.decoder_target_provider()};
 
@@ -668,3 +667,4 @@ INSTANTIATE_TEST_CASE_P(VideoDecoderTests,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)

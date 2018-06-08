@@ -56,21 +56,42 @@ namespace shared {
 namespace uwp {
 
 concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
-    const std::string& url, bool prompt);
+    const std::string& url, SsoPromptPolicy prompt_policy,
+    bool dialog_required);
 
 concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
     const std::string& url) {
-  return TryToFetchSsoToken(url, false);
-}
-
-concurrency::task<WebTokenRequestResult^> TryToFetchSsoTokenAndPrompt(
-    const std::string& url) {
-  return TryToFetchSsoToken(url, true);
+  return TryToFetchSsoToken(url, kPromptIfNeverDeclined, false);
 }
 
 concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
-    const std::string& url, bool prompt) {
-  if (SbFileExists(GetSsoRejectionFilePath().c_str())) {
+    const std::string& url,
+    SsoPromptPolicy prompt_policy) {
+  return TryToFetchSsoToken(url, prompt_policy, false);
+}
+
+concurrency::task<WebTokenRequestResult^> TryToFetchSsoTokenDialogRequired(
+    const std::string& url, SsoPromptPolicy prompt_policy) {
+  return TryToFetchSsoToken(url, prompt_policy, true);
+}
+
+// When |dialog_required| is true, the codepath that allows
+// a dialog to appear (and causes a visible flicker if the dialog is not
+// required) will be called. That is, RequestTokenAsync will be used instead
+// of GetTokenSilentlyAsync
+//
+// |dialog_required| is only set to true in the case where a previous
+// attempt to fetch the token returned UserInteractionRequired.
+//
+concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
+    const std::string& url, SsoPromptPolicy prompt_policy,
+    bool dialog_required) {
+  if (dialog_required) {
+    SB_DCHECK(sbuwp::GetDispatcher()->HasThreadAccess)
+        << "When dialog_required is true, must be called on main UWP thread";
+  }
+  if (dialog_required && prompt_policy == kPromptIfNeverDeclined &&
+      SbFileExists(GetSsoRejectionFilePath().c_str())) {
     concurrency::task_completion_event<WebTokenRequestResult^> result;
     result.set(nullptr);
     return concurrency::task<WebTokenRequestResult^>(result);
@@ -78,7 +99,8 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
   return concurrency::create_task(
       WebAuthenticationCoreManager::FindAccountProviderAsync(
           sbwin32::stringToPlatformString(kXboxLiveAccountProviderId)))
-  .then([url, prompt](concurrency::task<WebAccountProvider^> previous_task) {
+  .then([url, dialog_required](
+      concurrency::task<WebAccountProvider^> previous_task) {
     WebAccountProvider^ xbox_provider = nullptr;
     try {
       xbox_provider = previous_task.get();
@@ -94,9 +116,7 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
     request->Properties->Insert("Target", "xboxlive.signin");
     request->Properties->Insert("Policy", "DELEGATION");
 
-    bool main_thread = sbuwp::GetDispatcher()->HasThreadAccess;
-
-    if (main_thread && prompt) {
+    if (dialog_required) {
       return concurrency::create_task(
           WebAuthenticationCoreManager::RequestTokenAsync(request));
     } else {
@@ -104,7 +124,8 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
           WebAuthenticationCoreManager::GetTokenSilentlyAsync(request));
     }
   })
-  .then([url](concurrency::task<WebTokenRequestResult^> previous_task) {
+  .then([url, prompt_policy](
+      concurrency::task<WebTokenRequestResult^> previous_task) {
     WebTokenRequestResult^ token_result = previous_task.get();
     try {
       token_result = previous_task.get();
@@ -129,12 +150,15 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
       }
 
       case WebTokenRequestStatus::UserInteractionRequired: {
+        if (prompt_policy == kNeverPrompt) {
+          return previous_task;
+        }
         concurrency::task_completion_event<WebTokenRequestResult^> completion;
-        RunInMainThreadAsync([url, completion]() {
+        RunInMainThreadAsync([url, prompt_policy, completion]() {
           // When we run TryToFetchSsoTokenAndPrompt in the main thread,
           // we'll always ask for user input via RequestTokenAsync, which
           // never returns this case.
-          TryToFetchSsoTokenAndPrompt(url)
+          TryToFetchSsoTokenDialogRequired(url, prompt_policy)
           .then([completion](concurrency::task<WebTokenRequestResult^> result) {
             try {
               completion.set(result.get());
@@ -146,6 +170,10 @@ concurrency::task<WebTokenRequestResult^> TryToFetchSsoToken(
 
         return concurrency::task<WebTokenRequestResult^>(completion);
       }
+
+      case WebTokenRequestStatus::Success:
+        SbFileDelete(GetSsoRejectionFilePath().c_str());
+        return previous_task;
 
       default:
         return previous_task;

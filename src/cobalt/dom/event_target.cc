@@ -33,10 +33,11 @@ void EventTarget::AddEventListener(const std::string& type,
     return;
   }
 
-  EventListenerScriptValue::Reference listener_reference(this, listener);
+  scoped_ptr<GenericEventHandlerReference> listener_reference(
+      new GenericEventHandlerReference(this, listener));
 
-  AddEventListenerInternal(base::Token(type), listener, use_capture,
-                           EventListener::kNotAttribute);
+  AddEventListenerInternal(base::Token(type), listener_reference.Pass(),
+                           use_capture, kNotAttribute);
 }
 
 void EventTarget::RemoveEventListener(const std::string& type,
@@ -49,9 +50,8 @@ void EventTarget::RemoveEventListener(const std::string& type,
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == EventListener::kNotAttribute &&
-        (*iter)->type == type.c_str() &&
-        (*iter)->listener.referenced_value().EqualTo(listener) &&
+    if ((*iter)->listener_type == kNotAttribute &&
+        (*iter)->type == type.c_str() && (*iter)->listener->EqualTo(listener) &&
         (*iter)->use_capture == use_capture) {
       event_listener_infos_.erase(iter);
       return;
@@ -124,42 +124,73 @@ void EventTarget::PostToDispatchEventAndRunCallback(
 
 void EventTarget::SetAttributeEventListener(
     base::Token type, const EventListenerScriptValue& listener) {
-  // Remove existing attribute listener of the same type.
-  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
-       iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == EventListener::kAttribute &&
-        (*iter)->type == type) {
-      event_listener_infos_.erase(iter);
-      break;
-    }
-  }
+  DCHECK(!unpack_onerror_events_ || type != base::Tokens::error());
 
-  if (listener.IsNull()) {
-    return;
-  }
-  AddEventListenerInternal(type, listener, false, EventListener::kAttribute);
+  scoped_ptr<GenericEventHandlerReference> listener_reference(
+      new GenericEventHandlerReference(this, listener));
+  SetAttributeEventListenerInternal(type, listener_reference.Pass());
 }
 
 const EventTarget::EventListenerScriptValue*
 EventTarget::GetAttributeEventListener(base::Token type) const {
-  for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
-       iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == EventListener::kAttribute &&
-        (*iter)->type == type) {
-      return &(*iter)->listener.referenced_value();
-    }
-  }
-  return NULL;
+  DCHECK(!unpack_onerror_events_ || type != base::Tokens::error());
+
+  GenericEventHandlerReference* handler =
+      GetAttributeEventListenerInternal(type);
+  return handler ? handler->event_listener_value() : NULL;
+}
+
+void EventTarget::SetAttributeOnErrorEventListener(
+    base::Token type, const OnErrorEventListenerScriptValue& listener) {
+  DCHECK_EQ(base::Tokens::error(), type);
+
+  scoped_ptr<GenericEventHandlerReference> listener_reference(
+      new GenericEventHandlerReference(this, listener));
+  SetAttributeEventListenerInternal(type, listener_reference.Pass());
+}
+
+const EventTarget::OnErrorEventListenerScriptValue*
+EventTarget::GetAttributeOnErrorEventListener(base::Token type) const {
+  DCHECK_EQ(base::Tokens::error(), type);
+
+  GenericEventHandlerReference* handler =
+      GetAttributeEventListenerInternal(type);
+  return handler ? handler->on_error_event_listener_value() : NULL;
 }
 
 bool EventTarget::HasOneOrMoreAttributeEventListener() const {
   for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->listener_type == EventListener::kAttribute) {
+    if ((*iter)->listener_type == kAttribute) {
       return true;
     }
   }
   return false;
+}
+
+void EventTarget::SetAttributeEventListenerInternal(
+    base::Token type, scoped_ptr<GenericEventHandlerReference> event_handler) {
+  // Remove existing attribute listener of the same type.
+  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if ((*iter)->listener_type == kAttribute && (*iter)->type == type) {
+      event_listener_infos_.erase(iter);
+      break;
+    }
+  }
+
+  AddEventListenerInternal(type, event_handler.Pass(), false, kAttribute);
+}
+
+GenericEventHandlerReference* EventTarget::GetAttributeEventListenerInternal(
+    base::Token type) const {
+  for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if ((*iter)->listener_type == kAttribute && (*iter)->type == type) {
+      return (*iter)->listener.get();
+    }
+  }
+  return NULL;
 }
 
 void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
@@ -174,7 +205,9 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
        iter != event_listener_infos_.end(); ++iter) {
     if ((*iter)->type == event->type()) {
       event_listener_infos.push_back(new EventListenerInfo(
-          (*iter)->type, this, (*iter)->listener.referenced_value(),
+          (*iter)->type,
+          make_scoped_ptr(
+              new GenericEventHandlerReference(this, *(*iter)->listener)),
           (*iter)->use_capture, (*iter)->listener_type));
     }
   }
@@ -193,7 +226,9 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
     if (event->event_phase() == Event::kBubblingPhase && (*iter)->use_capture) {
       continue;
     }
-    (*iter)->listener.value().HandleEvent(event, (*iter)->listener_type);
+
+    (*iter)->listener->HandleEvent(event, (*iter)->listener_type == kAttribute,
+                                   unpack_onerror_events_);
   }
 
   event->set_current_target(NULL);
@@ -206,26 +241,27 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
 }
 
 void EventTarget::AddEventListenerInternal(
-    base::Token type, const EventListenerScriptValue& listener,
-    bool use_capture, EventListener::Type listener_type) {
+    base::Token type, scoped_ptr<GenericEventHandlerReference> listener,
+    bool use_capture, Type listener_type) {
   TRACK_MEMORY_SCOPE("DOM");
 
-  DCHECK(!listener.IsNull());
+  if (listener->IsNull()) {
+    return;
+  }
 
   for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
        iter != event_listener_infos_.end(); ++iter) {
-    if ((*iter)->type == type &&
-        (*iter)->listener.referenced_value().EqualTo(listener) &&
+    if ((*iter)->type == type && (*iter)->listener->EqualTo(*listener) &&
         (*iter)->use_capture == use_capture &&
         (*iter)->listener_type == listener_type) {
       // Attribute listeners should have already been removed.
-      DCHECK_EQ(listener_type, EventListener::kNotAttribute);
+      DCHECK_EQ(listener_type, kNotAttribute);
       return;
     }
   }
 
   event_listener_infos_.push_back(
-      new EventListenerInfo(type, this, listener, use_capture, listener_type));
+      new EventListenerInfo(type, listener.Pass(), use_capture, listener_type));
 }
 
 bool EventTarget::HasEventListener(base::Token type) {
@@ -241,11 +277,10 @@ bool EventTarget::HasEventListener(base::Token type) {
 }
 
 EventTarget::EventListenerInfo::EventListenerInfo(
-    base::Token type, EventTarget* const event_target,
-    const EventListenerScriptValue& listener, bool use_capture,
-    EventListener::Type listener_type)
+    base::Token type, scoped_ptr<GenericEventHandlerReference> listener,
+    bool use_capture, Type listener_type)
     : type(type),
-      listener(event_target, listener),
+      listener(listener.Pass()),
       use_capture(use_capture),
       listener_type(listener_type) {
   GlobalStats::GetInstance()->AddEventListener();

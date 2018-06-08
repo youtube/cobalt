@@ -39,6 +39,13 @@ __int64 _InterlockedCompareExchange64(
 );
 #pragma intrinsic(_InterlockedCompareExchange64)
 
+char _InterlockedCompareExchange8(
+  char volatile * Destination,
+  char Exchange,
+  char Comparand
+);
+#pragma intrinsic(_InterlockedCompareExchange8)
+
 long _InterlockedExchange(
   long volatile * Target,
   long Value
@@ -153,6 +160,26 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
   SbAtomicMemoryBarrier();
   return *ptr;
 }
+
+#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+SB_C_FORCE_INLINE SbAtomic8
+SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
+                               SbAtomic8 old_value,
+                               SbAtomic8 new_value) {
+  // Note this does a full memory barrier
+  return _InterlockedCompareExchange8((volatile char*)ptr, new_value, old_value);
+}
+
+SB_C_FORCE_INLINE void
+SbAtomicNoBarrier_Store8(volatile SbAtomic8* ptr, SbAtomic8 value) {
+  *ptr = value;
+}
+
+SB_C_FORCE_INLINE SbAtomic8
+SbAtomicNoBarrier_Load8(volatile const SbAtomic8* ptr) {
+  return *ptr;
+}
+#endif
 
 // 64-bit atomic operations (only available on 64-bit processors).
 #if SB_HAS(64_BIT_ATOMICS)

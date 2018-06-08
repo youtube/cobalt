@@ -26,6 +26,8 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/network_bridge/net_poster.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -46,23 +48,26 @@ class WindowTest : public ::testing::Test {
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         local_storage_database_(NULL),
-        url_("about:blank"),
-        window_(new Window(
-            1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-            dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL,
-            NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, url_, "", "en-US", "en",
-            base::Callback<void(const GURL &)>(),
-            base::Bind(&MockErrorCallback::Run,
-                       base::Unretained(&mock_error_callback_)),
-            NULL, network_bridge::PostSender(), csp::kCSPRequired,
-            kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
-            base::Closure() /* ran_animation_frame_callbacks */,
-            dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */, NULL, NULL, NULL,
-            dom::Window::OnStartDispatchEventCallback(),
-            dom::Window::OnStopDispatchEventCallback(),
-            dom::ScreenshotManager::ProvideScreenshotFunctionCallback())) {}
+        url_("about:blank") {
+    engine_ = script::JavaScriptEngine::CreateEngine();
+    global_environment_ = engine_->CreateGlobalEnvironment();
+    window_ = new Window(
+        1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
+        dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
+        global_environment_->script_value_factory(), NULL, NULL, url_, "",
+        "en-US", "en", base::Callback<void(const GURL &)>(),
+        base::Bind(&MockErrorCallback::Run,
+                   base::Unretained(&mock_error_callback_)),
+        NULL, network_bridge::PostSender(), csp::kCSPRequired,
+        kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
+        base::Closure() /* ran_animation_frame_callbacks */,
+        dom::Window::CloseCallback() /* window_close */,
+        base::Closure() /* window_minimize */, NULL, NULL, NULL,
+        dom::Window::OnStartDispatchEventCallback(),
+        dom::Window::OnStopDispatchEventCallback(),
+        dom::ScreenshotManager::ProvideScreenshotFunctionCallback(), NULL);
+  }
 
   ~WindowTest() override {}
 
@@ -72,6 +77,8 @@ class WindowTest : public ::testing::Test {
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
   dom::LocalStorageDatabase local_storage_database_;
+  scoped_ptr<script::JavaScriptEngine> engine_;
+  scoped_refptr<script::GlobalEnvironment> global_environment_;
   GURL url_;
   scoped_refptr<Window> window_;
 };

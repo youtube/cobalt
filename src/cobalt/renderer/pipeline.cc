@@ -363,36 +363,26 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
   bool animations_active =
       !are_stat_tracked_animations_expired && did_rasterize;
 
+  // Rasterizations are only tracked by the timers when there are animations.
+  // This applies when animations were active during either the last
+  // rasterization or the current one. The reason for including the last one is
+  // that if animations have just expired, then this rasterization produces the
+  // final state of the animated tree.
   if (last_animations_active || animations_active) {
-    // The rasterization is only timed with the animations timer when there are
-    // animations to track. This applies when animations were active during
-    // either the last rasterization or the current one. The reason for
-    // including the last one is that if animations have just expired, then this
-    // rasterization produces the final state of the animated tree.
     if (did_rasterize) {
       rasterize_animations_timer_.Start(start_time);
       rasterize_animations_timer_.Stop(end_time);
-    }
 
-    // If animations are going from being inactive to active, then set the c_val
-    // prior to starting the animation so that it's in the correct state while
-    // the tree is being rendered.
-    // Also, start the interval timer now. While the first entry only captures a
-    // partial interval, it's recorded to include the duration of the first
-    // submission. All subsequent entries will record a full interval.
-    if (!last_animations_active && animations_active) {
-      has_active_animations_c_val_ = true;
-      rasterize_periodic_interval_timer_.Start(start_time);
-      rasterize_animations_interval_timer_.Start(start_time);
-    }
-
-    if (!did_rasterize) {
-      // If we didn't actually rasterize anything, don't count this sample.
+      // The interval timers require animations to have been active the previous
+      // frame so that there is a full interval to record.
+      if (last_animations_active) {
+        rasterize_periodic_interval_timer_.Stop(end_time);
+        rasterize_animations_interval_timer_.Stop(end_time);
+      }
+    } else {
+      // If we didn't actually rasterize anything, then don't count this sample.
       rasterize_periodic_interval_timer_.Cancel();
       rasterize_animations_interval_timer_.Cancel();
-    } else {
-      rasterize_periodic_interval_timer_.Stop(end_time);
-      rasterize_animations_interval_timer_.Stop(end_time);
     }
 
     // If animations are active, then they are guaranteed at least one more
@@ -405,11 +395,12 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
     // Check for if the animations are starting or ending.
     if (!last_animations_active && animations_active) {
       animations_start_time_ = end_time.ToInternalValue();
+      has_active_animations_c_val_ = true;
     } else if (last_animations_active && !animations_active) {
       animations_end_time_ = end_time.ToInternalValue();
-      has_active_animations_c_val_ = false;
       rasterize_animations_interval_timer_.Flush();
       rasterize_animations_timer_.Flush();
+      has_active_animations_c_val_ = false;
     }
   }
 

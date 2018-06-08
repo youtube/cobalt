@@ -227,10 +227,14 @@ void AudioNodeInput::DisconnectAll() {
 }
 
 void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
-                                  bool* silence) {
+                                  bool* silence, bool* all_finished) {
+  DCHECK(silence);
+  DCHECK(all_finished);
+
   // This is called by Audio thread.
   owner_node_->audio_lock()->AssertLocked();
 
+  *all_finished = true;
   // TODO: Consider computing computedNumberOfChannels and do up-mix or
   // down-mix base on computedNumberOfChannels. The current implementation
   // is based on the fact that the channelCountMode is max.
@@ -244,9 +248,11 @@ void AudioNodeInput::FillAudioBus(ShellAudioBus* output_audio_bus,
   // from one or more AudioNode outputs. Fan-in is supported.
   for (std::set<AudioNodeOutput*>::iterator iter = outputs_.begin();
        iter != outputs_.end(); ++iter) {
+    bool finished = false;
     scoped_ptr<ShellAudioBus> audio_bus = (*iter)->PassAudioBusFromSource(
         static_cast<int32>(output_audio_bus->frames()),
-        output_audio_bus->sample_type());
+        output_audio_bus->sample_type(), &finished);
+    *all_finished &= finished;
 
     if (audio_bus) {
       if (*silence && audio_bus->channels() == output_audio_bus->channels()) {

@@ -142,6 +142,27 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
 
 }  // namespace
 
+void HTMLElement::RuleMatchingState::Clear() {
+  if (is_set) {
+    is_set = false;
+
+    parent_matching_nodes.clear();
+    parent_descendant_nodes.clear();
+
+    previous_sibling_matching_nodes.clear();
+    previous_sibling_following_sibling_nodes.clear();
+
+    matching_nodes_parent_nodes.clear();
+    matching_nodes.clear();
+
+    are_descendant_nodes_dirty = true;
+    descendant_nodes.clear();
+
+    are_following_sibling_nodes_dirty = true;
+    following_sibling_nodes.clear();
+  }
+}
+
 std::string HTMLElement::dir() const {
   // The dir attribute is limited to only known values. On getting, dir must
   // return the conforming value associated with the state the attribute is in,
@@ -593,30 +614,50 @@ scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
   return NULL;
 }
 
+void HTMLElement::ClearRuleMatchingState() {
+  ClearRuleMatchingStateInternal(true /*invalidate_descendants*/);
+}
+
+void HTMLElement::ClearRuleMatchingStateInternal(bool invalidate_descendants) {
+  rule_matching_state_.Clear();
+  matching_rules_valid_ = false;
+
+  if (invalidate_descendants) {
+    InvalidateMatchingRulesRecursivelyInternal(true /*is_initial_element*/);
+  }
+}
+
+void HTMLElement::ClearRuleMatchingStateOnElementAndAncestors(
+    bool invalidate_matching_rules) {
+  Element* parent_element = this->parent_element();
+  HTMLElement* parent_html_element =
+      parent_element ? parent_element->AsHTMLElement() : NULL;
+  if (parent_html_element) {
+    parent_html_element->ClearRuleMatchingStateOnElementAndAncestors(
+        invalidate_matching_rules);
+  }
+  ClearRuleMatchingStateInternal(invalidate_matching_rules &&
+                                 parent_html_element == NULL);
+}
+
+void HTMLElement::ClearRuleMatchingStateOnElementAndDescendants() {
+  ClearRuleMatchingStateInternal(false /* invalidate_descendants*/);
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      html_element->ClearRuleMatchingStateOnElementAndDescendants();
+    }
+  }
+}
+
 void HTMLElement::InvalidateMatchingRulesRecursively() {
-  InvalidateMatchingRulesRecursivelyInternal(true /*is_initial_invalidation*/);
+  InvalidateMatchingRulesRecursivelyInternal(true /*is_initial_element*/);
 }
 
 void HTMLElement::InvalidateMatchingRulesRecursivelyInternal(
-    bool is_initial_invalidation) {
-  if (matching_rules_valid_) {
-    // Move |matching_rules_| into |old_matching_rules_|. This is used for
-    // determining whether or not the matching rules actually changed when they
-    // are updated.
-    old_matching_rules_.swap(matching_rules_);
-
-    matching_rules_.clear();
-    rule_matching_state_.matching_nodes.clear();
-    rule_matching_state_.descendant_potential_nodes.clear();
-    rule_matching_state_.following_sibling_potential_nodes.clear();
-    for (int pseudo_element_type = 0;
-         pseudo_element_type < kMaxPseudoElementType; ++pseudo_element_type) {
-      if (pseudo_elements_[pseudo_element_type]) {
-        pseudo_elements_[pseudo_element_type]->ClearMatchingRules();
-      }
-    }
-    matching_rules_valid_ = false;
-  }
+    bool is_initial_element) {
+  matching_rules_valid_ = false;
 
   // Invalidate matching rules on all children.
   for (Element* element = first_element_child(); element;
@@ -624,24 +665,46 @@ void HTMLElement::InvalidateMatchingRulesRecursivelyInternal(
     HTMLElement* html_element = element->AsHTMLElement();
     if (html_element) {
       html_element->InvalidateMatchingRulesRecursivelyInternal(
-          false /*is_initial_invalidation*/);
+          false /*is_initial_element*/);
     }
   }
 
   // Invalidate matching rules on all following siblings if this is the initial
-  // invalidation and sibling combinators are used; if this is not the initial
-  // invalidation, then these will already be handled by a previous call.
-  if (is_initial_invalidation &&
+  // element and sibling combinators are used; if this is not the initial
+  // element, then these will already be handled by a previous call.
+  if (is_initial_element &&
       node_document()->selector_tree()->has_sibling_combinators()) {
     for (Element* element = next_element_sibling(); element;
          element = element->next_element_sibling()) {
       HTMLElement* html_element = element->AsHTMLElement();
       if (html_element) {
         html_element->InvalidateMatchingRulesRecursivelyInternal(
-            false /*is_initial_invalidation*/);
+            false /*is_initial_element*/);
       }
     }
   }
+}
+
+void HTMLElement::UpdateMatchingRules() { UpdateElementMatchingRules(this); }
+
+void HTMLElement::UpdateMatchingRulesRecursively() {
+  UpdateMatchingRules();
+  for (Element* element = first_element_child(); element;
+       element = element->next_element_sibling()) {
+    HTMLElement* html_element = element->AsHTMLElement();
+    if (html_element) {
+      html_element->UpdateMatchingRulesRecursively();
+    }
+  }
+}
+
+void HTMLElement::OnMatchingRulesModified() {
+  dom_stat_tracker_->OnUpdateMatchingRules();
+  computed_style_valid_ = false;
+}
+
+void HTMLElement::OnPseudoElementMatchingRulesModified() {
+  pseudo_elements_computed_styles_valid_ = false;
 }
 
 void HTMLElement::UpdateComputedStyleRecursively(
@@ -655,9 +718,8 @@ void HTMLElement::UpdateComputedStyleRecursively(
     return;
   }
 
-  // Update computed style for this element.
-  bool is_valid =
-      ancestors_were_valid && matching_rules_valid_ && computed_style_valid_;
+  // Update computed styles for this element if any aren't valid.
+  bool is_valid = ancestors_were_valid && AreComputedStylesValid();
   if (!is_valid) {
     UpdateComputedStyle(parent_computed_style_declaration, root_computed_style,
                         style_change_event_time, kAncestorsAreDisplayed);
@@ -805,6 +867,7 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
+      pseudo_elements_computed_styles_valid_(false),
       descendant_computed_styles_valid_(false),
       ancestors_are_displayed_(kAncestorsAreDisplayed),
       css_computed_style_declaration_(new cssom::CSSComputedStyleDeclaration()),
@@ -858,25 +921,34 @@ void HTMLElement::OnRemovedFromDocument() {
     RunUnFocusingSteps();
     document->OnFocusChange();
   }
+
+  // Only clear the rule matching on this element. Descendants will be handled
+  // by OnRemovedFromDocument() being called on them from
+  // Node::OnRemovedFromDocument().
+  ClearRuleMatchingStateInternal(false /*invalidate_descendants*/);
 }
 
 void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
-  if (name == "class" || name == "id") {
-    InvalidateMatchingRulesRecursively();
-  } else if (name == "dir") {
+  if (name == "dir") {
     SetDirectionality(value);
   }
+
+  // Always clear the matching state when an attribute changes. Any attribute
+  // changing can potentially impact the matching rules.
+  ClearRuleMatchingState();
 }
 
 void HTMLElement::OnRemoveAttribute(const std::string& name) {
-  if (name == "class" || name == "id") {
-    InvalidateMatchingRulesRecursively();
-  } else if (name == "dir") {
+  if (name == "dir") {
     SetDirectionality("");
   }
+
+  // Always clear the matching state when an attribute changes. Any attribute
+  // changing can potentially impact the matching rules.
+  ClearRuleMatchingState();
 }
 
 // Algorithm for IsFocusable:
@@ -958,8 +1030,8 @@ void HTMLElement::RunFocusingSteps() {
                                Event::kNotCancelable, document->window(),
                                this));
 
-  // Custom, not in any sepc.
-  InvalidateMatchingRulesRecursively();
+  // Custom, not in any spec.
+  ClearRuleMatchingState();
 }
 
 // Algorithm for RunUnFocusingSteps:
@@ -993,8 +1065,8 @@ void HTMLElement::RunUnFocusingSteps() {
                                Event::kNotCancelable, document->window(),
                                this));
 
-  // Custom, not in any sepc.
-  InvalidateMatchingRulesRecursively();
+  // Custom, not in any spec.
+  ClearRuleMatchingState();
 }
 
 void HTMLElement::SetDirectionality(const std::string& value) {
@@ -1249,6 +1321,9 @@ void HTMLElement::UpdateComputedStyle(
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
 
+  // Verify that the matching rules for this element are valid. They should have
+  // been updated prior to UpdateComputedStyle() being called.
+  DCHECK(matching_rules_valid_);
   // If there is no previous computed style, there should also be no layout
   // boxes.
   DCHECK(computed_style() || NULL == layout_boxes());
@@ -1258,18 +1333,6 @@ void HTMLElement::UpdateComputedStyle(
   // The computed style must be generated if either the computed style is
   // invalid or no computed style has been created yet.
   bool generate_computed_style = !computed_style_valid_ || !computed_style();
-
-  // Update matching rules if necessary.
-  if (!matching_rules_valid_) {
-    dom_stat_tracker_->OnUpdateMatchingRules();
-    UpdateMatchingRules(this);
-
-    // Check for whether the matching rules have changed. If they have, then a
-    // new computed style must be generated from them.
-    if (!generate_computed_style && old_matching_rules_ != matching_rules_) {
-      generate_computed_style = true;
-    }
-  }
 
   // If any declared properties inherited from the parent are no longer valid,
   // then a new computed style must be generated with the updated inherited
@@ -1325,29 +1388,35 @@ void HTMLElement::UpdateComputedStyle(
   // Update the displayed status of our ancestors.
   ancestors_are_displayed_ = ancestors_are_displayed;
 
-  // NOTE: Currently, pseudo element's computed styles are always generated. If
-  // this becomes a performance bottleneck, change the logic so that it only
-  // occurs when needed.
-
-  // Promote the matching rules for all known pseudo elements.
-  for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
-       ++pseudo_element_type) {
-    if (pseudo_elements_[pseudo_element_type]) {
-      dom_stat_tracker_->OnGeneratePseudoElementComputedStyle();
-      DoComputedStyleUpdate(
-          pseudo_elements_[pseudo_element_type]->matching_rules(),
-          &property_key_to_base_url_map, NULL, css_computed_style_declaration(),
-          root_computed_style, document->viewport_size(),
-          pseudo_elements_[pseudo_element_type]->computed_style(),
-          style_change_event_time,
-          pseudo_elements_[pseudo_element_type]->css_transitions(),
-          pseudo_elements_[pseudo_element_type]->css_animations(),
-          document->keyframes_map(),
-          old_is_displayed ? kAncestorsAreDisplayed : kAncestorsAreNotDisplayed,
-          IsDisplayed() ? kAncestorsAreDisplayed : kAncestorsAreNotDisplayed,
-          kIsPseudoElement, &invalidation_flags,
-          pseudo_elements_[pseudo_element_type]
-              ->css_computed_style_declaration());
+  // Process pseudo elements. They must have their computed style generated if
+  // either their owning HTML element's style was just generated or their
+  // computed style is invalid (this occurs when their matching rules change).
+  for (int type = 0; type < kMaxPseudoElementType; ++type) {
+    PseudoElement* type_pseudo_element =
+        pseudo_element(PseudoElementType(type));
+    if (type_pseudo_element) {
+      if (generate_computed_style ||
+          type_pseudo_element->computed_style_invalid()) {
+        dom_stat_tracker_->OnGeneratePseudoElementComputedStyle();
+        DoComputedStyleUpdate(
+            type_pseudo_element->matching_rules(),
+            &property_key_to_base_url_map, NULL,
+            css_computed_style_declaration(), root_computed_style,
+            document->viewport_size(), type_pseudo_element->computed_style(),
+            style_change_event_time, type_pseudo_element->css_transitions(),
+            type_pseudo_element->css_animations(), document->keyframes_map(),
+            old_is_displayed ? kAncestorsAreDisplayed
+                             : kAncestorsAreNotDisplayed,
+            IsDisplayed() ? kAncestorsAreDisplayed : kAncestorsAreNotDisplayed,
+            kIsPseudoElement, &invalidation_flags,
+            type_pseudo_element->css_computed_style_declaration());
+        type_pseudo_element->clear_computed_style_invalid();
+      } else {
+        // Update the inherited data if a new style was not generated. The
+        // ancestor data with inherited properties may have changed.
+        type_pseudo_element->css_computed_style_declaration()
+            ->UpdateInheritedData();
+      }
     }
   }
 
@@ -1374,6 +1443,19 @@ void HTMLElement::UpdateComputedStyle(
   }
 
   computed_style_valid_ = true;
+  pseudo_elements_computed_styles_valid_ = true;
+}
+
+void HTMLElement::SetPseudoElement(PseudoElementType type,
+                                   scoped_ptr<PseudoElement> pseudo_element) {
+  DCHECK_EQ(this, pseudo_element->parent_element());
+  DCHECK(type < kMaxPseudoElementType);
+  pseudo_elements_[type] = pseudo_element.Pass();
+  pseudo_elements_computed_styles_valid_ = false;
+}
+
+bool HTMLElement::AreComputedStylesValid() const {
+  return computed_style_valid_ && pseudo_elements_computed_styles_valid_;
 }
 
 bool HTMLElement::IsDesignated() const {

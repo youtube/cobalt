@@ -50,6 +50,8 @@ const char kXauthHeaderPrefix[] = "XBL3.0 x=";
 // header with a valid STS token for the current primary user.
 const base::StringPiece kXauthTriggerHeaderName = "X-STS-RelyingPartyId";
 
+const char kPromptHeader[] = "X-Cobalt-Xbl-Prompt";
+
 class LastTokenCache {
   bool has_last_token_ = false;
   std::string last_token_;
@@ -70,14 +72,16 @@ class LastTokenCache {
 
 SB_ONCE_INITIALIZE_FUNCTION(LastTokenCache, GetLastTokenCache);
 
-bool PopulateToken(const std::string& relying_party, std::string* out) {
+bool PopulateToken(const std::string& relying_party, std::string* out,
+    sbuwp::SsoPromptPolicy prompt_policy) {
   out->clear();
   DCHECK(!sbuwp::GetDispatcher()->HasThreadAccess)
       << "Must not be called from the UWP main thread";
 
   WebTokenRequestResult^ token_result;
   try {
-    token_result = sbuwp::TryToFetchSsoToken(relying_party).get();
+    token_result =
+        sbuwp::TryToFetchSsoToken(relying_party, prompt_policy).get();
   } catch (Platform::Exception^) {
     token_result = nullptr;
   }
@@ -153,8 +157,20 @@ void CobaltXhrModifyHeader(const GURL& request_url,
     AppendUrlPath(request_url_path, &relying_party);
   }
 
+  std::string prompt_header;
+  bool prompt_header_found = headers->GetHeader(kPromptHeader, &prompt_header);
+
+  sbuwp::SsoPromptPolicy prompt_policy;
+  if (!prompt_header_found) {
+    prompt_policy = sbuwp::kPromptIfNeverDeclined;
+  } else if (prompt_header == "true") {
+    prompt_policy = sbuwp::kPromptIfNeeded;
+  } else {
+    prompt_policy = sbuwp::kNeverPrompt;
+  }
+
   std::string out_string;
-  if (!PopulateToken(relying_party, &out_string)) {
+  if (!PopulateToken(relying_party, &out_string, prompt_policy)) {
     return;
   }
   headers->RemoveHeader(kXauthTriggerHeaderName);

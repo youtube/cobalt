@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'includes': [
+    '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
+  ],
   'variables': {
     'sb_pedantic_warnings': 1,
     'winrt%': 1,
 
     # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
     'uwp_incompatible_win32': [
+      '<(DEPTH)/starboard/shared/starboard/net_args.cc',
+      '<(DEPTH)/starboard/shared/starboard/net_args.h',
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
-      '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
-      '<(DEPTH)/starboard/shared/win32/decode_target_internal.h',
       '<(DEPTH)/starboard/shared/win32/dialog.cc',
       '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
       '<(DEPTH)/starboard/shared/win32/log_file_impl.cc',
@@ -30,6 +33,8 @@
       '<(DEPTH)/starboard/shared/win32/log_raw_format.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_audio_supported.cc',
       '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/minidump.cc',
+      '<(DEPTH)/starboard/shared/win32/minidump.h',
       '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
       '<(DEPTH)/starboard/shared/win32/playready_license.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
@@ -39,6 +44,7 @@
       '<(DEPTH)/starboard/shared/win32/system_get_total_cpu_memory.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_used_cpu_memory.cc',
       '<(DEPTH)/starboard/shared/win32/system_raise_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/system_symbolize.cc',
       '<(DEPTH)/starboard/shared/win32/window_create.cc',
       '<(DEPTH)/starboard/shared/win32/window_destroy.cc',
       '<(DEPTH)/starboard/shared/win32/window_get_platform_handle.cc',
@@ -53,6 +59,9 @@
       '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
       '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
       '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
+
+      '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
+      '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
 
       '<(DEPTH)/starboard/shared/win32/drm_create_system.cc',
       '<(DEPTH)/starboard/shared/win32/drm_system_playready.cc',
@@ -70,10 +79,14 @@
       '<(DEPTH)/starboard/shared/win32/audio_decoder_thread.h',
       '<(DEPTH)/starboard/shared/win32/audio_transform.cc',
       '<(DEPTH)/starboard/shared/win32/audio_transform.h',
+      '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
+      '<(DEPTH)/starboard/shared/win32/decode_target_internal.h',
       '<(DEPTH)/starboard/shared/win32/decrypting_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/decrypting_decoder.h',
       '<(DEPTH)/starboard/shared/win32/dx_context_video_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/dx_context_video_decoder.h',
+      '<(DEPTH)/starboard/shared/win32/hardware_decode_target_internal.cc',
+      '<(DEPTH)/starboard/shared/win32/hardware_decode_target_internal.h',
       '<(DEPTH)/starboard/shared/win32/media_common.cc',
       '<(DEPTH)/starboard/shared/win32/media_common.h',
       '<(DEPTH)/starboard/shared/win32/media_foundation_utils.cc',
@@ -87,6 +100,7 @@
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.h',
     ],
     'win32_shared_media_player_files': [
+      '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
       '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
@@ -94,24 +108,6 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_frame_internal.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm_impl.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_render_algorithm_impl.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/wsola_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
       '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
@@ -133,12 +129,6 @@
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample2.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
-
-      # Shared renderers
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.cc',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
     ],
 
     'win32_shared_misc_files': [
@@ -271,7 +261,6 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_has_capability.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
-        '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
         '<(DEPTH)/starboard/shared/win32/audio_sink.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.cc',
@@ -323,6 +312,7 @@
         '<(DEPTH)/starboard/shared/win32/memory_free_aligned.cc',
         '<(DEPTH)/starboard/shared/win32/memory_get_stack_bounds.cc',
         '<(DEPTH)/starboard/shared/win32/memory_map.cc',
+        '<(DEPTH)/starboard/shared/win32/memory_protect.cc',
         '<(DEPTH)/starboard/shared/win32/memory_reallocate_unchecked.cc',
         '<(DEPTH)/starboard/shared/win32/memory_unmap.cc',
         '<(DEPTH)/starboard/shared/win32/mutex_acquire.cc',

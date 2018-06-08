@@ -46,14 +46,12 @@ class PlayerComponents {
     SbMediaAudioCodec audio_codec;
     const SbMediaAudioHeader& audio_header;
     SbDrmSystem drm_system;
-    JobQueue* job_queue;
   };
 
   struct VideoParameters {
     SbPlayer player;
     SbMediaVideoCodec video_codec;
     SbDrmSystem drm_system;
-    JobQueue* job_queue;
     SbPlayerOutputMode output_mode;
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider;

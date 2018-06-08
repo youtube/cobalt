@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': [
-    '<(DEPTH)/starboard/shared/starboard/player/filter/testing/player_filter_tests.gypi',
-  ],
   'targets': [
     {
       'target_name': 'starboard_platform_tests',

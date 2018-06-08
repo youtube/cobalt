@@ -68,6 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API version where compiling player_filter_tests is required.
+#define SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // API version where SbMediaTime is deprecated (for SbTime).
 #define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
@@ -80,6 +83,9 @@
 // Minimum API version where supporting audioless video playback is required.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version where supporting audio only video playback is required.
+#define SB_AUDIO_ONLY_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Minimum API version where calling SbPlayerCreate mutiple times (without
 // calling SbPlayerDestroy in between) must not crash, and likewise calling
 // SbAudioSinkCreate multiple times (without calling SbAudioSinkDestroy in
@@ -88,11 +94,21 @@
 // kSbAudionSinkInvalid if additional audio sinks are not supported.
 #define SB_MULTI_PLAYER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where DRM session closed callback is required.
-//   Add a callback to SbDrmCreateSystem that allows a DRM system to
-//   signal that a DRM session has closed from the Starboard layer.
-//   Previously, DRM sessions could only be closed from the application layer.
-#define SB_DRM_SESSION_CLOSED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+// API version where passing NULL callbacks to SbPlayerCreate or
+// SbPlayerCreateWithUrl or SbDrmCreateSystem must result in invalid return
+// (|kSbPlayerInvalid| or |kSbDrmSystemInvalid| appropriately).
+#define SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where the following DRM refinements are available.
+//   1. Add a callback to SbDrmCreateSystem that allows a DRM system to
+//      signal that a DRM session has closed from the Starboard layer.
+//      Previously, DRM sessions could only be closed from the application
+//      layer.
+//   2. Allow calling |SbDrmSessionUpdateRequestFunc| and
+//      |SbDrmSessionUpdatedFunc| with extra status and optional error message.
+//   3. Add request type parameter to |SbDrmSessionUpdateRequestFunc| to support
+//      individualization, license renewal, and license release.
+#define SB_DRM_REFINEMENT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // API version where kSbSystemPathSourceDirectory is removed.
 //   Test code looking for its static input files should instead use the `test`
@@ -133,6 +149,20 @@
 //   more accurate audio time reporting with this extra parameter.
 //   Please see the comment in audio_sink.h for more details.
 #define SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where SbAtomic8 type and memory access functions for it are
+//   introduced. They are required to be implemented if a platform wants to use
+//   V8 as its JavaScript engine.
+#define SB_INTRODUCE_ATOMIC8_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where SbMemoryProtect was introduced.  Allows memory
+//   permissions to be changed with `SbMemoryProtect` after they are mapped
+//   with `SbMemoryMap`.
+#define SB_MEMORY_PROTECT_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// API version where SbInputData allows propagating a |timestamp| for the input
+//   event to the dom Event.
+#define SB_INPUT_TIMESTAMP_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -612,7 +642,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 #endif  // SB_API_VERSION >= 6
 
-#if SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #if !SB_HAS(DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
@@ -620,7 +650,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_SESSION_CLOSED)
 #define SB_HAS_DRM_SESSION_CLOSED 1
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-#endif  // SB_API_VERSION >= SB_DRM_SESSION_CLOSED_API_VERSION
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
 
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
@@ -648,6 +678,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
 #define SB_HAS_AUDIOLESS_VIDEO 1
+#endif
+
+#if SB_API_VERSION >= SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION
+#define SB_HAS_PLAYER_FILTER_TESTS 1
 #endif
 
 #if SB_API_VERSION >= SB_PLAYER_ERROR_MESSAGE_API_VERSION

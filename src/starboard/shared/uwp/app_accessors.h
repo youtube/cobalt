@@ -52,10 +52,29 @@ void RunInMainThreadAsync(const T& lambda) {
     ref new Windows::UI::Core::DispatchedHandler(lambda));
 }
 
+enum SsoPromptPolicy {
+  // Any required approval/login dialog will never be allowed to appear,
+  // A failed WebTokenRequestResult will be returned if a dialog is required.
+  kNeverPrompt,
+  // Approval/login dialogs will appear as necessary, even if the user
+  // previously rejected the dialog.
+  kPromptIfNeeded,
+  // Approval/login dialogs will appear as necessary only if the user
+  // has never previously declined the dialog.
+  // (Default behavior)
+  kPromptIfNeverDeclined
+};
+
 // Tries to fetch an SSO token, returning nullptr or exception on failure
 concurrency::task<
     Windows::Security::Authentication::Web::Core::WebTokenRequestResult^>
-    TryToFetchSsoToken(const std::string& url);
+TryToFetchSsoToken(const std::string& url, SsoPromptPolicy prompt_policy);
+
+// Tries to fetch an SSO token, returning nullptr or exception on failure
+// Same as SsoPromptPolicy::kPromptIfNeverDeclined
+concurrency::task<
+    Windows::Security::Authentication::Web::Core::WebTokenRequestResult^>
+TryToFetchSsoToken(const std::string& url);
 
 void InjectKeypress(SbKey key);
 

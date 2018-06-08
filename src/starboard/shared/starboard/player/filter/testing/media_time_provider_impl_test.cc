@@ -14,11 +14,13 @@
 
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -73,6 +75,7 @@ class MockMonotonicSystemTimeProvider : public MonotonicSystemTimeProvider {
   SbTimeMonotonic current_time_;
 };
 
+// TODO: Write tests to cover callbacks.
 class MediaTimeProviderImplTest : public ::testing::Test {
  protected:
   MediaTimeProviderImplTest()
@@ -82,8 +85,18 @@ class MediaTimeProviderImplTest : public ::testing::Test {
         // can adjust expectation on it.  This is safe in the context of the
         // tests.
         media_time_provider_impl_(make_scoped_ptr<MonotonicSystemTimeProvider>(
-            system_time_provider_)) {}
+            system_time_provider_)) {
+    media_time_provider_impl_.Initialize(
+        std::bind(&MediaTimeProviderImplTest::OnError, this),
+        std::bind(&MediaTimeProviderImplTest::OnPrerolled, this),
+        std::bind(&MediaTimeProviderImplTest::OnEnded, this));
+  }
 
+  void OnError() {}
+  void OnPrerolled() {}
+  void OnEnded() {}
+
+  JobQueue job_queue_;
   StrictMock<MockMonotonicSystemTimeProvider>* system_time_provider_;
   MediaTimeProviderImpl media_time_provider_impl_;
 };
@@ -274,3 +287,4 @@ TEST_F(MediaTimeProviderImplTest, EndOfStream) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)

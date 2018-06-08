@@ -14,7 +14,27 @@
 
 #include "starboard/drm.h"
 
-#if SB_HAS(DRM_SESSION_CLOSED)
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+
+SbDrmSystem SbDrmCreateSystem(
+    const char* key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
+    SbDrmSessionClosedFunc session_closed_callback) {
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(key_system);
+  SB_UNREFERENCED_PARAMETER(update_request_callback);
+  SB_UNREFERENCED_PARAMETER(session_updated_callback);
+  SB_UNREFERENCED_PARAMETER(key_statuses_changed_callback);
+  SB_UNREFERENCED_PARAMETER(server_certificate_updated_callback);
+  SB_UNREFERENCED_PARAMETER(session_closed_callback);
+  return kSbDrmSystemInvalid;
+}
+
+#elif SB_HAS(DRM_SESSION_CLOSED)
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,

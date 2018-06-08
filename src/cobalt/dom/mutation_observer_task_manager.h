@@ -19,7 +19,6 @@
 
 #include "base/hash_tables.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/script/global_environment.h"
 #include "cobalt/script/tracer.h"
 
 namespace cobalt {
@@ -37,12 +36,6 @@ class MutationObserver;
 class MutationObserverTaskManager : public script::Traceable {
  public:
   MutationObserverTaskManager() : task_posted_(false) {}
-
-  void RegisterAsTracingRoot(script::GlobalEnvironment* global_environment) {
-    // Note that we only add ourselves, and never remove ourselves, as we will
-    // actually outlive the web module.
-    global_environment->AddRoot(this);
-  }
 
   // These should be called in the constructor/destructor of the
   // MutationObserver.

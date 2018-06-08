@@ -40,16 +40,16 @@ def _QuotePath(path):
   return '"' + path + '"'
 
 
-class Win32Configuration(config.base.PlatformConfigBase):
+class Win32SharedConfiguration(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
   def __init__(self, platform):
-    super(Win32Configuration, self).__init__(platform)
+    super(Win32SharedConfiguration, self).__init__(platform)
     self.sdk = sdk_configuration.SdkConfiguration()
 
   def GetVariables(self, configuration):
     sdk = self.sdk
-    variables = super(Win32Configuration, self).GetVariables(configuration)
+    variables = super(Win32SharedConfiguration, self).GetVariables(configuration)
     variables.update({
         'visual_studio_install_path': sdk.vs_install_dir_with_version,
         'windows_sdk_path': sdk.windows_sdk_path,
@@ -118,37 +118,17 @@ class Win32Configuration(config.base.PlatformConfigBase):
     Returns:
       A list of initialized TestFilter objects.
     """
-
     if not self.IsWin10orHigher():
       logging.error('Tests can only be executed on Win10 and higher.')
       return [test_filter.DISABLE_TESTING]
-    else:
-      filters = super(Win32Configuration, self).GetTestFilters()
-      for target, tests in self._FILTERED_TESTS.iteritems():
-        filters.extend(test_filter.TestFilter(target, test) for test in tests)
-      return filters
 
+    filters = super(Win32SharedConfiguration, self).GetTestFilters()
+    for target, tests in self._FILTERED_TESTS.iteritems():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
+
+  # All windows flavors do not use player_filter_tests. If this is not included
+  # then the the ninja build will fail due to missing player_filter_tests.
   _FILTERED_TESTS = {
-      'bindings_test': [
-          'EvaluateScriptTest.ThreeArguments',
-          'GarbageCollectionTest.*',
-      ],
-      'nplb': [test_filter.FILTER_ALL],
-      'nplb_blitter_pixel_tests': [test_filter.FILTER_ALL],
-      'poem_unittests': [test_filter.FILTER_ALL],
-      'starboard_platform_tests': [test_filter.FILTER_ALL],
-      'webdriver_test': [test_filter.FILTER_ALL],
-
-      # The Windows platform uses D3D9 which doesn't let you create a D3D
-      # device without a display, causing these unit tests to erroneously
-      # fail on the buildbots, so they are disabled for Windows only.
-      'layout_tests': [test_filter.FILTER_ALL],
-      'renderer_test': [test_filter.FILTER_ALL],
-
-      # TODO: enable player filter tests.
-      'player_filter_tests': [test_filter.FILTER_ALL],
-
-      # No network on Windows, yet.
-      'web_platform_tests': [test_filter.FILTER_ALL],
-      'net_unittests': [test_filter.FILTER_ALL],
+      'player_filter_tests': [ test_filter.FILTER_ALL ],
   }

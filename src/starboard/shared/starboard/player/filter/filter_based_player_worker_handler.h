@@ -37,7 +37,8 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
+class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
+                                       private JobQueue::JobOwner {
  public:
   FilterBasedPlayerWorkerHandler(
       SbMediaVideoCodec video_codec,
@@ -49,17 +50,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 
  private:
   bool IsPunchoutMode() const;
-  bool Init(PlayerWorker* player_worker,
-            JobQueue* job_queue,
-            SbPlayer player,
-            UpdateMediaTimeCB update_media_time_cb,
+  bool Init(SbPlayer player,
+            UpdateMediaInfoCB update_media_info_cb,
             GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-            ,
-            UpdatePlayerErrorCB update_player_error_cb
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-            ) override;
+            UpdatePlayerStateCB update_player_state_cb,
+            UpdatePlayerErrorCB update_player_error_cb) override;
   bool Seek(SbTime seek_to_time, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
                    bool* written) override;
@@ -72,19 +67,17 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 
   void Update();
   void OnError();
+  void OnPrerolled(SbMediaType media_type);
+  void OnEnded(SbMediaType media_type);
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
   MediaTimeProvider* GetMediaTimeProvider() const;
 
-  PlayerWorker* player_worker_ = NULL;
-  JobQueue* job_queue_ = NULL;
   SbPlayer player_ = kSbPlayerInvalid;
-  UpdateMediaTimeCB update_media_time_cb_ = NULL;
-  GetPlayerStateCB get_player_state_cb_ = NULL;
-  UpdatePlayerStateCB update_player_state_cb_ = NULL;
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-  UpdatePlayerErrorCB update_player_error_cb_ = NULL;
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+  UpdateMediaInfoCB update_media_info_cb_;
+  GetPlayerStateCB get_player_state_cb_;
+  UpdatePlayerStateCB update_player_state_cb_;
+  UpdatePlayerErrorCB update_player_error_cb_;
 
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
@@ -109,6 +102,11 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   PlayerWorker::Bounds bounds_;
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
+
+  bool audio_prerolled_ = false;
+  bool video_prerolled_ = false;
+  bool audio_ended_ = false;
+  bool video_ended_ = false;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |video_renderer_| object.  This is necessary because calls to

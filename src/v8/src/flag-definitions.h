@@ -652,7 +652,10 @@ DEFINE_BOOL(incremental_marking_wrappers, true,
 #endif  // defined(COBALT)
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
-DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
+#if defined(COBALT)
+// Starboard disallow rwx memory access.
+DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
+#endif
 #ifdef V8_CONCURRENT_MARKING
 #define V8_CONCURRENT_MARKING_BOOL true
 #else

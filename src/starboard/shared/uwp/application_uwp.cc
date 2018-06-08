@@ -32,6 +32,7 @@
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/net_args.h"
 #include "starboard/shared/starboard/net_log.h"
 #include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 #include "starboard/shared/uwp/app_accessors.h"
@@ -50,7 +51,9 @@ namespace sbwin32 = starboard::shared::win32;
 using Microsoft::WRL::ComPtr;
 using starboard::shared::starboard::Application;
 using starboard::shared::starboard::CommandLine;
+using starboard::shared::starboard::kNetArgsCommandSwitchWait;
 using starboard::shared::starboard::kNetLogCommandSwitchWait;
+using starboard::shared::starboard::NetArgsWaitForPayload;
 using starboard::shared::starboard::NetLogFlushThenClose;
 using starboard::shared::starboard::NetLogWaitForClientConnected;
 using starboard::shared::uwp::ApplicationUwp;
@@ -75,9 +78,9 @@ using Windows::Foundation::Metadata::ApiInformation;
 using Windows::Foundation::TimeSpan;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
+using Windows::Globalization::Calendar;
 using Windows::Graphics::Display::Core::HdmiDisplayInformation;
 using Windows::Graphics::Display::DisplayInformation;
-using Windows::Globalization::Calendar;
 using Windows::Media::Protection::HdcpProtection;
 using Windows::Media::Protection::HdcpSession;
 using Windows::Media::Protection::HdcpSetProtectionResult;
@@ -86,8 +89,8 @@ using Windows::Security::Authentication::Web::Core::WebTokenRequestStatus;
 using Windows::Security::Credentials::WebAccountProvider;
 using Windows::Storage::FileAttributes;
 using Windows::Storage::KnownFolders;
-using Windows::Storage::StorageFolder;
 using Windows::Storage::StorageFile;
+using Windows::Storage::StorageFolder;
 using Windows::System::Threading::ThreadPoolTimer;
 using Windows::System::Threading::TimerElapsedHandler;
 using Windows::System::UserAuthenticationStatus;
@@ -180,7 +183,7 @@ std::vector<std::string> ParseStarboardUri(const std::string& uri) {
 }
 
 void AddArgumentsFromFile(const char* path,
-  std::vector<std::string>* args) {
+                          std::vector<std::string>* args) {
   starboard::ScopedFile file(path, kSbFileOpenOnly | kSbFileRead);
   if (!file.IsValid()) {
     SB_LOG(INFO) << path << " is not valid for arguments.";
@@ -207,6 +210,39 @@ void AddArgumentsFromFile(const char* path,
   argument_string.resize(return_value);
 
   SplitArgumentsIntoVector(&argument_string, args);
+}
+
+void TryAddCommandArgsFromStarboardFile(std::vector<std::string>* args) {
+  char content_directory[SB_FILE_MAX_NAME];
+  content_directory[0] = '\0';
+
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_directory,
+                       SB_ARRAY_SIZE_INT(content_directory))) {
+    return;
+  }
+
+  std::string arguments_file_path = content_directory;
+  arguments_file_path += SB_FILE_SEP_STRING;
+  arguments_file_path += kStarboardArgumentsPath;
+
+  AddArgumentsFromFile(arguments_file_path.c_str(), args);
+}
+
+void AddCommandArgsFromNetArgs(std::vector<std::string>* args) {
+  // Detect if NetArgs is enabled for this run. If so then receive and
+  // then merge the arguments into this run.
+  SB_LOG(INFO) << "Waiting for net args...";
+  std::vector<std::string> net_args = NetArgsWaitForPayload();
+  if (!net_args.empty()) {
+    std::stringstream ss;
+    ss << "Found Net Args:\n";
+    for (const std::string& s : net_args) {
+      ss << "  " << s << "\n";
+    }
+    SB_LOG(INFO) << ss.str();
+  }
+  // Merge command arguments.
+  args->insert(args->end(), net_args.begin(), net_args.end());
 }
 
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -248,6 +284,7 @@ std::string GetBinaryName() {
 
   return full_binary_path.substr(index + 1);
 }
+
 }  // namespace
 
 namespace starboard {
@@ -341,8 +378,9 @@ ref class App sealed : public IFrameworkView {
     Microsoft::WRL::ComPtr<ID3D12Device> device;
     HRESULT hr =
         D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
-    SB_DCHECK(SUCCEEDED(hr));
-    application_uwp->SetD3D12Device(device);
+    if (SUCCEEDED(hr)) {
+      application_uwp->SetD3D12Device(device);
+    }
     std::string start_url = entry_point_;
     bool command_line_set = false;
 
@@ -422,25 +460,22 @@ ref class App sealed : public IFrameworkView {
 
     if (!previously_activated_) {
       if (!command_line_set) {
-        args_.push_back(GetArgvZero());
-        std::string start_url_arg = "--url=";
-        start_url_arg.append(start_url);
-        args_.push_back(start_url_arg);
-        std::string partition_arg = "--local_storage_partition_url=";
-        partition_arg.append(entry_point_);
-        args_.push_back(partition_arg);
-
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-        char content_directory[SB_FILE_MAX_NAME];
-        content_directory[0] = '\0';
-        if (SbSystemGetPath(kSbSystemPathContentDirectory, content_directory,
-                            SB_ARRAY_SIZE_INT(content_directory))) {
-          std::string arguments_file_path = content_directory;
-          arguments_file_path += SB_FILE_SEP_STRING;
-          arguments_file_path += kStarboardArgumentsPath;
-          AddArgumentsFromFile(arguments_file_path.c_str(), &args_);
+        TryAddCommandArgsFromStarboardFile(&args_);
+        if (CommandLine(args_).HasSwitch(kNetArgsCommandSwitchWait)) {
+          AddCommandArgsFromNetArgs(&args_);
         }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
+        if (!CommandLine(args_).HasSwitch("url")) {
+          args_.push_back(GetArgvZero());
+          std::string start_url_arg = "--url=";
+          start_url_arg.append(start_url);
+          args_.push_back(start_url_arg);
+          std::string partition_arg = "--local_storage_partition_url=";
+          partition_arg.append(entry_point_);
+          args_.push_back(partition_arg);
+        }
 
         for (auto& arg : args_) {
           argv_.push_back(arg.c_str());
@@ -463,6 +498,10 @@ ref class App sealed : public IFrameworkView {
         ss << sbwin32::platformStringToString(uwp_dir->Path) << "/"
            << switch_val;
         sbuwp::StartWatchdogLog(ss.str());
+      }
+
+      if (command_line->HasSwitch(kNetLogCommandSwitchWait)) {
+        NetLogWaitForClientConnected();
       }
 
       if (command_line->HasSwitch(kLogPathSwitch)) {
@@ -858,15 +897,6 @@ void InjectKeypress(SbKey key) {
   ApplicationUwp::Get()->InjectKeypress(key);
 }
 
-bool HasNetLogSwitch(Platform::Array<Platform::String^>^ args) {
-  CommandLine::StringVector arg_v;
-  for (Platform::String^ arg : args) {
-    arg_v.push_back(platformStringToString(arg));
-  }
-  CommandLine cmd_line(arg_v);
-  return cmd_line.HasSwitch(kNetLogCommandSwitchWait);
-}
-
 }  // namespace uwp
 }  // namespace shared
 }  // namespace starboard
@@ -898,9 +928,6 @@ int main(Platform::Array<Platform::String^>^ args) {
 
   starboard::shared::win32::RegisterMainThread();
 
-  if (starboard::shared::uwp::HasNetLogSwitch(args)) {
-    NetLogWaitForClientConnected();
-  }
   auto direct3DApplicationSource = ref new Direct3DApplicationSource();
   CoreApplication::Run(direct3DApplicationSource);
   NetLogFlushThenClose();

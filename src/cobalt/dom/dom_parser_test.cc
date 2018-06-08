@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "base/threading/platform_thread.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_parser.h"
 #include "cobalt/dom/html_element_context.h"
@@ -21,6 +22,7 @@
 #include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -32,6 +34,7 @@ class DOMParserTest : public ::testing::Test {
   ~DOMParserTest() override {}
 
   loader::FetcherFactory fetcher_factory_;
+  loader::LoaderFactory loader_factory_;
   testing::StubCSSParser stub_css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_parser_;
   testing::StubScriptRunner stub_script_runner_;
@@ -41,17 +44,21 @@ class DOMParserTest : public ::testing::Test {
 
 DOMParserTest::DOMParserTest()
     : fetcher_factory_(NULL /* network_module */),
+      loader_factory_(&fetcher_factory_, NULL /* resource provider */,
+                      base::kThreadPriority_Default),
       dom_parser_parser_(new dom_parser::Parser()),
       html_element_context_(
-          &fetcher_factory_, &stub_css_parser_, dom_parser_parser_.get(),
-          NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-          &stub_script_runner_, NULL /* script_value_factory */,
-          NULL /* media_source_registry */, NULL /* resource_provider */,
-          NULL /* animated_image_tracker */, NULL /* image_cache */,
+          &fetcher_factory_, &loader_factory_, &stub_css_parser_,
+          dom_parser_parser_.get(), NULL /* can_play_type_handler */,
+          NULL /* web_media_player_factory */, &stub_script_runner_,
+          NULL /* script_value_factory */, NULL /* media_source_registry */,
+          NULL /* resource_provider */, NULL /* animated_image_tracker */,
+          NULL /* image_cache */,
           NULL /* reduced_image_cache_capacity_manager */,
           NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
           NULL /* dom_stat_tracker */, "" /* language */,
-          base::kApplicationStateStarted),
+          base::kApplicationStateStarted,
+          NULL /* synchronous_loader_interrupt */),
       dom_parser_(new DOMParser(&html_element_context_)) {}
 
 TEST_F(DOMParserTest, ParsesXML) {

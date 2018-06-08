@@ -17,8 +17,8 @@
 
 #include <X11/Xlib.h>
 
-#include <map>
 #include <queue>
+#include <unordered_map>
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
@@ -48,7 +48,14 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
 
+  // Make the current GL layer and video layer visible.
   void Composite();
+
+  // Call this function before updating the GL layer.
+  void SwapBuffersBegin();
+
+  // Call this function after the GL layer has been updated.
+  void SwapBuffersEnd();
 
  protected:
   void AcceptFrame(SbPlayer player,
@@ -63,6 +70,13 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
 #endif  // SB_API_VERSION >= 6
+
+  void PlayerSetBounds(SbPlayer player,
+                       int z_index,
+                       int x,
+                       int y,
+                       int width,
+                       int height) override;
 
  protected:
   // --- Application overrides ---
@@ -79,7 +93,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   struct FrameInfo {
     SbPlayer player;
-    scoped_refptr<VideoFrame> frame;
     int z_index;
     int x;
     int y;
@@ -110,12 +123,19 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   SbEventId composite_event_id_;
   Mutex frame_mutex_;
-  int frame_read_index_;
-  bool frames_updated_;
 
-  static const int kNumFrames = 2;
-  // Video frames from different videos sorted by their z indices.
-  std::map<int, FrameInfo> frame_infos_[kNumFrames];
+  // The latest frame for every active player.
+  std::unordered_map<SbPlayer, scoped_refptr<VideoFrame>> next_video_frames_;
+
+  // Raw player frames need to be translated to a new format before compositing.
+  std::unordered_map<SbPlayer, scoped_refptr<VideoFrame>> current_video_frames_;
+
+  // Data for the upcoming render frame's video bounds.
+  std::unordered_map<SbPlayer, FrameInfo> next_video_bounds_;
+
+  // Sorted array (according to the z_index) of the current render frame's
+  // video bounds.
+  std::vector<FrameInfo> current_video_bounds_;
 
   Display* display_;
   SbWindowVector windows_;

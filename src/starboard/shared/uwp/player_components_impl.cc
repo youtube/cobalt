@@ -63,11 +63,12 @@ class PlayerComponentsImpl : public PlayerComponents {
     SB_DCHECK(video_render_algorithm);
     SB_DCHECK(video_renderer_sink);
 
-    const bool use_software_vp9 =
+    const bool use_gpu_decoder_vp9 =
         (video_parameters.video_codec == kSbMediaVideoCodecVp9) &&
-        !IsVp9HwDecoderSupported();
+        !IsVp9HwDecoderSupported() &&
+        IsVp9GPUDecoderSupported();
 
-    if (use_software_vp9) {
+    if (use_gpu_decoder_vp9) {
       // Software vp9 is the special case.
       scoped_ptr<VideoDecoderVpx> video_decoder_impl(new VideoDecoderVpx(
           video_parameters.video_codec, video_parameters.output_mode,

@@ -17,6 +17,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/local_storage_database.h"
@@ -24,6 +25,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader_factory.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -177,6 +179,8 @@ class OnScreenKeyboardTest : public ::testing::Test {
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
+        loader_factory_(new loader::LoaderFactory(
+            fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
         local_storage_database_(NULL),
         url_("about:blank"),
         engine_(script::JavaScriptEngine::CreateEngine()),
@@ -184,8 +188,9 @@ class OnScreenKeyboardTest : public ::testing::Test {
         on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()),
         window_(new Window(
             1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-            dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL,
-            NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
+            dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
+            NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
+            NULL, NULL, NULL,
             global_environment_
                 ->script_value_factory() /* script_value_factory */,
             NULL, NULL, url_, "", "en-US", "en",
@@ -200,7 +205,8 @@ class OnScreenKeyboardTest : public ::testing::Test {
             on_screen_keyboard_bridge_.get(), NULL, NULL,
             dom::Window::OnStartDispatchEventCallback(),
             dom::Window::OnStopDispatchEventCallback(),
-            dom::ScreenshotManager::ProvideScreenshotFunctionCallback())) {
+            dom::ScreenshotManager::ProvideScreenshotFunctionCallback(),
+            NULL)) {
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
     on_screen_keyboard_bridge_->window_ = window_;
@@ -241,6 +247,7 @@ class OnScreenKeyboardTest : public ::testing::Test {
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
+  scoped_ptr<loader::LoaderFactory> loader_factory_;
   dom::LocalStorageDatabase local_storage_database_;
   GURL url_;
 
@@ -266,39 +273,40 @@ bool OnScreenKeyboardTest::EvaluateScript(const std::string& js_code,
 
 }  // namespace
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
 TEST_F(OnScreenKeyboardTest, ObjectExists) {
   std::string result;
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard;", &result));
 
   EXPECT_TRUE(bindings::testing::IsAcceptablePrototypeString("OnScreenKeyboard",
                                                              result));
 
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.show", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.show;", &result));
   EXPECT_PRED_FORMAT2(::testing::IsSubstring, "function show()",
                       result.c_str());
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.hide", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.hide;", &result));
   EXPECT_PRED_FORMAT2(::testing::IsSubstring, "function hide()",
                       result.c_str());
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.focus", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.focus;", &result));
   EXPECT_PRED_FORMAT2(::testing::IsSubstring, "function focus()",
                       result.c_str());
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.blur", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.blur;", &result));
   EXPECT_PRED_FORMAT2(::testing::IsSubstring, "function blur()",
                       result.c_str());
 
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.keepFocus", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.keepFocus;", &result));
   EXPECT_STREQ("false", result.c_str());
 
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.data", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.data;", &result));
   EXPECT_STREQ("", result.c_str());
 
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onshow", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onshow;", &result));
   EXPECT_STREQ("null", result.c_str());
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onhide", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onhide;", &result));
   EXPECT_STREQ("null", result.c_str());
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onblur", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onblur;", &result));
   EXPECT_STREQ("null", result.c_str());
-  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onfocus", &result));
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard.onfocus;", &result));
   EXPECT_STREQ("null", result.c_str());
 }
 
@@ -438,7 +446,7 @@ TEST_F(OnScreenKeyboardTest, ShowEventAttribute) {
       logString = 'show';
     };
     promise = window.onScreenKeyboard.show();
-    logString
+    logString;
   )";
   for (int i = 0; i < 3; ++i) {
     std::string result;
@@ -463,7 +471,7 @@ TEST_F(OnScreenKeyboardTest, ShowEventListeners) {
         logString2 = 'show2';
       });
     let promise = window.onScreenKeyboard.show();
-    logString1
+    logString1;
   )";
   EXPECT_TRUE(EvaluateScript(script, &result));
   EXPECT_EQ("show1", result);
@@ -484,7 +492,7 @@ TEST_F(OnScreenKeyboardTest, HideEventAttribute) {
       logString = 'hide';
     };
     promise = window.onScreenKeyboard.hide();
-    logString
+    logString;
   )";
   for (int i = 0; i < 3; ++i) {
     std::string result;
@@ -508,7 +516,7 @@ TEST_F(OnScreenKeyboardTest, HideEventListeners) {
         logString2 = 'hide2';
       });
     let promise = window.onScreenKeyboard.hide();
-    logString1
+    logString1;
   )";
   EXPECT_TRUE(EvaluateScript(script, &result));
   EXPECT_EQ("hide1", result);
@@ -529,7 +537,7 @@ TEST_F(OnScreenKeyboardTest, FocusEventAttribute) {
       logString = 'focus';
     };
     promise = window.onScreenKeyboard.focus();
-    logString
+    logString;
   )";
   for (int i = 0; i < 3; ++i) {
     std::string result;
@@ -553,7 +561,7 @@ TEST_F(OnScreenKeyboardTest, FocusEventListeners) {
         logString2 = 'focus2';
       });
     let promise = window.onScreenKeyboard.focus();
-    logString1
+    logString1;
   )";
   EXPECT_TRUE(EvaluateScript(script, &result));
   EXPECT_EQ("focus1", result);
@@ -574,7 +582,7 @@ TEST_F(OnScreenKeyboardTest, BlurEventAttribute) {
       logString = 'blur';
     };
     promise = window.onScreenKeyboard.blur();
-    logString
+    logString;
   )";
   for (int i = 0; i < 3; ++i) {
     std::string result;
@@ -598,7 +606,7 @@ TEST_F(OnScreenKeyboardTest, BlurEventListeners) {
         logString2 = 'blur2';
       });
     let promise = window.onScreenKeyboard.blur();
-    logString1
+    logString1;
   )";
   EXPECT_TRUE(EvaluateScript(script, &result));
   EXPECT_EQ("blur1", result);
@@ -634,6 +642,36 @@ TEST_F(OnScreenKeyboardTest, KeepFocus) {
   )";
   EXPECT_TRUE(EvaluateScript(script, NULL));
 }
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+TEST_F(OnScreenKeyboardTest, ObjectDoesntExist) {
+  std::string result;
+
+  EXPECT_TRUE(
+      EvaluateScript("window.hasOwnProperty('onScreenKeyboard');", &result));
+  EXPECT_EQ("false", result);
+  EXPECT_TRUE(EvaluateScript("window.onScreenKeyboard;", &result));
+  EXPECT_FALSE(bindings::testing::IsAcceptablePrototypeString(
+      "OnScreenKeyboard", result));
+  EXPECT_TRUE(EvaluateScript("typeof window.onScreenKeyboard === 'undefined';",
+                             &result));
+  EXPECT_EQ("true", result);
+
+  // We should be able to assign anything we like to window.onScreenKeyboard.
+  const char number_script[] = R"(
+    window.onScreenKeyboard = 42;
+    window.onScreenKeyboard;
+  )";
+  EXPECT_TRUE(EvaluateScript(number_script, &result));
+  EXPECT_EQ("42", result);
+
+  const char object_script[] = R"(
+    window.onScreenKeyboard = {foo: 'bar'};
+    window.onScreenKeyboard.hasOwnProperty('foo');
+  )";
+  EXPECT_TRUE(EvaluateScript(object_script, &result));
+  EXPECT_EQ("true", result);
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 }  // namespace dom
 }  // namespace cobalt

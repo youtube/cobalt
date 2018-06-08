@@ -173,16 +173,20 @@ void HTMLLinkElement::Obtain() {
   }
 
   request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
-  loader_ = make_scoped_ptr(new loader::Loader(
-      base::Bind(
-          &loader::FetcherFactory::CreateSecureFetcher,
-          base::Unretained(document->html_element_context()->fetcher_factory()),
-          absolute_url_, csp_callback, request_mode_,
-          document->location() ? document->location()->GetOriginAsObject()
-                               : loader::Origin()),
-      scoped_ptr<loader::Decoder>(new loader::TextDecoder(
-          base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
-      base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
+
+  DCHECK(!loader_);
+  loader::Origin origin = document->location()
+                              ? document->location()->GetOriginAsObject()
+                              : loader::Origin();
+
+  loader_ = html_element_context()->loader_factory()
+                ->CreateLinkLoader(
+                    absolute_url_, origin, csp_callback, request_mode_,
+                    base::Bind(&HTMLLinkElement::OnLoadingDone,
+                               base::Unretained(this)),
+                    base::Bind(&HTMLLinkElement::OnLoadingError,
+                               base::Unretained(this)))
+                .Pass();
 }
 
 void HTMLLinkElement::OnLoadingDone(const loader::Origin& last_url_origin,

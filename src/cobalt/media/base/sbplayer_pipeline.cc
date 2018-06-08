@@ -805,7 +805,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
 
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(video_stream_);
+  DCHECK(audio_stream_ || video_stream_);
 
   if (stopped_) {
     return;
@@ -826,8 +826,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   const AudioDecoderConfig& audio_config =
       audio_stream_ ? audio_stream_->audio_decoder_config()
                     : invalid_audio_config;
+  VideoDecoderConfig invalid_video_config;
   const VideoDecoderConfig& video_config =
-      video_stream_->video_decoder_config();
+      video_stream_ ? video_stream_->video_decoder_config()
+                    : invalid_video_config;
 
   {
     base::AutoLock auto_lock(lock_);
@@ -851,7 +853,9 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     if (audio_stream_) {
       UpdateDecoderConfig(audio_stream_);
     }
-    UpdateDecoderConfig(video_stream_);
+    if (video_stream_) {
+      UpdateDecoderConfig(video_stream_);
+    }
     return;
   }
 
@@ -905,10 +909,20 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 #endif  // !SB_HAS(AUDIOLESS_VIDEO)
 
+#if SB_API_VERSION < SB_AUDIO_ONLY_VIDEO_API_VERSION
   if (video_stream == NULL) {
     LOG(INFO) << "The video has to contain a video track.";
     ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
                          "The video has to contain a video track.");
+    return;
+  }
+#endif  // SB_API_VERSION < SB_AUDIO_ONLY_VIDEO_API_VERSION
+
+  if (audio_stream == NULL && video_stream == NULL) {
+    LOG(INFO) << "The video has to contain an audio track or a video track.";
+    ResetAndRunIfNotNull(
+        &error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+        "The video has to contain an audio track or a video track.");
     return;
   }
 
@@ -919,13 +933,17 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 
     bool is_encrypted =
         audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
-    is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
-    bool natural_size_changed =
-        (video_stream_->video_decoder_config().natural_size().width() !=
-             natural_size_.width() ||
-         video_stream_->video_decoder_config().natural_size().height() !=
-             natural_size_.height());
-    natural_size_ = video_stream_->video_decoder_config().natural_size();
+    is_encrypted |=
+        video_stream_ && video_stream_->video_decoder_config().is_encrypted();
+    bool natural_size_changed = false;
+    if (video_stream_) {
+      natural_size_changed =
+          (video_stream_->video_decoder_config().natural_size().width() !=
+               natural_size_.width() ||
+           video_stream_->video_decoder_config().natural_size().height() !=
+               natural_size_.height());
+      natural_size_ = video_stream_->video_decoder_config().natural_size();
+    }
     if (natural_size_changed) {
       content_size_change_cb_.Run();
     }

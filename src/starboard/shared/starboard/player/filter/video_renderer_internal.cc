@@ -23,8 +23,14 @@ namespace starboard {
 namespace player {
 namespace filter {
 
+namespace {
+
 using std::placeholders::_1;
 using std::placeholders::_2;
+
+const SbTime kSeekTimeoutRetryInterval = 25 * kSbTimeMillisecond;
+
+}  // namespace
 
 VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
                              MediaTimeProvider* media_time_provider,
@@ -33,18 +39,20 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
     : media_time_provider_(media_time_provider),
       algorithm_(algorithm.Pass()),
       sink_(sink),
-      seeking_(false),
-      seeking_to_time_(0),
-      end_of_stream_written_(false),
-      need_more_input_(true),
       decoder_(decoder.Pass()),
-      first_input_written_(false) {
+      end_of_stream_written_(false),
+      ended_cb_called_(false),
+      need_more_input_(true),
+      seeking_(false),
+      number_of_frames_(0) {
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(algorithm_ != NULL);
   SB_DCHECK(sink_ != NULL);
 }
 
 VideoRenderer::~VideoRenderer() {
+  SB_DCHECK(BelongsToCurrentThread());
+
   sink_ = NULL;
 
   // Be sure to release anything created by the decoder_ before releasing the
@@ -52,11 +60,27 @@ VideoRenderer::~VideoRenderer() {
   if (first_input_written_) {
     decoder_->Reset();
   }
-  frames_.clear();
+
+  // Now both the decoder thread and the sink thread should have been shutdown.
+  decoder_frames_.clear();
+  sink_frames_.clear();
+  number_of_frames_.store(0);
+
   decoder_.reset();
 }
 
-void VideoRenderer::Initialize(const ErrorCB& error_cb) {
+void VideoRenderer::Initialize(const ErrorCB& error_cb,
+                               const PrerolledCB& prerolled_cb,
+                               const EndedCB& ended_cb) {
+  SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(prerolled_cb);
+  SB_DCHECK(ended_cb);
+  SB_DCHECK(!prerolled_cb_);
+  SB_DCHECK(!ended_cb_);
+
+  prerolled_cb_ = prerolled_cb;
+  ended_cb_ = ended_cb;
+
   decoder_->Initialize(std::bind(&VideoRenderer::OnDecoderStatus, this, _1, _2),
                        error_cb);
   if (sink_) {
@@ -64,20 +88,12 @@ void VideoRenderer::Initialize(const ErrorCB& error_cb) {
   }
 }
 
-void VideoRenderer::SetBounds(int z_index,
-                              int x,
-                              int y,
-                              int width,
-                              int height) {
-  sink_->SetBounds(z_index, x, y, width, height);
-}
-
 void VideoRenderer::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
-  if (end_of_stream_written_) {
+  if (end_of_stream_written_.load()) {
     SB_LOG(ERROR) << "Appending video sample at " << input_buffer->timestamp()
                   << " after EOS reached.";
     return;
@@ -88,29 +104,31 @@ void VideoRenderer::WriteSample(
     absolute_time_of_first_input_ = SbTimeGetMonotonicNow();
   }
 
-  {
-    ScopedLock lock(mutex_);
-    need_more_input_ = false;
-  }
+  SB_DCHECK(need_more_input_.load());
+  need_more_input_.store(false);
 
   decoder_->WriteInputBuffer(input_buffer);
 }
 
 void VideoRenderer::WriteEndOfStream() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
 
-  SB_LOG_IF(WARNING, end_of_stream_written_)
+  SB_LOG_IF(WARNING, end_of_stream_written_.load())
       << "Try to write EOS after EOS is reached";
-  if (end_of_stream_written_) {
+  if (end_of_stream_written_.load()) {
     return;
   }
-  end_of_stream_written_ = true;
+  end_of_stream_written_.store(true);
+  if (!first_input_written_ && !ended_cb_called_.load()) {
+    ended_cb_called_.store(true);
+    Schedule(ended_cb_);
+  }
   first_input_written_ = true;
   decoder_->WriteEndOfStream();
 }
 
 void VideoRenderer::Seek(SbTime seek_to_time) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
   if (first_input_written_) {
@@ -118,74 +136,41 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
     first_input_written_ = false;
   }
 
-  ScopedLock lock(mutex_);
-
+  // After decoder_->Reset(), OnDecoderStatus() won't be called before another
+  // WriteSample().  So it is safe to modify |seeking_to_time_| here.
   seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
-  seeking_ = true;
-  end_of_stream_written_ = false;
-  need_more_input_ = true;
+  seeking_.store(true);
+  end_of_stream_written_.store(false);
+  ended_cb_called_.store(false);
+  need_more_input_.store(true);
 
-  frames_.clear();
-}
+  CancelPendingJobs();
 
-bool VideoRenderer::IsEndOfStreamPlayed() const {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  ScopedLock lock(mutex_);
-  return end_of_stream_written_ && frames_.size() <= 1;
+  auto preroll_timeout = decoder_->GetPrerollTimeout();
+  if (preroll_timeout != kSbTimeMax) {
+    Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this), preroll_timeout);
+  }
+
+  ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+  ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+  decoder_frames_.clear();
+  sink_frames_.clear();
+  number_of_frames_.store(0);
 }
 
 bool VideoRenderer::CanAcceptMoreData() const {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  ScopedLock lock(mutex_);
-  return frames_.size() < decoder_->GetMaxNumberOfCachedFrames() &&
-         !end_of_stream_written_ && need_more_input_;
+  SB_DCHECK(BelongsToCurrentThread());
+  return number_of_frames_.load() <
+             static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
+         !end_of_stream_written_.load() && need_more_input_.load();
 }
 
-bool VideoRenderer::UpdateAndRetrieveIsSeekingInProgress() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  ScopedLock lock(mutex_);
-  if (seeking_ && !frames_.empty()) {
-    auto elapsed = SbTimeGetMonotonicNow() - absolute_time_of_first_input_;
-    seeking_ = elapsed < decoder_->GetPrerollTimeout();
-  }
-  return seeking_;
-}
-
-void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
-                                    const scoped_refptr<VideoFrame>& frame) {
-  ScopedLock lock(mutex_);
-
-  if (status == VideoDecoder::kReleaseAllFrames) {
-    frames_.clear();
-    return;
-  }
-
-  if (frame) {
-    SB_DCHECK(first_input_written_);
-
-    bool frame_too_early = false;
-    if (seeking_) {
-      if (frame->is_end_of_stream()) {
-        seeking_ = false;
-      } else if (frame->timestamp() < seeking_to_time_) {
-        frame_too_early = true;
-      }
-    }
-    if (!frame_too_early) {
-      frames_.push_back(frame);
-    }
-
-    if (seeking_ && frames_.size() >= decoder_->GetPrerollFrameCount()) {
-      seeking_ = false;
-    }
-  }
-
-  need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
-}
-
-void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
-  ScopedLock lock(mutex_);
-  algorithm_->Render(media_time_provider_, &frames_, draw_frame_cb);
+void VideoRenderer::SetBounds(int z_index,
+                              int x,
+                              int y,
+                              int width,
+                              int height) {
+  sink_->SetBounds(z_index, x, y, width, height);
 }
 
 SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
@@ -195,6 +180,79 @@ SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
   SB_DCHECK(decoder_);
 
   return decoder_->GetCurrentDecodeTarget();
+}
+
+void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
+                                    const scoped_refptr<VideoFrame>& frame) {
+  if (status == VideoDecoder::kReleaseAllFrames) {
+    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+    ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+    decoder_frames_.clear();
+    sink_frames_.clear();
+    number_of_frames_.store(0);
+    return;
+  }
+
+  if (frame) {
+    SB_DCHECK(first_input_written_);
+
+    bool frame_too_early = false;
+    if (seeking_.load()) {
+      if (frame->is_end_of_stream()) {
+        seeking_.store(false);
+        Schedule(prerolled_cb_);
+      } else if (frame->timestamp() < seeking_to_time_) {
+        frame_too_early = true;
+      }
+    }
+    if (!frame_too_early) {
+      ScopedLock scoped_lock(decoder_frames_mutex_);
+      decoder_frames_.push_back(frame);
+      number_of_frames_.increment();
+    }
+
+    if (seeking_.load() &&
+        number_of_frames_.load() >=
+            static_cast<int32_t>(decoder_->GetPrerollFrameCount())) {
+      seeking_.store(false);
+      Schedule(prerolled_cb_);
+    }
+  }
+
+  need_more_input_.store(status == VideoDecoder::kNeedMoreInput);
+}
+
+void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
+  {
+    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+    sink_frames_mutex_.Acquire();
+    sink_frames_.insert(sink_frames_.end(), decoder_frames_.begin(),
+                        decoder_frames_.end());
+    decoder_frames_.clear();
+  }
+  size_t number_of_sink_frames = sink_frames_.size();
+  algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
+  number_of_frames_.fetch_sub(
+      static_cast<int32_t>(number_of_sink_frames - sink_frames_.size()));
+  if (number_of_frames_.load() <= 1 && end_of_stream_written_.load() &&
+      !ended_cb_called_.load()) {
+    ended_cb_called_.store(true);
+    Schedule(ended_cb_);
+  }
+  sink_frames_mutex_.Release();
+}
+
+void VideoRenderer::OnSeekTimeout() {
+  SB_DCHECK(BelongsToCurrentThread());
+  if (seeking_.load()) {
+    if (number_of_frames_.load() > 0) {
+      seeking_.store(false);
+      Schedule(prerolled_cb_);
+    } else {
+      Schedule(std::bind(&VideoRenderer::OnSeekTimeout, this),
+               kSeekTimeoutRetryInterval);
+    }
+  }
 }
 
 }  // namespace filter

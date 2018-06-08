@@ -49,9 +49,8 @@ class IdentityAudioResampler : public AudioResampler {
   bool eos_reached_;
 };
 
-// AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate
-// and AudioTimeStretcher can only process float32 samples.  So we try to use
-// kSbMediaAudioSampleTypeFloat32 and only use
+// AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate.
+// So we try to use kSbMediaAudioSampleTypeFloat32 and only use
 // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.  To use
 // kSbMediaAudioSampleTypeFloat32 will cause an extra conversion from float32 to
 // int16 before the samples are sent to the audio sink.
@@ -82,6 +81,7 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
       seeking_(false),
       seeking_to_time_(0),
       last_media_time_(0),
+      ended_cb_called_(false),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
       frames_sent_to_sink_(0),
       pending_decoder_outputs_(0),
@@ -113,11 +113,6 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
 
 AudioRenderer::~AudioRenderer() {
   SB_DCHECK(BelongsToCurrentThread());
-}
-
-void AudioRenderer::Initialize(const AudioDecoder::ErrorCB& error_cb) {
-  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
-                       error_cb);
 }
 
 void AudioRenderer::WriteSample(
@@ -184,6 +179,21 @@ bool AudioRenderer::IsSeekingInProgress() const {
   return seeking_;
 }
 
+void AudioRenderer::Initialize(const ErrorCB& error_cb,
+                               const PrerolledCB& prerolled_cb,
+                               const EndedCB& ended_cb) {
+  SB_DCHECK(prerolled_cb);
+  SB_DCHECK(ended_cb);
+  SB_DCHECK(!prerolled_cb_);
+  SB_DCHECK(!ended_cb_);
+
+  prerolled_cb_ = prerolled_cb;
+  ended_cb_ = ended_cb;
+
+  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
+                       error_cb);
+}
+
 void AudioRenderer::Play() {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -237,6 +247,7 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
     eos_state_ = kEOSNotReceived;
     seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
     last_media_time_ = seek_to_time;
+    ended_cb_called_ = false;
     seeking_ = true;
   }
 
@@ -261,6 +272,7 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
   frames_in_buffer_on_sink_thread_ = 0;
   offset_in_frames_on_sink_thread_ = 0;
   frames_consumed_on_sink_thread_ = 0;
+  silence_frames_written_after_eos_on_sink_thread_ = 0;
 
   if (first_input_written_) {
     decoder_->Reset();
@@ -291,6 +303,10 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
 
     *is_playing = !paused_ && !seeking_;
     *is_eos_played = IsEndOfStreamPlayed_Locked();
+    if (*is_eos_played && !ended_cb_called_) {
+      ended_cb_called_ = true;
+      Schedule(ended_cb_);
+    }
 
     if (seeking_ || !decoder_sample_rate_) {
       return seeking_to_time_;
@@ -337,13 +353,17 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
   }
   if (system_and_media_time_offset_ > 0) {
     SbTime offset = now - media_time;
-    SbTime diff = std::abs(offset - system_and_media_time_offset_);
-    max_offset_difference_ = std::max(diff, max_offset_difference_);
+    SbTime drift = offset - system_and_media_time_offset_;
+    min_drift_ = std::min(drift, min_drift_);
+    max_drift_ = std::max(drift, max_drift_);
     SB_LOG(ERROR) << "Media time stats: (" << now << "-"
                   << frames_consumed_set_at_ << "=" << elasped_since_last_set
                   << ") + " << total_frames_consumed_ << " => " << frames_played
-                  << " => " << media_time << "  diff: " << diff << "/"
-                  << max_offset_difference_;
+                  << " => " << media_time << "  drift: " << drift << "/ ("
+                  << min_drift_ << ", " << max_drift_ << ") "
+                  // How long the audio frames left in sink can be played.
+                  << (frames_sent_to_sink_ - frames_consumed_by_sink_) *
+                         kSbTimeSecond / samples_per_second;
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
@@ -373,6 +393,20 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
         max_cached_frames_;
   } else {
     *frames_in_buffer = *offset_in_frames = 0;
+  }
+
+  if (*is_eos_reached && *frames_in_buffer < max_cached_frames_) {
+    // Fill silence frames on EOS to ensure keep the audio sink playing.
+    auto silence_frames_to_write = std::min(
+        max_cached_frames_ - *frames_in_buffer, max_frames_per_append_);
+    auto start_offset =
+        (*offset_in_frames + *frames_in_buffer) % max_cached_frames_;
+    silence_frames_to_write =
+        std::min(silence_frames_to_write, max_cached_frames_ - start_offset);
+    SbMemorySet(frame_buffer_.data() + start_offset * bytes_per_frame_, 0,
+                silence_frames_to_write * bytes_per_frame_);
+    silence_frames_written_after_eos_on_sink_thread_ += silence_frames_to_write;
+    *frames_in_buffer += silence_frames_to_write;
   }
 }
 
@@ -412,21 +446,30 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
   mutex_.DCheckAcquired();
 
   if (frames_consumed_on_sink_thread_ > 0) {
-    frames_consumed_by_sink_ += frames_consumed_on_sink_thread_;
-    SB_DCHECK(frames_consumed_by_sink_ <= frames_sent_to_sink_);
+    SB_DCHECK(frames_consumed_by_sink_ + frames_consumed_on_sink_thread_ <=
+              frames_sent_to_sink_ +
+                  silence_frames_written_after_eos_on_sink_thread_);
+    auto non_silence_frames_consumed =
+        std::min(frames_sent_to_sink_ - frames_consumed_by_sink_,
+                 frames_consumed_on_sink_thread_);
+    frames_consumed_by_sink_ += non_silence_frames_consumed;
     frames_consumed_by_sink_since_last_get_current_time_ +=
-        frames_consumed_on_sink_thread_;
-    frames_consumed_set_at_ = system_time_on_consume_frames;
+        non_silence_frames_consumed;
+    if (non_silence_frames_consumed != 0) {
+      frames_consumed_set_at_ = system_time_on_consume_frames;
+    }
     consume_frames_called_ = true;
-    frames_consumed_on_sink_thread_ = 0;
+    frames_consumed_on_sink_thread_ -= non_silence_frames_consumed;
   }
 
   is_eos_reached_on_sink_thread_ = eos_state_ >= kEOSSentToSink;
   is_playing_on_sink_thread_ = !paused_ && !seeking_;
-  frames_in_buffer_on_sink_thread_ =
-      static_cast<int>(frames_sent_to_sink_ - frames_consumed_by_sink_);
+  frames_in_buffer_on_sink_thread_ = static_cast<int>(
+      frames_sent_to_sink_ + silence_frames_written_after_eos_on_sink_thread_ -
+      frames_consumed_by_sink_ - frames_consumed_on_sink_thread_);
   offset_in_frames_on_sink_thread_ =
-      frames_consumed_by_sink_ % max_cached_frames_;
+      (frames_consumed_by_sink_ + frames_consumed_on_sink_thread_) %
+      max_cached_frames_;
 }
 
 void AudioRenderer::OnFirstOutput() {
@@ -436,18 +479,18 @@ void AudioRenderer::OnFirstOutput() {
   int destination_sample_rate =
       audio_renderer_sink_->GetNearestSupportedSampleFrequency(
           *decoder_sample_rate_);
-  time_stretcher_.Initialize(channels_, destination_sample_rate);
+  time_stretcher_.Initialize(sink_sample_type_, channels_,
+                             destination_sample_rate);
 
   SbMediaAudioSampleType source_sample_type = decoder_->GetSampleType();
   SbMediaAudioFrameStorageType source_storage_type = decoder_->GetStorageType();
 
-  // AudioTimeStretcher only supports interleaved float32 samples.
   if (*decoder_sample_rate_ != destination_sample_rate ||
-      source_sample_type != kSbMediaAudioSampleTypeFloat32 ||
+      source_sample_type != sink_sample_type_ ||
       source_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
     resampler_ = AudioResampler::Create(
         decoder_->GetSampleType(), decoder_->GetStorageType(),
-        *decoder_sample_rate_, kSbMediaAudioSampleTypeFloat32,
+        *decoder_sample_rate_, sink_sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved, destination_sample_rate,
         channels_);
     SB_DCHECK(resampler_);
@@ -549,7 +592,10 @@ void AudioRenderer::ProcessAudioData() {
       {
         ScopedLock lock(mutex_);
         eos_state_ = kEOSDecoded;
-        seeking_ = false;
+        if (seeking_) {
+          seeking_ = false;
+          Schedule(prerolled_cb_);
+        }
       }
 
       resampled_audio = resampler_->WriteEndOfStream();
@@ -600,6 +646,7 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   if (seeking_ && time_stretcher_.IsQueueFull()) {
     ScopedLock lock(mutex_);
     seeking_ = false;
+    Schedule(prerolled_cb_);
   }
 
   if (seeking_ || playback_rate_ == 0.0) {

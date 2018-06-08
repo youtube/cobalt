@@ -1,30 +1,17 @@
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 {
+  'includes': [
+    'libwebp.gypi'
+  ],
   'targets': [
     {
       'target_name': 'libwebp_dec',
       'type': 'static_library',
-      'dependencies' : [
-        'libwebp_dsp',
-        'libwebp_dsp_neon',
-        'libwebp_utils',
-      ],
       'include_dirs': ['.'],
       'sources': [
-        'dec/alpha.c',
-        'dec/buffer.c',
-        'dec/frame.c',
-        'dec/idec.c',
-        'dec/io.c',
-        'dec/layer.c',
-        'dec/quant.c',
-        'dec/tree.c',
-        'dec/vp8.c',
-        'dec/vp8l.c',
-        'dec/webp.c',
+        '<@(libwebp_dec_sources)',
       ],
     },
     {
@@ -32,113 +19,124 @@
       'type': 'static_library',
       'include_dirs': ['.'],
       'sources': [
-        'demux/demux.c',
+        '<@(libwebp_demux_sources)',
       ],
     },
     {
-      'target_name': 'libwebp_dsp',
+      'target_name': 'libwebp_dsp_dec',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_common_sources)',
+      ],
+      'dependencies': [
+        'libwebp_dsp_dec_msa',
+        'libwebp_dsp_dec_neon',
+        'libwebp_dsp_dec_sse2',
+        'libwebp_dsp_dec_sse41',
+        'libwebp_dsp_dec_mips32',
+        'libwebp_dsp_dec_mips_dsp_r2',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_dec_msa',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_msa_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_dec_neon',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_neon_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_dec_sse2',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_sse2_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_dec_sse41',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_sse41_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_dec_mips32',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_mips32_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_dsp_dec_mips_dsp_r2',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_dec_mips_dsp_r2_sources)',
+      ],
+    },
+    {
+      'target_name': 'libwebp_utils_dec',
       'type': 'static_library',
       'include_dirs': ['.'],
       'sources': [
-        'dsp/cpu.c',
-        'dsp/dec.c',
-        'dsp/dec_sse2.c',
-        'dsp/enc.c',
-        'dsp/enc_sse2.c',
-        'dsp/lossless.c',
-        'dsp/upsampling.c',
-        'dsp/upsampling_sse2.c',
-        'dsp/yuv.c',
-      ],
-      'conditions': [
-        ['OS == "android"', {
-          'includes': [ '../../build/android/cpufeatures.gypi' ],
-        }],
+        '<@(libwebp_utils_dec_sources)',
       ],
     },
-    {
-      'target_name': 'libwebp_dsp_neon',
-      'conditions': [
-        ['((target_arch == "arm" and arm_version >= 7) or (target_arch == "arm64"))', {
-          'type': 'static_library',
-          'include_dirs': ['.'],
-          'sources': [
-            'dsp/dec_neon.c',
-            'dsp/enc_neon.c',
-            'dsp/upsampling_neon.c',
-          ],
-          # behavior similar to *.c.neon in an Android.mk
-          'cflags!': [ '-mfpu=vfpv3-d16' ],
-          'cflags': [ '-mfpu=neon' ],
-        },{  # "target_arch != "arm" or arm_version < 7"
-          'type': 'none',
-        }],
-        ['(target_arch == "arm" and arm_version >= 8) or (target_arch == "arm64")', {
-          # NEON is implicit on ARMv8, and both clang and gcc don't like the
-          # redundant flag.
-          'cflags!': [ '-mfpu=neon' ],
-        }],
-      ],
-    },
+
     {
       'target_name': 'libwebp_enc',
-      'type': 'static_library',
+      'type' : 'static_library',
       'include_dirs': ['.'],
-      'sources': [
-        'enc/alpha.c',
-        'enc/analysis.c',
-        'enc/backward_references.c',
-        'enc/config.c',
-        'enc/cost.c',
-        'enc/filter.c',
-        'enc/frame.c',
-        'enc/histogram.c',
-        'enc/iterator.c',
-        'enc/layer.c',
-        'enc/picture.c',
-        'enc/quant.c',
-        'enc/syntax.c',
-        'enc/token.c',
-        'enc/tree.c',
-        'enc/vp8l.c',
-        'enc/webpenc.c',
+      'sources' : [
+        '<@(libwebp_enc_sources)',
       ],
     },
     {
-      'target_name': 'libwebp_utils',
+      'target_name': 'libwebp_dsp_enc',
+      'type' : 'static_library',
+      'include_dirs': ['.'],
+      'sources' : [
+        '<@(libwebp_dsp_enc_sources)',
+      ],
+      'dependencies': [
+      ],
+    },
+    {
+      'target_name': 'libwebp_utils_enc',
       'type': 'static_library',
       'include_dirs': ['.'],
       'sources': [
-        'utils/bit_reader.c',
-        'utils/bit_writer.c',
-        'utils/color_cache.c',
-        'utils/filters.c',
-        'utils/huffman.c',
-        #'utils/huffman_encode.c',
-        'utils/quant_levels.c',
-        'utils/quant_levels_dec.c',
-        'utils/rescaler.c',
-        'utils/thread.c',
-        'utils/utils.c',
+        '<@(libwebp_utils_enc_sources)',
       ],
     },
+
     {
       'target_name': 'libwebp',
       'type': 'none',
       'dependencies' : [
         'libwebp_dec',
         'libwebp_demux',
-        #'libwebp_dsp',
-        #'libwebp_dsp_neon',
-        #'libwebp_enc',  # Not needed by Cobalt
-        'libwebp_utils',
+        'libwebp_dsp_dec',
+        'libwebp_utils_dec',
+        'libwebp_enc',
+        'libwebp_dsp_enc',
+        'libwebp_utils_enc',
       ],
       'direct_dependent_settings': {
         'include_dirs': ['.'],
       },
-      'conditions': [
-        ['OS!="win"', {'product_name': 'webp'}],
-      ],
     },
   ],
 }

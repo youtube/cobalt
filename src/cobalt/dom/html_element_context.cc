@@ -21,6 +21,7 @@ namespace dom {
 
 HTMLElementContext::HTMLElementContext()
     : fetcher_factory_(NULL),
+      loader_factory_(NULL),
       css_parser_(NULL),
       dom_parser_(NULL),
       can_play_type_handler_(NULL),
@@ -42,7 +43,8 @@ HTMLElementContext::HTMLElementContext()
 }
 
 HTMLElementContext::HTMLElementContext(
-    loader::FetcherFactory* fetcher_factory, cssom::CSSParser* css_parser,
+    loader::FetcherFactory* fetcher_factory,
+    loader::LoaderFactory* loader_factory, cssom::CSSParser* css_parser,
     Parser* dom_parser, media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     script::ScriptRunner* script_runner,
@@ -57,8 +59,10 @@ HTMLElementContext::HTMLElementContext(
     loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
     const std::string& font_language_script,
     base::ApplicationState initial_application_state,
+    base::WaitableEvent* synchronous_loader_interrupt,
     float video_playback_rate_multiplier)
     : fetcher_factory_(fetcher_factory),
+      loader_factory_(loader_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
       can_play_type_handler_(can_play_type_handler),
@@ -77,6 +81,7 @@ HTMLElementContext::HTMLElementContext(
       font_language_script_(font_language_script),
       page_visibility_state_(initial_application_state),
       video_playback_rate_multiplier_(video_playback_rate_multiplier),
+      synchronous_loader_interrupt_(synchronous_loader_interrupt),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();

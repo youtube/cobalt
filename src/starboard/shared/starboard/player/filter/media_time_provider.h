@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_H_
 
 #include "starboard/media.h"
+#include "starboard/shared/starboard/player/filter/callback.h"
 
 namespace starboard {
 namespace shared {
@@ -25,6 +26,9 @@ namespace filter {
 
 class MediaTimeProvider {
  public:
+  virtual void Initialize(const ErrorCB& error_cb,
+                          const PrerolledCB& prerolled_cb,
+                          const EndedCB& ended_cb) = 0;
   virtual void Play() = 0;
   virtual void Pause() = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;

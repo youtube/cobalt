@@ -20,4 +20,9 @@
 
 #include "starboard/win/shared/configuration_public.h"
 
+// Ensure the scene is re-rasterized even if the render tree is unchanged so
+// that headset look changes are properly rendered.
+#undef SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER
+#define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 1
+
 #endif  // STARBOARD_WIN_WIN32_LIB_CONFIGURATION_PUBLIC_H_

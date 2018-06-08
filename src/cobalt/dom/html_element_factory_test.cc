@@ -15,6 +15,7 @@
 #include "cobalt/dom/html_element_factory.h"
 
 #include "base/message_loop.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/html_anchor_element.h"
@@ -40,6 +41,7 @@
 #include "cobalt/dom/testing/stub_script_runner.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/loader/loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -49,11 +51,13 @@ class HTMLElementFactoryTest : public ::testing::Test {
  protected:
   HTMLElementFactoryTest()
       : fetcher_factory_(NULL /* network_module */),
+        loader_factory_(&fetcher_factory_, NULL /* resource loader */,
+                        base::kThreadPriority_Default),
         dom_parser_(new dom_parser::Parser()),
         dom_stat_tracker_(new DomStatTracker("HTMLElementFactoryTest")),
         html_element_context_(
-            &fetcher_factory_, &stub_css_parser_, dom_parser_.get(),
-            NULL /* can_play_type_handler */,
+            &fetcher_factory_, &loader_factory_, &stub_css_parser_,
+            dom_parser_.get(), NULL /* can_play_type_handler */,
             NULL /* web_media_player_factory */, &stub_script_runner_,
             NULL /* script_value_factory */, NULL /* media_source_registry */,
             NULL /* resource_provider */, NULL /* animated_image_tracker */,
@@ -61,11 +65,13 @@ class HTMLElementFactoryTest : public ::testing::Test {
             NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
             dom_stat_tracker_.get(), "" /* language */,
-            base::kApplicationStateStarted),
+            base::kApplicationStateStarted,
+            NULL /* synchronous_loader_interrupt */),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementFactoryTest() override {}
 
   loader::FetcherFactory fetcher_factory_;
+  loader::LoaderFactory loader_factory_;
   scoped_ptr<Parser> dom_parser_;
   testing::StubCSSParser stub_css_parser_;
   testing::StubScriptRunner stub_script_runner_;

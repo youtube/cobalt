@@ -18,6 +18,7 @@
 
 #include "starboard/log.h"
 #include "starboard/once.h"
+#include "starboard/system.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -62,11 +63,7 @@ void ResetCurrentThreadJobQueue() {
 
 }  // namespace
 
-JobQueue::JobQueue()
-    : thread_id_(SbThreadGetId()),
-      condition_(mutex_),
-      current_job_token_(JobToken::kInvalidToken + 1),
-      stopped_(false) {
+JobQueue::JobQueue() : thread_id_(SbThreadGetId()), condition_(mutex_) {
   SB_DCHECK(SbThreadIsValidId(thread_id_));
   SetCurrentThreadJobQueue(this);
 }
@@ -89,10 +86,10 @@ void JobQueue::RemoveJobByToken(JobToken job_token) {
   }
 
   ScopedLock scoped_lock(mutex_);
-  for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
-       iter != time_to_job_map_.end(); ++iter) {
+  for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+       iter != time_to_job_record_map_.end(); ++iter) {
     if (iter->second.job_token == job_token) {
-      time_to_job_map_.erase(iter);
+      time_to_job_record_map_.erase(iter);
       return;
     }
   }
@@ -102,7 +99,7 @@ void JobQueue::StopSoon() {
   {
     ScopedLock scoped_lock(mutex_);
     stopped_ = true;
-    time_to_job_map_.clear();
+    time_to_job_record_map_.clear();
     condition_.Signal();
   }
 }
@@ -150,16 +147,19 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
 
   JobToken job_token(current_job_token_);
   JobRecord job_record = {job_token, job, owner};
-
+#if ENABLE_JOB_QUEUE_PROFILING
+  job_record.stack_size =
+      SbSystemGetStack(job_record.stack, kProfileStackDepth);
+#endif  // ENABLE_JOB_QUEUE_PROFILING
   ScopedLock scoped_lock(mutex_);
   if (stopped_) {
     return JobToken();
   }
   SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
-  bool is_first_job = time_to_job_map_.empty() ||
-                      time_to_run_job < time_to_job_map_.begin()->first;
+  bool is_first_job = time_to_job_record_map_.empty() ||
+                      time_to_run_job < time_to_job_record_map_.begin()->first;
 
-  time_to_job_map_.insert(std::make_pair(time_to_run_job, job_record));
+  time_to_job_record_map_.insert(std::make_pair(time_to_run_job, job_record));
   if (is_first_job) {
     condition_.Signal();
   }
@@ -176,10 +176,10 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   bool should_keep_running = true;
   while (should_keep_running) {
     should_keep_running = false;
-    for (TimeToJobMap::iterator iter = time_to_job_map_.begin();
-         iter != time_to_job_map_.end(); ++iter) {
+    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+         iter != time_to_job_record_map_.end(); ++iter) {
       if (iter->second.owner == owner) {
-        time_to_job_map_.erase(iter);
+        time_to_job_record_map_.erase(iter);
         should_keep_running = true;
         break;
       }
@@ -190,26 +190,27 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  Job job;
+  JobRecord job_record;
 
   {
     ScopedLock scoped_lock(mutex_);
     if (stopped_) {
       return false;
     }
-    if (time_to_job_map_.empty() && wait_for_next_job) {
+    if (time_to_job_record_map_.empty() && wait_for_next_job) {
       // |kSbTimeMax| makes more sense here, but |kSbTimeDay| is much safer.
       condition_.WaitTimed(kSbTimeDay);
     }
-    if (time_to_job_map_.empty()) {
+    if (time_to_job_record_map_.empty()) {
       return false;
     }
-    TimeToJobMap::iterator first_delayed_job = time_to_job_map_.begin();
+    TimeToJobRecordMap::iterator first_delayed_job =
+        time_to_job_record_map_.begin();
     SbTimeMonotonic delay = first_delayed_job->first - SbTimeGetMonotonicNow();
     if (delay > 0) {
       if (wait_for_next_job) {
         condition_.WaitTimed(delay);
-        if (time_to_job_map_.empty()) {
+        if (time_to_job_record_map_.empty()) {
           return false;
         }
       } else {
@@ -218,17 +219,45 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     }
     // Try to retrieve the job again as the job map can be altered during the
     // wait.
-    first_delayed_job = time_to_job_map_.begin();
+    first_delayed_job = time_to_job_record_map_.begin();
     delay = first_delayed_job->first - SbTimeGetMonotonicNow();
     if (delay > 0) {
       return false;
     }
-    job = first_delayed_job->second.job;
-    time_to_job_map_.erase(first_delayed_job);
+    job_record = first_delayed_job->second;
+    time_to_job_record_map_.erase(first_delayed_job);
   }
 
-  SB_DCHECK(job);
-  job();
+  SB_DCHECK(job_record.job);
+
+#if ENABLE_JOB_QUEUE_PROFILING
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+
+  job_record.job();
+
+#if ENABLE_JOB_QUEUE_PROFILING
+  auto now = SbTimeGetMonotonicNow();
+  auto elapsed = now - start;
+  if (elapsed > max_job_interval_) {
+    job_record_with_max_interval_ = job_record;
+    max_job_interval_ = elapsed;
+  }
+  if (now - last_reset_time_ > kProfileResetInterval) {
+    SB_LOG(INFO) << "================ Max job takes " << max_job_interval_;
+    for (int i = 0; i < job_record.stack_size; ++i) {
+      char function_name[1024];
+      if (SbSystemSymbolize(job_record.stack[i], function_name,
+                            SB_ARRAY_SIZE_INT(function_name))) {
+        SB_LOG(INFO) << "    " << function_name;
+      } else {
+        SB_LOG(INFO) << "    " << job_record.stack[i];
+      }
+    }
+    last_reset_time_ = now;
+    max_job_interval_ = 0;
+  }
+#endif  // ENABLE_JOB_QUEUE_PROFILING
   return true;
 }
 

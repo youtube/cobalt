@@ -21,6 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/filter/callback.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
 
@@ -34,8 +35,8 @@ namespace filter {
 class AudioDecoder {
  public:
   typedef std::function<void()> ConsumedCB;
-  typedef std::function<void()> ErrorCB;
   typedef std::function<void()> OutputCB;
+  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
 
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;

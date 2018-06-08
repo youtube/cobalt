@@ -14,7 +14,6 @@
 # limitations under the License.
 """Starboard win-win32 platform configuration for gyp_cobalt."""
 
-
 from __future__ import print_function
 
 import os
@@ -22,39 +21,62 @@ import subprocess
 import sys
 import traceback
 
+import starboard.shared.win32.mini_dump_printer as mini_dump_printer
 import starboard.tools.abstract_launcher as abstract_launcher
 
 class Launcher(abstract_launcher.AbstractLauncher):
-
   def __init__(self, platform, target_name, config, device_id, **kwargs):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    **kwargs)
-    self.executable = self.GetTargetPath()
+    self.executable_path = self.GetTargetPath()
+
+    self.executable_mini_dump_path = self.executable_path + '.dmp'
+    if os.path.exists(self.executable_mini_dump_path):
+      self.LogLn('Found previous crash mini dump: deleting.')
+      os.remove(self.executable_mini_dump_path)
 
   def Run(self):
-    sys.stderr.write('\n***Running Launcher***\n')
-    """Runs launcher's executable."""
+    self.LogLn('\n***Running Launcher***')
+    """Runs launcher's executable_path."""
     self.proc = subprocess.Popen(
-        [self.executable] + self.target_command_line_params,
+        [self.executable_path] + self.target_command_line_params,
         stdout=self.output_file,
         stderr=self.output_file)
     self.pid = self.proc.pid
     self.proc.communicate()
     self.proc.poll()
-    return self.proc.returncode
+    rtn_code = self.proc.returncode
+    self.DetectAndHandleCrashDump()
+    self.LogLn('Finished running executable.')
+    return rtn_code
 
   def Kill(self):
-    sys.stderr.write("\n***Killing Launcher***\n")
+    self.LogLn("\n***Killing Launcher***")
     if self.pid:
       try:
         self.proc.kill()
       except OSError:
-        sys.stderr.write("Error killing launcher with SIGKILL:\n")
-        traceback.print_exc(file=sys.stderr)
+        self.LogLn("Error killing launcher with SIGKILL:")
+        traceback.print_exc(file=sys.stdout)
         # If for some reason Kill() fails then os_.exit(1) will kill the
         # child process without cleanup. Otherwise the process will hang.
         os._exit(1)
     else:
-      sys.stderr.write("Kill() called before Run(), cannot kill.\n")
-
+      self.LogLn("Kill() called before Run(), cannot kill.")
     return
+
+  def Log(self, s):
+    self.output_file.write(s);
+
+  def LogLn(self, s):
+    self.Log(s + '\n');
+
+  def DetectAndHandleCrashDump(self):
+    if not os.path.exists(self.executable_mini_dump_path):
+      return
+    self.LogLn('\n*** Found crash dump! ***\nMinDumpPath:'\
+               + self.executable_mini_dump_path)
+    mini_dump_printer.PrintMiniDump(
+        self.executable_mini_dump_path,
+        self.executable_path,
+        self.output_file)
