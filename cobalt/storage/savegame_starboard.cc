@@ -21,7 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/path_service.h"
-#include "cobalt/storage/store/upgrade/upgrade.h"
+#include "cobalt/storage/store_upgrade/upgrade.h"
 #include "starboard/storage.h"
 #include "starboard/user.h"
 
@@ -29,8 +29,8 @@ namespace cobalt {
 namespace storage {
 namespace {
 
-using cobalt::storage::store::upgrade::IsUpgradeRequired;
-using cobalt::storage::store::upgrade::UpgradeStore;
+using cobalt::storage::store_upgrade::IsUpgradeRequired;
+using cobalt::storage::store_upgrade::UpgradeStore;
 
 // An arbitrary max size for the save game file so that, for example, a corrupt
 // filesystem cannot cause us to allocate a fatally large memory buffer.
