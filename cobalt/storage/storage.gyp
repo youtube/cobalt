@@ -38,7 +38,7 @@
         '<(DEPTH)/base/base.gyp:base',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/storage/store/store.gyp:memory_store',
-        '<(DEPTH)/cobalt/storage/store/upgrade/upgrade.gyp:storage_upgrade',
+        '<(DEPTH)/cobalt/storage/store_upgrade/upgrade.gyp:storage_upgrade',
         '<(DEPTH)/net/net.gyp:net',
       ],
     },
