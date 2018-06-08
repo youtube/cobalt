@@ -135,7 +135,7 @@ StarboardPlayer::StarboardPlayer(
       set_bounds_helper_(set_bounds_helper),
       allow_resume_after_suspend_(allow_resume_after_suspend),
       video_frame_provider_(video_frame_provider) {
-  DCHECK(video_config.IsValidConfig());
+  DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
   DCHECK(video_frame_provider_);
@@ -429,13 +429,19 @@ base::TimeDelta StarboardPlayer::GetDuration() {
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
-  DCHECK_NE(info.duration_pts, SB_PLAYER_NO_DURATION);
+  if (info.duration_pts == SB_PLAYER_NO_DURATION) {
+    // URL-based player may not have loaded asset yet, so map no duration to 0.
+    return base::TimeDelta();
+  }
   return base::TimeDelta::FromMicroseconds(
       SB_MEDIA_TIME_TO_SB_TIME(info.duration_pts));
 #else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
-  DCHECK_NE(info.duration, SB_PLAYER_NO_DURATION);
+  if (info.duration == SB_PLAYER_NO_DURATION) {
+    // URL-based player may not have loaded asset yet, so map no duration to 0.
+    return base::TimeDelta();
+  }
   return base::TimeDelta::FromMicroseconds(info.duration);
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 }
@@ -606,8 +612,10 @@ void StarboardPlayer::CreatePlayer() {
     audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   }
 
-  SbMediaVideoCodec video_codec =
-      MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
+  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+  if (video_config_.IsValidConfig()) {
+    video_codec = MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
+  }
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 

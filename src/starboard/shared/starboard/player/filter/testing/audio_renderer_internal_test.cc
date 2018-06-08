@@ -27,6 +27,7 @@
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -44,6 +45,7 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SaveArg;
 
+// TODO: Write tests to cover callbacks.
 class AudioRendererTest : public ::testing::Test {
  protected:
   static const int kDefaultNumberOfChannels = 2;
@@ -109,7 +111,10 @@ class AudioRendererTest : public ::testing::Test {
         make_scoped_ptr<AudioDecoder>(audio_decoder_),
         make_scoped_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioHeader(), kMaxCachedFrames, kMaxFramesPerAppend));
-    audio_renderer_->Initialize(std::bind(&AudioRendererTest::OnError, this));
+    audio_renderer_->Initialize(
+        std::bind(&AudioRendererTest::OnError, this),
+        std::bind(&AudioRendererTest::OnPrerolled, this),
+        std::bind(&AudioRendererTest::OnEnded, this));
   }
 
   // Creates audio buffers, decodes them, and passes them onto the renderer,
@@ -194,6 +199,8 @@ class AudioRendererTest : public ::testing::Test {
   }
 
   void OnError() {}
+  void OnPrerolled() {}
+  void OnEnded() {}
 
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
@@ -254,6 +261,8 @@ TEST_F(AudioRendererTest, StateAfterConstructed) {
   EXPECT_FALSE(is_eos_played);
 }
 
+// TODO: adapt these tests for async audio frames reporting.
+#if !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 TEST_F(AudioRendererTest, SunnyDay) {
   {
     InSequence seq;
@@ -775,6 +784,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
 }
+#endif  // !SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
 
 // TODO: Add more Seek tests.
 
@@ -785,3 +795,4 @@ TEST_F(AudioRendererTest, Seek) {
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)

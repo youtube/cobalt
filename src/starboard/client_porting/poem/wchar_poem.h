@@ -23,7 +23,9 @@
 
 #include "starboard/string.h"
 
+#undef vswprintf
 #define vswprintf SbStringFormatWide
+#undef wcsncmp
 #define wcsncmp(s1, s2, c) SbStringCompareWide(s1, s2, c)
 
 #endif  // POEM_NO_EMULATION

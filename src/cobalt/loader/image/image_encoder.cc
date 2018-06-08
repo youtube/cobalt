@@ -14,8 +14,9 @@
 
 #include "cobalt/loader/image/image_encoder.h"
 
+#include "base/debug/trace_event.h"
 #include "cobalt/renderer/test/png_utils/png_encode.h"
-#include "third_party/libwebp/webp/encode.h"
+#include "third_party/libwebp/src/webp/encode.h"
 
 namespace cobalt {
 namespace loader {
@@ -26,6 +27,7 @@ using cobalt::renderer::test::png_utils::EncodeRGBAToBuffer;
 scoped_array<uint8> WriteRGBAPixelsToPNG(const uint8* const pixel_data,
                                          const math::Size& dimensions,
                                          size_t* out_num_bytes) {
+  TRACE_EVENT0("cobalt::loader", "ImageEncoder::WriteRGBAPixelsToPNG()");
   const int kRGBABytesPerPixel = 4;
   const int kPitchSizeInBytes = dimensions.width() * kRGBABytesPerPixel;
   return EncodeRGBAToBuffer(pixel_data, dimensions.width(), dimensions.height(),
@@ -35,6 +37,7 @@ scoped_array<uint8> WriteRGBAPixelsToPNG(const uint8* const pixel_data,
 scoped_refptr<loader::image::EncodedStaticImage> CompressRGBAImage(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     const uint8* const image_data, const math::Size& dimensions) {
+  TRACE_EVENT0("cobalt::loader", "ImageEncoder::CompressRGBAImage()");
   using ImageFormat = loader::image::EncodedStaticImage::ImageFormat;
   switch (desired_format) {
     case ImageFormat::kPNG: {

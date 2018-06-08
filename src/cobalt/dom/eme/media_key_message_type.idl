@@ -16,8 +16,7 @@
 
 enum MediaKeyMessageType {
   "license-request",
-  // TODO: Implement other message types.
-  // "license-renewal",
-  // "license-release",
-  // "individualization-request"
+  "license-renewal",
+  "license-release",
+  "individualization-request"
 };

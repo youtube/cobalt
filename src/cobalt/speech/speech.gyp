@@ -72,7 +72,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/content/browser/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/flac/flac.gyp:libflac',
         '<(DEPTH)/third_party/protobuf/protobuf.gyp:protobuf_lite',
@@ -100,6 +99,9 @@
             'microphone_fake.h',
             'url_fetcher_fake.cc',
             'url_fetcher_fake.h',
+          ],
+          'dependencies': [
+            '<(DEPTH)/cobalt/audio/audio.gyp:audio',
           ],
           'defines': [
             'ENABLE_FAKE_MICROPHONE',

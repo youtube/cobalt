@@ -107,6 +107,9 @@
     'cflags_cc': [
       '-std=gnu++11',
     ],
+    'ldflags': [
+      '-Wl,-rpath=$$ORIGIN/lib',
+    ],
     'target_conditions': [
       ['sb_pedantic_warnings==1', {
         'cflags': [

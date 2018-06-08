@@ -15,6 +15,7 @@
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/data_view.h"
 #include "cobalt/script/typed_arrays.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -82,6 +83,11 @@ TEST_F(ArrayBufferTest, UnusedPreallocatedDataReleases) {
   script::PreallocatedArrayBufferData preallocated_data(256);
   // Expect |my_data| to be properly freed. Rely on ASan to catch anything
   // going wrong here.
+}
+
+TEST_F(ArrayBufferTest, ArrayBufferViewTest) {
+  // TODO: Add a test for ArrayBufferView.  Bindings support is required in
+  // order to write any meaningful test here.
 }
 
 TEST_F(ArrayBufferTest, DataViewTest) {

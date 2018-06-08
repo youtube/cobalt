@@ -16,6 +16,7 @@
 
 #include "base/bind.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/eme/eme_helpers.h"
 #include "cobalt/dom/eme/media_key_session.h"
 
 namespace cobalt {
@@ -48,12 +49,66 @@ scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
   return session;
 }
 
+MediaKeys::BoolPromiseHandle MediaKeys::SetServerCertificate(
+    const BufferSource& server_certificate) {
+  BoolPromiseHandle promise = script_value_factory_->CreateBasicPromise<bool>();
+
+  // 1. If the Key System implementation represented by this object's cdm
+  //    implementation value does not support server certificates, return a
+  //    promise resolved with false.
+  if (!drm_system_->IsServerCertificateUpdatable()) {
+    promise->Resolve(false);
+    return promise;
+  }
+
+  // 2. If serverCertificate is an empty array, return a promise rejected with a
+  //    newly created TypeError.
+  const uint8* server_certificate_buffer;
+  int server_certificate_buffer_size = 0;
+  GetBufferAndSize(server_certificate, &server_certificate_buffer,
+                   &server_certificate_buffer_size);
+
+  if (server_certificate_buffer_size == 0) {
+    promise->Reject(script::kTypeError);
+    return promise;
+  }
+
+  // 3. Let certificate be a copy of the contents of the serverCertificate
+  //    parameter.
+  // 4. Let promise be a new promise.
+  // 5. Run the following steps in parallel:
+  // 5.1 Let sanitized certificate be a validated and/or sanitized version of
+  //     certificate.
+  // 5.2 Use this object's cdm instance to process sanitized certificate.
+  drm_system_->UpdateServerCertificate(
+      server_certificate_buffer, server_certificate_buffer_size,
+      base::Bind(&MediaKeys::OnServerCertificateUpdated, base::AsWeakPtr(this),
+                 base::Owned(new BoolPromiseValue::Reference(this, promise))));
+
+  // 5.3 and 5.4 are pending processing in OnServerCertificateUpdated().
+  // 6. Return promise.
+  return promise;
+}
+
 void MediaKeys::OnSessionClosed(MediaKeySession* session) {
   // Erase-remove idiom, see
   // https://en.wikipedia.org/wiki/Erase%E2%80%93remove_idiom.
   open_sessions_.erase(
       std::remove(open_sessions_.begin(), open_sessions_.end(), session),
       open_sessions_.end());
+}
+
+void MediaKeys::OnServerCertificateUpdated(
+    BoolPromiseValue::Reference* promise_reference, SbDrmStatus status,
+    const std::string& error_message) {
+  // 5.3 If the preceding step failed, resolve promise with a new DOMException
+  //     whose name is the appropriate error name.
+  if (status != kSbDrmStatusSuccess) {
+    RejectPromise(promise_reference, status, error_message);
+    return;
+  }
+  // 5.4 Resolve promise with true.
+  promise_reference->value().Resolve(true);
 }
 
 void MediaKeys::TraceMembers(script::Tracer* tracer) {

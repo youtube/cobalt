@@ -180,7 +180,7 @@ class ExternalRasterizer::Impl {
        int offscreen_target_cache_size_in_bytes,
 #endif
        bool purge_skia_font_caches_on_destruction,
-       bool disable_rasterizer_caching);
+       bool force_deterministic_rendering);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -254,23 +254,18 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int offscreen_target_cache_size_in_bytes,
 #endif
                                bool purge_skia_font_caches_on_destruction,
-                               bool disable_rasterizer_caching)
+                               bool force_deterministic_rendering)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)),
-      hardware_rasterizer_(graphics_context, skia_atlas_width,
-                           skia_atlas_height, skia_cache_size_in_bytes,
-                           scratch_surface_cache_size_in_bytes,
+      hardware_rasterizer_(
+          graphics_context, skia_atlas_width, skia_atlas_height,
+          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
 
 #if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-                           offscreen_target_cache_size_in_bytes,
+          offscreen_target_cache_size_in_bytes,
 #endif
-                           purge_skia_font_caches_on_destruction
-#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-                           ,
-                           disable_rasterizer_caching
-#endif
-                           ),
+          purge_skia_font_caches_on_destruction, force_deterministic_rendering),
       render_tree_temp_(nullptr),
       main_render_target_temp_(nullptr),
       video_projection_type_(kCbLibVideoProjectionTypeNone),
@@ -649,7 +644,7 @@ ExternalRasterizer::ExternalRasterizer(
     int offscreen_target_cache_size_in_bytes,
 #endif
     bool purge_skia_font_caches_on_destruction,
-    bool disable_rasterizer_caching)
+    bool force_deterministic_rendering)
     : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
                      skia_cache_size_in_bytes,
                      scratch_surface_cache_size_in_bytes,
@@ -657,7 +652,8 @@ ExternalRasterizer::ExternalRasterizer(
                      offscreen_target_cache_size_in_bytes,
 #endif
                      purge_skia_font_caches_on_destruction,
-                     disable_rasterizer_caching)) {}
+                     force_deterministic_rendering)) {
+}
 
 ExternalRasterizer::~ExternalRasterizer() {}
 

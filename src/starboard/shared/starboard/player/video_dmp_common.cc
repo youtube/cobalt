@@ -16,6 +16,7 @@
 
 #include <limits>
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -99,8 +100,15 @@ void Read(const ReadCB& read_cb,
   Read(read_cb, reverse_byte_order, &audio_header->audio_specific_config_size);
   audio_header->stored_audio_specific_config.resize(
       audio_header->audio_specific_config_size);
+#if SB_API_VERSION >= 6
   audio_header->audio_specific_config =
       audio_header->stored_audio_specific_config.data();
+#else
+  SB_DCHECK(8 >= audio_header->stored_audio_specific_config.size());
+  SbMemoryCopy(audio_header->audio_specific_config,
+               audio_header->stored_audio_specific_config.data(),
+               audio_header->stored_audio_specific_config.size());
+#endif
   Read(read_cb, audio_header->stored_audio_specific_config.data(),
        audio_header->audio_specific_config_size);
 }
@@ -261,3 +269,4 @@ void Write(const WriteCB& write_cb,
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)

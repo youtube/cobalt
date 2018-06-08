@@ -33,7 +33,9 @@ const uint32 kMaxChannelCount = 2;
 // numberOfInputs  : 1
 // numberOfOutputs : 0
 AudioDestinationNode::AudioDestinationNode(AudioContext* context)
-    : AudioNode(context), max_channel_count_(kMaxChannelCount) {
+    : AudioNode(context),
+      message_loop_(MessageLoop::current()),
+      max_channel_count_(kMaxChannelCount) {
   AudioLock::AutoLock lock(audio_lock());
 
   AddInput(new AudioNodeInput(this));
@@ -57,16 +59,31 @@ void AudioDestinationNode::OnInputNodeConnected() {
     audio_device_.reset(
         new AudioDevice(static_cast<int>(channel_count(NULL)), this));
   }
+  audio_device_to_delete_ = NULL;
 }
 
-void AudioDestinationNode::FillAudioBus(ShellAudioBus* audio_bus,
+void AudioDestinationNode::FillAudioBus(bool all_consumed,
+                                        ShellAudioBus* audio_bus,
                                         bool* silence) {
-  // This is called by Audio thread.
+  // This is called on Audio thread.
   AudioLock::AutoLock lock(audio_lock());
 
   // Destination node only has one input.
   DCHECK_EQ(number_of_inputs(), 1u);
-  Input(0)->FillAudioBus(audio_bus, silence);
+  bool all_finished = true;
+  Input(0)->FillAudioBus(audio_bus, silence, &all_finished);
+  if (all_consumed && all_finished) {
+    audio_device_to_delete_ = audio_device_.get();
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&AudioDestinationNode::DestroyAudioDevice,
+                              base::Unretained(this)));
+  }
+}
+
+void AudioDestinationNode::DestroyAudioDevice() {
+  if (audio_device_ == audio_device_to_delete_) {
+    audio_device_.reset();
+  }
 }
 
 }  // namespace audio

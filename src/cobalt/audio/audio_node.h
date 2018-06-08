@@ -112,9 +112,8 @@ class AudioNode : public dom::EventTarget {
   // Called when a new input node has been connected.
   virtual void OnInputNodeConnected() {}
 
-  // TODO: Support wrapping ShellAudioBus into another ShellAudioBus.
   virtual scoped_ptr<ShellAudioBus> PassAudioBusFromSource(
-      int32 number_of_frames, SampleType sample_type) = 0;
+      int32 number_of_frames, SampleType sample_type, bool* finished) = 0;
 
   AudioLock* audio_lock() const { return audio_lock_.get(); }
 

@@ -26,21 +26,118 @@ namespace nplb {
 namespace {
 
 // Sets up an empty test fixture, required for typed tests.
+// BasicSbAtomicTest contains test cases all enabled atomic types should pass.
 template <class SbAtomicType>
-class SbAtomicTest : public testing::Test {
+class BasicSbAtomicTest : public testing::Test {
  public:
-  SbAtomicTest() {}
-  virtual ~SbAtomicTest() {}
+  BasicSbAtomicTest() {}
+  virtual ~BasicSbAtomicTest() {}
 };
 
-#if SB_HAS(64_BIT_ATOMICS)
-typedef testing::Types<SbAtomic32, SbAtomic64, SbAtomicPtr> SbAtomicTestTypes;
-#else
-typedef testing::Types<SbAtomic32, SbAtomicPtr> SbAtomicTestTypes;
-#endif
-TYPED_TEST_CASE(SbAtomicTest, SbAtomicTestTypes);
+// AdvancedSbAtomicTest provides test coverage for all atomic functions.
+// Atomic8 is right now the only atomic type not required to pass
+// AdvancedSbAtomicTest, as it does not support implementations for the full
+// set of atomic functions like the other types do.
+template <class SbAtomicType>
+class AdvancedSbAtomicTest : public BasicSbAtomicTest<SbAtomicType> {
+ public:
+  AdvancedSbAtomicTest() {}
+  virtual ~AdvancedSbAtomicTest() {}
+};
 
-TYPED_TEST(SbAtomicTest, IncrementSingleThread) {
+typedef testing::Types<
+#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+                       SbAtomic8,
+#endif
+                       SbAtomic32,
+#if SB_HAS(64_BIT_ATOMICS)
+                       SbAtomic64,
+#endif
+                       SbAtomicPtr> BasicSbAtomicTestTypes;
+typedef testing::Types<SbAtomic32,
+#if SB_HAS(64_BIT_ATOMICS)
+                       SbAtomic64,
+#endif
+                       SbAtomicPtr> AdvancedSbAtomicTestTypes;
+
+#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+TYPED_TEST_CASE(BasicSbAtomicTest, BasicSbAtomicTestTypes);
+#else
+TYPED_TEST_CASE(BasicSbAtomicTest, AdvancedSbAtomicTestTypes);
+#endif
+
+TYPED_TEST_CASE(AdvancedSbAtomicTest, AdvancedSbAtomicTestTypes);
+
+// Return an SbAtomicType with the value 0xa5a5a5...
+template <class SbAtomicType>
+SbAtomicType TestFillValue() {
+  SbAtomicType val = 0;
+  SbMemorySet(&val, 0xa5, sizeof(SbAtomicType));
+  return val;
+}
+
+// Returns the number of bits in a type.
+template <class T>
+T Bits() {
+  return (sizeof(T) * 8);
+}
+
+// Returns a value with the high bit |bits| from the most significant bit set.
+template <class SbAtomicType>
+SbAtomicType GetHighBitAt(int bits) {
+  return (SbAtomicType(1) << (Bits<SbAtomicType>() - (bits + 1)));
+}
+
+// Produces a test value that has non-zero bits in both halves, for testing
+// 64-bit implementation on 32-bit platforms.
+template <class SbAtomicType>
+SbAtomicType GetTestValue() {
+  return GetHighBitAt<SbAtomicType>(1) + 11;
+}
+
+TYPED_TEST(BasicSbAtomicTest, ReleaseCompareAndSwapSingleThread) {
+  TypeParam value = 0;
+  TypeParam prev = atomic::Release_CompareAndSwap(&value, 0, 1);
+  EXPECT_EQ(1, value);
+  EXPECT_EQ(0, prev);
+
+  const TypeParam kTestValue = GetTestValue<TypeParam>();
+  value = kTestValue;
+  prev = atomic::Release_CompareAndSwap(&value, 0, 5);
+  EXPECT_EQ(kTestValue, value);
+  EXPECT_EQ(kTestValue, prev);
+
+  value = kTestValue;
+  prev = atomic::Release_CompareAndSwap(&value, kTestValue, 5);
+  EXPECT_EQ(5, value);
+  EXPECT_EQ(kTestValue, prev);
+}
+
+TYPED_TEST(BasicSbAtomicTest, NoBarrierStoreSingleThread) {
+  const TypeParam kVal1 = TestFillValue<TypeParam>();
+  const TypeParam kVal2 = static_cast<TypeParam>(-1);
+
+  TypeParam value;
+
+  atomic::NoBarrier_Store(&value, kVal1);
+  EXPECT_EQ(kVal1, value);
+  atomic::NoBarrier_Store(&value, kVal2);
+  EXPECT_EQ(kVal2, value);
+}
+
+TYPED_TEST(BasicSbAtomicTest, NoBarrierLoadSingleThread) {
+  const TypeParam kVal1 = TestFillValue<TypeParam>();
+  const TypeParam kVal2 = static_cast<TypeParam>(-1);
+
+  TypeParam value;
+
+  value = kVal1;
+  EXPECT_EQ(kVal1, atomic::NoBarrier_Load(&value));
+  value = kVal2;
+  EXPECT_EQ(kVal2, atomic::NoBarrier_Load(&value));
+}
+
+TYPED_TEST(AdvancedSbAtomicTest, IncrementSingleThread) {
   // use a guard value to make sure the NoBarrier_AtomicIncrement doesn't go
   // outside the expected address bounds.  This is in particular to
   // test that some future change to the asm code doesn't cause the
@@ -106,26 +203,7 @@ TYPED_TEST(SbAtomicTest, IncrementSingleThread) {
   EXPECT_EQ(s.next_word, next_word_value);
 }
 
-// Returns the number of bits in a type.
-template <class T>
-T Bits() {
-  return (sizeof(T) * 8);
-}
-
-// Returns a value with the high bit |bits| from the most significant bit set.
-template <class SbAtomicType>
-SbAtomicType GetHighBitAt(int bits) {
-  return (SbAtomicType(1) << (Bits<SbAtomicType>() - (bits + 1)));
-}
-
-// Produces a test value that has non-zero bits in both halves, for testing
-// 64-bit implementation on 32-bit platforms.
-template <class SbAtomicType>
-SbAtomicType GetTestValue() {
-  return GetHighBitAt<SbAtomicType>(1) + 11;
-}
-
-TYPED_TEST(SbAtomicTest, CompareAndSwapSingleThread) {
+TYPED_TEST(AdvancedSbAtomicTest, NoBarrierCompareAndSwapSingleThread) {
   TypeParam value = 0;
   TypeParam prev = atomic::NoBarrier_CompareAndSwap(&value, 0, 1);
   EXPECT_EQ(1, value);
@@ -143,7 +221,7 @@ TYPED_TEST(SbAtomicTest, CompareAndSwapSingleThread) {
   EXPECT_EQ(kTestValue, prev);
 }
 
-TYPED_TEST(SbAtomicTest, ExchangeSingleThread) {
+TYPED_TEST(AdvancedSbAtomicTest, ExchangeSingleThread) {
   TypeParam value = 0;
   TypeParam new_value = atomic::NoBarrier_Exchange(&value, 1);
   EXPECT_EQ(1, value);
@@ -161,7 +239,7 @@ TYPED_TEST(SbAtomicTest, ExchangeSingleThread) {
   EXPECT_EQ(kTestValue, new_value);
 }
 
-TYPED_TEST(SbAtomicTest, IncrementBoundsSingleThread) {
+TYPED_TEST(AdvancedSbAtomicTest, IncrementBoundsSingleThread) {
   // Test at rollover boundary between int_max and int_min
   TypeParam test_val = GetHighBitAt<TypeParam>(0);
   TypeParam value = -1 ^ test_val;
@@ -183,24 +261,11 @@ TYPED_TEST(SbAtomicTest, IncrementBoundsSingleThread) {
   EXPECT_EQ(test_val - 1, value);
 }
 
-// Return an SbAtomicType with the value 0xa5a5a5...
-template <class SbAtomicType>
-SbAtomicType TestFillValue() {
-  SbAtomicType val = 0;
-  SbMemorySet(&val, 0xa5, sizeof(SbAtomicType));
-  return val;
-}
-
-TYPED_TEST(SbAtomicTest, StoreSingleThread) {
+TYPED_TEST(AdvancedSbAtomicTest, BarrierStoreSingleThread) {
   const TypeParam kVal1 = TestFillValue<TypeParam>();
   const TypeParam kVal2 = static_cast<TypeParam>(-1);
 
   TypeParam value;
-
-  atomic::NoBarrier_Store(&value, kVal1);
-  EXPECT_EQ(kVal1, value);
-  atomic::NoBarrier_Store(&value, kVal2);
-  EXPECT_EQ(kVal2, value);
 
   atomic::Acquire_Store(&value, kVal1);
   EXPECT_EQ(kVal1, value);
@@ -213,16 +278,11 @@ TYPED_TEST(SbAtomicTest, StoreSingleThread) {
   EXPECT_EQ(kVal2, value);
 }
 
-TYPED_TEST(SbAtomicTest, LoadSingleThread) {
+TYPED_TEST(AdvancedSbAtomicTest, BarrierLoadSingleThread) {
   const TypeParam kVal1 = TestFillValue<TypeParam>();
   const TypeParam kVal2 = static_cast<TypeParam>(-1);
 
   TypeParam value;
-
-  value = kVal1;
-  EXPECT_EQ(kVal1, atomic::NoBarrier_Load(&value));
-  value = kVal2;
-  EXPECT_EQ(kVal2, atomic::NoBarrier_Load(&value));
 
   value = kVal1;
   EXPECT_EQ(kVal1, atomic::Acquire_Load(&value));
@@ -295,7 +355,7 @@ void* TestOnceEntryPoint(void* raw_context) {
 // Tests a "once"-like functionality implemented with Atomics. This should
 // effectively test multi-threaded CompareAndSwap, Release_Store and
 // Acquire_Load.
-TYPED_TEST(SbAtomicTest, OnceMultipleThreads) {
+TYPED_TEST(AdvancedSbAtomicTest, OnceMultipleThreads) {
   const int kNumTrials = 25;
   const int kNumThreads = 12;
   // Ensure each thread has slightly different data by offsetting it a bit as
@@ -372,7 +432,7 @@ void* DecrementEntryPoint(void* raw_context) {
   return NULL;
 }
 
-TYPED_TEST(SbAtomicTest, IncrementDecrementMultipleThreads) {
+TYPED_TEST(AdvancedSbAtomicTest, IncrementDecrementMultipleThreads) {
   const int kNumTrials = 15;
   const int kNumThreads = 12;
   SB_COMPILE_ASSERT(kNumThreads % 2 == 0, kNumThreads_is_even);

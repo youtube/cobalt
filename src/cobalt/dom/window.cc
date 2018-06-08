@@ -15,13 +15,14 @@
 
 #include <algorithm>
 
-#include "base/base64.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
+#include "cobalt/dom/base64.h"
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/console.h"
 #include "cobalt/dom/device_orientation_event.h"
@@ -91,6 +92,7 @@ Window::Window(
     base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
+    loader::LoaderFactory* loader_factory,
     render_tree::ResourceProvider** resource_provider,
     loader::image::AnimatedImageTracker* animated_image_tracker,
     loader::image::ImageCache* image_cache,
@@ -124,11 +126,15 @@ Window::Window(
     const OnStopDispatchEventCallback& on_stop_dispatch_event_callback,
     const ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_function_callback,
+    base::WaitableEvent* synchronous_loader_interrupt,
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
     const scoped_refptr<captions::SystemCaptionSettings>& captions)
-    : width_(width),
+    // 'window' object EventTargets require special handling for onerror events,
+    // see EventTarget constructor for more details.
+    : EventTarget(kUnpackOnErrorEvents),
+      width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
@@ -137,12 +143,13 @@ Window::Window(
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
       html_element_context_(new HTMLElementContext(
-          fetcher_factory, css_parser, dom_parser, can_play_type_handler,
-          web_media_player_factory, script_runner, script_value_factory,
-          media_source_registry, resource_provider, animated_image_tracker,
-          image_cache, reduced_image_cache_capacity_manager,
-          remote_typeface_cache, mesh_cache, dom_stat_tracker,
-          font_language_script, initial_application_state,
+          fetcher_factory, loader_factory, css_parser, dom_parser,
+          can_play_type_handler, web_media_player_factory, script_runner,
+          script_value_factory, media_source_registry, resource_provider,
+          animated_image_tracker, image_cache,
+          reduced_image_cache_capacity_manager, remote_typeface_cache,
+          mesh_cache, dom_stat_tracker, font_language_script,
+          initial_application_state, synchronous_loader_interrupt,
           video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
@@ -345,22 +352,24 @@ scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
-  std::string output;
-  if (!base::Base64Encode(string_to_encode, &output)) {
+  TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
+  auto output = ForgivingBase64Encode(string_to_encode);
+  if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
     return std::string();
   }
-  return output;
+  return *output;
 }
 
 std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
                                   script::ExceptionState* exception_state) {
-  std::string output;
-  if (!base::Base64Decode(encoded_string, &output)) {
+  TRACE_EVENT0("cobalt::dom", "Window::Atob()");
+  auto output = ForgivingBase64Decode(encoded_string);
+  if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
     return {};
   }
-  return {output.begin(), output.end()};
+  return *output;
 }
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
@@ -483,6 +492,9 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
 }
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
+  TRACE_EVENT1("cobalt::dom", "Window::InjectEvent()", "event",
+               event->type().c_str());
+
   // Forward the event on to the correct object in DOM.
   if (event->GetWrappableType() == base::GetTypeId<KeyboardEvent>()) {
     // Event.target:focused element processing the key event or if no element
@@ -500,10 +512,6 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
     if (on_screen_keyboard_) {
       on_screen_keyboard_->DispatchEvent(event);
     }
-  } else if (event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
-             event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
-             event->GetWrappableType() == base::GetTypeId<WheelEvent>()) {
-    document_->pointer_state()->QueuePointerEvent(event);
   } else {
     SB_NOTREACHED();
   }
@@ -672,6 +680,7 @@ void Window::TraceMembers(script::Tracer* tracer) {
 
 void Window::SetEnvironmentSettings(script::EnvironmentSettings* settings) {
   screenshot_manager_.SetEnvironmentSettings(settings);
+  navigator_->SetEnvironmentSettings(settings);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {

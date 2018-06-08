@@ -11,6 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Note, that despite the file extension ".gyp", this file is included by several
+# platform variants of linux-x64x11, like a ".gypi" file, since those platforms
+# have no need to modify this code.
 {
   'includes': [
     'starboard_platform.gypi'
@@ -19,6 +23,7 @@
     {
       'target_name': 'starboard_platform',
       'type': 'static_library',
+
       'sources': [
         '<@(starboard_platform_sources)',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
@@ -34,6 +39,20 @@
       ],
       'dependencies': [
         '<@(starboard_platform_dependencies)',
+      ],
+      'conditions': [
+        ['has_cdm==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
+          ],
+          'sources!': [
+            '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
+          ],
+          'sources/': [
+            ['exclude', 'shared/stub/drm_.*'],
+            ['exclude', 'shared/stub/media_is_supported\\.cc'],
+          ],
+        }],
       ],
     },
   ],

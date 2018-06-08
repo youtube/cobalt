@@ -27,7 +27,7 @@ extern "C" {
 
 // Takes floor of a float |f|.  Meant to be a drop-in replacement for |floorf|
 static SB_C_INLINE float PoemSingleFloor(const float f) {
-  double d(f);
+  double d = (double)f;
   return SbDoubleFloor(d);
 }
 
@@ -38,22 +38,38 @@ static SB_C_INLINE float PoemSingleFloor(const float f) {
 #if !defined(POEM_NO_EMULATION)
 
 #include <math.h>
+#undef fabs
 #define fabs(x) SbDoubleAbsolute(x)
+#undef floor
 #define floor(x) SbDoubleFloor(x)
+#undef floorf
 #define floorf(x) PoemSingleFloor(x)
+#undef pow
 #define pow(x, y) SbDoubleExponent(x, y)
 
+#undef ceil
 #define ceil(x) ceil(x)
+#undef fmod
 #define fmod(x, y) fmod(x, y)
+#undef modf
 #define modf(x, y) modf(x, y)
+#undef log
 #define log(x) log(x)
+#undef sqrt
 #define sqrt(x) sqrt(x)
+#undef sin
 #define sin(x) sin(x)
+#undef cos
 #define cos(x) cos(x)
+#undef tan
 #define tan(x) tan(x)
+#undef atan
 #define atan(x) atan(x)
+#undef atan2
 #define atan2(x, y) atan2(x, y)
+#undef asin
 #define asin(x) asin(x)
+#undef acos
 #define acos(x) acos(x)
 #endif  // POEM_NO_EMULATION
 

@@ -28,9 +28,9 @@ class NodeListLiveTest : public ::testing::Test {
   NodeListLiveTest()
       : dom_stat_tracker_("NodeListLiveTest"),
         html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, NULL, NULL, NULL, NULL, NULL,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               &dom_stat_tracker_, "",
-                              base::kApplicationStateStarted),
+                              base::kApplicationStateStarted, NULL),
         document_(new Document(&html_element_context_)) {}
 
   ~NodeListLiveTest() override {}

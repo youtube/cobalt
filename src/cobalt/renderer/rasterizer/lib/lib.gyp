@@ -22,7 +22,7 @@
       ],
       'sources': [
         'external_rasterizer.cc',
-        'renderer_module_default_options_lib.cc'
+        'get_default_rasterizer_for_platform_lib.cc'
       ],
        'dependencies': [
          '<(DEPTH)/base/base.gyp:base',

@@ -22,8 +22,8 @@ namespace dom {
 PseudoElement::PseudoElement(HTMLElement* parent_element)
     : parent_element_(parent_element),
       animations_(new web_animations::AnimationSet()),
-      css_computed_style_declaration_(
-          new cssom::CSSComputedStyleDeclaration()) {
+      css_computed_style_declaration_(new cssom::CSSComputedStyleDeclaration()),
+      computed_style_invalid_(true) {
   DCHECK(parent_element_);
   css_computed_style_declaration_->set_animations(animations_);
 

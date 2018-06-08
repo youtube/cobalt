@@ -227,30 +227,21 @@ void SbWindowPrivate::CompositeVideoFrame(
               0, 0, image.width, image.height);
 
     // Initially assume we don't have to center or scale.
-    int video_width = frame->width();
-    int video_height = frame->height();
     if (bounds_width != width || bounds_height != height ||
         frame->width() != width || frame->height() != height) {
-      // Scale to fit the smallest dimension of the frame into the window.
-      double scale =
-          std::min(bounds_width / static_cast<double>(frame->width()),
-                   bounds_height / static_cast<double>(frame->height()));
-      // Center the scaled frame within the window.
-      video_width = scale * frame->width();
-      video_height = scale * frame->height();
+      // This transform maps the destination pixel back to the source pixel.
+      double sx = static_cast<double>(frame->width()) / bounds_width;
+      double sy = static_cast<double>(frame->height()) / bounds_height;
       XTransform transform = {{
-          { XDoubleToFixed(1), XDoubleToFixed(0), XDoubleToFixed(0) },
-          { XDoubleToFixed(0), XDoubleToFixed(1), XDoubleToFixed(0) },
-          { XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(scale) }
+          { XDoubleToFixed(sx), XDoubleToFixed(0), XDoubleToFixed(0) },
+          { XDoubleToFixed(0), XDoubleToFixed(sy), XDoubleToFixed(0) },
+          { XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(1) }
         }};
       XRenderSetPictureTransform(display, video_picture, &transform);
     }
-
-    int dest_x = bounds_x + (bounds_width - video_width) / 2;
-    int dest_y = bounds_y + (bounds_height - video_height) / 2;
     XRenderComposite(display, PictOpSrc, video_picture, None,
-                     composition_picture, 0, 0, 0, 0, dest_x, dest_y,
-                     video_width, video_height);
+                     composition_picture, 0, 0, 0, 0, bounds_x, bounds_y,
+                     bounds_width, bounds_height);
   }
 }
 

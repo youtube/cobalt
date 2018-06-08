@@ -26,6 +26,7 @@
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/drm.h"
 
 namespace cobalt {
 namespace dom {
@@ -38,6 +39,8 @@ class MediaKeys : public script::Wrappable,
                   public base::SupportsWeakPtr<MediaKeys> {
  public:
   // Custom, not in any spec.
+  typedef script::Handle<script::Promise<bool>> BoolPromiseHandle;
+  typedef script::ScriptValue<script::Promise<bool>> BoolPromiseValue;
 
   MediaKeys(const std::string& key_system,
             script::ScriptValueFactory* script_value_factory);
@@ -49,6 +52,8 @@ class MediaKeys : public script::Wrappable,
   scoped_refptr<MediaKeySession> CreateSession(
       MediaKeySessionType session_type,
       script::ExceptionState* exception_state);
+  BoolPromiseHandle SetServerCertificate(
+      const BufferSource& server_certificate);
 
   DEFINE_WRAPPABLE_TYPE(MediaKeys);
   void TraceMembers(script::Tracer* tracer) override;
@@ -57,6 +62,9 @@ class MediaKeys : public script::Wrappable,
   ~MediaKeys() override;
 
   void OnSessionClosed(MediaKeySession* session);
+  void OnServerCertificateUpdated(
+      BoolPromiseValue::Reference* promise_reference, SbDrmStatus status,
+      const std::string& error_message);
 
   script::ScriptValueFactory* script_value_factory_;
   scoped_refptr<media::DrmSystem> drm_system_;

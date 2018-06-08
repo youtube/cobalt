@@ -21,7 +21,7 @@
         'renderer_parameters_setup.gypi',
       ],
       'sources': [
-        '<(DEPTH)/cobalt/renderer/renderer_module_default_options_starboard.cc',
+        '<(DEPTH)/cobalt/renderer/get_default_rasterizer_for_platform.cc',
       ],
     },
   ],

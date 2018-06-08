@@ -30,7 +30,7 @@ from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools.testing import test_filter
-
+from starboard.tools.testing import build_tests
 
 _TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
@@ -171,8 +171,14 @@ class TestLauncher(object):
 class TestRunner(object):
   """Runs unit tests."""
 
-  def __init__(self, platform, config, device_id, single_target,
-               target_params, out_directory, application_name=None,
+  def __init__(self,
+               platform,
+               config,
+               device_id,
+               single_target,
+               target_params,
+               out_directory,
+               application_name=None,
                dry_run=False):
     self.platform = platform
     self.config = config
@@ -254,39 +260,6 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _BuildTests(self, ninja_flags):
-    """Builds all specified test binaries.
-
-    Args:
-      ninja_flags: Command line flags to pass to ninja.
-    """
-    if not self.test_targets:
-      return
-
-    if self.out_directory:
-      build_dir = self.out_directory
-    else:
-      build_dir = abstract_launcher.DynamicallyBuildOutDirectory(
-          self.platform, self.config)
-
-    args_list = ["ninja", "-C", build_dir]
-    if self.dry_run:
-      args_list.append("-n")
-    args_list.extend([
-        "{}_deploy".format(test_name) for test_name in self.test_targets])
-    if ninja_flags:
-      args_list.append(ninja_flags)
-    if "TEST_RUNNER_BUILD_FLAGS" in os.environ:
-      args_list.append(os.environ["TEST_RUNNER_BUILD_FLAGS"])
-    sys.stderr.write("{}\n".format(args_list))
-    # We set shell=True because otherwise Windows doesn't recognize
-    # PATH properly.
-    #   https://bugs.python.org/issue15451
-    # We flatten the arguments to a string because with shell=True, Linux
-    # doesn't parse them properly.
-    #   https://bugs.python.org/issue6689
-    subprocess.check_call(" ".join(args_list), shell=True)
-
   def _RunTest(self, target_name):
     """Runs a single unit test binary and collects all of the output.
 
@@ -313,9 +286,13 @@ class TestRunner(object):
     test_params.extend(self.target_params)
 
     launcher = abstract_launcher.LauncherFactory(
-        self.platform, target_name, self.config,
-        device_id=self.device_id, target_params=test_params,
-        output_file=write_pipe, out_directory=self.out_directory,
+        self.platform,
+        target_name,
+        self.config,
+        device_id=self.device_id,
+        target_params=test_params,
+        output_file=write_pipe,
+        out_directory=self.out_directory,
         env_variables=env)
 
     test_reader = TestLineReader(read_pipe)
@@ -325,9 +302,8 @@ class TestRunner(object):
     self.threads.append(test_reader)
 
     if self.dry_run:
-      sys.stdout.write(
-          "{} {}\n".format(target_name, test_params) if test_params
-          else "{}\n".format(target_name))
+      sys.stdout.write("{} {}\n".format(target_name, test_params)
+                       if test_params else "{}\n".format(target_name))
       write_pipe.close()
       read_pipe.close()
 
@@ -404,6 +380,10 @@ class TestRunner(object):
         failed_tests.append(test_failed_match.group(1))
     return failed_tests
 
+  def _GetFilteredTestList(self, target_name):
+    return _FilterTests([target_name], self._GetTestFilters(), self.config).get(
+        target_name, [])
+
   def _ProcessAllTestResults(self, results):
     """Collects and returns output for all selected tests.
 
@@ -420,6 +400,8 @@ class TestRunner(object):
     total_run_count = 0
     total_passed_count = 0
     total_failed_count = 0
+    total_flaky_failed_count = 0
+    total_filtered_count = 0
 
     # If the number of run tests from a test binary cannot be
     # determined, assume an error occurred while running it.
@@ -435,6 +417,9 @@ class TestRunner(object):
       failed_count = result_set[3]
       failed_tests = result_set[4]
       return_code = result_set[5]
+      flaky_failed_tests = [
+          test_name for test_name in failed_tests if ".FLAKY_" in test_name
+      ]
 
       test_status = "SUCCEEDED"
       if return_code != 0:
@@ -443,7 +428,7 @@ class TestRunner(object):
 
       print "{}: {}.".format(target_name, test_status)
       if run_count == 0:
-        print"  Results not available.  Did the test crash?\n"
+        print "  Results not available.  Did the test crash?\n"
         continue
 
       print "  TOTAL TESTS RUN: {}".format(run_count)
@@ -453,16 +438,23 @@ class TestRunner(object):
       if failed_count > 0:
         print "  FAILED: {}".format(failed_count)
         total_failed_count += failed_count
+        total_flaky_failed_count += len(flaky_failed_tests)
         print "\n  FAILED TESTS:"
         for line in failed_tests:
           print "    {}".format(line)
+      filtered_count = len(self._GetFilteredTestList(target_name))
+      if filtered_count > 0:
+        print "  FILTERED: {}".format(filtered_count)
+        total_filtered_count += filtered_count
       # Print a single newline to separate results from each test run
       print
 
     overall_status = "SUCCEEDED"
     result = True
 
-    if error or total_failed_count > 0:
+    # If we only failed tests that are considered flaky, then count this run
+    # as a pass.
+    if error or total_failed_count - total_flaky_failed_count > 0:
       overall_status = "FAILED"
       result = False
 
@@ -470,6 +462,8 @@ class TestRunner(object):
     print "  TOTAL TESTS RUN: {}".format(total_run_count)
     print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
     print "  TOTAL TESTS FAILED: {}".format(total_failed_count)
+    print "  TOTAL TESTS FILTERED: {}".format(total_filtered_count)
+    print "  TOTAL FLAKY TESTS FAILED: {}".format(total_flaky_failed_count)
 
     return result
 
@@ -485,7 +479,20 @@ class TestRunner(object):
     result = True
 
     try:
-      self._BuildTests(ninja_flags)
+      if self.out_directory:
+        out_directory = self.out_directory
+      else:
+        out_directory = abstract_launcher.DynamicallyBuildOutDirectory(
+            self.platform, self.config)
+
+      if ninja_flags:
+        extra_flags = [ninja_flags]
+      else:
+        extra_flags = []
+
+      build_tests.BuildTargets(self.test_targets, out_directory, self.dry_run,
+                               extra_flags)
+
     except subprocess.CalledProcessError as e:
       result = False
       sys.stderr.write("Error occurred during building.\n")
@@ -528,9 +535,7 @@ def main():
       action="store_true",
       help="Specifies to show what would be done without actually doing it.")
   arg_parser.add_argument(
-      "-t",
-      "--target_name",
-      help="Name of executable target.")
+      "-t", "--target_name", help="Name of executable target.")
   arg_parser.add_argument(
       "-a",
       "--application_name",
@@ -586,6 +591,7 @@ def main():
     return 1
   else:
     return 0
+
 
 if __name__ == "__main__":
   sys.exit(main())

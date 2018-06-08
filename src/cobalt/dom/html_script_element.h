@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/html_element.h"
@@ -149,6 +150,8 @@ class HTMLScriptElement : public HTMLElement {
   // javascript parser takes in to record if the error reqort should be muted
   // due to cross-origin fetched script.
   loader::Origin fetched_last_url_origin_;
+
+  base::WaitableEvent* synchronous_loader_interrupt_;
 };
 
 }  // namespace dom

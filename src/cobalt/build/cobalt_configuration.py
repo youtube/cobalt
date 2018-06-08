@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base cobalt configuration for GYP."""
 
+import logging
 import os
 
 import _env  # pylint: disable=unused-import
@@ -20,7 +21,6 @@ from cobalt.build import gyp_utils
 from cobalt.tools import paths
 import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration
-
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
@@ -52,6 +52,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         # Whether to enable VR.
         'enable_vr': int(os.environ.get('USE_VR', 0)),
     }
+    logging.info('Build Number: {}'.format(variables['cobalt_version']))
     return variables
 
   def GetPostIncludes(self):
@@ -79,6 +80,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'loader_test',
         'math_test',
         'media_session_test',
+        'memory_store_test',
         'nb_test',
         'net_unittests',
         'network_test',
@@ -88,6 +90,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'renderer_test',
         'sql_unittests',
         'storage_test',
+        'storage_upgrade_test',
         'trace_event_test',
         'web_animations_test',
         'web_platform_tests',

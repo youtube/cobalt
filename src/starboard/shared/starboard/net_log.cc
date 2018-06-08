@@ -166,7 +166,13 @@ class BufferedSocketWriter {
     }
     log_mutex_.Release();
 
-    SB_LOG_IF(ERROR, overflow) << "Net log dropped buffer data.";
+    if (overflow) {
+      // Can't use SB_LOG_IF() because SB_LOG_IF() might have triggered this
+      // call, and therefore would triggered reentrant behavior and then
+      // deadlock. SbLogRawFormat() is assumed to be safe to call. Note that
+      // NetLogWrite() ignores reentrant calls.
+      SbLogRaw("Net log dropped buffer data.");
+    }
   }
 
   void WaitUntilWritableOrConnectionReset(SbSocket sock) {
@@ -343,6 +349,7 @@ class NetLogServer {
     ScopedLock lock(socket_mutex_);
     client_socket_ = client_socket.Pass();
     client_socket_->SetSendBufferSize(NET_LOG_SOCKET_BUFFER_SIZE);
+    client_socket_->SetTcpKeepAlive(true, kSbTimeSecond);
   }
 
   // Has a client ever connected?
@@ -357,11 +364,12 @@ class NetLogServer {
   }
 
   void Close() {
-    writer_thread_->Join();
-    writer_thread_.reset(nullptr);
+    if (writer_thread_) {
+      writer_thread_->Join();
+      writer_thread_.reset(nullptr);
+      Flush();  // One last flush to the socket.
+    }
     socket_listener_.reset();
-
-    Flush();  // One last flush to the socket.
     ScopedLock lock(socket_mutex_);
     client_socket_.reset();
     listen_socket_.reset();
@@ -491,7 +499,9 @@ void NetLogFlushThenClose() {
 #if !SB_LOGGING_IS_OFFICIAL_BUILD
   ScopeGuard guard;
   if (guard.IsEnabled()) {
-    NetLogServer::Instance()->Close();
+    NetLogServer* net_log = NetLogServer::Instance();
+    net_log->OnLog("Netlog is closing down\n");
+    net_log->Close();
   }
 #endif
 }

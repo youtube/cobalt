@@ -931,6 +931,11 @@ void InitializePrototypeAndInterfaceObject(
 
   JS::RootedObject parent_prototype(
       context, MozjsGlobalInterfaceParent::GetPrototype(context, global_object));
+  static_assert(
+      std::is_base_of<GlobalInterfaceParent, Window>::value,
+      "Expected Window to have C++ parent class "
+      "GlobalInterfaceParent, because that is its WebIDL parent.");
+
   DCHECK(parent_prototype);
 
   interface_data->prototype = JS_NewObjectWithGivenProto(
