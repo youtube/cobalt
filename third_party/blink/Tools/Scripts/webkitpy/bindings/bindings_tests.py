@@ -53,8 +53,8 @@ from utilities import ComponentInfoProviderModules
 
 PASS_MESSAGE = 'All tests PASS!'
 FAIL_MESSAGE = """Some tests FAIL!
-To update the reference files, execute:
-    run-bindings-tests --reset-results
+To update the reference files, execute (from cobalt/bindings):
+    ./run_cobalt_bindings_tests.sh --reset-results
 
 If the failures are not due to your changes, test results may be out of sync;
 please rebaseline them in a separate CL, after checking that tests fail in ToT.
