@@ -78,6 +78,7 @@ class ApplicationAndroid
   void Initialize() override;
   void Teardown() override;
   bool IsStartImmediate() override { return false; }
+  void OnResume() override;
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override { return true; }
