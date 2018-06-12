@@ -19,8 +19,10 @@
   'targets': [
     {
       'target_name': 'media_stream',
-      'type': 'none',
+      'type': 'static_library',
       'sources': [
+        'audio_parameters.cc',
+        'audio_parameters.h',
         'media_stream.h',
         'media_stream_track.h',
       ],
