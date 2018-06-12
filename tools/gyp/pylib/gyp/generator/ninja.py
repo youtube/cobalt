@@ -120,7 +120,7 @@ def GetConfigFlags(config, toolset, keyword):
   flags = config.get(keyword, [])
   if toolset == 'host':
     flags = config.get('{0}_host'.format(keyword), flags)
-  return flags
+  return [flag.replace('$', '$$') for flag in flags]
 
 
 def StripPrefix(arg, prefix):
