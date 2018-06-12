@@ -3,6 +3,7 @@
 
 package dev.cobalt.storage;
 
+@SuppressWarnings("unchecked")
 public final class StorageProto {
   private StorageProto() {}
   public static void registerAllExtensions(
