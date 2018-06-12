@@ -74,6 +74,7 @@
         'drm_create_system.cc',
         'drm_system.cc',
         'drm_system.h',
+        'egl_swap_buffers.cc',
         'file_can_open.cc',
         'file_close.cc',
         'file_delete.cc',
