@@ -14,19 +14,24 @@
 
 #include "cobalt/media_stream/media_stream.h"
 
+#include "base/memory/ref_counted.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace media_stream {
 
 class MediaStreamTest : public ::testing::Test {
+ public:
+  MediaStreamTest() : media_stream_(new MediaStream()) {}
+
  protected:
-  MediaStream media_stream_;
+  scoped_refptr<MediaStream> media_stream_;
 };
 
 TEST_F(MediaStreamTest, TestConstruction) {
-  EXPECT_TRUE(media_stream_.GetAudioTracks().empty());
-  EXPECT_TRUE(media_stream_.GetTracks().empty());
+  ASSERT_TRUE(media_stream_);
+  EXPECT_TRUE(media_stream_->GetAudioTracks().empty());
+  EXPECT_TRUE(media_stream_->GetTracks().empty());
 }
 
 }  // namespace media_stream

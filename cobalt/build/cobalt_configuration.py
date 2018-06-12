@@ -80,6 +80,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'loader_test',
         'math_test',
         'media_session_test',
+        'media_stream_test',
         'memory_store_test',
         'nb_test',
         'net_unittests',
