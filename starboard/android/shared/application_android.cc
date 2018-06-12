@@ -181,6 +181,11 @@ void ApplicationAndroid::WakeSystemEventWait() {
   ALooper_wake(looper_);
 }
 
+void ApplicationAndroid::OnResume() {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
+}
+
 void ApplicationAndroid::ProcessAndroidCommand() {
   JniEnvExt* env = JniEnvExt::Get();
   AndroidCommand cmd;
@@ -226,12 +231,10 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // continue, before we start or resume the Starboard app.
         android_command_condition_.Signal();
       }
-      // We'll either be sending the start event here, or the resume event below
-      // (either explicitly or as an injected event before unpause).
-      env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
       if (state() == kStateUnstarted) {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
+        env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
         DispatchStart();
       } else {
         // Now that we got a window back, change the command for the switch
@@ -306,8 +309,9 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         break;
       case AndroidCommand::kStop:
         if (state() != kStateSuspended) {
-          // In practice we've already suspended when we lost the window, but
-          // if that didn't happen we suspend when the Android app is stopped.
+          // We usually suspend when losing the window above, but if the window
+          // wasn't destroyed (e.g. when Daydream starts) then we still have to
+          // suspend when the Activity is stopped.
           env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
           DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
         }
