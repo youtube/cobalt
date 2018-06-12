@@ -16,6 +16,11 @@
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
   ],
   'variables': {
+    'variables': {
+      'has_cdm%': '<!(test -e <(DEPTH)/third_party/cdm/cdm/include/content_decryption_module.h && echo 1 || echo 0)',
+    },
+    # This has_cdm gets exported to gyp files that include this one.
+    'has_cdm%': '<(has_cdm)',
     'starboard_platform_sources': [
       '<@(filter_based_player_sources)',
       '<(DEPTH)/starboard/linux/shared/atomic_public.h',
@@ -223,7 +228,6 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_stereo_only.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_stereo_only.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_set_output_protection.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
@@ -277,17 +281,8 @@
       '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
       '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
-      '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
       '<(DEPTH)/starboard/shared/stub/image_decode.cc',
       '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
-      '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_close.cc',
       '<(DEPTH)/starboard/shared/stub/microphone_create.cc',
@@ -321,7 +316,41 @@
           '<(DEPTH)/starboard/shared/posix/memory_allocate_aligned_unchecked.cc',
           '<(DEPTH)/starboard/shared/posix/memory_free_aligned.cc',
         ],
-      }]
+      }],
+      ['has_cdm==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
+          ],
+          'starboard_platform_sources': [
+            '<(DEPTH)/starboard/linux/x64x11/media_is_output_protected.cc',
+
+            '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
+            '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
+            '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
+            '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
+            '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
+
+            '<(DEPTH)/starboard/shared/widevine/drm_create_system.cc',
+            '<(DEPTH)/starboard/shared/widevine/drm_is_server_certificate_updatable.cc',
+            '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.cc',
+            '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.h',
+            '<(DEPTH)/starboard/shared/widevine/drm_update_server_certificate.cc',
+            '<(DEPTH)/starboard/shared/widevine/media_is_supported.cc',
+          ],
+        }, {
+          'starboard_platform_sources': [
+            '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
+            '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
+            '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
+            '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
+          ],
+      }],
     ],
     'starboard_platform_dependencies': [
       '<(DEPTH)/starboard/common/common.gyp:common',

@@ -17,43 +17,6 @@
 # have no need to modify this code.
 {
   'includes': [
-    'starboard_platform.gypi'
-  ],
-  'targets': [
-    {
-      'target_name': 'starboard_platform',
-      'type': 'static_library',
-
-      'sources': [
-        '<@(starboard_platform_sources)',
-        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.h',
-        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.h',
-      ],
-      'defines': [
-        'SB_PLAYER_ENABLE_VIDEO_DUMPER',
-        # This must be defined when building Starboard, and must not when
-        # building Starboard client code.
-        'STARBOARD_IMPLEMENTATION',
-      ],
-      'dependencies': [
-        '<@(starboard_platform_dependencies)',
-      ],
-      'conditions': [
-        ['has_cdm==1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
-          ],
-          'sources!': [
-            '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
-          ],
-          'sources/': [
-            ['exclude', 'shared/stub/drm_.*'],
-            ['exclude', 'shared/stub/media_is_supported\\.cc'],
-          ],
-        }],
-      ],
-    },
+    './shared/starboard_platform_target.gypi'
   ],
 }
