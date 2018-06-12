@@ -184,6 +184,7 @@
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
 
+        '../media_capture/blob_event.idl',
         '../media_capture/media_device_info.idl',
         '../media_capture/media_devices.idl',
         '../media_capture/media_recorder.idl',
@@ -259,6 +260,7 @@
         '../dom/source_buffer_append_mode.idl',
         '../dom/track_default_type.idl',
         '../dom/wheel_event_init.idl',
+        '../media_capture/blob_event_init.idl',
         '../media_capture/media_device_kind.idl',
         '../media_capture/media_recorder_options.idl',
         '../media_capture/recording_state.idl',
