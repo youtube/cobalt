@@ -45,12 +45,12 @@ class MediaStream : public dom::EventTarget {
     return GetAudioTracks();
   }
 
-  DEFINE_WRAPPABLE_TYPE(MediaStream);
-
   void TraceMembers(script::Tracer* tracer) override {
     EventTarget::TraceMembers(tracer);
     tracer->TraceItems(tracks_);
   }
+
+  DEFINE_WRAPPABLE_TYPE(MediaStream);
 
  private:
   MediaStream(const MediaStream&) = delete;
