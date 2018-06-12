@@ -21,6 +21,7 @@
 #include <jni.h>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/shared/gles/gl_call.h"
@@ -35,6 +36,13 @@ namespace {
 jobject g_j_video_surface = NULL;
 // Global pointer to the single video window.
 ANativeWindow* g_native_video_window = NULL;
+
+// Facilitate synchronization of punch-out videos.
+SbMutex g_bounds_updates_mutex = SB_MUTEX_INITIALIZER;
+SbConditionVariable g_bounds_updates_condition =
+    SB_CONDITION_VARIABLE_INITIALIZER;
+int g_bounds_updates_needed = 0;
+int g_bounds_updates_scheduled = 0;
 
 }  // namespace
 
@@ -58,6 +66,32 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     g_j_video_surface = NULL;
     g_native_video_window = NULL;
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_VideoSurfaceView_nativeOnLayoutNeeded() {
+  SbMutexAcquire(&g_bounds_updates_mutex);
+  ++g_bounds_updates_needed;
+  SbMutexRelease(&g_bounds_updates_mutex);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_VideoSurfaceView_nativeOnLayoutScheduled() {
+  SbMutexAcquire(&g_bounds_updates_mutex);
+  ++g_bounds_updates_scheduled;
+  SbMutexRelease(&g_bounds_updates_mutex);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_VideoSurfaceView_nativeOnGlobalLayout() {
+  SbMutexAcquire(&g_bounds_updates_mutex);
+  g_bounds_updates_needed -= g_bounds_updates_scheduled;
+  g_bounds_updates_scheduled = 0;
+  if (g_bounds_updates_needed <= 0) {
+    g_bounds_updates_needed = 0;
+    SbConditionVariableSignal(&g_bounds_updates_condition);
+  }
+  SbMutexRelease(&g_bounds_updates_mutex);
 }
 
 jobject GetVideoSurface() {
@@ -152,6 +186,20 @@ void ClearVideoWindow() {
   EGL_CALL(eglDestroyContext(display, context));
   EGL_CALL(eglDestroySurface(display, surface));
   EGL_CALL(eglTerminate(display));
+}
+
+void WaitForVideoBoundsUpdate() {
+  SbMutexAcquire(&g_bounds_updates_mutex);
+  if (g_bounds_updates_needed > 0) {
+    // Use a timed wait to deal with possible race conditions in which
+    // suspend occurs in the middle of a bounds update.
+    SbConditionVariableWaitTimed(&g_bounds_updates_condition,
+                                 &g_bounds_updates_mutex,
+                                 100 * kSbTimeMillisecond);
+    g_bounds_updates_needed = 0;
+    g_bounds_updates_scheduled = 0;
+  }
+  SbMutexRelease(&g_bounds_updates_mutex);
 }
 
 }  // namespace shared
