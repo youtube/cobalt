@@ -21,6 +21,7 @@
       'target_name': 'media_stream_test',
       'type': '<(gtest_target_type)',
       'sources': [
+        'audio_parameters_test.cc',
         'media_stream_test.cc',
       ],
       'dependencies': [
