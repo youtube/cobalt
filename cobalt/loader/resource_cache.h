@@ -566,6 +566,10 @@ class ResourceCache {
   ResourceSet non_callback_blocking_loading_resource_set_;
   // Resources that have completed loading and have callbacks pending.
   ResourceCallbackMap pending_callback_map_;
+  // Timer used to ensure that pending callbacks are handled in a timely manner
+  // when callbacks are being blocked by additional loading resources.
+  base::OneShotTimer<ResourceCache<CacheType>> process_pending_callback_timer_;
+
   // Whether or not ProcessPendingCallbacks() is running.
   bool is_processing_pending_callbacks_;
   // Whether or not callbacks are currently disabled.
@@ -701,6 +705,7 @@ void ResourceCache<CacheType>::Purge() {
 template <typename CacheType>
 void ResourceCache<CacheType>::ProcessPendingCallbacks() {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+  process_pending_callback_timer_.Stop();
 
   // If callbacks are disabled, simply return.
   if (are_callbacks_disabled_) {
@@ -913,6 +918,10 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
 
 template <typename CacheType>
 void ResourceCache<CacheType>::ProcessPendingCallbacksIfUnblocked() {
+  // If there are no callback blocking resources, then simply process any
+  // pending callbacks now; otherwise, start |process_pending_callback_timer_|,
+  // which ensures that the callbacks are handled in a timely manner while still
+  // allowing them to be batched.
   if (callback_blocking_loading_resource_set_.empty()) {
     ProcessPendingCallbacks();
 
@@ -923,6 +932,19 @@ void ResourceCache<CacheType>::ProcessPendingCallbacksIfUnblocked() {
       callback_blocking_loading_resource_set_.swap(
           non_callback_blocking_loading_resource_set_);
     }
+  } else if (!pending_callback_map_.empty() &&
+             !process_pending_callback_timer_.IsRunning()) {
+    // The maximum delay for a pending callback is set to 500ms. After that, the
+    // callback will be processed regardless of how many callback blocking
+    // loading resources remain. This specific value maximizes callback batching
+    // on fast networks while also keeping the callback delay on slow networks
+    // to a minimum and is based on significant testing.
+    const int64 kMaxPendingCallbackDelayInMilliseconds = 500;
+    process_pending_callback_timer_.Start(
+        FROM_HERE,
+        base::TimeDelta::FromMilliseconds(
+            kMaxPendingCallbackDelayInMilliseconds),
+        this, &ResourceCache::ProcessPendingCallbacks);
   }
 }
 
