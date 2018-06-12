@@ -18,11 +18,14 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.Size;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import dev.cobalt.util.DisplayUtil;
 
 /**
  * A Surface view to be used by the video decoder. It informs the Starboard application when the
@@ -30,29 +33,49 @@ import android.view.SurfaceView;
  */
 public class VideoSurfaceView extends SurfaceView {
 
+  public static native void nativeOnLayoutNeeded();
+  public static native void nativeOnLayoutScheduled();
+  public static native void nativeOnGlobalLayout();
+
+  private Rect videoBounds;
+
   public VideoSurfaceView(Context context) {
     super(context);
-    initialize();
+    initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs) {
     super(context, attrs);
-    initialize();
+    initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
-    initialize();
+    initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
     super(context, attrs, defStyleAttr, defStyleRes);
-    initialize();
+    initialize(context);
   }
 
-  private void initialize() {
+  private void initialize(Context context) {
+    videoBounds = new Rect();
     setBackgroundColor(Color.TRANSPARENT);
     getHolder().addCallback(new SurfaceHolderCallback());
+
+    // Fix the surface size to avoid re-creating it whenever the player bounds change.
+    Size displaySize = DisplayUtil.getSystemDisplaySize(context);
+    getHolder().setFixedSize(displaySize.getWidth(), displaySize.getHeight());
+  }
+
+  public boolean updateVideoBounds(final int x, final int y, final int width, final int height) {
+    if (videoBounds.left != x || videoBounds.top != y ||
+        videoBounds.right != x + width || videoBounds.bottom != y + height) {
+      videoBounds.set(x, y, x + width, y + height);
+      return true;
+    }
+    return false;
   }
 
   private native void nativeOnVideoSurfaceChanged(Surface surface);

@@ -50,6 +50,9 @@
       '-Wl,--fatal-warnings',
       '-Wl,--gc-sections',
       '-Wl,-z,nocopyreloc',
+
+      # Facilitate synchronizing punch-out video bounds with the UI frame.
+      '-Wl,--wrap=eglSwapBuffers',
     ],
     'compiler_flags_debug': [
       '-frtti',
