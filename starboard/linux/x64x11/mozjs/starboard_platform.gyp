@@ -13,6 +13,6 @@
 # limitations under the License.
 {
   'includes': [
-    '../starboard_platform.gyp'
+    '../shared/starboard_platform_target.gypi',
   ],
 }

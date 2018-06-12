@@ -12,14 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': ['../shared/starboard_platform.gypi'],
+  'includes': ['../../shared/starboard_platform.gypi'],
 
   'variables': {
-    'variables': {
-      'has_cdm%': '<!(test -e <(DEPTH)/third_party/cdm/cdm/include/content_decryption_module.h && echo 1 || echo 0)',
-    },
-    # This has_cdm gets exported to gyp files that include this one.
-    'has_cdm%': '<(has_cdm)',
     'starboard_platform_sources': [
       '<(DEPTH)/starboard/linux/x64x11/main.cc',
       '<(DEPTH)/starboard/linux/x64x11/sanitizer_options.cc',
