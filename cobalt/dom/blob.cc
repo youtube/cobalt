@@ -60,11 +60,15 @@ base::LazyInstance<BlobPropertyBag> empty_blob_property_bag =
 }  // namespace
 
 Blob::Blob(script::EnvironmentSettings* settings,
-           const scoped_refptr<ArrayBuffer>& buffer) {
+           const scoped_refptr<ArrayBuffer>& buffer,
+           const BlobPropertyBag& options) {
   if (buffer) {
     buffer_ = buffer->Slice(settings, 0);
   } else {
     buffer_ = new ArrayBuffer(settings, 0);
+  }
+  if (options.has_type()) {
+    type_ = options.type();
   }
 }
 
