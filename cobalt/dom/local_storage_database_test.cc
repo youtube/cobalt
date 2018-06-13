@@ -90,7 +90,7 @@ class LocalStorageDatabaseTest : public ::testing::Test {
  protected:
   LocalStorageDatabaseTest()
       : message_loop_(MessageLoop::TYPE_DEFAULT),
-        host_("https://www.example.com") {
+        origin_(GURL("https://www.example.com")) {
     scoped_ptr<storage::StorageManager::UpgradeHandler> upgrade_handler(
         new DummyUpgradeHandler());
     storage::StorageManager::Options options;
@@ -109,7 +109,7 @@ class LocalStorageDatabaseTest : public ::testing::Test {
   }
 
   MessageLoop message_loop_;
-  std::string host_;
+  loader::Origin origin_;
   scoped_ptr<storage::StorageManager> storage_manager_;
   scoped_ptr<LocalStorageDatabase> db_;
 };
@@ -118,7 +118,7 @@ class LocalStorageDatabaseTest : public ::testing::Test {
 TEST_F(LocalStorageDatabaseTest, EmptyRead) {
   StorageArea::StorageMap empty;
   Reader reader;
-  db_->ReadAll(host_,
+  db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
   message_loop_.RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
@@ -132,7 +132,7 @@ TEST_F(LocalStorageDatabaseTest, WritePersists) {
 
   for (StorageArea::StorageMap::const_iterator it = test_vals.begin();
        it != test_vals.end(); ++it) {
-    db_->Write(host_, it->first, it->second);
+    db_->Write(origin_, it->first, it->second);
   }
 
   FlushWaiter waiter;
@@ -142,7 +142,7 @@ TEST_F(LocalStorageDatabaseTest, WritePersists) {
   // Ensure a Flush persists the data.
   db_.reset(new LocalStorageDatabase(storage_manager_.get()));
   Reader reader;
-  db_->ReadAll(host_,
+  db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
   message_loop_.RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
@@ -156,14 +156,14 @@ TEST_F(LocalStorageDatabaseTest, Delete) {
 
   for (StorageArea::StorageMap::const_iterator it = test_vals.begin();
        it != test_vals.end(); ++it) {
-    db_->Write(host_, it->first, it->second);
+    db_->Write(origin_, it->first, it->second);
   }
 
-  db_->Delete(host_, "key0");
+  db_->Delete(origin_, "key0");
   StorageArea::StorageMap expected_vals;
   expected_vals["key1"] = "value1";
   Reader reader;
-  db_->ReadAll(host_,
+  db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
   message_loop_.RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());
@@ -177,12 +177,12 @@ TEST_F(LocalStorageDatabaseTest, Clear) {
 
   for (StorageArea::StorageMap::const_iterator it = test_vals.begin();
        it != test_vals.end(); ++it) {
-    db_->Write(host_, it->first, it->second);
+    db_->Write(origin_, it->first, it->second);
   }
-  db_->Clear(host_);
+  db_->Clear(origin_);
   StorageArea::StorageMap expected_vals;
   Reader reader;
-  db_->ReadAll(host_,
+  db_->ReadAll(origin_,
                base::Bind(&Reader::OnReadAll, base::Unretained(&reader)));
   message_loop_.RunUntilIdle();
   EXPECT_TRUE(reader.TimedWait());

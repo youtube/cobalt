@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cobalt/dom/storage.h"
+#include "cobalt/storage/store/memory_store.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -56,8 +57,8 @@ TEST(StorageAreaTest, InitialState) {
 TEST(StorageAreaTest, Identifier) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_EQ(0, mock_storage->length());
-  EXPECT_EQ("https_www.example.com_0.sessionstorage",
-            mock_storage->area_->identifier());
+  loader::Origin origin(GURL("https://www.example.com"));
+  EXPECT_EQ(origin, mock_storage->area_->origin());
 }
 
 TEST(StorageAreaTest, SetItem) {
