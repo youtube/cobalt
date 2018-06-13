@@ -16,6 +16,7 @@
 #define COBALT_RENDER_TREE_RECT_SHADOW_NODE_H_
 
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
@@ -31,6 +32,7 @@ class RectShadowNode : public Node {
  public:
   class Builder {
    public:
+    Builder(const Builder&) = default;
     Builder(const math::RectF& rect, const Shadow& shadow)
         : rect(rect), shadow(shadow), inset(false), spread(0.0f) {}
 
@@ -65,16 +67,13 @@ class RectShadowNode : public Node {
     float spread;
   };
 
-  explicit RectShadowNode(const Builder& builder) : data_(builder) {
-    AssertValid();
+  // Forwarding constructor to the set of Builder constructors.
+  template <typename... Args>
+  RectShadowNode(Args&&... args) : data_(std::forward<Args>(args)...) {
+    if (DCHECK_IS_ON()) {
+      AssertValid();
+    }
   }
-
-  RectShadowNode(const math::RectF& rect, const Shadow& shadow)
-      : data_(rect, shadow) { AssertValid(); }
-
-  RectShadowNode(const math::RectF& rect, const Shadow& shadow, bool inset,
-                 float spread)
-      : data_(rect, shadow, inset, spread) { AssertValid(); }
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

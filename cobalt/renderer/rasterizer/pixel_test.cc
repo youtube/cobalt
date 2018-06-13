@@ -3932,7 +3932,7 @@ TEST_F(PixelTest, MapToMeshUYVYTest) {
 TEST_F(PixelTest, DrawNullImage) {
   // An ImageNode with no source is legal, though it should result in nothing
   // being drawn.
-  TestTree(new ImageNode(NULL, math::RectF(output_surface_size())));
+  TestTree(new ImageNode(nullptr, math::RectF(output_surface_size())));
 }
 
 }  // namespace rasterizer

@@ -77,7 +77,8 @@ TEST(NodeVisitorTest, VisitsComposition) {
 }
 
 TEST(NodeVisitorTest, VisitsFilter) {
-  scoped_refptr<FilterNode> filter(new FilterNode(OpacityFilter(0.5f), NULL));
+  scoped_refptr<FilterNode> filter(
+      new FilterNode(OpacityFilter(0.5f), nullptr));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(filter.get()));
   filter->Accept(&mock_visitor);
@@ -126,7 +127,7 @@ TEST(NodeVisitorTest, VisitsImage) {
 TEST(NodeVisitorTest, VisitsMatrixTransform3D) {
   scoped_refptr<MatrixTransform3DNode> matrix_transform_3d_node(
       new MatrixTransform3DNode(
-          NULL, glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)));
+          nullptr, glm::mat4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(matrix_transform_3d_node.get()));
   matrix_transform_3d_node->Accept(&mock_visitor);
@@ -134,7 +135,7 @@ TEST(NodeVisitorTest, VisitsMatrixTransform3D) {
 
 TEST(NodeVisitorTest, VisitsMatrixTransform) {
   scoped_refptr<MatrixTransformNode> matrix_transform_node(
-      new MatrixTransformNode(NULL, cobalt::math::Matrix3F::Identity()));
+      new MatrixTransformNode(nullptr, cobalt::math::Matrix3F::Identity()));
   MockNodeVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, Visit(matrix_transform_node.get()));
   matrix_transform_node->Accept(&mock_visitor);
