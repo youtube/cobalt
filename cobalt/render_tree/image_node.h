@@ -29,9 +29,20 @@ namespace render_tree {
 class ImageNode : public Node {
  public:
   struct Builder {
+    Builder(const Builder&) = default;
+
+    // If no width/height are specified, the native width and height of the
+    // image will be selected and used as the image node's width and height.
+    explicit Builder(const scoped_refptr<Image>& source);
+    // The specified image will render with the given width and height, which
+    // may result in scaling.
     Builder(const scoped_refptr<Image>& source,
             const math::RectF& destination_rect);
+    // Positions the image using the unscaled source image dimensions, along
+    // with a translation offset.
     Builder(const scoped_refptr<Image>& source, const math::Vector2dF& offset);
+    // Allows users to additionally supply a local matrix to be applied to the
+    // normalized image coordinates.
     Builder(const scoped_refptr<Image>& source,
             const math::RectF& destination_rect,
             const math::Matrix3F& local_transform);
@@ -56,26 +67,12 @@ class ImageNode : public Node {
     // destination rectangle.  As an example, if you were to pass in a scale
     // matrix that scales the image coordinates by 0.5 in all directions, the
     // image will appear zoomed out.
-    math::Matrix3F local_transform;
+    math::Matrix3F local_transform = math::Matrix3F::Identity();
   };
 
-  explicit ImageNode(const Builder& builder) : data_(builder) {}
-
-  // If no width/height are specified, the native width and height of the
-  // image will be selected and used as the image node's width and height.
-  explicit ImageNode(const scoped_refptr<Image>& source);
-  // The specified image will render with the given width and height, which
-  // may result in scaling.
-  ImageNode(const scoped_refptr<Image>& image,
-            const math::RectF& destination_rect);
-
-  ImageNode(const scoped_refptr<Image>& image, const math::Vector2dF& offset);
-
-  // Allows users to additionally supply a local matrix to be applied to the
-  // normalized image coordinates.
-  ImageNode(const scoped_refptr<Image>& image,
-            const math::RectF& destination_rect,
-            const math::Matrix3F& local_transform);
+  // Forwarding constructor to the set of Builder constructors.
+  template <typename... Args>
+  ImageNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

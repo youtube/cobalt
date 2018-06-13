@@ -37,22 +37,6 @@ FilterNode::Builder::Builder(const MapToMeshFilter& map_to_mesh_filter,
                              const scoped_refptr<render_tree::Node>& source)
     : source(source), map_to_mesh_filter(map_to_mesh_filter) {}
 
-FilterNode::FilterNode(const OpacityFilter& opacity_filter,
-                       const scoped_refptr<render_tree::Node>& source)
-    : data_(opacity_filter, source) { AssertValid(); }
-
-FilterNode::FilterNode(const ViewportFilter& viewport_filter,
-                       const scoped_refptr<render_tree::Node>& source)
-    : data_(viewport_filter, source) { AssertValid(); }
-
-FilterNode::FilterNode(const BlurFilter& blur_filter,
-                       const scoped_refptr<render_tree::Node>& source)
-    : data_(blur_filter, source) { AssertValid(); }
-
-FilterNode::FilterNode(const MapToMeshFilter& map_to_mesh_filter,
-                       const scoped_refptr<render_tree::Node>& source)
-    : data_(map_to_mesh_filter, source) { AssertValid(); }
-
 void FilterNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF FilterNode::Builder::GetBounds() const {
