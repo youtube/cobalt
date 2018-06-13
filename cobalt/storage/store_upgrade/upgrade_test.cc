@@ -86,7 +86,8 @@ TEST(StorageUpgradeTest, Upgrade) {
                    true);
   }
 
-  EXPECT_EQ(storage.local_storages(0).id(), "http_localhost_8000.localstorage");
+  EXPECT_EQ(storage.local_storages(0).serialized_origin(),
+            "http://localhost:8000");
   if (storage.local_storages(0).local_storage_entries(0).key() == "foo") {
     ValidateLocalStorageEntry(
         storage.local_storages(0).local_storage_entries(0), "foo", "bar");

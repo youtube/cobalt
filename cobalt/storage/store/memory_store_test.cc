@@ -27,7 +27,9 @@ namespace {
 
 class MemoryStoreTest : public ::testing::Test {
  protected:
-  MemoryStoreTest() : id1_("a_site_id1"), id2_("a_site_id2") {
+  MemoryStoreTest()
+      : origin1_(GURL("https://www.example1.com")),
+        origin2_(GURL("https://www.example2.com")) {
     base::Time current_time = base::Time::FromInternalValue(12345);
     expiration_time_ = current_time + base::TimeDelta::FromDays(1);
 
@@ -70,8 +72,8 @@ class MemoryStoreTest : public ::testing::Test {
   }
   ~MemoryStoreTest() {}
 
-  std::string id1_;
-  std::string id2_;
+  loader::Origin origin1_;
+  loader::Origin origin2_;
   Storage storage_proto_;
   std::vector<uint8> storage_data_;
   scoped_ptr<net::CanonicalCookie> cookie_;
@@ -161,12 +163,12 @@ TEST_F(MemoryStoreTest, ReadWriteToLocalStorage) {
   test_vals["key1"] = "value1";
 
   for (const auto& it : test_vals) {
-    memory_store_.WriteToLocalStorage(id1_, it.first, it.second);
+    memory_store_.WriteToLocalStorage(origin1_, it.first, it.second);
   }
 
-  memory_store_.WriteToLocalStorage(id2_, "key0", "value0");
+  memory_store_.WriteToLocalStorage(origin2_, "key0", "value0");
   MemoryStore::LocalStorageMap read_vals;
-  memory_store_.ReadAllLocalStorage(id1_, &read_vals);
+  memory_store_.ReadAllLocalStorage(origin1_, &read_vals);
   EXPECT_EQ(test_vals, read_vals);
 }
 
@@ -176,14 +178,14 @@ TEST_F(MemoryStoreTest, DeleteFromLocalStorage) {
   test_vals["key1"] = "value1";
 
   for (const auto& it : test_vals) {
-    memory_store_.WriteToLocalStorage(id1_, it.first, it.second);
+    memory_store_.WriteToLocalStorage(origin1_, it.first, it.second);
   }
 
-  memory_store_.DeleteFromLocalStorage(id1_, "key0");
+  memory_store_.DeleteFromLocalStorage(origin1_, "key0");
   test_vals.erase("key0");
 
   MemoryStore::LocalStorageMap read_vals;
-  memory_store_.ReadAllLocalStorage(id1_, &read_vals);
+  memory_store_.ReadAllLocalStorage(origin1_, &read_vals);
 
   EXPECT_EQ(test_vals, read_vals);
 }
@@ -194,13 +196,13 @@ TEST_F(MemoryStoreTest, ClearLocalStorage) {
   test_vals["key1"] = "value1";
 
   for (const auto& it : test_vals) {
-    memory_store_.WriteToLocalStorage(id1_, it.first, it.second);
+    memory_store_.WriteToLocalStorage(origin1_, it.first, it.second);
   }
 
-  memory_store_.ClearLocalStorage(id1_);
+  memory_store_.ClearLocalStorage(origin1_);
 
   MemoryStore::LocalStorageMap read_vals;
-  memory_store_.ReadAllLocalStorage(id1_, &read_vals);
+  memory_store_.ReadAllLocalStorage(origin1_, &read_vals);
 
   EXPECT_TRUE(read_vals.empty());
 }

@@ -18,34 +18,10 @@
 #include "base/stringprintf.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/storage/store/memory_store.h"
 
 namespace cobalt {
 namespace dom {
-
-namespace {
-const char kLocalStorageSuffix[] = ".localstorage";
-const char kSessionStorageSuffix[] = ".sessionstorage";
-
-std::string OriginToDatabaseIdentifier(const GURL& url) {
-  // For compatibility with existing saved data, this tries to behave the same
-  // as WebCore's SecurityOrigin::databaseIdentifier().
-  // e.g. https://www.youtube.com/tv should be converted to
-  // https_www.youtube.com_0
-
-  // NOTE: WebCore passes the encoded host through FileSystem's
-  // encodeForFilename(). We assume our host will be well-formed.
-  std::string encoded_host = url.HostNoBrackets();
-  int port = url.IntPort();
-  if (port == -1) {
-    // A default/unspecified port in googleurl is -1, but Steel used KURL
-    // from WebCore where a default port is 0. Convert to 0 for compatibility.
-    port = 0;
-  }
-
-  return base::StringPrintf("%s_%s_%d", url.scheme().c_str(),
-                            encoded_host.c_str(), port);
-}
-}  // namespace
 
 StorageArea::StorageArea(Storage* storage_node, LocalStorageDatabase* db)
     : read_event_(true, false),
@@ -107,7 +83,7 @@ void StorageArea::SetItem(const std::string& key, const std::string& value) {
   (*storage_map_)[key] = value;
   storage_node_->DispatchEvent(key, old_value, value);
   if (db_interface_) {
-    db_interface_->Write(identifier_, key, value);
+    db_interface_->Write(origin_, key, value);
   }
 }
 
@@ -127,7 +103,7 @@ void StorageArea::RemoveItem(const std::string& key) {
   storage_map_->erase(it);
   storage_node_->DispatchEvent(key, old_value, base::nullopt);
   if (db_interface_) {
-    db_interface_->Delete(identifier_, key);
+    db_interface_->Delete(origin_, key);
   }
 }
 
@@ -138,7 +114,7 @@ void StorageArea::Clear() {
   size_bytes_ = 0;
   storage_node_->DispatchEvent(base::nullopt, base::nullopt, base::nullopt);
   if (db_interface_) {
-    db_interface_->Clear(identifier_);
+    db_interface_->Clear(origin_);
   }
 }
 
@@ -152,20 +128,17 @@ void StorageArea::Init() {
     return;
   }
 
-  identifier_ = OriginToDatabaseIdentifier(storage_node_->origin());
+  origin_ = loader::Origin(storage_node_->origin());
 
   if (db_interface_) {
     // LocalStorage path. We read our StorageMap from the database.
     // Do a one-time read from the database for what's currently in
     // LocalStorage.
-    identifier_ += kLocalStorageSuffix;
-    db_interface_->ReadAll(
-        identifier_,
-        base::Bind(&StorageArea::OnInitComplete, base::Unretained(this)));
+    db_interface_->ReadAll(origin_, base::Bind(&StorageArea::OnInitComplete,
+                                               base::Unretained(this)));
     read_event_.Wait();
   } else {
     // SessionStorage. Create a new, empty StorageMap.
-    identifier_ += kSessionStorageSuffix;
     storage_map_.reset(new StorageMap);
   }
   initialized_ = true;
@@ -174,11 +147,6 @@ void StorageArea::Init() {
 void StorageArea::OnInitComplete(scoped_ptr<StorageMap> data) {
   storage_map_.reset(data.release());
   read_event_.Signal();
-}
-
-// static
-std::string StorageArea::GetLocalStorageIdForUrl(const GURL& url) {
-  return OriginToDatabaseIdentifier(url.GetOrigin()) + kLocalStorageSuffix;
 }
 
 }  // namespace dom

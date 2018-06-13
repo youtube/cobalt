@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "cobalt/dom/storage_area.h"
+#include "cobalt/loader/origin.h"
 
 namespace cobalt {
 namespace storage {
@@ -27,11 +28,7 @@ class StorageManager;
 
 namespace dom {
 
-// Interacts with the StorageManager to read and write from the LocalStorage
-// table in the app's SQLite database.
-// The LocalStorageTable is made up of rows with three columns:
-// id, key, and value. The id is an origin identifier. Each StorageArea
-// has an id generated from the Window's origin.
+// Interacts with the StorageManager to read and write from the LocalStorage.
 class LocalStorageDatabase {
  public:
   typedef base::Callback<void(scoped_ptr<StorageArea::StorageMap>)>
@@ -39,15 +36,16 @@ class LocalStorageDatabase {
 
   explicit LocalStorageDatabase(storage::StorageManager* storage);
 
-  // Load the LocalStorage SQL table from the Storage Manager, and extract
+  // Load the LocalStorage from the Storage Manager, and extract
   // all key/values for the given origin. Calls callback and transfers ownership
   // of the hash map.
-  void ReadAll(const std::string& id, const ReadCompletionCallback& callback);
+  void ReadAll(const loader::Origin& origin,
+               const ReadCompletionCallback& callback);
 
-  void Write(const std::string& id, const std::string& key,
+  void Write(const loader::Origin& origin, const std::string& key,
              const std::string& value);
-  void Delete(const std::string& id, const std::string& key);
-  void Clear(const std::string& id);
+  void Delete(const loader::Origin& origin, const std::string& key);
+  void Clear(const loader::Origin& origin);
   void Flush(const base::Closure& callback);
 
  private:
