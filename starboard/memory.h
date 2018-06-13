@@ -53,6 +53,11 @@ extern "C" {
 // The bitwise OR of these flags should be passed to SbMemoryMap to indicate
 // how the mapped memory can be used.
 typedef enum SbMemoryMapFlags {
+  // No flags set: Reserves virtual address space. SbMemoryProtect() can later
+  // make it accessible.
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_RESERVED_FLAG_API_VERSION
+  kSbMemoryMapProtectReserved = 0,
+#endif
   kSbMemoryMapProtectRead = 1 << 0,   // Mapped memory can be read.
   kSbMemoryMapProtectWrite = 1 << 1,  // Mapped memory can be written to.
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
@@ -189,15 +194,18 @@ SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void SbMemoryFreeAligned(void* memory));
 
 #if SB_HAS(MMAP)
-// Allocates |size_bytes| worth of physical memory pages and maps them into an
-// available virtual region. This function returns |SB_MEMORY_MAP_FAILED| on
-// failure. |NULL| is a valid return value.
+// Allocates |size_bytes| worth of physical memory pages and maps them into
+// an available virtual region. This function returns |SB_MEMORY_MAP_FAILED|
+// on failure. |NULL| is a valid return value.
 //
 // |size_bytes|: The amount of physical memory pages to be allocated.
 // |flags|: The bitwise OR of the protection flags for the mapped memory
 //   as specified in |SbMemoryMapFlags|. Allocating executable memory is not
 //   allowed and will fail. If executable memory is needed, map non-executable
 //   memory first and then switch access to executable using SbMemoryProtect.
+//   When kSbMemoryMapProtectReserved is used, the address space will not be
+//   accessible and, if possible, the platform should not count it against any
+//   memory budget.
 // |name|: A value that appears in the debugger on some platforms. The value
 //   can be up to 32 bytes.
 SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
@@ -213,7 +221,7 @@ SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
 
 #if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
-// Change the protection of |size_bytes| of physical pages, starting from
+// Change the protection of |size_bytes| of memory regions, starting from
 // |virtual_address|, to |flags|, returning |true| on success.
 SB_EXPORT bool SbMemoryProtect(void* virtual_address,
                                int64_t size_bytes,
