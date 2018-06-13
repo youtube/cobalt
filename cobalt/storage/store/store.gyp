@@ -24,6 +24,7 @@
         'storage.pb.h',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/loader/origin.gyp:origin',
         '<(DEPTH)/cobalt/storage/storage_constants.gyp:storage_constants',
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/net/net.gyp:net',

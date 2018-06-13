@@ -56,13 +56,14 @@ class MemoryStore::Impl {
   void DeleteCookie(const net::CanonicalCookie& cc);
 
   // Local Storage
-  void ReadAllLocalStorage(const std::string& id,
+  void ReadAllLocalStorage(const loader::Origin& origin,
                            LocalStorageMap* local_storage_map) const;
 
-  void WriteToLocalStorage(const std::string& id, const std::string& key,
+  void WriteToLocalStorage(const loader::Origin& origin, const std::string& key,
                            const std::string& value);
-  void DeleteFromLocalStorage(const std::string& id, const std::string& key);
-  void ClearLocalStorage(const std::string& id);
+  void DeleteFromLocalStorage(const loader::Origin& origin,
+                              const std::string& key);
+  void ClearLocalStorage(const loader::Origin& origin);
 
   // Disable copying
   Impl(const Impl& store) = delete;
@@ -73,9 +74,10 @@ class MemoryStore::Impl {
   std::map<CookieKey, Cookie> cookies_map_;
 
   typedef std::map<std::string, std::string> LocalStorageKeyValueMap;
-  typedef std::map<std::string, LocalStorageKeyValueMap> LocalStorageByIdMap;
+  typedef std::map<std::string, LocalStorageKeyValueMap>
+      LocalStorageByOriginMap;
 
-  LocalStorageByIdMap local_storage_by_id_map_;
+  LocalStorageByOriginMap local_storage_by_origin_map_;
 };
 
 MemoryStore::Impl::Impl() {}
@@ -100,8 +102,16 @@ bool MemoryStore::Impl::Initialize(const std::vector<uint8>& in) {
   for (const auto& local_storages : storage_data.local_storages()) {
     for (const auto& local_storage_entry :
          local_storages.local_storage_entries()) {
-      local_storage_by_id_map_[local_storages.id()][local_storage_entry.key()] =
-          local_storage_entry.value();
+      GURL gurl(local_storages.serialized_origin());
+      loader::Origin origin(gurl);
+      if (origin.is_opaque()) {
+        LOG(WARNING) << "Ignoring storage for opaque origin "
+                     << local_storages.serialized_origin();
+        continue;
+      }
+      local_storage_by_origin_map_[origin.SerializedOrigin()]
+                                  [local_storage_entry.key()] =
+                                      local_storage_entry.value();
     }
   }
   return true;
@@ -113,10 +123,10 @@ bool MemoryStore::Impl::Serialize(std::vector<uint8>* out) const {
   for (const auto& cookie_pair : cookies_map_) {
     *(storage_data.add_cookies()) = cookie_pair.second;
   }
-  for (const auto& id_storage_pair : local_storage_by_id_map_) {
+  for (const auto& origin_storage_pair : local_storage_by_origin_map_) {
     LocalStorage* local_storage = storage_data.add_local_storages();
-    local_storage->set_id(id_storage_pair.first);
-    for (const auto& key_value_pair : id_storage_pair.second) {
+    local_storage->set_serialized_origin(origin_storage_pair.first);
+    for (const auto& key_value_pair : origin_storage_pair.second) {
       LocalStorageEntry* local_storage_entry =
           local_storage->add_local_storage_entries();
       local_storage_entry->set_key(key_value_pair.first);
@@ -187,31 +197,31 @@ void MemoryStore::Impl::DeleteCookie(const net::CanonicalCookie& cc) {
 }
 
 void MemoryStore::Impl::ReadAllLocalStorage(
-    const std::string& id, LocalStorageMap* local_storage_map) const {
+    const loader::Origin& origin, LocalStorageMap* local_storage_map) const {
   TRACK_MEMORY_SCOPE("Storage");
-  const auto& it = local_storage_by_id_map_.find(id);
+  const auto& it = local_storage_by_origin_map_.find(origin.SerializedOrigin());
 
-  if (it != local_storage_by_id_map_.end()) {
+  if (it != local_storage_by_origin_map_.end()) {
     local_storage_map->insert(it->second.begin(), it->second.end());
   }
 }
 
-void MemoryStore::Impl::WriteToLocalStorage(const std::string& id,
+void MemoryStore::Impl::WriteToLocalStorage(const loader::Origin& origin,
                                             const std::string& key,
                                             const std::string& value) {
   TRACK_MEMORY_SCOPE("Storage");
-  local_storage_by_id_map_[id][key] = value;
+  local_storage_by_origin_map_[origin.SerializedOrigin()][key] = value;
 }
 
-void MemoryStore::Impl::DeleteFromLocalStorage(const std::string& id,
+void MemoryStore::Impl::DeleteFromLocalStorage(const loader::Origin& origin,
                                                const std::string& key) {
   TRACK_MEMORY_SCOPE("Storage");
-  local_storage_by_id_map_[id].erase(key);
+  local_storage_by_origin_map_[origin.SerializedOrigin()].erase(key);
 }
 
-void MemoryStore::Impl::ClearLocalStorage(const std::string& id) {
+void MemoryStore::Impl::ClearLocalStorage(const loader::Origin& origin) {
   TRACK_MEMORY_SCOPE("Storage");
-  local_storage_by_id_map_[id].clear();
+  local_storage_by_origin_map_[origin.SerializedOrigin()].clear();
 }
 
 MemoryStore::MemoryStore() { impl_.reset(new Impl()); }
@@ -244,23 +254,23 @@ void MemoryStore::DeleteCookie(const net::CanonicalCookie& cc) {
 }
 
 void MemoryStore::ReadAllLocalStorage(
-    const std::string& id, LocalStorageMap* local_storage_map) const {
-  impl_->ReadAllLocalStorage(id, local_storage_map);
+    const loader::Origin& origin, LocalStorageMap* local_storage_map) const {
+  impl_->ReadAllLocalStorage(origin, local_storage_map);
 }
 
-void MemoryStore::WriteToLocalStorage(const std::string& id,
+void MemoryStore::WriteToLocalStorage(const loader::Origin& origin,
                                       const std::string& key,
                                       const std::string& value) {
-  impl_->WriteToLocalStorage(id, key, value);
+  impl_->WriteToLocalStorage(origin, key, value);
 }
 
-void MemoryStore::DeleteFromLocalStorage(const std::string& id,
+void MemoryStore::DeleteFromLocalStorage(const loader::Origin& origin,
                                          const std::string& key) {
-  impl_->DeleteFromLocalStorage(id, key);
+  impl_->DeleteFromLocalStorage(origin, key);
 }
 
-void MemoryStore::ClearLocalStorage(const std::string& id) {
-  impl_->ClearLocalStorage(id);
+void MemoryStore::ClearLocalStorage(const loader::Origin& origin) {
+  impl_->ClearLocalStorage(origin);
 }
 
 MemoryStore::~MemoryStore() {}
