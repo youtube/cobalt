@@ -188,6 +188,12 @@
 //   the |timestamp| field of SbInputData should be ignored by applications.
 #define SB_INPUT_TIMESTAMP_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduces kSbMemoryMapProtectReserved flag.
+//    kSbMemoryMapProtectReserved, which is SbMemoryMapFlags(0), when used on
+//    a memory region, only reserves its virtual address space that's not
+//    accessible.
+#define SB_MEMORY_PROTECT_RESERVED_FLAG_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

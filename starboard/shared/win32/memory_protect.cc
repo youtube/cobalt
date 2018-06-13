@@ -20,9 +20,15 @@ bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   ULONG new_protection = 0;
 
   switch (flags) {
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_RESERVED_API_VERSION
+    case kSbMemoryMapProtectReserved:
+      // After this call, the address will be in reserved state.
+      return VirtualFree(virtual_address, size_bytes, MEM_DECOMMIT);
+#else
     case 0:
       new_protection = PAGE_NOACCESS;
       break;
+#endif
     case kSbMemoryMapProtectRead:
       new_protection = PAGE_READONLY;
       break;
@@ -50,6 +56,11 @@ bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   }
 
   ULONG old_protection;
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_RESERVED_API_VERSION
+  // Changing protection from No-Access to others needs the memory to be
+  // committed first. Commit committed pages will not reset them to zero.
+  VirtualAllocFromApp(virtual_address, size_bytes, MEM_COMMIT, PAGE_READONLY);
+#endif
   return VirtualProtectFromApp(virtual_address, size_bytes, new_protection,
                                &old_protection) != 0;
 }
