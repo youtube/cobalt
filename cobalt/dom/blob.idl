@@ -22,6 +22,6 @@
 ]
 interface Blob {
   readonly attribute unsigned long long size;
-  // TODO: Expose type and use for blob fetching and decoding.
-  // readonly attribute DOMString type;
+  // TODO: Use for blob fetching and decoding.
+  readonly attribute DOMString type;
 };

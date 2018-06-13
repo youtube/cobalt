@@ -49,7 +49,8 @@ class Blob : public script::Wrappable {
       scoped_refptr<DataView>, scoped_refptr<Blob> > BlobPart;
 
   Blob(script::EnvironmentSettings* settings,
-       const scoped_refptr<ArrayBuffer>& buffer = NULL);
+       const scoped_refptr<ArrayBuffer>& buffer = NULL,
+       const BlobPropertyBag& options = EmptyBlobPropertyBag());
 
   Blob(script::EnvironmentSettings* settings,
        const script::Sequence<BlobPart>& blob_parts,
@@ -58,6 +59,7 @@ class Blob : public script::Wrappable {
   const uint8* data() { return buffer_->data(); }
 
   uint64 size() const { return static_cast<uint64>(buffer_->byte_length()); }
+  const std::string& type() const { return type_; }
 
   DEFINE_WRAPPABLE_TYPE(Blob);
   void TraceMembers(script::Tracer* tracer) override;
@@ -66,7 +68,7 @@ class Blob : public script::Wrappable {
   static const BlobPropertyBag& EmptyBlobPropertyBag();
 
   scoped_refptr<ArrayBuffer> buffer_;
-  const std::string type_;
+  std::string type_;
 
   DISALLOW_COPY_AND_ASSIGN(Blob);
 };
