@@ -26,7 +26,8 @@ namespace media_stream {
 // at: https://www.w3.org/TR/mediacapture-streams/#dom-mediastreamtrack
 class MediaStreamTrack : public dom::EventTarget {
  public:
-  // Function exposed to Javascript via IDL.
+  MediaStreamTrack() = default;
+  // Function exposed to JavaScript via IDL.
   const MediaTrackSettings& GetSettings() { return settings_; }
 
   // The following function is not exposed to Javascript.
@@ -42,11 +43,12 @@ class MediaStreamTrack : public dom::EventTarget {
 
   DEFINE_WRAPPABLE_TYPE(MediaStreamTrack);
 
+ protected:
+  MediaTrackSettings settings_;
+
  private:
   MediaStreamTrack(const MediaStreamTrack&) = delete;
   MediaStreamTrack& operator=(const MediaStreamTrack&) = delete;
-
-  MediaTrackSettings settings_;
 };
 
 }  // namespace media_stream

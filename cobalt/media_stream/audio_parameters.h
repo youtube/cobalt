@@ -24,6 +24,11 @@ namespace media_stream {
 
 class AudioParameters {
  public:
+  // Even though a constructed object is not valid, and there are no setters,
+  // it is still possible to construct a dummy object and use the assignment
+  // operator later.
+  AudioParameters() = default;
+
   AudioParameters(int channel_count, int sample_rate, int bits_per_sample)
       : channel_count_(channel_count),
         sample_rate_(sample_rate),
