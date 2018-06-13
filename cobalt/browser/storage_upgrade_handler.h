@@ -30,12 +30,12 @@ class StorageUpgradeHandler : public storage::StorageManager::UpgradeHandler {
   void OnUpgrade(storage::StorageManager* storage, const char* data,
                  int size) override;
 
-  const std::string& default_local_storage_id() const {
-    return default_local_storage_id_;
+  const loader::Origin& default_local_storage_origin() const {
+    return default_local_storage_origin_;
   }
 
  private:
-  std::string default_local_storage_id_;
+  loader::Origin default_local_storage_origin_;
 };
 
 }  // namespace browser

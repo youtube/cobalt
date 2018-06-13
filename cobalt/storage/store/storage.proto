@@ -65,8 +65,11 @@ message LocalStorageEntry {
 
 // Multiple local storages identified by unique id.
 message LocalStorage {
-  // A site id of the local storage.
-  string id = 1;
+  // A serialzied origin as defined in:
+  // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+  // For example: "https://www.youtube.com"
+  string serialized_origin = 1;
+
   // The local storage entries for individual local storage.
   repeated LocalStorageEntry local_storage_entries = 2;
 }

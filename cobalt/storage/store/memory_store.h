@@ -16,10 +16,12 @@
 #define COBALT_STORAGE_STORE_MEMORY_STORE_H_
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "base/hash_tables.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/loader/origin.h"
 #include "net/cookies/canonical_cookie.h"
 
 namespace cobalt {
@@ -43,14 +45,16 @@ class MemoryStore {
   void UpdateCookieAccessTime(const net::CanonicalCookie& cc, int64 time_us);
   void DeleteCookie(const net::CanonicalCookie& cc);
 
+
   // Local Storage
-  void ReadAllLocalStorage(const std::string& id,
+  void ReadAllLocalStorage(const loader::Origin& origin,
                            LocalStorageMap* local_storage_map) const;
 
-  void WriteToLocalStorage(const std::string& id, const std::string& key,
+  void WriteToLocalStorage(const loader::Origin& origin, const std::string& key,
                            const std::string& value);
-  void DeleteFromLocalStorage(const std::string& id, const std::string& key);
-  void ClearLocalStorage(const std::string& id);
+  void DeleteFromLocalStorage(const loader::Origin& origin,
+                              const std::string& key);
+  void ClearLocalStorage(const loader::Origin& origin);
 
   // Disable copying
   MemoryStore(const MemoryStore& store) = delete;
