@@ -62,9 +62,7 @@ RectNode::Builder::Builder(const math::RectF& rect,
       border(border.Pass()),
       rounded_corners(rounded_corners.Pass()) {}
 
-RectNode::Builder::Builder(const Builder& other) {
-  rect = other.rect;
-
+RectNode::Builder::Builder(const Builder& other) : rect(other.rect) {
   if (other.background_brush) {
     background_brush = CloneBrush(other.background_brush.get());
   }

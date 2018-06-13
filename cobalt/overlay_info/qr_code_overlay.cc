@@ -209,7 +209,7 @@ void QrCodeOverlay::UpdateRenderTree() {
     return;
   }
 
-  scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
+  scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
   render_tree::animations::AnimateNode::Builder animate_node_builder;
 
   animate_node_builder.Add(
