@@ -17,6 +17,7 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/storage/storage_manager.h"
+#include "cobalt/storage/store/memory_store.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -30,7 +31,7 @@ void LocalStorageInit(const storage::MemoryStore& memory_store) {
 }
 
 void LocalStorageReadValues(
-    const std::string& id,
+    const loader::Origin& origin,
     const LocalStorageDatabase::ReadCompletionCallback& callback,
     const storage::MemoryStore& memory_store) {
   LOG(INFO) << "LocalStorageReadValues";
@@ -38,27 +39,27 @@ void LocalStorageReadValues(
 
   scoped_ptr<storage::MemoryStore::LocalStorageMap> values(
       new storage::MemoryStore::LocalStorageMap);
-  memory_store.ReadAllLocalStorage(id, values.get());
+  memory_store.ReadAllLocalStorage(origin, values.get());
   callback.Run(values.Pass());
 }
 
-void LocalStorageWrite(const std::string& id, const std::string& key,
+void LocalStorageWrite(const loader::Origin& origin, const std::string& key,
                        const std::string& value,
                        storage::MemoryStore* memory_store) {
   TRACK_MEMORY_SCOPE("Storage");
-  memory_store->WriteToLocalStorage(id, key, value);
+  memory_store->WriteToLocalStorage(origin, key, value);
 }
 
-void LocalStorageDelete(const std::string& id, const std::string& key,
+void LocalStorageDelete(const loader::Origin& origin, const std::string& key,
                         storage::MemoryStore* memory_store) {
   TRACK_MEMORY_SCOPE("Storage");
-  memory_store->DeleteFromLocalStorage(id, key);
+  memory_store->DeleteFromLocalStorage(origin, key);
 }
 
-void LocalStorageClear(const std::string& id,
+void LocalStorageClear(const loader::Origin& origin,
                        storage::MemoryStore* memory_store) {
   TRACK_MEMORY_SCOPE("Storage");
-  memory_store->ClearLocalStorage(id);
+  memory_store->ClearLocalStorage(origin);
 }
 }  // namespace
 
@@ -74,32 +75,33 @@ void LocalStorageDatabase::Init() {
   }
 }
 
-void LocalStorageDatabase::ReadAll(const std::string& id,
+void LocalStorageDatabase::ReadAll(const loader::Origin& origin,
                                    const ReadCompletionCallback& callback) {
   TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->WithReadOnlyMemoryStore(
-      base::Bind(&LocalStorageReadValues, id, callback));
+      base::Bind(&LocalStorageReadValues, origin, callback));
 }
 
-void LocalStorageDatabase::Write(const std::string& id, const std::string& key,
+void LocalStorageDatabase::Write(const loader::Origin& origin,
+                                 const std::string& key,
                                  const std::string& value) {
   TRACK_MEMORY_SCOPE("Storage");
   Init();
-  storage_->WithMemoryStore(base::Bind(&LocalStorageWrite, id, key, value));
+  storage_->WithMemoryStore(base::Bind(&LocalStorageWrite, origin, key, value));
 }
 
-void LocalStorageDatabase::Delete(const std::string& id,
+void LocalStorageDatabase::Delete(const loader::Origin& origin,
                                   const std::string& key) {
   TRACK_MEMORY_SCOPE("Storage");
   Init();
-  storage_->WithMemoryStore(base::Bind(&LocalStorageDelete, id, key));
+  storage_->WithMemoryStore(base::Bind(&LocalStorageDelete, origin, key));
 }
 
-void LocalStorageDatabase::Clear(const std::string& id) {
+void LocalStorageDatabase::Clear(const loader::Origin& origin) {
   TRACK_MEMORY_SCOPE("Storage");
   Init();
-  storage_->WithMemoryStore(base::Bind(&LocalStorageClear, id));
+  storage_->WithMemoryStore(base::Bind(&LocalStorageClear, origin));
 }
 
 void LocalStorageDatabase::Flush(const base::Closure& callback) {

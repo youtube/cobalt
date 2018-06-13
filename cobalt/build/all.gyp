@@ -54,6 +54,7 @@
         '<(DEPTH)/cobalt/layout_tests/layout_tests.gyp:*',
         '<(DEPTH)/cobalt/loader/image/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
+        '<(DEPTH)/cobalt/loader/origin.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
         '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
         '<(DEPTH)/cobalt/media_capture/media_capture.gyp:*',

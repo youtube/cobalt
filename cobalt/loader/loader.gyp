@@ -84,8 +84,6 @@
         'mesh/projection_codec/projection_decoder.h',
         'net_fetcher.cc',
         'net_fetcher.h',
-        'origin.cc',
-        'origin.h',
         'resource_cache.h',
         'sync_loader.cc',
         'sync_loader.h',
@@ -94,6 +92,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',
+        '<(DEPTH)/cobalt/loader/origin.gyp:origin',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
 	'<(DEPTH)/cobalt/renderer/test/png_utils/png_utils.gyp:png_utils',
