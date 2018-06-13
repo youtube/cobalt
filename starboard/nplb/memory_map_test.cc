@@ -220,13 +220,13 @@ TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
 #if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
 TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
   SbMemoryMapFlags all_from_flags[] = {
-    SbMemoryMapFlags(0),
+    SbMemoryMapFlags(kSbMemoryMapProtectReserved),
     SbMemoryMapFlags(kSbMemoryMapProtectRead),
     SbMemoryMapFlags(kSbMemoryMapProtectWrite),
     SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
   };
   SbMemoryMapFlags all_to_flags[] = {
-    SbMemoryMapFlags(0),
+    SbMemoryMapFlags(kSbMemoryMapProtectReserved),
     SbMemoryMapFlags(kSbMemoryMapProtectRead),
     SbMemoryMapFlags(kSbMemoryMapProtectWrite),
     SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
