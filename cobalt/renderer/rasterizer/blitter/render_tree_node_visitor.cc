@@ -75,6 +75,29 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
       software_surface_cache_(software_surface_cache),
       linear_gradient_cache_(linear_gradient_cache) {}
 
+namespace {
+void DrawClearRect(SbBlitterContext context, SbBlitterRect rect,
+                   SbBlitterColor color) {
+  SbBlitterSetColor(context, color);
+  SbBlitterSetBlending(context, false);
+  SbBlitterFillRect(context, rect);
+}
+
+SbBlitterColor RenderTreeToBlitterColor(const ColorRGBA& color) {
+  return SbBlitterColorFromRGBA(color.r() * 255, color.g() * 255,
+                                color.b() * 255, color.a() * 255);
+}
+}  // namespace
+
+void RenderTreeNodeVisitor::Visit(render_tree::ClearRectNode* clear_rect_node) {
+  TRACE_EVENT0_IF_ENABLED("Visit(ClearRectNode)");
+  SbBlitterRect blitter_rect = RectFToBlitterRect(
+      render_state_.transform.TransformRect(clear_rect_node->data().rect));
+
+  DrawClearRect(context_, blitter_rect,
+                RenderTreeToBlitterColor(clear_rect_node->data().color));
+}
+
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
   TRACE_EVENT0_IF_ENABLED("Visit(CompositionNode)");
@@ -294,9 +317,7 @@ void RenderTreeNodeVisitor::Visit(
       math::Rect(blitter_rect.x, blitter_rect.y, blitter_rect.width,
                  blitter_rect.height));
 
-  SbBlitterSetColor(context_, SbBlitterColorFromRGBA(0, 0, 0, 0));
-  SbBlitterSetBlending(context_, false);
-  SbBlitterFillRect(context_, blitter_rect);
+  DrawClearRect(context_, blitter_rect, SbBlitterColorFromRGBA(0, 0, 0, 0));
 }
 
 namespace {
@@ -307,11 +328,6 @@ bool AllBorderSidesHaveSameColorAndStyle(const Border& border) {
          border.left.color == border.right.color &&
          border.left.color == border.top.color &&
          border.left.color == border.bottom.color;
-}
-
-SbBlitterColor RenderTreeToBlitterColor(const ColorRGBA& color) {
-  return SbBlitterColorFromRGBA(color.r() * 255, color.g() * 255,
-                                color.b() * 255, color.a() * 255);
 }
 
 void RenderRectNodeBorder(SbBlitterContext context, ColorRGBA color, float left,
