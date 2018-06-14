@@ -23,6 +23,7 @@
 #include "cobalt/render_tree/blur_filter.h"
 #include "cobalt/render_tree/border.h"
 #include "cobalt/render_tree/brush.h"
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
@@ -76,6 +77,7 @@ using cobalt::render_tree::BlurFilter;
 using cobalt::render_tree::Border;
 using cobalt::render_tree::BorderSide;
 using cobalt::render_tree::Brush;
+using cobalt::render_tree::ClearRectNode;
 using cobalt::render_tree::ColorRGBA;
 using cobalt::render_tree::ColorStop;
 using cobalt::render_tree::ColorStopList;
@@ -3933,6 +3935,36 @@ TEST_F(PixelTest, DrawNullImage) {
   // An ImageNode with no source is legal, though it should result in nothing
   // being drawn.
   TestTree(new ImageNode(nullptr, math::RectF(output_surface_size())));
+}
+
+TEST_F(PixelTest, ClearRectNodeTest) {
+  CompositionNode::Builder composition_node_builder;
+  composition_node_builder.AddChild(new RectNode(
+      RectF(output_surface_size()), scoped_ptr<Brush>(new SolidColorBrush(
+                                        ColorRGBA(1.0f, 0.0f, 0.0f, 1.0f)))));
+  RectF clear_rect(output_surface_size());
+  clear_rect.Inset(15, 15);
+  composition_node_builder.AddChild(
+      new ClearRectNode(clear_rect, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)));
+
+  RectF inner_rect(clear_rect);
+  inner_rect.Inset(15, 15);
+  composition_node_builder.AddChild(new RectNode(
+      inner_rect, scoped_ptr<Brush>(
+                      new SolidColorBrush(ColorRGBA(0.0f, 1.0f, 0.0f, 0.5f)))));
+
+  RectF inner_clear_rect(inner_rect);
+  inner_clear_rect.Inset(15, 15);
+  composition_node_builder.AddChild(
+      new ClearRectNode(inner_clear_rect, ColorRGBA(0.0f, 0.0f, 1.0f, 0.75f)));
+
+  RectF inner_inner_rect(inner_clear_rect);
+  inner_inner_rect.Inset(15, 15);
+  composition_node_builder.AddChild(
+      new RectNode(inner_inner_rect, scoped_ptr<Brush>(new SolidColorBrush(
+                                         ColorRGBA(1.0f, 0.0f, 0.0f, 0.5f)))));
+
+  TestTree(new CompositionNode(composition_node_builder.Pass()));
 }
 
 }  // namespace rasterizer

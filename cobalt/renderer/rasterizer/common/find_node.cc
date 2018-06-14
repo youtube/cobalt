@@ -33,6 +33,9 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::animations::AnimateNode* animate) override {
     VisitNode(animate);
   }
+  void Visit(render_tree::ClearRectNode* clear_rect_node) override {
+    VisitNode(clear_rect_node);
+  }
   void Visit(render_tree::CompositionNode* composition_node) override {
     VisitNode(composition_node);
   }
