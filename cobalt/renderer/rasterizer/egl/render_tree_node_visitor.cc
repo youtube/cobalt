@@ -164,6 +164,19 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
   draw_state_.scissor.Intersect(content_rect);
 }
 
+void RenderTreeNodeVisitor::Visit(render_tree::ClearRectNode* clear_rect_node) {
+  if (!IsVisible(clear_rect_node->GetBounds())) {
+    return;
+  }
+
+  const render_tree::ClearRectNode::Builder& data = clear_rect_node->data();
+
+  scoped_ptr<DrawObject> draw(
+      new DrawPolyColor(graphics_state_, draw_state_, data.rect, data.color));
+  AddDraw(draw.Pass(), clear_rect_node->GetBounds(),
+          DrawObjectManager::kBlendNone);
+}
+
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
   const render_tree::CompositionNode::Builder& data = composition_node->data();

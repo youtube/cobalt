@@ -110,7 +110,28 @@ bool NodeIsWithinCanvasBounds(const SkMatrix& total_matrix,
   // bounding rectangle.
   return sk_child_bounds_absolute.intersect(canvas_bounds);
 }
+
+void DrawClearRect(SkCanvas* canvas, const math::RectF& rect,
+                   const render_tree::ColorRGBA& color) {
+  SkRect sk_rect =
+      SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
+
+  SkPaint paint;
+  paint.setBlendMode(SkBlendMode::kSrc);
+  paint.setARGB(color.a() * 255, color.r() * 255, color.g() * 255,
+                color.b() * 255);
+
+  canvas->drawRect(sk_rect, paint);
+}
 }  // namespace
+
+void RenderTreeNodeVisitor::Visit(render_tree::ClearRectNode* clear_rect_node) {
+#if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
+  TRACE_EVENT0("cobalt::renderer", "Visit(ClearRectNode)");
+#endif
+  DrawClearRect(draw_state_.render_target, clear_rect_node->data().rect,
+                clear_rect_node->data().color);
+}
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
@@ -735,11 +756,8 @@ void RenderTreeNodeVisitor::Visit(
   math::Rect transformed_rect = math::Rect::RoundFromRectF(transformed_rectf);
   punch_through_video_node->data().set_bounds_cb.Run(transformed_rect);
 
-  SkPaint paint;
-  paint.setBlendMode(SkBlendMode::kSrc);
-  paint.setARGB(0, 0, 0, 0);
-
-  draw_state_.render_target->drawRect(sk_rect, paint);
+  DrawClearRect(draw_state_.render_target, math_rect,
+                render_tree::ColorRGBA(0, 0, 0, 0));
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   draw_state_.render_target->flush();
