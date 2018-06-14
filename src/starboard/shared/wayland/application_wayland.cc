@@ -1,4 +1,4 @@
-// Copyright 2016 Samsung Electronics. All Rights Reserved.
+// Copyright 2018 Samsung Electronics. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 #include <EGL/egl.h>
 #include <poll.h>
-#include <sys/eventfd.h>
 #include <string.h>
+#include <sys/eventfd.h>
 #include <unistd.h>
 
 #include "starboard/log.h"
@@ -45,12 +45,10 @@ void GlobalObjectAvailable(void* data,
 
 void GlobalObjectRemove(void*, struct wl_registry*, uint32_t) {}
 
-static struct wl_registry_listener registry_listener = {
-    &GlobalObjectAvailable,
-    &GlobalObjectRemove
-};
+static struct wl_registry_listener registry_listener = {&GlobalObjectAvailable,
+                                                        &GlobalObjectRemove};
 
-}
+}  // namespace
 
 // Tizen application engine using the generic queue and a tizen implementation.
 ApplicationWayland::ApplicationWayland(float video_pixel_ratio)

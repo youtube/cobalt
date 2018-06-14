@@ -14,8 +14,8 @@
 
 // The shared Starboard configuration for Raspberry Pi devices.
 
-#ifndef STARBOARD_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_CONTRIB_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_CONTRIB_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
 
 // --- System Header Configuration -------------------------------------------
 
@@ -65,9 +65,11 @@
 
 // --- Architecture Configuration --------------------------------------------
 
-// On default Linux desktop, you must be a superuser in order to set real time
-// scheduling on threads.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+#define SB_IS_TIZEN_OS 1
+
+// Tizen uses system icu package.
+// undefined reference to 'icu_46::TimeZone::createDefault()'
+#define SB_HAS_QUIRK_NO_TIMEZONE_NAME_SUPPORT 1
 
 // --- Attribute Configuration -----------------------------------------------
 
@@ -203,19 +205,6 @@
 // Defines the path where memory debugging logs should be written to.
 #define SB_MEMORY_LOG_PATH "/tmp/starboard"
 
-// --- Thread Configuration --------------------------------------------------
-
-// Defines the maximum number of simultaneous threads for this platform. Some
-// platforms require sharing thread handles with other kinds of system handles,
-// like mutexes, so we want to keep this managable.
-#define SB_MAX_THREADS 90
-
-// The maximum number of thread local storage keys supported by this platform.
-#define SB_MAX_THREAD_LOCAL_KEYS 512
-
-// The maximum length of the name for a thread, including the NULL-terminator.
-#define SB_MAX_THREAD_NAME_LENGTH 16;
-
 // --- Graphics Configuration ------------------------------------------------
 
 // Specifies whether this platform supports a performant accelerated blitter
@@ -242,6 +231,10 @@
 // scene hasn't changed are enabled.
 #define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER 0
 
+// Tizen TV product possible to use wayland display video window
+// instead of Evas_Object
+#define SB_CAN_USE_WAYLAND_VIDEO_WINDOW 0
+
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
@@ -249,6 +242,23 @@
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
+
+// --- Thread Configuration --------------------------------------------------
+
+// On default Linux desktop, you must be a superuser in order to set real time
+// scheduling on threads.
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+
+// Defines the maximum number of simultaneous threads for this platform. Some
+// platforms require sharing thread handles with other kinds of system handles,
+// like mutexes, so we want to keep this managable.
+#define SB_MAX_THREADS 90
+
+// The maximum number of thread local storage keys supported by this platform.
+#define SB_MAX_THREAD_LOCAL_KEYS 512
+
+// The maximum length of the name for a thread, including the NULL-terminator.
+#define SB_MAX_THREAD_NAME_LENGTH 16
 
 // --- Tuneable Parameters ---------------------------------------------------
 
@@ -272,18 +282,9 @@
 #define SB_USER_MAX_SIGNED_IN 1
 
 // --- Platform Specific Audits ----------------------------------------------
-#define SB_IS_TIZEN_OS 1
-
-// Tizen uses system icu package.
-// undefined reference to 'icu_46::TimeZone::createDefault()'
-#define SB_HAS_QUIRK_NO_TIMEZONE_NAME_SUPPORT 1
-
-// Tizen TV product possible to use wayland display video window
-// instead of Evas_Object
-#define SB_CAN_USE_WAYLAND_VIDEO_WINDOW 0
 
 #if !defined(__GNUC__)
 #error "Tizen builds need a GCC-like compiler (for the moment)."
 #endif
 
-#endif  // STARBOARD_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_CONTRIB_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_

@@ -1006,21 +1006,21 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 
     media_source_ =
         html_element_context()->media_source_registry()->Retrieve(url.spec());
-    // If media_source_ is NULL, the player will try to load it as a normal
-    // media resource url and throw a DOM exception when it fails.
-    if (media_source_) {
-#if defined(COBALT_MEDIA_SOURCE_2016)
-      media_source_->AttachToElement(this);
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-      media_source_->SetPlayer(player_.get());
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
-      media_source_url_ = url;
-    } else {
+    if (!media_source_) {
       NoneSupported("Media source is NULL.");
       return;
     }
+#if defined(COBALT_MEDIA_SOURCE_2016)
+    if (!media_source_->AttachToElement(this)) {
+      media_source_ = nullptr;
+      NoneSupported("Unable to attach media source.");
+      return;
+    }
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
+    media_source_->SetPlayer(player_.get());
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+    media_source_url_ = url;
   }
-
   // The resource fetch algorithm
   network_state_ = kNetworkLoading;
 

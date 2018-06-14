@@ -70,7 +70,7 @@ void SpeechSynthesis::TraceMembers(script::Tracer* tracer) {
   dom::EventTarget::TraceMembers(tracer);
 
   tracer->TraceItems(utterances_);
-  tracer->TraceSequence(voices_);
+  tracer->TraceItems(voices_);
   tracer->Trace(navigator_);
 }
 

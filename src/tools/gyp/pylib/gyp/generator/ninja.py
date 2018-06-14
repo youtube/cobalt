@@ -77,8 +77,9 @@ generator_supports_multiple_toolsets = True
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
-microsoft_flavors = ['win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future',
-    'xb1-youtubetv']
+microsoft_flavors = [
+    'win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future', 'xb1-youtubetv'
+]
 sony_flavors = ['ps3', 'ps4', 'ps4-vr']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
@@ -119,7 +120,7 @@ def GetConfigFlags(config, toolset, keyword):
   flags = config.get(keyword, [])
   if toolset == 'host':
     flags = config.get('{0}_host'.format(keyword), flags)
-  return flags
+  return [flag.replace('$', '$$') for flag in flags]
 
 
 def StripPrefix(arg, prefix):
@@ -222,6 +223,13 @@ class Target:
   def UsesToc(self, flavor):
     """Return true if the target should produce a restat rule based on a TOC
     file."""
+    try:
+      # Do not use TOC files for abstract toolchain.
+      toolchain = GetTargetToolchain(flavor)
+      return False
+    except NotImplementedError:
+      # Follow the logic for the legacy toolchain.
+      pass
     # For bundles, the .TOC should be produced for the binary, not for
     # FinalOutput(). But the naive approach would put the TOC file into the
     # bundle, so don't do this for bundles for now.
@@ -673,8 +681,8 @@ class NinjaWriter:
     all_outputs = []
     for action in actions:
       # First write out a rule for the action.
-      name = '%s_%s' % (action['action_name'],
-                        hashlib.md5(self.qualified_target).hexdigest())
+      name = '%s_%s' % (action['action_name'], hashlib.md5(
+          self.qualified_target).hexdigest())
       description = self.GenerateDescription('ACTION',
                                              action.get('message', None), name)
       is_cygwin = self.IsCygwinRule(action)
@@ -703,15 +711,14 @@ class NinjaWriter:
     all_outputs = []
     for rule in rules:
       # First write out a rule for the rule action.
-      name = '%s_%s' % (rule['rule_name'],
-                        hashlib.md5(self.qualified_target).hexdigest())
+      name = '%s_%s' % (rule['rule_name'], hashlib.md5(
+          self.qualified_target).hexdigest())
       # Skip a rule with no action and no inputs.
       if 'action' not in rule and not rule.get('rule_sources', []):
         continue
       args = rule['action']
       description = self.GenerateDescription(
-          'RULE',
-          rule.get('message', None),
+          'RULE', rule.get('message', None),
           ('%s ' + generator_default_variables['RULE_INPUT_PATH']) % name)
       is_cygwin = self.IsCygwinRule(rule)
       rule_name, args = self.WriteNewNinjaRule(
@@ -936,9 +943,8 @@ class NinjaWriter:
       objcxx_compiler = FindFirstInstanceOf(abstract.ObjectiveCxxCompiler,
                                             toolchain)
       if objcxx_compiler:
-        objcxx_compiler_flags = objcxx_compiler.GetFlags(defines, include_dirs,
-                                                         cflags + cflags_cc +
-                                                         cflags_mm)
+        objcxx_compiler_flags = objcxx_compiler.GetFlags(
+            defines, include_dirs, cflags + cflags_cc + cflags_mm)
         self.ninja.variable(
             '{0}_flags'.format(GetNinjaRuleName(objcxx_compiler, self.toolset)),
             shell.Join(objcxx_compiler_flags))
@@ -1036,9 +1042,9 @@ class NinjaWriter:
 
       defines = config.get('defines', []) + extra_defines
       if GetToolchainOrNone(self.flavor):
-        self.WriteVariableList('defines', [
-            GetToolchainOrNone(self.flavor).Define(d) for d in defines
-        ])
+        self.WriteVariableList(
+            'defines',
+            [GetToolchainOrNone(self.flavor).Define(d) for d in defines])
       else:
         self.WriteVariableList('defines',
                                [Define(d, self.flavor) for d in defines])
@@ -1184,7 +1190,7 @@ class NinjaWriter:
         toolchain = GetHostToolchain(self.flavor)
 
       shell = GetShell(self.flavor)
-
+      extra_bindings = []
       target_type = spec['type']
       if target_type == 'executable':
         executable_linker = FindFirstInstanceOf(abstract.ExecutableLinker,
@@ -1208,9 +1214,35 @@ class NinjaWriter:
         executable_linker_flags = executable_linker.GetFlags(ldflags)
         self.ninja.variable('{0}_flags'.format(rule_name),
                             shell.Join(executable_linker_flags))
+      elif target_type == 'shared_library':
+        shared_library_linker = FindFirstInstanceOf(
+            abstract.SharedLibraryLinker, toolchain)
+        assert shared_library_linker, (
+            'Toolchain must provide shared library linker '
+            'for {0} platform.').format(self.toolset)
+
+        rule_name = GetNinjaRuleName(shared_library_linker, self.toolset)
+
+        # TODO: This code emulates legacy toolchain behavior. We need to migrate
+        #       to single-responsibility, toolchain-independent GYP keywords as
+        #       per abstract toolchain design doc.
+        libraries_keyword = 'libraries{0}'.format('_host' if self.toolset ==
+                                                  'host' else '')
+        libraries = spec.get(libraries_keyword, []) + config.get(
+            libraries_keyword, [])
+        ldflags = gyp.common.uniquer(
+            map(self.ExpandSpecial,
+                GetConfigFlags(config, self.toolset, 'ldflags') + libraries))
+
+        shared_library_linker_flags = shared_library_linker.GetFlags(ldflags)
+        self.ninja.variable('{0}_flags'.format(rule_name),
+                            shell.Join(shared_library_linker_flags))
+        output = self.ComputeOutput(spec)
+        extra_bindings.append(('soname', os.path.split(output)[1]))
+
       else:
         raise Exception('Target type {0} is not supported for target {1}.'
-            .format(target_type, spec['target_name']))
+                        .format(target_type, spec['target_name']))
 
       order_only_deps = set()
 
@@ -1246,7 +1278,11 @@ class NinjaWriter:
       self.target.binary = output
 
       self.ninja.build(
-          output, rule_name, link_deps, order_only=list(order_only_deps))
+          output,
+          rule_name,
+          link_deps,
+          order_only=list(order_only_deps),
+          variables=extra_bindings)
 
     except NotImplementedError:
       # Fall back to the legacy toolchain.
@@ -1306,8 +1342,8 @@ class NinjaWriter:
         output = self.ComputeMacBundleBinaryOutput()
       else:
         output = self.ComputeOutput(spec)
-        extra_bindings.append(('postbuilds', self.GetPostbuildCommand(
-            spec, output, output)))
+        extra_bindings.append(('postbuilds',
+                               self.GetPostbuildCommand(spec, output, output)))
 
       if self.flavor == 'mac':
         ldflags = self.xcode_settings.GetLdflags(
@@ -1521,8 +1557,8 @@ class NinjaWriter:
     abs_build_dir = self.abs_build_dir
     return gyp.xcode_emulation.GetSortedXcodeEnv(
         self.xcode_settings, abs_build_dir,
-        os.path.join(abs_build_dir,
-                     self.build_to_base), self.config_name, additional_settings)
+        os.path.join(abs_build_dir, self.build_to_base), self.config_name,
+        additional_settings)
 
   def GetSortedXcodePostbuildEnv(self):
     """Returns the variables Xcode would set for postbuild steps."""
@@ -1559,9 +1595,8 @@ class NinjaWriter:
       return ''
     # Postbuilds expect to be run in the gyp file's directory, so insert an
     # implicit postbuild to cd to there.
-    postbuilds.insert(0,
-                      gyp.common.EncodePOSIXShellList(
-                          ['cd', self.build_to_base]))
+    postbuilds.insert(
+        0, gyp.common.EncodePOSIXShellList(['cd', self.build_to_base]))
     env = self.ComputeExportEnvString(self.GetSortedXcodePostbuildEnv())
     # G will be non-null if any postbuild fails. Run all postbuilds in a
     # subshell.
@@ -1870,8 +1905,8 @@ def CalculateGeneratorInputInfo(params):
   """Called by __init__ to initialize generator values based on params."""
   user_config = params.get('generator_flags', {}).get('config', None)
   toplevel = params['options'].toplevel_dir
-  qualified_out_dir = os.path.normpath(os.path.join(
-      toplevel, ComputeOutputDir(params), user_config, 'gypfiles'))
+  qualified_out_dir = os.path.normpath(
+      os.path.join(toplevel, ComputeOutputDir(params), user_config, 'gypfiles'))
 
   global generator_filelist_paths
   generator_filelist_paths = {
@@ -1952,9 +1987,8 @@ def MaybeWritePathVariable(ninja, tool, toolset):
 
 def MaybeWriteExtraFlagsVariable(ninja, tool, toolset, shell):
   if tool.GetExtraFlags():
-    ninja.variable(
-        '{0}_extra_flags'.format(GetNinjaRuleName(tool, toolset)),
-        shell.Join(tool.GetExtraFlags()))
+    ninja.variable('{0}_extra_flags'.format(GetNinjaRuleName(tool, toolset)),
+                   shell.Join(tool.GetExtraFlags()))
 
 
 def MaybeWritePool(ninja, tool, toolset):
@@ -2402,9 +2436,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       else:
         assert flavor in microsoft_flavors
         # XB1 doesn't need a manifest.
-        link_command = ('%s gyp-win-tool link-wrapper $arch '
-                        '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
-                        (python_exec))
+        link_command = (
+            '%s gyp-win-tool link-wrapper $arch '
+            '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' % (python_exec))
 
       master_ninja.rule(
           'link',
@@ -2560,9 +2594,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
           rspfile='$out.rsp',
           rspfile_content='$in_newline $libflags_host')
 
-      link_command = ('%s gyp-win-tool link-wrapper $arch '
-                      '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
-                      (python_exec))
+      link_command = (
+          '%s gyp-win-tool link-wrapper $arch '
+          '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' % (python_exec))
 
       master_ninja.rule(
           'link_host',
@@ -2693,9 +2727,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     master_ninja.newline()
     master_ninja.comment('Short names for targets.')
     for short_name in target_short_names:
-      master_ninja.build(short_name, 'phony', [
-          x.FinalOutput() for x in target_short_names[short_name]
-      ])
+      master_ninja.build(
+          short_name, 'phony',
+          [x.FinalOutput() for x in target_short_names[short_name]])
 
   if all_outputs:
     master_ninja.newline()

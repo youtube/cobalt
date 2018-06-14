@@ -48,8 +48,6 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
-        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
       ],
       'export_dependent_settings': [
         # Additionally, ensure that the include directories for generated
@@ -57,36 +55,6 @@
         # on this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ]
-    },
-
-    {
-      'target_name': 'audio_test',
-      'type': '<(gtest_target_type)',
-      'sources': [
-        'audio_node_input_output_test.cc',
-      ],
-      'dependencies': [
-        '<(DEPTH)/cobalt/audio/audio.gyp:audio',
-        '<(DEPTH)/cobalt/test/test.gyp:run_all_unittests',
-        '<(DEPTH)/testing/gmock.gyp:gmock',
-        '<(DEPTH)/testing/gtest.gyp:gtest',
-
-        # TODO: Remove the dependency below, it works around the fact that
-        #       ScriptValueFactory has non-virtual method CreatePromise().
-        '<(DEPTH)/cobalt/script/engine.gyp:engine',
-      ],
-    },
-
-    {
-      'target_name': 'audio_test_deploy',
-      'type': 'none',
-      'dependencies': [
-        'audio_test',
-      ],
-      'variables': {
-        'executable_name': 'audio_test',
-      },
-      'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
   ],
 }

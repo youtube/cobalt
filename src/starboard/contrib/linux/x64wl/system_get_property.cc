@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 
 #include "starboard/system.h"
 
-#include <netdb.h>
 #include <linux/if.h>  // NOLINT(build/include_alpha)
+#include <netdb.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
@@ -55,13 +55,12 @@ bool GetPlatformUuid(char* out_value, int value_length) {
   }
 
   struct ifreq* cur_interface = config.ifc_req;
-  const struct ifreq* const end = cur_interface +
-      (config.ifc_len / sizeof(struct ifreq));
+  const struct ifreq* const end =
+      cur_interface + (config.ifc_len / sizeof(struct ifreq));
 
   for (; cur_interface != end; ++cur_interface) {
-    SbStringCopy(interface.ifr_name,
-        cur_interface->ifr_name,
-        sizeof(cur_interface->ifr_name));
+    SbStringCopy(interface.ifr_name, cur_interface->ifr_name,
+                 sizeof(cur_interface->ifr_name));
     if (ioctl(fd, SIOCGIFFLAGS, &interface) == -1) {
       continue;
     }
@@ -71,7 +70,8 @@ bool GetPlatformUuid(char* out_value, int value_length) {
     if (ioctl(fd, SIOCGIFHWADDR, &interface) == -1) {
       continue;
     }
-    SbStringFormatF(out_value, value_length, "%x:%x:%x:%x:%x:%x",
+    SbStringFormatF(
+        out_value, value_length, "%x:%x:%x:%x:%x:%x",
         interface.ifr_addr.sa_data[0], interface.ifr_addr.sa_data[1],
         interface.ifr_addr.sa_data[2], interface.ifr_addr.sa_data[3],
         interface.ifr_addr.sa_data[4], interface.ifr_addr.sa_data[5]);
@@ -80,7 +80,7 @@ bool GetPlatformUuid(char* out_value, int value_length) {
   return false;
 }
 
-#endif   // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+#endif  // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
 
 }  // namespace
 

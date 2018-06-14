@@ -32,6 +32,8 @@
         'attr.h',
         'audio_track.h',
         'audio_track_list.h',
+        'base64.cc',
+        'base64.h',
         'benchmark_stat_names.cc',
         'benchmark_stat_names.h',
         'blob.cc',
@@ -100,7 +102,6 @@
         'event.cc',
         'event.h',
         'event_init.h',
-        'event_listener.cc',
         'event_listener.h',
         'event_queue.cc',
         'event_queue.h',
@@ -119,6 +120,8 @@
         'font_face_updater.h',
         'font_list.cc',
         'font_list.h',
+        'generic_event_handler_reference.cc',
+        'generic_event_handler_reference.h',
         'global_stats.cc',
         'global_stats.h',
         'history.cc',
@@ -215,6 +218,8 @@
         'node_list.h',
         'node_list_live.cc',
         'node_list_live.h',
+        'on_error_event_listener.cc',
+        'on_error_event_listener.h',
         'on_screen_keyboard.cc',
         'on_screen_keyboard.h',
         'on_screen_keyboard_bridge.h',
@@ -243,6 +248,8 @@
         'screenshot.h',
         'screenshot_manager.cc',
         'screenshot_manager.h',
+        'script_event_log.cc',
+        'script_event_log.h',
         'security_policy_violation_event.cc',
         'security_policy_violation_event.h',
         'serializer.cc',
@@ -302,6 +309,7 @@
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
         '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/script/script.gyp:script',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/web_animations/web_animations.gyp:web_animations',
@@ -371,26 +379,6 @@
         # headers are put on the include directories for targets that depend on
         # this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-      ],
-    },
-
-    {
-      'target_name': 'dom_testing',
-      'type': 'static_library',
-      'sources': [
-        'testing/gtest_workarounds.h',
-        'testing/html_collection_testing.h',
-        'testing/mock_event_listener.h',
-        'testing/stub_css_parser.cc',
-        'testing/stub_css_parser.h',
-        'testing/stub_script_runner.cc',
-        'testing/stub_script_runner.h',
-        'testing/stub_window.h',
-      ],
-      'dependencies': [
-        # TODO: Remove the dependency below, it works around the fact that
-        #       ScriptValueFactory has non-virtual method CreatePromise().
-        '<(DEPTH)/cobalt/script/engine.gyp:engine',
       ],
     },
   ],

@@ -17,9 +17,9 @@
 #include "starboard/log.h"
 #include "starboard/shared/wayland/application_wayland.h"
 
-NativeDisplayType WaylandNativeDisplayType()
-{
-  wl_display* display = starboard::shared::wayland::ApplicationWayland::Get()->GetWLDisplay();
+NativeDisplayType WaylandNativeDisplayType() {
+  wl_display* display =
+      starboard::shared::wayland::ApplicationWayland::Get()->GetWLDisplay();
   SB_LOG(INFO) << " SbNativeDisplayType() " << display;
   return (NativeDisplayType)display;
 }

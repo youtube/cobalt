@@ -18,7 +18,7 @@
 interface GlobalEventHandlers {
   attribute EventHandler onblur;
   attribute EventHandler onclick;
-  attribute EventHandler onerror;
+  attribute OnErrorEventListener onerror;
   attribute EventHandler onfocus;
 
   attribute EventHandler onkeydown;
@@ -72,3 +72,4 @@ interface GlobalEventHandlers {
 // function. Define it as a nullable EventListener for now until we can do
 // some refactoring to accept both in the EventTarget implementation.
 typedef EventListener? EventHandler;
+typedef OnErrorEventListener? OnErrorEventHandler;

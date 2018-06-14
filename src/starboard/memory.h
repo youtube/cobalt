@@ -195,7 +195,9 @@ SB_DEPRECATED_EXTERNAL(
 //
 // |size_bytes|: The amount of physical memory pages to be allocated.
 // |flags|: The bitwise OR of the protection flags for the mapped memory
-//   as specified in |SbMemoryMapFlags|.
+//   as specified in |SbMemoryMapFlags|. Allocating executable memory is not
+//   allowed and will fail. If executable memory is needed, map non-executable
+//   memory first and then switch access to executable using SbMemoryProtect.
 // |name|: A value that appears in the debugger on some platforms. The value
 //   can be up to 32 bytes.
 SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
@@ -209,6 +211,14 @@ SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
 // |SbMemoryMap(0x1000)| returns |(void*)0xB000|,
 // |SbMemoryUnmap(0xA000, 0x2000)| should free both regions.
 SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
+
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+// Change the protection of |size_bytes| of physical pages, starting from
+// |virtual_address|, to |flags|, returning |true| on success.
+SB_EXPORT bool SbMemoryProtect(void* virtual_address,
+                               int64_t size_bytes,
+                               int flags);
+#endif
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
 // Flushes any data in the given virtual address range that is cached locally in

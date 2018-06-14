@@ -26,15 +26,17 @@ namespace cssom {
 TEST(SelectorTreeTest, RootShouldHaveNoChildrenAfterInitialization) {
   SelectorTree selector_tree;
   EXPECT_TRUE(
-      selector_tree.children(selector_tree.root(), kChildCombinator).empty());
-  EXPECT_TRUE(
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kChildCombinator)
           .empty());
   EXPECT_TRUE(
-      selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .empty());
   EXPECT_TRUE(
-      selector_tree.children(selector_tree.root(), kFollowingSiblingCombinator)
+      selector_tree.children(selector_tree.root_node(), kNextSiblingCombinator)
+          .empty());
+  EXPECT_TRUE(
+      selector_tree
+          .children(selector_tree.root_node(), kFollowingSiblingCombinator)
           .empty());
 }
 
@@ -56,20 +58,22 @@ TEST(SelectorTreeTest, AppendRuleShouldTakeOneRule) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(1,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
-                                      kFollowingSiblingCombinator)
+  ASSERT_EQ(1, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
 
   const SelectorTree::Node* node_1 =
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .begin()
           ->second;
   ASSERT_EQ(1, node_1->rules().size());
@@ -102,17 +106,19 @@ TEST(SelectorTreeTest, AppendRuleShouldNormalizeCompoundSelector) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(1,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
-                                      kFollowingSiblingCombinator)
+  ASSERT_EQ(1, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
 }
 
 TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
@@ -138,19 +144,21 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoIdenticalRules) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(1,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
-                                      kFollowingSiblingCombinator)
+  ASSERT_EQ(1, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
   const SelectorTree::Node* node_1 =
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .begin()
           ->second;
   ASSERT_EQ(2, node_1->rules().size());
@@ -184,19 +192,21 @@ TEST(SelectorTreeTest, AppendRuleSimpleShouldTakeTwoDesendantSelectors) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(1,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree.children(selector_tree.root(),
-                                      kFollowingSiblingCombinator)
+  ASSERT_EQ(1, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
   const SelectorTree::Node* node_1 =
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .begin()
           ->second;
   ASSERT_EQ(1, node_1->rules().size());
@@ -246,19 +256,21 @@ TEST(SelectorTreeTest, AppendRuleTwoDifferentNotSelectorsForSameElement) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_FALSE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(2,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree
-                   .children(selector_tree.root(), kFollowingSiblingCombinator)
+  ASSERT_EQ(2, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
   auto node_iter =
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .begin();
   const SelectorTree::Node* node_1 = node_iter->second;
   ASSERT_EQ(1, node_1->rules().size());
@@ -297,19 +309,21 @@ TEST(SelectorTreeTest, AppendRuleTwoNotSelectorsForDifferentElements) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(2,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree
-                   .children(selector_tree.root(), kFollowingSiblingCombinator)
+  ASSERT_EQ(2, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
   auto node_iter =
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .begin();
   const SelectorTree::Node* node_1 = node_iter->second;
   ASSERT_EQ(1, node_1->rules().size());
@@ -347,19 +361,21 @@ TEST(SelectorTreeTest, AppendRuleTwoIdenticalNotSelectors) {
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(1);
   EXPECT_TRUE(selector_tree.ValidateVersionCompatibility());
 
-  ASSERT_EQ(
-      0, selector_tree.children(selector_tree.root(), kChildCombinator).size());
-  ASSERT_EQ(1,
-            selector_tree.children(selector_tree.root(), kDescendantCombinator)
-                .size());
   ASSERT_EQ(0,
-            selector_tree.children(selector_tree.root(), kNextSiblingCombinator)
+            selector_tree.children(selector_tree.root_node(), kChildCombinator)
                 .size());
-  ASSERT_EQ(0, selector_tree
-                   .children(selector_tree.root(), kFollowingSiblingCombinator)
+  ASSERT_EQ(1, selector_tree
+                   .children(selector_tree.root_node(), kDescendantCombinator)
                    .size());
+  ASSERT_EQ(0, selector_tree
+                   .children(selector_tree.root_node(), kNextSiblingCombinator)
+                   .size());
+  ASSERT_EQ(
+      0, selector_tree
+             .children(selector_tree.root_node(), kFollowingSiblingCombinator)
+             .size());
   const SelectorTree::Node* node_1 =
-      selector_tree.children(selector_tree.root(), kDescendantCombinator)
+      selector_tree.children(selector_tree.root_node(), kDescendantCombinator)
           .begin()
           ->second;
   ASSERT_EQ(2, node_1->rules().size());

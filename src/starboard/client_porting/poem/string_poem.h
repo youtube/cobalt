@@ -160,22 +160,38 @@ static SB_C_INLINE char* PoemStringCopyN(char* dest,
 
 #if !defined(POEM_NO_EMULATION)
 
+#undef strlen
 #define strlen(s) SbStringGetLength(s)
+#undef strcpy
 #define strcpy(o, s) SbStringCopyUnsafe(o, s)
+#undef strncpy
 #define strncpy(o, s, ds) PoemStringCopyN(o, s, ds)
+#undef strcat
 #define strcat(o, s) PoemStringConcatUnsafe(o, s)
+#undef strncat
 #define strncat(o, s, ds) PoemStringConcat(o, s, ds)
+#undef strdup
 #define strdup(s) SbStringDuplicate(s)
+#undef strchr
 #define strchr(s, c) PoemFindCharacterInString(s, c)
+#undef strrchr
 #define strrchr(s, c) PoemFindLastCharacterInString(s, c)
+#undef strstr
 #define strstr(s, c) SbStringFindString(s, c)
+#undef strncmp
 #define strncmp(s1, s2, c) SbStringCompare(s1, s2, c)
+#undef strcmp
 #define strcmp(s1, s2) SbStringCompareAll(s1, s2)
 
+#undef memchr
 #define memchr(s, c, n) SbMemoryFindByte(s, c, n)
+#undef memset
 #define memset(s, c, n) SbMemorySet(s, c, n)
+#undef memcpy
 #define memcpy(d, s, c) SbMemoryCopy(d, s, c)
+#undef memcmp
 #define memcmp(s1, s2, n) SbMemoryCompare(s1, s2, n)
+#undef memmove
 #define memmove(d, s, n) SbMemoryMove(d, s, n)
 
 #endif  // POEM_NO_EMULATION

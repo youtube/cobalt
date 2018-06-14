@@ -370,8 +370,10 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->scratch_surface_cache_size_in_bytes);
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   auto command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kDisableRasterizerCaching)) {
-    options->disable_rasterizer_caching = true;
+  if (command_line->HasSwitch(browser::switches::kDisableRasterizerCaching) ||
+      command_line->HasSwitch(
+          browser::switches::kForceDeterministicRendering)) {
+    options->force_deterministic_rendering = true;
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 }

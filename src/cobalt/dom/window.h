@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/timer.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
@@ -54,6 +55,7 @@
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/loader/loader_factory.h"
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -127,6 +129,7 @@ class Window : public EventTarget,
       base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
+      loader::LoaderFactory* loader_factory,
       render_tree::ResourceProvider** resource_provider,
       loader::image::AnimatedImageTracker* animated_image_tracker,
       loader::image::ImageCache* image_cache,
@@ -162,6 +165,7 @@ class Window : public EventTarget,
       const OnStopDispatchEventCallback& stop_tracking_dispatch_event_callback,
       const ScreenshotManager::ProvideScreenshotFunctionCallback&
           screenshot_function_callback,
+      base::WaitableEvent* synchronous_loader_interrupt,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,

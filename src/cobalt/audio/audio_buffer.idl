@@ -21,6 +21,4 @@ interface AudioBuffer {
   // in seconds
   readonly attribute double duration;
   readonly attribute long numberOfChannels;
-
-  [RaisesException] Float32Array getChannelData(unsigned long channel);
 };

@@ -793,6 +793,11 @@ void InitializePrototypeAndInterfaceObject(
 
   JS::RootedObject parent_prototype(
       context, MozjsNamedIndexedGetterInterface::GetPrototype(context, global_object));
+  static_assert(
+      std::is_base_of<NamedIndexedGetterInterface, DerivedGetterSetterInterface>::value,
+      "Expected DerivedGetterSetterInterface to have C++ parent class "
+      "NamedIndexedGetterInterface, because that is its WebIDL parent.");
+
   DCHECK(parent_prototype);
 
   interface_data->prototype = JS_NewObjectWithGivenProto(

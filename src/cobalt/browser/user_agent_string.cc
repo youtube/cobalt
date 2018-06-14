@@ -21,6 +21,7 @@
 #if defined(COBALT_ENABLE_LIB)
 #include "cobalt/browser/lib/exported/user_agent.h"
 #endif
+#include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include)
@@ -126,16 +127,6 @@ namespace browser {
 
 namespace {
 
-#if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
-const char kStarboardStabilitySuffix[] = "-Experimental";
-#elif defined(SB_RELEASE_CANDIDATE_API_VERSION) &&        \
-    SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION && \
-    SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
-const char kStarboardStabilitySuffix[] = "-ReleaseCandidate";
-#else
-const char kStarboardStabilitySuffix[] = "";
-#endif
-
 struct SanitizeReplacements {
   const char* replace_chars;
   const char* replace_with;
@@ -204,7 +195,7 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
   UserAgentPlatformInfo platform_info;
 
   platform_info.starboard_version = base::StringPrintf(
-      "Starboard/%d%s", SB_API_VERSION, kStarboardStabilitySuffix);
+      "Starboard/%d", SB_API_VERSION);
 
   const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
@@ -227,6 +218,9 @@ UserAgentPlatformInfo GetUserAgentPlatformInfoFromSystem() {
 
   platform_info.javascript_engine_version =
       script::GetJavaScriptEngineNameAndVersion();
+
+  platform_info.rasterizer_type =
+      renderer::GetDefaultRasterizerForPlatform().rasterizer_name;
 
   platform_info.cobalt_version = COBALT_VERSION;
   platform_info.cobalt_build_version_number = COBALT_BUILD_VERSION_NUMBER;
@@ -338,19 +332,25 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
                       platform_info.cobalt_build_version_number.c_str(),
                       platform_info.build_configuration.c_str());
 
-  //   JavaScript Engine Name/Version
+  // JavaScript Engine Name/Version
   if (!platform_info.javascript_engine_version.empty()) {
     base::StringAppendF(&user_agent, " %s",
                         platform_info.javascript_engine_version.c_str());
   }
 
-  //   Starboard/APIVersion,
+  // Rasterizer Type
+  if (!platform_info.rasterizer_type.empty()) {
+    base::StringAppendF(&user_agent, " %s",
+                        platform_info.rasterizer_type.c_str());
+  }
+
+  // Starboard/APIVersion,
   if (!platform_info.starboard_version.empty()) {
     base::StringAppendF(&user_agent, " %s",
                         platform_info.starboard_version.c_str());
   }
 
-  //   Device/FirmwareVersion (Brand, Model, ConnectionType)
+  // Device/FirmwareVersion (Brand, Model, ConnectionType)
   base::StringAppendF(
       &user_agent, ", %s_%s_%s_%s/%s (%s, %s, %s)",
       Sanitize(platform_info.network_operator.value_or("")).c_str(),

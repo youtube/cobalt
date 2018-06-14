@@ -403,14 +403,11 @@ void KeyboardHandleModifiers(void* data,
 }
 
 const struct wl_keyboard_listener keyboard_listener = {
-    &KeyboardHandleKeyMap,
-    &KeyboardHandleEnter,
-    &KeyboardHandleLeave,
-    &KeyboardHandleKey,
-    &KeyboardHandleModifiers,
+    &KeyboardHandleKeyMap, &KeyboardHandleEnter,     &KeyboardHandleLeave,
+    &KeyboardHandleKey,    &KeyboardHandleModifiers,
 };
 
-}
+}  // namespace
 
 DevInput::DevInput()
     : wl_seat_(NULL),
@@ -497,9 +494,11 @@ void DevInput::OnKeyboardHandleKey(struct wl_keyboard* keyboard,
                                    uint32_t time,
                                    uint32_t key,
                                    uint32_t state) {
-  bool repeatable = (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN);
-  SB_DLOG(INFO) << "[Key] Key :" << key << ", state:" << state << " repeatable " << repeatable
-                << " key_repeat_key_ " << key_repeat_key_ << " key_repeat_state_ " << key_repeat_state_;
+  bool repeatable =
+      (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN);
+  SB_DLOG(INFO) << "[Key] Key :" << key << ", state:" << state << " repeatable "
+                << repeatable << " key_repeat_key_ " << key_repeat_key_
+                << " key_repeat_state_ " << key_repeat_state_;
   if (state && repeatable && key == key_repeat_key_ && key_repeat_state_)
     return;
 

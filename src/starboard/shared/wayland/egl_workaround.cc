@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
 #include "cobalt/renderer/backend/egl/display.h"
+#include "starboard/log.h"
 #include "starboard/shared/wayland/native_display_type.h"
 
 extern "C" EGLDisplay __real_eglGetDisplay(EGLNativeDisplayType native_display);
 extern "C" EGLDisplay __wrap_eglGetDisplay(EGLNativeDisplayType native_display);
 
-extern "C" EGLDisplay __wrap_eglGetDisplay(EGLNativeDisplayType native_display) {
+extern "C" EGLDisplay __wrap_eglGetDisplay(
+    EGLNativeDisplayType native_display) {
   SB_LOG(INFO) << " __wrap_eglGetDisplay ";
   return __real_eglGetDisplay((EGLNativeDisplayType)WaylandNativeDisplayType());
 }

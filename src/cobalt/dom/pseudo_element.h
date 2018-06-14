@@ -60,6 +60,11 @@ class PseudoElement {
   cssom::RulesWithCascadePrecedence* matching_rules() {
     return &matching_rules_;
   }
+  void ClearMatchingRules() { matching_rules_.clear(); }
+
+  bool computed_style_invalid() const { return computed_style_invalid_; }
+  void set_computed_style_invalid() { computed_style_invalid_ = true; }
+  void clear_computed_style_invalid() { computed_style_invalid_ = false; }
 
   cssom::TransitionSet* css_transitions() { return &css_transitions_.value(); }
   cssom::AnimationSet* css_animations() { return &css_animations_.value(); }
@@ -69,7 +74,6 @@ class PseudoElement {
   }
 
   HTMLElement* parent_element() { return parent_element_; }
-  void ClearMatchingRules() { matching_rules_.clear(); }
 
   void set_layout_boxes(scoped_ptr<LayoutBoxes> layout_boxes) {
     layout_boxes_ = layout_boxes.Pass();
@@ -91,6 +95,7 @@ class PseudoElement {
   base::optional<cssom::AnimationSet> css_animations_;
 
   cssom::RulesWithCascadePrecedence matching_rules_;
+  bool computed_style_invalid_;
 
   // This contains information about the boxes generated from the element.
   scoped_ptr<LayoutBoxes> layout_boxes_;

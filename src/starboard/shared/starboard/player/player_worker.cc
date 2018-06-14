@@ -28,6 +28,9 @@ namespace player {
 
 namespace {
 
+using std::placeholders::_1;
+using std::placeholders::_2;
+
 // 8 ms is enough to ensure that DoWritePendingSamples() is called twice for
 // every frame in HFR.
 // TODO: Reduce this as there should be enough frames caches in the renderers.
@@ -45,9 +48,10 @@ struct ThreadParam {
 
 }  // namespace
 
-PlayerWorker::PlayerWorker(Host* host,
-                           SbMediaAudioCodec audio_codec,
+PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
+                           SbMediaVideoCodec video_codec,
                            scoped_ptr<Handler> handler,
+                           UpdateMediaInfoCB update_media_info_cb,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -56,9 +60,10 @@ PlayerWorker::PlayerWorker(Host* host,
                            SbPlayer player,
                            void* context)
     : thread_(kSbThreadInvalid),
-      host_(host),
       audio_codec_(audio_codec),
+      video_codec_(video_codec),
       handler_(handler.Pass()),
+      update_media_info_cb_(update_media_info_cb),
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -68,14 +73,17 @@ PlayerWorker::PlayerWorker(Host* host,
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       player_state_(kSbPlayerStateInitialized) {
-  SB_DCHECK(host_ != NULL);
   SB_DCHECK(handler_ != NULL);
+  SB_DCHECK(update_media_info_cb_);
 
   ThreadParam thread_param(this);
   thread_ = SbThreadCreate(0, kSbThreadPriorityHigh, kSbThreadNoAffinity, true,
                            "player_worker", &PlayerWorker::ThreadEntryPoint,
                            &thread_param);
-  SB_DCHECK(SbThreadIsValid(thread_));
+  if (!SbThreadIsValid(thread_)) {
+    SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
+    return;
+  }
   ScopedLock scoped_lock(thread_param.mutex);
   while (!job_queue_) {
     thread_param.condition_variable.Wait();
@@ -93,9 +101,10 @@ PlayerWorker::~PlayerWorker() {
   // effects are gone.
 }
 
-void PlayerWorker::UpdateMediaTime(SbTime time) {
-  host_->UpdateMediaTime(time, ticket_);
+void PlayerWorker::UpdateMediaInfo(SbTime time, int dropped_video_frames) {
+  update_media_info_cb_(time, dropped_video_frames, ticket_);
 }
+
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
   SB_DCHECK(!error_occurred_) << "Player state should not update after error.";
@@ -157,14 +166,16 @@ void PlayerWorker::RunLoop() {
 void PlayerWorker::DoInit() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  if (handler_->Init(
-          this, job_queue_.get(), player_, &PlayerWorker::UpdateMediaTime,
-          &PlayerWorker::player_state, &PlayerWorker::UpdatePlayerState
+  Handler::UpdatePlayerErrorCB update_player_error_cb;
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-          ,
-          &PlayerWorker::UpdatePlayerError
+  update_player_error_cb =
+      std::bind(&PlayerWorker::UpdatePlayerError, this, _1);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-          )) {
+  if (handler_->Init(player_,
+                     std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2),
+                     std::bind(&PlayerWorker::player_state, this),
+                     std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
+                     update_player_error_cb)) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
     UpdatePlayerError("Failed to initialize PlayerWorker.");
@@ -198,7 +209,9 @@ void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
   if (audio_codec_ != kSbMediaAudioCodecNone) {
     UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
   }
-  UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
+  if (video_codec_ != kSbMediaVideoCodecNone) {
+    UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
+  }
 }
 
 void PlayerWorker::DoWriteSample(
@@ -222,6 +235,7 @@ void PlayerWorker::DoWriteSample(
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(!pending_audio_buffer_);
   } else {
+    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
     SB_DCHECK(!pending_video_buffer_);
   }
   bool written;
@@ -257,6 +271,7 @@ void PlayerWorker::DoWritePendingSamples() {
     DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));
   }
   if (pending_video_buffer_) {
+    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
     DoWriteSample(common::ResetAndReturn(&pending_video_buffer_));
   }
 }
@@ -281,6 +296,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(!pending_audio_buffer_);
   } else {
+    SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
     SB_DCHECK(!pending_video_buffer_);
   }
 
@@ -321,7 +337,11 @@ void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   handler_->Stop();
-  UpdatePlayerState(kSbPlayerStateDestroyed);
+  handler_.reset();
+
+  if (!error_occurred_) {
+    UpdatePlayerState(kSbPlayerStateDestroyed);
+  }
   job_queue_->StopSoon();
 }
 

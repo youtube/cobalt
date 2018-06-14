@@ -197,12 +197,14 @@ std::vector<TestResult> ParseResults(const std::string& json_results) {
   std::vector<TestResult> test_results;
 
   scoped_ptr<base::Value> root;
-  base::JSONReader reader;
+  base::JSONReader reader(
+      base::JSONParserOptions::JSON_REPLACE_INVALID_CHARACTERS);
   root.reset(reader.ReadToValue(json_results));
   // Expect that parsing test result succeeded.
   EXPECT_EQ(base::JSONReader::JSON_NO_ERROR, reader.error_code());
   if (!root) {
     // Unparseable JSON, or empty string.
+    LOG(ERROR) << "Web Platform Tests returned unparseable JSON test result!";
     return test_results;
   }
 
@@ -317,6 +319,10 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateWebPlatformTests("XMLHttpRequest")));
 
 INSTANTIATE_TEST_CASE_P(
+    cobalt_special, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("cobalt_special")));
+
+INSTANTIATE_TEST_CASE_P(
     csp, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("content-security-policy")));
 
@@ -336,6 +342,9 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(EnumerateWebPlatformTests("fetch", "'fetch' in this")));
 #endif
 
+INSTANTIATE_TEST_CASE_P(html, WebPlatformTest,
+                        ::testing::ValuesIn(EnumerateWebPlatformTests("html")));
+
 INSTANTIATE_TEST_CASE_P(
     mediasession, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
@@ -346,10 +355,6 @@ INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests(
                             "streams", "'ReadableStream' in this")));
 #endif
-
-INSTANTIATE_TEST_CASE_P(
-    cobalt_special, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("cobalt_special")));
 
 #endif  // !defined(COBALT_WIN)
 

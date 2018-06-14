@@ -49,6 +49,6 @@ SbWindow ApplicationWaylandTizen::CreateWindow(const SbWindowOptions* options) {
   return window;
 }
 
-}  // wayland
-}  // shared
-}  // starboard
+}  // namespace wayland
+}  // namespace shared
+}  // namespace starboard

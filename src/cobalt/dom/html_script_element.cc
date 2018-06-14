@@ -71,7 +71,9 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       inline_script_location_(GetSourceLocationName(), 1, 1),
       is_sync_load_successful_(false),
       prevent_garbage_collection_count_(0),
-      should_execute_(true) {
+      should_execute_(true),
+      synchronous_loader_interrupt_(
+          document->html_element_context()->synchronous_loader_interrupt()) {
   DCHECK(document->html_element_context()->script_runner());
 }
 
@@ -290,10 +292,16 @@ void HTMLScriptElement::Prepare() {
       // The element is the pending parsing-blocking script of the Document of
       // the parser that created the element. (There can only be one such script
       // per Document at a time.)
+
+      // This variable will be set to true in the completion callback for the
+      // loader below.  If that completion callback never fires, the variable
+      // will stay false.  This can happen if the loader was interrupted, or
+      // failed for another reason.
       is_sync_load_successful_ = false;
 
       loader::LoadSynchronously(
           html_element_context()->sync_load_thread()->message_loop(),
+          synchronous_loader_interrupt_,
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
@@ -338,17 +346,19 @@ void HTMLScriptElement::Prepare() {
       // once the resource has been fetched (defined above) has been run.
       document_->IncreaseLoadingCounter();
 
-      loader_.reset(new loader::Loader(
-          base::Bind(
-              &loader::FetcherFactory::CreateSecureFetcher,
-              base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback, request_mode_,
-              document_->location() ? document_->location()->GetOriginAsObject()
-                                    : loader::Origin()),
-          scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
-              &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
-          base::Bind(&HTMLScriptElement::OnLoadingError,
-                     base::Unretained(this))));
+      loader::Origin origin = document_->location()
+                                  ? document_->location()->GetOriginAsObject()
+                                  : loader::Origin();
+
+      loader_ = html_element_context()
+                    ->loader_factory()
+                    ->CreateScriptLoader(
+                        url_, origin, csp_callback,
+                        base::Bind(&HTMLScriptElement::OnLoadingDone,
+                                   base::Unretained(this)),
+                        base::Bind(&HTMLScriptElement::OnLoadingError,
+                                   base::Unretained(this)))
+                    .Pass();
     } break;
     case 5: {
       // This is an asynchronous script. Prevent garbage collection until
@@ -365,17 +375,21 @@ void HTMLScriptElement::Prepare() {
       // The element must be added to the set of scripts that will execute as
       // soon as possible of the Document of the script element at the time the
       // prepare a script algorithm started.
-      loader_.reset(new loader::Loader(
-          base::Bind(
-              &loader::FetcherFactory::CreateSecureFetcher,
-              base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback, request_mode_,
-              document_->location() ? document_->location()->GetOriginAsObject()
-                                    : loader::Origin()),
-          scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
-              &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
-          base::Bind(&HTMLScriptElement::OnLoadingError,
-                     base::Unretained(this))));
+      DCHECK(!loader_);
+
+      loader::Origin origin = document_->location()
+                                  ? document_->location()->GetOriginAsObject()
+                                  : loader::Origin();
+
+      loader_ = html_element_context()
+                    ->loader_factory()
+                    ->CreateScriptLoader(
+                        url_, origin, csp_callback,
+                        base::Bind(&HTMLScriptElement::OnLoadingDone,
+                                   base::Unretained(this)),
+                        base::Bind(&HTMLScriptElement::OnLoadingError,
+                                   base::Unretained(this)))
+                    .Pass();
     } break;
     case 6: {
       // Otherwise.

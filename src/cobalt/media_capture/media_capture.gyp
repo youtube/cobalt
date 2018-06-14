@@ -25,9 +25,14 @@
         'media_devices.h',
         'media_device_info.cc',
         'media_device_info.h',
+        'media_recorder.cc',
+        'media_recorder.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
+        '<(DEPTH)/cobalt/media_stream/media_stream.gyp:media_stream',
+        '<(DEPTH)/cobalt/script/engine.gyp:engine',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
       ],
       'export_dependent_settings': [
         # Additionally, ensure that the include directories for generated

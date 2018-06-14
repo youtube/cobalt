@@ -25,6 +25,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
+#if SB_HAS(PLAYER_FILTER_TESTS)
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -122,4 +123,5 @@ class VideoDmpReader {
 }  // namespace shared
 }  // namespace starboard
 
+#endif  // SB_HAS(PLAYER_FILTER_TESTS)
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_

@@ -1,4 +1,4 @@
-// Copyright 2016 Samsung Electronics. All Rights Reserved.
+// Copyright 2018 Samsung Electronics. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,12 +46,8 @@ void ShellSurfaceConfigure(void* data,
 void ShellSurfacePopupDone(void*, struct wl_shell_surface*) {}
 
 struct wl_shell_surface_listener shell_surface_listener = {
-    &ShellSurfacePing,
-    &ShellSurfaceConfigure,
-    &ShellSurfacePopupDone
-};
-
-}
+    &ShellSurfacePing, &ShellSurfaceConfigure, &ShellSurfacePopupDone};
+}  // namespace
 
 SbWindowPrivate::SbWindowPrivate(wl_compositor* compositor,
                                  wl_shell* shell,

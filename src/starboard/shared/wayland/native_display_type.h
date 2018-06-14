@@ -24,4 +24,4 @@ NativeDisplayType WaylandNativeDisplayType();
 #ifdef __cplusplus
 }
 #endif
-#endif //STARBOARD_SHARED_WAYLAND_NATIVE_DISPLAY_TYPE_H_
+#endif  // STARBOARD_SHARED_WAYLAND_NATIVE_DISPLAY_TYPE_H_

@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/hash_tables.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
@@ -26,6 +27,7 @@
 #include "cobalt/audio/audio_buffer.h"
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_destination_node.h"
+#include "cobalt/audio/audio_helpers.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/event_target.h"
@@ -164,9 +166,8 @@ class AudioContext : public dom::EventTarget {
   std::string GetDebugName() override { return "AudioContext"; }
 
   void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
-  void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,
-                    int32 number_of_channels, scoped_array<uint8> channels_data,
-                    SampleType sample_type);
+  void DecodeFinish(int callback_id, float sample_rate,
+                    scoped_ptr<ShellAudioBus> audio_bus);
 
   base::WeakPtrFactory<AudioContext> weak_ptr_factory_;
   // We construct a WeakPtr upon AudioContext's construction in order to

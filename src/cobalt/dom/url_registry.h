@@ -19,6 +19,7 @@
 
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/script/tracer.h"
 
 namespace cobalt {
 namespace dom {
@@ -33,12 +34,16 @@ namespace dom {
 // Note: It is unsafe to directly encode the pointer to the object in the
 // url as the url is assigned from JavaScript.
 template <typename ObjectType>
-class UrlRegistry {
+class UrlRegistry : public script::Traceable {
  public:
   void Register(const std::string& blob_url,
                 const scoped_refptr<ObjectType>& object);
   scoped_refptr<ObjectType> Retrieve(const std::string& blob_url);
   bool Unregister(const std::string& blob_url);
+
+  void TraceMembers(script::Tracer* tracer) override {
+    tracer->TraceValues(object_registry_);
+  }
 
  private:
   typedef base::hash_map<std::string, scoped_refptr<ObjectType> > UrlMap;

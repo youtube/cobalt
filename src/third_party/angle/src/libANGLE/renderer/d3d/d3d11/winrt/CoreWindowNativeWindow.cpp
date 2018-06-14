@@ -191,6 +191,13 @@ HRESULT CoreWindowNativeWindow::createSwapChain(ID3D11Device *device,
         }
     }
 
+    ComPtr<IDXGIDevice1> pDXGIDevice;
+    result = device->QueryInterface(__uuidof(IDXGIDevice1), (void **)pDXGIDevice.GetAddressOf());
+    if (SUCCEEDED(result))
+    {
+      pDXGIDevice->SetMaximumFrameLatency(swapChainDesc.BufferCount);
+    }
+
     return result;
 }
 

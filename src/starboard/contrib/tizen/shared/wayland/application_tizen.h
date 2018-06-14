@@ -43,8 +43,8 @@ class ApplicationWaylandTizen : public ApplicationWayland {
   tizen_policy* tz_policy_;
 };
 
-}  // wayland
-}  // shared
-}  // starboard
+}  // namespace wayland
+}  // namespace shared
+}  // namespace starboard
 
 #endif  // STARBOARD_CONTRIB_TIZEN_SHARED_WAYLAND_APPLICATION_TIZEN_H_

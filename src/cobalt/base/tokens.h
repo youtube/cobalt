@@ -53,6 +53,7 @@ namespace base {
     MacroOpWithNameOnly(childList)                                   \
     MacroOpWithNameOnly(click)                                       \
     MacroOpWithNameOnly(close)                                       \
+    MacroOpWithNameOnly(dataavailable)                               \
     MacroOpWithNameOnly(deviceorientation)                           \
     MacroOpWithNameOnly(durationchange)                              \
     MacroOpWithNameOnly(emptied)                                     \

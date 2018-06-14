@@ -17,4 +17,5 @@
 [Exposed=Window]
 interface MediaDevices : EventTarget {
   Promise<sequence<MediaDeviceInfo>> enumerateDevices();
+  Promise<MediaStream> getUserMedia(optional MediaStreamConstraints constraints);
 };

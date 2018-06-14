@@ -38,11 +38,16 @@ class AudioDevice {
     typedef ::media::ShellAudioBus ShellAudioBus;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
+    // |all_consumed| will be set to true if all audio frames has been consumed.
+    // This gives the AudioDestinationNode a chance to decide if the AudioDevice
+    // should be killed.
+    // |audio_buffer| contains the audio frames to be mixed with input audio if
+    // there is any.
     // |silence| will be set to true before calling if |audio_buffer| contains
-    // only silence samples, it will be set to |false| otherwise.  On return
-    // FillAudioBus() will set |silence| to |false| if it has modified
-    // |audio_buffer|.
-    virtual void FillAudioBus(ShellAudioBus* audio_buffer, bool* silence) = 0;
+    // only silence samples, it will be set to |false| otherwise.  It will be
+    // set to false on return if |audio_buffer| has been modified.
+    virtual void FillAudioBus(bool all_consumed, ShellAudioBus* audio_buffer,
+                              bool* silence) = 0;
 
    protected:
     ~RenderCallback() {}

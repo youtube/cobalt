@@ -129,7 +129,13 @@ bool SbPageUnmap(void* virtual_address, size_t size_bytes);
 // Same as SbUnmap(), but should be used only by dlmalloc to unmap pages
 // allocated via MapUntracked().
 bool SbPageUnmapUntracked(void* virtual_address, size_t size_bytes);
+
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+// Change the protection of |size_bytes| of physical pages, starting from
+// |virtual_address|, to |flags|, returning |true| on success.
+bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);
 #endif
+#endif  // SB_HAS(MMAP)
 
 // Returns the total amount, in bytes, of physical memory available. Should
 // always be a multiple of SB_MEMORY_PAGE_SIZE.

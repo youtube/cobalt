@@ -15,6 +15,8 @@
 #ifndef COBALT_SPEECH_MICROPHONE_MANAGER_H_
 #define COBALT_SPEECH_MICROPHONE_MANAGER_H_
 
+#include <string>
+
 #include "cobalt/speech/speech_configuration.h"
 
 #include "base/callback.h"
@@ -36,6 +38,10 @@ namespace speech {
 // a self-managed poller to fetch audio data from microphone.
 class MicrophoneManager {
  public:
+  enum class MicrophoneError {
+    kAudioCapture,
+    kAborted,
+  };
 #if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
@@ -43,7 +49,8 @@ class MicrophoneManager {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   typedef base::Callback<void(scoped_ptr<ShellAudioBus>)> DataReceivedCallback;
   typedef base::Callback<void(void)> CompletionCallback;
-  typedef base::Callback<void(const scoped_refptr<dom::Event>&)> ErrorCallback;
+  typedef base::Callback<void(MicrophoneError, const std::string&)>
+      ErrorCallback;
   typedef base::Callback<scoped_ptr<Microphone>(int)> MicrophoneCreator;
 
   MicrophoneManager(const DataReceivedCallback& data_received,

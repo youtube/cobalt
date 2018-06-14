@@ -608,33 +608,52 @@ void BrowserModule::RequestScreenshotToFile(
     const FilePath& path,
     loader::image::EncodedStaticImage::ImageFormat image_format,
     const base::Closure& done_callback) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK(screen_shot_writer_);
-  DCHECK(main_web_module_layer_);
-  base::optional<renderer::Submission> last_submission =
-      main_web_module_layer_->GetCurrentSubmission();
-  if (!last_submission) {
-    LOG(WARNING) << "Unable to find last submission.";
+
+  scoped_refptr<render_tree::Node> render_tree = GetLastSubmissionAnimated();
+  if (!render_tree) {
+    LOG(WARNING) << "Unable to get animated render tree";
     return;
   }
-  DCHECK(last_submission->render_tree);
+
   screen_shot_writer_->RequestScreenshotToFile(
-      image_format, path, last_submission->render_tree, done_callback);
+      image_format, path, render_tree, done_callback);
 }
 
 void BrowserModule::RequestScreenshotToBuffer(
     loader::image::EncodedStaticImage::ImageFormat image_format,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToBuffer()");
   DCHECK(screen_shot_writer_);
+
+  scoped_refptr<render_tree::Node> render_tree = GetLastSubmissionAnimated();
+  if (!render_tree) {
+    LOG(WARNING) << "Unable to get animated render tree";
+    return;
+  }
+
+  screen_shot_writer_->RequestScreenshotToMemory(
+      image_format, render_tree, screenshot_ready);
+}
+
+scoped_refptr<render_tree::Node> BrowserModule::GetLastSubmissionAnimated() {
   DCHECK(main_web_module_layer_);
   base::optional<renderer::Submission> last_submission =
       main_web_module_layer_->GetCurrentSubmission();
   if (!last_submission) {
     LOG(WARNING) << "Unable to find last submission.";
-    return;
+    return nullptr;
   }
   DCHECK(last_submission->render_tree);
-  screen_shot_writer_->RequestScreenshotToMemory(
-      image_format, last_submission->render_tree, screenshot_ready);
+
+  render_tree::animations::AnimateNode* animate_node =
+      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+          last_submission->render_tree.get());
+  render_tree::animations::AnimateNode::AnimateResults results =
+      animate_node->Apply(last_submission->time_offset);
+
+  return results.animated->source();
 }
 
 void BrowserModule::ProcessRenderTreeSubmissionQueue() {

@@ -37,11 +37,12 @@ namespace shared {
 namespace open_max {
 
 class VideoDecoder
-    : public starboard::shared::starboard::player::filter::VideoDecoder {
+    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
+      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
   typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
 
-  VideoDecoder(SbMediaVideoCodec video_codec, JobQueue* job_queue);
+  explicit VideoDecoder(SbMediaVideoCodec video_codec);
   ~VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -91,7 +92,6 @@ class VideoDecoder
   std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 
-  JobQueue* job_queue_;
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
 };
