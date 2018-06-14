@@ -28,6 +28,7 @@
 #include "cobalt/media/base/bind_to_current_loop.h"
 #include "cobalt/media/base/data_source.h"
 #include "cobalt/media/base/shell_media_platform.h"
+#include "cobalt/media/base/starboard_utils.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "starboard/types.h"
 
@@ -367,7 +368,16 @@ void ShellDemuxer::AllocateBuffer() {
   if (requested_au_) {
     size_t total_buffer_size = audio_demuxer_stream_->GetTotalBufferSize() +
                                video_demuxer_stream_->GetTotalBufferSize();
-    if (total_buffer_size >= COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET) {
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+    int progressive_budget = SbMediaGetProgressiveBufferBudget(
+        MediaVideoCodecToSbMediaVideoCodec(VideoConfig().codec()),
+        VideoConfig().visible_rect().size().width(),
+        VideoConfig().visible_rect().size().height(),
+        VideoConfig().webm_color_metadata().BitsPerChannel);
+#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+    int progressive_budget = COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET;
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+    if (total_buffer_size >= progressive_budget) {
       // Retry after 100 milliseconds.
       const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(100);
       blocking_thread_.message_loop()->PostDelayedTask(
