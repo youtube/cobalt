@@ -32,6 +32,9 @@
     'cobalt_enable_jit': 0,
 
     'linker_flags': [
+      # We don't wrap these symbols, but this ensures that they aren't
+      # linked in.
+      '-Wl,--wrap=eglGetDisplay',
     ],
     'linker_flags_gold': [
       '-O3',
