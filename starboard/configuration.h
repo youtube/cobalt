@@ -68,6 +68,16 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// API where functions are introduced to query at runtime for settings related
+// to the media buffer: SbMediaGetAudioBufferBudget, SbMediaGetBufferAlignment,
+// SbMediaGetBufferAllocationUnit,
+// SbMediaGetBufferGarbageCollectionDurationThreshold, SbMediaGetBufferPadding,
+// SbMediaGetBufferStorageType, SbMediaGetInitialBufferCapacity,
+// SbMediaGetMaxBufferCapacity, SbMediaGetProgressiveBufferBudget,
+// SbMediaGetVideoBufferBudget SbMediaIsBufferPoolAllocateOnDemand,
+// SbMediaIsBufferUsingMemoryPool.
+#define SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Add support for player_filter_tests.
 //   Require compiling 'player_filter_tests' test target sources on all
 //   platforms, including audio_decoder_tests.cc and video_decoder_test.cc. For
