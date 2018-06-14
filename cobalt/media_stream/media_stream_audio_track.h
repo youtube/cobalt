@@ -56,8 +56,6 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
 
   // Called by MediaStreamAudioSource.
   void Start(const base::Closure& stop_callback);
-  void UpdateTrackSettings(int sample_rate, int sample_size_in_bits,
-                           int channel_count);
 
   // Called by MediaStreamAudioDeliverer.
   void OnData(const ShellAudioBus& audio_bus, base::TimeTicks reference_time);
