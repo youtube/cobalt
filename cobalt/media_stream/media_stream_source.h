@@ -25,7 +25,7 @@ namespace media_stream {
 class MediaStreamSource : public base::RefCounted<MediaStreamSource> {
  public:
   MediaStreamSource() = default;
-  ~MediaStreamSource();
+  virtual ~MediaStreamSource();
 
   void StopSource();
   // Only one call back can be set at a time.  Stopping a source will
