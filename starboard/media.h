@@ -561,6 +561,179 @@ SB_EXPORT bool SbMediaIsOutputProtected();
 //   disabled.
 SB_EXPORT bool SbMediaSetOutputProtection(bool enabled);
 
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+// Value used when a video's resolution is not known.
+#define kSbMediaVideoResolutionDimensionInvalid 0
+// Value used when a video's bits per pixel is not known.
+#define kSbMediaBitsPerPixelInvalid 0
+
+typedef enum SbMediaBufferStorageType {
+  kSbMediaBufferStorageTypeMemory,
+  kSbMediaBufferStorageTypeFile,
+} SbMediaBufferStorageType;
+
+// The media buffer will be allocated using the returned alignment.  Set this
+// to a larger value may increase the memory consumption of media
+// buffers.
+//
+// |type|: the media type of the stream (audio or video).
+SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
+
+// When the media stack needs more memory to store media buffers, it will
+// allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
+// This can return 0, in which case the media stack will allocate extra memory
+// on demand.  When SbMediaGetInitialBufferCapacity and this function
+// both return 0, the media stack will allocate individual buffers directly
+// using SbMemory functions.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT int SbMediaGetBufferAllocationUnit(SbMediaVideoCodec codec,
+                                             int resolution_width,
+                                             int resolution_height,
+                                             int bits_per_pixel);
+
+// Specifies the maximum amount of memory used by audio buffers of media source
+// before triggering a garbage collection.  A large value will cause more memory
+// being used by audio buffers but will also make the app less likely to
+// re-download audio data.  Note that the app may experience
+// significant difficulty if this value is too low.
+SB_EXPORT int SbMediaGetAudioBufferBudget();
+
+// Specifies the duration threshold of media source garbage collection.  When
+// the accumulated duration in a source buffer exceeds this value, the media
+// source implementation will try to eject existing buffers from the cache. This
+// is usually triggered when the video being played has a simple content and the
+// encoded data is small.  In such case this can limit how much is allocated for
+// the book keeping data of the media buffers and avoid OOM of system heap. This
+// should return 170 seconds for most of the platforms.  But it can be further
+// reduced on systems with extremely low memory
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT SbTime
+SbMediaGetBufferGarbageCollectionDurationThreshold(SbMediaVideoCodec codec,
+                                                   int resolution_width,
+                                                   int resolution_height,
+                                                   int bits_per_pixel);
+
+// The amount of memory that will be used to store media buffers allocated
+// during system startup.  To allocate a large chunk at startup helps with
+// reducing fragmentation and can avoid failures to allocate incrementally. This
+// can return 0.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT int SbMediaGetInitialBufferCapacity(SbMediaVideoCodec codec,
+                                              int resolution_width,
+                                              int resolution_height,
+                                              int bits_per_pixel);
+
+// The maximum amount of memory that will be used to store media buffers. This
+// must be larger than sum of the video budget and audio budget.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
+                                          int resolution_width,
+                                          int resolution_height,
+                                          int bits_per_pixel);
+
+// Extra bytes allocated at the end of a media buffer to ensure that the buffer
+// can be use optimally by specific instructions like SIMD.  Set to 0 to remove
+// any padding.
+//
+// |type|: the media type of the stream (audio or video).
+SB_EXPORT int SbMediaGetBufferPadding(SbMediaType type);
+
+// When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
+// isn't zero, media buffers will be allocated using a memory pool.  Set the
+// following variable to true to allocate the media buffer pool memory on demand
+// and return all memory to the system when there is no media buffer allocated.
+// Setting the following value to false results in that Cobalt will allocate
+// SbMediaGetInitialBufferCapacity bytes for media buffer on startup and will
+// not release any media buffer memory back to the system even if there is no
+// media buffers allocated.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT bool SbMediaIsBufferPoolAllocateOnDemand(SbMediaVideoCodec codec,
+                                                   int resolution_width,
+                                                   int resolution_height,
+                                                   int bits_per_pixel);
+
+// The memory used when playing mp4 videos that is not in DASH format.  The
+// resolution of such videos shouldn't go beyond 1080p.  Its value should be
+// less than the sum of SbMediaGetAudioBufferBudget and
+// 'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
+                                                int resolution_width,
+                                                int resolution_height,
+                                                int bits_per_pixel);
+
+// Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
+// |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
+// stored in main memory allocated by SbMemory functions.  For file storage, the
+// media buffers will be stored in a temporary file in the system cache folder
+// acquired by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory".
+// Note that when its value is "file" the media stack will still allocate memory
+// to cache the the buffers in use.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT SbMediaBufferStorageType
+SbMediaGetBufferStorageType(SbMediaVideoCodec codec,
+                            int resolution_width,
+                            int resolution_height,
+                            int bits_per_pixel);
+
+// If SbMediaGetBufferUsingMemoryPool returns true, it indicates that
+// media buffer pools should be allocated on demand, as opposed to using
+// SbMemory* functions.
+SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
+
+// Specifies the maximum amount of memory used by video buffers of media source
+// before triggering a garbage collection.  A large value will cause more memory
+// being used by video buffers but will also make app less likely to
+// re-download video data.  Note that the app may experience
+// significant difficulty if this value is too low.
+//
+// |codec|: the video codec associated with the buffer.
+// |resolution_width|: the width of the video resolution.
+// |resolution_height|: the height of the video resolution.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
+//   HDR video.
+SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
+                                          int resolution_width,
+                                          int resolution_height,
+                                          int bits_per_pixel);
+
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
