@@ -34,8 +34,12 @@
     'cobalt_font_package': 'android_system',
 
     'cobalt_media_buffer_initial_capacity': 80 * 1024 * 1024,
-    'cobalt_media_buffer_max_capacity_1080p': 0,
-    'cobalt_media_buffer_max_capacity_4k': 0,
+    # TODO: refine this value to be more reasonable (the default value is
+    # 36 * 1024 * 1024).
+    'cobalt_media_buffer_max_capacity_1080p': 500 * 1024 * 1024,
+    # TODO: refine this value to be more reasonable (the default value is
+    # 64 * 1024 * 1024).
+    'cobalt_media_buffer_max_capacity_4k': 500 * 1024 * 1024,
 
 
     # On Android, we almost never want to actually terminate the process, so

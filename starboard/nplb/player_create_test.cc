@@ -298,7 +298,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   // TODO: turn this into a macro.
   // Perform a check to determine if new audio codecs have been added to the
   // SbMediaAudioCodec enum, but not the array |audio_codecs|. If the compiler
-  // warns about a missing case here, the value must be added to |audio_codecs|.
+  // warns about a missing case here, the value must be added to |kAudioCodecs|.
   SbMediaAudioCodec audio_codec = kAudioCodecs[0];
   switch (audio_codec) {
     case kAudioCodecs[0]:
@@ -319,7 +319,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   // TODO: turn this into a macro.
   // Perform a check to determine if new video codecs have been added to the
   // SbMediaVideoCodec enum, but not the array |video_codecs|. If the compiler
-  // warns about a missing case here, the value must be added to |video_codecs|.
+  // warns about a missing case here, the value must be added to |kVideoCodecs|.
   SbMediaVideoCodec video_codec = kVideoCodecs[0];
   switch (video_codec) {
     case kVideoCodecs[0]:
