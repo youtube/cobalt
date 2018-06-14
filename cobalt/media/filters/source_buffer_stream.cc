@@ -11,6 +11,7 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "cobalt/media/base/starboard_utils.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "cobalt/media/base/video_resolution.h"
 #include "cobalt/media/filters/source_buffer_range.h"
@@ -157,7 +158,12 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
       max_interbuffer_distance_(kNoTimestamp),
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+      memory_limit_(SbMediaGetAudioBufferBudget()) {
+#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
       memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+
   DCHECK(audio_config.IsValidConfig());
   audio_configs_.push_back(audio_config);
 }
@@ -176,9 +182,19 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
   video_configs_.push_back(video_config);
   VideoResolution resolution =
       GetVideoResolution(video_config.visible_rect().size());
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+  resolution_width_ = video_config.visible_rect().size().width();
+  resolution_height_ = video_config.visible_rect().size().height();
+  bits_per_pixel_ = video_config.webm_color_metadata().BitsPerChannel;
+  codec_ = MediaVideoCodecToSbMediaVideoCodec(video_config.codec());
+
+  memory_limit_ = SbMediaGetVideoBufferBudget(
+      codec_, resolution_width_, resolution_height_, bits_per_pixel_);
+#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
   memory_limit_ = resolution <= kVideoResolution1080p
                       ? COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
                       : COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
@@ -192,7 +208,13 @@ SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
       range_for_next_append_(ranges_.end()),
       last_output_buffer_timestamp_(kNoDecodeTimestamp()),
       max_interbuffer_distance_(kNoTimestamp),
-      memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {}
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+      memory_limit_(SbMediaGetAudioBufferBudget()) {
+}
+#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+      memory_limit_(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) {
+}
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
 
 SourceBufferStream::~SourceBufferStream() {
   while (!ranges_.empty()) {
@@ -735,10 +757,16 @@ bool SourceBufferStream::GarbageCollectIfNeeded(DecodeTimestamp media_time,
 
   size_t bytes_to_free = 0;
 
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+  int garbage_collection_duration_threshold_in_seconds =
+      SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
+#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+  int garbage_collection_duration_threshold_in_seconds =
+      COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS;
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
   // Check if we're under or at the memory/duration limit.
   const auto kGcDurationThresholdInMilliseconds =
-      COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS *
-      1000;
+      garbage_collection_duration_threshold_in_seconds * 1000;
 
   if (ranges_size + newDataSize > memory_limit_) {
     bytes_to_free = ranges_size + newDataSize - memory_limit_;
@@ -1373,8 +1401,9 @@ void SourceBufferStream::WarnIfTrackBufferExhaustionSkipsForward(
         << "Media append that overlapped current playback position caused time "
            "gap in playing "
         << GetStreamTypeName() << " stream because the next keyframe is "
-        << delta.InMilliseconds() << "ms beyond last overlapped frame. Media "
-                                     "may appear temporarily frozen.";
+        << delta.InMilliseconds()
+        << "ms beyond last overlapped frame. Media "
+           "may appear temporarily frozen.";
   }
 }
 
