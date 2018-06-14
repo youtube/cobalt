@@ -1889,21 +1889,25 @@ public final class StorageProto {
 
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
-    java.lang.String getId();
+    java.lang.String getSerializedOrigin();
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
     com.google.protobuf.ByteString
-        getIdBytes();
+        getSerializedOriginBytes();
 
     /**
      * <pre>
@@ -1944,74 +1948,84 @@ public final class StorageProto {
       // @@protoc_insertion_point(message_implements:cobalt.storage.LocalStorage)
       LocalStorageOrBuilder {
     private LocalStorage() {
-      id_ = "";
+      serializedOrigin_ = "";
       localStorageEntries_ = emptyProtobufList();
     }
     private int bitField0_;
-    public static final int ID_FIELD_NUMBER = 1;
-    private java.lang.String id_;
+    public static final int SERIALIZED_ORIGIN_FIELD_NUMBER = 1;
+    private java.lang.String serializedOrigin_;
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
-    public java.lang.String getId() {
-      return id_;
+    public java.lang.String getSerializedOrigin() {
+      return serializedOrigin_;
     }
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
     public com.google.protobuf.ByteString
-        getIdBytes() {
-      return com.google.protobuf.ByteString.copyFromUtf8(id_);
+        getSerializedOriginBytes() {
+      return com.google.protobuf.ByteString.copyFromUtf8(serializedOrigin_);
     }
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
-    private void setId(
+    private void setSerializedOrigin(
         java.lang.String value) {
       if (value == null) {
     throw new NullPointerException();
   }
   
-      id_ = value;
+      serializedOrigin_ = value;
     }
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
-    private void clearId() {
+    private void clearSerializedOrigin() {
       
-      id_ = getDefaultInstance().getId();
+      serializedOrigin_ = getDefaultInstance().getSerializedOrigin();
     }
     /**
      * <pre>
-     * A site id of the local storage.
+     * A serialzied origin as defined in:
+     * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+     * For example: "https://www.youtube.com"
      * </pre>
      *
-     * <code>optional string id = 1;</code>
+     * <code>optional string serialized_origin = 1;</code>
      */
-    private void setIdBytes(
+    private void setSerializedOriginBytes(
         com.google.protobuf.ByteString value) {
       if (value == null) {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
       
-      id_ = value.toStringUtf8();
+      serializedOrigin_ = value.toStringUtf8();
     }
 
     public static final int LOCAL_STORAGE_ENTRIES_FIELD_NUMBER = 2;
@@ -2192,8 +2206,8 @@ public final class StorageProto {
 
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-      if (!id_.isEmpty()) {
-        output.writeString(1, getId());
+      if (!serializedOrigin_.isEmpty()) {
+        output.writeString(1, getSerializedOrigin());
       }
       for (int i = 0; i < localStorageEntries_.size(); i++) {
         output.writeMessage(2, localStorageEntries_.get(i));
@@ -2205,9 +2219,9 @@ public final class StorageProto {
       if (size != -1) return size;
 
       size = 0;
-      if (!id_.isEmpty()) {
+      if (!serializedOrigin_.isEmpty()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(1, getId());
+          .computeStringSize(1, getSerializedOrigin());
       }
       for (int i = 0; i < localStorageEntries_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
@@ -2305,61 +2319,71 @@ public final class StorageProto {
 
       /**
        * <pre>
-       * A site id of the local storage.
+       * A serialzied origin as defined in:
+       * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+       * For example: "https://www.youtube.com"
        * </pre>
        *
-       * <code>optional string id = 1;</code>
+       * <code>optional string serialized_origin = 1;</code>
        */
-      public java.lang.String getId() {
-        return instance.getId();
+      public java.lang.String getSerializedOrigin() {
+        return instance.getSerializedOrigin();
       }
       /**
        * <pre>
-       * A site id of the local storage.
+       * A serialzied origin as defined in:
+       * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+       * For example: "https://www.youtube.com"
        * </pre>
        *
-       * <code>optional string id = 1;</code>
+       * <code>optional string serialized_origin = 1;</code>
        */
       public com.google.protobuf.ByteString
-          getIdBytes() {
-        return instance.getIdBytes();
+          getSerializedOriginBytes() {
+        return instance.getSerializedOriginBytes();
       }
       /**
        * <pre>
-       * A site id of the local storage.
+       * A serialzied origin as defined in:
+       * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+       * For example: "https://www.youtube.com"
        * </pre>
        *
-       * <code>optional string id = 1;</code>
+       * <code>optional string serialized_origin = 1;</code>
        */
-      public Builder setId(
+      public Builder setSerializedOrigin(
           java.lang.String value) {
         copyOnWrite();
-        instance.setId(value);
+        instance.setSerializedOrigin(value);
         return this;
       }
       /**
        * <pre>
-       * A site id of the local storage.
+       * A serialzied origin as defined in:
+       * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+       * For example: "https://www.youtube.com"
        * </pre>
        *
-       * <code>optional string id = 1;</code>
+       * <code>optional string serialized_origin = 1;</code>
        */
-      public Builder clearId() {
+      public Builder clearSerializedOrigin() {
         copyOnWrite();
-        instance.clearId();
+        instance.clearSerializedOrigin();
         return this;
       }
       /**
        * <pre>
-       * A site id of the local storage.
+       * A serialzied origin as defined in:
+       * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
+       * For example: "https://www.youtube.com"
        * </pre>
        *
-       * <code>optional string id = 1;</code>
+       * <code>optional string serialized_origin = 1;</code>
        */
-      public Builder setIdBytes(
+      public Builder setSerializedOriginBytes(
           com.google.protobuf.ByteString value) {
         copyOnWrite();
-        instance.setIdBytes(value);
+        instance.setSerializedOriginBytes(value);
         return this;
       }
 
@@ -2530,8 +2554,8 @@ public final class StorageProto {
         case VISIT: {
           Visitor visitor = (Visitor) arg0;
           dev.cobalt.storage.StorageProto.LocalStorage other = (dev.cobalt.storage.StorageProto.LocalStorage) arg1;
-          id_ = visitor.visitString(!id_.isEmpty(), id_,
-              !other.id_.isEmpty(), other.id_);
+          serializedOrigin_ = visitor.visitString(!serializedOrigin_.isEmpty(), serializedOrigin_,
+              !other.serializedOrigin_.isEmpty(), other.serializedOrigin_);
           localStorageEntries_= visitor.visitList(localStorageEntries_, other.localStorageEntries_);
           if (visitor == com.google.protobuf.GeneratedMessageLite.MergeFromVisitor
               .INSTANCE) {
@@ -2561,7 +2585,7 @@ public final class StorageProto {
                 case 10: {
                   String s = input.readStringRequireUtf8();
 
-                  id_ = s;
+                  serializedOrigin_ = s;
                   break;
                 }
                 case 18: {
