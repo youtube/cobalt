@@ -20,6 +20,7 @@
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/animations/animate_node.h"
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/font.h"
@@ -38,6 +39,7 @@ using cobalt::render_tree::animations::AnimateNode;
 using cobalt::render_tree::Brush;
 using cobalt::render_tree::BrushVisitor;
 using cobalt::render_tree::ColorRGBA;
+using cobalt::render_tree::ClearRectNode;
 using cobalt::render_tree::CompositionNode;
 using cobalt::render_tree::FilterNode;
 using cobalt::render_tree::Font;
@@ -57,6 +59,7 @@ using cobalt::render_tree::TextNode;
 class MockNodeVisitor : public NodeVisitor {
  public:
   MOCK_METHOD1(Visit, void(AnimateNode* animate));
+  MOCK_METHOD1(Visit, void(ClearRectNode* clear_rect));
   MOCK_METHOD1(Visit, void(CompositionNode* composition));
   MOCK_METHOD1(Visit, void(FilterNode* image));
   MOCK_METHOD1(Visit, void(ImageNode* image));
@@ -67,6 +70,14 @@ class MockNodeVisitor : public NodeVisitor {
   MOCK_METHOD1(Visit, void(RectShadowNode* rect_shadow));
   MOCK_METHOD1(Visit, void(TextNode* text));
 };
+
+TEST(NodeVisitorTest, VisitsClearRect) {
+  scoped_refptr<ClearRectNode> clear_rect(
+      new ClearRectNode(cobalt::math::RectF(), ColorRGBA(0, 0, 0, 0)));
+  MockNodeVisitor mock_visitor;
+  EXPECT_CALL(mock_visitor, Visit(clear_rect.get()));
+  clear_rect->Accept(&mock_visitor);
+}
 
 TEST(NodeVisitorTest, VisitsComposition) {
   CompositionNode::Builder builder;

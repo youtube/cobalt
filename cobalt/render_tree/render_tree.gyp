@@ -33,6 +33,8 @@
         'brush_visitor.h',
         'child_iterator.h',
         'color_rgba.h',
+        'clear_rect_node.cc',
+        'clear_rect_node.h',
         'composition_node.cc',
         'composition_node.h',
         'dump_render_tree_to_string.cc',

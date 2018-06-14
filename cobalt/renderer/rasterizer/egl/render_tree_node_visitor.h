@@ -22,6 +22,7 @@
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/animations/animate_node.h"
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -70,6 +71,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::animations::AnimateNode* /* animate */) override {
     NOTREACHED();
   }
+  void Visit(render_tree::ClearRectNode* clear_rect_node) override;
   void Visit(render_tree::CompositionNode* composition_node) override;
   void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) override;
   void Visit(render_tree::MatrixTransformNode* transform_node) override;

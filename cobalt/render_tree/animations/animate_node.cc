@@ -70,6 +70,7 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
         depends_on_time_expiry_(-base::TimeDelta::Max()) {}
 
   void Visit(animations::AnimateNode* animate) override;
+  void Visit(ClearRectNode* clear_rect) override { VisitNode(clear_rect); }
   void Visit(CompositionNode* composition) override { VisitNode(composition); }
   void Visit(FilterNode* text) override { VisitNode(text); }
   void Visit(ImageNode* image) override { VisitNode(image); }
@@ -243,6 +244,7 @@ class AnimateNode::BoundsVisitor : public NodeVisitor {
     NOTREACHED();
   }
   // Immediately switch to a templated visitor function.
+  void Visit(ClearRectNode* clear_rect) override { VisitNode(clear_rect); }
   void Visit(CompositionNode* composition) override { VisitNode(composition); }
   void Visit(FilterNode* text) override { VisitNode(text); }
   void Visit(ImageNode* image) override { VisitNode(image); }
@@ -397,6 +399,7 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
     NOTREACHED();
   }
   // Immediately switch to a templated visitor function.
+  void Visit(ClearRectNode* clear_rect) override { VisitNode(clear_rect); }
   void Visit(CompositionNode* composition) override { VisitNode(composition); }
   void Visit(FilterNode* text) override { VisitNode(text); }
   void Visit(ImageNode* image) override { VisitNode(image); }
