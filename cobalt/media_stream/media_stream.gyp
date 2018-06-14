@@ -26,6 +26,8 @@
         'media_stream.h',
         'media_stream_audio_deliverer.h',
         'media_stream_audio_sink.h',
+        'media_stream_audio_source.cc',
+        'media_stream_audio_source.h',
         'media_stream_audio_track.cc',
         'media_stream_audio_track.h',
         'media_stream_source.cc',
