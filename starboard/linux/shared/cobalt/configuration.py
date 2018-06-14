@@ -54,7 +54,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
         test_filter.TestFilter(
-            'web_platform_tests', 'cors/WebPlatformTest.Run/7', 'devel')
+            'web_platform_tests', 'cors/WebPlatformTest.Run/7')
     ])
     return filters
 
