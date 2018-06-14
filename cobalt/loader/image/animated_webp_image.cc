@@ -21,6 +21,7 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/render_tree/brush.h"
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/node.h"
@@ -252,19 +253,26 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
     if (current_canvas_) {
       builder.AddChild(new render_tree::ImageNode(current_canvas_));
     } else {
-      scoped_ptr<render_tree::Brush> brush(
-          new render_tree::SolidColorBrush(background_color_));
-      builder.AddChild(
-          new render_tree::RectNode(math::RectF(size_), brush.Pass()));
+      builder.AddChild(new render_tree::ClearRectNode(math::RectF(size_),
+                                                      background_color_));
     }
     // Dispose previous frame by adding a solid rectangle.
     if (should_dispose_previous_frame_to_background_) {
-      scoped_ptr<render_tree::Brush> brush(
-          new render_tree::SolidColorBrush(background_color_));
-      builder.AddChild(
-          new render_tree::RectNode(previous_frame_rect_, brush.Pass()));
+      builder.AddChild(new render_tree::ClearRectNode(previous_frame_rect_,
+                                                      background_color_));
     }
+
     // Add the current frame.
+    if (webp_iterator.blend_method == WEBP_MUX_NO_BLEND) {
+      // If blending is disabled, first clear the image region to transparent
+      // before rendering.
+      builder.AddChild(new render_tree::ClearRectNode(
+          math::RectF(
+              math::PointF(webp_iterator.x_offset, webp_iterator.y_offset),
+              next_frame_image->GetSize()),
+          render_tree::ColorRGBA(0, 0, 0, 0)));
+    }
+
     builder.AddChild(new render_tree::ImageNode(
         next_frame_image,
         math::Vector2dF(webp_iterator.x_offset, webp_iterator.y_offset)));
