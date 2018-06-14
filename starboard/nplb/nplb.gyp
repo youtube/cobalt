@@ -125,6 +125,9 @@
         'log_raw_dump_stack_test.cc',
         'log_raw_test.cc',
         'log_test.cc',
+        # TODO: Separate functions tested by media buffer test into multiple
+        # files.
+        'media_buffer_test.cc',
         'memory_align_to_page_size_test.cc',
         'memory_allocate_aligned_test.cc',
         'memory_allocate_test.cc',
