@@ -22,16 +22,19 @@
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/media.h"
 #include "starboard/mutex.h"
 
 namespace cobalt {
 namespace media {
 
+#if SB_API_VERSION < SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
 #if COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 || \
     COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0
 #define COBALT_MEDIA_BUFFER_USING_MEMORY_POOL 1
 #endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY == 0 &&
         // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT == 0
+#endif  // SB_API_VERSION < SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
 
 class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
@@ -45,7 +48,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   void UpdateVideoConfig(const VideoDecoderConfig& video_config);
 
  private:
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
+    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
   class ReuseAllocator : public nb::BidirectionalFitReuseAllocator {
    public:
     ReuseAllocator(Allocator* fallback_allocator, std::size_t initial_capacity,
@@ -64,7 +68,15 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   starboard::Mutex mutex_;
   nb::StarboardMemoryAllocator fallback_allocator_;
   starboard::scoped_ptr<ReuseAllocator> reuse_allocator_;
-#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  bool using_memory_pool_ = false;
+#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+  SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
+  int resolution_width_ = kSbMediaVideoResolutionDimensionInvalid;
+  int resolution_height_ = kSbMediaVideoResolutionDimensionInvalid;
+  int bits_per_pixel_ = kSbMediaBitsPerPixelInvalid;
+#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >=
+        // SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
 };
 
 }  // namespace media
