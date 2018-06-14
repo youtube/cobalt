@@ -18,6 +18,7 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/optional.h"
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -93,6 +94,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::animations::AnimateNode* animate_node) override {
     NOTREACHED();
   }
+  void Visit(render_tree::ClearRectNode* clear_rect_node) override;
   void Visit(render_tree::CompositionNode* composition_node) override;
   void Visit(render_tree::FilterNode* filter_node) override;
   void Visit(render_tree::ImageNode* image_node) override;

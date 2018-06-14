@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDER_TREE_CHILD_ITERATOR_H_
 #define COBALT_RENDER_TREE_CHILD_ITERATOR_H_
 
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -29,6 +30,7 @@
 namespace cobalt {
 namespace render_tree {
 
+class ClearRectNode;
 class ImageNode;
 class PunchThroughVideoNode;
 class RectNode;

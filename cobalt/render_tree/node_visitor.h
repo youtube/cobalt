@@ -18,6 +18,7 @@
 namespace cobalt {
 namespace render_tree {
 
+class ClearRectNode;
 class CompositionNode;
 class FilterNode;
 class ImageNode;
@@ -38,6 +39,7 @@ class AnimateNode;
 class NodeVisitor {
  public:
   virtual void Visit(animations::AnimateNode* animate) = 0;
+  virtual void Visit(ClearRectNode* clear_rect) = 0;
   virtual void Visit(CompositionNode* composition) = 0;
   virtual void Visit(FilterNode* text) = 0;
   virtual void Visit(ImageNode* image) = 0;

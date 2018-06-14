@@ -16,6 +16,7 @@
 
 #include <sstream>
 
+#include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
 #include "cobalt/render_tree/image_node.h"
@@ -43,6 +44,7 @@ class DebugTreePrinter : public NodeVisitor {
   DebugTreePrinter() : indent_(0) {}
 
   void Visit(animations::AnimateNode* /* animate */) override { NOTREACHED(); }
+  void Visit(ClearRectNode* clear_rect) override;
   void Visit(CompositionNode* composition) override;
   void Visit(FilterNode* text) override;
   void Visit(ImageNode* image) override;
@@ -83,6 +85,11 @@ class DebugTreePrinter : public NodeVisitor {
   // Our current indent when printing lines of information.
   int indent_;
 };
+
+void DebugTreePrinter::Visit(ClearRectNode* clear_rect) {
+  AddNamedNodeString(clear_rect, "ClearRectNode");
+  result_ << "\n";
+}
 
 void DebugTreePrinter::Visit(CompositionNode* composition) {
   AddNamedNodeString(composition, "CompositionNode");
