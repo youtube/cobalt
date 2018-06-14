@@ -33,14 +33,6 @@ void MediaStreamAudioTrack::Start(const base::Closure& stop_callback) {
   stop_callback_ = stop_callback;
 }
 
-void MediaStreamAudioTrack::UpdateTrackSettings(int sample_rate,
-                                                int sample_size_in_bits,
-                                                int channel_count) {
-  settings_.set_sample_rate(sample_rate);
-  settings_.set_sample_size(sample_size_in_bits);
-  settings_.set_channel_count(channel_count);
-}
-
 void MediaStreamAudioTrack::OnData(const ShellAudioBus& audio_bus,
                                    base::TimeTicks reference_time) {
   deliverer_.OnData(audio_bus, reference_time);
