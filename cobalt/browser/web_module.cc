@@ -682,7 +682,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
       data.options.enable_image_animations,
-      web_module_stat_tracker_->layout_stat_tracker()));
+      web_module_stat_tracker_->layout_stat_tracker(),
+      data.options.clear_window_with_background_color));
   DCHECK(layout_manager_);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -1290,7 +1291,8 @@ WebModule::Options::Options()
       video_playback_rate_multiplier(1.f),
       enable_image_animations(true),
       should_retain_remote_typeface_cache_on_suspend(false),
-      can_fetch_cache(false) {}
+      can_fetch_cache(false),
+      clear_window_with_background_color(true) {}
 
 WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,

@@ -179,6 +179,10 @@ DebugConsole::DebugConsole(
   web_module_options.csp_insecure_allowed_token =
       dom::CspDelegateFactory::GetInsecureAllowedToken();
 
+  // Since the debug console is intended to be overlaid on top of the main
+  // web module contents, make sure blending is enabled for its background.
+  web_module_options.clear_window_with_background_color = false;
+
   // Attach a DebugHub object to the "debugHub" Window attribute for this
   // web module so that JavaScript within this WebModule has access to DebugHub
   // functionality.

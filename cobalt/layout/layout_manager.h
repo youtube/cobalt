@@ -73,7 +73,8 @@ class LayoutManager {
                 const int dom_max_element_depth,
                 const float layout_refresh_rate, const std::string& language,
                 bool enable_image_animations,
-                LayoutStatTracker* layout_stat_tracker);
+                LayoutStatTracker* layout_stat_tracker,
+                bool clear_window_with_background_color);
   ~LayoutManager();
 
   void Suspend();

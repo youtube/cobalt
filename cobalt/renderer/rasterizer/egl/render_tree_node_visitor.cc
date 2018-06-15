@@ -169,12 +169,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::ClearRectNode* clear_rect_node) {
     return;
   }
 
-  const render_tree::ClearRectNode::Builder& data = clear_rect_node->data();
-
-  scoped_ptr<DrawObject> draw(
-      new DrawPolyColor(graphics_state_, draw_state_, data.rect, data.color));
-  AddDraw(draw.Pass(), clear_rect_node->GetBounds(),
-          DrawObjectManager::kBlendNone);
+  DCHECK_EQ(clear_rect_node->data().rect, clear_rect_node->GetBounds());
+  AddClear(clear_rect_node->data().rect, clear_rect_node->data().color);
 }
 
 void RenderTreeNodeVisitor::Visit(
@@ -450,9 +446,8 @@ void RenderTreeNodeVisitor::Visit(
   math::Rect mapped_rect = math::Rect::RoundFromRectF(mapped_rect_float);
   data.set_bounds_cb.Run(mapped_rect);
 
-  scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-      draw_state_, data.rect, kTransparentBlack));
-  AddDraw(draw.Pass(), video_node->GetBounds(), DrawObjectManager::kBlendNone);
+  DCHECK_EQ(data.rect, video_node->GetBounds());
+  AddClear(data.rect, kTransparentBlack);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -896,6 +891,27 @@ void RenderTreeNodeVisitor::AddExternalDraw(scoped_ptr<DrawObject> object,
     last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
         DrawObjectManager::kBlendExternal, draw_type, render_target_,
         world_bounds);
+  }
+}
+
+void RenderTreeNodeVisitor::AddClear(const math::RectF& rect,
+                                     const render_tree::ColorRGBA& color) {
+  // Check to see if we're simply trying to clear a non-transformed rectangle
+  // on the screen with no filters or effects applied, and if so, issue a
+  // clear command instead of a more general draw command, to give the GL
+  // driver a better chance to optimize.
+  if (!draw_state_.rounded_scissor_corners &&
+      draw_state_.transform.IsIdentity() && draw_state_.opacity == 1.0f) {
+    math::Rect old_scissor = draw_state_.scissor;
+    draw_state_.scissor.Intersect(math::Rect::RoundFromRectF(rect));
+    scoped_ptr<DrawObject> draw_clear(
+        new DrawClear(graphics_state_, draw_state_, color));
+    AddDraw(draw_clear.Pass(), rect, DrawObjectManager::kBlendNone);
+    draw_state_.scissor = old_scissor;
+  } else {
+    scoped_ptr<DrawObject> draw(
+        new DrawPolyColor(graphics_state_, draw_state_, rect, color));
+    AddDraw(draw.Pass(), rect, DrawObjectManager::kBlendNone);
   }
 }
 

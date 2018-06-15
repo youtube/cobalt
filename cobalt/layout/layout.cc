@@ -54,7 +54,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
     LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
-    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
+    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block,
+    bool clear_window_with_background_color) {
   TRACE_EVENT0("cobalt::layout", "UpdateComputedStylesAndLayoutBoxTree()");
   // Layout-related cleanup is performed on the UsedStyleProvider in this
   // object's destructor.
@@ -74,6 +75,10 @@ void UpdateComputedStylesAndLayoutBoxTree(
           *document->initial_computed_style_data(), document,
           used_style_provider, layout_stat_tracker);
   *initial_containing_block = initial_containing_block_creation_results.box;
+
+  if (clear_window_with_background_color) {
+    (*initial_containing_block)->set_blend_background_color(false);
+  }
 
   // Generate boxes.
   if (document->html()) {
