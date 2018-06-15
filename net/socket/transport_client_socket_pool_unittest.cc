@@ -1123,6 +1123,10 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   host_resolver_->set_synchronous_mode(false);
 }
 
+// Disable this test since the TransportConnectJob::DoResolveHostComplete
+// customization causes the IPv4 address to be tried first, thus breaking
+// the assumptions of this test.
+#ifndef STARBOARD
 // Test the case of the IPv6 address stalling, and falling back to the IPv4
 // socket which finishes first.
 TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv4FinishesFirst) {
@@ -1164,7 +1168,12 @@ TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv4FinishesFirst) {
   EXPECT_EQ(kIPv4AddressSize, endpoint.address().size());
   EXPECT_EQ(2, client_socket_factory_.allocation_count());
 }
+#endif  // STARBOARD
 
+// Disable this test since the TransportConnectJob::DoResolveHostComplete
+// customization causes the IPv4 address to be tried first, thus breaking
+// the assumptions of this test.
+#ifndef STARBOARD
 // Test the case of the IPv6 address being slow, thus falling back to trying to
 // connect to the IPv4 address, but having the connect to the IPv6 address
 // finish first.
@@ -1209,6 +1218,7 @@ TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv6FinishesFirst) {
   EXPECT_EQ(kIPv6AddressSize, endpoint.address().size());
   EXPECT_EQ(2, client_socket_factory_.allocation_count());
 }
+#endif  // STARBOARD
 
 TEST_F(TransportClientSocketPoolTest, IPv6NoIPv4AddressesToFallbackTo) {
   // Create a pool without backup jobs.
