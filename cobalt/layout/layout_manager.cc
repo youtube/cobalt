@@ -47,7 +47,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
        const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
        int dom_max_element_depth, float layout_refresh_rate,
        const std::string& language, bool enable_image_animations,
-       LayoutStatTracker* layout_stat_tracker);
+       LayoutStatTracker* layout_stat_tracker,
+       bool clear_window_with_background_color);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -110,6 +111,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
 
   bool suspended_;
 
+  const bool clear_window_with_background_color_;
+
   DISALLOW_COPY_AND_ASSIGN(Impl);
 };
 
@@ -162,7 +165,8 @@ LayoutManager::Impl::Impl(
     const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
     int dom_max_element_depth, float layout_refresh_rate,
     const std::string& language, bool enable_image_animations,
-    LayoutStatTracker* layout_stat_tracker)
+    LayoutStatTracker* layout_stat_tracker,
+    bool clear_window_with_background_color)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(new UsedStyleProvider(
@@ -180,7 +184,8 @@ LayoutManager::Impl::Impl(
       dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
       layout_stat_tracker_(layout_stat_tracker),
-      suspended_(false) {
+      suspended_(false),
+      clear_window_with_background_color_(clear_window_with_background_color) {
   window_->document()->AddObserver(this);
   window_->SetSynchronousLayoutCallback(
       base::Bind(&Impl::DoSynchronousLayout, base::Unretained(this)));
@@ -275,7 +280,7 @@ void LayoutManager::Impl::DoSynchronousLayout() {
         locale_, window_->document(), dom_max_element_depth_,
         used_style_provider_.get(), layout_stat_tracker_,
         line_break_iterator_.get(), character_break_iterator_.get(),
-        &initial_containing_block_);
+        &initial_containing_block_, clear_window_with_background_color_);
     are_computed_styles_and_box_tree_dirty_ = false;
   }
 }
@@ -434,10 +439,12 @@ LayoutManager::LayoutManager(
     const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
     const int dom_max_element_depth, const float layout_refresh_rate,
     const std::string& language, bool enable_image_animations,
-    LayoutStatTracker* layout_stat_tracker)
+    LayoutStatTracker* layout_stat_tracker,
+    bool clear_window_with_background_color)
     : impl_(new Impl(name, window, on_render_tree_produced, on_layout,
                      layout_trigger, dom_max_element_depth, layout_refresh_rate,
-                     language, enable_image_animations, layout_stat_tracker)) {}
+                     language, enable_image_animations, layout_stat_tracker,
+                     clear_window_with_background_color)) {}
 
 LayoutManager::~LayoutManager() {}
 

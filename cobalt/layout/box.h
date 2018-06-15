@@ -579,6 +579,15 @@ class Box : public base::RefCounted<Box> {
   bool ApplyTransformActionToCoordinates(
       TransformAction action, std::vector<math::Vector2dF>* coordinates) const;
 
+  // Intended to be set to false on the initial containing block, this indicates
+  // that when the background color is rendered, it will be blended with what,
+  // is behind it (only relevant when the color is not opaque). As an example,
+  // if set to false, a background color of transparent will replace any
+  // previous pixel values instead of being a no-op.
+  void set_blend_background_color(bool value) {
+    blend_background_color_ = value;
+  }
+
  protected:
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
@@ -717,6 +726,10 @@ class Box : public base::RefCounted<Box> {
       bool* /*is_placement_requirement_met*/, bool* /*is_placed*/,
       LayoutUnit* /*placed_offset*/) {}
 
+  // Get the rectangle for which gives the region that background-color
+  // and background-image would populate.
+  math::RectF GetBackgroundRect();
+
   // Helper methods used by |RenderAndAnimate|.
   void RenderAndAnimateBorder(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
@@ -831,6 +844,11 @@ class Box : public base::RefCounted<Box> {
   // same stacking context. Smaller values indicate boxes that are drawn
   // earlier.
   size_t draw_order_position_in_stacking_context_;
+
+  // Determines whether the background should be rendered as a clear (i.e. with
+  // blending disabled).  It is expected that this may only be set on the
+  // initial containing block.
+  bool blend_background_color_ = false;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
