@@ -171,6 +171,16 @@ int TransportConnectJob::DoResolveHost() {
 
 int TransportConnectJob::DoResolveHostComplete(int result) {
   if (result == OK) {
+#ifdef STARBOARD
+    // Preferentially connect to an IPv4 address first, if available. Some
+    // hosts may have IPv6 addresses to which we can connect, but the read
+    // may still fail if the network is not properly configured. The existing
+    // code has a fallback mechanism to try different IPs in |addresses_|
+    // when connection fails. However, in this case, a connection can be made
+    // with the IPv6 address, but the read fails.
+    MakeAddressListStartWithIPv4(&addresses_);
+#endif
+
     // Invoke callback, and abort if it fails.
     if (!params_->host_resolution_callback().is_null())
       result = params_->host_resolution_callback().Run(addresses_, net_log());
