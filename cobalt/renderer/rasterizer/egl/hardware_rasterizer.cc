@@ -79,7 +79,7 @@ class HardwareRasterizer::Impl {
 
   void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree,
                      backend::RenderTargetEGL* render_target,
-                     const math::Rect& content_rect);
+                     const math::Rect& content_rect, bool clear_first);
 
   sk_sp<SkSurface> CreateFallbackSurface(
       bool force_deterministic_rendering,
@@ -157,14 +157,16 @@ void HardwareRasterizer::Impl::Submit(
 
   // Update only the dirty pixels if the render target contents are preserved
   // between frames.
+  bool clear_first = options.flags & Rasterizer::kSubmitFlags_Clear;
   math::Rect content_rect(render_target->GetSize());
-  if (options.dirty && render_target_egl->ContentWasPreservedAfterSwap()) {
+  if (!clear_first && options.dirty &&
+      render_target_egl->ContentWasPreservedAfterSwap()) {
     content_rect = *options.dirty;
   }
 
   offscreen_target_manager_->Update(render_target->GetSize());
 
-  RasterizeTree(render_tree, render_target_egl, content_rect);
+  RasterizeTree(render_tree, render_target_egl, content_rect, clear_first);
 
   graphics_context_->SwapBuffers(render_target_egl);
 
@@ -230,8 +232,8 @@ void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
 
 void HardwareRasterizer::Impl::RasterizeTree(
     const scoped_refptr<render_tree::Node>& render_tree,
-    backend::RenderTargetEGL* render_target,
-    const math::Rect& content_rect) {
+    backend::RenderTargetEGL* render_target, const math::Rect& content_rect,
+    bool clear_first) {
   DrawObjectManager draw_object_manager(
       base::Bind(&HardwareRasterizer::Impl::ResetFallbackContextDuringFrame,
                  base::Unretained(this)),
@@ -270,7 +272,9 @@ void HardwareRasterizer::Impl::RasterizeTree(
                             render_target->GetSize().height());
   graphics_state_->Scissor(content_rect.x(), content_rect.y(),
                            content_rect.width(), content_rect.height());
-  graphics_state_->Clear();
+  if (clear_first) {
+    graphics_state_->Clear();
+  }
 
   {
     TRACE_EVENT0("cobalt::renderer", "OnscreenRasterize");

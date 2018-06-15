@@ -226,6 +226,12 @@ class WebModule : public LifecycleObserver {
     // functionality in Cobalt.
     dom::ScreenshotManager::ProvideScreenshotFunctionCallback
         provide_screenshot_function;
+
+    // If true, the initial containing block's background color will be applied
+    // as a clear, i.e. with blending disabled.  This means that a background
+    // color of transparent will replace existing pixel values, effectively
+    // clearing the screen.
+    bool clear_window_with_background_color;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
