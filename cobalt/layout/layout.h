@@ -46,7 +46,8 @@ void UpdateComputedStylesAndLayoutBoxTree(
     LayoutStatTracker* layout_stat_tracker,
     icu::BreakIterator* line_break_iterator,
     icu::BreakIterator* character_break_iterator,
-    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
+    scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block,
+    bool clear_window_with_background_color);
 
 // Generates the render tree (along with corresponding animations) of the box
 // tree contained within the provided containing block.

@@ -106,6 +106,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void AddExternalDraw(scoped_ptr<DrawObject> object,
                        const math::RectF& world_bounds, base::TypeId draw_type);
 
+  // Helper function to clear the specified |rect| with the specified |color|,
+  // with blending disabled.
+  void AddClear(const math::RectF& rect, const render_tree::ColorRGBA& color);
+
   GraphicsState* graphics_state_;
   DrawObjectManager* draw_object_manager_;
   OffscreenTargetManager* offscreen_target_manager_;
