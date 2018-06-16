@@ -31,6 +31,8 @@ namespace widevine {
 // be called from any threads.
 class WidevineTimer : public ::widevine::Cdm::ITimer {
  public:
+  ~WidevineTimer() override;
+
   // Call |client->onTimerExpired(context)| after |delay_in_milliseconds|.
   void setTimeout(int64_t delay_in_milliseconds,
                   IClient* client,
@@ -50,7 +52,7 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   Mutex mutex_;
   SbThread thread_ = kSbThreadInvalid;
   JobQueue* job_queue_ = NULL;
-  std::map<IClient*, JobQueue::JobOwner> active_clients_;
+  std::map<IClient*, JobQueue::JobOwner*> active_clients_;
 };
 
 }  // namespace widevine
