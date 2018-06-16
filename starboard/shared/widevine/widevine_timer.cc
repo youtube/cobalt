@@ -29,6 +29,12 @@ struct ThreadParam {
 
 }  // namespace
 
+WidevineTimer::~WidevineTimer() {
+  for (auto iter : active_clients_) {
+    delete iter.second;
+  }
+}
+
 void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                                IClient* client,
                                void* context) {
@@ -50,11 +56,12 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
 
   auto iter = active_clients_.find(client);
   if (iter == active_clients_.end()) {
-    iter = active_clients_.emplace(client, job_queue_).first;
+    iter = active_clients_.emplace(client, new JobQueue::JobOwner(job_queue_))
+               .first;
   }
 
-  iter->second.Schedule([=]() { client->onTimerExpired(context); },
-                        delay_in_milliseconds * kSbTimeMillisecond);
+  iter->second->Schedule([=]() { client->onTimerExpired(context); },
+                         delay_in_milliseconds * kSbTimeMillisecond);
 }
 
 void WidevineTimer::cancel(IClient* client) {
@@ -112,7 +119,8 @@ void WidevineTimer::CancelAllJobsOnClient(
 
   ScopedLock scoped_lock(mutex_);
   auto iter = active_clients_.find(client);
-  iter->second.CancelPendingJobs();
+  iter->second->CancelPendingJobs();
+  delete iter->second;
   active_clients_.erase(iter);
   condition_variable->Signal();
 }
