@@ -8,6 +8,12 @@ version previous to it.
 
 **NOTE: Starboard versions 3 and below are no longer supported.**
 
+## Experimental Version
+
+A description of all changes currently in the experimental Starboard version
+can be found in the comments of the "Experimental Feature Defines" section of
+[configuration.h](configuration.h).
+
 ## Version 10
 
 ### Add support for multiple versions of ffmpeg
