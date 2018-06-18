@@ -68,38 +68,60 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where compiling player_filter_tests is required.
+// Add support for player_filter_tests.
+//   Require compiling 'player_filter_tests' test target sources on all
+//   platforms, including audio_decoder_tests.cc and video_decoder_test.cc. For
+//   this Starboard API version and beyond, SB_HAS(PLAYER_FILTER_TESTS) is true.
 #define SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where SbMediaTime is deprecated (for SbTime).
+// Deprecate SbMediaTime for SbTime.
+//   SbMediaTime, which is 90khz based, was used to represent timestamps and
+//   duration related to SbPlayer.  As most of the platforms represent video
+//   related times in milliseconds or microseconds, this causes a lot of
+//   otherwise unnecessary conversion.  Now all timestamps and duration related
+//   to SbPlayer are represented by SbTime directly.
 #define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version where supporting player error messages is required.
+// Add support for player error messages.
 #define SB_PLAYER_ERROR_MESSAGE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version for supporting system-level closed caption settings.
+// Add support for system-level closed caption settings.
+//   SbAccessibilityGetCaptionSettings() and SbAccessibilitySetCaptionsEnabled()
+//   along with a number of supporting structure definitions have been added
+//   to accessibility.h.  Platform need to define SB_HAS_CAPTIONS to 1 in order
+//   to enable the interface.
 #define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version where supporting audioless video playback is required.
+// Add support for audioless video playback.
+//   SbPlayer can be created with only a video track, without any accompanying
+//   audio track.  The SbPlayer implementation must now be able to play back
+//   a sole video track.
 #define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version where supporting audio only video playback is required.
+// Add support for audio only video playback.
+//   SbPlayer can be created with only an audio track, without any accompanying
+//   video track.  The SbPlayer implementation must now be able to play back
+//   a sole audio track.
 #define SB_AUDIO_ONLY_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version where calling SbPlayerCreate mutiple times (without
-// calling SbPlayerDestroy in between) must not crash, and likewise calling
-// SbAudioSinkCreate multiple times (without calling SbAudioSinkDestroy in
-// between) must not crash. SbPlayerCreate may return kSbPlayerInvalid if
-// additional players are not supported. SbAudioSinkCreate may return
-// kSbAudionSinkInvalid if additional audio sinks are not supported.
+// Require support for creating multiple SbPlayer instances.
+// Formerly, there were no tests ensuring that calling SbPlayerCreate multiple
+// times (without calling SbPlayerDestroy in between) would not crash, and
+// likewise no tests ensuring that calling SbAudioSinkCreate multiple times
+// (without calling SbAudioSinkDestroy in between) would not crash.
+// SbPlayerCreate may return kSbPlayerInvalid if additional players are not
+// supported. SbAudioSinkCreate may return kSbAudionSinkInvalid if additional
+// audio sinks are not supported.
 #define SB_MULTI_PLAYER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where passing NULL callbacks to SbPlayerCreate or
-// SbPlayerCreateWithUrl or SbDrmCreateSystem must result in invalid return
-// (|kSbPlayerInvalid| or |kSbDrmSystemInvalid| appropriately).
+// Require stricter error handling on calls some SbPlayer* calls.
+// Specifically, SbPlayerCreate,  SbPlayerCreateWithUrl and SbDrmCreateSystem
+// must result in invalid return values (e.g. |kSbPlayerInvalid| or
+// |kSbDrmSystemInvalid| appropriately).
 #define SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where the following DRM refinements are available.
+// Refine the DRM API.
+// Specifically, the following changes have been made:
 //   1. Add a callback to SbDrmCreateSystem that allows a DRM system to
 //      signal that a DRM session has closed from the Starboard layer.
 //      Previously, DRM sessions could only be closed from the application
@@ -110,30 +132,30 @@
 //      individualization, license renewal, and license release.
 #define SB_DRM_REFINEMENT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where kSbSystemPathSourceDirectory is removed.
+// Remove kSbSystemPathSourceDirectory.
 //   Test code looking for its static input files should instead use the `test`
 //   subdirectory in kSbSystemPathContentDirectory.
 #define SB_PATH_SOURCE_DIR_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where kSbSystemPropertyPlatformUuid is removed.
+// Remove kSbSystemPropertyPlatformUuid.
 //   This property was only ever used in platforms using `in_app_dial`.
 //   The only usage of this system property was replaced with a
 //   self-contained mechanism.
 #define SB_PROPERTY_UUID_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where kSbMediaAudioSampleTypeInt16 is deprecated.
+// Deprecate kSbMediaAudioSampleTypeInt16.
 //   SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES has to be defined to continue
 //   support int16 audio samples after this version.
 #define SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where SbSystemSupportsResume() is supported.
+// Add support for SbSystemSupportsResume().
 //   Platforms doesn't need to resume after suspend can return false in
 //   SbSystemSupportsResume() to free up the resource used by resume after
 //   suspend.
 //   Please see the comment in system.h for more details.
 #define SB_ALLOW_DISABLE_RESUME_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Minimum API version for supporting the kSbKeyMicrophone keycode
+// Support the kSbKeyMicrophone keycode.
 #define SB_MICROPHONE_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Add support for new decode target type,
@@ -143,25 +165,27 @@
 #define SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
-// API version where SbAudioSinkConsumeFramesFunc() can optional take an
-//   absolute timestamp to indicate when the frames are consumed.
+// Optionally provide absolute timestamp to SbAudioSinkConsumeFramesFunc().
+//   SbAudioSinkConsumeFramesFunc() can now optionally accept an absolute
+//   timestamp parameter that indicates when the frames are consumed.
 //   Platforms that have the |frames_consumed| updated asynchronously can have
 //   more accurate audio time reporting with this extra parameter.
 //   Please see the comment in audio_sink.h for more details.
 #define SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where SbAtomic8 type and memory access functions for it are
-//   introduced. They are required to be implemented if a platform wants to use
-//   V8 as its JavaScript engine.
+// Add support for the SbAtomic8 type and memory access functions.
 #define SB_INTRODUCE_ATOMIC8_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where SbMemoryProtect was introduced.  Allows memory
-//   permissions to be changed with `SbMemoryProtect` after they are mapped
-//   with `SbMemoryMap`.
+// Introduce SbMemoryProtect().
+//   SbMemoryProtect() allows memory access permissions to be changed after they
+//   have been mapped with `SbMemoryMap`.
 #define SB_MEMORY_PROTECT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// API version where SbInputData allows propagating a |timestamp| for the input
-//   event to the dom Event.
+// Add a |timestamp| field to SbInputData.
+//   This allows platforms to provide more precise information on exactly when
+//   an input event was generated.  Note that if
+//   SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp) returns false,
+//   the |timestamp| field of SbInputData should be ignored by applications.
 #define SB_INPUT_TIMESTAMP_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
