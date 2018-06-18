@@ -188,7 +188,7 @@ void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
 
 void TexturedMeshRenderer::RenderQuad(const Image& image,
                                       const glm::mat4& mvp_transform) {
-  RenderVBO(GetQuadVBO(), 4, GL_TRIANGLE_STRIP, image, mvp_transform);
+  RenderVBO(GetQuadVBO(), 6, GL_TRIANGLES, image, mvp_transform);
 }
 
 uint32 TexturedMeshRenderer::GetQuadVBO() {
@@ -202,11 +202,10 @@ uint32 TexturedMeshRenderer::GetQuadVBO() {
       float tex_coord_u;
       float tex_coord_v;
     };
-    const QuadVertex kBlitQuadVerts[4] = {
-        {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f},
-        {1.0f, -1.0f, 0.0f, 1.0f, 0.0f},
-        {-1.0f, 1.0f, 0.0f, 0.0f, 1.0f},
-        {1.0f, 1.0, 0.0f, 1.0f, 1.0f},
+    const QuadVertex kBlitQuadVerts[6] = {
+        {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f}, {1.0f, -1.0f, 0.0f, 1.0f, 0.0f},
+        {-1.0f, 1.0f, 0.0f, 0.0f, 1.0f},  {-1.0f, 1.0f, 0.0f, 0.0f, 1.0f},
+        {1.0f, -1.0f, 0.0f, 1.0f, 0.0f},  {1.0f, 1.0, 0.0f, 1.0f, 1.0f},
     };
 
     quad_vbo_ = 0;
