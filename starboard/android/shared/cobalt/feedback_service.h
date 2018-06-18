@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "cobalt/dom/array_buffer.h"
+#include "cobalt/script/array_buffer.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
@@ -33,7 +33,7 @@ class FeedbackService : public ::cobalt::script::Wrappable {
 
   void SendFeedback(const script::ValueHandleHolder& product_specific_data,
                     const std::string& category_tag,
-                    const scoped_refptr<dom::ArrayBuffer>& screenshot_data,
+                    const script::Handle<script::ArrayBuffer>& screenshot_data,
                     script::ExceptionState* exception_state);
 
   FeedbackService() = default;

@@ -24,15 +24,15 @@ void FeedbackService::SendFeedback(
     const script::ValueHandleHolder& product_specific_data,
     const std::string& category_tag,
     script::ExceptionState* exception_state) {
-  static const scoped_refptr<dom::ArrayBuffer> kEmptyArrayBuffer;
-  SendFeedback(product_specific_data, category_tag, kEmptyArrayBuffer,
+  const script::Handle<script::ArrayBuffer> empty_array_buffer;
+  SendFeedback(product_specific_data, category_tag, empty_array_buffer,
                exception_state);
 }
 
 void FeedbackService::SendFeedback(
     const script::ValueHandleHolder& product_specific_data,
     const std::string& category_tag,
-    const scoped_refptr<dom::ArrayBuffer>& screenshot_data,
+    const script::Handle<script::ArrayBuffer>& screenshot_data,
     script::ExceptionState* exception_state) {
   using starboard::android::shared::ScopedLocalJavaRef;
   using starboard::android::shared::JniEnvExt;
@@ -66,10 +66,10 @@ void FeedbackService::SendFeedback(
 
   // Convert the screenshot to a byte array in JNI.
   ScopedLocalJavaRef<jbyteArray> screenshot_byte_array;
-  if (screenshot_data) {
+  if (!screenshot_data.IsEmpty()) {
     screenshot_byte_array.Reset(env->NewByteArrayFromRaw(
-        reinterpret_cast<const jbyte*>(screenshot_data->data()),
-        screenshot_data->byte_length()));
+        reinterpret_cast<const jbyte*>(screenshot_data->Data()),
+        screenshot_data->ByteLength()));
     env->AbortOnException();
   }
 
