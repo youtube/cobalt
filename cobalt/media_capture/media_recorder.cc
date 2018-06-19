@@ -19,9 +19,14 @@
 
 #include "base/message_loop.h"
 #include "base/string_piece.h"
+#include "base/string_util_starboard.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/media_capture/blob_event.h"
+#include "cobalt/media_stream/audio_parameters.h"
+#include "cobalt/media_stream/media_stream_audio_track.h"
 #include "cobalt/media_stream/media_stream_track.h"
 #include "cobalt/media_stream/media_track_settings.h"
 
@@ -31,13 +36,21 @@ namespace {
 const char kLinear16MimeType[] = "audio/L16";
 
 const int32 kMinimumTimeSliceInMilliseconds = 1;
+const int32 kSchedulingLatencyBufferMilliseconds = 20;
 
-// Read Microphone input every few milliseconds, so that
-// the input buffer doesn't fill up.
-const int32 kDefaultMicrophoneReadThresholdMilliseconds = 50;
-
-const double kSchedulingLatencyBufferSeconds = 0.20;
-
+// Returns the number of bytes needed to store |time_span| duration
+// of audio that has a bitrate of |bits_per_second|.
+int64 GetRecommendedBufferSizeInBytes(base::TimeDelta time_span,
+                                      int64 bits_per_second) {
+  DCHECK_GE(time_span, base::TimeDelta::FromSeconds(0));
+  // Increase buffer slightly to account for the fact that scheduling our
+  // tasks might be a little bit noisy.
+  double buffer_window_span_seconds = time_span.InSecondsF();
+  int64 recommended_buffer_size = static_cast<int64>(
+      std::ceil(buffer_window_span_seconds * bits_per_second / 8));
+  DCHECK_GT(recommended_buffer_size, 0);
+  return recommended_buffer_size;
+}
 }  // namespace
 
 namespace cobalt {
@@ -45,6 +58,7 @@ namespace media_capture {
 
 void MediaRecorder::Start(int32 timeslice,
                           script::ExceptionState* exception_state) {
+  DCHECK(stream_);
   DCHECK(thread_checker_.CalledOnValidThread());
   // Following the spec at
   // https://www.w3.org/TR/mediastream-recording/#mediarecorder-methods:
@@ -56,7 +70,7 @@ void MediaRecorder::Start(int32 timeslice,
   // Step #3
   if (recording_state_ != kRecordingStateInactive) {
     dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
-                             "Internal error: Unable to get DOM settings.",
+                             "Recording state must be inactive.",
                              exception_state);
     return;
   }
@@ -71,30 +85,33 @@ void MediaRecorder::Start(int32 timeslice,
   // imposed by the UA, whichever is greater, start gathering data into a new
   // Blob blob, and queue a task, using the DOM manipulation task source, that
   // fires a blob event named |dataavailable| at target.
-
-  // We need to drain the media frequently, so try to read atleast once every
-  // |read_frequency_| interval.
-  int32 effective_time_slice_milliseconds =
-      std::min(kDefaultMicrophoneReadThresholdMilliseconds, timeslice);
   // Avoid rounding down to 0 milliseconds.
-  effective_time_slice_milliseconds = std::max(
-      kMinimumTimeSliceInMilliseconds, effective_time_slice_milliseconds);
-  read_frequency_ =
-      base::TimeDelta::FromMilliseconds(effective_time_slice_milliseconds);
+  int effective_time_slice_milliseconds =
+      std::max(kMinimumTimeSliceInMilliseconds, timeslice);
+  DCHECK_GT(effective_time_slice_milliseconds, 0);
 
   // This is the frequency we will callback to Javascript.
-  callback_frequency_ = base::TimeDelta::FromMilliseconds(timeslice);
+  timeslice_ =
+      base::TimeDelta::FromMilliseconds(effective_time_slice_milliseconds);
 
-  int64 buffer_size_hint = GetRecommendedBufferSize(callback_frequency_);
-  recorded_buffer_.HintTypicalSize(static_cast<size_t>(buffer_size_hint));
+  slice_origin_timestamp_ = base::TimeTicks::Now();
 
-  ResetLastCallbackTime();
-  ReadStreamAndDoCallback();
+  script::Sequence<scoped_refptr<media_stream::MediaStreamTrack>>&
+      audio_tracks = stream_->GetAudioTracks();
 
-  stream_reader_callback_.Reset(
-      base::Bind(&MediaRecorder::ReadStreamAndDoCallback, this));
-  MessageLoop::current()->PostTask(FROM_HERE,
-                                   stream_reader_callback_.callback());
+  size_t number_audio_tracks = audio_tracks.size();
+  if (number_audio_tracks == 0) {
+    LOG(WARNING) << "Audio Tracks are empty.";
+    return;
+  }
+  LOG_IF(WARNING, number_audio_tracks > 1)
+      << "Only recording the first audio track.";
+
+  auto* first_audio_track =
+      base::polymorphic_downcast<media_stream::MediaStreamAudioTrack*>(
+          audio_tracks.begin()->get());
+  DCHECK(first_audio_track);
+  first_audio_track->AddSink(this);
 
   // Step #5.5, not needed.
 
@@ -103,159 +120,147 @@ void MediaRecorder::Start(int32 timeslice,
 
 void MediaRecorder::Stop(script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  UNREFERENCED_PARAMETER(exception_state);
-  NOTREACHED();
+
+  if (recording_state_ == kRecordingStateInactive) {
+    dom::DOMException::Raise(dom::DOMException::kInvalidStateErr,
+                             "Recording state must NOT be inactive.",
+                             exception_state);
+    return;
+  }
+  StopRecording();
+}
+
+void MediaRecorder::OnData(const ShellAudioBus& audio_bus,
+                           base::TimeTicks reference_time) {
+  // The source is always int16 data from the microphone.
+  DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
+  DCHECK_EQ(audio_bus.channels(), 1);
+  const char* data =
+      reinterpret_cast<const char*>(audio_bus.interleaved_data());
+  size_t data_size = audio_bus.GetSampleSizeInBytes() * audio_bus.frames();
+  base::TimeTicks now = base::TimeTicks::Now();
+  bool last_in_slice = now > slice_origin_timestamp_ + timeslice_;
+
+  if (last_in_slice) {
+    DLOG(INFO) << "Slice finished.";
+    // The next slice's timestamp is now.
+    slice_origin_timestamp_ = now;
+  }
+
+  WriteData(data, data_size, last_in_slice, reference_time);
+}
+
+void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
+  bits_per_second_ = params.GetBitsPerSecond();
+
+  // Add some padding to the end of the buffer to account for jitter in
+  // scheduling, etc.
+  // This allows us to potentially avoid unnecessary resizing.
+  base::TimeDelta recommended_time_slice =
+      timeslice_ +
+      base::TimeDelta::FromMilliseconds(kSchedulingLatencyBufferMilliseconds);
+  int64 buffer_size_hint =
+      GetRecommendedBufferSizeInBytes(recommended_time_slice, bits_per_second_);
+  buffer_.reserve(static_cast<size_t>(buffer_size_hint));
 }
 
 MediaRecorder::MediaRecorder(
     script::EnvironmentSettings* settings,
     const scoped_refptr<media_stream::MediaStream>& stream,
     const MediaRecorderOptions& options)
-    : settings_(settings), stream_(stream) {
+    : settings_(settings),
+      stream_(stream),
+      javascript_message_loop_(base::MessageLoopProxy::current()) {
   // Per W3C spec, the default value of this is platform-specific,
   // so Linear16 was chosen. Spec url:
   // https://www.w3.org/TR/mediastream-recording/#dom-mediarecorder-mediarecorder
   mime_type_ =
       options.has_mime_type() ? options.mime_type() : kLinear16MimeType;
+
+  blob_options_.set_type(mime_type_);
 }
 
-void MediaRecorder::ReadStreamAndDoCallback() {
+void MediaRecorder::StopRecording() {
   DCHECK(stream_);
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_NE(recording_state_, kRecordingStateInactive);
 
-  size_t number_audio_tracks = stream_->GetAudioTracks().size();
+  recording_state_ = kRecordingStateInactive;
+
+  script::Sequence<scoped_refptr<media_stream::MediaStreamTrack>>&
+      audio_tracks = stream_->GetAudioTracks();
+  size_t number_audio_tracks = audio_tracks.size();
   if (number_audio_tracks == 0) {
     LOG(WARNING) << "Audio Tracks are empty.";
     return;
   }
-  LOG_IF(WARNING, number_audio_tracks > 1)
-      << "Only recording the first audio track.";
+  auto* first_audio_track =
+      base::polymorphic_downcast<media_stream::MediaStreamAudioTrack*>(
+          audio_tracks.begin()->get());
+  DCHECK(first_audio_track);
 
-  base::TimeTicks current_time = base::TimeTicks::Now();
-  base::TimeDelta time_difference = last_callback_time_ - current_time;
+  first_audio_track->RemoveSink(this);
 
-  int64 recommended_buffer_size = GetRecommendedBufferSize(time_difference);
-  base::StringPiece writeable_buffer = recorded_buffer_.GetWriteCursor(
-      static_cast<size_t>(recommended_buffer_size));
+  WriteData(nullptr, 0, true, base::TimeTicks::Now());
 
-  media_stream::MediaStreamTrack* track =
-      stream_->GetAudioTracks().begin()->get();
-
-  int64 bytes_read = track->Read(writeable_buffer);
-
-  if (bytes_read < 0) {
-    // An error occured, so do not post another read.
-    DoOnDataCallback();
-    return;
-  }
-
-  DCHECK_LE(bytes_read, static_cast<int64>(writeable_buffer.size()));
-  recorded_buffer_.IncrementCursorPosition(static_cast<size_t>(bytes_read));
-
-  if (current_time >= GetNextCallbackTime()) {
-    DoOnDataCallback();
-    ResetLastCallbackTime();
-  }
-
-  // Note that GetNextCallbackTime() should not be cached, since
-  // ResetLastCallbackTime() above can change its value.
-  base::TimeDelta time_until_expiration = GetNextCallbackTime() - current_time;
-
-  // Consider the scenario where |time_until_expiration| is 4ms, and
-  // read_frequency is 10ms.  In this case, just do the read 4 milliseconds
-  // later, and then do the callback.
-  base::TimeDelta delay_until_next_read =
-      std::min(time_until_expiration, read_frequency_);
-
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, stream_reader_callback_.callback(), delay_until_next_read);
+  timeslice_ = base::TimeDelta::FromSeconds(0);
 }
 
-void MediaRecorder::DoOnDataCallback() {
+void MediaRecorder::DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
+                                     base::TimeTicks timecode) {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MediaRecorder::DoOnDataCallback, this,
+                              base::Passed(&data), timecode));
+    return;
+  }
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (recorded_buffer_.GetWrittenChunk().empty()) {
+  DCHECK(data);
+
+  if (data->empty()) {
     DLOG(WARNING) << "No data was recorded.";
     return;
   }
 
-  base::StringPiece written_data = recorded_buffer_.GetWrittenChunk();
-  DCHECK_LE(written_data.size(), kuint32max);
-  uint32 number_of_written_bytes = static_cast<uint32>(written_data.size());
+  DCHECK_LE(data->size(), kuint32max);
 
   auto array_buffer = make_scoped_refptr(new dom::ArrayBuffer(
-      settings_, reinterpret_cast<const uint8*>(written_data.data()),
-      number_of_written_bytes));
-  recorded_buffer_.Reset();
+      settings_, data->data(), static_cast<uint32>(data->size())));
+  data->clear();
 
-  auto blob = make_scoped_refptr(new dom::Blob(settings_, array_buffer));
-  // TODO: Post a task to fire BlobEvent (constructed out of |blob| and
-  // |array_buffer| at target.
+  auto blob =
+      make_scoped_refptr(new dom::Blob(settings_, array_buffer, blob_options_));
+
+  this->DispatchEvent(new media_capture::BlobEvent(
+      base::Tokens::dataavailable(), blob, timecode.ToInternalValue()));
 }
 
-void MediaRecorder::ResetLastCallbackTime() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  last_callback_time_ = base::TimeTicks::Now();
-}
+void MediaRecorder::WriteData(const char* data, size_t length,
+                              bool last_in_slice, base::TimeTicks timecode) {
+  buffer_.insert(buffer_.end(), data, data + length);
 
-void MediaRecorder::CalculateStreamBitrate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  media_stream::MediaStreamTrack* track =
-      stream_->GetAudioTracks().begin()->get();
-  const media_stream::MediaTrackSettings& settings = track->GetSettings();
-  DCHECK_GT(settings.sample_rate(), 0);
-  DCHECK_GT(settings.sample_size(), 0);
-  DCHECK_GT(settings.channel_count(), 0);
-  bitrate_bps_ = settings.sample_rate() * settings.sample_size() *
-                 settings.channel_count();
-  DCHECK_GT(bitrate_bps_, 0);
-}
+  if (!last_in_slice) {
+    return;
+  }
 
-int64 MediaRecorder::GetRecommendedBufferSize(base::TimeDelta time_span) const {
-  DCHECK_GE(time_span, base::TimeDelta::FromSeconds(0));
-  // Increase buffer slightly to account for the fact that scheduling our
-  // tasks might be a little bit noisy.
-  double buffer_window_span_seconds =
-      time_span.InSecondsF() + kSchedulingLatencyBufferSeconds;
-  int64 recommended_buffer_size =
-      static_cast<int64>(std::ceil(buffer_window_span_seconds * bitrate_bps_));
-  DCHECK_GT(recommended_buffer_size, 0);
-  return recommended_buffer_size;
+  auto buffer_to_send(make_scoped_ptr(new std::vector<uint8>()));
+  buffer_to_send->swap(buffer_);
+  // Use the previous buffer size as a proxy for the next buffer size.
+  buffer_.reserve(buffer_to_send->size());
+  DoOnDataCallback(buffer_to_send.Pass(), timecode);
 }
 
 bool MediaRecorder::IsTypeSupported(const base::StringPiece mime_type) {
-  return mime_type == kLinear16MimeType;
-}
-
-base::StringPiece MediaRecorder::Buffer::GetWriteCursor(
-    size_t number_of_bytes) {
-  size_t minimim_required_size = current_position_ + number_of_bytes;
-  if (minimim_required_size > buffer_.size()) {
-    buffer_.resize(minimim_required_size);
+  base::StringPiece mime_type_container = mime_type;
+  size_t pos = mime_type.find_first_of(';');
+  if (pos != base::StringPiece::npos) {
+    mime_type_container = base::StringPiece(mime_type.begin(), pos);
   }
-  return base::StringPiece(reinterpret_cast<const char*>(buffer_.data()),
-                           number_of_bytes);
-}
-
-void MediaRecorder::Buffer::IncrementCursorPosition(size_t number_of_bytes) {
-  size_t new_position = current_position_ + number_of_bytes;
-  DCHECK_LE(new_position, buffer_.size());
-  current_position_ = new_position;
-}
-
-base::StringPiece MediaRecorder::Buffer::GetWrittenChunk() const {
-  return base::StringPiece(reinterpret_cast<const char*>(buffer_.data()),
-                           current_position_);
-}
-
-void MediaRecorder::Buffer::Reset() {
-  current_position_ = 0;
-  buffer_.resize(0);
-}
-
-void MediaRecorder::Buffer::HintTypicalSize(size_t number_of_bytes) {
-  // Cap the hint size to be 1 Megabyte.
-  const size_t kMaxBufferSizeHintInBytes = 1024 * 1024;
-  buffer_.reserve(std::min(number_of_bytes, kMaxBufferSizeHintInBytes));
+  const base::StringPiece linear16_mime_type(kLinear16MimeType);
+  auto match_iterator =
+      std::search(mime_type_container.begin(), mime_type_container.end(),
+                  linear16_mime_type.begin(), linear16_mime_type.end(),
+                  base::CaseInsensitiveCompareASCII<char>());
+  return match_iterator == mime_type_container.begin();
 }
 
 }  // namespace media_capture
