@@ -29,26 +29,23 @@
     }
   }
 
-  const v8_PromiseBase = global.Promise;
+  const PromiseBase = global.Promise;
   const _promiseResolve = v8_createPrivateSymbol('[[Resolve]]');
   const _promiseReject = v8_createPrivateSymbol('[[Reject]]');
 
-  function v8_Promise() {
-    var that = this;
-    v8_PromiseBase.call(this, function(resolve, reject) {
-      that[_promiseResolve] = resolve;
-      that[_promiseReject] = reject;
-    });
-  }
-
-  v8_Promise.prototype = v8_PromiseBase.prototype;
-
   function v8_createPromise() {
-    return new v8_Promise();
+    let tempResolve, tempReject;
+    let promise = new PromiseBase(function(resolve, reject) {
+      tempResolve = resolve;
+      tempReject = reject;
+    });
+    promise[_promiseResolve] = tempResolve;
+    promise[_promiseReject] = tempReject;
+    return promise;
   }
 
   function v8_isPromise(obj) {
-    return obj instanceof v8_Promise;
+    return obj instanceof PromiseBase;
   }
 
   function v8_resolvePromise(promise, value) {
