@@ -364,12 +364,12 @@ class NetLogServer {
   }
 
   void Close() {
+    socket_listener_.reset();
     if (writer_thread_) {
       writer_thread_->Join();
       writer_thread_.reset(nullptr);
       Flush();  // One last flush to the socket.
     }
-    socket_listener_.reset();
     ScopedLock lock(socket_mutex_);
     client_socket_.reset();
     listen_socket_.reset();
