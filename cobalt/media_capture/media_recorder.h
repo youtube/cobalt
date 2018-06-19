@@ -20,14 +20,18 @@
 
 #include "base/basictypes.h"
 #include "base/cancelable_callback.h"
+#include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "base/time.h"
+#include "cobalt/dom/blob_property_bag.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_capture/recording_state.h"
+#include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream.h"
+#include "cobalt/media_stream/media_stream_audio_sink.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 
@@ -36,7 +40,8 @@ namespace media_capture {
 
 // This class represents a MediaRecorder, and implements the specification at:
 // https://www.w3.org/TR/mediastream-recording/#mediarecorder-api
-class MediaRecorder : public dom::EventTarget {
+class MediaRecorder : public media_stream::MediaStreamAudioSink,
+                      public dom::EventTarget {
  public:
   // Constructors.
   explicit MediaRecorder(
@@ -79,54 +84,45 @@ class MediaRecorder : public dom::EventTarget {
     SetAttributeEventListener(base::Tokens::dataavailable(), event_listener);
   }
 
+  // MediaStreamAudioSink overrides.
+  void OnData(const ShellAudioBus& audio_bus,
+              base::TimeTicks reference_time) override;
+  void OnSetFormat(const media_stream::AudioParameters& params) override;
+
   DEFINE_WRAPPABLE_TYPE(MediaRecorder);
+
+  void TraceMembers(script::Tracer* tracer) override {
+    EventTarget::TraceMembers(tracer);
+    tracer->Trace(stream_);
+  }
 
  private:
   MediaRecorder(const MediaRecorder&) = delete;
   MediaRecorder& operator=(const MediaRecorder&) = delete;
 
-  class Buffer {
-   public:
-    base::StringPiece GetWriteCursor(size_t number_of_bytes);
-    void IncrementCursorPosition(size_t number_of_bytes);
-    base::StringPiece GetWrittenChunk() const;
-    void Reset();
-    void HintTypicalSize(size_t number_of_bytes);
-
-   private:
-    size_t current_position_ = 0;
-    std::vector<uint8> buffer_;
-  };
-
-  void ReadStreamAndDoCallback();
-  void DoOnDataCallback();
-  void ScheduleOnDataAvailableCallback();
-  void ResetLastCallbackTime();
-  void CalculateStreamBitrate();
-  int64 GetRecommendedBufferSize(base::TimeDelta time_span) const;
-  base::TimeTicks GetNextCallbackTime() const {
-    return last_callback_time_ + callback_frequency_;
-  }
+  void StopRecording();
+  void DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
+                        base::TimeTicks timecode);
+  void WriteData(const char* data, size_t length, bool last_in_slice,
+                 base::TimeTicks timecode);
 
   base::ThreadChecker thread_checker_;
+  std::vector<uint8> buffer_;
 
   RecordingState recording_state_ = kRecordingStateInactive;
 
   script::EnvironmentSettings* settings_;
   std::string mime_type_;
+  dom::BlobPropertyBag blob_options_;
   scoped_refptr<media_stream::MediaStream> stream_;
 
-  base::TimeTicks last_callback_time_;
-  // Frequency we will callback to Javascript.
-  base::TimeDelta callback_frequency_;
+  scoped_refptr<base::MessageLoopProxy> javascript_message_loop_;
+  base::TimeDelta timeslice_;
+  // Only used to determine if |timeslice_| amount of time has
+  // been passed since the slice was started.
+  base::TimeTicks slice_origin_timestamp_;
 
-  // Frequency we will read the stream.
-  base::TimeDelta read_frequency_;
-
-  int64 bitrate_bps_;
-  Buffer recorded_buffer_;
-
-  base::CancelableClosure stream_reader_callback_;
+  int64 bits_per_second_ = 0;
 };
 
 }  // namespace media_capture
