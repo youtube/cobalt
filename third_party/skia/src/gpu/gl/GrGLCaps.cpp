@@ -554,6 +554,16 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
     // Disable scratch texture reuse on Mali and Adreno devices
     fReuseScratchTextures = kARM_GrGLVendor != ctxInfo.vendor();
 
+#if defined(COBALT)
+    // A crash issue was found on the Nexus Player within the PowerVR GLES
+    // driver when uploading new data to reuse scratch textures, so disable
+    // scratch texture reuse on that device.
+    if (kImagination_GrGLVendor == ctxInfo.vendor() &&
+        kPowerVRRogue_GrGLRenderer == ctxInfo.renderer()) {
+        fReuseScratchTextures = false;
+    }
+#endif
+
 #if 0
     fReuseScratchBuffers = kARM_GrGLVendor != ctxInfo.vendor() &&
                            kQualcomm_GrGLVendor != ctxInfo.vendor();
