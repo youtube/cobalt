@@ -1,0 +1,21 @@
+{
+  "name": "Cobalt Extension",
+  "version": "1.0",
+  "description": "Run cobalt through chrome.",
+  "manifest_version": 2,
+  "permissions":
+    ["tabs", "webRequest", "webRequestBlocking", "*://*/"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_title": "Cobalt"
+  },
+  "web_accessible_resources": [
+    "cobaltService.js"
+  ],
+  "icons": {
+    "1024": "logo/cobalt.logo@1024x.png"
+  }
+}
