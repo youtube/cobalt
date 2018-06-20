@@ -22,9 +22,11 @@ import gyp_utils
 import starboard.android.shared.sdk_utils as sdk_utils
 from starboard.build.platform_configuration import PlatformConfiguration
 from starboard.tools.testing import test_filter
+from subprocess import call
 
-_APK_BUILD_ID_FILE = os.path.join(
-    os.path.dirname(__file__), os.path.pardir, 'apk', 'build.id')
+_APK_DIR = os.path.join(os.path.dirname(__file__), os.path.pardir, 'apk')
+_APK_BUILD_ID_FILE = os.path.join(_APK_DIR, 'build.id')
+_COBALT_GRADLE = os.path.join(_APK_DIR, 'cobalt-gradle.sh')
 
 
 class AndroidConfiguration(PlatformConfiguration):
@@ -83,6 +85,7 @@ class AndroidConfiguration(PlatformConfiguration):
 
   def GetEnvironmentVariables(self):
     sdk_utils.InstallSdkIfNeeded(self.android_abi)
+    call([_COBALT_GRADLE, '--reset'])
     with open(_APK_BUILD_ID_FILE, 'w') as build_id_file:
       build_id_file.write('{}'.format(gyp_utils.GetBuildNumber()))
 
