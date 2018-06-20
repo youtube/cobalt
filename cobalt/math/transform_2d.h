@@ -21,20 +21,28 @@
 namespace cobalt {
 namespace math {
 
-cobalt::math::Matrix3F TranslateMatrix(float x, float y);
-inline cobalt::math::Matrix3F TranslateMatrix(
-    const math::Vector2dF& translate) {
+// Get a transform matrix with only the specified translation.
+Matrix3F TranslateMatrix(float x, float y);
+inline Matrix3F TranslateMatrix(const Vector2dF& translate) {
   return TranslateMatrix(translate.x(), translate.y());
 }
 
-cobalt::math::Matrix3F ScaleMatrix(float x_scale, float y_scale);
-inline cobalt::math::Matrix3F ScaleMatrix(const math::Vector2dF& scale) {
+// Get a transform matrix with only the specified scaling.
+Matrix3F ScaleMatrix(float x_scale, float y_scale);
+inline Matrix3F ScaleMatrix(const Vector2dF& scale) {
   return ScaleMatrix(scale.x(), scale.y());
 }
 
-cobalt::math::Matrix3F ScaleMatrix(float scale);
-cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians);
+// Get a transform matrix with only the specified uniform scaling.
+Matrix3F ScaleMatrix(float scale);
 
+// Get a transform matrix with only the specified rotation.
+Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians);
+
+// Get the x-axis and y-axis scale factors of the given transform.
+Vector2dF GetScale2d(const Matrix3F& transform);
+
+// Determine if the given transform only scales and/or translates.
 bool IsOnlyScaleAndTranslate(const Matrix3F& transform);
 
 }  // namespace math

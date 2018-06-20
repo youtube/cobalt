@@ -115,9 +115,6 @@ class DrawObject {
   DrawObject();
   explicit DrawObject(const BaseState& base_state);
 
-  // Extract the scale vector from this object's transform.
-  math::Vector2dF GetScale() const;
-
   // Remove scale from the transform, and return the scale vector.
   math::Vector2dF RemoveScaleFromTransform();
 
