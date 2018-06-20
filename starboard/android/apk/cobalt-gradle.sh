@@ -14,16 +14,36 @@
 # limitations under the License.
 
 # Helper to set ANDROID_HOME and ANDROID_NDK_HOME from command-line args
-# before running gradlew.
+# before running gradlew, as specified by leading --sdk and --ndk args.
+#
+# Also resets hung gradle builds when specified by a leading --reset arg.
 
 while [ "$1" ]; do
   case "$1" in
     --sdk) shift; ANDROID_HOME="$1" ;;
     --ndk) shift; ANDROID_NDK_HOME="$1" ;;
+    --reset) RESET_GRADLE=1 ;;
     *) break ;;
   esac
   shift
 done
+
+# Cleanup Gradle from previous builds. Used as part of the GYP step.
+if [[ "${RESET_GRADLE}" ]]; then
+  echo "Cleaning Gradle deamons and locks."
+  # If there are any lock files, kill any hung processes still waiting on them.
+  if compgen -G '/var/lock/cobalt-gradle.lock.*'; then
+    lsof -t /var/lock/cobalt-gradle.lock.* | xargs -rt kill
+  fi
+  # Stop the Gradle daemon (if still running).
+  $(dirname "$0")/gradlew --stop
+  # Remove Gradle caches (including its lock files).
+  rm -rf ${HOME}/.gradle/caches
+  # Show the gradle version, which will cause it to download if needed.
+  $(dirname "$0")/gradlew -v
+  # After resetting, exit without running any gradle tasks.
+  exit
+fi
 
 export ANDROID_HOME
 export ANDROID_NDK_HOME
