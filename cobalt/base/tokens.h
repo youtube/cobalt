@@ -119,6 +119,7 @@ namespace base {
     MacroOpWithNameOnly(sourceended)                                 \
     MacroOpWithNameOnly(sourceopen)                                  \
     MacroOpWithNameOnly(start)                                       \
+    MacroOpWithNameOnly(stop)                                        \
     MacroOpWithNameOnly(storage)                                     \
     MacroOpWithNameOnly(stalled)                                     \
     MacroOpWithNameOnly(suspend)                                     \

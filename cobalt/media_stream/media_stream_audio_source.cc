@@ -41,6 +41,8 @@ bool MediaStreamAudioSource::ConnectToTrack(MediaStreamAudioTrack* track) {
     return false;
   }
 
+  // It is safe to pass an unretained pointer, since the callback here
+  // will be called in |MediaStreamAudioTrack::Stop|.
   track->Start(base::Bind(&MediaStreamAudioSource::StopAudioDeliveryTo,
                           weak_this_, base::Unretained(track)));
   deliverer_.AddConsumer(track);
