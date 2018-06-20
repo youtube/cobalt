@@ -188,6 +188,26 @@ void DrawObject::GetRRectAttributes(const math::RectF& bounds,
 // static
 void DrawObject::GetRCornerValues(math::RectF* rect,
     render_tree::RoundedCorners* corners, RRectAttributes out_rcorners[4]) {
+  // Ensure that square corners have dimensions of 0, otherwise they may be
+  // rendered as skewed ellipses (in the case where one dimension is 0 but
+  // not the other).
+  if (corners->top_left.IsSquare()) {
+    corners->top_left.horizontal = 0.0f;
+    corners->top_left.vertical = 0.0f;
+  }
+  if (corners->top_right.IsSquare()) {
+    corners->top_right.horizontal = 0.0f;
+    corners->top_right.vertical = 0.0f;
+  }
+  if (corners->bottom_right.IsSquare()) {
+    corners->bottom_right.horizontal = 0.0f;
+    corners->bottom_right.vertical = 0.0f;
+  }
+  if (corners->bottom_left.IsSquare()) {
+    corners->bottom_left.horizontal = 0.0f;
+    corners->bottom_right.horizontal = 0.0f;
+  }
+
   // Ensure corner sizes are non-zero to allow generic handling of square and
   // rounded corners. Corner radii must be at least 1 pixel for antialiasing
   // to work well.
