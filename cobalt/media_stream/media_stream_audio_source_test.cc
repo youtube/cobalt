@@ -58,8 +58,10 @@ class MediaStreamAudioSourceTest : public testing::Test {
 
 TEST_F(MediaStreamAudioSourceTest, SourceCanStart) {
   EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .Times(1)
       .WillOnce(Return(true));
+  // Source will be stopped when the last track is disconnected.
+  // This happens when |track_| is destructed.
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started.
   bool source_started = audio_source_->ConnectToTrack(track_.get());
@@ -68,9 +70,8 @@ TEST_F(MediaStreamAudioSourceTest, SourceCanStart) {
 
 TEST_F(MediaStreamAudioSourceTest, SourceCannotStart) {
   EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .Times(1)
       .WillOnce(Return(false));
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped()).Times(1);
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started (if it is not stopped).
   bool source_started = audio_source_->ConnectToTrack(track_.get());
@@ -79,9 +80,8 @@ TEST_F(MediaStreamAudioSourceTest, SourceCannotStart) {
 
 TEST_F(MediaStreamAudioSourceTest, CallStopCallback) {
   EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .Times(1)
       .WillOnce(Return(true));
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped()).Times(1);
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   int times_callback_is_called = 0;
   base::Closure closure = base::Bind(Increment, &times_callback_is_called);
@@ -97,9 +97,8 @@ TEST_F(MediaStreamAudioSourceTest, CallStopCallback) {
 TEST_F(MediaStreamAudioSourceTest, EmptyStopCallback) {
   // This test should not crash.
   EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
-      .Times(1)
       .WillOnce(Return(true));
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped()).Times(1);
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started.
   audio_source_->ConnectToTrack(track_);
@@ -111,7 +110,7 @@ TEST_F(MediaStreamAudioSourceTest, AddMultipleTracks) {
   EXPECT_CALL(*audio_source_, EnsureSourceIsStarted())
       .Times(2)
       .WillRepeatedly(Return(true));
-  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped()).Times(1);
+  EXPECT_CALL(*audio_source_, EnsureSourceIsStopped());
 
   // Adding a track ensures that the source is started.
   audio_source_->ConnectToTrack(track_);

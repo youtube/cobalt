@@ -12,26 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_SINK_H_
-#define COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_SINK_H_
+#ifndef COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_TRACK_H_
+#define COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_TRACK_H_
 
-#include "cobalt/media_stream/media_stream_audio_sink.h"
+#include "cobalt/media_stream/media_stream_audio_track.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace cobalt {
 namespace media_stream {
 
-class MockMediaStreamAudioSink : public MediaStreamAudioSink {
+class MockMediaStreamAudioTrack : public MediaStreamAudioTrack {
  public:
-  MOCK_METHOD2(OnData, void(const ShellAudioBus& audio_bus,
-                            base::TimeTicks reference_time));
-  MOCK_METHOD1(OnSetFormat, void(const media_stream::AudioParameters& params));
-  MOCK_METHOD1(OnReadyStateChanged,
-               void(media_stream::MediaStreamTrack::ReadyState new_state));
+  MOCK_METHOD0(Stop, void());
 };
 
 }  // namespace media_stream
 }  // namespace cobalt
 
-#endif  // COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_SINK_H_
+#endif  // COBALT_MEDIA_STREAM_TESTING_MOCK_MEDIA_STREAM_AUDIO_TRACK_H_

@@ -21,6 +21,7 @@
 #include "base/string_piece.h"
 #include "base/string_util_starboard.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/dom_exception.h"
@@ -75,8 +76,15 @@ void MediaRecorder::Start(int32 timeslice,
     return;
   }
 
-  // Step #4-5.3, not needed for Cobalt.
+  // Step #4, not needed for Cobalt.
+
+  // Step 5.
   recording_state_ = kRecordingStateRecording;
+
+  // Step 5.1.
+  DispatchEvent(new dom::Event(base::Tokens::start()));
+
+  // Steps 5.2-5.3, not needed for Cobalt.
 
   // Step #5.4, create a new Blob, and start collecting data.
 
@@ -113,7 +121,7 @@ void MediaRecorder::Start(int32 timeslice,
   DCHECK(first_audio_track);
   first_audio_track->AddSink(this);
 
-  // Step #5.5, not needed.
+  // Step #5.5 is implemented in |MediaRecorder::OnReadyStateChanged|.
 
   // Step #6, return undefined.
 }
@@ -164,6 +172,16 @@ void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
   buffer_.reserve(static_cast<size_t>(buffer_size_hint));
 }
 
+void MediaRecorder::OnReadyStateChanged(
+    media_stream::MediaStreamTrack::ReadyState new_state) {
+  // Step 5.5 from start(), defined at:
+  // https://www.w3.org/TR/mediastream-recording/#mediarecorder-methods
+  if (new_state == media_stream::MediaStreamTrack::kReadyStateEnded) {
+    StopRecording();
+    stream_ = nullptr;
+  }
+}
+
 MediaRecorder::MediaRecorder(
     script::EnvironmentSettings* settings,
     const scoped_refptr<media_stream::MediaStream>& stream,
@@ -185,7 +203,16 @@ void MediaRecorder::StopRecording() {
   DCHECK_NE(recording_state_, kRecordingStateInactive);
 
   recording_state_ = kRecordingStateInactive;
+  UnsubscribeFromTrack();
 
+  WriteData(nullptr, 0, true, base::TimeTicks::Now());
+
+  timeslice_ = base::TimeDelta::FromSeconds(0);
+  DispatchEvent(new dom::Event(base::Tokens::stop()));
+}
+
+void MediaRecorder::UnsubscribeFromTrack() {
+  DCHECK(stream_);
   script::Sequence<scoped_refptr<media_stream::MediaStreamTrack>>&
       audio_tracks = stream_->GetAudioTracks();
   size_t number_audio_tracks = audio_tracks.size();
@@ -199,10 +226,6 @@ void MediaRecorder::StopRecording() {
   DCHECK(first_audio_track);
 
   first_audio_track->RemoveSink(this);
-
-  WriteData(nullptr, 0, true, base::TimeTicks::Now());
-
-  timeslice_ = base::TimeDelta::FromSeconds(0);
 }
 
 void MediaRecorder::DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
@@ -230,8 +253,8 @@ void MediaRecorder::DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
   auto blob =
       make_scoped_refptr(new dom::Blob(settings_, array_buffer, blob_options_));
 
-  this->DispatchEvent(new media_capture::BlobEvent(
-      base::Tokens::dataavailable(), blob, timecode.ToInternalValue()));
+  DispatchEvent(new media_capture::BlobEvent(base::Tokens::dataavailable(),
+                                             blob, timecode.ToInternalValue()));
 }
 
 void MediaRecorder::WriteData(const char* data, size_t length,

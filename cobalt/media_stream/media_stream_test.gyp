@@ -27,6 +27,7 @@
         'media_stream_test.cc',
         'testing/mock_media_stream_audio_sink.h',
         'testing/mock_media_stream_audio_source.h',
+        'testing/mock_media_stream_audio_track.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
