@@ -602,12 +602,13 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
 
   // If the error is not handled, then the error may be reported to the user.
   //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors-in-documents
+  std::string new_error_message = base::StringPrintf(
+      "%s:%u:%u: %s", error_report.filename.c_str(), error_report.line_number,
+      error_report.column_number, error_report.message.c_str());
   if (last_error_message_) {
-    *last_error_message_ = error_report.message;
+    *last_error_message_ = new_error_message;
   } else {
-    LOG(ERROR) << "JS Error: " << error_report.filename << ":"
-               << error_report.line_number << ":" << error_report.column_number
-               << ": " << error_report.message;
+    LOG(ERROR) << "JS Error: " << new_error_message;
   }
 }
 
