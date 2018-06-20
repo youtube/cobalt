@@ -20,33 +20,42 @@
 namespace cobalt {
 namespace math {
 
-cobalt::math::Matrix3F TranslateMatrix(float x, float y) {
-  return cobalt::math::Matrix3F::FromValues(
+Matrix3F TranslateMatrix(float x, float y) {
+  return Matrix3F::FromValues(
       1.0f, 0,    x,
       0,    1.0f, y,
       0,    0,    1.0f);
 }
 
-cobalt::math::Matrix3F ScaleMatrix(float x_scale, float y_scale) {
-  return cobalt::math::Matrix3F::FromValues(
+Matrix3F ScaleMatrix(float x_scale, float y_scale) {
+  return Matrix3F::FromValues(
       x_scale, 0,       0,
       0,       y_scale, 0,
       0,       0,       1.0f);
 }
 
-cobalt::math::Matrix3F ScaleMatrix(float scale) {
+Matrix3F ScaleMatrix(float scale) {
   return ScaleMatrix(scale, scale);
 }
 
-cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians) {
+Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians) {
   float sin_theta = sin(counter_clockwise_angle_in_radians);
   float cos_theta = cos(counter_clockwise_angle_in_radians);
 
   // Rotation matrix for a space where up is represented by negative y.
-  return cobalt::math::Matrix3F::FromValues(
+  return Matrix3F::FromValues(
       cos_theta,  sin_theta,  0,
       -sin_theta, cos_theta,  0,
       0,          0,          1.0f);
+}
+
+Vector2dF GetScale2d(const Matrix3F& transform) {
+  float m00 = transform(0, 0);
+  float m01 = transform(0, 1);
+  float m10 = transform(1, 0);
+  float m11 = transform(1, 1);
+  return Vector2dF(std::sqrt(m00 * m00 + m10 * m10),
+                   std::sqrt(m01 * m01 + m11 * m11));
 }
 
 bool IsOnlyScaleAndTranslate(const Matrix3F& transform) {
