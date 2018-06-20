@@ -48,7 +48,7 @@
       'variables': {
         'content_test_input_files': ['<!@(python <(DEPTH)/starboard/build/list_dmp_files.py "starboard/shared/starboard/player/testdata")'],
         'content_test_output_subdir': 'starboard/shared/starboard/player/testdata',
-        'download_at_gyp_time': ['<!@(download_from_google_storage --no_resume --no_auth --num_threads 8 --bucket cobalt-static-storage -d <(DEPTH)/starboard/shared/starboard/player/testdata -v | grep "Success")'],
+        'download_at_gyp_time': ['<!@(download_from_google_storage --no_resume --no_auth --num_threads 8 --bucket cobalt-static-storage -d <(DEPTH)/starboard/shared/starboard/player/testdata -v)'],
       },
       'actions' : [
         {
