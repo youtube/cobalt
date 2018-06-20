@@ -47,8 +47,12 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   MediaStreamAudioTrack() = default;
 
+  ~MediaStreamAudioTrack() override { Stop(); }
+
   void AddSink(MediaStreamAudioSink* sink);
   void RemoveSink(MediaStreamAudioSink* sink);
+
+  void Stop() override;
 
  private:
   friend class MediaStreamAudioSource;
