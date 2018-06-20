@@ -80,20 +80,11 @@ DrawObject::DrawObject(const BaseState& base_state)
     : base_state_(base_state),
       merge_type_(base::GetTypeId<DrawObject>()) {}
 
-math::Vector2dF DrawObject::GetScale() const {
-  float m00 = base_state_.transform(0, 0);
-  float m01 = base_state_.transform(0, 1);
-  float m10 = base_state_.transform(1, 0);
-  float m11 = base_state_.transform(1, 1);
-  return math::Vector2dF(std::sqrt(m00 * m00 + m10 * m10),
-                         std::sqrt(m01 * m01 + m11 * m11));
-}
-
 math::Vector2dF DrawObject::RemoveScaleFromTransform() {
   // Avoid division by zero.
   const float kEpsilon = 0.00001f;
 
-  math::Vector2dF scale = GetScale();
+  math::Vector2dF scale = math::GetScale2d(base_state_.transform);
   base_state_.transform = base_state_.transform *
       math::ScaleMatrix(1.0f / std::max(scale.x(), kEpsilon),
                         1.0f / std::max(scale.y(), kEpsilon));
