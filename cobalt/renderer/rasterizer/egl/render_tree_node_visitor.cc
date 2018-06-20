@@ -55,6 +55,16 @@ bool IsOpaque(float opacity) {
   return opacity >= 0.999f;
 }
 
+bool IsUniformSolidColor(const render_tree::Border& border) {
+  return border.left.style == render_tree::kBorderStyleSolid &&
+         border.right.style == render_tree::kBorderStyleSolid &&
+         border.top.style == render_tree::kBorderStyleSolid &&
+         border.bottom.style == render_tree::kBorderStyleSolid &&
+         border.left.color == border.right.color &&
+         border.top.color == border.bottom.color &&
+         border.left.color == border.top.color;
+}
+
 math::RectF RoundOut(const math::RectF& input, float pad) {
   float left = std::floor(input.x() - pad);
   float right = std::ceil(input.right() + pad);
@@ -458,7 +468,13 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   const render_tree::RectNode::Builder& data = rect_node->data();
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
+  base::optional<render_tree::RoundedCorners> content_corners;
   math::RectF content_rect(data.rect);
+  bool content_rect_drawn = false;
+
+  if (data.rounded_corners) {
+    content_corners = *data.rounded_corners;
+  }
 
   // Only solid color brushes are natively supported with rounded corners.
   if (data.rounded_corners && brush &&
@@ -469,16 +485,39 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   // Determine whether the RectNode's border attribute is supported. Update
   // the content and bounds if so.
-  scoped_ptr<DrawRectBorder> draw_border;
+  scoped_ptr<DrawObject> draw_border;
   if (data.border) {
-    draw_border.reset(new DrawRectBorder(graphics_state_, draw_state_,
-        rect_node));
-    if (draw_border->IsValid()) {
-      content_rect = draw_border->GetContentRect();
-      node_bounds = draw_border->GetBounds();
+    scoped_ptr<DrawRectBorder> rect_border(
+        new DrawRectBorder(graphics_state_, draw_state_, rect_node));
+    if (rect_border->IsValid()) {
+      node_bounds = rect_border->GetBounds();
+      content_rect = rect_border->GetContentRect();
+      content_rect_drawn = rect_border->DrawsContentRect();
+      draw_border.reset(rect_border.release());
+    } else if (data.rounded_corners) {
+      // Handle the special case of uniform rounded borders.
+      math::Vector2dF scale = math::GetScale2d(draw_state_.transform);
+      bool border_is_subpixel =
+          data.border->left.width * scale.x() < 1.0f ||
+          data.border->right.width * scale.x() < 1.0f ||
+          data.border->top.width * scale.y() < 1.0f ||
+          data.border->bottom.width * scale.y() < 1.0f;
+      if (IsUniformSolidColor(*data.border) && !border_is_subpixel) {
+        math::RectF border_rect(content_rect);
+        render_tree::RoundedCorners border_corners = *data.rounded_corners;
+        content_rect.Inset(data.border->left.width, data.border->top.width,
+            data.border->right.width, data.border->bottom.width);
+        content_corners = data.rounded_corners->Inset(data.border->left.width,
+            data.border->top.width, data.border->right.width,
+            data.border->bottom.width);
+        content_corners = content_corners->Normalize(content_rect);
+        draw_border.reset(new DrawRectShadowSpread(graphics_state_,
+            draw_state_, content_rect, content_corners,
+            border_rect, border_corners, data.border->top.color));
+      }
     }
   }
-  const bool border_supported = !data.border || draw_border->IsValid();
+  const bool border_supported = !data.border || draw_border;
 
   // Determine whether the RectNode's background brush is supported.
   base::TypeId brush_type = brush ? brush->GetTypeId() :
@@ -511,12 +550,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   if (draw_border) {
-    bool content_rect_drawn = draw_border->DrawsContentRect();
-    AddDraw(draw_border.PassAs<DrawObject>(), node_bounds,
-            DrawObjectManager::kBlendSrcAlpha);
-    if (content_rect_drawn) {
-      return;
-    }
+    AddDraw(draw_border.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
+  }
+  if (content_rect_drawn) {
+    return;
   }
 
   // Handle drawing the content.
@@ -524,10 +561,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     const render_tree::SolidColorBrush* solid_brush =
         base::polymorphic_downcast<const render_tree::SolidColorBrush*>
             (brush.get());
-    if (data.rounded_corners) {
+    if (content_corners) {
       scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
-          draw_state_, content_rect, *data.rounded_corners,
-          solid_brush->color()));
+          draw_state_, content_rect, *content_corners, solid_brush->color()));
       // Transparency is used for anti-aliasing.
       AddDraw(draw.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
     } else {
