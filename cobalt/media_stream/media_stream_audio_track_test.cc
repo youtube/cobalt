@@ -51,8 +51,11 @@ TEST(MediaStreamAudioTrack, OnSetFormatAndData) {
   base::TimeTicks expected_time = base::TimeTicks::Now();
 
   StrictMock<MockMediaStreamAudioSink> mock_sink;
+  ::testing::InSequence seq;
   EXPECT_CALL(mock_sink, OnSetFormat(expected_params));
   EXPECT_CALL(mock_sink, OnData(_, expected_time));
+  EXPECT_CALL(mock_sink, OnReadyStateChanged(
+                             MediaStreamTrack::ReadyState::kReadyStateEnded));
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
   track->AddSink(&mock_sink);
@@ -76,9 +79,13 @@ TEST(MediaStreamAudioTrack, OneTrackMultipleSinks) {
   StrictMock<MockMediaStreamAudioSink> mock_sink1;
   EXPECT_CALL(mock_sink1, OnSetFormat(expected_params));
   EXPECT_CALL(mock_sink1, OnData(_, expected_time));
+  EXPECT_CALL(mock_sink1, OnReadyStateChanged(
+                              MediaStreamTrack::ReadyState::kReadyStateEnded));
   StrictMock<MockMediaStreamAudioSink> mock_sink2;
   EXPECT_CALL(mock_sink2, OnSetFormat(expected_params));
   EXPECT_CALL(mock_sink2, OnData(_, expected_time));
+  EXPECT_CALL(mock_sink2, OnReadyStateChanged(
+                              MediaStreamTrack::ReadyState::kReadyStateEnded));
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
   track->AddSink(&mock_sink1);
@@ -103,9 +110,13 @@ TEST(MediaStreamAudioTrack, TwoTracksWithOneSinkEach) {
   StrictMock<MockMediaStreamAudioSink> mock_sink1;
   EXPECT_CALL(mock_sink1, OnSetFormat(expected_params));
   EXPECT_CALL(mock_sink1, OnData(_, expected_time));
+  EXPECT_CALL(mock_sink1, OnReadyStateChanged(
+                              MediaStreamTrack::ReadyState::kReadyStateEnded));
   StrictMock<MockMediaStreamAudioSink> mock_sink2;
   EXPECT_CALL(mock_sink2, OnSetFormat(expected_params));
   EXPECT_CALL(mock_sink2, OnData(_, expected_time));
+  EXPECT_CALL(mock_sink2, OnReadyStateChanged(
+                              MediaStreamTrack::ReadyState::kReadyStateEnded));
 
   scoped_refptr<MediaStreamAudioTrack> track1 = new MediaStreamAudioTrack();
   scoped_refptr<MediaStreamAudioTrack> track2 = new MediaStreamAudioTrack();
@@ -129,6 +140,8 @@ TEST(MediaStreamAudioTrack, AddRemoveSink) {
                                                 kBitsPerSample);
   base::TimeTicks expected_time = base::TimeTicks::Now();
 
+  // This never receives any data because the sink is removed before the data
+  // is delivered.
   StrictMock<MockMediaStreamAudioSink> mock_sink;
 
   scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
@@ -144,6 +157,26 @@ TEST(MediaStreamAudioTrack, AddRemoveSink) {
 
   track->RemoveSink(&mock_sink);
   deliverer.OnData(audio_bus, expected_time);
+}
+
+TEST(MediaStreamAudioTrack, Stop) {
+  StrictMock<MockMediaStreamAudioSink> mock_sink;
+
+  scoped_refptr<MediaStreamAudioTrack> track = new MediaStreamAudioTrack();
+  track->AddSink(&mock_sink);
+
+  MediaStreamAudioDeliverer<MediaStreamAudioTrack> deliverer;
+  deliverer.AddConsumer(track);
+
+  EXPECT_CALL(mock_sink, OnReadyStateChanged(
+                             MediaStreamTrack::ReadyState::kReadyStateEnded));
+
+  // This should call |OnReadyStateChanged| with |ReadyState::kReadyStateEnded|,
+  // and |OnReadyStateChanged| should NOT be called when track gets destroyed,
+  // since the track is already stopped.
+  track->Stop();
+
+  EXPECT_CALL(mock_sink, OnReadyStateChanged(_)).Times(0);
 }
 
 }  // namespace media_stream

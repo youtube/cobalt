@@ -19,6 +19,8 @@
 interface MediaRecorder : EventTarget {
   readonly attribute DOMString mimeType;
   attribute EventHandler ondataavailable;
+  attribute EventHandler onstart;
+  attribute EventHandler onstop;
   attribute EventHandler onerror;
 
   [RaisesException] void start(optional long timeslice);
