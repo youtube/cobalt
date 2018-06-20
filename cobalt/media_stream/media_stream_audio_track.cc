@@ -14,6 +14,10 @@
 
 #include "cobalt/media_stream/media_stream_audio_track.h"
 
+#include <vector>
+
+#include "base/callback_helpers.h"
+
 namespace cobalt {
 namespace media_stream {
 
@@ -25,6 +29,18 @@ void MediaStreamAudioTrack::AddSink(MediaStreamAudioSink* sink) {
 void MediaStreamAudioTrack::RemoveSink(MediaStreamAudioSink* sink) {
   DCHECK(thread_checker_.CalledOnValidThread());
   deliverer_.RemoveConsumer(sink);
+}
+
+void MediaStreamAudioTrack::Stop() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  base::ResetAndRunIfNotNull(&stop_callback_);
+
+  std::vector<MediaStreamAudioSink*> consumer_sinks_to_remove;
+  deliverer_.GetConsumerList(&consumer_sinks_to_remove);
+  for (MediaStreamAudioSink* sink : consumer_sinks_to_remove) {
+    deliverer_.RemoveConsumer(sink);
+    sink->OnReadyStateChanged(MediaStreamTrack::kReadyStateEnded);
+  }
 }
 
 void MediaStreamAudioTrack::Start(const base::Closure& stop_callback) {

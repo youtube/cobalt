@@ -49,6 +49,13 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
       const scoped_refptr<media_stream::MediaStream>& stream,
       const MediaRecorderOptions& options = MediaRecorderOptions());
 
+  ~MediaRecorder() override {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    if (recording_state_ != kRecordingStateInactive) {
+      UnsubscribeFromTrack();
+    }
+  }
+
   // Readonly attributes.
   const std::string& mime_type() const { return mime_type_; }
 
@@ -64,6 +71,26 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   void Stop(script::ExceptionState* exception_state);
 
   // EventHandlers.
+  const EventListenerScriptValue* onstart() const {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    return GetAttributeEventListener(base::Tokens::start());
+  }
+
+  void set_onstart(const EventListenerScriptValue& event_listener) {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    SetAttributeEventListener(base::Tokens::start(), event_listener);
+  }
+
+  const EventListenerScriptValue* onstop() const {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    return GetAttributeEventListener(base::Tokens::stop());
+  }
+
+  void set_onstop(const EventListenerScriptValue& event_listener) {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    SetAttributeEventListener(base::Tokens::stop(), event_listener);
+  }
+
   const EventListenerScriptValue* onerror() const {
     DCHECK(thread_checker_.CalledOnValidThread());
     return GetAttributeEventListener(base::Tokens::error());
@@ -88,19 +115,19 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   void OnData(const ShellAudioBus& audio_bus,
               base::TimeTicks reference_time) override;
   void OnSetFormat(const media_stream::AudioParameters& params) override;
+  void OnReadyStateChanged(
+      media_stream::MediaStreamTrack::ReadyState ready_state) override;
 
   DEFINE_WRAPPABLE_TYPE(MediaRecorder);
-
-  void TraceMembers(script::Tracer* tracer) override {
-    EventTarget::TraceMembers(tracer);
-    tracer->Trace(stream_);
-  }
 
  private:
   MediaRecorder(const MediaRecorder&) = delete;
   MediaRecorder& operator=(const MediaRecorder&) = delete;
 
   void StopRecording();
+
+  void UnsubscribeFromTrack();
+
   void DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
                         base::TimeTicks timecode);
   void WriteData(const char* data, size_t length, bool last_in_slice,

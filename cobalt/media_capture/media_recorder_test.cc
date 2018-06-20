@@ -19,6 +19,7 @@
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
+#include "cobalt/media_stream/testing/mock_media_stream_audio_track.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -52,39 +53,28 @@ class FakeMediaStreamAudioSource : public MediaStreamAudioSource {
     MediaStreamAudioSource::SetFormat(params);
   }
 };
+
 }  // namespace media_stream
 
 namespace media_capture {
 
 class MediaRecorderTest : public ::testing::Test {
  protected:
-  MediaRecorderTest(
-      const MediaRecorderOptions& options = MediaRecorderOptions()) {
-    audio_track_ = new media_stream::MediaStreamAudioTrack();
+  MediaRecorderTest() {
+    auto audio_track = make_scoped_refptr(
+        new StrictMock<media_stream::MockMediaStreamAudioTrack>());
     media_stream::MediaStream::TrackSequences sequences;
-    sequences.push_back(audio_track_);
-    scoped_refptr<media_stream::MediaStream> stream =
-        new media_stream::MediaStream(sequences);
-
-    Init(stream, options);
-  }
-
- protected:
-  void Init(const scoped_refptr<media_stream::MediaStream>& stream,
-            const MediaRecorderOptions& options = MediaRecorderOptions()) {
-    DCHECK(!stream->GetAudioTracks().empty());
+    sequences.push_back(audio_track);
+    auto stream = make_scoped_refptr(new media_stream::MediaStream(sequences));
     media_source_ = new StrictMock<media_stream::FakeMediaStreamAudioSource>();
     EXPECT_CALL(*media_source_, EnsureSourceIsStarted());
     EXPECT_CALL(*media_source_, EnsureSourceIsStopped());
-    cobalt::media_stream::MediaStreamAudioTrack* audio_track =
-        base::polymorphic_downcast<
-            cobalt::media_stream::MediaStreamAudioTrack*>(
-            stream->GetAudioTracks().begin()->get());
     media_source_->ConnectToTrack(audio_track);
-    media_recorder_ = new MediaRecorder(nullptr, stream, options);
+    media_recorder_ =
+        new MediaRecorder(nullptr, stream, MediaRecorderOptions());
   }
 
-  scoped_refptr<media_stream::MediaStreamAudioTrack> audio_track_;
+ protected:
   scoped_refptr<media_capture::MediaRecorder> media_recorder_;
   scoped_refptr<StrictMock<media_stream::FakeMediaStreamAudioSource>>
       media_source_;
@@ -152,8 +142,7 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
               HandleEvent(Eq(media_recorder_),
                           Pointee(Property(&dom::Event::type,
                                            base::Tokens::dataavailable())),
-                          _))
-      .Times(1);
+                          _));
 
   media_recorder_->Start(&exception_state_);
 
@@ -178,6 +167,40 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
   media_recorder_->OnData(audio_bus, current_time);
 
   media_recorder_->Stop(&exception_state_);
+}
+
+TEST_F(MediaRecorderTest, StartEvent) {
+  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  FakeScriptValue<EventListener> script_object(listener.get());
+  media_recorder_->set_onstart(script_object);
+  EXPECT_CALL(
+      *listener,
+      HandleEvent(Eq(media_recorder_),
+                  Pointee(Property(&dom::Event::type, base::Tokens::start())),
+                  _));
+
+  media_recorder_->Start(&exception_state_);
+}
+
+TEST_F(MediaRecorderTest, StopEvent) {
+  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  FakeScriptValue<EventListener> script_object(listener.get());
+  media_recorder_->Start(&exception_state_);
+  media_recorder_->set_onstop(script_object);
+
+  EXPECT_CALL(
+      *listener,
+      HandleEvent(Eq(media_recorder_),
+                  Pointee(Property(&dom::Event::type, base::Tokens::stop())),
+                  _));
+
+  media_recorder_->Stop(&exception_state_);
+}
+
+TEST_F(MediaRecorderTest, ReleaseRecorderBeforeStoppingSource) {
+  // This test ensures that media recorder can be destroyed
+  // before the audio source is destroyed. It should not crash.
+  media_recorder_ = nullptr;
 }
 
 }  // namespace media_capture
