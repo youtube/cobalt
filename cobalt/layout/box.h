@@ -848,7 +848,7 @@ class Box : public base::RefCounted<Box> {
   // Determines whether the background should be rendered as a clear (i.e. with
   // blending disabled).  It is expected that this may only be set on the
   // initial containing block.
-  bool blend_background_color_ = false;
+  bool blend_background_color_ = true;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
