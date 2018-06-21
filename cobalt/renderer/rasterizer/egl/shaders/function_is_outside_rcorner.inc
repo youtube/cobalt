@@ -22,15 +22,15 @@ float IsOutsideRCorner(vec4 rcorner) {
   // Estimate the distance to an implicit function using
   //   dist = f(x,y) / length(gradient(f(x,y)))
   // For an ellipse, f(x,y) = x^2 / a^2 + y^2 / b^2 - 1.
-  vec2 scaled = max(rcorner.xy, 0.0);
-  float implicit = dot(scaled, scaled) - 1.0;
+  highp vec2 scaled = max(rcorner.xy, 0.0);
+  highp float implicit = dot(scaled, scaled) - 1.0;
 
   // NOTE: To accommodate large radius values using mediump floats, rcorner.zw
   //   was scaled by kRCornerGradientScale in the vertex attribute data.
   //   Multiply inv_gradient by kRCornerGradientScale to undo that scaling.
-  const float kRCornerGradientScale = 16.0;
-  vec2 gradient = 2.0 * scaled * rcorner.zw;
-  float inv_gradient = kRCornerGradientScale *
+  const highp float kRCornerGradientScale = 16.0;
+  highp vec2 gradient = 2.0 * scaled * rcorner.zw;
+  highp float inv_gradient = kRCornerGradientScale *
       inversesqrt(max(dot(gradient, gradient), 0.0001));
 
   return clamp(0.5 + implicit * inv_gradient, 0.0, 1.0);
