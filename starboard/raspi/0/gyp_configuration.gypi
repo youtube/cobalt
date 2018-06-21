@@ -18,6 +18,11 @@
     'arm_version': 6,
     'armv7': 0,
     'arm_neon': 0,
+    # Raspi-0 is equipped with hardware Floating-Point-Unit and supports
+    # hardware floating point ABI.
+    'arm_float_abi': 'hard',
+    # Cobalt's default value for arm_fpu is vfpv3 but Raspi-0's FPU is vfpv2.
+    'arm_fpu': 'vfpv2',
 
     'compiler_flags': [
       # Optimize for Raspberry Pi 1 chips.
