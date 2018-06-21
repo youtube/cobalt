@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -31,7 +32,7 @@ class Origin {
   explicit Origin(const GURL& url);
   // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
   std::string SerializedOrigin() const;
-  bool is_opaque() const { return is_opaque_; }
+  bool is_opaque() const { return !tuple_; }
   // Only document has an origin and no elements inherit document's origin, so
   // opaque origin comparison can always return false.
   // https://html.spec.whatwg.org/multipage/origin.html#same-origin
@@ -40,8 +41,20 @@ class Origin {
   bool operator!=(const Origin& rhs) const { return !(*this == rhs); }
 
  private:
-  bool is_opaque_;
-  std::string origin_str_;
+  struct Tuple {
+    bool operator==(const Tuple& rhs) const;
+
+    std::string scheme;
+    std::string host;
+    std::string port;
+  };
+
+  // Helper function for extracting a tuple from a URL.  If a tuple cannot
+  // be extracted, then base::nullopt is returned.
+  static base::optional<Origin::Tuple> GetTupleFromURL(
+      const GURL& url, bool recurse_into_blob_paths);
+
+  base::optional<Tuple> tuple_;
 };
 }  // namespace loader
 }  // namespace cobalt
