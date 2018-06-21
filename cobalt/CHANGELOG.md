@@ -16,6 +16,17 @@ This document records all notable changes made to Cobalt since the last release.
    migrated to the new format the next time Cobalt is launched.
    The schema is available at cobalt/storage/store/storage.proto.
 
+ - **IPv4 Preference**
+
+   Cobalt is now configured to prefer an IPv4 address to IPv6 addresses when
+   choosing an initial server address from DNS responses. That is, if a
+   DNS response contains both IPv4 addresses and IPv6 addresses, Cobalt will
+   now explicitly attempt to connect an IPv4 address before possibly moving onto
+   IPv6 on connect failures. Unfortunately, we've discovered common scenarios
+   where IPv6 addresses were listed in DNS responses but intervening network
+   configurations prevented IPv6 use after connect time. This caused the
+   previous implementation to appear as if no network was available.
+
 ## Version 16
  - **Rebase libwebp to version 1.0.0**
 
