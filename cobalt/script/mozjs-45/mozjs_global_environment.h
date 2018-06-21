@@ -212,6 +212,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   base::Closure report_eval_;
   ReportErrorCallback report_error_callback_;
 
+  bool are_errors_muted_ = false;
+
   friend class GlobalObjectProxy;
 };
 
