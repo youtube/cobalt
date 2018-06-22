@@ -1,7 +1,7 @@
 ## Introduction
 
 cobalt tizen is a Cobalt engine port to tizen platform. The port
-implements starboard/contrib/tizen platform APIs.
+implements starboard/tizen platform APIs.
 
 ## Precondition
 
@@ -21,6 +21,6 @@ implements starboard/contrib/tizen platform APIs.
   - armv7l
     $ gbs -c packaging/gbs.conf -v build -A armv7l -P profile.cobalt [options]
     Detail option see "gbs --help" and "gbs -v build --help"
-    ex) gbs -c src/starboard/contrib/tizen/packaging/gbs.conf -v build -A armv7l -P profile.cobalt --packaging-dir src/starboard/contrib/tizen/packaging/
+    ex) gbs -c src/starboard/contrib/tizen/packaging/gbs.conf -v build -A armv7l -P profile.cobalt --packaging-dir src/starboard/tizen/packaging/
 
 cobalt tizen code uses the BSD license, see our `LICENSE` file.
