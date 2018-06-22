@@ -1,4 +1,4 @@
-// Copyright 2016 Samsung Electronics. All Rights Reserved.
+// Copyright 2018 Samsung Electronics. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CONTRIB_TIZEN_ARMV7L_THREAD_TYPES_PUBLIC_H_
-#define STARBOARD_CONTRIB_TIZEN_ARMV7L_THREAD_TYPES_PUBLIC_H_
+#include "starboard/audio_sink.h"
 
-#include "starboard/contrib/tizen/shared/thread_types_public.h"
-
-#endif  // STARBOARD_CONTRIB_TIZEN_ARMV7L_THREAD_TYPES_PUBLIC_H_
+bool SbAudioSinkIsAudioSampleTypeSupported(
+    SbMediaAudioSampleType audio_sample_type) {
+  return audio_sample_type == kSbMediaAudioSampleTypeInt16;
+}

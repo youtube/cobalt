@@ -17,8 +17,9 @@
 #include <Eina.h>
 
 #include "starboard/log.h"
-#include "starboard/shared/pthread/is_success.h"
 #include "starboard/string.h"
+
+#define THREAD_LOG_ON 0
 
 namespace {
 
@@ -36,6 +37,9 @@ void* ThreadFunc(void* context, Eina_Thread thread) {
   if (thread_params->name[0] != '\0') {
     SbThreadSetName(thread_params->name);
   }
+#if THREAD_LOG_ON
+  SB_DLOG(INFO) << "SbThreadCreate enter ============= " << thread;
+#endif
 
   delete thread_params;
 

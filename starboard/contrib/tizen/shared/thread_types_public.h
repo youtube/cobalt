@@ -1,4 +1,4 @@
-// Copyright 2016 Samsung Electronics. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CONTRIB_TIZEN_ARMV7L_THREAD_TYPES_PUBLIC_H_
-#define STARBOARD_CONTRIB_TIZEN_ARMV7L_THREAD_TYPES_PUBLIC_H_
+// Includes threading primitive types and initializers.
 
-#include "starboard/contrib/tizen/shared/thread_types_public.h"
+#ifndef STARBOARD_CONTRIB_TIZEN_SHARED_THREAD_TYPES_PUBLIC_H_
+#define STARBOARD_CONTRIB_TIZEN_SHARED_THREAD_TYPES_PUBLIC_H_
 
-#endif  // STARBOARD_CONTRIB_TIZEN_ARMV7L_THREAD_TYPES_PUBLIC_H_
+#include "starboard/shared/pthread/types_public.h"
+
+#endif  // STARBOARD_CONTRIB_TIZEN_SHARED_THREAD_TYPES_PUBLIC_H_
