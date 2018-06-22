@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
+#include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
-#include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
 
 #define CHECK_CAPI_AUDIO_ERROR(func)                            \
   if (capi_ret != AUDIO_IO_ERROR_NONE) {                        \
@@ -60,10 +60,6 @@ SbAudioSinkPrivate::SbAudioSinkPrivate(
                                   &capi_audio_out_);
   CHECK_CAPI_AUDIO_ERROR(audio_out_create_new);
 
-  capi_ret = audio_out_set_interrupted_cb(capi_audio_out_,
-                                          OnCAPIAudioIOInterrupted_CB, this);
-  CHECK_CAPI_AUDIO_ERROR(audio_out_set_interrupted_cb);
-
   // Starts the thread
   audio_out_thread_ =
       SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
@@ -97,26 +93,6 @@ bool SbAudioSinkPrivate::IsValid() {
   return SbThreadIsValid(audio_out_thread_);
 }
 
-// static callbacks
-void SbAudioSinkPrivate::OnCAPIAudioIOInterrupted_CB(
-    audio_io_interrupted_code_e code,
-    void* user_data) {
-  SbAudioSinkPrivate* audio_sink =
-      reinterpret_cast<SbAudioSinkPrivate*>(user_data);
-  if (audio_sink) {
-    audio_sink->OnCAPIAudioIOInterrupted(code);
-  }
-}
-void SbAudioSinkPrivate::OnCAPIAudioStreamWrite_CB(
-    audio_out_h handle,
-    size_t nbytes,
-    void* user_data) {  // not used
-  SbAudioSinkPrivate* audio_sink =
-      reinterpret_cast<SbAudioSinkPrivate*>(user_data);
-  if (audio_sink) {
-    audio_sink->OnCAPIAudioStreamWrite(handle, nbytes);
-  }
-}
 void* SbAudioSinkPrivate::AudioSinkThreadProc_CB(void* context) {
   SbAudioSinkPrivate* audio_sink =
       reinterpret_cast<SbAudioSinkPrivate*>(context);
@@ -131,26 +107,34 @@ const char* SbAudioSinkPrivate::GetCAPIErrorString(int ret) {
   return "Unknown";
 }
 
-void SbAudioSinkPrivate::OnCAPIAudioIOInterrupted(
-    audio_io_interrupted_code_e code) {
-  SB_DLOG(WARNING) << "Play interrupted: audio_io_interrupted_code_e : "
-                   << code;
+void SbAudioSinkPrivate::ResetWaitPlay() {
+  send_frames_ = 0;
+  send_start_ = SbTimeGetMonotonicNow();
 }
 
-void SbAudioSinkPrivate::OnCAPIAudioStreamWrite(audio_out_h handle,
-                                                size_t nbytes) {
-  SB_DLOG(INFO) << "[MEDIA] OnAudioStreamWrite (not used) - request " << nbytes;
+void SbAudioSinkPrivate::WaitPlay(int consumed_frames) {
+  send_frames_ += consumed_frames;
+
+  int play_ms = send_frames_ * 1000 / sampling_frequency_hz_;
+  int pass_ms = (SbTimeGetMonotonicNow() - send_start_) / kSbTimeMillisecond;
+  int diff_ms = play_ms - pass_ms;
+
+  const int threashold_ms = 50;
+  const int margin_ms = 10;
+  if (diff_ms > threashold_ms) {
+    diff_ms -= margin_ms;
+    SbThreadSleep(diff_ms * kSbTimeMillisecond);
+  }
 }
 
 void* SbAudioSinkPrivate::AudioSinkThreadProc() {
   void* buf;
   int bytes_to_fill;
   int bytes_written;
-  int bytes_per_frame = kSampleByte;
+  int bytes_per_frame = kSampleByte * channels_;
   int consumed_frames;
 
   SB_DLOG(INFO) << "[MEDIA] sink thread started";
-
   for (;;) {
     {
       starboard::ScopedLock lock(mutex_);
@@ -178,11 +162,11 @@ void* SbAudioSinkPrivate::AudioSinkThreadProc() {
         // audio_out_resume(capi_audio_out_);
         audio_out_prepare(capi_audio_out_);
         is_paused_ = false;
+        ResetWaitPlay();
         SB_DLOG(INFO) << "[MEDIA] audio_out_resume";
       }
 
       bytes_written = audio_out_write(capi_audio_out_, buf, bytes_to_fill);
-
       if (bytes_written < 0) {
         SB_DLOG(ERROR) << "[MEDIA] audio_out_write error (" << bytes_written
                        << ", " << GetCAPIErrorString(bytes_written) << ")";
@@ -190,23 +174,23 @@ void* SbAudioSinkPrivate::AudioSinkThreadProc() {
       }
       consumed_frames = bytes_written / bytes_per_frame;
 
-      // This is commented : Sleep can cause 'underrun'
-      // update_source_status_func controls data's timing.
-      // SbThreadSleep(consumed_frames * kSbTimeSecond /
-      // sampling_frequency_hz_);
+      // notify to cobalt
       consume_frames_func_(consumed_frames, context_);
+
+      // waits properly
+      WaitPlay(consumed_frames);
     } else {
       if (!is_paused_) {
-        audio_out_drain(capi_audio_out_);
+        WaitPlay(0);
         audio_out_unprepare(capi_audio_out_);
+
         is_paused_ = true;
         SB_DLOG(INFO) << "[MEDIA] audio_out_pause";
       }
-      // Wait for five millisecond if we are paused.
-      SbThreadSleep(kSbTimeMillisecond * 5);
+      // Wait for some milliseconds if we are paused (or use much CPU)
+      SbThreadSleep(kSbTimeMillisecond * 10);
     }
   }
-
   SB_DLOG(INFO) << "[MEDIA] sink thread exited";
   return NULL;
 }

@@ -20,12 +20,12 @@
 namespace {
 
 const char* kBrandName = "Samsung";
-const char* kChipsetModelNumber = "JazzM";
-const char* kFirmwareVersion = "T-JZMPAKUC";
+const char* kChipsetModelNumber = "XU3";
+const char* kFirmwareVersion = "tv-wayland-armv7l-odroidu3";
 const char* kFriendlyName = "Tizen";
-const char* kModelName = "UN49KS9000";
-const char* kModelYear = "2017";
-const char* kPlatformName = "LINUX; Tizen 3.0";
+const char* kModelName = "ODROID";
+const char* kModelYear = "2018";
+const char* kPlatformName = "LINUX; Tizen 3.0;";
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,

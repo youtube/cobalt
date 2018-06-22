@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_
-#define STARBOARD_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_
+#ifndef STARBOARD_CONTRIB_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_
+#define STARBOARD_CONTRIB_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_
 
 #include <audio_io.h>
 
@@ -40,19 +40,14 @@ struct SbAudioSinkPrivate {
   bool IsValid();
 
   // callbacks
-  static void OnCAPIAudioIOInterrupted_CB(audio_io_interrupted_code_e code,
-                                          void* user_data);
-  static void OnCAPIAudioStreamWrite_CB(audio_out_h handle,
-                                        size_t nbytes,
-                                        void* user_data);
   static void* AudioSinkThreadProc_CB(void* context);
 
  private:
   const char* GetCAPIErrorString(int capi_ret);
 
-  void OnCAPIAudioIOInterrupted(audio_io_interrupted_code_e code);
-  void OnCAPIAudioStreamWrite(audio_out_h handle, size_t nbytes);
   void* AudioSinkThreadProc();
+  void ResetWaitPlay();
+  void WaitPlay(int consumed_frames);
 
   // setting of creation
   int channels_;
@@ -66,13 +61,15 @@ struct SbAudioSinkPrivate {
   void* context_;
 
   // thread related
+  ::starboard::Mutex mutex_;
   bool destroying_;
   SbThread audio_out_thread_;
-  ::starboard::Mutex mutex_;
+  int send_frames_;
+  SbTimeMonotonic send_start_;
 
   // capi related
   audio_out_h capi_audio_out_;
   bool is_paused_;
 };
 
-#endif  // STARBOARD_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_
+#endif  // STARBOARD_CONTRIB_TIZEN_SHARED_AUDIO_AUDIO_SINK_PRIVATE_H_
