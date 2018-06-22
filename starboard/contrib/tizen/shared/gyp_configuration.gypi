@@ -16,10 +16,12 @@
   'variables': {
     'target_os': 'linux',
     'tizen_os': 1,
+    'arm_version': 7,
 
     # Some package use tizen system instead of third_party
     'use_system_icu': 1,
-    'use_system_libxml': 1,
+    'use_system_libxml': 0,
+    'use_dlmalloc_allocator': 0,
 
     # scratch surface cache is designed to choose large offscreen surfaces so
     # that they can be maximally reused, it is not a very good fit for a tiled
@@ -28,7 +30,7 @@
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
+    'javascript_engine': 'mozjs-45',
     'cobalt_enable_jit': 0,
 
     'linker_flags': [
