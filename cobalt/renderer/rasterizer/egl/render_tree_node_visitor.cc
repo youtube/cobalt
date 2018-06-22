@@ -94,7 +94,26 @@ bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
   return false;
 }
 
-bool RoundedViewportSupportedForSource(render_tree::Node* source) {
+bool RoundedRectContainsRoundedRect(
+    const math::RectF& orect, const render_tree::RoundedCorners& ocorners,
+    const math::RectF& irect, const render_tree::RoundedCorners& icorners) {
+  // Just use a quick and simple comparison. This may return false negatives,
+  // but never return false positives.
+  return orect.Contains(irect) &&
+         ocorners.top_left.horizontal <= icorners.top_left.horizontal &&
+         ocorners.top_left.vertical <= icorners.top_left.vertical &&
+         ocorners.top_right.horizontal <= icorners.top_right.horizontal &&
+         ocorners.top_right.vertical <= icorners.top_right.vertical &&
+         ocorners.bottom_right.horizontal <= icorners.bottom_right.horizontal &&
+         ocorners.bottom_right.vertical <= icorners.bottom_right.vertical &&
+         ocorners.bottom_left.horizontal <= icorners.bottom_left.horizontal &&
+         ocorners.bottom_left.vertical <= icorners.bottom_left.vertical;
+}
+
+bool RoundedViewportSupportedForSource(
+    render_tree::Node* source,
+    math::Vector2dF offset,
+    const render_tree::ViewportFilter& filter) {
   base::TypeId source_type = source->GetTypeId();
   if (source_type == base::GetTypeId<render_tree::ImageNode>()) {
     render_tree::ImageNode* image_node =
@@ -107,14 +126,35 @@ bool RoundedViewportSupportedForSource(render_tree::Node* source) {
         base::polymorphic_downcast<render_tree::CompositionNode*>(source);
     typedef render_tree::CompositionNode::Children Children;
     const Children& children = composition_node->data().children();
+    offset += composition_node->data().offset();
 
     for (Children::const_iterator iter = children.begin();
          iter != children.end(); ++iter) {
-      if (!RoundedViewportSupportedForSource(iter->get())) {
+      if (!RoundedViewportSupportedForSource(iter->get(), offset, filter)) {
         return false;
       }
     }
     return true;
+  } else if (source_type == base::GetTypeId<render_tree::FilterNode>()) {
+    const render_tree::FilterNode::Builder& filter_data =
+        base::polymorphic_downcast<render_tree::FilterNode*>(source)->data();
+    // If the inner rounded viewport filter is contained by the outer
+    // rounded viewport filter, then just render the inner filter.
+    if (filter_data.viewport_filter &&
+        filter_data.viewport_filter->has_rounded_corners() &&
+        !filter_data.opacity_filter &&
+        !filter_data.blur_filter &&
+        !filter_data.map_to_mesh_filter) {
+      math::RectF viewport_rect = filter_data.viewport_filter->viewport();
+      viewport_rect.Offset(offset);
+      return RoundedRectContainsRoundedRect(
+                 filter.viewport(), filter.rounded_corners(), viewport_rect,
+                 filter_data.viewport_filter->rounded_corners()) &&
+             RoundedViewportSupportedForSource(
+                 filter_data.source, math::Vector2dF(),
+                 *filter_data.viewport_filter);
+    }
+    return false;
   }
 
   return false;
@@ -231,13 +271,17 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     if (data.viewport_filter->has_rounded_corners()) {
       // Certain source nodes have an optimized path for rendering inside
       // rounded viewports.
-      if (RoundedViewportSupportedForSource(data.source)) {
-        DCHECK(!draw_state_.rounded_scissor_corners);
+      if (RoundedViewportSupportedForSource(
+          data.source, math::Vector2dF(), *data.viewport_filter)) {
+        math::RectF old_scissor_rect = draw_state_.rounded_scissor_rect;
+        DrawObject::OptionalRoundedCorners old_scissor_corners =
+            draw_state_.rounded_scissor_corners;
         draw_state_.rounded_scissor_rect = data.viewport_filter->viewport();
         draw_state_.rounded_scissor_corners =
             data.viewport_filter->rounded_corners();
         data.source->Accept(this);
-        draw_state_.rounded_scissor_corners = base::nullopt;
+        draw_state_.rounded_scissor_rect = old_scissor_rect;
+        draw_state_.rounded_scissor_corners = old_scissor_corners;
         return;
       }
     } else if (cobalt::math::IsOnlyScaleAndTranslate(transform)) {
