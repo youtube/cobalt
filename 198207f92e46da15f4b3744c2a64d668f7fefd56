@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4046e658_1fc4bfdb",
+        "filename": "src/starboard/contrib/tizen/armv7l/configuration_public.h",
+        "patchSetId": 6
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-06-22T20:54:26Z",
+      "side": 1,
+      "message": "Okay, I have submitted the change as-is internally, and it will be available in the next OSS push.\n\nHowever, concerning this define, this file is reserved for public #defines that are to be read by the common application code, so I don\u0027t think that this is the right place for this Tizen-specific #define.\n\nIn a new CL, would you consider instead moving this into a new header file (e.g. something like \"tizen_defines.h\" or \"tizen_configuration.h\")?  It may be reasonable for you to also add \u0027#include \"starboard/shared/internal_only.h\"\u0027 to that new header file, to ensure that the define is never exposed to common application code.",
+      "revId": "198207f92e46da15f4b3744c2a64d668f7fefd56",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
