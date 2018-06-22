@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "2a027dfc_80e86e82",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 4
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-06-22T01:16:56Z",
+      "side": 1,
+      "message": "Can you make this instead:\n\n\u0027target_arch \u003d\u003d \"arm\" and arm_neon \u003d\u003d 1\u0027\n\n?\n\nThen, of course, make sure that you set \u0027arm_neon: 1\u0027 for your platform.",
+      "range": {
+        "startLine": 10,
+        "startChar": 10,
+        "endLine": 10,
+        "endChar": 30
+      },
+      "revId": "eb5b91a17ae0dfa56b8128a29f4e44afdfc9cb5d",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "227b80ed_93f4d664",
+        "filename": "src/third_party/libvpx/libvpx.gyp",
+        "patchSetId": 4
+      },
+      "lineNbr": 17,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-06-22T01:16:56Z",
+      "side": 1,
+      "message": "Would you be okay removing these and instead setting them globally in your starboard platform gypi?\n\nWith the change to add the \u0027arm_neon\u0027 check above, it will be up to the platform\u0027s starboard configuration to setup the -mfpu\u003dneon flag, and then also set \u0027arm_neon: 1\u0027 to indicate that neon is supported.\n\nSince the \u0027-mfloat-abi\u0027 setting must be consistent among all linked targets, this setting should be left up to the platform to define globally.",
+      "range": {
+        "startLine": 14,
+        "startChar": 0,
+        "endLine": 17,
+        "endChar": 12
+      },
+      "revId": "eb5b91a17ae0dfa56b8128a29f4e44afdfc9cb5d",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
