@@ -33,9 +33,12 @@
         'media_stream_source.cc',
         'media_stream_source.h',
         'media_stream_track.h',
+        'microphone_audio_source.cc',
+        'microphone_audio_source.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
+        '<(DEPTH)/cobalt/speech/speech.gyp:speech',
       ],
       'export_dependent_settings': [
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
