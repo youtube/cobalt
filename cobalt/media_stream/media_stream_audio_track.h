@@ -32,6 +32,13 @@
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 namespace cobalt {
+
+namespace media_capture {
+
+class MediaRecorderTest;
+
+}
+
 namespace media_stream {
 
 class MediaStreamAudioSource;
@@ -55,6 +62,15 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
   void Stop() override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, OnSetFormatAndData);
+  FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, OneTrackMultipleSinks);
+  FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, TwoTracksWithOneSinkEach);
+  FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, AddRemoveSink);
+  FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, Stop);
+  FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest,
+                           ReadyStateEndedNotifyIfAlreadyStopped);
+
+  friend class media_capture::MediaRecorderTest;
   friend class MediaStreamAudioSource;
   friend class MediaStreamAudioDeliverer<MediaStreamAudioTrack>;
 

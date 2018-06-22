@@ -17,6 +17,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
 #include "cobalt/media_capture/media_recorder_options.h"
+#include "cobalt/media_stream/media_stream.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
 #include "cobalt/media_stream/testing/mock_media_stream_audio_track.h"
@@ -65,6 +66,7 @@ class MediaRecorderTest : public ::testing::Test {
         new StrictMock<media_stream::MockMediaStreamAudioTrack>());
     media_stream::MediaStream::TrackSequences sequences;
     sequences.push_back(audio_track);
+    audio_track->Start(base::Bind(&base::DoNothing));
     auto stream = make_scoped_refptr(new media_stream::MediaStream(sequences));
     media_source_ = new StrictMock<media_stream::FakeMediaStreamAudioSource>();
     EXPECT_CALL(*media_source_, EnsureSourceIsStarted());

@@ -23,6 +23,12 @@ namespace media_stream {
 
 void MediaStreamAudioTrack::AddSink(MediaStreamAudioSink* sink) {
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  if (stop_callback_.is_null()) {
+    sink->OnReadyStateChanged(MediaStreamTrack::kReadyStateEnded);
+    return;
+  }
+
   deliverer_.AddConsumer(sink);
 }
 
