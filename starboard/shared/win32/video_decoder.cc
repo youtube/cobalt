@@ -22,6 +22,10 @@
 #include "starboard/shared/win32/hardware_decode_target_internal.h"
 #include "starboard/time.h"
 
+// Include this after all other headers to avoid introducing redundant
+// definitions from other header files.
+#include <initguid.h>  // For DXVA_ModeVP9_VLD_Profile0
+
 namespace starboard {
 namespace shared {
 namespace win32 {
@@ -60,6 +64,19 @@ const int kMaxDecodeTargetHeight = 4320;
 const int kMaxDecodeTargetWidth = 3840;
 const int kMaxDecodeTargetHeight = 2160;
 #endif  // ENABLE_VP9_8K_SUPPOR
+
+DEFINE_GUID(DXVA_ModeVP9_VLD_Profile0,
+            0x463707f8,
+            0xa1d0,
+            0x4585,
+            0x87,
+            0x6d,
+            0x83,
+            0xaa,
+            0x6d,
+            0x60,
+            0xb8,
+            0x9e);
 
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.
@@ -180,6 +197,40 @@ VideoDecoder::~VideoDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   Reset();
   ShutdownCodec();
+}
+
+// static
+bool VideoDecoder::IsHardwareVp9DecoderSupported() {
+  static bool s_queried_ = false;
+  static bool s_supported_;
+
+  const UINT D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED = 0x10;
+
+  if (s_queried_) {
+    return s_supported_;
+  }
+
+  s_queried_ = true;
+  s_supported_ = false;
+
+  ComPtr<ID3D11Device> d3d11_device;
+  HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+                                 nullptr, 0, D3D11_SDK_VERSION,
+                                 d3d11_device.GetAddressOf(), nullptr, nullptr);
+  if (FAILED(hr)) {
+    return s_supported_;
+  }
+  ComPtr<ID3D11VideoDevice1> video_device;
+  if (FAILED(d3d11_device.As(&video_device))) {
+    return s_supported_;
+  }
+  const DXGI_RATIONAL kFps = {30, 1};  // 30 fps = 30/1
+  const UINT kBitrate = 0;
+  UINT caps = 0;
+  hr = video_device->GetVideoDecoderCaps(&DXVA_ModeVP9_VLD_Profile0, 3840, 2160,
+                                         &kFps, kBitrate, NULL, &caps);
+  s_supported_ = SUCCEEDED(hr) && caps != D3D11_VIDEO_DECODER_CAPS_UNSUPPORTED;
+  return s_supported_;
 }
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {

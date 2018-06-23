@@ -50,6 +50,11 @@ class VideoDecoder
                SbDrmSystem drm_system);
   ~VideoDecoder() override;
 
+  // Queries for support without creating the vp9 decoder. The function caches
+  // the result for the first call.  Note that the first call to this function
+  // isn't thread safe and is supposed to be called on startup.
+  static bool IsHardwareVp9DecoderSupported();
+
   scoped_refptr<VideoRendererSink> GetSink();
 
   // Implement VideoDecoder interface.

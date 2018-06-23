@@ -162,7 +162,10 @@
             '/EHsc',         # C++ exceptions (required with /ZW)
             '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
-            '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.UniversalApiContract/4.0.0.0/Windows.Foundation.UniversalApiContract.winmd"',
+            '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.UniversalApiContract/6.0.0.0/Windows.Foundation.UniversalApiContract.winmd"',
+            # This requires SDK 10.0.17095.0 (set in sdk_configuration.py) and
+            # Xbox One Platform Extension SDK 17095.1000.
+            '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Xbox.ApplicationResourcesContract/1.0.0.0/Windows.Xbox.ApplicationResourcesContract.winmd"',
           ]
         }
       },
