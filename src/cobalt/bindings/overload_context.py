@@ -192,14 +192,41 @@ def resolution_tests_methods(expression_generator, effective_overloads):
     base_type = idl_type.base_type if idl_type.is_nullable else idl_type
     yield partial(expression_generator.inherits_interface, base_type), method
 
-  # 8. Otherwise: if V is any kind of object except for a native Date object,
-  # a native RegExp object, and there is an entry in S that has one of the
-  # following types at position i of its type list,
-  # - an array type
-  # - a sequence type
-  # ...
-  # - a dictionary
-  #
+  # 7. Otherwise: if Type(V) is Object, V has an [[ArrayBuffer]] internal
+  # slot, and there is an entry in S that has one of the following types at
+  # position i of its type list,
+  # - ArrayBuffer
+  # - Object
+  # - A nullable version of either of the above types
+  # - An annotated type whose inner type is one of the above types
+  # - A union type, nullable union type, or annotated union type that has one
+  #   of the above types in its flattened member types
+  # 8. Otherwise: if Type(V) is Object, V has an [[DataView]] internal slot,
+  # and there is an entry in S that has one of the following types at position
+  # i of its type list,
+  # - DataView
+  # - Object
+  # - A nullable version of either of the above types
+  # - An annotated type whose inner type is one of the above types
+  # - A union type, nullable union type, or annotated union type that has one
+  #   of the above types in its flattened member types
+  # 9. Otherwise: if Type(V) is Object, V has an [[TypedArray]] internal slot,
+  # and there is an entry in S that has one of the following types at position
+  # i of its type list,
+  # - A typed array type whose name is equal to the value of V's
+  # [[TypedArrayName]] internal slot
+  # - Object
+  # - A nullable version of either of the above types
+  # - An annotated type whose inner type is one of the above types
+  # - A union type, nullable union type, or annotated union type that has one
+  #   of the above types in its flattened member types
+
+  for idl_type, method in ((idl_type, method)
+                           for idl_type, method in idl_types_methods
+                           if idl_type.is_array_buffer_or_view):
+    base_type = idl_type.base_type if idl_type.is_nullable else idl_type
+    yield partial(expression_generator.is_type, base_type), method
+
   # FIXME:
   # We don't strictly follow the algorithm here. The algorithm says "remove
   # all other entries" if there is "one entry" matching, but we yield all
@@ -208,9 +235,6 @@ def resolution_tests_methods(expression_generator, effective_overloads):
   # interface I { ... }
   # (Need to check array types before objects because an array is an object)
   for idl_type, method in idl_types_methods:
-    if idl_type.native_array_element_type:
-      raise NotImplementedError('Array types not yet supported')
-  for idl_type, method in idl_types_methods:
     if idl_type.is_dictionary or idl_type.name == 'Dictionary':
       raise NotImplementedError('Dictionary types not yet supported.')
 
@@ -218,8 +242,8 @@ def resolution_tests_methods(expression_generator, effective_overloads):
   # only needed if distinguishing between primitive types.)
   if len([idl_type.is_primitive_type for idl_type in idl_types]) > 1:
     # (Only needed if match in step 11, otherwise redundant.)
-    if any(idl_type.is_string_type or idl_type.is_enum
-           for idl_type in idl_types):
+    if any(
+        idl_type.is_string_type or idl_type.is_enum for idl_type in idl_types):
       # 10. Otherwise: if V is a Number value, and there is an entry in S
       # that has one of the following types at position i of its type
       # list,

@@ -39,3 +39,7 @@ class ExpressionGenerator:
   @abc.abstractmethod
   def inherits_interface(self, interface_name, arg):
     pass
+
+  @abc.abstractmethod
+  def is_type(self, arg):
+    pass

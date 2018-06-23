@@ -22,7 +22,12 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'audio_parameters_test.cc',
+        'media_stream_audio_source_test.cc',
+        'media_stream_audio_track_test.cc',
         'media_stream_test.cc',
+        'testing/mock_media_stream_audio_sink.h',
+        'testing/mock_media_stream_audio_source.h',
+        'testing/mock_media_stream_audio_track.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',

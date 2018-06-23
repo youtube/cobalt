@@ -336,7 +336,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
   if (!any_member_with_default.isUndefined()) {
-    TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+    TypeTraits<::cobalt::script::ValueHandle>::ConversionType converted_value;
     FromJSValue(context,
                 any_member_with_default,
                 kNoConversionFlags,
@@ -355,7 +355,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
   if (!any_member.isUndefined()) {
-    TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+    TypeTraits<::cobalt::script::ValueHandle>::ConversionType converted_value;
     FromJSValue(context,
                 any_member,
                 kNoConversionFlags,

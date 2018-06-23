@@ -55,6 +55,16 @@ bool IsOpaque(float opacity) {
   return opacity >= 0.999f;
 }
 
+bool IsUniformSolidColor(const render_tree::Border& border) {
+  return border.left.style == render_tree::kBorderStyleSolid &&
+         border.right.style == render_tree::kBorderStyleSolid &&
+         border.top.style == render_tree::kBorderStyleSolid &&
+         border.bottom.style == render_tree::kBorderStyleSolid &&
+         border.left.color == border.right.color &&
+         border.top.color == border.bottom.color &&
+         border.left.color == border.top.color;
+}
+
 math::RectF RoundOut(const math::RectF& input, float pad) {
   float left = std::floor(input.x() - pad);
   float right = std::ceil(input.right() + pad);
@@ -84,7 +94,26 @@ bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
   return false;
 }
 
-bool RoundedViewportSupportedForSource(render_tree::Node* source) {
+bool RoundedRectContainsRoundedRect(
+    const math::RectF& orect, const render_tree::RoundedCorners& ocorners,
+    const math::RectF& irect, const render_tree::RoundedCorners& icorners) {
+  // Just use a quick and simple comparison. This may return false negatives,
+  // but never return false positives.
+  return orect.Contains(irect) &&
+         ocorners.top_left.horizontal <= icorners.top_left.horizontal &&
+         ocorners.top_left.vertical <= icorners.top_left.vertical &&
+         ocorners.top_right.horizontal <= icorners.top_right.horizontal &&
+         ocorners.top_right.vertical <= icorners.top_right.vertical &&
+         ocorners.bottom_right.horizontal <= icorners.bottom_right.horizontal &&
+         ocorners.bottom_right.vertical <= icorners.bottom_right.vertical &&
+         ocorners.bottom_left.horizontal <= icorners.bottom_left.horizontal &&
+         ocorners.bottom_left.vertical <= icorners.bottom_left.vertical;
+}
+
+bool RoundedViewportSupportedForSource(
+    render_tree::Node* source,
+    math::Vector2dF offset,
+    const render_tree::ViewportFilter& filter) {
   base::TypeId source_type = source->GetTypeId();
   if (source_type == base::GetTypeId<render_tree::ImageNode>()) {
     render_tree::ImageNode* image_node =
@@ -97,14 +126,35 @@ bool RoundedViewportSupportedForSource(render_tree::Node* source) {
         base::polymorphic_downcast<render_tree::CompositionNode*>(source);
     typedef render_tree::CompositionNode::Children Children;
     const Children& children = composition_node->data().children();
+    offset += composition_node->data().offset();
 
     for (Children::const_iterator iter = children.begin();
          iter != children.end(); ++iter) {
-      if (!RoundedViewportSupportedForSource(iter->get())) {
+      if (!RoundedViewportSupportedForSource(iter->get(), offset, filter)) {
         return false;
       }
     }
     return true;
+  } else if (source_type == base::GetTypeId<render_tree::FilterNode>()) {
+    const render_tree::FilterNode::Builder& filter_data =
+        base::polymorphic_downcast<render_tree::FilterNode*>(source)->data();
+    // If the inner rounded viewport filter is contained by the outer
+    // rounded viewport filter, then just render the inner filter.
+    if (filter_data.viewport_filter &&
+        filter_data.viewport_filter->has_rounded_corners() &&
+        !filter_data.opacity_filter &&
+        !filter_data.blur_filter &&
+        !filter_data.map_to_mesh_filter) {
+      math::RectF viewport_rect = filter_data.viewport_filter->viewport();
+      viewport_rect.Offset(offset);
+      return RoundedRectContainsRoundedRect(
+                 filter.viewport(), filter.rounded_corners(), viewport_rect,
+                 filter_data.viewport_filter->rounded_corners()) &&
+             RoundedViewportSupportedForSource(
+                 filter_data.source, math::Vector2dF(),
+                 *filter_data.viewport_filter);
+    }
+    return false;
   }
 
   return false;
@@ -164,6 +214,15 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
   draw_state_.scissor.Intersect(content_rect);
 }
 
+void RenderTreeNodeVisitor::Visit(render_tree::ClearRectNode* clear_rect_node) {
+  if (!IsVisible(clear_rect_node->GetBounds())) {
+    return;
+  }
+
+  DCHECK_EQ(clear_rect_node->data().rect, clear_rect_node->GetBounds());
+  AddClear(clear_rect_node->data().rect, clear_rect_node->data().color);
+}
+
 void RenderTreeNodeVisitor::Visit(
     render_tree::CompositionNode* composition_node) {
   const render_tree::CompositionNode::Builder& data = composition_node->data();
@@ -212,13 +271,17 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     if (data.viewport_filter->has_rounded_corners()) {
       // Certain source nodes have an optimized path for rendering inside
       // rounded viewports.
-      if (RoundedViewportSupportedForSource(data.source)) {
-        DCHECK(!draw_state_.rounded_scissor_corners);
+      if (RoundedViewportSupportedForSource(
+          data.source, math::Vector2dF(), *data.viewport_filter)) {
+        math::RectF old_scissor_rect = draw_state_.rounded_scissor_rect;
+        DrawObject::OptionalRoundedCorners old_scissor_corners =
+            draw_state_.rounded_scissor_corners;
         draw_state_.rounded_scissor_rect = data.viewport_filter->viewport();
         draw_state_.rounded_scissor_corners =
             data.viewport_filter->rounded_corners();
         data.source->Accept(this);
-        draw_state_.rounded_scissor_corners = base::nullopt;
+        draw_state_.rounded_scissor_rect = old_scissor_rect;
+        draw_state_.rounded_scissor_corners = old_scissor_corners;
         return;
       }
     } else if (cobalt::math::IsOnlyScaleAndTranslate(transform)) {
@@ -437,9 +500,8 @@ void RenderTreeNodeVisitor::Visit(
   math::Rect mapped_rect = math::Rect::RoundFromRectF(mapped_rect_float);
   data.set_bounds_cb.Run(mapped_rect);
 
-  scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-      draw_state_, data.rect, kTransparentBlack));
-  AddDraw(draw.Pass(), video_node->GetBounds(), DrawObjectManager::kBlendNone);
+  DCHECK_EQ(data.rect, video_node->GetBounds());
+  AddClear(data.rect, kTransparentBlack);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -450,7 +512,13 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   const render_tree::RectNode::Builder& data = rect_node->data();
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
+  base::optional<render_tree::RoundedCorners> content_corners;
   math::RectF content_rect(data.rect);
+  bool content_rect_drawn = false;
+
+  if (data.rounded_corners) {
+    content_corners = *data.rounded_corners;
+  }
 
   // Only solid color brushes are natively supported with rounded corners.
   if (data.rounded_corners && brush &&
@@ -461,16 +529,39 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   // Determine whether the RectNode's border attribute is supported. Update
   // the content and bounds if so.
-  scoped_ptr<DrawRectBorder> draw_border;
+  scoped_ptr<DrawObject> draw_border;
   if (data.border) {
-    draw_border.reset(new DrawRectBorder(graphics_state_, draw_state_,
-        rect_node));
-    if (draw_border->IsValid()) {
-      content_rect = draw_border->GetContentRect();
-      node_bounds = draw_border->GetBounds();
+    scoped_ptr<DrawRectBorder> rect_border(
+        new DrawRectBorder(graphics_state_, draw_state_, rect_node));
+    if (rect_border->IsValid()) {
+      node_bounds = rect_border->GetBounds();
+      content_rect = rect_border->GetContentRect();
+      content_rect_drawn = rect_border->DrawsContentRect();
+      draw_border.reset(rect_border.release());
+    } else if (data.rounded_corners) {
+      // Handle the special case of uniform rounded borders.
+      math::Vector2dF scale = math::GetScale2d(draw_state_.transform);
+      bool border_is_subpixel =
+          data.border->left.width * scale.x() < 1.0f ||
+          data.border->right.width * scale.x() < 1.0f ||
+          data.border->top.width * scale.y() < 1.0f ||
+          data.border->bottom.width * scale.y() < 1.0f;
+      if (IsUniformSolidColor(*data.border) && !border_is_subpixel) {
+        math::RectF border_rect(content_rect);
+        render_tree::RoundedCorners border_corners = *data.rounded_corners;
+        content_rect.Inset(data.border->left.width, data.border->top.width,
+            data.border->right.width, data.border->bottom.width);
+        content_corners = data.rounded_corners->Inset(data.border->left.width,
+            data.border->top.width, data.border->right.width,
+            data.border->bottom.width);
+        content_corners = content_corners->Normalize(content_rect);
+        draw_border.reset(new DrawRectShadowSpread(graphics_state_,
+            draw_state_, content_rect, content_corners,
+            border_rect, border_corners, data.border->top.color));
+      }
     }
   }
-  const bool border_supported = !data.border || draw_border->IsValid();
+  const bool border_supported = !data.border || draw_border;
 
   // Determine whether the RectNode's background brush is supported.
   base::TypeId brush_type = brush ? brush->GetTypeId() :
@@ -503,12 +594,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   if (draw_border) {
-    bool content_rect_drawn = draw_border->DrawsContentRect();
-    AddDraw(draw_border.PassAs<DrawObject>(), node_bounds,
-            DrawObjectManager::kBlendSrcAlpha);
-    if (content_rect_drawn) {
-      return;
-    }
+    AddDraw(draw_border.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
+  }
+  if (content_rect_drawn) {
+    return;
   }
 
   // Handle drawing the content.
@@ -516,10 +605,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     const render_tree::SolidColorBrush* solid_brush =
         base::polymorphic_downcast<const render_tree::SolidColorBrush*>
             (brush.get());
-    if (data.rounded_corners) {
+    if (content_corners) {
       scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
-          draw_state_, content_rect, *data.rounded_corners,
-          solid_brush->color()));
+          draw_state_, content_rect, *content_corners, solid_brush->color()));
       // Transparency is used for anti-aliasing.
       AddDraw(draw.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
     } else {
@@ -883,6 +971,27 @@ void RenderTreeNodeVisitor::AddExternalDraw(scoped_ptr<DrawObject> object,
     last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
         DrawObjectManager::kBlendExternal, draw_type, render_target_,
         world_bounds);
+  }
+}
+
+void RenderTreeNodeVisitor::AddClear(const math::RectF& rect,
+                                     const render_tree::ColorRGBA& color) {
+  // Check to see if we're simply trying to clear a non-transformed rectangle
+  // on the screen with no filters or effects applied, and if so, issue a
+  // clear command instead of a more general draw command, to give the GL
+  // driver a better chance to optimize.
+  if (!draw_state_.rounded_scissor_corners &&
+      draw_state_.transform.IsIdentity() && draw_state_.opacity == 1.0f) {
+    math::Rect old_scissor = draw_state_.scissor;
+    draw_state_.scissor.Intersect(math::Rect::RoundFromRectF(rect));
+    scoped_ptr<DrawObject> draw_clear(
+        new DrawClear(graphics_state_, draw_state_, color));
+    AddDraw(draw_clear.Pass(), rect, DrawObjectManager::kBlendNone);
+    draw_state_.scissor = old_scissor;
+  } else {
+    scoped_ptr<DrawObject> draw(
+        new DrawPolyColor(graphics_state_, draw_state_, rect, color));
+    AddDraw(draw.Pass(), rect, DrawObjectManager::kBlendNone);
   }
 }
 

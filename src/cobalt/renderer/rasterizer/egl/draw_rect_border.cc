@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "cobalt/math/insets_f.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
@@ -151,7 +152,7 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
     const render_tree::ColorRGBA& border_color,
     const render_tree::ColorRGBA& content_color) {
   // If the scaled border rect is too small, then don't bother rendering.
-  math::Vector2dF scale = GetScale();
+  math::Vector2dF scale = math::GetScale2d(base_state_.transform);
   if (border_rect.width() * scale.x() < 1.0f ||
       border_rect.height() * scale.y() < 1.0f) {
     return true;

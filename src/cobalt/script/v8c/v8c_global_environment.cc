@@ -414,7 +414,7 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
       /*resource_column_offset=*/
       v8::Integer::New(isolate_, source_location.column_number - 1),
       /*resource_is_shared_cross_origin=*/
-      v8::Boolean::New(isolate_, !v8c_source_code->is_muted()));
+      v8::Boolean::New(isolate_, v8c_source_code->is_muted()));
 
   v8::Local<v8::String> source;
   if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),

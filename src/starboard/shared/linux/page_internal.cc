@@ -36,6 +36,11 @@ int32_t GetPageCount(size_t byte_count) {
 int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
   bool flag_set = false;
   int mmap_protect = 0;
+#if SB_API_VERSION >= SB_MEMORY_PROTECT_RESERVED_FLAG_API_VERSION
+  if (sb_flags == kSbMemoryMapProtectReserved) {
+    return PROT_NONE;
+  }
+#endif
   if (sb_flags & kSbMemoryMapProtectRead) {
     mmap_protect |= PROT_READ;
     flag_set = true;

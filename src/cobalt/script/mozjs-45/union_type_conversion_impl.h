@@ -218,7 +218,40 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType2<T1, T2>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType2<T1, T2>(t2);
+      return;
+    }
+  }
+
+  // 18. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType2<T1, T2>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType2<T1, T2>(t2);
+      return;
+    }
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -457,7 +490,52 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType3<T1, T2, T3>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType3<T1, T2, T3>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType3<T1, T2, T3>(t3);
+      return;
+    }
+  }
+
+  // 18. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType3<T1, T2, T3>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType3<T1, T2, T3>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType3<T1, T2, T3>(t3);
+      return;
+    }
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 
@@ -746,7 +824,64 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
+      return;
+    }
+  }
+
+  // 18. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
+    if (UnionTypeTraitsT1::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t1);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t1);
+      return;
+    }
+
+    if (UnionTypeTraitsT2::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t2);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t2);
+      return;
+    }
+
+    if (UnionTypeTraitsT3::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t3);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t3);
+      return;
+    }
+
+    if (UnionTypeTraitsT4::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t4);
+      *out_union = script::UnionType4<T1, T2, T3, T4>(t4);
+      return;
+    }
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 

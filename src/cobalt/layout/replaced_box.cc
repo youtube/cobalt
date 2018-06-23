@@ -320,7 +320,7 @@ void ReplacedBox::RenderAndAnimateContent(
 #if defined(FORCE_VIDEO_EXTERNAL_MESH)
     if (!*is_video_punched_out_) {
       AnimateNode::Builder animate_node_builder;
-      scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
+      scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
       animate_node_builder.Add(
           image_node, base::Bind(&AnimateVideoImage, replace_image_cb_));
 
@@ -612,7 +612,7 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
     const cssom::MapToMeshFunction* mtm_function) const {
   // First setup the animated image node.
   AnimateNode::Builder animate_node_builder;
-  scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
+  scoped_refptr<ImageNode> image_node = new ImageNode(nullptr);
   animate_node_builder.Add(image_node,
                            base::Bind(&AnimateVideoImage, replace_image_cb_));
   scoped_refptr<AnimateNode> animate_node =

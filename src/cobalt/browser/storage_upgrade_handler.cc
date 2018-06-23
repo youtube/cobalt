@@ -37,8 +37,7 @@ void OnCookiesLoaded(const std::vector<net::CanonicalCookie*>& cookies) {
 }  // namespace
 
 StorageUpgradeHandler::StorageUpgradeHandler(const GURL& url)
-    : default_local_storage_id_(
-          dom::StorageArea::GetLocalStorageIdForUrl(url)) {}
+    : default_local_storage_origin_(loader::Origin(url)) {}
 
 void StorageUpgradeHandler::OnUpgrade(storage::StorageManager* storage,
                                       const char* data, int size) {
@@ -67,7 +66,7 @@ void StorageUpgradeHandler::OnUpgrade(storage::StorageManager* storage,
       const storage::upgrade::UpgradeReader::LocalStorageEntry*
           local_storage_entry = upgrade_reader.GetLocalStorageEntry(i);
       DCHECK(local_storage_entry);
-      local_storage_database.Write(default_local_storage_id_,
+      local_storage_database.Write(default_local_storage_origin_,
                                    local_storage_entry->key,
                                    local_storage_entry->value);
     }

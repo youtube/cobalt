@@ -288,12 +288,23 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
   JS::CompileOptions options(context_);
   options.setFileAndLine(location.file_path.c_str(), location.line_number)
       .setMutedErrors(mozjs_source_code->is_muted());
+  // In addition to muting errors in the MozJS compile options, we also
+  // set a member indicating whether errors should be muted, and rely on the
+  // fact that errors will be handled on the same thread as this one.  This
+  // is necessary because the JSErrorReport passed to the error callback by
+  // SpiderMonkey doesn't always respect the muted errors setting of the
+  // compile options.
+  are_errors_muted_ = mozjs_source_code->is_muted();
+
   bool success =
       JS::Evaluate(context_, options, inflated_buffer, length, out_result);
   if (!success && context_->isExceptionPending()) {
     JS_ReportPendingException(context_);
   }
   js_free(inflated_buffer);
+
+  // Reset the mute variable.
+  are_errors_muted_ = false;
 
   return success;
 }
@@ -561,6 +572,7 @@ void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
 
 void MozjsGlobalEnvironment::ReportError(const char* message,
                                          JSErrorReport* report) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   JS::RootedValue exception(context_);
   ::JS_GetPendingException(context_, &exception);
 
@@ -586,7 +598,7 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   if (exception.isObject()) {
     error_report.error.reset(new MozjsValueHandleHolder(context_, exception));
   }
-  error_report.is_muted = report->isMuted;
+  error_report.is_muted = report->isMuted || are_errors_muted_;
 
   // If this isn't simply a warning, and the error wasn't caused by JS running
   // out of memory (in which case the callback will fail as well), then run
@@ -602,12 +614,13 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
 
   // If the error is not handled, then the error may be reported to the user.
   //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors-in-documents
+  std::string new_error_message = base::StringPrintf(
+      "%s:%u:%u: %s", error_report.filename.c_str(), error_report.line_number,
+      error_report.column_number, error_report.message.c_str());
   if (last_error_message_) {
-    *last_error_message_ = error_report.message;
+    *last_error_message_ = new_error_message;
   } else {
-    LOG(ERROR) << "JS Error: " << error_report.filename << ":"
-               << error_report.line_number << ":" << error_report.column_number
-               << ": " << error_report.message;
+    LOG(ERROR) << "JS Error: " << new_error_message;
   }
 }
 

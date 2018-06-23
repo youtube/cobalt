@@ -48,10 +48,11 @@
       'variables': {
         'content_test_input_files': ['<!@(python <(DEPTH)/starboard/build/list_dmp_files.py "starboard/shared/starboard/player/testdata")'],
         'content_test_output_subdir': 'starboard/shared/starboard/player/testdata',
-        'download_at_gyp_time': ['<!@(download_from_google_storage --no_resume --no_auth --num_threads 8 --bucket cobalt-static-storage -d <(DEPTH)/starboard/shared/starboard/player/testdata -v | grep "Success")'],
       },
       'actions' : [
         {
+          # This action requires depot_tools to be in path
+          # (https://cobalt.googlesource.com/depot_tools).
           'action_name': 'player_filter_tests_download_test_data',
           'action': [ 'download_from_google_storage',
                       '--no_resume',

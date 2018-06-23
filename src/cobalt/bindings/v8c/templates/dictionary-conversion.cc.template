@@ -149,7 +149,7 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                   &converted_value);
       out_dictionary->set_{{member.name}}(converted_value);
   {% else %}
-      TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+      TypeTraits<{{member.type}}>::ConversionType converted_value;
       FromJSValue(isolate,
                   member_value,
                   {{member.conversion_flags}},

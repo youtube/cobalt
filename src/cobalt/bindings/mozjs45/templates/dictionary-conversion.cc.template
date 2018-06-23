@@ -136,7 +136,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
     out_dictionary->set_{{member.name}}(converted_value);
   {% else %}
-    TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+    TypeTraits<{{member.type}}>::ConversionType converted_value;
     FromJSValue(context,
                 {{member.name}},
                 {{member.conversion_flags}},

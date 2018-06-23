@@ -22,6 +22,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'get_user_media_test.cc',
+        'media_recorder_test.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',

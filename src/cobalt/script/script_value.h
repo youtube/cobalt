@@ -60,14 +60,14 @@ class ScriptValue {
    public:
     Reference(Wrappable* wrappable, const ScriptValue& script_value)
         : owner_(wrappable), referenced_value_(script_value.MakeCopy()) {
-      DCHECK(referenced_value_);
+      DCHECK(!referenced_value_->IsNull());
       referenced_value_->RegisterOwner(owner_);
     }
 
     Reference(Wrappable* wrappable, const Handle<T>& local)
         : owner_(wrappable),
           referenced_value_(local.GetScriptValue()->MakeCopy()) {
-      DCHECK(referenced_value_);
+      DCHECK(!referenced_value_->IsNull());
       referenced_value_->RegisterOwner(owner_);
     }
 
@@ -167,6 +167,9 @@ class Handle {
     script_value_->PreventGarbageCollection();
     script_value_->reference_count_++;
   }
+  // We need the default constructor for nullable ScriptValue.
+  Handle() = default;
+
   Handle& operator=(const Handle& other) {
     // Increment |other|'s value first to allow for self assignment.
     if (other.script_value_) {
@@ -186,17 +189,17 @@ class Handle {
     return *this;
   }
 
+  bool IsEmpty() const { return script_value_ == nullptr; }
+
   ~Handle() { Clear(); }
 
   T* operator*() { return script_value_->GetValue(); }
-  T* operator->() { return script_value_->GetValue(); }
+  T* operator->() const { return script_value_->GetValue(); }
 
   // These are primarly exposed for internals.  In most cases you don't need
   // to work with the ScriptValue directly.
   ScriptValue<T>* GetScriptValue() { return script_value_; }
   const ScriptValue<T>* GetScriptValue() const { return script_value_; }
-
-  bool IsEmpty() const { return script_value_ == nullptr; }
 
  private:
   void Clear() {
@@ -210,7 +213,7 @@ class Handle {
     script_value_ = nullptr;
   }
 
-  ScriptValue<T>* script_value_;
+  ScriptValue<T>* script_value_ = nullptr;
 };
 
 }  // namespace script

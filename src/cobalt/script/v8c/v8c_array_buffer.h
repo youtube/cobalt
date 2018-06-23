@@ -33,6 +33,8 @@ class V8cArrayBuffer final : public ScopedPersistent<v8::Value>,
  public:
   using BaseType = ArrayBuffer;
 
+  V8cArrayBuffer() = default;
+
   V8cArrayBuffer(v8::Isolate* isolate, v8::Local<v8::Value> value)
       : isolate_(isolate), ScopedPersistent(isolate, value) {
     DCHECK(value->IsArrayBuffer());
@@ -93,7 +95,8 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     return;
   }
 
-  *out_array_buffer = V8cUserObjectHolder<V8cArrayBuffer>(isolate, value);
+  *out_array_buffer =
+      std::move(V8cUserObjectHolder<V8cArrayBuffer>(isolate, value));
 }
 
 }  // namespace v8c

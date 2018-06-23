@@ -44,6 +44,15 @@ class TypedArrayImpl : public TypedArray {
     return New(global_environment, array_buffer, 0, length);
   }
 
+  // Custom constructor that will not be exposed. It constructs a new empty
+  // ArrayBuffer along with the new typed array.
+  static Handle<TypedArrayImpl> New(GlobalEnvironment* global_environment,
+                                    const void* data, size_t length) {
+    Handle<ArrayBuffer> array_buffer =
+        ArrayBuffer::New(global_environment, data, length * sizeof(CType));
+    return New(global_environment, array_buffer, 0, length);
+  }
+
   virtual CType* Data() const = 0;
 };
 

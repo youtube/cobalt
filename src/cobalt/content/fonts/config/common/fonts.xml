@@ -438,7 +438,7 @@
         <font weight="400" style="normal" index="1">NotoSansCJK-Regular.ttc</font>
     </family>
     <family pages="0,32-33,35-39,41,43,48,50,496-502,505,3584,4068,4072">
-        <font weight="400" style="normal">NotoColorEmoji.ttf</font>
+        <font weight="400" style="normal" disable_synthetic_bolding="true">NotoColorEmoji.ttf</font>
     </family>
     <family pages="0,32-33,35-39,41,43,48,50,254,496-502,4068,4072">
         <font weight="400" style="normal">NotoEmoji-Regular.ttf</font>

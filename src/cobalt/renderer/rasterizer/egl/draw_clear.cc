@@ -23,10 +23,9 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-DrawClear::DrawClear(GraphicsState* graphics_state,
-    const BaseState& base_state, const render_tree::ColorRGBA& clear_color)
-    : DrawObject(base_state),
-      clear_color_(clear_color) {}
+DrawClear::DrawClear(GraphicsState* graphics_state, const BaseState& base_state,
+                     const render_tree::ColorRGBA& clear_color)
+    : DrawObject(base_state), clear_color_(GetDrawColor(clear_color)) {}
 
 void DrawClear::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
@@ -42,6 +41,7 @@ void DrawClear::ExecuteRasterize(
 
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
       base_state_.scissor.width(), base_state_.scissor.height());
+
   graphics_state->Clear(clear_color_.r(), clear_color_.g(), clear_color_.b(),
       clear_color_.a());
 }

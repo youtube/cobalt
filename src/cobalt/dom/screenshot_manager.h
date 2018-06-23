@@ -19,10 +19,10 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_encoder.h"
 #include "cobalt/render_tree/node.h"
-#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"

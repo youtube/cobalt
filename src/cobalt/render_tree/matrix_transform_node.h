@@ -31,6 +31,7 @@ namespace render_tree {
 class MatrixTransformNode : public Node {
  public:
   struct Builder {
+    Builder(const Builder&) = default;
     Builder(const scoped_refptr<Node>& source, const math::Matrix3F& transform)
         : source(source), transform(transform) {}
 
@@ -46,11 +47,9 @@ class MatrixTransformNode : public Node {
     math::Matrix3F transform;
   };
 
-  MatrixTransformNode(const scoped_refptr<Node>& source,
-                      const math::Matrix3F& transform)
-      : data_(source, transform) {}
-
-  explicit MatrixTransformNode(const Builder& builder) : data_(builder) {}
+  // Forwarding constructor to the set of Builder constructors.
+  template <typename... Args>
+  MatrixTransformNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

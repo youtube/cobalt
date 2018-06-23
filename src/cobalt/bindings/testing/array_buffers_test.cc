@@ -59,23 +59,24 @@ TEST_F(ArrayBufferTest, ArrayBufferTest) {
   }
 
   {
-    script::PreallocatedArrayBufferData preallocated_data(256);
-    EXPECT_EQ(256, preallocated_data.byte_length());
-    for (int i = 0; i < preallocated_data.byte_length(); i++) {
-      reinterpret_cast<uint8_t*>(preallocated_data.data())[i] = i;
+    scoped_ptr<script::PreallocatedArrayBufferData> preallocated_data(
+        new script::PreallocatedArrayBufferData(256));
+    EXPECT_EQ(256, preallocated_data->byte_length());
+    for (int i = 0; i < preallocated_data->byte_length(); i++) {
+      reinterpret_cast<uint8_t*>(preallocated_data->data())[i] = i;
     }
 
-    void* data_pointer = preallocated_data.data();
+    void* data_pointer = preallocated_data->data();
 
     auto array_buffer =
-        script::ArrayBuffer::New(global_environment_, &preallocated_data);
+        script::ArrayBuffer::New(global_environment_, preallocated_data.Pass());
     EXPECT_EQ(256, array_buffer->ByteLength());
     EXPECT_EQ(data_pointer, array_buffer->Data());
     for (int i = 0; i < 256; i++) {
       EXPECT_EQ(i, reinterpret_cast<uint8_t*>(array_buffer->Data())[i]);
     }
 
-    EXPECT_EQ(nullptr, preallocated_data.data());
+    EXPECT_EQ(nullptr, preallocated_data.get());
   }
 }
 

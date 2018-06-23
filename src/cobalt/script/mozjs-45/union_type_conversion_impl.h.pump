@@ -218,7 +218,36 @@ $for TYPE [[
 
 ]]
 
-  // 17. Throw a TypeError.
+  // 17. If |types| includes an ArrayBufferView type, then return the result of
+  //     converting |V| to ArrayBufferView type.
+  //     This step has to be before 18 to catch array_buffer_view types.
+  if (value.isObject() && JS_IsArrayBufferViewObject(&value.toObject())) {
+$for TYPE [[
+
+    if (UnionTypeTraitsT$(TYPE)::is_array_buffer_view_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+      *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+      return;
+    }
+
+]]
+  }
+
+  // 18. If |types| includes any ScriptValue type, then return the result of
+  //     converting |V| to that ScriptValue type.
+  if (value.isObject() && JS_IsArrayBufferObject(&value.toObject())) {
+$for TYPE [[
+
+    if (UnionTypeTraitsT$(TYPE)::is_script_value_type) {
+      FromJSValue(context, value, conversion_flags, exception_state, &t$(TYPE));
+      *out_union = script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>(t$(TYPE));
+      return;
+    }
+
+]]
+  }
+
+  // 19. Throw a TypeError.
   exception_state->SetSimpleException(kNotUnionType);
 }
 

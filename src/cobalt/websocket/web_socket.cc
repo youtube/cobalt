@@ -326,7 +326,7 @@ void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
   }
   std::string error_message;
   bool success = impl_->SendBinary(reinterpret_cast<const char*>(blob->data()),
-                                   static_cast<std::size_t>(blob->size()),
+                                   static_cast<size_t>(blob->size()),
                                    &buffered_amount_, &error_message);
   if (!success) {
     DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
@@ -334,7 +334,7 @@ void WebSocket::Send(const scoped_refptr<dom::Blob>& data,
 }
 
 // Implements spec at https://www.w3.org/TR/websockets/#dom-websocket-send.
-void WebSocket::Send(const scoped_refptr<dom::ArrayBuffer>& data,
+void WebSocket::Send(const script::Handle<script::ArrayBuffer>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(impl_);
@@ -342,21 +342,19 @@ void WebSocket::Send(const scoped_refptr<dom::ArrayBuffer>& data,
     return;
   }
   std::string error_message;
-  dom::ArrayBuffer* array_buffer(data.get());
-  if (!array_buffer) {
+  if (data.IsEmpty()) {
     return;
   }
   bool success =
-      impl_->SendBinary(reinterpret_cast<const char*>(array_buffer->data()),
-                        static_cast<std::size_t>(array_buffer->byte_length()),
-                        &buffered_amount_, &error_message);
+      impl_->SendBinary(reinterpret_cast<const char*>(data->Data()),
+                        data->ByteLength(), &buffered_amount_, &error_message);
   if (!success) {
     DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
   }
 }
 
 // Implements spect at https://www.w3.org/TR/websockets/#dom-websocket-send.
-void WebSocket::Send(const scoped_refptr<dom::ArrayBufferView>& data,
+void WebSocket::Send(const script::Handle<script::ArrayBufferView>& data,
                      script::ExceptionState* exception_state) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(impl_);
@@ -364,14 +362,12 @@ void WebSocket::Send(const scoped_refptr<dom::ArrayBufferView>& data,
     return;
   }
   std::string error_message;
-  dom::ArrayBufferView* array_buffer_view(data.get());
-  if (!array_buffer_view) {
+  if (data.IsEmpty()) {
     return;
   }
-  bool success = impl_->SendBinary(
-      reinterpret_cast<const char*>(array_buffer_view->base_address()),
-      static_cast<std::size_t>(array_buffer_view->byte_length()),
-      &buffered_amount_, &error_message);
+  bool success =
+      impl_->SendBinary(reinterpret_cast<const char*>(data->RawData()),
+                        data->ByteLength(), &buffered_amount_, &error_message);
   if (!success) {
     DLOG(ERROR) << "Unable to send message: [" << error_message << "]";
   }

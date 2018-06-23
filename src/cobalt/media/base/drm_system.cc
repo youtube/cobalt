@@ -237,7 +237,7 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
                                                            error_message);
     }
 
-    // Sweep the context of |GenerateSessionUpdateRequest|.
+    // Sweep the context of |GenerateSessionUpdateRequest| once license updated.
     ticket_to_session_update_request_map_.erase(
         session_update_request_iterator);
   } else {

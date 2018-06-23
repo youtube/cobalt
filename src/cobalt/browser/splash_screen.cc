@@ -96,6 +96,10 @@ SplashScreen::SplashScreen(
   web_module_options.on_before_unload_fired_but_not_handled =
       base::Bind(on_window_close, base::TimeDelta());
 
+  // Since the splash screen is intended to possibly fade in to the main web
+  // module contents, make sure blending is enabled for its background.
+  web_module_options.clear_window_with_background_color = false;
+
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(
       *url_to_pass, initial_application_state, render_tree_produced_callback_,

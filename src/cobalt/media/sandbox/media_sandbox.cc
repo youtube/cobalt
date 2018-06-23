@@ -121,7 +121,7 @@ void MediaSandbox::Impl::AnimateCB(render_tree::ImageNode::Builder* image_node,
 
 void MediaSandbox::Impl::SetupAndSubmitScene() {
   scoped_refptr<render_tree::ImageNode> image_node =
-      new render_tree::ImageNode(NULL);
+      new render_tree::ImageNode(nullptr);
   render_tree::animations::AnimateNode::Builder animate_node_builder;
 
   animate_node_builder.Add(

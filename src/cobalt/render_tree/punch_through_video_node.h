@@ -42,6 +42,7 @@ class PunchThroughVideoNode : public Node {
   typedef base::Callback<bool(const math::Rect&)> SetBoundsCB;
 
   struct Builder {
+    Builder(const Builder&) = default;
     Builder(const math::RectF& rect, const SetBoundsCB& set_bounds_cb)
         : rect(rect), set_bounds_cb(set_bounds_cb) {}
 
@@ -54,7 +55,9 @@ class PunchThroughVideoNode : public Node {
     const SetBoundsCB set_bounds_cb;
   };
 
-  explicit PunchThroughVideoNode(const Builder& builder) : data_(builder) {}
+  // Forwarding constructor to the set of Builder constructors.
+  template <typename... Args>
+  PunchThroughVideoNode(Args&&... args) : data_(std::forward<Args>(args)...) {}
 
   void Accept(NodeVisitor* visitor) override;
   math::RectF GetBounds() const override;

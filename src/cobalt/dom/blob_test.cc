@@ -15,7 +15,9 @@
 #include <algorithm>
 
 #include "cobalt/dom/blob.h"
-#include "cobalt/dom/data_view.h"
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/testing/stub_window.h"
+#include "cobalt/script/data_view.h"
 #include "cobalt/script/testing/mock_exception_state.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,22 +26,30 @@ namespace dom {
 namespace {
 
 using script::testing::MockExceptionState;
-using testing::_;
-using testing::SaveArg;
-using testing::StrictMock;
+using ::testing::_;
+using ::testing::SaveArg;
+using ::testing::StrictMock;
 
 TEST(BlobTest, Constructors) {
-  scoped_refptr<Blob> blob_default_buffer = new Blob(NULL);
+  // Initialize JavaScriptEngine and its environment.
+  testing::StubWindow stub_window;
+  script::GlobalEnvironment* global_environment =
+      stub_window.global_environment();
+  script::EnvironmentSettings* environment_settings =
+      stub_window.environment_settings();
+
+  script::Handle<script::ArrayBuffer> array_buffer =
+      script::ArrayBuffer::New(global_environment, 5);
+  scoped_refptr<Blob> blob_default_buffer = new Blob(environment_settings);
 
   EXPECT_EQ(0, blob_default_buffer->size());
 
-  StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 5);
-  scoped_refptr<DataView> data_view =
-      new DataView(array_buffer, &exception_state);
-  data_view->SetInt16(0, static_cast<int16>(0x0607), &exception_state);
-  data_view->SetInt16(3, static_cast<int16>(0x7BCD), &exception_state);
-  scoped_refptr<Blob> blob_with_buffer = new Blob(NULL, array_buffer);
+  script::Handle<script::DataView> data_view = script::DataView::New(
+      global_environment, array_buffer, 0, array_buffer->ByteLength());
+  uint8 test_data[] = {0x06, 0x07, 0x00, 0x7B, 0xCD};
+  SbMemoryCopy(data_view->RawData(), test_data, 5);
+  scoped_refptr<Blob> blob_with_buffer =
+      new Blob(environment_settings, array_buffer);
 
   ASSERT_EQ(5, blob_with_buffer->size());
   ASSERT_TRUE(blob_with_buffer->data());
@@ -50,13 +60,13 @@ TEST(BlobTest, Constructors) {
   EXPECT_EQ(0x7B, blob_with_buffer->data()[3]);
   EXPECT_EQ(0xCD, blob_with_buffer->data()[4]);
 
-  scoped_refptr<DataView> data_view_mid_3 =
-      new DataView(array_buffer, 1, 3, &exception_state);
+  script::Handle<script::DataView> data_view_mid_3 =
+      script::DataView::New(global_environment, array_buffer, 1, 3);
   script::Sequence<Blob::BlobPart> parts;
   parts.push_back(Blob::BlobPart(blob_with_buffer));
   parts.push_back(Blob::BlobPart(data_view_mid_3));
   parts.push_back(Blob::BlobPart(array_buffer));
-  scoped_refptr<Blob> blob_with_parts = new Blob(NULL, parts);
+  scoped_refptr<Blob> blob_with_parts = new Blob(environment_settings, parts);
 
   ASSERT_EQ(13UL, blob_with_parts->size());
   ASSERT_TRUE(blob_with_parts->data());
@@ -70,20 +80,33 @@ TEST(BlobTest, Constructors) {
 // Tests that further changes to a buffer from which a blob was constructed
 // no longer affect the blob's buffer, since it must be a separate copy of
 // its construction arguments.
-TEST(BlobTest, HasOwnBuffer) {
-  StrictMock<MockExceptionState> exception_state;
-  scoped_refptr<ArrayBuffer> array_buffer = new ArrayBuffer(NULL, 2);
-  scoped_refptr<DataView> data_view =
-      new DataView(array_buffer, &exception_state);
-  data_view->SetInt16(0, static_cast<int16>(0x0607), &exception_state);
 
-  scoped_refptr<Blob> blob_with_buffer = new Blob(NULL, array_buffer);
+TEST(BlobTest, HasOwnBuffer) {
+  // Initialize JavaScriptEngine and its environment.
+  testing::StubWindow stub_window;
+  script::GlobalEnvironment* global_environment =
+      stub_window.global_environment();
+  script::EnvironmentSettings* environment_settings =
+      stub_window.environment_settings();
+  StrictMock<MockExceptionState> exception_state;
+
+  script::Handle<script::ArrayBuffer> array_buffer =
+      script::ArrayBuffer::New(global_environment, 2);
+  script::Handle<script::DataView> data_view = script::DataView::New(
+      global_environment, array_buffer, 0, array_buffer->ByteLength());
+
+  uint8 test_data[2] = {0x06, 0x07};
+  SbMemoryCopy(data_view->RawData(), test_data, 2);
+
+  scoped_refptr<Blob> blob_with_buffer =
+      new Blob(environment_settings, array_buffer);
 
   ASSERT_EQ(2, blob_with_buffer->size());
   ASSERT_TRUE(blob_with_buffer->data());
-  EXPECT_NE(array_buffer->data(), blob_with_buffer->data());
+  EXPECT_NE(array_buffer->Data(), blob_with_buffer->data());
 
-  data_view->SetUint8(1, static_cast<uint8>(0xff), &exception_state);
+  uint8 test_data2[1] = {0xff};
+  memcpy(data_view->RawData(), test_data2, 1);
 
   EXPECT_EQ(0x6, blob_with_buffer->data()[0]);
   EXPECT_EQ(0x7, blob_with_buffer->data()[1]);

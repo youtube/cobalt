@@ -11,43 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 {
   'variables': {
+    'enable_map_to_mesh%': 1,
     'target_arch': 'arm',
-
-    'gl_type': 'system_gles2',
-
-    # Tizen uses ARMv7
-    'arm_version': 7,
-    'armv7': 1,
-    'arm_neon': 0,
-
-    # Reduce garbage collection threshold from the default of 8MB in order to
-    # save on memory.  This will mean that garbage collection occurs more
-    # frequently.
-    'mozjs_garbage_collection_threshold_in_bytes%': 4 * 1024 * 1024,
-
-    # The rasterizer does not benefit much from rendering only the dirty
-    # region. Disable this option since it costs GPU time.
-    'render_dirty_region_only': 0,
-
-    'cobalt_media_buffer_storage_type': 'memory',
-    'cobalt_media_buffer_initial_capacity': 26 * 1024 * 1024,
-    'cobalt_media_buffer_allocation_unit': 0 * 1024 * 1024,
-    'cobalt_media_buffer_non_video_budget': 5 * 1024 * 1024,
-    'cobalt_media_buffer_video_budget_1080p': 16 * 1024 * 1024,
-    'cobalt_media_buffer_video_budget_4k': 60 * 1024 * 1024,
-
-    'platform_libraries': [
-      '-lasound',
-      '-lavcodec',
-      '-lavformat',
-      '-lavutil',
-      '-ldlog',
+    'gl_type%': 'system_gles2',
+    'arm_neon': 1,
+    'cobalt_platform_dependencies': [
+      # GL Linux makes some GL calls within decode_target_internal.cc.
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
     ],
   },
-
   'target_defaults': {
     'default_configuration': 'tizen-armv7l_debug',
     'configurations': {
@@ -64,9 +38,24 @@
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
-  }, # end of target_defaults
+    # for libvpx arm arch support
+    'cflags': [
+      '-mfpu=neon-vfpv4',
+      '-mfloat-abi=softfp',
+    ],
+  },
 
   'includes': [
+    'libraries.gypi',
     '../shared/gyp_configuration.gypi',
+  ],
+  # with flto flag, we get below error
+  # plugin needed to handle lto object
+  # so remove flto flag
+  'compiler_flags_gold!': [
+    '-flto',
+  ],
+  'linker_flags_gold!': [
+    '-flto',
   ],
 }

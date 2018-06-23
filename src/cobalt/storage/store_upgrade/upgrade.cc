@@ -21,7 +21,10 @@
 
 #include "base/debug/trace_event.h"
 #include "base/file_path.h"
+#include "base/optional.h"
+#include "base/string_split.h"
 #include "cobalt/storage/storage_constants.h"
+#include "cobalt/storage/store/memory_store.h"
 #include "cobalt/storage/store/storage.pb.h"
 #include "cobalt/storage/store_upgrade/sql_vfs.h"
 #include "cobalt/storage/store_upgrade/virtual_file.h"
@@ -95,6 +98,35 @@ void GetAllCookies(sql::Connection* conn, Storage* storage) {
   }
 }
 
+base::optional<loader::Origin> ParseLocalStorageId(const std::string& id) {
+  std::vector<std::string> id_tokens;
+  base::SplitString(id, '_', &id_tokens);
+  if (id_tokens.size() != 3) {
+    DLOG(WARNING) << "Failed to parse id=" << id;
+    return base::nullopt;
+  }
+  std::string url = id_tokens[0];
+  url += "://";
+  url += id_tokens[1];
+
+  std::vector<std::string> port_tokens;
+  base::SplitString(id_tokens[2], '.', &port_tokens);
+  if (port_tokens.size() != 2) {
+    return base::nullopt;
+  }
+  if (port_tokens[0] != "0") {
+    url += ":";
+    url += port_tokens[0];
+  }
+  GURL gurl(url);
+  loader::Origin origin(gurl);
+  if (origin.is_opaque()) {
+    DLOG(WARNING) << "Missing Serialized Origin for id=" << id;
+    return base::nullopt;
+  }
+  return origin;
+}
+
 void GetLocalStorage(sql::Connection* conn, Storage* storage) {
   sql::Statement get_all(conn->GetCachedStatement(
       SQL_FROM_HERE,
@@ -102,14 +134,18 @@ void GetLocalStorage(sql::Connection* conn, Storage* storage) {
   std::map<std::string, LocalStorage*> map_storage;
   while (get_all.Step()) {
     std::string id(get_all.ColumnString(0));
+    base::optional<loader::Origin> origin = ParseLocalStorageId(id);
+    if (!origin) {
+      continue;
+    }
     DLOG(INFO) << "GetLocalStorage: id=" << id;
-    if (map_storage[id] == nullptr) {
+    if (map_storage[origin->SerializedOrigin()] == nullptr) {
       LocalStorage* local_storage = storage->add_local_storages();
-      local_storage->set_id(id);
-      map_storage[id] = local_storage;
+      local_storage->set_serialized_origin(origin->SerializedOrigin());
+      map_storage[origin->SerializedOrigin()] = local_storage;
     }
     LocalStorageEntry* local_storage_entry =
-        map_storage[id]->add_local_storage_entries();
+        map_storage[origin->SerializedOrigin()]->add_local_storage_entries();
     local_storage_entry->set_key(get_all.ColumnString(1));
     local_storage_entry->set_value(get_all.ColumnString(2));
     DLOG(INFO) << "GetLocalStorage: key=" << local_storage_entry->key()
