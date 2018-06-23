@@ -94,10 +94,47 @@ bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
   return false;
 }
 
+bool RoundedRectContainsNonRoundedRect(
+    const math::RectF& outer_rect,
+    const render_tree::RoundedCorners& outer_corners,
+    const math::RectF& inner_rect) {
+  // Calculate the biggest (by area), the tallest, and the widest non-rounded
+  // rects contained by the rounded rect. See if one of these contains the
+  // inner rect.
+  float inset_left = std::max(outer_corners.top_left.horizontal,
+                              outer_corners.bottom_left.horizontal);
+  float inset_right = std::max(outer_corners.top_right.horizontal,
+                               outer_corners.bottom_right.horizontal);
+  float inset_top = std::max(outer_corners.top_left.vertical,
+                             outer_corners.top_right.vertical);
+  float inset_bottom = std::max(outer_corners.bottom_left.vertical,
+                                outer_corners.bottom_right.vertical);
+
+  // Given an ellipse centered at the origin with radii A and B, the inscribed
+  // rectangle with the largest area would extend A * sqrt(2) / 2 and
+  // B * sqrt(2) / 2 units in each quadrant.
+  const float kInsetScale = 0.2929f;    // 1 - sqrt(2) / 2
+  math::RectF biggest_rect(outer_rect);
+  biggest_rect.Inset(kInsetScale * inset_left,
+                     kInsetScale * inset_top,
+                     kInsetScale * inset_right,
+                     kInsetScale * inset_bottom);
+
+  math::RectF tallest_rect(outer_rect);
+  tallest_rect.Inset(inset_left, 0, inset_right, 0);
+
+  math::RectF widest_rect(outer_rect);
+  widest_rect.Inset(0, inset_top, 0, inset_bottom);
+
+  return biggest_rect.Contains(inner_rect) ||
+         tallest_rect.Contains(inner_rect) ||
+         widest_rect.Contains(inner_rect);
+}
+
 bool RoundedRectContainsRoundedRect(
     const math::RectF& orect, const render_tree::RoundedCorners& ocorners,
     const math::RectF& irect, const render_tree::RoundedCorners& icorners) {
-  // Just use a quick and simple comparison. This may return false negatives,
+  // Use a quick and simple comparison. This may return false negatives,
   // but never return false positives.
   return orect.Contains(irect) &&
          ocorners.top_left.horizontal <= icorners.top_left.horizontal &&
@@ -116,9 +153,25 @@ bool RoundedViewportSupportedForSource(
     const render_tree::ViewportFilter& filter) {
   base::TypeId source_type = source->GetTypeId();
   if (source_type == base::GetTypeId<render_tree::ImageNode>()) {
+    // Image nodes are supported if the image can be rendered natively.
     render_tree::ImageNode* image_node =
         base::polymorphic_downcast<render_tree::ImageNode*>(source);
     return ImageNodeSupportedNatively(image_node);
+  } else if (source_type == base::GetTypeId<render_tree::RectNode>()) {
+    // Rect nodes are supported if they are fully contained by the filter
+    // (i.e. the filter effectively does nothing).
+    const render_tree::RectNode::Builder& rect_data =
+        base::polymorphic_downcast<render_tree::RectNode*>(source)->data();
+    math::RectF content_rect(rect_data.rect);
+    content_rect.Offset(offset);
+    if (rect_data.rounded_corners) {
+      return RoundedRectContainsRoundedRect(filter.viewport(),
+                 filter.rounded_corners(), content_rect,
+                 *rect_data.rounded_corners);
+    } else {
+      return RoundedRectContainsNonRoundedRect(filter.viewport(),
+                 filter.rounded_corners(), content_rect);
+    }
   } else if (source_type == base::GetTypeId<render_tree::CompositionNode>()) {
     // If this is a composition of valid sources, then rendering with a rounded
     // viewport is also supported.
@@ -155,6 +208,20 @@ bool RoundedViewportSupportedForSource(
                  *filter_data.viewport_filter);
     }
     return false;
+  }
+
+  bool is_transform =
+      source_type == base::GetTypeId<render_tree::MatrixTransformNode>() ||
+      source_type == base::GetTypeId<render_tree::MatrixTransform3DNode>();
+  if (!is_transform) {
+    // Generic nodes are handled if they are fully contained in the filter
+    // (i.e. the filter effectively does nothing). Transform nodes are not
+    // handled because their interaction with the rounded viewport filter is
+    // not handled.
+    math::RectF node_bounds(source->GetBounds());
+    node_bounds.Offset(offset);
+    return RoundedRectContainsNonRoundedRect(
+               filter.viewport(), filter.rounded_corners(), node_bounds);
   }
 
   return false;
