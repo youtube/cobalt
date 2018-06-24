@@ -49,7 +49,7 @@ A wrapper around the app launcher. BlackBoxCobaltRunner includes a webdriver
 module attached to the app launcher's Cobalt instance after it starts running.
 Includes a method(JSTestsSucceeded()) to check test result on the JavaScript
 side. Call this method to wait for JavaScript test result.
-black_box_test_js_util.js provides some utility functions that are meant to
+black_box_js_test_utils.js provides some utility functions that are meant to
 work with runner.JSTestsSucceeded() in the python test scripts. Together,
 they allow for test logic to exist in either the python test scripts or
 JavaScript test data.

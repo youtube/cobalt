@@ -16,27 +16,26 @@
   </h1>
   <script>
 
-    let setTimeoutMethod = new TimerTestCase('setTimeout', 1);
-    let setIntervalMethod = new TimerTestCase('setInterval', 4);
+    let setIntervalCalledTimes = 0;
+    let setTimeoutCalledTimes = 0;
 
-    function verifyAllMethods() {
-      setTimeoutMethod.verify();
-      setIntervalMethod.verify();
-      onEndTest();
+    function IsTestComplete() {
+      return setTimeoutCalledTimes > 0 && setIntervalCalledTimes > 0;
     }
 
     let set_interval_id = setInterval(() => {
-      setIntervalMethod.called();
-    }, 500);
+      setIntervalCalledTimes ++;
+      if (IsTestComplete()) {
+        onEndTest();
+      }
+    }, 1100);
 
     setTimeout(() => {
-      setTimeoutMethod.called();
-      clearInterval(set_interval_id);
+      setTimeoutCalledTimes ++;
+      if (IsTestComplete()) {
+        onEndTest();
+      }
     }, 2250);
-
-    setTimeout(() => {
-      verifyAllMethods();
-    }, 2500)
 
     let NewElement = document.createElement('div');
     NewElement.setAttribute('id', 'script_executed');
