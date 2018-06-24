@@ -61,26 +61,13 @@ class JobQueue {
   };
 
   class JobOwner {
-   protected:
-    enum DetachedState { kDetached };
-
-    explicit JobOwner(DetachedState detached_state) : job_queue_(NULL) {
-      SB_DCHECK(detached_state == kDetached);
-    }
+   public:
     explicit JobOwner(JobQueue* job_queue = JobQueue::current())
         : job_queue_(job_queue) {
       SB_DCHECK(job_queue);
     }
+    JobOwner(const JobOwner&) = delete;
     ~JobOwner() { CancelPendingJobs(); }
-
-    // Allow |JobOwner| created on another thread to run on the current thread
-    // if it is created with |kDetached|.
-    // Note that this operation is not thread safe.  It is the caller's
-    // responsilibity to ensure that concurrency hasn't happened yet.
-    void AttachToCurrentThread() {
-      SB_DCHECK(job_queue_ == NULL);
-      job_queue_ = JobQueue::current();
-    }
 
     bool BelongsToCurrentThread() const {
       return job_queue_->BelongsToCurrentThread();
@@ -94,6 +81,22 @@ class JobQueue {
       return job_queue_->RemoveJobByToken(job_token);
     }
     void CancelPendingJobs() { job_queue_->RemoveJobsByOwner(this); }
+
+   protected:
+    enum DetachedState { kDetached };
+
+    explicit JobOwner(DetachedState detached_state) : job_queue_(NULL) {
+      SB_DCHECK(detached_state == kDetached);
+    }
+
+    // Allow |JobOwner| created on another thread to run on the current thread
+    // if it is created with |kDetached|.
+    // Note that this operation is not thread safe.  It is the caller's
+    // responsilibity to ensure that concurrency hasn't happened yet.
+    void AttachToCurrentThread() {
+      SB_DCHECK(job_queue_ == NULL);
+      job_queue_ = JobQueue::current();
+    }
 
    private:
     JobQueue* job_queue_;
