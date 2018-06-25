@@ -48,8 +48,6 @@
   const Uint8Array = self.Uint8Array
 
   const Promise = self.Promise
-  const Promise_reject = Promise.reject
-  const Promise_resolve = Promise.resolve
 
   const ReadableStream = self.ReadableStream
   const ReadableStreamTee = self.ReadableStreamTee
@@ -379,15 +377,15 @@
 
   function consumeBodyAsUint8Array(body) {
     if (body.bodyUsed) {
-      return Promise_reject(new TypeError('Body was already read'))
+      return Promise.reject(new TypeError('Body was already read'))
     }
 
     if (body.body === null) {
-      return Promise_resolve(new Uint8Array(0))
+      return Promise.resolve(new Uint8Array(0))
     }
 
     if (IsReadableStreamLocked(body.body)) {
-      return Promise_reject(new TypeError('ReadableStream was already locked'))
+      return Promise.reject(new TypeError('ReadableStream was already locked'))
     }
 
     var reader = body.body.getReader()
@@ -413,7 +411,7 @@
         results.push(result.value)
         return reader.read().then(addResult)
       } else {
-        return Promise_reject(new TypeError('Invalid stream data type'))
+        return Promise.reject(new TypeError('Invalid stream data type'))
       }
     })
   }
