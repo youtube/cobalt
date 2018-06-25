@@ -17,7 +17,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/media_stream/media_stream_track.h"
+#include "base/threading/thread_checker.h"
 
 namespace cobalt {
 namespace media_stream {
