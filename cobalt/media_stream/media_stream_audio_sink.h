@@ -18,6 +18,7 @@
 #include "cobalt/media_stream/audio_parameters.h"
 
 #include "cobalt/media_stream/media_stream_source.h"
+#include "cobalt/media_stream/media_stream_track.h"
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media/base/shell_audio_bus.h"
