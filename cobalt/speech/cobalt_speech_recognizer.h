@@ -60,8 +60,8 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
-  void OnMicError(MicrophoneManager::MicrophoneError error,
-                  const std::string& error_message);
+  void OnMicrophoneError(MicrophoneManager::MicrophoneError error,
+                         std::string error_message);
 
   // Callbacks from recognizer.
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);
