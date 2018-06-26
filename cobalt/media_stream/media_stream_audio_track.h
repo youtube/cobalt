@@ -61,6 +61,9 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
 
   void Stop() override;
 
+  void OnReadyStateChanged(
+      media_stream::MediaStreamTrack::ReadyState new_state) override;
+
  private:
   FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, OnSetFormatAndData);
   FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, OneTrackMultipleSinks);

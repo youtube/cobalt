@@ -35,6 +35,7 @@ bool MicrophoneAudioSource::EnsureSourceIsStarted() {
 
 void MicrophoneAudioSource::EnsureSourceIsStopped() {
   microphone_manager_.Close();
+  NotifyTracksOfNewReadyState(MediaStreamAudioTrack::kReadyStateEnded);
 }
 
 scoped_ptr<cobalt::speech::Microphone> MicrophoneAudioSource::CreateMicrophone(

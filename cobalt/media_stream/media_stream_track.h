@@ -34,6 +34,8 @@ class MediaStreamTrack : public dom::EventTarget {
   const MediaTrackSettings& GetSettings() { return settings_; }
 
   virtual void Stop() = 0;
+  virtual void OnReadyStateChanged(
+      media_stream::MediaStreamTrack::ReadyState new_state) = 0;
 
   DEFINE_WRAPPABLE_TYPE(MediaStreamTrack);
 
