@@ -28,6 +28,7 @@ namespace image {
 class EncodedStaticImage : public Image {
  public:
   enum class ImageFormat {
+    kJPEG,
     kPNG,
     kWEBP,
   };
@@ -49,10 +50,6 @@ class EncodedStaticImage : public Image {
   math::Size image_dimensions_;
   scoped_array<uint8> memory_;
 };
-
-scoped_array<uint8> WriteRGBAPixelsToPNG(const uint8* const pixel_data,
-                                         const math::Size& dimensions,
-                                         size_t* out_num_bytes);
 
 scoped_refptr<EncodedStaticImage> CompressRGBAImage(
     EncodedStaticImage::ImageFormat desired_format,
