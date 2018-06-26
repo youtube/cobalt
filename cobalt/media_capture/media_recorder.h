@@ -111,6 +111,8 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
     SetAttributeEventListener(base::Tokens::dataavailable(), event_listener);
   }
 
+  RecordingState state() { return recording_state_; }
+
   // MediaStreamAudioSink overrides.
   void OnData(const ShellAudioBus& audio_bus,
               base::TimeTicks reference_time) override;
