@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
+#include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_stream/media_stream.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
@@ -72,11 +73,12 @@ class MediaRecorderTest : public ::testing::Test {
     EXPECT_CALL(*media_source_, EnsureSourceIsStarted());
     EXPECT_CALL(*media_source_, EnsureSourceIsStopped());
     media_source_->ConnectToTrack(audio_track);
-    media_recorder_ =
-        new MediaRecorder(nullptr, stream, MediaRecorderOptions());
+    media_recorder_ = new MediaRecorder(stub_window_.environment_settings(),
+                                        stream, MediaRecorderOptions());
   }
 
  protected:
+  dom::testing::StubWindow stub_window_;
   scoped_refptr<media_capture::MediaRecorder> media_recorder_;
   scoped_refptr<StrictMock<media_stream::FakeMediaStreamAudioSource>>
       media_source_;
