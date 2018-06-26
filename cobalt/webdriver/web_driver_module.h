@@ -30,6 +30,7 @@
 #include "cobalt/webdriver/protocol/server_status.h"
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/protocol/window_id.h"
+#include "cobalt/webdriver/screencast/screencast_module.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -47,7 +48,8 @@ class WebDriverModule {
   typedef base::Callback<void(
       const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
       ScreenshotCompleteCallback;
-  typedef base::Callback<void(const ScreenshotCompleteCallback&)>
+  typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
+                              const ScreenshotCompleteCallback&)>
       GetScreenshotFunction;
   typedef base::Callback<void(const std::string&)> SetProxyFunction;
   // Use this as the default listen_ip. It means "any interface on the local
@@ -85,6 +87,18 @@ class WebDriverModule {
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
   void DeleteSession(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  // This method starts a Screencast server on port 3003 for a client to connect
+  // to. This is not standard Webdriver functionality.
+  void StartScreencast(
+      const base::Value* parameters,
+      const WebDriverDispatcher::PathVariableMap* path_variables,
+      scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+  // This method destroys the Screencast server.
+  // This is not standard Webdriver functionality.
+  void StopScreencast(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
@@ -157,6 +171,8 @@ class WebDriverModule {
 
   base::Callback<SessionDriver*(const protocol::SessionId&)>
       get_session_driver_;
+
+  scoped_ptr<screencast::ScreencastModule> screencast_driver_module_;
 };
 
 }  // namespace webdriver
