@@ -25,6 +25,12 @@
 #include "cobalt/speech/microphone_manager.h"
 
 namespace cobalt {
+namespace media_capture {
+FORWARD_DECLARE_TEST(GetUserMediaTest, PendingPromise);
+FORWARD_DECLARE_TEST(GetUserMediaTest, MicrophoneStoppedRejectedPromise);
+FORWARD_DECLARE_TEST(GetUserMediaTest, MicrophoneErrorRejectedPromise);
+FORWARD_DECLARE_TEST(GetUserMediaTest, MicrophoneSuccessFulfilledPromise);
+}  // namespace media_capture
 namespace media_stream {
 
 class MicrophoneAudioSource : public MediaStreamAudioSource {
@@ -40,6 +46,15 @@ class MicrophoneAudioSource : public MediaStreamAudioSource {
                                  const ErrorCallback& error);
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(::cobalt::media_capture::GetUserMediaTest,
+                           PendingPromise);
+  FRIEND_TEST_ALL_PREFIXES(::cobalt::media_capture::GetUserMediaTest,
+                           MicrophoneStoppedRejectedPromise);
+  FRIEND_TEST_ALL_PREFIXES(::cobalt::media_capture::GetUserMediaTest,
+                           MicrophoneErrorRejectedPromise);
+  FRIEND_TEST_ALL_PREFIXES(::cobalt::media_capture::GetUserMediaTest,
+                           MicrophoneSuccessFulfilledPromise);
+
   MicrophoneAudioSource(const MicrophoneAudioSource&) = delete;
   MicrophoneAudioSource& operator=(const MicrophoneAudioSource&) = delete;
   ~MicrophoneAudioSource() { EnsureSourceIsStopped(); }
