@@ -42,6 +42,7 @@ void PNGWriteFunction(png_structp png_ptr, png_bytep data, png_size_t length) {
 void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
                      int width, int height, int pitch_in_bytes) {
   // Write the PNG to an in-memory buffer and then write it to disk.
+  TRACE_EVENT0("cobalt::renderer", "png_encode::EncodeRGBAToPNG()");
   size_t size;
   scoped_array<uint8> buffer =
       EncodeRGBAToBuffer(pixel_data, width, height, pitch_in_bytes, &size);
@@ -59,7 +60,7 @@ void EncodeRGBAToPNG(const FilePath& png_file_path, const uint8_t* pixel_data,
 scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
                                        int height, int pitch_in_bytes,
                                        size_t* out_size) {
-  TRACE_EVENT0("cobalt::renderer", "PNGEncode::EncodeRGBAToBuffer()");
+  TRACE_EVENT0("cobalt::renderer", "png_encode::EncodeRGBAToBuffer()");
   // Initialize png library and headers for writing.
   png_structp png =
       png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
