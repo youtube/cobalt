@@ -40,7 +40,7 @@ MicrophoneManager::MicrophoneManager(
 }
 
 MicrophoneManager::~MicrophoneManager() {
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&MicrophoneManager::DestroyInternal, base::Unretained(this)));
 }
@@ -52,7 +52,7 @@ void MicrophoneManager::Open() {
 }
 
 void MicrophoneManager::Close() {
-  thread_.message_loop()->PostTask(
+  thread_.message_loop()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&MicrophoneManager::CloseInternal, base::Unretained(this)));
 }
