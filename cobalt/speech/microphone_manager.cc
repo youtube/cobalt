@@ -26,11 +26,13 @@ const float kMicReadRateInHertz = 60.0f;
 
 MicrophoneManager::MicrophoneManager(
     const DataReceivedCallback& data_received,
+    const SuccessfulOpenCallback& successful_open,
     const CompletionCallback& completion, const ErrorCallback& error,
     const MicrophoneCreator& microphone_creator)
     : data_received_callback_(data_received),
       completion_callback_(completion),
       error_callback_(error),
+      successful_open_callback_(successful_open),
       microphone_creator_(microphone_creator),
       state_(kStopped),
       thread_("microphone_thread") {
@@ -92,6 +94,9 @@ void MicrophoneManager::OpenInternal() {
     return;
   }
 
+  if (!successful_open_callback_.is_null()) {
+    successful_open_callback_.Run();
+  }
   poll_mic_events_timer_.emplace();
   // Setup a timer to poll for input events.
   poll_mic_events_timer_->Start(
