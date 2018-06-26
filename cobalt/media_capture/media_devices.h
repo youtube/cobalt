@@ -15,12 +15,19 @@
 #ifndef COBALT_MEDIA_CAPTURE_MEDIA_DEVICES_H_
 #define COBALT_MEDIA_CAPTURE_MEDIA_DEVICES_H_
 
+#include <string>
+#include <vector>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/message_loop_proxy.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_capture/media_device_info.h"
+#include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/media_stream/media_stream_constraints.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/promise.h"
@@ -29,6 +36,7 @@
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/speech/microphone.h"
+#include "cobalt/speech/microphone_manager.h"
 
 namespace cobalt {
 namespace media_capture {
@@ -42,6 +50,7 @@ class MediaDevices : public dom::EventTarget {
   using MediaInfoSequencePromise = script::Promise<MediaInfoSequence>;
   using MediaStreamPromise =
       script::Promise<script::ScriptValueFactory::WrappablePromise>;
+  using MediaStreamPromiseValue = script::ScriptValue<MediaStreamPromise>;
 
   explicit MediaDevices(script::ScriptValueFactory* script_value_factory);
 
@@ -57,12 +66,36 @@ class MediaDevices : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(MediaDevices);
 
  private:
-  void CreateMicrophoneIfNeeded();
+  friend class GetUserMediaTest;
+  FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, PendingPromise);
+  FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, MicrophoneStoppedRejectedPromise);
+  FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, MicrophoneErrorRejectedPromise);
+  FRIEND_TEST_ALL_PREFIXES(GetUserMediaTest, MicrophoneSuccessFulfilledPromise);
+
+  ~MediaDevices() override = default;
+
+  // Stop callback used with MediaStreamAudioSource.
+  void OnMicrophoneStopped();
+
+  // Callbacks used with MicrophoneManager.
+  void OnMicrophoneError(speech::MicrophoneManager::MicrophoneError error,
+                         std::string message);
+  void OnMicrophoneSuccess();
 
   script::ScriptValueFactory* script_value_factory_;
   dom::DOMSettings* settings_ = nullptr;
 
-  scoped_ptr<speech::Microphone> microphone_;
+  scoped_refptr<media_stream::MediaStreamAudioSource> audio_source_;
+
+  scoped_refptr<media_stream::MediaStreamTrack> pending_microphone_track_;
+  std::vector<std::unique_ptr<MediaStreamPromiseValue::Reference>>
+      pending_microphone_promises_;
+
+  scoped_refptr<base::MessageLoopProxy> javascript_message_loop_;
+  base::ThreadChecker thread_checker_;
+
+  base::WeakPtrFactory<MediaDevices> weak_ptr_factory_;
+  base::WeakPtr<MediaDevices> weak_this_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaDevices);
 };

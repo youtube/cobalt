@@ -17,6 +17,8 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
+#include "cobalt/media_stream/microphone_audio_source.h"
+#include "cobalt/media_stream/testing/mock_media_stream_audio_source.h"
 #include "cobalt/script/global_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -50,6 +52,11 @@ class GetUserMediaTest : public ::testing::Test {
     media_devices_->SetEnvironmentSettings(window_.environment_settings());
   }
 
+  media_stream::MicrophoneAudioSource* GetMicrophoneAudioSource() {
+    return base::polymorphic_downcast<media_stream::MicrophoneAudioSource*>(
+        media_devices_->audio_source_.get());
+  }
+
   dom::testing::StubWindow window_;
   scoped_refptr<MediaDevices> media_devices_;
 };
@@ -72,12 +79,53 @@ TEST_F(GetUserMediaTest, NoMediaSources) {
             media_stream_promise->State());
 }
 
-TEST_F(GetUserMediaTest, AudioMediaSources) {
+TEST_F(GetUserMediaTest, PendingPromise) {
   media_stream::MediaStreamConstraints constraints;
   constraints.set_audio(true);
   script::Handle<MediaDevices::MediaStreamPromise> media_stream_promise =
       media_devices_->GetUserMedia(constraints);
   ASSERT_FALSE(media_stream_promise.IsEmpty());
+  EXPECT_EQ(cobalt::script::PromiseState::kPending,
+            media_stream_promise->State());
+}
+
+TEST_F(GetUserMediaTest, MicrophoneStoppedRejectedPromise) {
+  media_stream::MediaStreamConstraints constraints;
+  constraints.set_audio(true);
+  script::Handle<MediaDevices::MediaStreamPromise> media_stream_promise =
+      media_devices_->GetUserMedia(constraints);
+  ASSERT_FALSE(media_stream_promise.IsEmpty());
+  EXPECT_EQ(cobalt::script::PromiseState::kPending,
+            media_stream_promise->State());
+  media_devices_->audio_source_->StopSource();
+  EXPECT_EQ(cobalt::script::PromiseState::kRejected,
+            media_stream_promise->State());
+}
+
+TEST_F(GetUserMediaTest, MicrophoneErrorRejectedPromise) {
+  media_stream::MediaStreamConstraints constraints;
+  constraints.set_audio(true);
+  script::Handle<MediaDevices::MediaStreamPromise> media_stream_promise =
+      media_devices_->GetUserMedia(constraints);
+  ASSERT_FALSE(media_stream_promise.IsEmpty());
+  EXPECT_EQ(cobalt::script::PromiseState::kPending,
+            media_stream_promise->State());
+  media_devices_->OnMicrophoneError(
+      speech::MicrophoneManager::MicrophoneError::kAborted, "Aborted");
+  EXPECT_EQ(cobalt::script::PromiseState::kRejected,
+            media_stream_promise->State());
+}
+
+TEST_F(GetUserMediaTest, MicrophoneSuccessFulfilledPromise) {
+  media_stream::MediaStreamConstraints constraints;
+  constraints.set_audio(true);
+  script::Handle<MediaDevices::MediaStreamPromise> media_stream_promise =
+      media_devices_->GetUserMedia(constraints);
+  ASSERT_FALSE(media_stream_promise.IsEmpty());
+  EXPECT_EQ(cobalt::script::PromiseState::kPending,
+            media_stream_promise->State());
+  media_devices_->OnMicrophoneSuccess();
+  media_devices_->audio_source_->StopSource();
   EXPECT_EQ(cobalt::script::PromiseState::kFulfilled,
             media_stream_promise->State());
 }

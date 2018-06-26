@@ -16,9 +16,11 @@
 
 #include <string>
 
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/media_stream/media_stream.h"
+#include "cobalt/media_stream/microphone_audio_source.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
@@ -61,8 +63,10 @@ scoped_ptr<Microphone> CreateMicrophone(const Microphone::Options& options) {
 }  // namespace.
 
 MediaDevices::MediaDevices(script::ScriptValueFactory* script_value_factory)
-    : script_value_factory_(script_value_factory) {
-}
+    : script_value_factory_(script_value_factory),
+      javascript_message_loop_(base::MessageLoopProxy::current()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      weak_this_(weak_ptr_factory_.GetWeakPtr()) {}
 
 script::Handle<MediaDevices::MediaInfoSequencePromise>
 MediaDevices::EnumerateDevices() {
@@ -118,51 +122,92 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
   // Step 8 is to create a promise (which is already done).
 
   // Step 9: Construct a list of MediaStreamTracks that we have permission.
-  CreateMicrophoneIfNeeded();
-  if (!microphone_) {
-    promise->Reject(new dom::DOMException(dom::DOMException::kNotFoundErr));
-    return promise;
+
+  // Access Microphone Device
+  // Create Audio Source (attach a device to it), source will periodically read
+  // from the device, and push out data to ALL of the tracks
+  if (!audio_source_) {
+    audio_source_ = new media_stream::MicrophoneAudioSource(
+        settings_->microphone_options(),
+        base::Bind(&MediaDevices::OnMicrophoneSuccess, weak_this_),
+        base::Closure(),  // TODO: remove this redundant callback.
+        base::Bind(&MediaDevices::OnMicrophoneError, weak_this_));
   }
-  bool open_success = microphone_->Open();
-  if (!open_success) {
-    // This typically happens if the user did not give permission.
-    // Step 9.8, handle "Permission Failure"
-    DLOG(INFO) << "Unable to open the microphone.";
-    promise->Reject(new dom::DOMException(dom::DOMException::kNotAllowedErr));
+
+  std::unique_ptr<MediaStreamPromiseValue::Reference> promise_reference(
+      new MediaStreamPromiseValue::Reference(this, promise));
+  pending_microphone_promises_.push_back(std::move(promise_reference));
+
+  if (!pending_microphone_track_) {
+    pending_microphone_track_ = new media_stream::MediaStreamAudioTrack();
+    // Starts the source, if needed.  Also calls start on the audio track.
+    audio_source_->ConnectToTrack(
+        base::polymorphic_downcast<media_stream::MediaStreamAudioTrack*>(
+            pending_microphone_track_.get()));
+    audio_source_->SetStopCallback(
+        base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
   }
-  using media_stream::MediaStream;
-  scoped_refptr<media_stream::MediaStreamTrack> microphone_track;
-  // TODO: Attach a microphone device to the microphone track.
-  MediaStream::TrackSequences audio_tracks;
-  audio_tracks.push_back(microphone_track);
-  auto media_stream(make_scoped_refptr(new MediaStream(audio_tracks)));
-  promise->Resolve(media_stream);
 
   // Step 10, return promise.
   return promise;
 }
 
-void MediaDevices::CreateMicrophoneIfNeeded() {
-  DCHECK(settings_);
-  if (microphone_) {
+void MediaDevices::OnMicrophoneError(
+    speech::MicrophoneManager::MicrophoneError error, std::string message) {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneError, weak_this_,
+                              error, message));
     return;
   }
+  DCHECK(thread_checker_.CalledOnValidThread());
 
-  scoped_ptr<speech::Microphone> microphone =
-      CreateMicrophone(settings_->microphone_options());
+  DLOG(INFO) << "MediaDevices::OnMicrophoneError " << message;
+  pending_microphone_track_ = nullptr;
+  audio_source_ = nullptr;
 
-  if (!microphone) {
-    DLOG(INFO) << "Unable to create a microphone.";
+  for (auto& promise : pending_microphone_promises_) {
+    promise->value().Reject(
+        new dom::DOMException(dom::DOMException::kNotAllowedErr));
+  }
+  pending_microphone_promises_.clear();
+}
+
+void MediaDevices::OnMicrophoneStopped() {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
     return;
   }
+  DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (!microphone->IsValid()) {
-    DLOG(INFO) << "Ignoring created microphone because it is invalid.";
+  audio_source_ = nullptr;
+  pending_microphone_track_ = nullptr;
+
+  for (auto& promise : pending_microphone_promises_) {
+    promise->value().Reject(
+        new dom::DOMException(dom::DOMException::kNotAllowedErr));
+  }
+  pending_microphone_promises_.clear();
+}
+
+void MediaDevices::OnMicrophoneSuccess() {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneSuccess, this));
     return;
   }
+  DCHECK(thread_checker_.CalledOnValidThread());
 
-  DLOG(INFO) << "Created microphone: " << microphone->Label();
-  microphone_ = microphone.Pass();
+  using media_stream::MediaStream;
+  MediaStream::TrackSequences audio_tracks;
+  audio_tracks.push_back(pending_microphone_track_);
+  pending_microphone_track_ = nullptr;
+
+  for (auto& promise : pending_microphone_promises_) {
+    promise->value().Resolve(make_scoped_refptr(new MediaStream(audio_tracks)));
+  }
+  pending_microphone_promises_.clear();
 }
 
 }  // namespace media_capture
