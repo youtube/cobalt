@@ -17,22 +17,32 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop_proxy.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
 #include "cobalt/speech/microphone_manager.h"
 
 namespace cobalt {
 namespace media_stream {
 
-class MicrophoneAudioSource : public MediaStreamAudioSource,
-                              public base::RefCounted<MicrophoneAudioSource> {
+class MicrophoneAudioSource : public MediaStreamAudioSource {
  public:
-  explicit MicrophoneAudioSource(const speech::Microphone::Options& options);
+  using CompletionCallback = speech::MicrophoneManager::CompletionCallback;
+  using SuccessfulOpenCallback =
+      speech::MicrophoneManager::SuccessfulOpenCallback;
+  using ErrorCallback = speech::MicrophoneManager::ErrorCallback;
+
+  explicit MicrophoneAudioSource(const speech::Microphone::Options& options,
+                                 const SuccessfulOpenCallback& successful_open,
+                                 const CompletionCallback& completion,
+                                 const ErrorCallback& error);
 
  private:
   MicrophoneAudioSource(const MicrophoneAudioSource&) = delete;
   MicrophoneAudioSource& operator=(const MicrophoneAudioSource&) = delete;
-  ~MicrophoneAudioSource() = default;
+  ~MicrophoneAudioSource() { EnsureSourceIsStopped(); }
 
   bool EnsureSourceIsStarted() override;
 
@@ -47,11 +57,21 @@ class MicrophoneAudioSource : public MediaStreamAudioSource,
       scoped_ptr<MediaStreamAudioTrack::ShellAudioBus> audio_bus);
 
   void OnDataCompletion();
+  void OnMicrophoneOpen();
+  void OnMicrophoneError(speech::MicrophoneManager::MicrophoneError error,
+                         std::string error_message);
 
-  void OnMicError(speech::MicrophoneManager::MicrophoneError error,
-                  const std::string& error_message);
+  scoped_refptr<base::MessageLoopProxy> javascript_message_loop_;
+
+  // These are passed into |microphone_manager_| below, so they must be
+  // defined before it.
+  SuccessfulOpenCallback successful_open_callback_;
+  CompletionCallback completion_callback_;
+  ErrorCallback error_callback_;
 
   speech::MicrophoneManager microphone_manager_;
+
+  base::ThreadChecker thread_checker_;
 
   friend class base::RefCounted<MicrophoneAudioSource>;
 };
