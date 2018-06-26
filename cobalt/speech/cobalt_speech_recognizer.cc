@@ -99,9 +99,11 @@ CobaltSpeechRecognizer::CobaltSpeechRecognizer(
   microphone_manager_.reset(new MicrophoneManager(
       base::Bind(&CobaltSpeechRecognizer::OnDataReceived,
                  base::Unretained(this)),
+      base::Closure(),
       base::Bind(&CobaltSpeechRecognizer::OnDataCompletion,
                  base::Unretained(this)),
-      base::Bind(&CobaltSpeechRecognizer::OnMicError, base::Unretained(this)),
+      base::Bind(&CobaltSpeechRecognizer::OnMicrophoneError,
+                 base::Unretained(this)),
       microphone_creator));
 }
 
@@ -144,9 +146,8 @@ void CobaltSpeechRecognizer::OnRecognizerEvent(
   RunEventCallback(event);
 }
 
-void CobaltSpeechRecognizer::OnMicError(
-    MicrophoneManager::MicrophoneError error,
-    const std::string& error_message) {
+void CobaltSpeechRecognizer::OnMicrophoneError(
+    MicrophoneManager::MicrophoneError error, std::string error_message) {
   // An error is occured in Mic, so stop the energy endpointer and recognizer.
 
   SpeechRecognitionErrorCode speech_error_code =
