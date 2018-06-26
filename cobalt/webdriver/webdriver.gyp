@@ -78,9 +78,14 @@
             'web_driver_module.h',
             'window_driver.cc',
             'window_driver.h',
+            'screencast/screencast_module.cc',
+            'screencast/screencast_module.h',
           ],
           'dependencies': [ 'copy_webdriver_data', ],
-          'defines': [ 'ENABLE_WEBDRIVER', ],
+          'defines': [
+            'ENABLE_WEBDRIVER',
+            'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
+          ],
           'all_dependent_settings': {
             'defines': [ 'ENABLE_WEBDRIVER', ],
           },

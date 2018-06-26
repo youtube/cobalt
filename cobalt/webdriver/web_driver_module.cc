@@ -25,6 +25,7 @@
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/protocol/capabilities.h"
 #include "cobalt/webdriver/protocol/window_id.h"
+#include "cobalt/webdriver/screencast/screencast_module.h"
 #include "cobalt/webdriver/server.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "cobalt/webdriver/util/command_result.h"
@@ -231,6 +232,14 @@ WebDriverModule::WebDriverModule(
       WebDriverServer::kGet,
       StringPrintf("/session/%s/screenshot", kSessionIdVariable),
       base::Bind(&WebDriverModule::RequestScreenshot, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/startscreencast", kSessionIdVariable),
+      base::Bind(&WebDriverModule::StartScreencast, base::Unretained(this)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet,
+      StringPrintf("/session/%s/stopscreencast", kSessionIdVariable),
+      base::Bind(&WebDriverModule::StopScreencast, base::Unretained(this)));
 
   // Session commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -471,7 +480,8 @@ void WebDriverModule::StartServer(int server_port,
   webdriver_server_.reset(new WebDriverServer(
       server_port, listen_ip,
       base::Bind(&WebDriverDispatcher::HandleWebDriverServerRequest,
-                 base::Unretained(webdriver_dispatcher_.get()))));
+                 base::Unretained(webdriver_dispatcher_.get())),
+      "Cobalt.Server.WebDriver"));
 }
 
 void WebDriverModule::StopServer() {
@@ -558,6 +568,48 @@ void WebDriverModule::DeleteSession(
   // If the session doesn't exist, then this is a no-op.
   result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
                              scoped_ptr<base::Value>());
+}
+
+void WebDriverModule::StartScreencast(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (session_driver) {
+    typedef util::CommandResult<std::string> CommandResult;
+
+    int port = 3003;
+    screencast_driver_module_.reset(new screencast::ScreencastModule(
+        port, webdriver::WebDriverModule::kDefaultListenIp,
+        get_screenshot_function_));
+
+    CommandResult result =
+        util::CommandResult<std::string>(std::to_string(port));
+    util::internal::ReturnResponse(session_driver->session_id(), result,
+                                   result_handler.get());
+  }
+}
+
+void WebDriverModule::StopScreencast(
+    const base::Value* parameters,
+    const WebDriverDispatcher::PathVariableMap* path_variables,
+    scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  SessionDriver* session_driver = LookUpSessionDriverOrReturnInvalidResponse(
+      base::Bind(&WebDriverModule::GetSessionDriver, base::Unretained(this)),
+      path_variables, result_handler.get());
+  if (session_driver) {
+    typedef util::CommandResult<std::string> CommandResult;
+
+    screencast_driver_module_.reset();
+
+    CommandResult result = util::CommandResult<std::string>("Server stopped");
+    util::internal::ReturnResponse(session_driver->session_id(), result,
+                                   result_handler.get());
+  }
 }
 
 // https://code.google.com/p/selenium/wiki/JsonWireProtocol#/session/:sessionId/screenshot
@@ -748,6 +800,8 @@ util::CommandResult<std::string> WebDriverModule::RequestScreenshotInternal() {
   // Request the screenshot and wait for the PNG data.
   ScreenshotResultContext context;
   get_screenshot_function_.Run(
+      // Webdriver spec requires us to encode to PNG format.
+      loader::image::EncodedStaticImage::ImageFormat::kPNG,
       base::Bind(&OnPNGEncodeComplete, base::Unretained(&context)));
   context.complete_event.Wait();
   DCHECK(context.compressed_file);
