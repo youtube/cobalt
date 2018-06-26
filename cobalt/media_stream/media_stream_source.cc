@@ -37,6 +37,7 @@ void MediaStreamSource::SetStopCallback(const base::Closure& stop_callback) {
 }
 
 void MediaStreamSource::FinalizeStopSource() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   base::ResetAndRunIfNotNull(&stop_callback_);
 }
 

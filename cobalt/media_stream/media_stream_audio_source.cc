@@ -14,6 +14,8 @@
 
 #include "cobalt/media_stream/media_stream_audio_source.h"
 
+#include <vector>
+
 #include "base/compiler_specific.h"
 
 namespace cobalt {
@@ -53,6 +55,15 @@ void MediaStreamAudioSource::DeliverDataToTracks(
     const MediaStreamAudioTrack::ShellAudioBus& audio_bus,
     base::TimeTicks reference_time) {
   deliverer_.OnData(audio_bus, reference_time);
+}
+
+void MediaStreamAudioSource::NotifyTracksOfNewReadyState(
+    MediaStreamAudioTrack::ReadyState new_ready_state) {
+  std::vector<MediaStreamAudioTrack*> tracks_to_notify;
+  deliverer_.GetConsumerList(&tracks_to_notify);
+  for (MediaStreamAudioTrack* track : tracks_to_notify) {
+    track->OnReadyStateChanged(new_ready_state);
+  }
 }
 
 MediaStreamAudioSource::MediaStreamAudioSource()

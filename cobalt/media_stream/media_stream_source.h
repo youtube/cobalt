@@ -18,12 +18,15 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/media_stream/media_stream_track.h"
 
 namespace cobalt {
 namespace media_stream {
 
 class MediaStreamSource : public base::RefCounted<MediaStreamSource> {
  public:
+  using ReadyState = ::cobalt::media_stream::MediaStreamTrack::ReadyState;
+
   MediaStreamSource() = default;
   virtual ~MediaStreamSource();
 

@@ -67,6 +67,10 @@ class MediaStreamAudioSource : public MediaStreamSource {
     deliverer_.OnSetFormat(params);
   }
 
+ protected:
+  void NotifyTracksOfNewReadyState(
+      MediaStreamAudioTrack::ReadyState new_ready_state);
+
  private:
   MediaStreamAudioSource(const MediaStreamAudioSource&) = delete;
   MediaStreamAudioSource& operator=(const MediaStreamAudioSource&) = delete;
