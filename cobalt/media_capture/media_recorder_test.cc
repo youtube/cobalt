@@ -63,8 +63,8 @@ namespace media_capture {
 class MediaRecorderTest : public ::testing::Test {
  protected:
   MediaRecorderTest() {
-    auto audio_track = make_scoped_refptr(
-        new StrictMock<media_stream::MockMediaStreamAudioTrack>());
+    audio_track_ = new StrictMock<media_stream::MockMediaStreamAudioTrack>();
+    auto audio_track = make_scoped_refptr(audio_track_);
     media_stream::MediaStream::TrackSequences sequences;
     sequences.push_back(audio_track);
     audio_track->Start(base::Bind(&base::DoNothing));
@@ -80,6 +80,7 @@ class MediaRecorderTest : public ::testing::Test {
  protected:
   dom::testing::StubWindow stub_window_;
   scoped_refptr<media_capture::MediaRecorder> media_recorder_;
+  StrictMock<media_stream::MockMediaStreamAudioTrack>* audio_track_;
   scoped_refptr<StrictMock<media_stream::FakeMediaStreamAudioSource>>
       media_source_;
   StrictMock<MockExceptionState> exception_state_;
@@ -99,6 +100,7 @@ TEST_F(MediaRecorderTest, CanSupportMimeType) {
 }
 
 TEST_F(MediaRecorderTest, StartStopStartStop) {
+  EXPECT_CALL(*audio_track_, Stop()).Times(2);
   media_recorder_->Start(&exception_state_);
   media_recorder_->Stop(&exception_state_);
   media_recorder_->Start(&exception_state_);
@@ -119,6 +121,7 @@ TEST_F(MediaRecorderTest, ExceptionOnStartingTwiceWithoutStop) {
       *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
   EXPECT_EQ(dom::DOMException::kInvalidStateErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(), "Recording state must be inactive.");
+  EXPECT_CALL(*audio_track_, Stop());
 }
 
 TEST_F(MediaRecorderTest, ExceptionOnStoppingTwiceWithoutStartingInBetween) {
@@ -128,6 +131,7 @@ TEST_F(MediaRecorderTest, ExceptionOnStoppingTwiceWithoutStartingInBetween) {
       .WillOnce(SaveArg<0>(&exception));
 
   media_recorder_->Start(&exception_state_);
+  EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
   media_recorder_->Stop(&exception_state_);
 
@@ -170,6 +174,7 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
   current_time += base::TimeDelta::FromSecondsD(frames.size() / kSampleRate);
   media_recorder_->OnData(audio_bus, current_time);
 
+  EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
 }
 
@@ -184,6 +189,7 @@ TEST_F(MediaRecorderTest, StartEvent) {
                   _));
 
   media_recorder_->Start(&exception_state_);
+  EXPECT_CALL(*audio_track_, Stop());
 }
 
 TEST_F(MediaRecorderTest, StopEvent) {
@@ -198,6 +204,7 @@ TEST_F(MediaRecorderTest, StopEvent) {
                   Pointee(Property(&dom::Event::type, base::Tokens::stop())),
                   _));
 
+  EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
 }
 
