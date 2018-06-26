@@ -21,10 +21,17 @@ window.onload = async function(){
     bodyElementId = await cobaltService.getElement(sessionId);
     console.log("session ID is " + sessionId);
 
-    subscribeToMouseEvents();
-    //16fps
-    setInterval(takeScreenshot, 500);
+    cobaltService.startScreencast(sessionId).then((response) => {
+        cobaltService.setScreencastPort(response)
+        subscribeToMouseEvents();
+        //16fps
+        setInterval(takeScreenshot, 500);
+    });
 }
+
+window.addEventListener("beforeunload", function(e){
+    cobaltService.stopScreencast(sessionId);
+ }, false);
 
 function takeScreenshot(){
     cobaltService.getScreenshot(sessionId)
