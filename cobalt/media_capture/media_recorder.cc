@@ -190,6 +190,7 @@ MediaRecorder::MediaRecorder(
     : settings_(settings),
       stream_(stream),
       javascript_message_loop_(base::MessageLoopProxy::current()) {
+  DCHECK(settings);
   // Per W3C spec, the default value of this is platform-specific,
   // so Linear16 was chosen. Spec url:
   // https://www.w3.org/TR/mediastream-recording/#dom-mediarecorder-mediarecorder
