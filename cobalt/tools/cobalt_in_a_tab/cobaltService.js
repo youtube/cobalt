@@ -1,12 +1,18 @@
 let CobaltService = class CobaltService{
     constructor(){
-        this.portAddress = "http://localhost:4444";
-        this.lockscreenshot = false;
+        this.webdriverAddress = "http://localhost:4444";
+        this.screencastAddress = "";
     };
 
+    setScreencastPort(port){
+        this.screencastAddress = "http://localhost:" + port;
+    }
+
+    // Boilerplate code. It makes a request to |address| with |data|
+    // and returns json.value (or something else if you define resolveFunction)
     fetchRequest(address, data, resolveFunction = (json) => { return json.value; }) {
         return new Promise((resolve, reject) => {
-            fetch(address, data, )
+            fetch(address, data)
             .then((response) => {return response.json();})
             .then((json) => {
                 resolve(resolveFunction(json));
@@ -19,7 +25,7 @@ let CobaltService = class CobaltService{
     }
 
     makeSession(){
-        let address = `${this.portAddress}/session`;
+        let address = `${this.webdriverAddress}/session`;
         let dataObject = {
             method: "POST",
             body: JSON.stringify({
@@ -45,7 +51,7 @@ let CobaltService = class CobaltService{
     }
 
     getElement(sessionId){
-        let address = `${this.portAddress}/session/${sessionId}/element`;
+        let address = `${this.webdriverAddress}/session/${sessionId}/element`;
         let data = {
             method: "POST",
             body: JSON.stringify({
@@ -56,47 +62,56 @@ let CobaltService = class CobaltService{
         return this.fetchRequest(address, data);
     }
 
-    //it will only request a screenshot after the last screenshot
-    //request has been resolved. This prevents the network queue from
-    //being flooded with requests and becoming unresponsive.
-    getScreenshot(sessionId){
-        let address = `${this.portAddress}/session/${sessionId}/screenshot`;
-        let data = {method: "GET"};
-
-        return this.fetchRequest(address, data);
-    }
-
     getStatus(){
-        let address = `${this.portAddress}/status`;
+        let address = `${this.webdriverAddress}/status`;
         let data = {method: "GET"};
         return this.fetchRequest(address, data);
     }
 
     getSessions(){
-        let address = `${this.portAddress}/sessions`;
+        let address = `${this.webdriverAddress}/sessions`;
         let data = {method: "GET"};
         return this.fetchRequest(address, data);
     }
 
     sendKeystrokes(sessionId, keys){
-        fetch(`${this.portAddress}/session/${sessionId}/keys`, {
+        fetch(`${this.webdriverAddress}/session/${sessionId}/keys`, {
             method: "POST",
             body: JSON.stringify({value: keys})
         });
     }
 
     sendClick(sessionId, data){
-        fetch(`${this.portAddress}/session/${sessionId}/click`, {
+        fetch(`${this.webdriverAddress}/session/${sessionId}/click`, {
             method: "POST",
             body: JSON.stringify(data)
         });
     }
 
     sendMouseMove(sessionId, data){
-        fetch(`${this.portAddress}/session/${sessionId}/moveto`, {
+        fetch(`${this.webdriverAddress}/session/${sessionId}/moveto`, {
             method: "POST",
             body: JSON.stringify(data)
         })
+    }
+
+    startScreencast(sessionId){
+        let address = `${this.webdriverAddress}/session/${sessionId}/startscreencast`;
+        let data = {method: "GET"};
+        return this.fetchRequest(address, data);
+    }
+
+    stopScreencast(sessionId){
+        let address = `${this.webdriverAddress}/session/${sessionId}/stopscreencast`;
+        let data = {method: "GET"};
+        return this.fetchRequest(address, data);
+    }
+
+    getScreenshot(sessionId){
+        let address = `${this.screencastAddress}/screenshot`;
+        let data = {method: "GET"};
+
+        return this.fetchRequest(address, data);
     }
 }
 
