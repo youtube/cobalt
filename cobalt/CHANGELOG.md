@@ -3,6 +3,14 @@
 This document records all notable changes made to Cobalt since the last release.
 
 ## Version 17
+ - **Add support for V8 JavaScript Engine**
+
+   Cobalt now supports V8 (in addition to SpiderMonkey) as JavaScript engines.
+   V8 can be enabled by setting the gyp variable 'javascript_engine' to 'v8',
+   and additionally setting the gyp variable 'cobalt_enable_jit' to 1.  These
+   variables should be set from your `gyp_configuration.py` Python file (and
+   not for example your `gyp_configuration.gypi` file).
+
  - **Add support for animated WebP images with transparency**
 
    This was not originally supported by Cobalt, and any prior use of animated
