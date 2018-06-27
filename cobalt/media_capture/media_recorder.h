@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "base/cancelable_callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/string_piece.h"
@@ -27,12 +27,14 @@
 #include "base/time.h"
 #include "cobalt/dom/blob_property_bag.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/media_capture/encoders/audio_encoder.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_capture/recording_state.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream.h"
 #include "cobalt/media_stream/media_stream_audio_sink.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -41,20 +43,20 @@ namespace media_capture {
 // This class represents a MediaRecorder, and implements the specification at:
 // https://www.w3.org/TR/mediastream-recording/#mediarecorder-api
 class MediaRecorder : public media_stream::MediaStreamAudioSink,
+                      public encoders::AudioEncoder::Listener,
                       public dom::EventTarget {
  public:
   // Constructors.
-  explicit MediaRecorder(
-      script::EnvironmentSettings* settings,
-      const scoped_refptr<media_stream::MediaStream>& stream,
-      const MediaRecorderOptions& options = MediaRecorderOptions());
+  explicit MediaRecorder(script::EnvironmentSettings* settings,
+                         const scoped_refptr<media_stream::MediaStream>& stream,
+                         script::ExceptionState* exception_state);
 
-  ~MediaRecorder() override {
-    DCHECK(thread_checker_.CalledOnValidThread());
-    if (recording_state_ != kRecordingStateInactive) {
-      UnsubscribeFromTrack();
-    }
-  }
+  explicit MediaRecorder(script::EnvironmentSettings* settings,
+                         const scoped_refptr<media_stream::MediaStream>& stream,
+                         const MediaRecorderOptions& options,
+                         script::ExceptionState* exception_state);
+
+  ~MediaRecorder() override;
 
   // Readonly attributes.
   const std::string& mime_type() const { return mime_type_; }
@@ -130,12 +132,17 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
 
   void UnsubscribeFromTrack();
 
-  void DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
-                        base::TimeTicks timecode);
-  void WriteData(const char* data, size_t length, bool last_in_slice,
+  void DoOnDataCallback(base::TimeTicks timecode);
+  void OnEncodedDataAvailable(const uint8* data, size_t data_size,
+                              base::TimeTicks timecode) override;
+  void WriteData(scoped_ptr<std::vector<uint8>> data, bool last_in_slice,
                  base::TimeTicks timecode);
+  void CalculateLastInSliceAndWriteData(scoped_ptr<std::vector<uint8>> data,
+                                        base::TimeTicks timecode);
 
   base::ThreadChecker thread_checker_;
+
+  scoped_ptr<encoders::AudioEncoder> audio_encoder_;
   std::vector<uint8> buffer_;
 
   RecordingState recording_state_ = kRecordingStateInactive;
@@ -151,7 +158,8 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   // been passed since the slice was started.
   base::TimeTicks slice_origin_timestamp_;
 
-  int64 bits_per_second_ = 0;
+  base::WeakPtrFactory<MediaRecorder> weak_ptr_factory_;
+  base::WeakPtr<MediaRecorder> weak_this_;
 };
 
 }  // namespace media_capture
