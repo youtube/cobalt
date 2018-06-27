@@ -104,7 +104,7 @@ class Matrix3F {
   // Applies operator*(const PointF&) to each of the 4 points on the rectangle
   // and then returns a RectF that is the tightest axis-aligned bounding box
   // around those points.
-  RectF MapRect(const RectF& rect);
+  RectF MapRect(const RectF& rect) const;
 
  private:
   Matrix3F();  // Uninitialized default.

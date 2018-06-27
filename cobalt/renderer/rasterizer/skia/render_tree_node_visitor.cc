@@ -254,24 +254,28 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   SkIRect canvas_boundsi;
   draw_state_.render_target->getDeviceClipBounds(&canvas_boundsi);
 
-  common::OffscreenRenderCoordinateMapping coord_mapping =
-      common::GetOffscreenRenderCoordinateMapping(
-          filter_node.GetBounds(), total_matrix,
-          math::Rect(canvas_boundsi.x(), canvas_boundsi.y(),
-                     canvas_boundsi.width(), canvas_boundsi.height()));
-  if (coord_mapping.output_bounds.size().GetArea() == 0) {
+  // Find the global bounds of the filter node's source bounding box, so
+  // that we know how large of an offscreen surface to allocate for rendering
+  // it within.
+  math::RectF global_bounds = IntersectRects(
+      total_matrix.MapRect(filter_node.GetBounds()),
+      math::Rect(canvas_boundsi.x(), canvas_boundsi.y(), canvas_boundsi.width(),
+                 canvas_boundsi.height()));
+
+  math::Rect surface_bounds = math::RoundOut(global_bounds);
+
+  if (surface_bounds.size().IsEmpty()) {
     return;
   }
 
   // Create a scratch surface upon which we will render the source subtree.
   scoped_ptr<ScratchSurface> scratch_surface(
       create_scratch_surface_function_->Run(
-          math::Size(coord_mapping.output_bounds.width(),
-                     coord_mapping.output_bounds.height())));
+          math::Size(surface_bounds.width(), surface_bounds.height())));
   if (!scratch_surface) {
     DLOG(ERROR) << "Error creating scratch image surface (width = "
-                << coord_mapping.output_bounds.width()
-                << ", height = " << coord_mapping.output_bounds.height()
+                << surface_bounds.width()
+                << ", height = " << surface_bounds.height()
                 << "), probably because "
                    "we are low on memory, or the requested dimensions are "
                    "too large or invalid.";
@@ -285,7 +289,9 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
 
   // Transform our drawing coordinates so we only render the source tree within
   // the viewport.
-  canvas->setMatrix(CobaltMatrixToSkia(coord_mapping.sub_render_transform));
+  SkMatrix sub_matrix(total_matrix_skia);
+  sub_matrix.postTranslate(-surface_bounds.x(), -surface_bounds.y());
+  canvas->setMatrix(sub_matrix);
 
   // Render our source sub-tree into the offscreen surface.
   {
@@ -313,20 +319,17 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
   ApplyBlurFilterToPaint(&paint, filter_node.blur_filter);
   ApplyViewportMask(&draw_state_, filter_node.viewport_filter);
 
-  draw_state_.render_target->setMatrix(CobaltMatrixToSkia(
-      math::TranslateMatrix(coord_mapping.output_pre_translate) * total_matrix *
-      math::ScaleMatrix(coord_mapping.output_post_scale)));
+  draw_state_.render_target->resetMatrix();
 
   sk_sp<SkImage> image(scratch_surface->GetSurface()->makeImageSnapshot());
   DCHECK(image);
 
-  SkRect dest_rect = SkRect::MakeXYWH(coord_mapping.output_bounds.x(),
-                                      coord_mapping.output_bounds.y(),
-                                      coord_mapping.output_bounds.width(),
-                                      coord_mapping.output_bounds.height());
+  SkRect dest_rect =
+      SkRect::MakeXYWH(surface_bounds.x(), surface_bounds.y(),
+                       surface_bounds.width(), surface_bounds.height());
 
-  SkRect source_rect = SkRect::MakeWH(coord_mapping.output_bounds.width(),
-                                      coord_mapping.output_bounds.height());
+  SkRect source_rect =
+      SkRect::MakeWH(surface_bounds.width(), surface_bounds.height());
 
   draw_state_.render_target->drawImageRect(image.get(), source_rect, dest_rect,
                                            &paint);
