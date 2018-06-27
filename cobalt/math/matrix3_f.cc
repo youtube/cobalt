@@ -278,7 +278,7 @@ PointF Matrix3F::operator*(const PointF& rhs) const {
   return PointF(x / z, y / z);
 }
 
-RectF Matrix3F::MapRect(const RectF& rect) {
+RectF Matrix3F::MapRect(const RectF& rect) const {
   PointF points[4];
   points[0] = *this * rect.origin();
   points[1] = *this * rect.top_right();
