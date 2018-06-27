@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "base/bind.h"
+#include "base/callback_helpers.h"
 #include "base/message_loop.h"
 #include "base/string_piece.h"
 #include "base/string_util_starboard.h"
@@ -26,6 +28,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/media_capture/blob_event.h"
+#include "cobalt/media_capture/encoders/linear16_audio_encoder.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
 #include "cobalt/media_stream/media_stream_track.h"
@@ -40,6 +43,9 @@ const char kLinear16MimeType[] = "audio/L16";
 const int32 kMinimumTimeSliceInMilliseconds = 1;
 const int32 kSchedulingLatencyBufferMilliseconds = 20;
 
+using cobalt::media_capture::encoders::AudioEncoder;
+using cobalt::media_capture::encoders::Linear16AudioEncoder;
+
 // Returns the number of bytes needed to store |time_span| duration
 // of audio that has a bitrate of |bits_per_second|.
 int64 GetRecommendedBufferSizeInBytes(base::TimeDelta time_span,
@@ -53,6 +59,15 @@ int64 GetRecommendedBufferSizeInBytes(base::TimeDelta time_span,
   DCHECK_GT(recommended_buffer_size, 0);
   return recommended_buffer_size;
 }
+
+scoped_ptr<AudioEncoder> CreateAudioEncoder(
+    base::StringPiece requested_mime_type) {
+  if (Linear16AudioEncoder::IsLinear16MIMEType(requested_mime_type)) {
+    return scoped_ptr<AudioEncoder>(new Linear16AudioEncoder());
+  }
+  return scoped_ptr<AudioEncoder>(nullptr);
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -144,23 +159,24 @@ void MediaRecorder::OnData(const ShellAudioBus& audio_bus,
   // The source is always int16 data from the microphone.
   DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
   DCHECK_EQ(audio_bus.channels(), 1);
-  const char* data =
-      reinterpret_cast<const char*>(audio_bus.interleaved_data());
-  size_t data_size = audio_bus.GetSampleSizeInBytes() * audio_bus.frames();
-  base::TimeTicks now = base::TimeTicks::Now();
-  bool last_in_slice = now > slice_origin_timestamp_ + timeslice_;
+  audio_encoder_->Encode(audio_bus, reference_time);
+}
 
-  if (last_in_slice) {
-    DLOG(INFO) << "Slice finished.";
-    // The next slice's timestamp is now.
-    slice_origin_timestamp_ = now;
-  }
-
-  WriteData(data, data_size, last_in_slice, reference_time);
+void MediaRecorder::OnEncodedDataAvailable(const uint8* data, size_t data_size,
+                                           base::TimeTicks timecode) {
+  auto data_to_send =
+      make_scoped_ptr(new std::vector<uint8>(data, data + data_size));
+  javascript_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&MediaRecorder::CalculateLastInSliceAndWriteData,
+                            weak_this_, base::Passed(&data_to_send), timecode));
 }
 
 void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
-  bits_per_second_ = params.GetBitsPerSecond();
+  int64 bits_per_second =
+      audio_encoder_->GetEstimatedOutputBitsPerSecond(params);
+  if (bits_per_second <= 0) {
+    return;
+  }
 
   // Add some padding to the end of the buffer to account for jitter in
   // scheduling, etc.
@@ -169,7 +185,7 @@ void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
       timeslice_ +
       base::TimeDelta::FromMilliseconds(kSchedulingLatencyBufferMilliseconds);
   int64 buffer_size_hint =
-      GetRecommendedBufferSizeInBytes(recommended_time_slice, bits_per_second_);
+      GetRecommendedBufferSizeInBytes(recommended_time_slice, bits_per_second);
   buffer_.reserve(static_cast<size_t>(buffer_size_hint));
 }
 
@@ -186,34 +202,72 @@ void MediaRecorder::OnReadyStateChanged(
 MediaRecorder::MediaRecorder(
     script::EnvironmentSettings* settings,
     const scoped_refptr<media_stream::MediaStream>& stream,
-    const MediaRecorderOptions& options)
+    const MediaRecorderOptions& options,
+    script::ExceptionState* exception_state)
     : settings_(settings),
       stream_(stream),
-      javascript_message_loop_(base::MessageLoopProxy::current()) {
+      javascript_message_loop_(base::MessageLoopProxy::current()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
+      weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   DCHECK(settings);
   // Per W3C spec, the default value of this is platform-specific,
   // so Linear16 was chosen. Spec url:
   // https://www.w3.org/TR/mediastream-recording/#dom-mediarecorder-mediarecorder
-  mime_type_ =
+
+  if (options.has_mime_type()) {
+    if (!IsTypeSupported(options.mime_type())) {
+      dom::DOMException::Raise(dom::DOMException::kNotSupportedErr,
+                               exception_state);
+      return;
+    }
+  }
+
+  std::string desired_mime_type =
       options.has_mime_type() ? options.mime_type() : kLinear16MimeType;
 
+  audio_encoder_ = CreateAudioEncoder(desired_mime_type);
+  DCHECK(audio_encoder_);
+  audio_encoder_->AddListener(this);
+
+  mime_type_ = audio_encoder_->GetMimeType();
+  DCHECK(IsTypeSupported(mime_type_));
   blob_options_.set_type(mime_type_);
 }
 
+MediaRecorder::MediaRecorder(
+    script::EnvironmentSettings* settings,
+    const scoped_refptr<media_stream::MediaStream>& stream,
+    script::ExceptionState* exception_state)
+    : MediaRecorder(settings, stream, MediaRecorderOptions(), exception_state) {
+}
+
+MediaRecorder::~MediaRecorder() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (recording_state_ != kRecordingStateInactive) {
+    UnsubscribeFromTrack();
+  }
+}
+
 void MediaRecorder::StopRecording() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(stream_);
+  DCHECK(audio_encoder_);
   DCHECK_NE(recording_state_, kRecordingStateInactive);
 
   recording_state_ = kRecordingStateInactive;
   UnsubscribeFromTrack();
 
-  WriteData(nullptr, 0, true, base::TimeTicks::Now());
+  scoped_ptr<std::vector<uint8>> empty;
+  base::TimeTicks now = base::TimeTicks::Now();
+  audio_encoder_->Finish(now);
+  WriteData(empty.Pass(), true, now);
 
   timeslice_ = base::TimeDelta::FromSeconds(0);
   DispatchEvent(new dom::Event(base::Tokens::stop()));
 }
 
 void MediaRecorder::UnsubscribeFromTrack() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(stream_);
   script::Sequence<scoped_refptr<media_stream::MediaStreamTrack>>&
       audio_tracks = stream_->GetAudioTracks();
@@ -230,29 +284,20 @@ void MediaRecorder::UnsubscribeFromTrack() {
   first_audio_track->RemoveSink(this);
 }
 
-void MediaRecorder::DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
-                                     base::TimeTicks timecode) {
-  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
-    javascript_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&MediaRecorder::DoOnDataCallback, this,
-                              base::Passed(&data), timecode));
-    return;
-  }
+void MediaRecorder::DoOnDataCallback(base::TimeTicks timecode) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(data);
 
-  if (data->empty()) {
+  if (buffer_.empty()) {
     DLOG(WARNING) << "No data was recorded.";
     return;
   }
 
-  DCHECK_LE(data->size(), kuint32max);
+  DCHECK_LE(buffer_.size(), kuint32max);
 
   auto array_buffer = script::ArrayBuffer::New(
       base::polymorphic_downcast<dom::DOMSettings*>(settings_)
           ->global_environment(),
-      data->data(), data->size());
-  data->clear();
+      buffer_.data(), buffer_.size());
 
   auto blob =
       make_scoped_refptr(new dom::Blob(settings_, array_buffer, blob_options_));
@@ -261,33 +306,39 @@ void MediaRecorder::DoOnDataCallback(scoped_ptr<std::vector<uint8>> data,
                                              blob, timecode.ToInternalValue()));
 }
 
-void MediaRecorder::WriteData(const char* data, size_t length,
+void MediaRecorder::WriteData(scoped_ptr<std::vector<uint8>> data,
                               bool last_in_slice, base::TimeTicks timecode) {
-  buffer_.insert(buffer_.end(), data, data + length);
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  if (data) {
+    buffer_.insert(buffer_.end(), data->begin(), data->end());
+  }
 
   if (!last_in_slice) {
     return;
   }
 
-  auto buffer_to_send(make_scoped_ptr(new std::vector<uint8>()));
-  buffer_to_send->swap(buffer_);
-  // Use the previous buffer size as a proxy for the next buffer size.
-  buffer_.reserve(buffer_to_send->size());
-  DoOnDataCallback(buffer_to_send.Pass(), timecode);
+  DoOnDataCallback(timecode);
+  buffer_.clear();
+}
+
+void MediaRecorder::CalculateLastInSliceAndWriteData(
+    scoped_ptr<std::vector<uint8>> data, base::TimeTicks timecode) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  base::TimeTicks now = base::TimeTicks::Now();
+  bool last_in_slice = now > slice_origin_timestamp_ + timeslice_;
+
+  if (last_in_slice) {
+    DLOG(INFO) << "Slice finished.";
+    // The next slice's timestamp is now.
+    slice_origin_timestamp_ = now;
+  }
+  WriteData(data.Pass(), last_in_slice, timecode);
 }
 
 bool MediaRecorder::IsTypeSupported(const base::StringPiece mime_type) {
-  base::StringPiece mime_type_container = mime_type;
-  size_t pos = mime_type.find_first_of(';');
-  if (pos != base::StringPiece::npos) {
-    mime_type_container = base::StringPiece(mime_type.begin(), pos);
-  }
-  const base::StringPiece linear16_mime_type(kLinear16MimeType);
-  auto match_iterator =
-      std::search(mime_type_container.begin(), mime_type_container.end(),
-                  linear16_mime_type.begin(), linear16_mime_type.end(),
-                  base::CaseInsensitiveCompareASCII<char>());
-  return match_iterator == mime_type_container.begin();
+  return Linear16AudioEncoder::IsLinear16MIMEType(mime_type);
 }
 
 }  // namespace media_capture

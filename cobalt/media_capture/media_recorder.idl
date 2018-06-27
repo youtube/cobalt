@@ -14,8 +14,11 @@
 
 // Implements a subset of the specification at:
 // https://www.w3.org/TR/mediastream-recording/#mediarecorder-api
-[Constructor(MediaStream stream, optional MediaRecorderOptions options),
- ConstructorCallWith = EnvironmentSettings]
+[
+  Constructor(MediaStream stream, optional MediaRecorderOptions options),
+  ConstructorCallWith = EnvironmentSettings,
+  RaisesException = Constructor
+]
 interface MediaRecorder : EventTarget {
   readonly attribute DOMString mimeType;
   readonly attribute RecordingState state;
