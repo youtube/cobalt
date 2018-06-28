@@ -66,7 +66,7 @@ bool IsNullTerminated(const char(&str)[N]) {
   return false;
 }
 
-TEST(SbMicrophoneGetAvailable, LabelIsNullTerminated) {
+TEST(SbMicrophoneGetAvailableTest, LabelIsNullTerminated) {
   const int kInfoSize = 10;
   SbMicrophoneInfo infos[kInfoSize];
   int count = SbMicrophoneGetAvailable(infos, kInfoSize);
@@ -75,7 +75,7 @@ TEST(SbMicrophoneGetAvailable, LabelIsNullTerminated) {
   }
 }
 
-TEST(SbMicrophoneGetAvailable, LabelIsValid) {
+TEST(SbMicrophoneGetAvailableTest, LabelIsValid) {
   const char* kPoisonLabel = "BadLabel";
   SbMicrophoneInfo info;
   SbStringCopy(info.label, kPoisonLabel, SB_ARRAY_SIZE(info.label));
