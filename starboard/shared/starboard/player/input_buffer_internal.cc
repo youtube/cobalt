@@ -188,6 +188,11 @@ std::string InputBuffer::ToString() const {
        << "\nkey_id: "
        << GetHexRepresentation(drm_info_.identifier, drm_info_.identifier_size)
        << '\n';
+    ss << "subsamples\n";
+    for (int i = 0; i < drm_info_.subsample_count; ++i) {
+      ss << "\t" << drm_info_.subsample_mapping[i].clear_byte_count << ", "
+         << drm_info_.subsample_mapping[i].encrypted_byte_count << "\n";
+    }
   }
   ss << GetMixedRepresentation(data_, size_, 16) << '\n';
   return ss.str();
