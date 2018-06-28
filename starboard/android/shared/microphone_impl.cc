@@ -40,7 +40,6 @@ const int kSamplesPerBuffer = 128;
 const int kBufferSizeInBytes = kSamplesPerBuffer * sizeof(int16_t);
 
 bool CheckReturnValue(SLresult result) {
-  SB_DCHECK(result == SL_RESULT_SUCCESS) << result;
   return result == SL_RESULT_SUCCESS;
 }
 }  // namespace
@@ -124,10 +123,12 @@ bool SbMicrophoneImpl::Open() {
 
   if (!RequestAudioPermission()) {
     state_ = kWaitPermission;
+    SB_DLOG(INFO) << "Waiting for audio permission.";
     // The permission is not set; this causes the MicrophoneManager to call
     // read() repeatedly and wait for the user's response.
     return true;
   } else if (!StartRecording()) {
+    SB_DLOG(WARNING) << "Error starting recording.";
     return false;
   }
 
@@ -153,6 +154,7 @@ bool SbMicrophoneImpl::StartRecording() {
     SLresult result =
         (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
     if (!CheckReturnValue(result)) {
+      SB_DLOG(WARNING) << "Error adding buffers to the queue.";
       return false;
     }
   }
@@ -176,7 +178,7 @@ bool SbMicrophoneImpl::Close() {
   }
 
   if (state_ == kOpened && !StopRecording()) {
-    SB_DLOG(WARNING) << "Close microphone failed.";
+    SB_DLOG(WARNING) << "Error closing the microphone.";
     return false;
   }
 
@@ -275,6 +277,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   // is thread-safe.
   result = slCreateEngine(&engine_object_, 0, nullptr, 0, nullptr, nullptr);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error creating the SL engine object.";
     return false;
   }
 
@@ -282,6 +285,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   result = (*engine_object_)
                ->Realize(engine_object_, /* async = */ SL_BOOLEAN_FALSE);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error realizing the SL engine object.";
     return false;
   }
 
@@ -289,10 +293,11 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   result =
       (*engine_object_)->GetInterface(engine_object_, SL_IID_ENGINE, &engine_);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error getting the SL engine interface.";
     return false;
   }
 
-  // Audio source configuration.
+  // Audio source configuration; the audio source is an I/O device data locator.
   SLDataLocator_IODevice input_dev_locator = {
       SL_DATALOCATOR_IODEVICE, SL_IODEVICE_AUDIOINPUT,
       SL_DEFAULTDEVICEID_AUDIOINPUT, nullptr};
@@ -301,6 +306,8 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   SLDataLocator_AndroidSimpleBufferQueue simple_buffer_queue = {
       SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, kNumOfOpenSLESBuffers};
 
+  // Audio sink configuration; the audio sink is a simple buffer queue. PCM is
+  // the only data format allowed with buffer queues.
   SLAndroidDataFormat_PCM_EX format = {
       SL_ANDROID_DATAFORMAT_PCM_EX, 1 /* numChannels */,
       kSampleRateInMillihertz,      SL_PCMSAMPLEFORMAT_FIXED_16,
@@ -318,6 +325,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
                                            &audio_source, &audio_sink, kCount,
                                            kInterfaceId, kInterfaceRequired);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error creating the audio recorder.";
     return false;
   }
 
@@ -327,6 +335,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
                ->GetInterface(recorder_object_, SL_IID_ANDROIDCONFIGURATION,
                               &config_object_);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error getting the audio recorder interface.";
     return false;
   }
 
@@ -337,6 +346,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
           ->SetConfiguration(config_object_, SL_ANDROID_KEY_RECORDING_PRESET,
                              &kPresetValue, sizeof(SLuint32));
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error configuring the audio recorder.";
     return false;
   }
 
@@ -344,6 +354,8 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   result = (*recorder_object_)
                ->Realize(recorder_object_, /* async = */ SL_BOOLEAN_FALSE);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error realizing the audio recorder. Double check that "
+                        "the microphone is connected to the device.";
     return false;
   }
 
@@ -351,6 +363,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
   result = (*recorder_object_)
                ->GetInterface(recorder_object_, SL_IID_RECORD, &recorder_);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error getting the audio recorder interface.";
     return false;
   }
 
@@ -359,6 +372,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
                ->GetInterface(recorder_object_, SL_IID_ANDROIDSIMPLEBUFFERQUEUE,
                               &buffer_object_);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error getting the buffer queue interface.";
     return false;
   }
 
@@ -369,6 +383,7 @@ bool SbMicrophoneImpl::CreateAudioRecorder() {
           ->RegisterCallback(buffer_object_,
                              &SbMicrophoneImpl::SwapAndPublishBuffer, this);
   if (!CheckReturnValue(result)) {
+    SB_DLOG(WARNING) << "Error registering buffer queue callbacks.";
     return false;
   }
 
@@ -397,7 +412,9 @@ void SbMicrophoneImpl::ClearBuffer() {
   // Clear the buffer queue to get rid of old data.
   if (buffer_object_) {
     SLresult result = (*buffer_object_)->Clear(buffer_object_);
-    CheckReturnValue(result);
+    if (!CheckReturnValue(result)) {
+      SB_DLOG(WARNING) << "Error clearing the buffer.";
+    }
   }
 
   while (!delivered_queue_.empty()) {
