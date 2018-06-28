@@ -2,6 +2,7 @@ let CobaltService = class CobaltService{
     constructor(){
         this.webdriverAddress = "http://localhost:4444";
         this.screencastAddress = "";
+        this.imageId = 0;
     };
 
     setScreencastPort(port){
@@ -89,10 +90,12 @@ let CobaltService = class CobaltService{
     }
 
     sendMouseMove(sessionId, data){
-        fetch(`${this.webdriverAddress}/session/${sessionId}/moveto`, {
+        let address = `${this.webdriverAddress}/session/${sessionId}/moveto`;
+        let headers = {
             method: "POST",
             body: JSON.stringify(data)
-        })
+        };
+        return this.fetchRequest(address, headers);
     }
 
     startScreencast(sessionId){
@@ -107,11 +110,13 @@ let CobaltService = class CobaltService{
         return this.fetchRequest(address, data);
     }
 
-    getScreenshot(sessionId){
-        let address = `${this.screencastAddress}/screenshot`;
-        let data = {method: "GET"};
+    //combine this call to a call with getNextScreenshotId()
+    getScreenshotURL(){
+        return `${this.screencastAddress}/screenshot/`;
+    }
 
-        return this.fetchRequest(address, data);
+    createNextScreenshotId(){
+        return this.imageId++;
     }
 }
 
