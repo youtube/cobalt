@@ -3,7 +3,7 @@
 // DO NOT EDIT BY HAND!!!
 
 //
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
