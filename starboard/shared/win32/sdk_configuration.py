@@ -15,6 +15,8 @@
 import logging
 import os
 
+import sdk_installer
+
 class SdkConfiguration:
   required_sdk_version = '10.0.17134.0'
 
@@ -51,6 +53,11 @@ class SdkConfiguration:
 
     self.windows_sdk_host_tools = os.path.join(
         self.windows_sdk_bin_dir, self.required_sdk_version, 'x64')
+
+    # Note that sdk_installer.InstallSdkIfNecessary() does not handle
+    # the mappedProgramFiles or %WindowsSdkBinPath%
+    if not os.path.isdir(self.windows_sdk_host_tools):
+      sdk_installer.InstallSdkIfNecessary(self.required_sdk_version)
 
     self.windows_sdk_path = os.path.dirname(self.windows_sdk_bin_dir)
 
@@ -91,4 +98,3 @@ class SdkConfiguration:
       logging.critical('Windows SDK versions \"%s\" required.',
                        self.required_sdk_version)
     return False
-
