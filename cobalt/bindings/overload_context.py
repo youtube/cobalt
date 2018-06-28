@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 The Cobalt Authors. All Rights Reserved.
 # coding=utf-8
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
