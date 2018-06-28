@@ -2,7 +2,7 @@
 //     pump.py union_type_conversion_impl.h.pump
 // DO NOT EDIT BY HAND!!!
 
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
