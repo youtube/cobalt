@@ -15,8 +15,8 @@
 #include "starboard/player.h"
 
 #if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-void SbPlayerWriteSample2(SbPlayer /*player*/,
-                          SbMediaType /*sample_type*/,
-                          const SbPlayerSampleInfo* /*sample_infos*/,
-                          int /*number_of_sample_infos*/) {}
+int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer /*player*/,
+                                              SbMediaType /*sample_type*/) {
+  return 1;
+}
 #endif  // SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION

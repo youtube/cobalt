@@ -23,12 +23,17 @@
 #if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 void SbPlayerWriteSample2(SbPlayer player,
                           SbMediaType sample_type,
-                          const void* const* sample_buffers,
-                          const int* sample_buffer_sizes,
-                          int number_of_sample_buffers,
-                          SbTime sample_timestamp,
-                          const SbMediaVideoSampleInfo* video_sample_info,
-                          const SbDrmSampleInfo* sample_drm_info) {
+                          const SbPlayerSampleInfo* sample_infos,
+                          int number_of_sample_infos) {
+  SB_DCHECK(number_of_sample_infos == 1);
+
+  const void* sample_buffers[] = {sample_infos->buffer};
+  const int sample_buffer_sizes[] = {sample_infos->buffer_size};
+  int number_of_sample_buffers = 1;
+  SbTime sample_timestamp = sample_infos->timestamp;
+  auto video_sample_info = sample_infos->video_sample_info;
+  auto sample_drm_info = sample_infos->drm_info;
+
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;
@@ -37,16 +42,6 @@ void SbPlayerWriteSample2(SbPlayer player,
   if (number_of_sample_buffers < 1) {
     SB_DLOG(WARNING) << "SbPlayerWriteSample() doesn't support"
                      << " |number_of_sample_buffers| less than one.";
-    return;
-  }
-
-  if (sample_buffers == NULL) {
-    SB_DLOG(WARNING) << "|sample_buffers| cannot be NULL";
-    return;
-  }
-
-  if (sample_buffer_sizes == NULL) {
-    SB_DLOG(WARNING) << "|sample_buffer_sizes| cannot be NULL";
     return;
   }
 
