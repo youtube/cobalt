@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@ class MediaStreamTrack : public dom::EventTarget {
   const MediaTrackSettings& GetSettings() { return settings_; }
 
   virtual void Stop() = 0;
+  virtual void OnReadyStateChanged(
+      media_stream::MediaStreamTrack::ReadyState new_state) = 0;
 
   DEFINE_WRAPPABLE_TYPE(MediaStreamTrack);
 

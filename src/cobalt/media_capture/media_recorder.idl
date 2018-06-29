@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,14 @@
 
 // Implements a subset of the specification at:
 // https://www.w3.org/TR/mediastream-recording/#mediarecorder-api
-[Constructor(MediaStream stream, optional MediaRecorderOptions options),
- ConstructorCallWith = EnvironmentSettings]
+[
+  Constructor(MediaStream stream, optional MediaRecorderOptions options),
+  ConstructorCallWith = EnvironmentSettings,
+  RaisesException = Constructor
+]
 interface MediaRecorder : EventTarget {
   readonly attribute DOMString mimeType;
+  readonly attribute RecordingState state;
   attribute EventHandler ondataavailable;
   attribute EventHandler onstart;
   attribute EventHandler onstop;

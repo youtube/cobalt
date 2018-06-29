@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -188,6 +188,11 @@ std::string InputBuffer::ToString() const {
        << "\nkey_id: "
        << GetHexRepresentation(drm_info_.identifier, drm_info_.identifier_size)
        << '\n';
+    ss << "subsamples\n";
+    for (int i = 0; i < drm_info_.subsample_count; ++i) {
+      ss << "\t" << drm_info_.subsample_mapping[i].clear_byte_count << ", "
+         << drm_info_.subsample_mapping[i].encrypted_byte_count << "\n";
+    }
   }
   ss << GetMixedRepresentation(data_, size_, 16) << '\n';
   return ss.str();

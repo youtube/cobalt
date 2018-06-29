@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/testing/mock_event_listener.h"
+#include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_stream/media_stream.h"
 #include "cobalt/media_stream/media_stream_audio_source.h"
@@ -35,6 +36,27 @@ using cobalt::dom::EventListener;
 using cobalt::dom::testing::MockEventListener;
 using cobalt::script::testing::MockExceptionState;
 using cobalt::script::testing::FakeScriptValue;
+
+namespace {
+void PushData(cobalt::media_capture::MediaRecorder* media_recorder) {
+  const int kSampleRate = 16000;
+  cobalt::media_stream::AudioParameters params(1, kSampleRate, 16);
+  media_recorder->OnSetFormat(params);
+
+  std::vector<int16> frames;
+  frames.push_back(1);
+  frames.push_back(-1);
+  frames.push_back(-32768);
+  frames.push_back(32767);
+  frames.push_back(1000);
+  frames.push_back(0);
+  cobalt::media_stream::MediaStreamAudioTrack::ShellAudioBus audio_bus(
+      1, frames.size(), frames.data());
+  base::TimeTicks current_time = base::TimeTicks::Now();
+  media_recorder->OnData(audio_bus, current_time);
+}
+
+}  // namespace
 
 namespace cobalt {
 namespace media_stream {
@@ -62,8 +84,8 @@ namespace media_capture {
 class MediaRecorderTest : public ::testing::Test {
  protected:
   MediaRecorderTest() {
-    auto audio_track = make_scoped_refptr(
-        new StrictMock<media_stream::MockMediaStreamAudioTrack>());
+    audio_track_ = new StrictMock<media_stream::MockMediaStreamAudioTrack>();
+    auto audio_track = make_scoped_refptr(audio_track_);
     media_stream::MediaStream::TrackSequences sequences;
     sequences.push_back(audio_track);
     audio_track->Start(base::Bind(&base::DoNothing));
@@ -73,11 +95,14 @@ class MediaRecorderTest : public ::testing::Test {
     EXPECT_CALL(*media_source_, EnsureSourceIsStopped());
     media_source_->ConnectToTrack(audio_track);
     media_recorder_ =
-        new MediaRecorder(nullptr, stream, MediaRecorderOptions());
+        new MediaRecorder(stub_window_.environment_settings(), stream,
+                          MediaRecorderOptions(), &exception_state_);
   }
 
  protected:
+  dom::testing::StubWindow stub_window_;
   scoped_refptr<media_capture::MediaRecorder> media_recorder_;
+  StrictMock<media_stream::MockMediaStreamAudioTrack>* audio_track_;
   scoped_refptr<StrictMock<media_stream::FakeMediaStreamAudioSource>>
       media_source_;
   StrictMock<MockExceptionState> exception_state_;
@@ -97,6 +122,7 @@ TEST_F(MediaRecorderTest, CanSupportMimeType) {
 }
 
 TEST_F(MediaRecorderTest, StartStopStartStop) {
+  EXPECT_CALL(*audio_track_, Stop()).Times(2);
   media_recorder_->Start(&exception_state_);
   media_recorder_->Stop(&exception_state_);
   media_recorder_->Start(&exception_state_);
@@ -117,6 +143,7 @@ TEST_F(MediaRecorderTest, ExceptionOnStartingTwiceWithoutStop) {
       *base::polymorphic_downcast<dom::DOMException*>(exception.get()));
   EXPECT_EQ(dom::DOMException::kInvalidStateErr, dom_exception.code());
   EXPECT_EQ(dom_exception.message(), "Recording state must be inactive.");
+  EXPECT_CALL(*audio_track_, Stop());
 }
 
 TEST_F(MediaRecorderTest, ExceptionOnStoppingTwiceWithoutStartingInBetween) {
@@ -126,6 +153,7 @@ TEST_F(MediaRecorderTest, ExceptionOnStoppingTwiceWithoutStartingInBetween) {
       .WillOnce(SaveArg<0>(&exception));
 
   media_recorder_->Start(&exception_state_);
+  EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
   media_recorder_->Stop(&exception_state_);
 
@@ -168,6 +196,31 @@ TEST_F(MediaRecorderTest, RecordL16Frames) {
   current_time += base::TimeDelta::FromSecondsD(frames.size() / kSampleRate);
   media_recorder_->OnData(audio_bus, current_time);
 
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_CALL(*audio_track_, Stop());
+  media_recorder_->Stop(&exception_state_);
+}
+
+TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
+  scoped_ptr<MockEventListener> listener = MockEventListener::Create();
+  FakeScriptValue<EventListener> script_object(listener.get());
+  media_recorder_->set_ondataavailable(script_object);
+  EXPECT_CALL(*listener,
+              HandleEvent(Eq(media_recorder_),
+                          Pointee(Property(&dom::Event::type,
+                                           base::Tokens::dataavailable())),
+                          _));
+
+  media_recorder_->Start(&exception_state_);
+
+  base::Thread t("MediaStreamAudioSource thread");
+  t.Start();
+  t.message_loop()->PostBlockingTask(FROM_HERE,
+                                     base::Bind(&PushData, media_recorder_));
+  t.Stop();
+
+  MessageLoop::current()->RunUntilIdle();
+  EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
 }
 
@@ -182,6 +235,7 @@ TEST_F(MediaRecorderTest, StartEvent) {
                   _));
 
   media_recorder_->Start(&exception_state_);
+  EXPECT_CALL(*audio_track_, Stop());
 }
 
 TEST_F(MediaRecorderTest, StopEvent) {
@@ -196,6 +250,7 @@ TEST_F(MediaRecorderTest, StopEvent) {
                   Pointee(Property(&dom::Event::type, base::Tokens::stop())),
                   _));
 
+  EXPECT_CALL(*audio_track_, Stop());
   media_recorder_->Stop(&exception_state_);
 }
 

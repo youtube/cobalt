@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 
 #include <cstring>
 

@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,6 +60,9 @@ class MediaStreamAudioTrack : public MediaStreamTrack {
   void RemoveSink(MediaStreamAudioSink* sink);
 
   void Stop() override;
+
+  void OnReadyStateChanged(
+      media_stream::MediaStreamTrack::ReadyState new_state) override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(MediaStreamAudioTrackTest, OnSetFormatAndData);

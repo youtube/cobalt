@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,10 @@ void MediaStreamAudioTrack::AddSink(MediaStreamAudioSink* sink) {
 
 void MediaStreamAudioTrack::RemoveSink(MediaStreamAudioSink* sink) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  deliverer_.RemoveConsumer(sink);
+  bool last_consumer = deliverer_.RemoveConsumer(sink);
+  if (last_consumer) {
+    Stop();
+  }
 }
 
 void MediaStreamAudioTrack::Stop() {
@@ -46,6 +49,16 @@ void MediaStreamAudioTrack::Stop() {
   for (MediaStreamAudioSink* sink : consumer_sinks_to_remove) {
     deliverer_.RemoveConsumer(sink);
     sink->OnReadyStateChanged(MediaStreamTrack::kReadyStateEnded);
+  }
+}
+
+void MediaStreamAudioTrack::OnReadyStateChanged(
+    media_stream::MediaStreamTrack::ReadyState new_state) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  std::vector<MediaStreamAudioSink*> sinks_to_notify;
+  deliverer_.GetConsumerList(&sinks_to_notify);
+  for (MediaStreamAudioSink* sink : sinks_to_notify) {
+    sink->OnReadyStateChanged(new_state);
   }
 }
 

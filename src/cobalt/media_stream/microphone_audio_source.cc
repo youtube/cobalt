@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ bool MicrophoneAudioSource::EnsureSourceIsStarted() {
 
 void MicrophoneAudioSource::EnsureSourceIsStopped() {
   microphone_manager_.Close();
+  NotifyTracksOfNewReadyState(MediaStreamAudioTrack::kReadyStateEnded);
 }
 
 scoped_ptr<cobalt::speech::Microphone> MicrophoneAudioSource::CreateMicrophone(
@@ -67,19 +68,28 @@ scoped_ptr<cobalt::speech::Microphone> MicrophoneAudioSource::CreateMicrophone(
 }
 
 MicrophoneAudioSource::MicrophoneAudioSource(
-    const speech::Microphone::Options& options)
+    const speech::Microphone::Options& options,
+    const MicrophoneAudioSource::SuccessfulOpenCallback& successful_open,
+    const MicrophoneAudioSource::CompletionCallback& completion,
+    const MicrophoneAudioSource::ErrorCallback& error)
     // Note: It is safe to use unretained pointers here, since
     // |microphone_manager_| is a member variable, and |this| object
     // will have the same lifetime.
     // Furthermore, it is an error to destruct the microphone manager
     // without stopping it, so these callbacks are not to be called
     // during the destruction of the object.
-    : ALLOW_THIS_IN_INITIALIZER_LIST(microphone_manager_(
+    : javascript_message_loop_(base::MessageLoopProxy::current()),
+      successful_open_callback_(successful_open),
+      completion_callback_(completion),
+      error_callback_(error),
+      ALLOW_THIS_IN_INITIALIZER_LIST(microphone_manager_(
           base::Bind(&MicrophoneAudioSource::OnDataReceived,
+                     base::Unretained(this)),
+          base::Bind(&MicrophoneAudioSource::OnMicrophoneOpen,
                      base::Unretained(this)),
           base::Bind(&MicrophoneAudioSource::OnDataCompletion,
                      base::Unretained(this)),
-          base::Bind(&MicrophoneAudioSource::OnMicError,
+          base::Bind(&MicrophoneAudioSource::OnMicrophoneError,
                      base::Unretained(this)),
           base::Bind(&MicrophoneAudioSource::CreateMicrophone,
                      base::Unretained(this), options))) {}
@@ -91,13 +101,43 @@ void MicrophoneAudioSource::OnDataReceived(
 }
 
 void MicrophoneAudioSource::OnDataCompletion() {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MicrophoneAudioSource::OnDataCompletion, this));
+    return;
+  }
+  DCHECK(thread_checker_.CalledOnValidThread());
   DLOG(INFO) << "Microphone is closed.";
   StopSource();
+
+  if (!completion_callback_.is_null()) {
+    completion_callback_.Run();
+  }
 }
 
-void MicrophoneAudioSource::OnMicError(
+void MicrophoneAudioSource::OnMicrophoneOpen() {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneOpen, this));
+    return;
+  }
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!successful_open_callback_.is_null()) {
+    successful_open_callback_.Run();
+  }
+}
+
+void MicrophoneAudioSource::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error,
-    const std::string& error_message) {
+    std::string error_message) {
+  if (javascript_message_loop_ != base::MessageLoopProxy::current()) {
+    javascript_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneError, this,
+                              error, error_message));
+    return;
+  }
+  DCHECK(thread_checker_.CalledOnValidThread());
+
   std::string microphone_error_category;
   switch (error) {
     case speech::MicrophoneManager::MicrophoneError::kAborted:
@@ -114,6 +154,10 @@ void MicrophoneAudioSource::OnMicError(
   // This will notify downstream objects audio track, and source that there will
   // be no more data.
   StopSource();
+
+  if (!error_callback_.is_null()) {
+    error_callback_.Run(error, error_message);
+  }
 }
 
 }  // namespace media_stream

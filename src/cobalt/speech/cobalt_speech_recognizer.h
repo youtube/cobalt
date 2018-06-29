@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,8 +60,8 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
   // Callbacks from mic.
   void OnDataReceived(scoped_ptr<ShellAudioBus> audio_bus);
   void OnDataCompletion();
-  void OnMicError(MicrophoneManager::MicrophoneError error,
-                  const std::string& error_message);
+  void OnMicrophoneError(MicrophoneManager::MicrophoneError error,
+                         std::string error_message);
 
   // Callbacks from recognizer.
   void OnRecognizerEvent(const scoped_refptr<dom::Event>& event);

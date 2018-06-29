@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,10 @@
       'target_name': 'media_capture',
       'type': 'static_library',
       'sources': [
+        'encoders/audio_encoder.cc',
+        'encoders/audio_encoder.h',
+        'encoders/linear16_audio_encoder.cc',
+        'encoders/linear16_audio_encoder.h',
         'media_devices.cc',
         'media_devices.h',
         'media_device_info.cc',

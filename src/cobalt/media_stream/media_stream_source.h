@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/threading/thread_checker.h"
 #include "cobalt/media_stream/media_stream_track.h"
 
 namespace cobalt {
@@ -24,6 +25,8 @@ namespace media_stream {
 
 class MediaStreamSource : public base::RefCounted<MediaStreamSource> {
  public:
+  using ReadyState = ::cobalt::media_stream::MediaStreamTrack::ReadyState;
+
   MediaStreamSource() = default;
   virtual ~MediaStreamSource();
 
