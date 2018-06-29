@@ -149,6 +149,7 @@
         '<(DEPTH)/starboard/shared/stub/player_get_current_frame.cc',
         '<(DEPTH)/starboard/shared/stub/player_get_info.cc',
         '<(DEPTH)/starboard/shared/stub/player_get_info2.cc',
+        '<(DEPTH)/starboard/shared/stub/player_get_maximum_number_of_samples_per_write.cc',
         '<(DEPTH)/starboard/shared/stub/player_output_mode_supported.cc',
         '<(DEPTH)/starboard/shared/stub/player_seek.cc',
         '<(DEPTH)/starboard/shared/stub/player_seek2.cc',

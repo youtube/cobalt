@@ -90,6 +90,13 @@
 //   related times in milliseconds or microseconds, this causes a lot of
 //   otherwise unnecessary conversion.  Now all timestamps and duration related
 //   to SbPlayer are represented by SbTime directly.
+// Refine sample writing of SbPlayer.
+//   Added two new functions SbPlayerGetMaximumNumberOfSamplesPerWrite() and
+//   SbPlayerWriteSample2().  The former allows implementation to specify the
+//   maximum numbers of samples that can be written using the latter at once.
+//   As it takes multiple thread context switches to call SbPlayerWriteSample2()
+//   once, it can optimize performance on low end platforms by reducing the
+//   frequence of calling SbPlayerWriteSample2().
 #define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Add support for player error messages.
