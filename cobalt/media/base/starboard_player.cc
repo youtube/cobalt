@@ -698,9 +698,10 @@ void StarboardPlayer::WriteBufferInternal(
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
+  auto sample_type = DemuxerStreamTypeToSbMediaType(type);
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
   SbPlayerWriteSample(
-      player_, DemuxerStreamTypeToSbMediaType(type),
+      player_, sample_type,
 #if SB_API_VERSION >= 6
       allocations.buffers(), allocations.buffer_sizes(),
 #else   // SB_API_VERSION >= 6
@@ -712,12 +713,14 @@ void StarboardPlayer::WriteBufferInternal(
       type == DemuxerStream::VIDEO ? &video_info : NULL,
       drm_info.subsample_count > 0 ? &drm_info : NULL);
 #else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-  SbPlayerWriteSample2(player_, DemuxerStreamTypeToSbMediaType(type),
-                       allocations.buffers(), allocations.buffer_sizes(),
-                       allocations.number_of_buffers(),
-                       buffer->timestamp().InMicroseconds(),
-                       type == DemuxerStream::VIDEO ? &video_info : NULL,
-                       drm_info.subsample_count > 0 ? &drm_info : NULL);
+  DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
+  DCHECK_EQ(allocations.number_of_buffers(), 1);
+  SbPlayerSampleInfo sample_info = {
+      allocations.buffers()[0], allocations.buffer_sizes()[0],
+      buffer->timestamp().InMicroseconds(),
+      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      drm_info.subsample_count > 0 ? &drm_info : NULL};
+  SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 }
 
