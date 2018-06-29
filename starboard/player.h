@@ -111,6 +111,22 @@ typedef enum SbPlayerOutputMode {
   kSbPlayerOutputModeInvalid,
 } SbPlayerOutputMode;
 
+// Information about the samples to be written into SbPlayerWriteSample2.
+typedef struct SbPlayerSampleInfo {
+  // Points to the buffer containing the sample data.
+  const void* buffer;
+  // Size of the data pointed to by |buffer|.
+  int buffer_size;
+  // The timestamp of the sample in SbTime.
+  SbTime timestamp;
+  // Information about a video sample. This value is required for video samples.
+  // Otherwise, it must be |NULL|.
+  const SbMediaVideoSampleInfo* video_sample_info;
+  // The DRM system related info for the media sample. This value is required
+  // for encrypted samples. Otherwise, it must be |NULL|.
+  const SbDrmSampleInfo* drm_info;
+} SbPlayerSampleInfo;
+
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 // Information about the current media playback state.
 typedef struct SbPlayerInfo {
@@ -595,8 +611,8 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 // |video_sample_info|: Information about a video sample. This value is
 //   required if |sample_type| is |kSbMediaTypeVideo|. Otherwise, it must be
 //   |NULL|.
-// |sample_drm_info|: The DRM system for the media sample. This value is
-//   required for encrypted samples. Otherwise, it must be |NULL|.
+// |sample_drm_info|: The DRM system related info for the media sample. This
+//   value is required for encrypted samples. Otherwise, it must be |NULL|.
 #if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 SB_EXPORT void SbPlayerWriteSample(
     SbPlayer player,
@@ -614,7 +630,33 @@ SB_EXPORT void SbPlayerWriteSample(
     const SbDrmSampleInfo* sample_drm_info);
 #else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 // SbPlayerWriteSample2 is like the deprecated SbPlayerWriteSample, but accepts
-// SbTime |sample_timestamp| instead of SbMediaTime |sample_pts|.
+// SbTime |sample_timestamp| instead of SbMediaTime |sample_pts|, and also
+// allows writing of multiple samples in one SbPlayerWriteSample2() call.
+
+// Writes samples of the given media type to |player|'s input stream. The
+// lifetime of |sample_infos|, and the members of its elements like |buffer|,
+// |video_sample_info|, and |drm_info| (as well as member |subsample_mapping|
+// contained inside it) are not guaranteed past the call to
+// SbPlayerWriteSample2. That means that before returning, the implementation
+// must synchronously copy any information it wants to retain from those
+// structures.
+//
+// |player|: The player to which the sample is written.
+// |sample_type|: The type of sample being written. See the |SbMediaType|
+//   enum in media.h.
+// |sample_infos|: A pointer to an array of SbPlayerSampleInfo with
+//   |number_of_sample_infos| elements, each holds the data for an sample, i.e.
+//   a sequence of whole NAL Units for video, or a complete audio frame.
+//   |sample_infos| cannot be assumed to live past the call into
+//   SbPlayerWriteSample2(), so it must be copied if its content will be used
+//   after SbPlayerWriteSample2() returns.
+// |number_of_sample_infos|: Specify the number of samples contained inside
+//   |sample_infos|.  It has to be at least one, and less than the return value
+//   of SbPlayerGetMaximumNumberOfSamplesPerWrite().
+SB_EXPORT void SbPlayerWriteSample2(SbPlayer player,
+                                    SbMediaType sample_type,
+                                    const SbPlayerSampleInfo* sample_infos,
+                                    int number_of_sample_infos);
 
 // Writes a single sample of the given media type to |player|'s input stream.
 // Its data may be passed in via more than one buffers.  The lifetime of
@@ -624,41 +666,13 @@ SB_EXPORT void SbPlayerWriteSample(
 // before returning, the implementation must synchronously copy any information
 // it wants to retain from those structures.
 //
-// |player|: The player to which the sample is written.
-// |sample_type|: The type of sample being written. See the |SbMediaType|
-//   enum in media.h.
-// |sample_buffers|: A pointer to an array of buffers with
-//   |number_of_sample_buffers| elements that hold the data for this sample. The
-//   buffers are expected to be a portion of a bytestream of the codec type that
-//   the player was created with. The buffers should contain a sequence of whole
-//   NAL Units for video, or a complete audio frame.  |sample_buffers| cannot be
-//   assumed to live past the call into SbPlayerWriteSample(), so it must be
-//   copied if its content will be used after SbPlayerWriteSample() returns.
-// |sample_buffer_sizes|: A pointer to an array of sizes with
-//   |number_of_sample_buffers| elements.  Each of them specify the number of
-//   bytes in the corresponding buffer contained in |sample_buffers|.  None of
-//   them can be 0.  |sample_buffer_sizes| cannot be assumed to live past the
-//   call into SbPlayerWriteSample(), so it must be copied if its content will
-//   be used after SbPlayerWriteSample() returns.
-// |number_of_sample_buffers|: Specify the number of elements contained inside
-//   |sample_buffers| and |sample_buffer_sizes|.  It has to be at least one, or
-//   the call will be ignored.
-// |sample_timestamp|: The timestamp of the sample in microseconds. Note that
-//   samples MAY be written "slightly" out of order.
-// |video_sample_info|: Information about a video sample. This value is
-//   required if |sample_type| is |kSbMediaTypeVideo|. Otherwise, it must be
-//   |NULL|.
-// |sample_drm_info|: The DRM system for the media sample. This value is
-//   required for encrypted samples. Otherwise, it must be |NULL|.
-SB_EXPORT void SbPlayerWriteSample2(
+// |player|: The player for which the number is retrieved.
+// |sample_type|: The type of sample for which the number is retrieved. See the
+//   |SbMediaType| enum in media.h.
+SB_EXPORT int SbPlayerGetMaximumNumberOfSamplesPerWrite(
     SbPlayer player,
-    SbMediaType sample_type,
-    const void* const* sample_buffers,
-    const int* sample_buffer_sizes,
-    int number_of_sample_buffers,
-    SbTime sample_timestamp,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    const SbDrmSampleInfo* sample_drm_info);
+    SbMediaType sample_type);
+
 #endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
 
 // Writes a marker to |player|'s input stream of |stream_type| indicating that
