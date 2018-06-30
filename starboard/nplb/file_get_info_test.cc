@@ -37,9 +37,9 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
   // in extra sensitivity to make flakiness more apparent.
   const int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    // Assuming platforms have at least 1 second precision on filesystem
-    // timestamps, we need to go back two seconds to avoid rounding issues.
-    SbTime time = SbTimeGetNow() - (2 * kSbTimeSecond);
+    // We can't assume filesystem timestamp precision, so go back five seconds
+    // for a better chance to contain the imprecision and rounding errors.
+    SbTime time = SbTimeGetNow() - (5 * kSbTimeSecond);
 #if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
     // On platforms with coarse access time, we assume 1 day precision and go
     // back 2 days to avoid rounding issues.
@@ -67,6 +67,10 @@ TEST(SbFileGetInfoTest, WorksOnARegularFile) {
       EXPECT_LE(time, info.last_accessed);
 #endif
       EXPECT_LE(time, info.creation_time);
+
+      // The file created in the next iteration should be newer than the file
+      // created in this iteration, so use its creation time as a new reference.
+      time = info.creation_time;
     }
 
     bool result = SbFileClose(file);
