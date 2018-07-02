@@ -142,6 +142,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
 
   base::ThreadChecker thread_checker_;
 
+  // |audio_encoder_| lives on the microphone thread.
   scoped_ptr<encoders::AudioEncoder> audio_encoder_;
   std::vector<uint8> buffer_;
 
