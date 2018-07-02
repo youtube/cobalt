@@ -59,6 +59,8 @@ class AudioEncoder {
 
   virtual std::string GetMimeType() const = 0;
 
+  virtual void OnSetFormat(const media_stream::AudioParameters& params) = 0;
+
   void AddListener(AudioEncoder::Listener* listener);
 
   void RemoveListener(AudioEncoder::Listener* listener);
