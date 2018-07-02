@@ -159,6 +159,7 @@ void MediaRecorder::OnData(const ShellAudioBus& audio_bus,
   // The source is always int16 data from the microphone.
   DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
   DCHECK_EQ(audio_bus.channels(), 1);
+  DCHECK(audio_encoder_);
   audio_encoder_->Encode(audio_bus, reference_time);
 }
 
@@ -172,6 +173,13 @@ void MediaRecorder::OnEncodedDataAvailable(const uint8* data, size_t data_size,
 }
 
 void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
+  if (!audio_encoder_) {
+    audio_encoder_ = CreateAudioEncoder(mime_type_);
+    audio_encoder_->AddListener(this);
+  }
+  DCHECK(audio_encoder_);
+  audio_encoder_->OnSetFormat(params);
+
   int64 bits_per_second =
       audio_encoder_->GetEstimatedOutputBitsPerSecond(params);
   if (bits_per_second <= 0) {
@@ -194,6 +202,8 @@ void MediaRecorder::OnReadyStateChanged(
   // Step 5.5 from start(), defined at:
   // https://www.w3.org/TR/mediastream-recording/#mediarecorder-methods
   if (new_state == media_stream::MediaStreamTrack::kReadyStateEnded) {
+    audio_encoder_->Finish(base::TimeTicks::Now());
+    audio_encoder_.reset();
     StopRecording();
     stream_ = nullptr;
   }
@@ -225,11 +235,7 @@ MediaRecorder::MediaRecorder(
   std::string desired_mime_type =
       options.has_mime_type() ? options.mime_type() : kLinear16MimeType;
 
-  audio_encoder_ = CreateAudioEncoder(desired_mime_type);
-  DCHECK(audio_encoder_);
-  audio_encoder_->AddListener(this);
-
-  mime_type_ = audio_encoder_->GetMimeType();
+  mime_type_ = desired_mime_type;
   DCHECK(IsTypeSupported(mime_type_));
   blob_options_.set_type(mime_type_);
 }
@@ -251,7 +257,6 @@ MediaRecorder::~MediaRecorder() {
 void MediaRecorder::StopRecording() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(stream_);
-  DCHECK(audio_encoder_);
   DCHECK_NE(recording_state_, kRecordingStateInactive);
 
   recording_state_ = kRecordingStateInactive;
@@ -259,7 +264,6 @@ void MediaRecorder::StopRecording() {
 
   scoped_ptr<std::vector<uint8>> empty;
   base::TimeTicks now = base::TimeTicks::Now();
-  audio_encoder_->Finish(now);
   WriteData(empty.Pass(), true, now);
 
   timeslice_ = base::TimeDelta::FromSeconds(0);
