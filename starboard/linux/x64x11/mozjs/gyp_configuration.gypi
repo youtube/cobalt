@@ -13,10 +13,6 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'javascript_engine': 'mozjs-45',
-    'cobalt_enable_jit': 0,
-  },
   'target_defaults': {
     'default_configuration': 'linux-x64x11-mozjs_debug',
     'configurations': {
