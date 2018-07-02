@@ -36,6 +36,8 @@ class Linear16AudioEncoder : public AudioEncoder {
 
   int64 GetEstimatedOutputBitsPerSecond(
       const media_stream::AudioParameters& params) const override;
+
+  void OnSetFormat(const media_stream::AudioParameters& params) override;
 };
 
 }  // namespace encoders
