@@ -23,6 +23,8 @@
       'sources': [
         'encoders/audio_encoder.cc',
         'encoders/audio_encoder.h',
+        'encoders/flac_audio_encoder.cc',
+        'encoders/flac_audio_encoder.h',
         'encoders/linear16_audio_encoder.cc',
         'encoders/linear16_audio_encoder.h',
         'media_devices.cc',

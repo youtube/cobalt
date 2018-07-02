@@ -74,6 +74,7 @@ class AudioEncoder {
       const media_stream::AudioParameters& params) const = 0;
 
  protected:
+  // This call is thread-safe.
   void PushDataToAllListeners(const uint8* data, size_t data_size,
                               base::TimeTicks timecode);
 

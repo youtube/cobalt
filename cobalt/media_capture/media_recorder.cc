@@ -28,6 +28,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/media_capture/blob_event.h"
+#include "cobalt/media_capture/encoders/flac_audio_encoder.h"
 #include "cobalt/media_capture/encoders/linear16_audio_encoder.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
@@ -44,6 +45,7 @@ const int32 kMinimumTimeSliceInMilliseconds = 1;
 const int32 kSchedulingLatencyBufferMilliseconds = 20;
 
 using cobalt::media_capture::encoders::AudioEncoder;
+using cobalt::media_capture::encoders::FlacAudioEncoder;
 using cobalt::media_capture::encoders::Linear16AudioEncoder;
 
 // Returns the number of bytes needed to store |time_span| duration
@@ -64,6 +66,9 @@ scoped_ptr<AudioEncoder> CreateAudioEncoder(
     base::StringPiece requested_mime_type) {
   if (Linear16AudioEncoder::IsLinear16MIMEType(requested_mime_type)) {
     return scoped_ptr<AudioEncoder>(new Linear16AudioEncoder());
+  }
+  if (FlacAudioEncoder::IsFlacMIMEType(requested_mime_type)) {
+    return scoped_ptr<AudioEncoder>(new FlacAudioEncoder());
   }
   return scoped_ptr<AudioEncoder>(nullptr);
 }
@@ -342,7 +347,8 @@ void MediaRecorder::CalculateLastInSliceAndWriteData(
 }
 
 bool MediaRecorder::IsTypeSupported(const base::StringPiece mime_type) {
-  return Linear16AudioEncoder::IsLinear16MIMEType(mime_type);
+  return Linear16AudioEncoder::IsLinear16MIMEType(mime_type) ||
+         FlacAudioEncoder::IsFlacMIMEType(mime_type);
 }
 
 }  // namespace media_capture
