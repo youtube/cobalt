@@ -20,6 +20,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/media_stream/media_stream.h"
+#include "cobalt/media_stream/media_track_settings.h"
 #include "cobalt/media_stream/microphone_audio_source.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_fake.h"
@@ -201,6 +202,8 @@ void MediaDevices::OnMicrophoneSuccess() {
 
   using media_stream::MediaStream;
   MediaStream::TrackSequences audio_tracks;
+  pending_microphone_track_->SetMediaTrackSettings(
+      audio_source_->GetMediaTrackSettings());
   audio_tracks.push_back(pending_microphone_track_);
   pending_microphone_track_ = nullptr;
 
