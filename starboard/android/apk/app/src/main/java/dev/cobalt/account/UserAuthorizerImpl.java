@@ -30,13 +30,13 @@ import android.os.Looper;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
-import android.util.Log;
 import android.widget.Toast;
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.common.AccountPicker;
 import dev.cobalt.coat.R;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.io.IOException;
 
