@@ -18,9 +18,9 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
-import android.util.Log;
 import com.google.protobuf.InvalidProtocolBufferException;
 import dev.cobalt.storage.StorageProto.Storage;
+import dev.cobalt.util.Log;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;

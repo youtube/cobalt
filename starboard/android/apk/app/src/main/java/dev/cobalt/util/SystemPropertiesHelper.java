@@ -16,7 +16,6 @@ package dev.cobalt.util;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.util.Log;
 import java.lang.reflect.Method;
 
 /** Utility class for accessing system properties via reflection. */
