@@ -83,6 +83,15 @@ class WebDriverDispatcher {
         protocol::Response::StatusCode status_code,
         scoped_ptr<base::Value> result) = 0;
 
+    // Send data as a result of a command to the dispatcher. This is similar to
+    // SendResult with the primary difference being the type of data can be of
+    // any valid HTTP content type, specified with |content_type|. For example,
+    // this could be used to send an image. Not used in any
+    // commands in the WebDriver specification.
+    virtual void SendResultWithContentType(
+        protocol::Response::StatusCode status_code,
+        const std::string& content_type, const char* data, int len) = 0;
+
     // Some forms of Invalid Requests are detected in the CommandCallback by
     // checking the path variables and command parameters. Invalid requests are
     // described here:
