@@ -50,6 +50,18 @@ class CommandResultHandlerImpl
     }
   }
 
+  void SendResultWithContentType(protocol::Response::StatusCode status_code,
+                                 const std::string& content_type,
+                                 const char* data, int len) override {
+    if (status_code == protocol::Response::kSuccess) {
+      response_handler_->SuccessData(content_type, data, len);
+    } else {
+      scoped_ptr<base::Value> response = protocol::Response::CreateResponse(
+          base::nullopt, status_code, scoped_ptr<base::Value>().Pass());
+      response_handler_->FailedCommand(response.Pass());
+    }
+  }
+
   void SendInvalidRequestResponse(RequestError error,
                                   const std::string& error_string) override {
     switch (error) {

@@ -82,6 +82,13 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
     SendInternal(net::HTTP_OK, data, kJsonContentType);
   }
 
+  void SuccessData(const std::string& content_type, const char* data,
+                   int len) override {
+    std::vector<std::string> headers;
+    std::string data_copied(data, len);
+    server_->Send(connection_id_, net::HTTP_OK, data_copied, content_type, headers);
+  }
+
   // Failed commands map to a valid WebDriver command and contain the expected
   // parameters, but otherwise failed to execute for some reason. This should
   // send a 500 Internal Server Error.
