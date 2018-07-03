@@ -18,7 +18,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.graphics.Bitmap;
 import android.text.TextUtils;
-import android.util.Log;
+import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.HashMap;
 

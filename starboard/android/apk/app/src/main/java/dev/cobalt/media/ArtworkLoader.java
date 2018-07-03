@@ -22,6 +22,7 @@ import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.util.Pair;
 import android.util.Size;
+import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -127,7 +128,7 @@ public class ArtworkLoader {
         is = conn.getInputStream();
         bitmap = BitmapFactory.decodeStream(is);
       } catch (IOException e) {
-        android.util.Log.e(TAG, "Could not download artwork", e);
+        Log.e(TAG, "Could not download artwork", e);
       } finally {
         try {
           if (conn != null) {
@@ -137,7 +138,7 @@ public class ArtworkLoader {
             is.close();
           }
         } catch (Exception e) {
-          android.util.Log.e(TAG, "Error closing connection for artwork", e);
+          Log.e(TAG, "Error closing connection for artwork", e);
         }
       }
 
