@@ -15,7 +15,10 @@
 #include <string>
 
 #include "base/base64.h"
+#include "base/bind.h"
 #include "base/debug/trace_event.h"
+#include "base/logging.h"
+#include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/synchronization/waitable_event.h"
 
@@ -26,90 +29,24 @@ namespace webdriver {
 namespace screencast {
 
 namespace {
-
-// Helper struct for getting a JPEG screenshot synchronously.
-struct ScreenshotResultContext {
-  ScreenshotResultContext() : complete_event(true, false) {}
-  scoped_refptr<loader::image::EncodedStaticImage> compressed_file;
-  base::WaitableEvent complete_event;
-};
-
-// Callback function to be called when JPEG encoding is complete.
-void OnJPEGEncodeComplete(
-    ScreenshotResultContext* context,
-    const scoped_refptr<loader::image::EncodedStaticImage>&
-        compressed_image_data) {
-  DCHECK(context);
-  DCHECK(compressed_image_data->GetImageFormat() ==
-         loader::image::EncodedStaticImage::ImageFormat::kJPEG);
-  context->compressed_file = compressed_image_data;
-  context->complete_event.Signal();
-}
-
-}  // namespace
-
-RepeatingScreenshotTaker::RepeatingScreenshotTaker(
-    base::TimeDelta screenshot_interval,
-    const GetScreenshotFunction& screenshot_function)
-    : screenshot_function_(screenshot_function) {
-  const bool retain_user_task = true;
-  const bool is_repeating = true;
-  timed_screenshots_.reset(new base::Timer(retain_user_task, is_repeating));
-
-  const base::Closure screenshot_event = base::Bind(
-      &RepeatingScreenshotTaker::TakeScreenshot, base::Unretained(this));
-  timed_screenshots_->Start(FROM_HERE, screenshot_interval, screenshot_event);
-}
-
-std::string RepeatingScreenshotTaker::GetCurrentScreenshot() {
-  return current_screenshot_;
-}
-
-void RepeatingScreenshotTaker::TakeScreenshot() {
-  TRACE_EVENT0("cobalt::Screencast", "ScreenshotTaker::TakeScreenshot()");
-  ScreenshotResultContext context;
-  screenshot_function_.Run(
-      loader::image::EncodedStaticImage::ImageFormat::kJPEG,
-      base::Bind(&OnJPEGEncodeComplete, base::Unretained(&context)));
-
-  context.complete_event.Wait();
-  DCHECK(context.compressed_file);
-
-  uint32 file_size_in_bytes =
-      context.compressed_file->GetEstimatedSizeInBytes();
-  if (file_size_in_bytes == 0 || !context.compressed_file->GetMemory()) {
-    return;
-  }
-
-  // Encode the JPEG data as a base64 encoded string.
-  std::string encoded;
-  {
-    // base64 encode the contents of the file to be returned to the client.
-    if (!base::Base64Encode(
-            base::StringPiece(
-                reinterpret_cast<char*>(context.compressed_file->GetMemory()),
-                file_size_in_bytes),
-            &encoded)) {
-      return;
-    }
-  }
-
-  current_screenshot_ = encoded;
+const char kJpegContentType[] = "image/jpeg";
 }
 
 ScreencastModule::ScreencastModule(
     int server_port, const std::string& listen_ip,
     const GetScreenshotFunction& screenshot_function)
-    : screenshot_dispatcher_(new webdriver::WebDriverDispatcher()),
+    : screenshot_dispatcher_(new WebDriverDispatcher()),
       screenshot_thread_("Screencast Driver thread"),
-      screenshot_taker_(base::TimeDelta::FromMillisecondsD(
-                            COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
-                        screenshot_function) {
-  screenshot_dispatcher_->RegisterCommand(
-      webdriver::WebDriverServer::kGet, "/screenshot",
-      base::Bind(&ScreencastModule::GetRecentScreenshot,
-                 base::Unretained(this)));
+      incoming_requests_(),
+      last_served_request_(-1),
+      screenshot_function_(screenshot_function),
+      no_screenshots_pending_(true, false),
+      num_screenshots_processing_(0) {
+  thread_checker_.DetachFromThread();
 
+  screenshot_dispatcher_->RegisterCommand(
+      WebDriverServer::kGet, "/screenshot/:id",
+      base::Bind(&ScreencastModule::PutRequestInQueue, base::Unretained(this)));
   // Start the thread and create the HTTP server on that thread.
   screenshot_thread_.StartWithOptions(
       base::Thread::Options(MessageLoop::TYPE_IO, 0));
@@ -119,6 +56,13 @@ ScreencastModule::ScreencastModule(
 }
 
 ScreencastModule::~ScreencastModule() {
+  TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::~ScreencastModule()");
+  screenshot_thread_.message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScreencastModule::StopTimer, base::Unretained(this)));
+
+  no_screenshots_pending_.Wait();
+
   screenshot_thread_.message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&ScreencastModule::StopServer, base::Unretained(this)));
@@ -129,26 +73,118 @@ void ScreencastModule::StartServer(int server_port,
                                    const std::string& listen_ip) {
   DCHECK(thread_checker_.CalledOnValidThread());
   // Create a new WebDriverServer and pass in the Dispatcher.
+
   screenshot_server_.reset(new WebDriverServer(
       server_port, listen_ip,
       base::Bind(&WebDriverDispatcher::HandleWebDriverServerRequest,
                  base::Unretained(screenshot_dispatcher_.get())),
       "Cobalt.Server.Screencast"));
+
+  bool retain_user_task = true;
+  bool is_repeating = true;
+  screenshot_timer_.reset(new base::Timer(retain_user_task, is_repeating));
+
+  const base::Closure screenshot_event =
+      base::Bind(&ScreencastModule::TakeScreenshot, base::Unretained(this));
+  screenshot_timer_->Start(FROM_HERE,
+                           base::TimeDelta::FromMilliseconds(
+                               COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
+                           screenshot_event);
 }
 
-void ScreencastModule::StopServer() { screenshot_server_.reset(); }
+void ScreencastModule::StopTimer() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  screenshot_timer_.reset();
 
-void ScreencastModule::GetRecentScreenshot(
+  if (num_screenshots_processing_ < 1) {
+    no_screenshots_pending_.Signal();
+  }
+}
+
+void ScreencastModule::StopServer() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  // Clear out queue of requests.
+  while (!incoming_requests_.empty()) {
+    scoped_refptr<WaitingRequest> next_request = incoming_requests_.front();
+    incoming_requests_.pop();
+    scoped_ptr<base::Value> message = scoped_ptr<base::Value>();
+    // Send rejection to request with invalid ID.
+    next_request->result_handler->SendResult(
+        base::nullopt, protocol::Response::kUnknownError, message.Pass());
+  }
+  screenshot_server_.reset();
+}
+
+void ScreencastModule::PutRequestInQueue(
     const base::Value* parameters,
     const WebDriverDispatcher::PathVariableMap* path_variables,
     scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler) {
-  TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::GetRecentScreenshot()");
+  TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::PutRequestInQueue()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  scoped_ptr<base::Value> message = scoped_ptr<base::Value>(
-      new base::StringValue(screenshot_taker_.GetCurrentScreenshot()));
-  result_handler->SendResult(base::nullopt, protocol::Response::kSuccess,
-                             message.Pass());
+  scoped_refptr<WaitingRequest> current_request = new WaitingRequest;
+  current_request->result_handler = result_handler.Pass();
+  // The id of request, e.g. screencast/2 would be 2.
+  if (base::StringToInt(path_variables->GetVariable(":id"),
+                        &(current_request->request_id))) {
+    incoming_requests_.push(current_request);
+  } else {
+    // Send rejection to request with invalid ID.
+    scoped_ptr<base::Value> message = scoped_ptr<base::Value>();
+    result_handler->SendResult(base::nullopt, protocol::Response::kUnknownError,
+                               message.Pass());
+  }
+}
+
+void ScreencastModule::SendScreenshotToNextInQueue(
+    const scoped_refptr<loader::image::EncodedStaticImage>& screenshot) {
+  TRACE_EVENT0("cobalt::Screencast",
+               "ScreencastModule::SendScreenshotToNextInQueue()");
+
+  if (MessageLoop::current() != screenshot_thread_.message_loop()) {
+    screenshot_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&ScreencastModule::SendScreenshotToNextInQueue,
+                              base::Unretained(this), screenshot));
+    return;
+  }
+  DCHECK(thread_checker_.CalledOnValidThread());
+
+  num_screenshots_processing_--;
+  // If the timer is off we can check if it's ready to be shutdown.
+  if (screenshot_timer_.get() == nullptr && num_screenshots_processing_ < 1) {
+    no_screenshots_pending_.Signal();
+  }
+
+  while (!incoming_requests_.empty()) {
+    scoped_refptr<WaitingRequest> next_request = incoming_requests_.front();
+    incoming_requests_.pop();
+    scoped_ptr<base::Value> message = scoped_ptr<base::Value>();
+    // Check if request is valid.
+    if (next_request->request_id > last_served_request_) {
+      // Send screenshot.
+      last_served_request_ = next_request->request_id;
+      next_request->result_handler->SendResultWithContentType(
+          protocol::Response::kSuccess, kJpegContentType,
+          reinterpret_cast<char*>(screenshot->GetMemory()),
+          screenshot->GetEstimatedSizeInBytes());
+      return;
+    } else {
+      // Send rejection to request with invalid ID.
+      next_request->result_handler->SendResult(
+          base::nullopt, protocol::Response::kUnknownError, message.Pass());
+    }
+  }
+}
+
+void ScreencastModule::TakeScreenshot() {
+  TRACE_EVENT0("cobalt::Screencast", "ScreencastModule::TakeScreenshot()");
+  if (num_screenshots_processing_ < max_num_screenshots_processing_) {
+    num_screenshots_processing_++;
+    screenshot_function_.Run(
+        loader::image::EncodedStaticImage::ImageFormat::kJPEG,
+        base::Bind(&ScreencastModule::SendScreenshotToNextInQueue,
+                   base::Unretained(this)));
+  }
 }
 
 }  // namespace screencast
