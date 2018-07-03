@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "base/callback_helpers.h"
+#include "cobalt/media_stream/media_track_settings.h"
 
 namespace cobalt {
 namespace media_stream {
@@ -75,9 +76,9 @@ void MediaStreamAudioTrack::OnData(const ShellAudioBus& audio_bus,
 
 void MediaStreamAudioTrack::OnSetFormat(
     const media_stream::AudioParameters& params) {
-  settings_.set_channel_count(params.channel_count());
-  settings_.set_sample_rate(params.sample_rate());
-  settings_.set_sample_size(params.bits_per_sample());
+  MediaTrackSettings settings =
+      MediaStreamAudioTrack::MediaTrackSettingsFromAudioParameters(params);
+  SetMediaTrackSettings(settings);
   deliverer_.OnSetFormat(params);
 }
 

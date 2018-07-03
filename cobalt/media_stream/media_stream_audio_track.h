@@ -47,6 +47,14 @@ class MediaStreamAudioSource;
 // at: https://www.w3.org/TR/mediacapture-streams/#dom-mediastreamtrack
 class MediaStreamAudioTrack : public MediaStreamTrack {
  public:
+  static MediaTrackSettings MediaTrackSettingsFromAudioParameters(
+      const AudioParameters& parameters) {
+    MediaTrackSettings settings;
+    settings.set_channel_count(parameters.channel_count());
+    settings.set_sample_rate(parameters.sample_rate());
+    settings.set_sample_size(parameters.bits_per_sample());
+    return settings;
+  }
 #if defined(COBALT_MEDIA_SOURCE_2016)
   typedef media::ShellAudioBus ShellAudioBus;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
