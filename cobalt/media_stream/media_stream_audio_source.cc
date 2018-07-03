@@ -51,6 +51,14 @@ bool MediaStreamAudioSource::ConnectToTrack(MediaStreamAudioTrack* track) {
   return true;
 }
 
+MediaTrackSettings MediaStreamAudioSource::GetMediaTrackSettings() const {
+  // The following call is thread safe.
+  AudioParameters parameters = deliverer_.GetAudioParameters();
+
+  return MediaStreamAudioTrack::MediaTrackSettingsFromAudioParameters(
+      parameters);
+}
+
 void MediaStreamAudioSource::DeliverDataToTracks(
     const MediaStreamAudioTrack::ShellAudioBus& audio_bus,
     base::TimeTicks reference_time) {
