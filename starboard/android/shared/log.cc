@@ -16,13 +16,19 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <jni.h>
 #include <string>
 
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 #include "starboard/thread.h"
+
+using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 namespace {
   const char kLogSleepTimeSwitch[] = "android_log_sleep_time";
@@ -72,4 +78,26 @@ void SbLog(SbLogPriority priority, const char* message) {
   // In unit tests the logging is too fast for the android log to be read out
   // and we end up losing crucial logs. The test runner specifies a sleep time.
   SbThreadSleep(g_log_sleep_time);
+}
+
+// Helper to write messages to logcat even when Android non-warning/non-error
+// logging is stripped from the app with Proguard.
+extern "C" SB_EXPORT_PLATFORM jint
+Java_dev_cobalt_util_Log_nativeWrite(JniEnvExt* env,
+                                     jobject unused_clazz,
+                                     jchar priority,
+                                     jstring tag,
+                                     jstring msg,
+                                     jobject throwable) {
+  char log_method_name[2] = {static_cast<char>(priority), '\0'};
+  if (throwable == nullptr) {
+    return env->CallStaticIntMethodOrAbort(
+        "android.util.Log", log_method_name,
+        "(Ljava/lang/String;Ljava/lang/String;)I", tag, msg);
+  } else {
+    return env->CallStaticIntMethodOrAbort(
+        "android.util.Log", log_method_name,
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I",
+        tag, msg, throwable);
+  }
 }

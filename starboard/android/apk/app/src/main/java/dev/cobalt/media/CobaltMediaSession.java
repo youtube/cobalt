@@ -30,10 +30,10 @@ import android.media.session.PlaybackState;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import android.view.WindowManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.Log;
 
 /**
  * Cobalt MediaSession glue, as well as collection of state

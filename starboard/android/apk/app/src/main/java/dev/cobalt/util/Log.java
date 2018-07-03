@@ -15,10 +15,57 @@
 package dev.cobalt.util;
 
 /**
- * Common definitions for logging.
+ * API for sending Starboard log output. This uses a JNI helper rather than directly calling Android
+ * logging so that it remains in the app even when Android logging is stripped by Proguard.
  */
-public class Log {
+public final class Log {
   public static final String TAG = "starboard";
 
   private Log() {}
+
+  private static native int nativeWrite(char priority, String tag, String msg, Throwable tr);
+
+  public static int v(String tag, String msg) {
+    return nativeWrite('v', tag, msg, null);
+  }
+
+  public static int v(String tag, String msg, Throwable tr) {
+    return nativeWrite('v', tag, msg, tr);
+  }
+
+  public static int d(String tag, String msg) {
+    return nativeWrite('d', tag, msg, null);
+  }
+
+  public static int d(String tag, String msg, Throwable tr) {
+    return nativeWrite('d', tag, msg, tr);
+  }
+
+  public static int i(String tag, String msg) {
+    return nativeWrite('i', tag, msg, null);
+  }
+
+  public static int i(String tag, String msg, Throwable tr) {
+    return nativeWrite('i', tag, msg, tr);
+  }
+
+  public static int w(String tag, String msg) {
+    return nativeWrite('w', tag, msg, null);
+  }
+
+  public static int w(String tag, String msg, Throwable tr) {
+    return nativeWrite('w', tag, msg, tr);
+  }
+
+  public static int w(String tag, Throwable tr) {
+    return nativeWrite('w', tag, "", tr);
+  }
+
+  public static int e(String tag, String msg) {
+    return nativeWrite('e', tag, msg, null);
+  }
+
+  public static int e(String tag, String msg, Throwable tr) {
+    return nativeWrite('e', tag, msg, tr);
+  }
 }
