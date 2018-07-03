@@ -23,6 +23,7 @@
 #include "cobalt/media_stream/media_stream_audio_deliverer.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
 #include "cobalt/media_stream/media_stream_source.h"
+#include "cobalt/media_stream/media_track_settings.h"
 
 namespace cobalt {
 namespace media_stream {
@@ -40,6 +41,8 @@ class MediaStreamAudioSource : public MediaStreamSource {
   // Connects this source to the track. One source can be connected to multiple
   // tracks.  Returns true if successful.
   bool ConnectToTrack(MediaStreamAudioTrack* track);
+
+  MediaTrackSettings GetMediaTrackSettings() const;
 
  protected:
   // Subclasses should override these Ensure* methods.

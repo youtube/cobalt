@@ -19,6 +19,7 @@
 #include "base/string_piece.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media_stream/media_track_settings.h"
+#include "starboard/mutex.h"
 
 namespace cobalt {
 namespace media_stream {
@@ -30,21 +31,34 @@ class MediaStreamTrack : public dom::EventTarget {
   enum ReadyState { kReadyStateLive, kReadyStateEnded, };
 
   MediaStreamTrack() = default;
+
   // Function exposed to JavaScript via IDL.
-  const MediaTrackSettings& GetSettings() { return settings_; }
+  const MediaTrackSettings& GetSettings() const {
+    starboard::ScopedLock lock(settings_mutex_);
+    return settings_;
+  }
+
+  const MediaTrackSettings& GetMediaTrackSettings() const {
+    return GetSettings();
+  }
 
   virtual void Stop() = 0;
   virtual void OnReadyStateChanged(
       media_stream::MediaStreamTrack::ReadyState new_state) = 0;
 
-  DEFINE_WRAPPABLE_TYPE(MediaStreamTrack);
+  void SetMediaTrackSettings(const MediaTrackSettings& new_settings) {
+    starboard::ScopedLock lock(settings_mutex_);
+    settings_ = new_settings;
+  }
 
- protected:
-  MediaTrackSettings settings_;
+  DEFINE_WRAPPABLE_TYPE(MediaStreamTrack);
 
  private:
   MediaStreamTrack(const MediaStreamTrack&) = delete;
   MediaStreamTrack& operator=(const MediaStreamTrack&) = delete;
+
+  starboard::Mutex settings_mutex_;
+  MediaTrackSettings settings_;
 };
 
 }  // namespace media_stream
