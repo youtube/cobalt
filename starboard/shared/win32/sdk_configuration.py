@@ -17,21 +17,37 @@ import os
 
 import sdk_installer
 
+def _SelectBestPath(os_var_name, path):
+  if os_var_name in os.environ:
+    return os.environ[os_var_name]
+  if os.path.exists(path):
+    return path
+  new_path = path.replace('Program Files (x86)', 'mappedProgramFiles')
+  if os.path.exists(new_path):
+    return new_path
+  return path
+
+def _GetBestVisualStudioDirectory():
+  paths = (
+    'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Professional',
+    'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise',
+    'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community',
+  )
+  for p in paths:
+    if os.path.isdir(p):
+      return p
+  return paths[0]
+
+_DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
+
 class SdkConfiguration:
   required_sdk_version = '10.0.17134.0'
-
-  # Default Windows SDK bin directory.
-  windows_sdk_bin_dir = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
 
   # windows_sdk_host_tools will be set to, eg,
   # 'C:\\Program Files (x86)\\Windows Kits\\10\\bin\10.0.15063.0'
 
   # windows_sdk_path will be set to, eg
   # 'C:\\Program Files (x86)\\Windows Kits\\10'
-
-  # Default Visual Studio Install directory.
-  vs_install_dir = ('C:\\Program Files (x86)\\Microsoft Visual Studio'
-                    + '\\2017\\Professional')
 
   # vs_install_dir_with_version will be set to, eg
   # "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\VC\Tools
@@ -43,14 +59,7 @@ class SdkConfiguration:
 
   def __init__(self):
     # Maybe override Windows SDK bin directory with environment variable.
-    windows_sdk_bin_var = 'WindowsSdkBinPath'
-    if windows_sdk_bin_var in os.environ:
-      self.windows_sdk_bin_dir = os.environ[windows_sdk_bin_var]
-    elif not os.path.exists(self.windows_sdk_bin_dir):
-      # If the above fails, this is our last guess.
-      self.windows_sdk_bin_dir = self.windows_sdk_bin_dir.replace(
-        'Program Files (x86)', 'mappedProgramFiles')
-
+    self.windows_sdk_bin_dir = _SelectBestPath('WindowsSdkBinPath', _DEFAULT_SDK_BIN_DIR)
     self.windows_sdk_host_tools = os.path.join(
         self.windows_sdk_bin_dir, self.required_sdk_version, 'x64')
 
@@ -62,18 +71,16 @@ class SdkConfiguration:
     self.windows_sdk_path = os.path.dirname(self.windows_sdk_bin_dir)
 
     # Maybe override Visual Studio install directory with environment variable.
-    vs_install_dir_var = 'VSINSTALLDIR'
-    if vs_install_dir_var in os.environ:
-      self.vs_install_dir = os.environ[vs_install_dir_var]
-    elif not os.path.exists(self.vs_install_dir):
-      # If the above fails, this is our last guess.
-      self.vs_install_dir = self.vs_install_dir.replace('Program Files (x86)',
-                                                        'mappedProgramFiles')
+    self.vs_install_dir = _SelectBestPath('VSINSTALLDIR', _GetBestVisualStudioDirectory())
 
     self.vs_install_dir_with_version = (self.vs_install_dir
         + '\\VC\\Tools\\MSVC' + '\\14.10.25017')
     self.vs_host_tools_path = (self.vs_install_dir_with_version
         + '\\bin\\HostX64\\x64')
+
+    logging.critical('Windows SDK Path:              ' + os.path.abspath(self.windows_sdk_host_tools))
+    logging.critical('Visual Studio Path:            ' + os.path.abspath(self.vs_install_dir_with_version))
+    logging.critical('Visual Studio Host Tools Path: ' + os.path.abspath(self.vs_host_tools_path))
 
     if not os.path.exists(self.vs_host_tools_path):
       logging.critical('Expected Visual Studio path \"%s\" not found.',
