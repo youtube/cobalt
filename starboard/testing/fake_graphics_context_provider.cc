@@ -44,16 +44,11 @@ EGLint const kAttributeList[] = {EGL_RED_SIZE,
                                  8,
                                  EGL_ALPHA_SIZE,
                                  8,
-                                 EGL_STENCIL_SIZE,
-                                 0,
-                                 EGL_BUFFER_SIZE,
-                                 32,
                                  EGL_SURFACE_TYPE,
                                  EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                 EGL_COLOR_BUFFER_TYPE,
-                                 EGL_RGB_BUFFER,
-                                 EGL_CONFORMANT,
-                                 EGL_OPENGL_ES2_BIT,
+
+                                 EGL_BIND_TO_TEXTURE_RGBA,
+                                 EGL_TRUE,
                                  EGL_RENDERABLE_TYPE,
                                  EGL_OPENGL_ES2_BIT,
                                  EGL_NONE};
@@ -184,7 +179,9 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 
   // Create the GLES2 or GLEX3 Context.
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION,
+      3,
+      EGL_NONE,
   };
 #if defined(GLES3_SUPPORTED)
   // Attempt to create an OpenGL ES 3.0 context.
