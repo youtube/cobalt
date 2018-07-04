@@ -166,6 +166,12 @@ class Application {
     return Run(CommandLine(argc, argv));
   }
 
+// Prevents GetCommandLine from being redefined.  For example, Windows
+// defines it to GetCommandLineW, which causes link errors.
+#if defined(GetCommandLine)
+#undef GetCommandLine
+#endif  // defined(GetCommandLine)
+
   // Retrieves the CommandLine for the application.
   // NULL until Run() is called.
   const CommandLine* GetCommandLine();
