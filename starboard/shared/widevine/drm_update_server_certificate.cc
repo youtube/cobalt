@@ -15,6 +15,7 @@
 #include "starboard/drm.h"
 
 #include "starboard/log.h"
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 #if SB_API_VERSION >= 10
 
@@ -22,12 +23,17 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* certificate,
                                   int certificate_size) {
-  SB_UNREFERENCED_PARAMETER(drm_system);
-  SB_UNREFERENCED_PARAMETER(ticket);
-  SB_UNREFERENCED_PARAMETER(certificate);
-  SB_UNREFERENCED_PARAMETER(certificate_size);
+  if (!SbDrmSystemIsValid(drm_system)) {
+    SB_DLOG(ERROR) << "Invalid DRM system.";
+    return;
+  }
 
-  SB_NOTREACHED();
+  if (ticket == kSbDrmTicketInvalid) {
+    SB_DLOG(ERROR) << "Ticket must be specified.";
+    return;
+  }
+
+  drm_system->UpdateServerCertificate(ticket, certificate, certificate_size);
 }
 
 #endif  // SB_API_VERSION >= 10
