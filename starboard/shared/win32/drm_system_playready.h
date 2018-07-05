@@ -81,6 +81,16 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
 
   void OnUwpResume();
 
+#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+  void UpdateServerCertificate(int ticket,
+                               const void* certificate,
+                               int certificate_size) override {
+    SB_UNREFERENCED_PARAMETER(ticket);
+    SB_UNREFERENCED_PARAMETER(certificate);
+    SB_UNREFERENCED_PARAMETER(certificate_size);
+  }
+#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+
  private:
   std::string GenerateAndAdvanceSessionId();
   // Note: requires mutex_ to be held
