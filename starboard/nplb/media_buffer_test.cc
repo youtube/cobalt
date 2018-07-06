@@ -94,15 +94,7 @@ TEST(SbMediaBufferTest, Alignment) {
 
 TEST(SbMediaBufferTest, AllocationUnit) {
   // TODO: impose more bounds.
-  for (auto codec : kVideoCodecs) {
-    for (auto resolution : kVideoResolutions) {
-      for (auto bits_per_pixel : kBitsPerPixelValues) {
-        EXPECT_GE(SbMediaGetBufferAllocationUnit(codec, resolution[0],
-                                                 resolution[1], bits_per_pixel),
-                  0);
-      }
-    }
-  }
+  EXPECT_GE(SbMediaGetBufferAllocationUnit(), 0);
 }
 
 TEST(SbMediaBufferTest, AudioBudget) {
@@ -115,28 +107,13 @@ TEST(SbMediaBufferTest, GarbageCollectionDurationThreshold) {
   // TODO: impose reasonable bounds here.
   int kMinGarbargeCollectionDurationThreshold = 10 * kSbTimeSecond;
   int kMaxGarbargeCollectionDurationThreshold = 240 * kSbTimeSecond;
-  for (auto codec : kVideoCodecs) {
-    for (auto resolution : kVideoResolutions) {
-      for (auto bits_per_pixel : kBitsPerPixelValues) {
-        int threshold = SbMediaGetBufferGarbageCollectionDurationThreshold(
-            codec, resolution[0], resolution[1], bits_per_pixel);
-        EXPECT_GE(threshold, kMinGarbargeCollectionDurationThreshold);
-        EXPECT_LE(threshold, kMaxGarbargeCollectionDurationThreshold);
-      }
-    }
-  }
+  int threshold = SbMediaGetBufferGarbageCollectionDurationThreshold();
+  EXPECT_GE(threshold, kMinGarbargeCollectionDurationThreshold);
+  EXPECT_LE(threshold, kMaxGarbargeCollectionDurationThreshold);
 }
 
 TEST(SbMediaBufferTest, InitialCapacity) {
-  for (auto codec : kVideoCodecs) {
-    for (auto resolution : kVideoResolutions) {
-      for (auto bits_per_pixel : kBitsPerPixelValues) {
-        EXPECT_GE(SbMediaGetInitialBufferCapacity(
-                      codec, resolution[0], resolution[1], bits_per_pixel),
-                  0);
-      }
-    }
-  }
+  EXPECT_GE(SbMediaGetInitialBufferCapacity(), 0);
 }
 
 TEST(SbMediaBufferTest, MaxCapacity) {
@@ -149,8 +126,7 @@ TEST(SbMediaBufferTest, MaxCapacity) {
                   0);
         EXPECT_GE(SbMediaGetMaxBufferCapacity(codec, resolution[0],
                                               resolution[1], bits_per_pixel),
-                  SbMediaGetInitialBufferCapacity(
-                      codec, resolution[0], resolution[1], bits_per_pixel));
+                  SbMediaGetInitialBufferCapacity());
       }
     }
   }
@@ -164,14 +140,7 @@ TEST(SbMediaBufferTest, Padding) {
 
 TEST(SbMediaBufferTest, PoolAllocateOnDemand) {
   // Just don't crash.
-  for (auto codec : kVideoCodecs) {
-    for (auto resolution : kVideoResolutions) {
-      for (auto bits_per_pixel : kBitsPerPixelValues) {
-        SbMediaIsBufferPoolAllocateOnDemand(codec, resolution[0], resolution[1],
-                                            bits_per_pixel);
-      }
-    }
-  }
+  SbMediaIsBufferPoolAllocateOnDemand();
 }
 
 TEST(SbMediaBufferTest, ProgressiveBudget) {
@@ -195,20 +164,13 @@ TEST(SbMediaBufferTest, ProgressiveBudget) {
 
 TEST(SbMediaBufferTest, StorageType) {
   // Just don't crash.
-  for (auto resolution : kVideoResolutions) {
-    for (auto bits_per_pixel : kBitsPerPixelValues) {
-      for (auto codec : kVideoCodecs) {
-        SbMediaBufferStorageType type = SbMediaGetBufferStorageType(
-            codec, resolution[0], resolution[1], bits_per_pixel);
-        switch (type) {
-          case kSbMediaBufferStorageTypeMemory:
-          case kSbMediaBufferStorageTypeFile:
-            continue;
-        }
-        SB_NOTREACHED();
-      }
-    }
+  SbMediaBufferStorageType type = SbMediaGetBufferStorageType();
+  switch (type) {
+    case kSbMediaBufferStorageTypeMemory:
+    case kSbMediaBufferStorageTypeFile:
+      return;
   }
+  SB_NOTREACHED();
 }
 
 TEST(SbMediaBufferTest, UsingMemoryPool) {
