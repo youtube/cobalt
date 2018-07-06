@@ -25,8 +25,7 @@ EGLBoolean __wrap_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
   // a good approximation.
   EGLBoolean return_value;
   starboard::shared::x11::ApplicationX11* application =
-      static_cast<starboard::shared::x11::ApplicationX11*>(
-          starboard::shared::starboard::Application::Get());
+      starboard::shared::x11::ApplicationX11::Get();
 
   // Notify the application when the swap happens so that it can synchronize
   // the bounds for the video layer.
