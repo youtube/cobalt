@@ -71,6 +71,7 @@
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/v8/src/v8.gyp:v8',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
+        'update_snapshot_time',
         'embed_v8c_resources_as_header_files',
       ],
       'defines': [
@@ -153,6 +154,40 @@
           '<(SHARED_INTERMEDIATE_DIR)',
         ],
       },
+    },
+
+    {
+      # snapshot's creation time is to be recorded in the snapshot data file,
+      # its update indicates V8 code change.
+      'target_name': 'update_snapshot_time',
+      'type': 'none',
+      'dependencies': [
+        '<(DEPTH)/v8/src/v8.gyp:v8_base',
+        '<(DEPTH)/v8/src/v8.gyp:v8_initializers',
+        '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
+      ],
+      'variables': {
+        'script_path': '<(DEPTH)/starboard/build/touch.py',
+        'output_path': '<(DEPTH)/cobalt/script/v8c/isolate_fellowship.cc',
+      },
+      'actions': [
+        {
+          'action_name': 'update_snapshot_time',
+          'inputs': [
+            '<(script_path)',
+            '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_base<(STATIC_LIB_SUFFIX)',
+            '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_initializers<(STATIC_LIB_SUFFIX)',
+            '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_libplatform<(STATIC_LIB_SUFFIX)',
+          ],
+          'outputs': [
+            '<(output_path)',
+          ],
+          'action': ['python', '<(script_path)',
+                     '<(output_path)',
+          ],
+          'message': 'Updating V8 snapshot creation time.',
+        },
+      ],
     },
 
   ],
