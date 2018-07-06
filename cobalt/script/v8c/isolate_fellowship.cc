@@ -14,6 +14,7 @@
 
 #include "cobalt/script/v8c/isolate_fellowship.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/debug/trace_event.h"
@@ -25,6 +26,10 @@
 namespace cobalt {
 namespace script {
 namespace v8c {
+
+// This file will also be touched and rebuilt every time V8 is re-built
+// according to the update_snapshot_time gyp target.
+const char kIsolateFellowshipBuildTime[] = __DATE__ " " __TIME__;
 
 IsolateFellowship::IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::IsolateFellowship");
@@ -63,15 +68,9 @@ void IsolateFellowship::InitializeStartupData() {
   DCHECK(startup_data.data == nullptr);
 
   char cache_path[SB_FILE_MAX_PATH] = {};
-  char executable_path[SB_FILE_MAX_PATH] = {};
-  SbFileInfo executable_info;
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_path,
-                       SB_ARRAY_SIZE_INT(cache_path)) ||
-      !SbSystemGetPath(kSbSystemPathExecutableFile, executable_path,
-                       SB_ARRAY_SIZE_INT(executable_path)) ||
-      !SbFileGetPathInfo(executable_path, &executable_info)) {
-    // If either of these conditions fail (there is no cache directory or we
-    // can't stat our own executable), then just save the startup data in
+                       SB_ARRAY_SIZE_INT(cache_path))) {
+    // If there is no cache directory, then just save the startup data in
     // memory.
     LOG(WARNING) << "Unable to read/write V8 startup snapshot data to file.";
     startup_data = v8::V8::CreateSnapshotDataBlob();
@@ -84,27 +83,14 @@ void IsolateFellowship::InitializeStartupData() {
   bool should_remove_cache_file = false;
 
   // Attempt to read the cache file.
-  std::string full_path = std::string(cache_path) + SB_FILE_SEP_STRING +
-                          V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME;
+  std::string snapshot_file_full_path =
+      std::string(cache_path) + SB_FILE_SEP_STRING +
+      V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME;
   bool read_file = ([&]() {
-    starboard::ScopedFile scoped_file(full_path.c_str(),
+    starboard::ScopedFile scoped_file(snapshot_file_full_path.c_str(),
                                       kSbFileOpenOnly | kSbFileRead);
     if (!scoped_file.IsValid()) {
-      return false;
-    }
-
-    SbFileInfo cache_info;
-    if (!scoped_file.GetInfo(&cache_info)) {
-      LOG(WARNING)
-          << "Failed to get info for cache file that we successfully opened.";
-      should_remove_cache_file = true;
-      return false;
-    }
-
-    if (executable_info.creation_time > cache_info.creation_time) {
-      LOG(INFO) << "Running executable newer than V8 startup snapshot cache "
-                   "file, creating a new one.";
-      should_remove_cache_file = true;
+      LOG(INFO) << "Can not open snapshot file";
       return false;
     }
 
@@ -119,27 +105,48 @@ void IsolateFellowship::InitializeStartupData() {
       should_remove_cache_file = true;
       return false;
     }
+    int64_t data_size = size - sizeof(kIsolateFellowshipBuildTime);
 
-    scoped_array<char> data(new char[size]);
-    int read = scoped_file.ReadAll(data.get(), size);
-    // Logically, this could be collapsed to just "read != size", but this
+    char snapshot_time[sizeof(kIsolateFellowshipBuildTime)];
+    int read =
+        scoped_file.ReadAll(snapshot_time, sizeof(kIsolateFellowshipBuildTime));
+    // Logically, this could be collapsed to just "read != data_size", but this
     // should be read as "if the platform explicitly told us reading failed,
     // or the platform told us we read less than we expected".
-    if (read == -1 || read != size) {
+    if (read == -1 || read != sizeof(kIsolateFellowshipBuildTime)) {
+      LOG(ERROR) << "Reading V8 startup snapshot time failed.";
+      should_remove_cache_file = true;
+      return false;
+    }
+
+    // kIsolateFellowshipBuildTime is an auto-generated/updated time stamp when
+    // v8 target is compiled to update snapshot data after any v8 change.
+    if (SbMemoryCompare(snapshot_time, kIsolateFellowshipBuildTime,
+                        sizeof(kIsolateFellowshipBuildTime)) != 0) {
+      LOG(INFO) << "V8 code was modified since last V8 startup snapshot cache "
+                   "file was generated, creating a new one.";
+      should_remove_cache_file = true;
+      return false;
+    }
+
+    scoped_array<char> data(new char[data_size]);
+    read = scoped_file.ReadAll(data.get(), data_size);
+    if (read == -1 || read != data_size) {
       LOG(ERROR) << "Reading V8 startup snapshot cache file failed for some "
                     "unknown reason.";
+      should_remove_cache_file = true;
       return false;
     }
 
     LOG(INFO) << "Successfully read V8 startup snapshot cache file.";
     startup_data.data = data.release();
-    startup_data.raw_size = size;
+    startup_data.raw_size = data_size;
     return true;
   })();
 
   auto maybe_remove_cache_file = [&]() {
     if (should_remove_cache_file) {
-      if (!SbFileDelete(full_path.c_str())) {
+      if (!SbFileDelete(snapshot_file_full_path.c_str())) {
         LOG(ERROR) << "Failed to delete V8 startup snapshot cache file.";
       }
       should_remove_cache_file = false;
@@ -162,7 +169,7 @@ void IsolateFellowship::InitializeStartupData() {
         return;
       }
 
-      starboard::ScopedFile scoped_file(full_path.c_str(),
+      starboard::ScopedFile scoped_file(snapshot_file_full_path.c_str(),
                                         kSbFileCreateOnly | kSbFileWrite);
       if (!scoped_file.IsValid()) {
         LOG(ERROR)
@@ -170,8 +177,15 @@ void IsolateFellowship::InitializeStartupData() {
         return;
       }
 
-      int written =
-          scoped_file.WriteAll(startup_data.data, startup_data.raw_size);
+      int written = scoped_file.WriteAll(kIsolateFellowshipBuildTime,
+                                         sizeof(kIsolateFellowshipBuildTime));
+      if (written < sizeof(kIsolateFellowshipBuildTime)) {
+        LOG(ERROR) << "Failed to write V8 startup snapshot time.";
+        should_remove_cache_file = true;
+        return;
+      }
+
+      written = scoped_file.WriteAll(startup_data.data, startup_data.raw_size);
       if (written < startup_data.raw_size) {
         LOG(ERROR) << "Failed to write entire V8 startup snapshot.";
         should_remove_cache_file = true;
