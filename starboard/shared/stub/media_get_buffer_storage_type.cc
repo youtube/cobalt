@@ -14,13 +14,6 @@
 
 #include "starboard/media.h"
 
-SbMediaBufferStorageType SbMediaGetBufferStorageType(SbMediaVideoCodec codec,
-                                                     int resolution_width,
-                                                     int resolution_height,
-                                                     int bits_per_pixel) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(resolution_width);
-  SB_UNREFERENCED_PARAMETER(resolution_height);
-  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
+SbMediaBufferStorageType SbMediaGetBufferStorageType() {
   return static_cast<SbMediaBufferStorageType>(0);
 }
