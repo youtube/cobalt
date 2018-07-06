@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
+#include "starboard/shared/x11/application_x11.h"
 
 void SbPlayerSetBounds(SbPlayer player,
                        int z_index,
@@ -28,4 +29,6 @@ void SbPlayerSetBounds(SbPlayer player,
     return;
   }
   player->SetBounds(z_index, x, y, width, height);
+  starboard::shared::x11::ApplicationX11::Get()->PlayerSetBounds(
+      player, z_index, x, y, width, height);
 }
