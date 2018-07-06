@@ -14,13 +14,6 @@
 
 #include "starboard/media.h"
 
-bool SbMediaIsBufferPoolAllocateOnDemand(SbMediaVideoCodec codec,
-                                         int resolution_width,
-                                         int resolution_height,
-                                         int bits_per_pixel) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(resolution_width);
-  SB_UNREFERENCED_PARAMETER(resolution_height);
-  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
+bool SbMediaIsBufferPoolAllocateOnDemand() {
   return 0;
 }
