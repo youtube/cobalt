@@ -20,8 +20,11 @@
     'conditions': [
       ['host_os=="win"', {
         'bison_exe': '<(DEPTH)/third_party/bison/bin/bison',
+        'bison_major_version': '2'
       }, {
         'bison_exe': 'bison',
+        'bison_major_version': '<!(bison --version | '
+          'head -n 1 | sed -Ee "s/[^0-9]*([0-9]+).*/\\1/")'
       }],
     ],
   },
@@ -35,7 +38,13 @@
       'type': 'none',
       'sources': [
         'grammar.h',
-        'grammar.y',
+      ],
+      'conditions': [
+        ['bison_major_version==2', {
+          'sources': ['grammar-bison-2.y'],
+        }, {
+          'sources': ['grammar.y']
+        }]
       ],
       # Generated header files are stored in the intermediate directory
       # under their module sub-directory.
@@ -102,6 +111,9 @@
         'trivial_string_piece.h',
         'trivial_type_pairs.h',
       ],
+      'defines': [
+        'BISON_VERSION_MAJOR=<@(bison_major_version)'
+      ],
       # Scanner exposes UChar32 in a header.
       'direct_dependent_settings': {
         'include_dirs': [
@@ -125,6 +137,9 @@
         'ref_counted_util_test.cc',
         'scanner_test.cc',
         'trivial_string_piece_test.cc',
+      ],
+      'defines': [
+        'BISON_VERSION_MAJOR=<@(bison_major_version)'
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
