@@ -57,6 +57,16 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   // Call this function after the GL layer has been updated.
   void SwapBuffersEnd();
 
+  // This is called immediately when SbPlayerSetBounds is called. The
+  // application will queue the new bounds until the UI frame using these
+  // bounds is rendered.
+  void PlayerSetBounds(SbPlayer player,
+                       int z_index,
+                       int x,
+                       int y,
+                       int width,
+                       int height);
+
  protected:
   void AcceptFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
@@ -70,13 +80,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
 #endif  // SB_API_VERSION >= 6
-
-  void PlayerSetBounds(SbPlayer player,
-                       int z_index,
-                       int x,
-                       int y,
-                       int width,
-                       int height) override;
 
  protected:
   // --- Application overrides ---
