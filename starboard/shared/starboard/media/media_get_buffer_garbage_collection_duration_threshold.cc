@@ -17,15 +17,7 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
-SbTime SbMediaGetBufferGarbageCollectionDurationThreshold(
-    SbMediaVideoCodec codec,
-    int resolution_width,
-    int resolution_height,
-    int bits_per_pixel) {
-  SB_UNREFERENCED_PARAMETER(codec);
-  SB_UNREFERENCED_PARAMETER(resolution_width);
-  SB_UNREFERENCED_PARAMETER(resolution_height);
-  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
+SbTime SbMediaGetBufferGarbageCollectionDurationThreshold() {
 #if defined( \
     COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
   SB_DLOG(WARNING) << "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_"
