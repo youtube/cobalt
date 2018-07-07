@@ -27,7 +27,7 @@
 
 using ::starboard::android::shared::g_app_assets_dir;
 using ::starboard::android::shared::g_app_cache_dir;
-using ::starboard::android::shared::g_app_files_dir;
+using ::starboard::android::shared::g_app_lib_dir;
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
   if (!out_path || !path_size) {
@@ -84,10 +84,11 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
                              path_size);
     }
 
-    // TODO could theoretically be the path to the .so in
-    // the "lib" directory of the app home dir.
+    // We return the library directory as the "executable" since:
+    // a) Unlike the .so itself, it has a valid timestamp of the app install.
+    // b) Its parent directory is still a directory within our app package.
     case kSbSystemPathExecutableFile: {
-      if (SbStringCopy(path, g_app_files_dir, kPathSize) >= kPathSize) {
+      if (SbStringCopy(path, g_app_lib_dir, kPathSize) >= kPathSize) {
         return false;
       }
       break;
