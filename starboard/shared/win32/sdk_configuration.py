@@ -15,7 +15,11 @@
 import logging
 import os
 
-import sdk_installer
+import starboard.shared.win32.sdk.installer as sdk_installer
+
+_DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
+_MSVC_TOOLS_VERSION = '14.10.25017'
+_WIN_SDK_VERSION = '10.0.17134.0'
 
 def _SelectBestPath(os_var_name, path):
   if os_var_name in os.environ:
@@ -27,22 +31,22 @@ def _SelectBestPath(os_var_name, path):
     return new_path
   return path
 
-def _GetBestVisualStudioDirectory():
+def _GetBestBuildToolsDirectory(msvc_version):
   paths = (
     'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Professional',
     'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Enterprise',
     'C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community',
+    # TODO: Add support for using msvc build tools without visual studio.
   )
   for p in paths:
     if os.path.isdir(p):
-      return p
+      msvc_tools_dir = p + '\\VC\\Tools\\MSVC\\' + msvc_version + '\\bin\\HostX64\\x64'
+      if os.path.isdir(msvc_tools_dir):
+        return p
   return paths[0]
-
-_DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
-
+  
 class SdkConfiguration:
-  required_sdk_version = '10.0.17134.0'
-
+  required_sdk_version = _WIN_SDK_VERSION
   # windows_sdk_host_tools will be set to, eg,
   # 'C:\\Program Files (x86)\\Windows Kits\\10\\bin\10.0.15063.0'
 
@@ -61,26 +65,31 @@ class SdkConfiguration:
     # Maybe override Windows SDK bin directory with environment variable.
     self.windows_sdk_bin_dir = _SelectBestPath('WindowsSdkBinPath', _DEFAULT_SDK_BIN_DIR)
     self.windows_sdk_host_tools = os.path.join(
-        self.windows_sdk_bin_dir, self.required_sdk_version, 'x64')
+        self.windows_sdk_bin_dir, _WIN_SDK_VERSION, 'x64')
 
     # Note that sdk_installer.InstallSdkIfNecessary() does not handle
     # the mappedProgramFiles or %WindowsSdkBinPath%
     if not os.path.isdir(self.windows_sdk_host_tools):
-      sdk_installer.InstallSdkIfNecessary(self.required_sdk_version)
+      sdk_installer.InstallSdkIfNecessary('winsdk', _WIN_SDK_VERSION)
 
     self.windows_sdk_path = os.path.dirname(self.windows_sdk_bin_dir)
 
     # Maybe override Visual Studio install directory with environment variable.
-    self.vs_install_dir = _SelectBestPath('VSINSTALLDIR', _GetBestVisualStudioDirectory())
+    self.vs_install_dir = \
+        _SelectBestPath('VSINSTALLDIR',
+                        _GetBestBuildToolsDirectory(_MSVC_TOOLS_VERSION))
 
     self.vs_install_dir_with_version = (self.vs_install_dir
-        + '\\VC\\Tools\\MSVC' + '\\14.10.25017')
+        + '\\VC\\Tools\\MSVC' + '\\' + _MSVC_TOOLS_VERSION)
     self.vs_host_tools_path = (self.vs_install_dir_with_version
         + '\\bin\\HostX64\\x64')
 
     logging.critical('Windows SDK Path:              ' + os.path.abspath(self.windows_sdk_host_tools))
     logging.critical('Visual Studio Path:            ' + os.path.abspath(self.vs_install_dir_with_version))
     logging.critical('Visual Studio Host Tools Path: ' + os.path.abspath(self.vs_host_tools_path))
+
+    if not os.path.isdir(self.vs_host_tools_path):
+      sdk_installer.InstallSdkIfNecessary('msvc', _MSVC_TOOLS_VERSION)
 
     if not os.path.exists(self.vs_host_tools_path):
       logging.critical('Expected Visual Studio path \"%s\" not found.',
@@ -100,8 +109,8 @@ class SdkConfiguration:
       installed_sdks = [content for content in contents
                         if content not in non_sdk_dirs]
       logging.critical('Windows SDK versions \"%s\" found." \"%s\" required.',
-                       installed_sdks, self.required_sdk_version)
+                       installed_sdks, _WIN_SDK_VERSION)
     else:
       logging.critical('Windows SDK versions \"%s\" required.',
-                       self.required_sdk_version)
+                       _WIN_SDK_VERSION)
     return False
