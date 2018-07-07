@@ -41,6 +41,7 @@ namespace shared {
 extern const char* g_app_assets_dir;
 extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
+extern const char* g_app_lib_dir;
 
 void SbFileAndroidInitialize();
 void SbFileAndroidTeardown();
