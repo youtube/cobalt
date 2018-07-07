@@ -33,6 +33,7 @@ namespace shared {
 const char* g_app_assets_dir = "/cobalt/assets";
 const char* g_app_files_dir = NULL;
 const char* g_app_cache_dir = NULL;
+const char* g_app_lib_dir = NULL;
 
 namespace {
 jobject g_java_asset_manager;
@@ -75,6 +76,15 @@ void SbFileAndroidInitialize() {
                                            "()Ljava/lang/String;"));
   g_app_cache_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
+
+  SB_DCHECK(g_app_lib_dir == NULL);
+  ScopedLocalJavaRef<jobject> j_app_info(
+      env->CallObjectMethodOrAbort(j_app.Get(), "getApplicationInfo",
+                                   "()Landroid/content/pm/ApplicationInfo;"));
+  j_string.Reset(env->GetStringFieldOrAbort(j_app_info.Get(),
+                                            "nativeLibraryDir"));
+  g_app_lib_dir = DuplicateJavaString(env, j_string.Get());
+  SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }
 
 void SbFileAndroidTeardown() {
