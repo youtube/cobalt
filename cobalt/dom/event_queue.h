@@ -54,6 +54,9 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue>,
   EventTarget* event_target_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   Events events_;
+  // Events that are currently being fired. We need this as local variable for
+  // JavaScript tracing purpose.
+  Events firing_events_;
 };
 
 }  // namespace dom
