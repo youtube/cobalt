@@ -24,3 +24,4 @@ url-utils-interfaces
 user-agent-style-sheet-display
 user-agent-test
 window-onerror
+woff2-decoding

@@ -207,7 +207,8 @@ void FontFaceProvider::VisitUnicodeRange(
 //  https://www.w3.org/TR/css3-fonts/#descdef-src
 void FontFaceProvider::VisitUrlSrc(cssom::UrlSrcValue* url_src) {
   if (url_src->format().empty() || url_src->format() == "truetype" ||
-      url_src->format() == "opentype" || url_src->format() == "woff") {
+      url_src->format() == "opentype" || url_src->format() == "woff" ||
+      url_src->format() == "woff2") {
     url_src->url()->Accept(this);
   }
 }
