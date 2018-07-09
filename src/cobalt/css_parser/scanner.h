@@ -194,13 +194,6 @@ class Scanner {
   DISALLOW_COPY_AND_ASSIGN(Scanner);
 };
 
-// By Bison's convention, a function that returns next token, should
-// be named yylex().
-inline Token yylex(TokenValue* token_value, YYLTYPE* token_location,
-                   Scanner* scanner) {
-  return scanner->Scan(token_value, token_location);
-}
-
 }  // namespace css_parser
 }  // namespace cobalt
 

@@ -89,6 +89,7 @@ namespace css_parser {
 struct MarginOrPaddingShorthand;
 class ParserImpl;
 struct PropertyDeclaration;
+class Scanner;
 
 // Override the default source location type from Bison with our own.
 struct cobalt_yyltype {

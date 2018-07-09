@@ -135,8 +135,6 @@ class ParserImpl {
   scoped_refptr<cssom::MediaList> ParseMediaList();
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery();
 
-  Scanner& scanner() { return scanner_; }
-
   void set_last_syntax_error_location(
       const YYLTYPE& last_syntax_error_location) {
     last_syntax_error_location_ = last_syntax_error_location;
@@ -231,8 +229,15 @@ class ParserImpl {
     callback.Run(message + "\n" + input);
   }
 
-  friend int yyparse(ParserImpl* parser_impl);
+  friend int yyparse(ParserImpl* parser_impl, Scanner* scanner);
 };
+
+// By Bison's convention, a function that returns next token, should
+// be named yylex().
+inline Token yylex(TokenValue* token_value, YYLTYPE* token_location,
+                   ParserImpl* parser_impl) {
+  return parser_impl->scanner().Scan(token_value, token_location);
+}
 
 // TODO: Stop deduplicating warnings.
 namespace {
@@ -392,7 +397,7 @@ bool ParserImpl::Parse() {
   // see http://www.gnu.org/software/bison/manual/html_node/Parser-Function.html
   TRACE_EVENT0("cobalt::css_parser", "ParseImpl::Parse");
   last_syntax_error_location_ = base::nullopt;
-  int error_code(yyparse(this));
+  int error_code(yyparse(this, &scanner_));
   switch (error_code) {
     case 0:
       // Parsed successfully or was able to recover from errors.
@@ -503,7 +508,7 @@ std::string ParserImpl::FormatMessage(const std::string& message_type,
 // syntax error. Most of error reporting is implemented in semantic actions
 // in the grammar.
 inline void yyerror(YYLTYPE* source_location, ParserImpl* parser_impl,
-                    const char* /*message*/) {
+                    Scanner* /*scanner*/, const char* /*message*/) {
   parser_impl->set_last_syntax_error_location(*source_location);
 }
 
