@@ -18,7 +18,7 @@ import os
 import starboard.shared.win32.sdk.installer as sdk_installer
 
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
-_MSVC_TOOLS_VERSION = '14.10.25017'
+_MSVC_TOOLS_VERSION = '14.14.26428'
 _WIN_SDK_VERSION = '10.0.17134.0'
 
 def _SelectBestPath(os_var_name, path):
