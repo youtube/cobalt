@@ -11,7 +11,7 @@
 namespace cobalt {
 namespace media {
 namespace {
-SbMediaType TypeToSbMediaType(DemuxerStream::Type type) {
+SbMediaType DemuxerStreamTypeToSbMediaType(DemuxerStream::Type type) {
   switch (type) {
     case DemuxerStream::AUDIO:
       return kSbMediaTypeAudio;
@@ -33,8 +33,9 @@ DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
   if (size > 0) {
     DCHECK(allocator_);
 #if SB_API_VERSION >= 10
-    int padding = SbMediaGetBufferPadding(TypeToSbMediaType(type));
-    int alignment = SbMediaGetBufferAlignment(TypeToSbMediaType(type));
+    int padding = SbMediaGetBufferPadding(DemuxerStreamTypeToSbMediaType(type));
+    int alignment =
+        SbMediaGetBufferAlignment(DemuxerStreamTypeToSbMediaType(type));
 #else   // SB_API_VERSION >= 10
     int padding = COBALT_MEDIA_BUFFER_PADDING;
     int alignment = COBALT_MEDIA_BUFFER_ALIGNMENT;
