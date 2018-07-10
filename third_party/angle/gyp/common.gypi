@@ -6,7 +6,7 @@
     'includes': [ 'common_defines.gypi', ],
     'variables':
     {
-        'angle_path': '<(DEPTH)',
+        'angle_path': '<(DEPTH)/third_party/angle',
         'angle_build_winrt%': '0',
         'angle_build_winrt_app_type_revision%': '10.0',
         'angle_build_winrt_target_platform_ver%' : '',
