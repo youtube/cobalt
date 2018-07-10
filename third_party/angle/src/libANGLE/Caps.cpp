@@ -569,11 +569,11 @@ void Extensions::setTextureExtensionSupport(const TextureCapsMap &textureCaps)
     textureHalfFloatLinear = DetermineHalfFloatTextureFilteringSupport(textureCaps);
     textureFloat = DetermineFloatTextureSupport(textureCaps);
     textureFloatLinear = DetermineFloatTextureFilteringSupport(textureCaps);
-#if defined(OS_STARBOARD)
+#if defined(STARBOARD)
     textureRG = false;
 #else
     textureRG = DetermineRGTextureSupport(textureCaps, textureHalfFloat, textureFloat);
-#endif  // OS_STARBOARD
+#endif  // STARBOARD
     textureCompressionDXT1 = DetermineDXT1TextureSupport(textureCaps);
     textureCompressionDXT3 = DetermineDXT3TextureSupport(textureCaps);
     textureCompressionDXT5 = DetermineDXT5TextureSupport(textureCaps);
