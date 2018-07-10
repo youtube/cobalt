@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 int SbMediaGetAudioBufferBudget() {
 #if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET will be deprecated "
@@ -27,4 +27,4 @@ int SbMediaGetAudioBufferBudget() {
   return 5 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10

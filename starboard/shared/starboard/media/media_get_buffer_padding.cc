@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 int SbMediaGetBufferPadding(SbMediaType type) {
   SB_UNREFERENCED_PARAMETER(type);
 #if defined(COBALT_MEDIA_BUFFER_PADDING)
@@ -28,4 +28,4 @@ int SbMediaGetBufferPadding(SbMediaType type) {
   return 0;
 #endif  // defined(COBALT_MEDIA_BUFFER_PADDING)
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10

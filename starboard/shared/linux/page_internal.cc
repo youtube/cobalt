@@ -36,7 +36,7 @@ int32_t GetPageCount(size_t byte_count) {
 int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
   bool flag_set = false;
   int mmap_protect = 0;
-#if SB_API_VERSION >= SB_MEMORY_PROTECT_RESERVED_FLAG_API_VERSION
+#if SB_API_VERSION >= 10
   if (sb_flags == kSbMemoryMapProtectReserved) {
     return PROT_NONE;
   }
@@ -75,8 +75,7 @@ void* SbPageMap(size_t size_bytes, int flags, const char* /*unused_name*/) {
 void* SbPageMapUntracked(size_t size_bytes,
                          int flags,
                          const char* /*unused_name*/) {
-#if SB_CAN(MAP_EXECUTABLE_MEMORY) \
-    && SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#if SB_CAN(MAP_EXECUTABLE_MEMORY) && SB_API_VERSION >= 10
   if (flags & kSbMemoryMapProtectExec) {
     // Cobalt does not allow mapping executable memory directly.
     return SB_MEMORY_MAP_FAILED;
@@ -96,7 +95,7 @@ bool SbPageUnmapUntracked(void* ptr, size_t size_bytes) {
   return munmap(ptr, size_bytes) == 0;
 }
 
-#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#if SB_API_VERSION >= 10
 bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags) {
   int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
   return mprotect(virtual_address, size_bytes, mmap_protect) == 0;

@@ -161,7 +161,7 @@ SbAtomicRelease_Load(volatile const SbAtomic32* ptr) {
   return *ptr;
 }
 
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#if SB_API_VERSION >= 10
 SB_C_FORCE_INLINE SbAtomic8
 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
                                SbAtomic8 old_value,
@@ -179,7 +179,7 @@ SB_C_FORCE_INLINE SbAtomic8
 SbAtomicNoBarrier_Load8(volatile const SbAtomic8* ptr) {
   return *ptr;
 }
-#endif
+#endif  // SB_API_VERSION >= 10
 
 // 64-bit atomic operations (only available on 64-bit processors).
 #if SB_HAS(64_BIT_ATOMICS)

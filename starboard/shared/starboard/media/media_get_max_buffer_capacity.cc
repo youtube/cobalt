@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
@@ -44,4 +44,4 @@ int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
   return 65 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10

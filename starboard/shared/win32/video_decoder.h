@@ -84,18 +84,18 @@ class VideoDecoder
   };
 
   struct Output {
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
     Output(SbMediaTime time, const RECT& video_area,
            const ComPtr<IMFSample>& video_sample)
         : time(time), video_area(video_area), video_sample(video_sample) {}
     SbMediaTime time;
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
     Output(SbTime time,
            const RECT& video_area,
            const ComPtr<IMFSample>& video_sample)
         : time(time), video_area(video_area), video_sample(video_sample) {}
     SbTime time;
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
     RECT video_area;
     ComPtr<IMFSample> video_sample;
   };
