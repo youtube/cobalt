@@ -300,10 +300,10 @@
         'run_all_unittests',
         'test_support_base',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-        '../testing/gmock.gyp:gmock',
-        '../testing/gtest.gyp:gtest',
-        '../third_party/icu/icu.gyp:icui18n',
-        '../third_party/icu/icu.gyp:icuuc',
+        '<(DEPTH)/testing/gmock.gyp:gmock',
+        '<(DEPTH)/testing/gtest.gyp:gtest',
+        '<(DEPTH)/third_party/icu/icu.gyp:icui18n',
+        '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
       'variables': {
          # TODO(ajwong): Is there a way to autodetect this?
@@ -335,8 +335,8 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'base',
-        'base_static',
         'base_i18n',
+        'base_static',
       ],
       'export_dependent_settings': [
         'base',
