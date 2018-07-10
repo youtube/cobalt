@@ -166,6 +166,7 @@
               'GTEST_USE_OWN_TR1_TUPLE=1',
               'GTEST_HAS_POSIX_RE=0',
               '_POSIX_PATH_MAX=255',
+              '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING',
             ],
             'conditions' : [
               ['target_arch=="android"', {
