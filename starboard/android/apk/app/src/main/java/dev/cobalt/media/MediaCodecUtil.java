@@ -14,7 +14,6 @@
 
 package dev.cobalt.media;
 
-import static android.os.Build.VERSION.SDK_INT;
 import static dev.cobalt.media.Log.TAG;
 
 import android.media.MediaCodecInfo;
@@ -23,8 +22,7 @@ import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.CodecProfileLevel;
 import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
-import android.util.Range;
-import android.util.Size;
+import android.os.Build;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -37,27 +35,15 @@ import java.util.Set;
 public class MediaCodecUtil {
   // A low priority black list of codec names that should never be used.
   private static final Set<String> codecBlackList = new HashSet<>();
-  // A high priority white list of brands/models that should always attempt to
+  // A high priority white list of brands/model that should always attempt to
   // play vp9.
   private static final Map<String, Set<String>> vp9WhiteList = new HashMap<>();
   // Whether we should report vp9 codecs as supported or not.  Will be set
   // based on whether vp9WhiteList contains our brand/model.  If this is set
   // to true, then codecBlackList will be ignored.
-  private static final boolean isVp9WhiteListed;
-  // A white list of brands/models that can support 60fps at native display resolution
-  // regardless of what their video capabilities claim.
-  private static final Map<String, Set<String>> hfrWhiteList = new HashMap<>();
-  // Frame rate we assume is supported at the physical display size.
-  private static final int fullResolutionFrameRate;
-  // The physical display size in pixels. This is initialized by setDisplaySize, called by
-  // CobaltActivity.onCreate.
-  private static Size displaySize;
-
+  private static boolean isVp9WhiteListed;
   private static final String SECURE_DECODER_SUFFIX = ".secure";
   private static final String VP9_MIME_TYPE = "video/x-vnd.on2.vp9";
-  // Any resolution with a specified dimension smaller than the min resolution dimension is
-  // rejected.
-  private static final int MIN_RESOLUTION_DIMENSION = 100;
 
   /**
    * A simple "struct" to bundle up the results from findVideoDecoder, as its clients may require
@@ -77,46 +63,42 @@ public class MediaCodecUtil {
   }
 
   static {
-    String brand = android.os.Build.BRAND;
-    String model = android.os.Build.MODEL;
-    String version = android.os.Build.VERSION.RELEASE;
-
-    if (SDK_INT >= 24 && brand.equals("google")) {
+    if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("google")) {
       codecBlackList.add("OMX.Nvidia.vp9.decode");
     }
-    if (SDK_INT >= 24 && brand.equals("LGE")) {
+    if (Build.VERSION.SDK_INT >= 24 && Build.BRAND.equals("LGE")) {
       codecBlackList.add("OMX.qcom.video.decoder.vp9");
     }
-    if (version.startsWith("6.0.1")) {
+    if (Build.VERSION.RELEASE.startsWith("6.0.1")) {
       codecBlackList.add("OMX.Exynos.vp9.dec");
       codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
       codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
       codecBlackList.add("OMX.qcom.video.decoder.vp9");
     }
-    if (version.startsWith("6.0")) {
+    if (Build.VERSION.RELEASE.startsWith("6.0")) {
       codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
       codecBlackList.add("OMX.Nvidia.vp9.decode");
     }
-    if (version.startsWith("5.1.1")) {
+    if (Build.VERSION.RELEASE.startsWith("5.1.1")) {
       codecBlackList.add("OMX.allwinner.video.decoder.vp9");
       codecBlackList.add("OMX.Exynos.vp9.dec");
       codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
       codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
       codecBlackList.add("OMX.qcom.video.decoder.vp9");
     }
-    if (version.startsWith("5.1")) {
+    if (Build.VERSION.RELEASE.startsWith("5.1")) {
       codecBlackList.add("OMX.Exynos.VP9.Decoder");
       codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
       codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
     }
-    if (version.startsWith("5.0")) {
+    if (Build.VERSION.RELEASE.startsWith("5.0")) {
       codecBlackList.add("OMX.allwinner.video.decoder.vp9");
       codecBlackList.add("OMX.Exynos.vp9.dec");
       codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hwr");
       codecBlackList.add("OMX.MTK.VIDEO.DECODER.VP9");
     }
 
-    if (brand.equals("google")) {
+    if (Build.BRAND.equals("google")) {
       codecBlackList.add("OMX.Intel.VideoDecoder.VP9.hybrid");
     }
 
@@ -131,7 +113,6 @@ public class MediaCodecUtil {
     // On the emulator it fails with the log: "storeMetaDataInBuffers failed w/ err -1010"
     codecBlackList.add("OMX.google.vp9.decoder");
 
-    // VP9 white list
     vp9WhiteList.put("Amlogic", new HashSet<String>());
     vp9WhiteList.put("Arcadyan", new HashSet<String>());
     vp9WhiteList.put("arcelik", new HashSet<String>());
@@ -383,24 +364,12 @@ public class MediaCodecUtil {
     vp9WhiteList.get("ZTE TV").add("AV-ATB100");
     vp9WhiteList.get("ZTE TV").add("B860H");
 
-    isVp9WhiteListed = vp9WhiteList.containsKey(brand) && vp9WhiteList.get(brand).contains(model);
-
-    // HFR white list
-    hfrWhiteList.put("NVIDIA", new HashSet<String>());
-    hfrWhiteList.put("Sony", new HashSet<String>());
-
-    hfrWhiteList.get("NVIDIA").add("SHIELD Android TV");
-    hfrWhiteList.get("Sony").add("BRAVIA 4K GB");
-
-    fullResolutionFrameRate =
-        (hfrWhiteList.containsKey(brand) && hfrWhiteList.get(brand).contains(model)) ? 60 : 30;
+    isVp9WhiteListed =
+        vp9WhiteList.containsKey(Build.BRAND)
+            && vp9WhiteList.get(Build.BRAND).contains(Build.MODEL);
   }
 
   private MediaCodecUtil() {}
-
-  public static void setDisplaySize(Size displaySize) {
-    MediaCodecUtil.displaySize = displaySize;
-  }
 
   /**
    * Returns whether a given combination of (frame width x frame height) frames at bitrate and fps
@@ -433,7 +402,7 @@ public class MediaCodecUtil {
   public static boolean hasHdrCapableVp9Decoder() {
     // VP9Profile* values were not added until API level 24.  See
     // https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel.html.
-    if (SDK_INT < 24) {
+    if (Build.VERSION.SDK_INT < 24) {
       return false;
     }
 
@@ -481,21 +450,17 @@ public class MediaCodecUtil {
         TAG,
         String.format(
             "Searching for video decoder with parameters "
-                + "mimeType: %s, secure: %b, frameWidth: %d, frameHeight %d, bitrate: %d, fps: %d",
+                + "mimeType: %s, secure: %b, frameWidth: %d, frameHeight: %d, bitrate: %d, fps: %d",
             mimeType, secure, frameWidth, frameHeight, bitrate, fps));
     Log.v(
         TAG,
         String.format(
-            "brand: %s, model: %s, version: %s, API level: %d, isVp9WhiteListed: %b, "
-                + "fullResolutionFrameRate: %d, displayWidth: %d, displayHeight: %d",
-            android.os.Build.BRAND,
-            android.os.Build.MODEL,
-            android.os.Build.VERSION.RELEASE,
-            SDK_INT,
-            isVp9WhiteListed,
-            fullResolutionFrameRate,
-            displaySize.getWidth(),
-            displaySize.getHeight()));
+            "brand: %s, model: %s, version: %s, API level: %d, isVp9WhiteListed: %b",
+            Build.BRAND,
+            Build.MODEL,
+            Build.VERSION.RELEASE,
+            Build.VERSION.SDK_INT,
+            isVp9WhiteListed));
 
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -551,40 +516,14 @@ public class MediaCodecUtil {
         }
 
         // VideoCapabilties is not implemented correctly on this device.
-        if (SDK_INT < 23
-            && android.os.Build.MODEL.equals("MIBOX3")
+        if (Build.VERSION.SDK_INT < 23
+            && Build.MODEL.equals("MIBOX3")
             && name.equals("OMX.amlogic.vp9.decoder.awesome")
             && (frameWidth > 1920 || frameHeight > 1080)) {
           Log.v(TAG, "Skipping >1080p OMX.amlogic.vp9.decoder.awesome on mibox.");
           continue;
         }
 
-        // VideoCapabilities.getAchievableFrameRatesFor() is not available before API 23, and is not
-        // useful before API 24, so we limit to 30 fps (or 60 fps for HFR white listed devices).
-        if (SDK_INT < 24 && fps > fullResolutionFrameRate) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: frame rate %d not supported on API < 24", name, fps));
-          continue;
-        }
-        if (frameWidth != 0 && frameWidth < MIN_RESOLUTION_DIMENSION) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: width %d is smaller than minimum resolution dimension, %d",
-                  name, frameWidth, MIN_RESOLUTION_DIMENSION));
-          continue;
-        }
-        if (frameHeight != 0 && frameHeight < MIN_RESOLUTION_DIMENSION) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: height %d is smaller than minimum resolution dimension, "
-                      + "%d",
-                  name, frameHeight, MIN_RESOLUTION_DIMENSION));
-          continue;
-        }
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         if (frameWidth != 0 && !videoCapabilities.getSupportedWidths().contains(frameWidth)) {
           Log.v(
@@ -602,44 +541,6 @@ public class MediaCodecUtil {
                   name, videoCapabilities.getSupportedHeights().toString(), frameHeight));
           continue;
         }
-        if (frameWidth != 0
-            && frameHeight != 0
-            && !videoCapabilities.getSupportedHeightsFor(frameWidth).contains(frameHeight)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: supported heights for width %d %s does not contain %d",
-                  name,
-                  frameWidth,
-                  videoCapabilities.getSupportedHeightsFor(frameWidth).toString(),
-                  frameHeight));
-          continue;
-        }
-        if (frameWidth != 0
-            && frameHeight != 0
-            && !videoCapabilities.getSupportedWidthsFor(frameHeight).contains(frameWidth)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: supported widths for height %d %s does not contain %d",
-                  name,
-                  frameHeight,
-                  videoCapabilities.getSupportedWidthsFor(frameHeight).toString(),
-                  frameWidth));
-          continue;
-        }
-        if (frameHeight != 0
-            && frameWidth != 0
-            && !videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
-          Log.v(
-              TAG,
-              String.format(
-                  "Rejecting %s, reason: size %d x %d is not supported",
-                  name, frameWidth, frameHeight));
-          continue;
-        }
-        // getSupportedFrameRates and getSupportedFrameRatesFor are intentionally not called here,
-        // since their output cannot be trusted.
         if (bitrate != 0 && !videoCapabilities.getBitrateRange().contains(bitrate)) {
           Log.v(
               TAG,
@@ -648,49 +549,13 @@ public class MediaCodecUtil {
                   name, videoCapabilities.getBitrateRange().toString(), bitrate));
           continue;
         }
-        if (SDK_INT >= 24 && fps != 0) {
-          // Assume that any device can play at least 30 fps (or 60 fps if HFR white listed) at its
-          // native display resolution, but we need to check the achievable frame rate if the frame
-          // rate is higher, or the resolution is larger than the display.
-          if (fps > fullResolutionFrameRate
-              || frameWidth > displaySize.getWidth()
-              || frameHeight > displaySize.getHeight()) {
-            if (frameWidth == 0 || frameHeight == 0) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: can't check achievablilty of high frame rate %d "
-                          + "without frame dimensions specified",
-                      name, fps));
-              continue;
-            }
-            Range<Double> achievableFrameRates =
-                videoCapabilities.getAchievableFrameRatesFor(frameWidth, frameHeight);
-            if (achievableFrameRates == null) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: no achievable frame rates for frame width %d and "
-                          + "frame height %d",
-                      name, frameWidth, frameHeight));
-              continue;
-            }
-            // The API for getAchievableFrameRatesFor only says that the frame rate achieved was
-            // "higher than half of the lower limit at least 90% of the time"
-            // https://developer.android.com/reference/android/media/MediaCodecInfo.VideoCapabilities.html#getAchievableFrameRatesFor(int,%20int)
-            // We don't really know anything about the distribution of frame rates achieved, but we
-            // speculate that we can increase the confidence up from 90% (hopefully to something
-            // closer to 99%) by staying below a smaller fraction of the lower limit.
-            Double maxPerformantFrameRate = (achievableFrameRates.getLower() / 3);
-            if (fps > maxPerformantFrameRate) {
-              Log.v(
-                  TAG,
-                  String.format(
-                      "Rejecting %s, reason: unachievable frame rate %d > %f; %s / 3",
-                      name, fps, maxPerformantFrameRate, achievableFrameRates));
-              continue;
-            }
-          }
+        if (fps != 0 && !videoCapabilities.getSupportedFrameRates().contains(fps)) {
+          Log.v(
+              TAG,
+              String.format(
+                  "Rejecting %s, reason: supported frame rates %s does not contain %d",
+                  name, videoCapabilities.getSupportedFrameRates().toString(), fps));
+          continue;
         }
         String resultName =
             (secure && !name.endsWith(SECURE_DECODER_SUFFIX))
