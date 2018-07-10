@@ -15,5 +15,5 @@
 #include "starboard/media.h"
 
 bool SbMediaIsBufferPoolAllocateOnDemand() {
-  return 0;
+  return false;
 }
