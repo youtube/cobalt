@@ -68,6 +68,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void ClearBuffer();
 
   bool RequestAudioPermission();
+  bool RequestMicrophoneConnection();
   bool StartRecording();
   bool StopRecording();
 
@@ -113,6 +114,13 @@ bool SbMicrophoneImpl::RequestAudioPermission() {
   return j_permission;
 }
 
+bool SbMicrophoneImpl::RequestMicrophoneConnection() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean j_microphone =
+      env->CallStarboardBooleanMethodOrAbort("isMicrophoneConnected", "()Z");
+  return j_microphone;
+}
+
 bool SbMicrophoneImpl::Open() {
   if (state_ == kOpened) {
     // The microphone has already been opened; clear the unread buffer. See
@@ -121,7 +129,10 @@ bool SbMicrophoneImpl::Open() {
     return true;
   }
 
-  if (!RequestAudioPermission()) {
+  if (!RequestMicrophoneConnection()) {
+    SB_DLOG(WARNING) << "No microphone connected.";
+    return false;
+  } else if (!RequestAudioPermission()) {
     state_ = kWaitPermission;
     SB_DLOG(INFO) << "Waiting for audio permission.";
     // The permission is not set; this causes the MicrophoneManager to call
