@@ -20,6 +20,7 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
 constexpr int kVideoResolutions[][2] = {
     {kSbMediaVideoResolutionDimensionInvalid,
      kSbMediaVideoResolutionDimensionInvalid},
@@ -44,7 +45,6 @@ constexpr SbMediaVideoCodec kVideoCodecs[] = {
 
 constexpr SbMediaType kMediaTypes[] = {
     kSbMediaTypeAudio,
-
     kSbMediaTypeVideo,
 };
 
