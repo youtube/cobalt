@@ -14,7 +14,7 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION >= 10
 void SbPlayerGetInfo2(SbPlayer /*player*/, SbPlayerInfo2* /*out_player_info*/) {
 }
-#endif  // SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION >= 10

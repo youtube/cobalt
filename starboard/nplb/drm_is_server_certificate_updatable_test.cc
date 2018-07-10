@@ -21,7 +21,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 
 TEST(SbDrmIsServerCertificateUpdatableTest, SunnyDay) {
   // Ensure that |SbDrmIsServerCertificateUpdatable| can be called over all key
@@ -50,7 +50,7 @@ TEST(SbDrmIsServerCertificateUpdatableTest, Consistency) {
   }
 }
 
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 }  // namespace
 }  // namespace nplb

@@ -14,7 +14,7 @@
 
 #include "starboard/drm.h"
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
   SB_UNREFERENCED_PARAMETER(drm_system);
@@ -22,4 +22,4 @@ bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
   return false;
 }
 
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10

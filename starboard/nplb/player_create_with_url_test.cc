@@ -60,9 +60,9 @@ TEST(SbPlayerUrlTest, SunnyDay) {
     }
     SbPlayer player = SbPlayerCreateWithUrl(
         kPlayerUrl, window,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
         DummyPlayerStatusFunc, DummyEncryptedMediaInitaDataEncounteredFunc,
         DummyPlayerErrorFunc, NULL);
 
@@ -78,7 +78,7 @@ TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowDestroy(window);
 }
 
-#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#if SB_API_VERSION >= 10
 TEST(SbPlayerUrlTest, NullCallbacks) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -124,9 +124,9 @@ TEST(SbPlayerUrlTest, NullCallbacks) {
     }
   }
 }
-#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#if SB_API_VERSION >= 10
 TEST(SbPlayerUrlTest, MultiPlayer) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -160,7 +160,7 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
   }
   SbWindowDestroy(window);
 }
-#endif  // SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
 

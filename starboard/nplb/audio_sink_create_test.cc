@@ -60,7 +60,7 @@ TEST(SbAudioSinkCreateTest, SunnyDay) {
   SbAudioSinkDestroy(audio_sink);
 }
 
-#if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#if SB_API_VERSION >= 10
 TEST(SbAudioSinkCreateTest, MultiSink) {
   ASSERT_GE(SbAudioSinkGetMaxChannels(), 1);
 
@@ -86,7 +86,7 @@ TEST(SbAudioSinkCreateTest, MultiSink) {
     SbAudioSinkDestroy(sink);
   }
 }
-#endif  // SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 TEST(SbAudioSinkCreateTest, SunnyDayAllCombinations) {
   std::vector<SbMediaAudioSampleType> sample_types;

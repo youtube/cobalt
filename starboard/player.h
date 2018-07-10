@@ -127,7 +127,7 @@ typedef struct SbPlayerSampleInfo {
   const SbDrmSampleInfo* drm_info;
 } SbPlayerSampleInfo;
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 // Information about the current media playback state.
 typedef struct SbPlayerInfo {
   // The position of the playback head, as precisely as possible, in 90KHz ticks
@@ -186,7 +186,7 @@ typedef struct SbPlayerInfo {
   SbMediaTime buffer_duration_pts;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 } SbPlayerInfo;
-#else  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else  // SB_API_VERSION < 10
 // Information about the current media playback state.
 typedef struct SbPlayerInfo2 {
   // The position of the playback head, as precisely as possible, in
@@ -242,7 +242,7 @@ typedef struct SbPlayerInfo2 {
   SbTime buffer_duration;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 } SbPlayerInfo2;
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
 // An opaque handle to an implementation-private structure representing a
 // player.
@@ -343,15 +343,15 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // SbPlayerCreateWithUrl, it takes in a callback,
 // |encrypted_media_init_data_encountered_cb|, which is run when encrypted media
 // initial data is encountered.
-#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#if SB_API_VERSION >= 10
 // If the callback is |NULL|, then |kSbPlayerInvalid| must be returned.
-#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#endif  // SB_API_VERSION >= 10
 SB_EXPORT SbPlayer
 SbPlayerCreateWithUrl(const char* url,
                       SbWindow window,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
                       SbMediaTime duration_pts,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
                       SbPlayerStatusFunc player_status_func,
                       SbPlayerEncryptedMediaInitDataEncounteredCB
                           encrypted_media_init_data_encountered_cb,
@@ -397,10 +397,10 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 // |video_codec|: The video codec used for the player. If |video_codec| is
 //   |kSbMediaVideoCodecNone|, the player is an audio-only player. If
 //   |video_codec| is any other value, the player is an audio/video decoder.
-#if SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+#if SB_API_VERSION >= 10
 //   This can be set to |kSbMediaVideoCodecNone| to play a video with only an
 //   audio track.
-#endif  // SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+#endif  // SB_API_VERSION >= 10
 //
 // |audio_codec|: The audio codec used for the player. The value should never
 //   be |kSbMediaAudioCodecNone|. In addition, the caller must provide a
@@ -410,10 +410,10 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   audio track.  In such case |audio_header| must be NULL.
 #endif  // SB_HAS(AUDIOLESS_VIDEO)
 //
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 // |duration_pts|: The expected media duration in 90KHz ticks (PTS). It may be
 //   set to |SB_PLAYER_NO_DURATION| for live streams.
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 //
 // |drm_system|: If the media stream has encrypted portions, then this
 //   parameter provides an appropriate DRM system, created with
@@ -469,18 +469,18 @@ SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
 //   the provider is not given, the player will fail by returning
 //   |kSbPlayerInvalid|.
 //
-#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#if SB_API_VERSION >= 10
 // If |NULL| is passed to any of the callbacks (|sample_deallocator_func|,
 // |decoder_status_func|, |player_status_func|, or |player_error_func| if it
 // applies), then |kSbPlayerInvalid| must be returned.
-#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#endif  // SB_API_VERSION >= 10
 SB_EXPORT SbPlayer
 SbPlayerCreate(SbWindow window,
                SbMediaVideoCodec video_codec,
                SbMediaAudioCodec audio_codec,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
                SbMediaTime duration_pts,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
                SbDrmSystem drm_system,
                const SbMediaAudioHeader* audio_header,
                SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -512,7 +512,7 @@ SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
 // |player|: The player to be destroyed.
 SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 // Tells the player to freeze playback (if playback has already started),
 // reset or flush the decoder pipeline, and go back to the Prerolling state.
 // The player should restart playback once it can display the frame at
@@ -543,7 +543,7 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 SB_EXPORT void SbPlayerSeek(SbPlayer player,
                             SbMediaTime seek_to_pts,
                             int ticket);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
 // SbPlayerSeek2 is like the deprecated SbPlayerSeek, but accepts SbTime
 // |seek_to_timestamp| instead of SbMediaTime |seek_to_pts|.
 
@@ -577,7 +577,7 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 SB_EXPORT void SbPlayerSeek2(SbPlayer player,
                              SbTime seek_to_timestamp,
                              int ticket);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
 // Writes a single sample of the given media type to |player|'s input stream.
 // Its data may be passed in via more than one buffers.  The lifetime of
@@ -613,7 +613,7 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 //   |NULL|.
 // |sample_drm_info|: The DRM system related info for the media sample. This
 //   value is required for encrypted samples. Otherwise, it must be |NULL|.
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 SB_EXPORT void SbPlayerWriteSample(
     SbPlayer player,
     SbMediaType sample_type,
@@ -628,7 +628,7 @@ SB_EXPORT void SbPlayerWriteSample(
     SbMediaTime sample_pts,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* sample_drm_info);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else  // SB_API_VERSION < 10
 // SbPlayerWriteSample2 is like the deprecated SbPlayerWriteSample, but accepts
 // SbTime |sample_timestamp| instead of SbMediaTime |sample_pts|, and also
 // allows writing of multiple samples in one SbPlayerWriteSample2() call.
@@ -673,7 +673,7 @@ SB_EXPORT int SbPlayerGetMaximumNumberOfSamplesPerWrite(
     SbPlayer player,
     SbMediaType sample_type);
 
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
 // Writes a marker to |player|'s input stream of |stream_type| indicating that
 // there are no more samples for that media type for the remainder of this
@@ -732,7 +732,7 @@ SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
 //   value of |1.0| means that it should be played at full volume.
 SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 // Gets a snapshot of the current player state and writes it to
 // |out_player_info|. This function may be called very frequently and is
 // expected to be inexpensive.
@@ -740,7 +740,7 @@ SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 // |player|: The player about which information is being retrieved.
 // |out_player_info|: The information retrieved for the player.
 SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
 // SbPlayerGetInfo2 is like the deprecated SbPlayerGetInfo, but accepts
 // SbPlayerInfo2* |out_player_info2| instead of SbPlayerInfo |out_player_info|.
 
@@ -752,7 +752,7 @@ SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
 // |out_player_info|: The information retrieved for the player.
 SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
                                 SbPlayerInfo2* out_player_info2);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
 // Given a player created with the kSbPlayerOutputModeDecodeToTexture
 // output mode, it will return a SbDecodeTarget representing the current frame

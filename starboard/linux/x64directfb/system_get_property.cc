@@ -56,11 +56,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyPlatformName:
       return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
 
-#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+#if SB_API_VERSION < 10
     case kSbSystemPropertyPlatformUuid:
       SB_NOTIMPLEMENTED();
       return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
-#endif   // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+#endif  // SB_API_VERSION < 10
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__

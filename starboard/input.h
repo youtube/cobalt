@@ -148,7 +148,7 @@ typedef struct SbInputVector {
 
 // Event data for |kSbEventTypeInput| events.
 typedef struct SbInputData {
-#if SB_API_VERSION >= SB_INPUT_TIMESTAMP_API_VERSION
+#if SB_API_VERSION >= 10
   // The time that should be reported for this event. This is intended to
   // facilitate calculation of time-sensitive information (e.g. velocity for
   // kSbInputEventTypeMove). This may be set to 0 to have the relevant systems
