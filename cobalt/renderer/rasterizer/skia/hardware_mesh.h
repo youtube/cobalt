@@ -19,7 +19,6 @@
 
 #include <vector>
 
-#include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
@@ -39,7 +38,6 @@ class HardwareMesh : public render_tree::Mesh {
         draw_mode_(CheckDrawMode(draw_mode)),
         cobalt_context_(cobalt_context) {
     DCHECK(vertices_);
-    thread_checker_.DetachFromThread();
   }
 
   uint32 GetEstimatedSizeInBytes() const override;
@@ -92,7 +90,11 @@ class HardwareMesh : public render_tree::Mesh {
   const GLenum draw_mode_;
   backend::GraphicsContextEGL* cobalt_context_;
 
-  base::ThreadChecker thread_checker_;
+  // Used to keep track of the thread from which we create the vertex buffer
+  // object, so that we can ensure that regardless of which thread destroys
+  // this HardwareMesh instance, we will always ensure that the owned VBO is
+  // destroyed on the thread it was created from.
+  mutable MessageLoop* rasterizer_message_loop_ = nullptr;
 };
 
 }  // namespace skia
