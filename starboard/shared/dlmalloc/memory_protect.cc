@@ -16,7 +16,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/dlmalloc/page_internal.h"
 
-#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#if SB_API_VERSION >= 10
 bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   return SbPageProtect(virtual_address, size_bytes, flags);
 }

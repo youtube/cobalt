@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if SB_API_VERSION >= 10
 typedef int8_t SbAtomic8;
 #endif
 typedef int32_t SbAtomic32;
@@ -88,7 +88,7 @@ static SbAtomic32 SbAtomicNoBarrier_Load(volatile const SbAtomic32* ptr);
 static SbAtomic32 SbAtomicAcquire_Load(volatile const SbAtomic32* ptr);
 static SbAtomic32 SbAtomicRelease_Load(volatile const SbAtomic32* ptr);
 
-#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if SB_API_VERSION >= 10
 // Overloaded functions for Atomic8.
 static SbAtomic8 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8* ptr,
                                                  SbAtomic8 old_value,
@@ -261,7 +261,7 @@ SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
 namespace starboard {
 namespace atomic {
 
-#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if SB_API_VERSION >= 10
 inline SbAtomic8 Release_CompareAndSwap(volatile SbAtomic8* ptr,
                                         SbAtomic8 old_value,
                                         SbAtomic8 new_value) {

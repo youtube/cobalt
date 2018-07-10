@@ -19,7 +19,7 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 
 void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
                                    void* context,
@@ -47,7 +47,7 @@ void DummyServerCertificateUpdatedFunc(SbDrmSystem drm_system,
                                        SbDrmStatus status,
                                        const char* error_message) {}
 
-#else  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#else  // SB_API_VERSION >= 10
 
 void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
                                    void* context,
@@ -65,7 +65,7 @@ void DummySessionUpdatedFunc(SbDrmSystem drm_system,
                              int session_id_size,
                              bool succeeded) {}
 
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #if SB_HAS(DRM_KEY_STATUSES)
 void DummySessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
@@ -83,7 +83,7 @@ void DummySessionClosedFunc(SbDrmSystem drm_system,
                             int session_id_size) {}
 
 SbDrmSystem CreateDummyDrmSystem(const char* key_system) {
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
   return SbDrmCreateSystem(
       key_system, NULL /* context */, DummySessionUpdateRequestFunc,
       DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,

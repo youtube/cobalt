@@ -14,10 +14,10 @@
 
 #include "starboard/system.h"
 
-#if SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+#if SB_API_VERSION >= 10
 
 bool SbSystemSupportsResume() {
   return true;
 }
 
-#endif  // SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+#endif  // SB_API_VERSION >= 10
