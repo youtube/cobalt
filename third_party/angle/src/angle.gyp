@@ -76,9 +76,9 @@
             {
                 'include_dirs':
                 [
-                    '<(DEPTH)/include',
-                    '<(DEPTH)/src',
-                    '<(DEPTH)/src/common/third_party/numerics',
+                    '<(DEPTH)/third_party/angle/include',
+                    '<(DEPTH)/third_party/angle/src',
+                    '<(DEPTH)/third_party/angle/src/common/third_party/numerics',
                 ],
                 'conditions':
                 [
