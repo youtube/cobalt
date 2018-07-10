@@ -102,7 +102,7 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
   // Use the current time unless it was overridden.
   SbTimeMonotonic timestamp = 0;
 
-#if SB_API_VERSION >= SB_INPUT_TIMESTAMP_API_VERSION
+#if SB_API_VERSION >= 10
   bool use_input_timestamp =
       SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
   if (use_input_timestamp) {
