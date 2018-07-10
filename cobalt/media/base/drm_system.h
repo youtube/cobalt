@@ -218,16 +218,16 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
       const std::string& session_id, const std::vector<std::string>& key_ids,
       const std::vector<SbDrmKeyStatus>& key_statuses);
 #endif  // SB_HAS(DRM_KEY_STATUSES)
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
   void OnServerCertificateUpdated(int ticket, SbDrmStatus status,
                                   const std::string& error_message);
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
   void OnSessionClosed(const std::string& session_id);
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
   // Called on any thread, parameters need to be copied immediately.
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
   static void OnSessionUpdateRequestGeneratedFunc(
       SbDrmSystem wrapped_drm_system, void* context, int ticket,
       SbDrmStatus status, SbDrmSessionRequestType type,
@@ -239,7 +239,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                    const char* error_message,
                                    const void* session_id,
                                    int session_id_length);
-#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#else   // SB_API_VERSION >= 10
   static void OnSessionUpdateRequestGeneratedFunc(
       SbDrmSystem wrapped_drm_system, void* context, int ticket,
       const void* session_id, int session_id_size, const void* content,
@@ -248,7 +248,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                    void* context, int ticket,
                                    const void* session_id,
                                    int session_id_length, bool succeeded);
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #if SB_HAS(DRM_KEY_STATUSES)
   static void OnSessionKeyStatusesChangedFunc(
@@ -264,12 +264,12 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                   int session_id_size);
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
   static void OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
                                              void* context, int ticket,
                                              SbDrmStatus status,
                                              const char* error_message);
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
   const SbDrmSystem wrapped_drm_system_;
   MessageLoop* const message_loop_;

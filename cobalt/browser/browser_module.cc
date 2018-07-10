@@ -1482,10 +1482,10 @@ void BrowserModule::InitializeSystemWindow() {
           .Pass();
   InstantiateRendererModule();
 
-#if SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+#if SB_API_VERSION >= 10
   options_.media_module_options.allow_resume_after_suspend =
       SbSystemSupportsResume();
-#endif  // SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+#endif  // SB_API_VERSION >= 10
   media_module_ =
       media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
                                  options_.media_module_options);
