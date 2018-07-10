@@ -32,13 +32,13 @@ DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
     : allocator_(allocator), type_(type) {
   if (size > 0) {
     DCHECK(allocator_);
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
     int padding = SbMediaGetBufferPadding(TypeToSbMediaType(type));
     int alignment = SbMediaGetBufferAlignment(TypeToSbMediaType(type));
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
     int padding = COBALT_MEDIA_BUFFER_PADDING;
     int alignment = COBALT_MEDIA_BUFFER_ALIGNMENT;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
     allocations_ = allocator_->Allocate(size + padding, alignment,
                                         static_cast<intptr_t>(type));
     if (padding > 0) {

@@ -500,13 +500,13 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // Stores the largest distance between two adjacent buffers in this stream.
   base::TimeDelta max_interbuffer_distance_;
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
   bool using_memory_pool_;
   int resolution_width_ = kSbMediaVideoResolutionDimensionInvalid;
   int resolution_height_ = kSbMediaVideoResolutionDimensionInvalid;
   int bits_per_pixel_ = kSbMediaBitsPerPixelInvalid;
   SbMediaVideoCodec codec_ = kSbMediaVideoCodecNone;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
   // The maximum amount of data in bytes the stream will keep in memory.
   size_t memory_limit_;
