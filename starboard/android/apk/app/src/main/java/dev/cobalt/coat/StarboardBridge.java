@@ -14,6 +14,8 @@
 
 package dev.cobalt.coat;
 
+import static android.content.Context.AUDIO_SERVICE;
+import static android.media.AudioManager.GET_DEVICES_INPUTS;
 import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.TargetApi;
@@ -23,8 +25,11 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Build;
 import android.util.Size;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -326,6 +331,32 @@ public class StarboardBridge {
   @UsedByNative
   Size getDisplaySize() {
     return DisplayUtil.getSystemDisplaySize(appContext);
+  }
+
+  /**
+   * Checks if a microphone is conected to the system.
+   *
+   * @return true if at least one device is connected.
+   */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public boolean isMicrophoneConnected() {
+    if (Build.VERSION.SDK_INT >= 23) {
+      return isMicrophoneConnectedV23();
+    } else {
+      // There is no way of checking for a connected microphone/device before API 23, so assume a
+      // microphone is connected.
+      return true;
+    }
+  }
+
+  @TargetApi(23)
+  private boolean isMicrophoneConnectedV23() {
+    // A check specifically for microphones is not available before API 28, so it is assumed that a
+    // connected input audio device is a microphone.
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
+    AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
+    return devices.length > 0;
   }
 
   /** @return true if we have an active network connection and it's on a wireless network. */
