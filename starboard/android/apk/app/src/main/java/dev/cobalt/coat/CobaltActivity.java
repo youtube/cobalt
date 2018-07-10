@@ -27,9 +27,7 @@ import android.os.Bundle;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
-import dev.cobalt.media.MediaCodecUtil;
 import dev.cobalt.media.VideoSurfaceView;
-import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
@@ -73,8 +71,6 @@ public abstract class CobaltActivity extends NativeActivity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    MediaCodecUtil.setDisplaySize(DisplayUtil.getSystemDisplaySize(this));
-
     // super.onCreate() will cause an APP_CMD_START in native code,
     // so make sure to initialize any state beforehand that might be touched by
     // native code invocations.
@@ -85,12 +81,13 @@ public abstract class CobaltActivity extends NativeActivity {
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
-    videoSurfaceLayoutListener = new ViewTreeObserver.OnGlobalLayoutListener() {
-        @Override
-        public void onGlobalLayout() {
-          VideoSurfaceView.nativeOnGlobalLayout();
-        }
-      };
+    videoSurfaceLayoutListener =
+        new ViewTreeObserver.OnGlobalLayoutListener() {
+          @Override
+          public void onGlobalLayout() {
+            VideoSurfaceView.nativeOnGlobalLayout();
+          }
+        };
     ViewTreeObserver observer = getWindow().getDecorView().getViewTreeObserver();
     observer.addOnGlobalLayoutListener(videoSurfaceLayoutListener);
   }
