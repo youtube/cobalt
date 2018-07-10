@@ -19,8 +19,8 @@
     # Define the platform specific Bison binary.
     'conditions': [
       ['host_os=="win"', {
-        'bison_exe': '<(DEPTH)/third_party/bison/bin/bison',
-        'bison_major_version': '2'
+        'bison_exe': '<(DEPTH)/third_party/bison/winflexbison/bin/Release/win_bison',
+        'bison_major_version': '3'
       }, {
         'bison_exe': 'bison',
         'bison_major_version': '<!(bison --version | '
