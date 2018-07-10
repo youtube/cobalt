@@ -27,11 +27,11 @@ SbDrmSystem SbDrmCreateSystem(
     ,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
 #endif  // SB_HAS(DRM_KEY_STATUSES)
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
     ,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
     ) {
   if (!update_request_callback || !session_updated_callback) {
     return kSbDrmSystemInvalid;
@@ -41,11 +41,11 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 #endif  // SB_HAS(DRM_KEY_STATUSES)
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
   if (!server_certificate_updated_callback || !session_closed_callback) {
     return kSbDrmSystemInvalid;
   }
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
   if (SbStringCompareAll(key_system, "com.widevine") != 0 &&
       SbStringCompareAll(key_system, "com.widevine.alpha")) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;

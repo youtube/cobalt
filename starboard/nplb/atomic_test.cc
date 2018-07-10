@@ -46,21 +46,22 @@ class AdvancedSbAtomicTest : public BasicSbAtomicTest<SbAtomicType> {
 };
 
 typedef testing::Types<
-#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
-                       SbAtomic8,
+#if SB_API_VERSION >= 10
+    SbAtomic8,
 #endif
-                       SbAtomic32,
+    SbAtomic32,
 #if SB_HAS(64_BIT_ATOMICS)
-                       SbAtomic64,
+    SbAtomic64,
 #endif
-                       SbAtomicPtr> BasicSbAtomicTestTypes;
+    SbAtomicPtr>
+    BasicSbAtomicTestTypes;
 typedef testing::Types<SbAtomic32,
 #if SB_HAS(64_BIT_ATOMICS)
                        SbAtomic64,
 #endif
                        SbAtomicPtr> AdvancedSbAtomicTestTypes;
 
-#if SB_API_VERSION >= SB_INTRODUCE_ATOMIC8_VERSION
+#if SB_API_VERSION >= 10
 TYPED_TEST_CASE(BasicSbAtomicTest, BasicSbAtomicTestTypes);
 #else
 TYPED_TEST_CASE(BasicSbAtomicTest, AdvancedSbAtomicTestTypes);

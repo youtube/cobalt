@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 int SbMediaGetBufferAllocationUnit() {
 #if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT will be deprecated "
@@ -27,4 +27,4 @@ int SbMediaGetBufferAllocationUnit() {
   return 0;
 #endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10

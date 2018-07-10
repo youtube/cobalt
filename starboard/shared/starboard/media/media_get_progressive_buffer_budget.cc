@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                       int resolution_width,
                                       int resolution_height,
@@ -34,4 +34,4 @@ int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
   return 12 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET)
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10

@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 bool SbMediaIsBufferPoolAllocateOnDemand() {
 #if COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND will be "
@@ -26,4 +26,4 @@ bool SbMediaIsBufferPoolAllocateOnDemand() {
   return false;
 #endif  // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10

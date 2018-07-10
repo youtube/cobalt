@@ -20,7 +20,7 @@
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER && SB_HAS(PLAYER_FILTER_TESTS)
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
 #if SB_API_VERSION >= 6
@@ -69,4 +69,4 @@ void SbPlayerWriteSample(SbPlayer player,
                       number_of_sample_buffers, sample_timestamp,
                       video_sample_info, sample_drm_info);
 }
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10

@@ -130,7 +130,7 @@ bool SbPageUnmap(void* virtual_address, size_t size_bytes);
 // allocated via MapUntracked().
 bool SbPageUnmapUntracked(void* virtual_address, size_t size_bytes);
 
-#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#if SB_API_VERSION >= 10
 // Change the protection of |size_bytes| of physical pages, starting from
 // |virtual_address|, to |flags|, returning |true| on success.
 bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);

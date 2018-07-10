@@ -42,19 +42,19 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 10
+#define SB_MAXIMUM_API_VERSION 11
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 10
+#define SB_EXPERIMENTAL_API_VERSION 11
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-// #define SB_RELEASE_CANDIDATE_API_VERSION 9
+#define SB_RELEASE_CANDIDATE_API_VERSION 10
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -67,149 +67,6 @@
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// API where functions are introduced to query at runtime for settings related
-// to the media buffer: SbMediaGetAudioBufferBudget, SbMediaGetBufferAlignment,
-// SbMediaGetBufferAllocationUnit,
-// SbMediaGetBufferGarbageCollectionDurationThreshold, SbMediaGetBufferPadding,
-// SbMediaGetBufferStorageType, SbMediaGetInitialBufferCapacity,
-// SbMediaGetMaxBufferCapacity, SbMediaGetProgressiveBufferBudget,
-// SbMediaGetVideoBufferBudget SbMediaIsBufferPoolAllocateOnDemand,
-// SbMediaIsBufferUsingMemoryPool.
-#define SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for player_filter_tests.
-//   Require compiling 'player_filter_tests' test target sources on all
-//   platforms, including audio_decoder_tests.cc and video_decoder_test.cc. For
-//   this Starboard API version and beyond, SB_HAS(PLAYER_FILTER_TESTS) is true.
-#define SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate SbMediaTime for SbTime.
-//   SbMediaTime, which is 90khz based, was used to represent timestamps and
-//   duration related to SbPlayer.  As most of the platforms represent video
-//   related times in milliseconds or microseconds, this causes a lot of
-//   otherwise unnecessary conversion.  Now all timestamps and duration related
-//   to SbPlayer are represented by SbTime directly.
-// Refine sample writing of SbPlayer.
-//   Added two new functions SbPlayerGetMaximumNumberOfSamplesPerWrite() and
-//   SbPlayerWriteSample2().  The former allows implementation to specify the
-//   maximum numbers of samples that can be written using the latter at once.
-//   As it takes multiple thread context switches to call SbPlayerWriteSample2()
-//   once, it can optimize performance on low end platforms by reducing the
-//   frequence of calling SbPlayerWriteSample2().
-#define SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for player error messages.
-#define SB_PLAYER_ERROR_MESSAGE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for system-level closed caption settings.
-//   SbAccessibilityGetCaptionSettings() and SbAccessibilitySetCaptionsEnabled()
-//   along with a number of supporting structure definitions have been added
-//   to accessibility.h.  Platform need to define SB_HAS_CAPTIONS to 1 in order
-//   to enable the interface.
-#define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for audioless video playback.
-//   SbPlayer can be created with only a video track, without any accompanying
-//   audio track.  The SbPlayer implementation must now be able to play back
-//   a sole video track.
-#define SB_AUDIOLESS_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for audio only video playback.
-//   SbPlayer can be created with only an audio track, without any accompanying
-//   video track.  The SbPlayer implementation must now be able to play back
-//   a sole audio track.
-#define SB_AUDIO_ONLY_VIDEO_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require support for creating multiple SbPlayer instances.
-// Formerly, there were no tests ensuring that calling SbPlayerCreate multiple
-// times (without calling SbPlayerDestroy in between) would not crash, and
-// likewise no tests ensuring that calling SbAudioSinkCreate multiple times
-// (without calling SbAudioSinkDestroy in between) would not crash.
-// SbPlayerCreate may return kSbPlayerInvalid if additional players are not
-// supported. SbAudioSinkCreate may return kSbAudionSinkInvalid if additional
-// audio sinks are not supported.
-#define SB_MULTI_PLAYER_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Require stricter error handling on calls some SbPlayer* calls.
-// Specifically, SbPlayerCreate,  SbPlayerCreateWithUrl and SbDrmCreateSystem
-// must result in invalid return values (e.g. |kSbPlayerInvalid| or
-// |kSbDrmSystemInvalid| appropriately).
-#define SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Refine the DRM API.
-// Specifically, the following changes have been made:
-//   1. Add a callback to SbDrmCreateSystem that allows a DRM system to
-//      signal that a DRM session has closed from the Starboard layer.
-//      Previously, DRM sessions could only be closed from the application
-//      layer.
-//   2. Allow calling |SbDrmSessionUpdateRequestFunc| and
-//      |SbDrmSessionUpdatedFunc| with extra status and optional error message.
-//   3. Add request type parameter to |SbDrmSessionUpdateRequestFunc| to support
-//      individualization, license renewal, and license release.
-#define SB_DRM_REFINEMENT_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Remove kSbSystemPathSourceDirectory.
-//   Test code looking for its static input files should instead use the `test`
-//   subdirectory in kSbSystemPathContentDirectory.
-#define SB_PATH_SOURCE_DIR_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Remove kSbSystemPropertyPlatformUuid.
-//   This property was only ever used in platforms using `in_app_dial`.
-//   The only usage of this system property was replaced with a
-//   self-contained mechanism.
-#define SB_PROPERTY_UUID_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Deprecate kSbMediaAudioSampleTypeInt16.
-//   SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES has to be defined to continue
-//   support int16 audio samples after this version.
-#define SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for SbSystemSupportsResume().
-//   Platforms doesn't need to resume after suspend can return false in
-//   SbSystemSupportsResume() to free up the resource used by resume after
-//   suspend.
-//   Please see the comment in system.h for more details.
-#define SB_ALLOW_DISABLE_RESUME_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Support the kSbKeyMicrophone keycode.
-#define SB_MICROPHONE_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for new decode target type,
-// kSbDecodeTargetFormat3Plane10BitYUVI420.
-//   Added kSbDecodeTargetFormat3Plane10BitYUVI420 to the SbDecodeTargetFormat
-//   enum in order to support 10-bit YUV textures.
-#define SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
-// Optionally provide absolute timestamp to SbAudioSinkConsumeFramesFunc().
-//   SbAudioSinkConsumeFramesFunc() can now optionally accept an absolute
-//   timestamp parameter that indicates when the frames are consumed.
-//   Platforms that have the |frames_consumed| updated asynchronously can have
-//   more accurate audio time reporting with this extra parameter.
-//   Please see the comment in audio_sink.h for more details.
-#define SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add support for the SbAtomic8 type and memory access functions.
-#define SB_INTRODUCE_ATOMIC8_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce SbMemoryProtect().
-//   SbMemoryProtect() allows memory access permissions to be changed after they
-//   have been mapped with `SbMemoryMap`.
-#define SB_MEMORY_PROTECT_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add a |timestamp| field to SbInputData.
-//   This allows platforms to provide more precise information on exactly when
-//   an input event was generated.  Note that if
-//   SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp) returns false,
-//   the |timestamp| field of SbInputData should be ignored by applications.
-#define SB_INPUT_TIMESTAMP_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduces kSbMemoryMapProtectReserved flag.
-//    kSbMemoryMapProtectReserved, which is SbMemoryMapFlags(0), when used on
-//    a memory region, only reserves its virtual address space that's not
-//    accessible.
-#define SB_MEMORY_PROTECT_RESERVED_FLAG_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -689,7 +546,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 #endif  // SB_API_VERSION >= 6
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
 #if !SB_HAS(DRM_SESSION_CLOSED)
 #error "SB_HAS_DRM_SESSION_CLOSED is required in this API version."
@@ -697,7 +554,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #else   // defined(SB_HAS_DRM_SESSION_CLOSED)
 #define SB_HAS_DRM_SESSION_CLOSED 1
 #endif  // defined(SB_HAS_DRM_SESSION_CLOSED)
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
@@ -718,35 +575,34 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
 #endif
 
-#if SB_HAS(CAPTIONS) && \
-    (SB_API_VERSION < SB_ACCESSIBILITY_CAPTIONS_API_VERSION)
+#if SB_HAS(CAPTIONS) && (SB_API_VERSION < 10)
 #error "SB_HAS_CAPTIONS not supported in this API version."
 #endif
 
-#if SB_API_VERSION >= SB_AUDIOLESS_VIDEO_API_VERSION
+#if SB_API_VERSION >= 10
 #define SB_HAS_AUDIOLESS_VIDEO 1
 #endif
 
-#if SB_API_VERSION >= SB_PLAYER_FILTER_TESTS_REQUIRED_API_VERSION
+#if SB_API_VERSION >= 10
 #define SB_HAS_PLAYER_FILTER_TESTS 1
 #endif
 
-#if SB_API_VERSION >= SB_PLAYER_ERROR_MESSAGE_API_VERSION
+#if SB_API_VERSION >= 10
 #define SB_HAS_PLAYER_ERROR_MESSAGE 1
 #endif
 
-#if SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
+#if SB_API_VERSION < 10
 #if !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 #define SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES 1
 #endif  // !SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-#endif  // SB_API_VERSION < SB_DEPRECATE_INT16_AUDIO_SAMPLE_VERSION
+#endif  // SB_API_VERSION < 10
 
-#if SB_API_VERSION >= SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION
+#if SB_API_VERSION >= 10
 #if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #error Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API \
-    version SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION or later.
+    version 10 or later.
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#endif  // SB_API_VERSION >= SB_ASYNC_AUDIO_FRAMES_REPORTING_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 // --- Derived Configuration -------------------------------------------------
 

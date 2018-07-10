@@ -14,7 +14,7 @@
 
 #include "starboard/drm.h"
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,

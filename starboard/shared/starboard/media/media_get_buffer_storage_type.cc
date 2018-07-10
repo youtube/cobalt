@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 SbMediaBufferStorageType SbMediaGetBufferStorageType() {
 // Use define forwarded from GYP variable.
 #if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
@@ -32,4 +32,4 @@ SbMediaBufferStorageType SbMediaGetBufferStorageType() {
   return kSbMediaBufferStorageTypeMemory;
 #endif  // defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
