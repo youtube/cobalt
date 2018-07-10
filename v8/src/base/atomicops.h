@@ -40,7 +40,7 @@
 #include "starboard/atomic.h"
 #endif
 
-#if SB_API_VERSION < SB_INTRODUCE_ATOMIC8_VERSION
+#if SB_API_VERSION < 10
 #error Your version of Starboard must support SbAtomic8 in order to use V8.
 #endif
 
