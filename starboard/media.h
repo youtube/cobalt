@@ -31,7 +31,7 @@ extern "C" {
 
 // --- Types -----------------------------------------------------------------
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 // Time represented in 90KHz ticks.
 typedef int64_t SbMediaTime;
 
@@ -43,7 +43,7 @@ typedef int64_t SbMediaTime;
   (((time == SB_PLAYER_NO_DURATION)    \
         ? SB_PLAYER_NO_DURATION        \
         : ((time == kSbInt64Max) ? kSbInt64Max : (time * 9 / 100))))
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
 // Types of media component streams.
 typedef enum SbMediaType {
@@ -483,13 +483,13 @@ typedef struct SbMediaAudioHeader {
 #endif  // SB_API_VERSION >= 6
 } SbMediaAudioHeader;
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 // --- Constants -------------------------------------------------------------
 
 // TODO: remove entirely.
 // One second in SbMediaTime (90KHz ticks).
 #define kSbMediaTimeSecond ((SbMediaTime)(90000))
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
 // --- Functions -------------------------------------------------------------
 
@@ -561,7 +561,7 @@ SB_EXPORT bool SbMediaIsOutputProtected();
 //   disabled.
 SB_EXPORT bool SbMediaSetOutputProtection(bool enabled);
 
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
 // Value used when a video's resolution is not known.
 #define kSbMediaVideoResolutionDimensionInvalid 0
 // Value used when a video's bits per pixel is not known.
@@ -685,7 +685,7 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_height,
                                           int bits_per_pixel);
 
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -55,11 +55,11 @@ typedef enum SbSystemPathId {
   // usable by Starboard applications.
   kSbSystemPathFontConfigurationDirectory,
 
-#if SB_API_VERSION < SB_PATH_SOURCE_DIR_REMOVED_API_VERSION
+#if SB_API_VERSION < 10
   // Deprecated and unused. Tests looking for static data should instead look
   // in the 'test' subdirectory of kSbSystemPathContentDirectory.
   kSbSystemPathSourceDirectory,
-#endif  // SB_API_VERSION < SB_PATH_SOURCE_DIR_REMOVED_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
@@ -107,10 +107,10 @@ typedef enum SbSystemPropertyId {
   // User-Agent, say.
   kSbSystemPropertyPlatformName,
 
-#if SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+#if SB_API_VERSION < 10
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
-#endif  // SB_API_VERSION < SB_PROPERTY_UUID_REMOVED_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API
@@ -180,7 +180,7 @@ typedef enum SbSystemCapabilityId {
   // call.
   kSbSystemCapabilityCanQueryGPUMemoryStats,
 
-#if SB_API_VERSION >= SB_INPUT_TIMESTAMP_API_VERSION
+#if SB_API_VERSION >= 10
   // Whether this system sets the |timestamp| field of SbInputData. If the
   // system does not set this field, then it will automatically be set; however,
   // the relative time between input events likely will not be preserved, so
@@ -543,7 +543,7 @@ SB_EXPORT void SbSystemSort(void* base,
 // from any thread and must be idempotent.
 SB_EXPORT void SbSystemHideSplashScreen();
 
-#if SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+#if SB_API_VERSION >= 10
 // Returns false if the platform doesn't need resume after suspend support. In
 // such case Cobalt will free up the resource it retains for resume after
 // suspend.
@@ -552,7 +552,7 @@ SB_EXPORT void SbSystemHideSplashScreen();
 // The return value of this function cannot change over the life time of the
 // application.
 bool SbSystemSupportsResume();
-#endif  // SB_API_VERSION >= SB_ALLOW_DISABLE_RESUME_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -22,7 +22,7 @@ bool SbSystemHasCapability(SbSystemCapabilityId capability_id) {
       return false;
     case kSbSystemCapabilityCanQueryGPUMemoryStats:
       return false;
-#if SB_API_VERSION >= SB_INPUT_TIMESTAMP_API_VERSION
+#if SB_API_VERSION >= 10
     case kSbSystemCapabilitySetsInputTimestamp:
       return false;
 #endif
