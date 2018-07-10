@@ -368,15 +368,15 @@ void ShellDemuxer::AllocateBuffer() {
   if (requested_au_) {
     size_t total_buffer_size = audio_demuxer_stream_->GetTotalBufferSize() +
                                video_demuxer_stream_->GetTotalBufferSize();
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
     int progressive_budget = SbMediaGetProgressiveBufferBudget(
         MediaVideoCodecToSbMediaVideoCodec(VideoConfig().codec()),
         VideoConfig().visible_rect().size().width(),
         VideoConfig().visible_rect().size().height(),
         VideoConfig().webm_color_metadata().BitsPerChannel);
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
     int progressive_budget = COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
     if (total_buffer_size >= progressive_budget) {
       // Retry after 100 milliseconds.
       const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(100);

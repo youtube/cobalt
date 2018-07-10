@@ -43,33 +43,32 @@ bool IsLargeAllocation(std::size_t size) {
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator() {
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
   using_memory_pool_ = SbMediaIsBufferUsingMemoryPool();
   bool pool_allocate_on_demand = SbMediaIsBufferPoolAllocateOnDemand();
 #elif COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
   using_memory_pool_ = true;
   bool pool_allocate_on_demand = COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
     if (pool_allocate_on_demand) {
       DLOG(INFO) << "Allocated media buffer pool on demand.";
     } else {
       TRACK_MEMORY_SCOPE("Media");
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
       int initial_capacity = SbMediaGetInitialBufferCapacity();
       // We cannot call SbMediaGetMaxBufferCapacity because |video_codec_| is
       // not set yet. Use 0 (unbounded) until |video_codec_| is updated in
       // UpdateVideoConfig.
       int max_capacity = 0;
       int allocation_unit = SbMediaGetBufferAllocationUnit();
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
       int initial_capacity = COBALT_MEDIA_BUFFER_INITIAL_CAPACITY;
       int max_capacity = COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P;
       int allocation_unit = COBALT_MEDIA_BUFFER_ALLOCATION_UNIT;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
       reuse_allocator_.reset(new ReuseAllocator(&fallback_allocator_,
                                                 initial_capacity,
                                                 allocation_unit, max_capacity));
@@ -78,14 +77,12 @@ DecoderBufferAllocator::DecoderBufferAllocator() {
     }
     return;
   }
-#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >=
-        // SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   DLOG(INFO) << "Allocated media buffer memory using SbMemory* functions.";
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
     TRACK_MEMORY_SCOPE("Media");
 
@@ -97,29 +94,28 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
     }
   }
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL ||
-        // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+        // SB_API_VERSION >= 10
 }
 
 DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
     size_t size, size_t alignment, intptr_t context) {
   TRACK_MEMORY_SCOPE("Media");
 
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
     starboard::ScopedLock scoped_lock(mutex_);
 
     if (!reuse_allocator_) {
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
       int initial_capacity = SbMediaGetInitialBufferCapacity();
       int max_capacity = SbMediaGetMaxBufferCapacity(
           video_codec_, resolution_width_, resolution_height_, bits_per_pixel_);
       int allocation_unit = SbMediaGetBufferAllocationUnit();
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
       int initial_capacity = COBALT_MEDIA_BUFFER_INITIAL_CAPACITY;
       int max_capacity = COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P;
       int allocation_unit = COBALT_MEDIA_BUFFER_ALLOCATION_UNIT;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
       reuse_allocator_.reset(new ReuseAllocator(&fallback_allocator_,
                                                 initial_capacity,
                                                 allocation_unit, max_capacity));
@@ -185,20 +181,19 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
                        buffer_sizes.data());
   }
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL ||
-        // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+        // SB_API_VERSION >= 10
   return Allocations(SbMemoryAllocateAligned(alignment, size), size);
 }
 
 void DecoderBufferAllocator::Free(Allocations allocations) {
   TRACK_MEMORY_SCOPE("Media");
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
   bool pool_allocate_on_demand = SbMediaIsBufferPoolAllocateOnDemand();
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
   bool pool_allocate_on_demand = COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
     starboard::ScopedLock scoped_lock(mutex_);
 
@@ -221,7 +216,7 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
     return;
   }
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL ||
-        // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+        // SB_API_VERSION >= 10
   for (int i = 0; i < allocations.number_of_buffers(); ++i) {
     SbMemoryDeallocateAligned(allocations.buffers()[i]);
   }
@@ -229,34 +224,32 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 
 void DecoderBufferAllocator::UpdateVideoConfig(
     const VideoDecoderConfig& config) {
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
     if (!reuse_allocator_) {
       return;
     }
     VideoResolution resolution =
         GetVideoResolution(config.visible_rect().size());
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
     video_codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
     resolution_width_ = config.visible_rect().size().width();
     resolution_height_ = config.visible_rect().size().height();
     bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
     reuse_allocator_->set_max_capacity(SbMediaGetMaxBufferCapacity(
         video_codec_, resolution_width_, resolution_height_, bits_per_pixel_));
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
     if (reuse_allocator_->max_capacity() &&
         resolution > kVideoResolution1080p) {
       reuse_allocator_->set_max_capacity(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
     }
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
   }
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL ||
-        // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+        // SB_API_VERSION >= 10
 }
 
-#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
 DecoderBufferAllocator::ReuseAllocator::ReuseAllocator(
     Allocator* fallback_allocator, std::size_t initial_capacity,
     std::size_t allocation_increment, std::size_t max_capacity)
@@ -304,11 +297,11 @@ bool DecoderBufferAllocator::UpdateAllocationRecord(
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // This code is not quite multi-thread safe but is safe enough for tracking
   // purposes.
-#if SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#if SB_API_VERSION >= 10
   int initial_capacity = SbMediaGetInitialBufferCapacity();
-#else   // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#else   // SB_API_VERSION >= 10
   int initial_capacity = COBALT_MEDIA_BUFFER_INITIAL_CAPACITY;
-#endif  // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // SB_API_VERSION >= 10
   static std::size_t max_allocated = initial_capacity / 2;
   static std::size_t max_capacity = initial_capacity;
   static std::size_t max_blocks = 1;
@@ -339,8 +332,7 @@ bool DecoderBufferAllocator::UpdateAllocationRecord(
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 #if COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P > 0 || \
-    COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0 ||    \
-    SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+    COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0 || SB_API_VERSION >= 10
   if (reuse_allocator_->CapacityExceeded()) {
     SB_LOG(ERROR) << "Cobalt media buffer capacity "
                   << reuse_allocator_->GetCapacity()
@@ -349,11 +341,9 @@ bool DecoderBufferAllocator::UpdateAllocationRecord(
     return false;
   }
 #endif  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P > 0 ||
-        // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0 || SB_API_VERSION >=
-        // SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+        // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0 || SB_API_VERSION >= 10
   return true;
 }
-#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL ||
-        // SB_API_VERSION >= SB_MEDIA_BUFFER_SETTINGS_QUERIES_API_VERSION
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
 }  // namespace media
 }  // namespace cobalt
