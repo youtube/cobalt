@@ -20,10 +20,10 @@
 SbTime SbMediaGetBufferGarbageCollectionDurationThreshold() {
 #if defined( \
     COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
-  SB_DLOG(WARNING) << "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_"
-                      "THRESHOLD will be deprecated in a future Starboard "
-                      "version.";
   // Use define forwarded from GYP variable.
+#pragma message(                                                            \
+    "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS " \
+    "will be deprecated in a future Starboard version.")
   return COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS *
          kSbTimeSecond;
 #else  // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
