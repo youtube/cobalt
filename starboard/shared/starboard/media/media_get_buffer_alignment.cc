@@ -20,8 +20,9 @@
 int SbMediaGetBufferAlignment(SbMediaType type) {
   SB_UNREFERENCED_PARAMETER(type);
 #if defined(COBALT_MEDIA_BUFFER_ALIGNMENT)
-  SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_ALIGNMENT will be deprecated in a "
-                      "future Starboard version.";
+#pragma message(                                                    \
+    "COBALT_MEDIA_BUFFER_ALIGNMENT will be deprecated in a future " \
+    "Starboard version.")
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_ALIGNMENT;
 #else   // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
