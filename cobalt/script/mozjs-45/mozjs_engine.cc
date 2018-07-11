@@ -259,7 +259,7 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {
-  return std::string("SpiderMonkey/") + MOZILLA_VERSION;
+  return std::string("mozjs/") + MOZILLA_VERSION;
 }
 
 }  // namespace script
