@@ -19,8 +19,9 @@
 #if SB_API_VERSION >= 10
 bool SbMediaIsBufferPoolAllocateOnDemand() {
 #if COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
-  SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND will be "
-                      "deprecated in a future Starboard version.";
+#pragma message(                                                           \
+    "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND will be deprecated in a " \
+    "future Starboard version.")
   return true;
 #else   // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
   return false;

@@ -19,8 +19,9 @@
 #if SB_API_VERSION >= 10
 int SbMediaGetInitialBufferCapacity() {
 #if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
-  SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY will be "
-                      "deprecated in a future Starboard version.";
+#pragma message(                                                           \
+    "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY will be deprecated in a future " \
+    "Starboard version.")
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_INITIAL_CAPACITY;
 #else  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
