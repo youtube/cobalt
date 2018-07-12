@@ -14,17 +14,6 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
-
-#if SB_API_VERSION >= 10
-bool SbMediaIsBufferPoolAllocateOnDemand() {
-#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-#pragma message(                                                           \
-    "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND will be deprecated in a " \
-    "future Starboard version.")
-  return static_cast<bool>(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND);
-#else   // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-  return true;
-#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+int SbMediaGetInitialBufferCapacity() {
+  return 80 * 1024 * 1024;
 }
-#endif  // SB_API_VERSION >= 10

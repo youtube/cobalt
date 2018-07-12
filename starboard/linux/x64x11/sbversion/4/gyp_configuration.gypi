@@ -35,6 +35,7 @@
   },
 
   'includes': [
+    '<(DEPTH)/starboard/linux/media_buffer_variables.gypi',
     '<(DEPTH)/starboard/linux/x64x11/gyp_configuration.gypi',
   ],
 }
