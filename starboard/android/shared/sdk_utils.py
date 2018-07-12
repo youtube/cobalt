@@ -102,22 +102,12 @@ def GetToolsPath(abi):
   return os.path.realpath(os.path.join(_STARBOARD_TOOLCHAINS_DIR, tools_dir))
 
 
-def GetEnvironmentVariables(abi):
-  """Returns a dictionary of environment variables to provide to GYP."""
-  tools_bin = os.path.join(GetToolsPath(abi), 'bin')
-  return {
-      'CC': os.path.join(tools_bin, 'clang'),
-      'CXX': os.path.join(tools_bin, 'clang++'),
-  }
-
-
 def _CheckStamp(dir_path):
   """Checks that the specified directory is up-to-date with the NDK."""
   stamp_path = os.path.join(dir_path, 'ndk.stamp')
-  return (
-      os.path.exists(stamp_path) and
-      _ReadNdkRevision(stamp_path) == _GetInstalledNdkRevision() and
-      _ReadProperty(stamp_path, _SCRIPT_HASH_PROPERTY) == _SCRIPT_HASH)
+  return (os.path.exists(stamp_path) and
+          _ReadNdkRevision(stamp_path) == _GetInstalledNdkRevision() and
+          _ReadProperty(stamp_path, _SCRIPT_HASH_PROPERTY) == _SCRIPT_HASH)
 
 
 def _UpdateStamp(dir_path):
@@ -246,8 +236,8 @@ def _GetInstalledSdkPackages():
   section_re = re.compile(r'^[A-Z][^:]*:$')
   version_re = re.compile(r'^\s+Version:\s+(\S+)')
 
-  p = subprocess.Popen([_SDKMANAGER_TOOL, '--list', '--verbose'],
-                       stdout=subprocess.PIPE)
+  p = subprocess.Popen(
+      [_SDKMANAGER_TOOL, '--list', '--verbose'], stdout=subprocess.PIPE)
 
   installed_package_versions = {}
   new_style = False
@@ -315,8 +305,7 @@ def _DownloadInstallOrUpdateSdk():
     stdin = sys.stdin
 
   p = subprocess.Popen(
-      [_SDKMANAGER_TOOL, '--verbose'] + _ANDROID_SDK_PACKAGES,
-      stdin=stdin)
+      [_SDKMANAGER_TOOL, '--verbose'] + _ANDROID_SDK_PACKAGES, stdin=stdin)
 
   if _IsOnBuildbot():
     time.sleep(_SDK_LICENSE_PROMPT_SLEEP_SECONDS)

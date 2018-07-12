@@ -17,12 +17,18 @@ from __future__ import print_function
 
 import imp
 import os
+from subprocess import call
 
 import gyp_utils
 import starboard.android.shared.sdk_utils as sdk_utils
 from starboard.build.platform_configuration import PlatformConfiguration
 from starboard.tools.testing import test_filter
-from subprocess import call
+from starboard.tools.toolchain import ar
+from starboard.tools.toolchain import bash
+from starboard.tools.toolchain import clang
+from starboard.tools.toolchain import clangxx
+from starboard.tools.toolchain import cp
+from starboard.tools.toolchain import touch
 
 _APK_DIR = os.path.join(os.path.dirname(__file__), os.path.pardir, 'apk')
 _APK_BUILD_ID_FILE = os.path.join(_APK_DIR, 'build.id')
@@ -89,8 +95,8 @@ class AndroidConfiguration(PlatformConfiguration):
     with open(_APK_BUILD_ID_FILE, 'w') as build_id_file:
       build_id_file.write('{}'.format(gyp_utils.GetBuildNumber()))
 
-    env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
-    env_variables.update(self.host_compiler_environment)
+    env_variables = {}
+
     # Android builds tend to consume significantly more memory than the
     # default settings permit, so cap this at 1 in order to avoid build
     # issues.  Without this, 32GB machines end up getting automatically
@@ -101,6 +107,31 @@ class AndroidConfiguration(PlatformConfiguration):
     env_variables.update({'GYP_LINK_CONCURRENCY': '1'})
 
     return env_variables
+
+  def GetTargetToolchain(self):
+    tools_bin = os.path.join(self.ndk_tools, 'bin')
+    return self._GetToolchain(
+        cc_path=os.path.join(tools_bin, 'clang'),
+        cxx_path=os.path.join(tools_bin, 'clang++'))
+
+  def GetHostToolchain(self):
+    return self._GetToolchain(
+        cc_path=self.host_compiler_environment['CC_host'],
+        cxx_path=self.host_compiler_environment['CXX_host'])
+
+  def _GetToolchain(self, cc_path, cxx_path):
+    return [
+        clang.CCompiler(path=cc_path),
+        clang.CxxCompiler(path=cxx_path),
+        clang.AssemblerWithCPreprocessor(path=cc_path),
+        ar.StaticThinLinker(),
+        ar.StaticLinker(),
+        clangxx.ExecutableLinker(path=cxx_path),
+        clangxx.SharedLibraryLinker(path=cxx_path),
+        cp.Copy(),
+        touch.Stamp(),
+        bash.Shell(),
+    ]
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
@@ -148,8 +179,10 @@ class AndroidConfiguration(PlatformConfiguration):
           'SbMicrophoneOpenTest.SunnyDayMultipleOpenCalls',
           'SbMicrophoneOpenTest.SunnyDayNoClose',
           'SbMicrophoneReadTest.RainyDayAudioBufferIsNULL',
-          'SbMicrophoneReadTest.RainyDayAudioBufferSizeIsSmallerThanMinReadSize',
-          'SbMicrophoneReadTest.RainyDayAudioBufferSizeIsSmallerThanRequestedSize',
+          'SbMicrophoneReadTest'
+          '.RainyDayAudioBufferSizeIsSmallerThanMinReadSize',
+          'SbMicrophoneReadTest'
+          '.RainyDayAudioBufferSizeIsSmallerThanRequestedSize',
           'SbMicrophoneReadTest.RainyDayMicrophoneIsInvalid',
           'SbMicrophoneReadTest.RainyDayOpenCloseAndRead',
           'SbMicrophoneReadTest.RainyDayOpenIsNotCalled',
