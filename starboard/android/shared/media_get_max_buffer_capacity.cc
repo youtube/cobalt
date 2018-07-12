@@ -14,17 +14,16 @@
 
 #include "starboard/media.h"
 
-#include "starboard/log.h"
-
-#if SB_API_VERSION >= 10
-bool SbMediaIsBufferPoolAllocateOnDemand() {
-#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-#pragma message(                                                           \
-    "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND will be deprecated in a " \
-    "future Starboard version.")
-  return static_cast<bool>(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND);
-#else   // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
-  return true;
-#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
+                                int resolution_width,
+                                int resolution_height,
+                                int bits_per_pixel) {
+  SB_UNREFERENCED_PARAMETER(codec);
+  SB_UNREFERENCED_PARAMETER(resolution_width);
+  SB_UNREFERENCED_PARAMETER(resolution_height);
+  SB_UNREFERENCED_PARAMETER(bits_per_pixel);
+  // TODO: refine this to a more reasonable value, taking into account
+  // resolution. On most platforms this is 36 * 1024 * 1024 for 1080p, and
+  // 65 * 1024 * 1024 for 4k.
+  return 500 * 1024 * 1024;
 }
-#endif  // SB_API_VERSION >= 10
