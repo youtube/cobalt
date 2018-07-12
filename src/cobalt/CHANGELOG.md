@@ -40,6 +40,21 @@ This document records all notable changes made to Cobalt since the last release.
    configurations prevented IPv6 use after connect time. This caused the
    previous implementation to appear as if no network was available.
 
+ - **Enable voice interactions**
+
+   A subset of WebRTC APIs has been added. `getUserMedia` can be used to get
+   audio input stream from the microphone. The media stream can then be
+   connected to `MediaRecorder` to receive the audio data stored as `Blob`
+   objects which can later be sent over the network. This allows web apps to
+   implement voice-enabled features without relying on the platform's capability
+   to perform speech recognition.
+
+ - **Bison 2 deprecation**
+
+   Support for compiling with version 2.x of the GNU bison parser generator
+   has been deprecated and will be removed in this version. Please upgrade
+   to bison 3.x.
+
 ## Version 16
  - **Rebase libwebp to version 1.0.0**
 

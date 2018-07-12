@@ -40,9 +40,9 @@ using starboard::shared::starboard::player::PlayerWorker;
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
                         SbMediaTime duration_pts,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
                         SbDrmSystem drm_system,
                         const SbMediaAudioHeader* audio_header,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -55,9 +55,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SB_UNREFERENCED_PARAMETER(duration_pts);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func
 #if SB_HAS(PLAYER_ERROR_MESSAGE)

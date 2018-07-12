@@ -14,13 +14,9 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION >= 10
 void SbPlayerWriteSample2(SbPlayer /*player*/,
                           SbMediaType /*sample_type*/,
-                          const void* const* /*sample_buffers*/,
-                          const int* /*sample_buffer_sizes*/,
-                          int /*number_of_sample_buffers*/,
-                          SbTime /*sample_timestamp*/,
-                          const SbMediaVideoSampleInfo* /*video_sample_info*/,
-                          const SbDrmSampleInfo* /*sample_drm_info*/) {}
-#endif  // SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+                          const SbPlayerSampleInfo* /*sample_infos*/,
+                          int /*number_of_sample_infos*/) {}
+#endif  // SB_API_VERSION >= 10

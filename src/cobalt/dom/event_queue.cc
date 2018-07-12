@@ -52,24 +52,26 @@ void EventQueue::CancelAllEvents() {
 
 void EventQueue::TraceMembers(script::Tracer* tracer) {
   tracer->TraceItems(events_);
+  tracer->TraceItems(firing_events_);
 }
 
 void EventQueue::DispatchEvents() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(firing_events_.empty());
 
   // Make sure that the event_target_ stays alive for the duration of
   // all event dispatches.
   scoped_refptr<EventTarget> keep_alive_reference(event_target_);
 
-  Events events;
-  events.swap(events_);
+  firing_events_.swap(events_);
 
-  for (Events::iterator iter = events.begin(); iter != events.end(); ++iter) {
+  for (Events::iterator iter = firing_events_.begin(); iter != firing_events_.end(); ++iter) {
     scoped_refptr<Event>& event = *iter;
     EventTarget* target =
         event->target() ? event->target().get() : event_target_;
     target->DispatchEvent(event);
   }
+  firing_events_.clear();
 }
 
 }  // namespace dom

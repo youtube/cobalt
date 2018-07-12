@@ -5,26 +5,50 @@
 #include "cobalt/media/base/decoder_buffer.h"
 
 #include "cobalt/build/build_config.h"
+#include "starboard/media.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
+namespace {
+SbMediaType DemuxerStreamTypeToSbMediaType(DemuxerStream::Type type) {
+  switch (type) {
+    case DemuxerStream::AUDIO:
+      return kSbMediaTypeAudio;
+    case DemuxerStream::VIDEO:
+      return kSbMediaTypeVideo;
+    case DemuxerStream::UNKNOWN:
+    case DemuxerStream::TEXT:
+    case DemuxerStream::NUM_TYPES:
+      break;
+  }
+  NOTREACHED();
+  return kSbMediaTypeAudio;
+}
+}  // namespace
 
 DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
                                                       Type type, size_t size)
     : allocator_(allocator), type_(type) {
   if (size > 0) {
     DCHECK(allocator_);
-    allocations_ = allocator_->Allocate(size + COBALT_MEDIA_BUFFER_PADDING,
-                                        COBALT_MEDIA_BUFFER_ALIGNMENT,
+#if SB_API_VERSION >= 10
+    int padding = SbMediaGetBufferPadding(DemuxerStreamTypeToSbMediaType(type));
+    int alignment =
+        SbMediaGetBufferAlignment(DemuxerStreamTypeToSbMediaType(type));
+#else   // SB_API_VERSION >= 10
+    int padding = COBALT_MEDIA_BUFFER_PADDING;
+    int alignment = COBALT_MEDIA_BUFFER_ALIGNMENT;
+#endif  // SB_API_VERSION >= 10
+    allocations_ = allocator_->Allocate(size + padding, alignment,
                                         static_cast<intptr_t>(type));
-#if COBALT_MEDIA_BUFFER_PADDING > 0
-    if (allocations_.number_of_buffers() > 0) {
-      char zeros[COBALT_MEDIA_BUFFER_PADDING + 1] = {0};
-      allocations_.Write(size, zeros, COBALT_MEDIA_BUFFER_PADDING);
-      allocations_.ShrinkTo(size);
+    if (padding > 0) {
+      if (allocations_.number_of_buffers() > 0) {
+        char zeros[COBALT_MEDIA_BUFFER_PADDING + 1] = {0};
+        allocations_.Write(size, zeros, COBALT_MEDIA_BUFFER_PADDING);
+        allocations_.ShrinkTo(size);
+      }
     }
-#endif  // COBALT_MEDIA_BUFFER_PADDING > 0
   }
 }
 

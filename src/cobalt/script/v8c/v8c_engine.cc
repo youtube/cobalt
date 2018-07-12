@@ -197,7 +197,7 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
 }
 
 std::string GetJavaScriptEngineNameAndVersion() {
-  return std::string("V8/") + v8::V8::GetVersion();
+  return std::string("v8/") + v8::V8::GetVersion();
 }
 
 }  // namespace script

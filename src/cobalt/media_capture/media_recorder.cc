@@ -28,6 +28,7 @@
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/media_capture/blob_event.h"
+#include "cobalt/media_capture/encoders/flac_audio_encoder.h"
 #include "cobalt/media_capture/encoders/linear16_audio_encoder.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/media_stream/media_stream_audio_track.h"
@@ -44,6 +45,7 @@ const int32 kMinimumTimeSliceInMilliseconds = 1;
 const int32 kSchedulingLatencyBufferMilliseconds = 20;
 
 using cobalt::media_capture::encoders::AudioEncoder;
+using cobalt::media_capture::encoders::FlacAudioEncoder;
 using cobalt::media_capture::encoders::Linear16AudioEncoder;
 
 // Returns the number of bytes needed to store |time_span| duration
@@ -64,6 +66,9 @@ scoped_ptr<AudioEncoder> CreateAudioEncoder(
     base::StringPiece requested_mime_type) {
   if (Linear16AudioEncoder::IsLinear16MIMEType(requested_mime_type)) {
     return scoped_ptr<AudioEncoder>(new Linear16AudioEncoder());
+  }
+  if (FlacAudioEncoder::IsFlacMIMEType(requested_mime_type)) {
+    return scoped_ptr<AudioEncoder>(new FlacAudioEncoder());
   }
   return scoped_ptr<AudioEncoder>(nullptr);
 }
@@ -159,6 +164,7 @@ void MediaRecorder::OnData(const ShellAudioBus& audio_bus,
   // The source is always int16 data from the microphone.
   DCHECK_EQ(audio_bus.sample_type(), ShellAudioBus::kInt16);
   DCHECK_EQ(audio_bus.channels(), 1);
+  DCHECK(audio_encoder_);
   audio_encoder_->Encode(audio_bus, reference_time);
 }
 
@@ -172,6 +178,13 @@ void MediaRecorder::OnEncodedDataAvailable(const uint8* data, size_t data_size,
 }
 
 void MediaRecorder::OnSetFormat(const media_stream::AudioParameters& params) {
+  if (!audio_encoder_) {
+    audio_encoder_ = CreateAudioEncoder(mime_type_);
+    audio_encoder_->AddListener(this);
+  }
+  DCHECK(audio_encoder_);
+  audio_encoder_->OnSetFormat(params);
+
   int64 bits_per_second =
       audio_encoder_->GetEstimatedOutputBitsPerSecond(params);
   if (bits_per_second <= 0) {
@@ -194,6 +207,8 @@ void MediaRecorder::OnReadyStateChanged(
   // Step 5.5 from start(), defined at:
   // https://www.w3.org/TR/mediastream-recording/#mediarecorder-methods
   if (new_state == media_stream::MediaStreamTrack::kReadyStateEnded) {
+    audio_encoder_->Finish(base::TimeTicks::Now());
+    audio_encoder_.reset();
     StopRecording();
     stream_ = nullptr;
   }
@@ -225,11 +240,7 @@ MediaRecorder::MediaRecorder(
   std::string desired_mime_type =
       options.has_mime_type() ? options.mime_type() : kLinear16MimeType;
 
-  audio_encoder_ = CreateAudioEncoder(desired_mime_type);
-  DCHECK(audio_encoder_);
-  audio_encoder_->AddListener(this);
-
-  mime_type_ = audio_encoder_->GetMimeType();
+  mime_type_ = desired_mime_type;
   DCHECK(IsTypeSupported(mime_type_));
   blob_options_.set_type(mime_type_);
 }
@@ -251,7 +262,6 @@ MediaRecorder::~MediaRecorder() {
 void MediaRecorder::StopRecording() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(stream_);
-  DCHECK(audio_encoder_);
   DCHECK_NE(recording_state_, kRecordingStateInactive);
 
   recording_state_ = kRecordingStateInactive;
@@ -259,7 +269,6 @@ void MediaRecorder::StopRecording() {
 
   scoped_ptr<std::vector<uint8>> empty;
   base::TimeTicks now = base::TimeTicks::Now();
-  audio_encoder_->Finish(now);
   WriteData(empty.Pass(), true, now);
 
   timeslice_ = base::TimeDelta::FromSeconds(0);
@@ -338,7 +347,8 @@ void MediaRecorder::CalculateLastInSliceAndWriteData(
 }
 
 bool MediaRecorder::IsTypeSupported(const base::StringPiece mime_type) {
-  return Linear16AudioEncoder::IsLinear16MIMEType(mime_type);
+  return Linear16AudioEncoder::IsLinear16MIMEType(mime_type) ||
+         FlacAudioEncoder::IsFlacMIMEType(mime_type);
 }
 
 }  // namespace media_capture

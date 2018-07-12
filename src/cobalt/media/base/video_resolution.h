@@ -17,6 +17,7 @@
 #ifndef COBALT_MEDIA_BASE_VIDEO_RESOLUTION_H_
 #define COBALT_MEDIA_BASE_VIDEO_RESOLUTION_H_
 
+#include "starboard/media.h"
 #include "ui/gfx/size.h"
 
 namespace cobalt {
@@ -29,7 +30,7 @@ enum VideoResolution {
   kVideoResolution1080p,  // 1920 x 1080
   kVideoResolution2k,     // 2560 x 1440
   kVideoResolution4k,     // 3840 x 2160
-  kVideoResolutionInvalid
+  kVideoResolutionInvalid,
 };
 
 inline VideoResolution GetVideoResolution(int width, int height) {

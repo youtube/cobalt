@@ -16,6 +16,157 @@ can be found in the comments of the "Experimental Feature Defines" section of
 
 ## Version 10
 
+### Introduce functions to query at runtime for media buffer settings
+
+In particular, the following methods are introduced:
+ - `SbMediaGetAudioBufferBudget`
+ - `SbMediaGetBufferAlignment`
+ - `SbMediaGetBufferAllocationUnit`
+ - `SbMediaGetBufferGarbageCollectionDurationThreshold`
+ - `SbMediaGetBufferPadding`
+ - `SbMediaGetBufferStorageType`
+ - `SbMediaGetInitialBufferCapacity`
+ - `SbMediaGetMaxBufferCapacity`
+ - `SbMediaGetProgressiveBufferBudget`
+ - `SbMediaGetVideoBufferBudget`
+ - `SbMediaIsBufferPoolAllocateOnDemand`
+ - `SbMediaIsBufferUsingMemoryPool`
+
+### Add support for player_filter_tests
+
+Require compiling 'player_filter_tests' test target sources on all
+platforms, including `audio_decoder_tests.cc` and `video_decoder_test.cc`. For
+this Starboard API version and beyond, `SB_HAS(PLAYER_FILTER_TESTS)` is true.
+
+### Deprecate SbMediaTime for SbTime
+
+SbMediaTime, which is 90khz based, was used to represent timestamps and
+duration related to SbPlayer.  As most of the platforms represent video
+related times in milliseconds or microseconds, this causes a lot of
+otherwise unnecessary conversion.  Now all timestamps and duration related
+to SbPlayer are represented by SbTime directly.
+
+### Refine sample writing of SbPlayer
+
+Added two new functions `SbPlayerGetMaximumNumberOfSamplesPerWrite()` and
+`SbPlayerWriteSample2()`.  The former allows implementation to specify the
+maximum numbers of samples that can be written using the latter at once.
+As it takes multiple thread context switches to call `SbPlayerWriteSample2()`
+once, it can optimize performance on low end platforms by reducing the
+frequence of calling `SbPlayerWriteSample2()`.
+
+### Add support for player error messages
+
+`SbPlayerCreate()` now accepts an additional parameter, `player_error_func`,
+that can be called when an error occurs to propagate the error to the
+application.
+
+### Add support for system-level closed caption settings
+
+`SbAccessibilityGetCaptionSettings()` and `SbAccessibilitySetCaptionsEnabled()`
+along with a number of supporting structure definitions have been added
+to `accessibility.h`.  Platforms will need to define SB_HAS_CAPTIONS to 1 in
+order to enable the interface.
+
+### Add support for audioless video playback
+
+SbPlayer can be created with only a video track, without any accompanying
+audio track.  The SbPlayer implementation must now be able to play back
+a sole video track.
+
+### Add support for audio only video playback
+
+SbPlayer can be created with only an audio track, without any accompanying
+video track.  The SbPlayer implementation must now be able to play back
+a sole audio track.
+
+### Require support for creating multiple SbPlayer instances
+
+Formerly, there were no tests ensuring that calling `SbPlayerCreate()` multiple
+times (without calling `SbPlayerDestroy()` in between) would not crash, and
+likewise no tests ensuring that calling `SbAudioSinkCreate()` multiple times
+(without calling `SbAudioSinkDestroy()` in between) would not crash.
+`SbPlayerCreate()` may return `kSbPlayerInvalid` if additional players are not
+supported. `SbAudioSinkCreate()` may return `kSbAudionSinkInvalid` if additional
+audio sinks are not supported.
+
+### Require stricter error handling on calls some SbPlayer* calls
+
+Specifically, `SbPlayerCreate()`,  `SbPlayerCreateWithUrl()` and
+`SbDrmCreateSystem()` must result in invalid return values (e.g.
+`kSbPlayerInvalid` or `kSbDrmSystemInvalid` appropriately).
+
+### Refine the DRM API
+
+Specifically, the following changes have been made:
+ 1. Add a callback to SbDrmCreateSystem that allows a DRM system to
+    signal that a DRM session has closed from the Starboard layer.
+    Previously, DRM sessions could only be closed from the application
+    layer.
+ 2. Allow calling `SbDrmSessionUpdateRequestFunc` and
+    `SbDrmSessionUpdatedFunc` with extra status and optional error message.
+ 3. Add request type parameter to `SbDrmSessionUpdateRequestFunc` to support
+    individualization, license renewal, and license release.
+
+### Remove kSbSystemPathSourceDirectory
+
+Test code looking for its static input files should instead use the `test`
+subdirectory in `kSbSystemPathContentDirectory`.
+
+### Remove kSbSystemPropertyPlatformUuid
+
+This property was only ever used in platforms using `in_app_dial`.
+The only usage of this system property was replaced with a
+self-contained mechanism.
+
+### Deprecate kSbMediaAudioSampleTypeInt16
+
+`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES` has to be defined to continue
+support int16 audio samples after this version.
+
+### Add support for SbSystemSupportsResume()
+
+Platforms doesn't need to resume after suspend can return false in
+`SbSystemSupportsResume()` to free up the resource used by resume after
+suspend.
+Please see the comment in `system.h` for more details.
+
+### Support the `kSbKeyMicrophone` keycode
+
+### Add support for new decode target type, `kSbDecodeTargetFormat3Plane10BitYUVI420`
+
+Added `kSbDecodeTargetFormat3Plane10BitYUVI420` to the `SbDecodeTargetFormat`
+enum in order to support 10-bit YUV textures.
+
+### Optionally provide absolute timestamp to `SbAudioSinkConsumeFramesFunc()`
+
+`SbAudioSinkConsumeFramesFunc()` can now optionally accept an absolute
+timestamp parameter that indicates when the frames are consumed.
+Platforms that have the `frames_consumed` updated asynchronously can have
+more accurate audio time reporting with this extra parameter.
+Please see the comment in `audio_sink.h` for more details.
+
+### Add support for the `SbAtomic8` type and memory access functions
+
+### Introduce `SbMemoryProtect()`
+
+`SbMemoryProtect()` allows memory access permissions to be changed after they
+have been mapped with `SbMemoryMap`.
+
+### Add a `timestamp` field to `SbInputData`
+
+This allows platforms to provide more precise information on exactly when
+an input event was generated.  Note that if
+`SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp)` returns false,
+the `timestamp` field of `SbInputData` should be ignored by applications.
+
+### Introduces `kSbMemoryMapProtectReserved` flag.
+
+`kSbMemoryMapProtectReserved`, which is identical to `SbMemoryMapFlags(0)`, is
+introduced.  When `SbMemoryMap()` is called with `kSbMemoryMapProtectReserved`,
+only virtual address space should be reserved for the mapped memory, and not
+actual physical memory.
+
 ### Add support for multiple versions of ffmpeg
 
 An extra version agnostic ffmpeg dynamic dispatch layer is added in order to
