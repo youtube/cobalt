@@ -1286,7 +1286,12 @@ base::optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
       padding_rounded_corners_if_different
           ? padding_rounded_corners_if_different
           : rounded_corners;
-  return padding_rounded_corners;
+
+  if (padding_rounded_corners) {
+    return padding_rounded_corners->Normalize(math::RectF(GetPaddingBoxSize()));
+  } else {
+    return padding_rounded_corners;
+  }
 }
 
 void Box::RenderAndAnimateBoxShadow(

@@ -901,7 +901,6 @@
             'type': 'static_library',
             'dependencies':
             [
-                '<(DEPTH)/base/base.gyp:base',
                 'translator',
                 'angle_common',
                 'angle_image_util',

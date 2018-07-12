@@ -166,6 +166,12 @@ class Application {
     return Run(CommandLine(argc, argv));
   }
 
+// Prevents GetCommandLine from being redefined.  For example, Windows
+// defines it to GetCommandLineW, which causes link errors.
+#if defined(GetCommandLine)
+#undef GetCommandLine
+#endif  // defined(GetCommandLine)
+
   // Retrieves the CommandLine for the application.
   // NULL until Run() is called.
   const CommandLine* GetCommandLine();
@@ -249,16 +255,6 @@ class Application {
                    int y,
                    int width,
                    int height);
-
-  // This is called immediately when SbPlayerSetBounds is called for punch-out
-  // video. Subclasses may override this to better synchronize the punch-out
-  // video bounds with the upcoming render output.
-  virtual void PlayerSetBounds(SbPlayer /* player */,
-                               int /* z_index */,
-                               int /* x */,
-                               int /* y */,
-                               int /* width */,
-                               int /* height */) {}
 
   // Registers a |callback| function that will be called when |Teardown| is
   // called.

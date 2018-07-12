@@ -90,9 +90,9 @@ TEST_F(SbPlayerTest, SunnyDay) {
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
         kSbMediaAudioCodecAac,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
         DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -110,7 +110,7 @@ TEST_F(SbPlayerTest, SunnyDay) {
   }
 }
 
-#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, NullCallbacks) {
   SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
@@ -129,9 +129,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_header, NULL /* deallocate_sample_func */,
           DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -148,9 +148,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
           NULL /* decoder_status_func */, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -167,9 +167,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
           DummyDecoderStatusFunc, NULL /*status_func */,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -187,9 +187,9 @@ TEST_F(SbPlayerTest, NullCallbacks) {
       SbPlayer player = SbPlayerCreate(
           fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
           kSbMediaAudioCodecAac,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
           SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
           kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
           DummyDecoderStatusFunc, DummyStatusFunc, NULL /*error_func */,
           NULL /* context */, output_mode,
@@ -201,7 +201,7 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   }
 }
-#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #if SB_HAS(AUDIOLESS_VIDEO)
 TEST_F(SbPlayerTest, Audioless) {
@@ -220,9 +220,9 @@ TEST_F(SbPlayerTest, Audioless) {
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kVideoCodec,
         kSbMediaAudioCodecNone,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, NULL /* audio_header */, DummyDeallocateSampleFunc,
         DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -241,7 +241,7 @@ TEST_F(SbPlayerTest, Audioless) {
 }
 #endif  // SB_HAS(AUDIOLESS_VIDEO)
 
-#if SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+#if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, AudioOnly) {
   SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
   SbMediaAudioCodec kAudioCodec = kSbMediaAudioCodecAac;
@@ -260,9 +260,9 @@ TEST_F(SbPlayerTest, AudioOnly) {
     SbPlayer player = SbPlayerCreate(
         fake_graphics_context_provider_.window(), kSbMediaVideoCodecNone,
         kAudioCodec,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
         SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
         kSbDrmSystemInvalid, &audio_header, DummyDeallocateSampleFunc,
         DummyDecoderStatusFunc, DummyStatusFunc,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -279,9 +279,9 @@ TEST_F(SbPlayerTest, AudioOnly) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= SB_AUDIO_ONLY_VIDEO_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#if SB_API_VERSION >= 10
 TEST_F(SbPlayerTest, MultiPlayer) {
   SbMediaAudioHeader audio_header = GetDefaultAudioHeader();
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
@@ -298,7 +298,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   // TODO: turn this into a macro.
   // Perform a check to determine if new audio codecs have been added to the
   // SbMediaAudioCodec enum, but not the array |audio_codecs|. If the compiler
-  // warns about a missing case here, the value must be added to |audio_codecs|.
+  // warns about a missing case here, the value must be added to |kAudioCodecs|.
   SbMediaAudioCodec audio_codec = kAudioCodecs[0];
   switch (audio_codec) {
     case kAudioCodecs[0]:
@@ -319,7 +319,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   // TODO: turn this into a macro.
   // Perform a check to determine if new video codecs have been added to the
   // SbMediaVideoCodec enum, but not the array |video_codecs|. If the compiler
-  // warns about a missing case here, the value must be added to |video_codecs|.
+  // warns about a missing case here, the value must be added to |kVideoCodecs|.
   SbMediaVideoCodec video_codec = kVideoCodecs[0];
   switch (video_codec) {
     case kVideoCodecs[0]:
@@ -364,7 +364,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     SbPlayerDestroy(player);
   }
 }
-#endif  // SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#endif  // SB_API_VERSION >= 10
 #endif  // SB_HAS(PLAYER_WITH_URL)
 }  // namespace
 }  // namespace nplb

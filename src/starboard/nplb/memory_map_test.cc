@@ -117,11 +117,12 @@ static int Sum2(int x, int y) {
 }
 
 // Copy the contents of |Sum| into |memory|, returning an assertion result
-// indicating whether the copy was successful, and a function pointer to the
-// possibly copied |Sum| function data.  Clients are expected to immediately
-// call |ASSERT| on the assertion result.
-std::pair<::testing::AssertionResult, SumFunction> CopySumFunctionIntoMemory(
-    void* memory) {
+// indicating whether the copy was successful, a function pointer to the
+// possibly copied |Sum| function data and a function pointer to the selected
+// original function..  Clients are expected to immediately call |ASSERT| on
+// the assertion result.
+std::tuple<::testing::AssertionResult, SumFunction, SumFunction>
+CopySumFunctionIntoMemory(void* memory) {
   // There's no reliable way to determine the size of the 'Sum' function. If we
   // assume the function is at most a certain size, then we might try to read
   // beyond mapped memory when copying it to the destination address. We can
@@ -164,27 +165,29 @@ std::pair<::testing::AssertionResult, SumFunction> CopySumFunctionIntoMemory(
           SB_MEMORY_PAGE_SIZE +
       SB_MEMORY_PAGE_SIZE);
   if (!SbMemoryIsAligned(sum_function_page_end, SB_MEMORY_PAGE_SIZE)) {
-    return {::testing::AssertionFailure()
-                << "Expected |Sum| page end ("
-                << static_cast<void*>(sum_function_page_end)
-                << ") to be aligned to " << SB_MEMORY_PAGE_SIZE,
-            nullptr};
+    return std::make_tuple(::testing::AssertionFailure()
+                               << "Expected |Sum| page end ("
+                               << static_cast<void*>(sum_function_page_end)
+                               << ") to be aligned to " << SB_MEMORY_PAGE_SIZE,
+                           nullptr, nullptr);
   }
   if (sum_function_start >= sum_function_page_end) {
-    return {::testing::AssertionFailure()
-                << "Expected |Sum| function page start ("
-                << static_cast<void*>(sum_function_start)
-                << ") to be less than |Sum| function page end ("
-                << static_cast<void*>(sum_function_page_end) << ")",
-            nullptr};
+    return std::make_tuple(::testing::AssertionFailure()
+                               << "Expected |Sum| function page start ("
+                               << static_cast<void*>(sum_function_start)
+                               << ") to be less than |Sum| function page end ("
+                               << static_cast<void*>(sum_function_page_end)
+                               << ")",
+                           nullptr, nullptr);
   }
 
   size_t bytes_to_copy = sum_function_page_end - sum_function_start;
   if (bytes_to_copy > SB_MEMORY_PAGE_SIZE) {
-    return {::testing::AssertionFailure()
-                << "Expected bytes required to copy |Sum| to be less than "
-                << SB_MEMORY_PAGE_SIZE << ", Actual: " << bytes_to_copy,
-            nullptr};
+    return std::make_tuple(
+        ::testing::AssertionFailure()
+            << "Expected bytes required to copy |Sum| to be less than "
+            << SB_MEMORY_PAGE_SIZE << ", Actual: " << bytes_to_copy,
+        nullptr, nullptr);
   }
 
   SbMemoryCopy(memory, sum_function_start, bytes_to_copy);
@@ -193,10 +196,11 @@ std::pair<::testing::AssertionResult, SumFunction> CopySumFunctionIntoMemory(
   SumFunction mapped_function = reinterpret_cast<SumFunction>(
       reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
 
-  return {::testing::AssertionSuccess(), mapped_function};
+  return std::make_tuple(::testing::AssertionSuccess(), mapped_function,
+                         original_function);
 }
 
-#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#if SB_API_VERSION >= 10
 // Cobalt can not map executable memory. If executable memory is needed, map
 // non-executable memory first and use SbMemoryProtect to change memory accesss
 // to executable.
@@ -214,10 +218,10 @@ TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
     EXPECT_FALSE(SbMemoryUnmap(memory, 0));
   }
 }
-#endif  // SB_MEMORY_PROTECT_API_VERSION
+#endif  // 10
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-#if SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#if SB_API_VERSION >= 10
 TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
   SbMemoryMapFlags all_from_flags[] = {
     SbMemoryMapFlags(kSbMemoryMapProtectReserved),
@@ -251,10 +255,12 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
       // protections if we have write permissions either now or then, because
       // we have to actually put a valid function into the mapped memory.
       SumFunction mapped_function = nullptr;
+      SumFunction original_function = nullptr;
       if (from_flags & kSbMemoryMapProtectWrite) {
         auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
-        ASSERT_TRUE(copy_sum_function_result.first);
-        mapped_function = copy_sum_function_result.second;
+        ASSERT_TRUE(std::get<0>(copy_sum_function_result));
+        mapped_function = std::get<1>(copy_sum_function_result);
+        original_function = std::get<2>(copy_sum_function_result);
       }
 #endif
 
@@ -265,7 +271,7 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
       if ((to_flags & kSbMemoryMapProtectExec) && mapped_function != nullptr) {
-        EXPECT_EQ(Sum(0xc0ba178, 0xbadf00d),
+        EXPECT_EQ(original_function(0xc0ba178, 0xbadf00d),
                   mapped_function(0xc0ba178, 0xbadf00d));
       }
 #endif
@@ -285,7 +291,7 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
     }
   }
 }
-#endif  // SB_API_VERSION >= SB_MEMORY_PROTECT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #endif  // SB_HAS(MMAP)
 

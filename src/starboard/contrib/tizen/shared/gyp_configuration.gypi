@@ -1,4 +1,4 @@
-# Copyright 2016 Samsung Electronics. All Rights Reserved.
+# Copyright 2016 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,11 +27,6 @@
     # that they can be maximally reused, it is not a very good fit for a tiled
     # renderer.
     'scratch_surface_cache_size_in_bytes' : 0,
-
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs-45',
-    'cobalt_enable_jit': 0,
 
     'linker_flags': [
       '-Wl,--wrap=eglGetDisplay',

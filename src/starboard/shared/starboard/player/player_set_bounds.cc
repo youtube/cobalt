@@ -15,7 +15,6 @@
 #include "starboard/player.h"
 
 #include "starboard/log.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerSetBounds(SbPlayer player,
@@ -29,6 +28,4 @@ void SbPlayerSetBounds(SbPlayer player,
     return;
   }
   player->SetBounds(z_index, x, y, width, height);
-  starboard::shared::starboard::Application::Get()->PlayerSetBounds(
-      player, z_index, x, y, width, height);
 }

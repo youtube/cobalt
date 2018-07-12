@@ -59,6 +59,8 @@ class AudioEncoder {
 
   virtual std::string GetMimeType() const = 0;
 
+  virtual void OnSetFormat(const media_stream::AudioParameters& params) = 0;
+
   void AddListener(AudioEncoder::Listener* listener);
 
   void RemoveListener(AudioEncoder::Listener* listener);
@@ -72,6 +74,7 @@ class AudioEncoder {
       const media_stream::AudioParameters& params) const = 0;
 
  protected:
+  // This call is thread-safe.
   void PushDataToAllListeners(const uint8* data, size_t data_size,
                               base::TimeTicks timecode);
 

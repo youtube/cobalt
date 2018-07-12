@@ -181,13 +181,13 @@ void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
   DCHECK(frame_height);
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerInfo out_player_info;
   SbPlayerGetInfo(player_, &out_player_info);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   SbPlayerInfo2 out_player_info;
   SbPlayerGetInfo2(player_, &out_player_info);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
   frame_width_ = out_player_info.frame_width;
   frame_height_ = out_player_info.frame_height;
 
@@ -261,12 +261,12 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   DCHECK(SbPlayerIsValid(player_));
 
   ++ticket_;
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerSeek(player_, SB_TIME_TO_SB_MEDIA_TIME(time.InMicroseconds()),
                ticket_);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else  // SB_API_VERSION < 10
   SbPlayerSeek2(player_, time.InMicroseconds(), ticket_);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   seek_pending_ = false;
   SbPlayerSetPlaybackRate(player_, playback_rate_);
@@ -326,7 +326,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
   if (media_time) {
@@ -341,7 +341,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *buffer_length_time = base::TimeDelta::FromMicroseconds(
         SB_MEDIA_TIME_TO_SB_TIME(info.buffer_duration_pts));
   }
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
   if (media_time) {
@@ -356,7 +356,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *buffer_length_time =
         base::TimeDelta::FromMicroseconds(info.buffer_duration);
   }
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   if (video_frames_decoded) {
     *video_frames_decoded = info.total_video_frames;
@@ -394,21 +394,21 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
   if (media_time) {
     *media_time = base::TimeDelta::FromMicroseconds(
         SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
   }
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
   if (media_time) {
     *media_time =
         base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
   }
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
   if (video_frames_decoded) {
     *video_frames_decoded = info.total_video_frames;
   }
@@ -426,7 +426,7 @@ base::TimeDelta StarboardPlayer::GetDuration() {
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
   if (info.duration_pts == SB_PLAYER_NO_DURATION) {
@@ -435,7 +435,7 @@ base::TimeDelta StarboardPlayer::GetDuration() {
   }
   return base::TimeDelta::FromMicroseconds(
       SB_MEDIA_TIME_TO_SB_TIME(info.duration_pts));
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
   if (info.duration == SB_PLAYER_NO_DURATION) {
@@ -443,7 +443,7 @@ base::TimeDelta StarboardPlayer::GetDuration() {
     return base::TimeDelta();
   }
   return base::TimeDelta::FromMicroseconds(info.duration);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 }
 
 base::TimeDelta StarboardPlayer::GetStartDate() {
@@ -454,13 +454,13 @@ base::TimeDelta StarboardPlayer::GetStartDate() {
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerInfo info = {};
   SbPlayerGetInfo(player_, &info);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info = {};
   SbPlayerGetInfo2(player_, &info);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
   return base::TimeDelta::FromMicroseconds(info.start_date);
 }
 
@@ -486,17 +486,17 @@ void StarboardPlayer::Suspend() {
 
   state_ = kSuspended;
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   SbPlayerInfo info;
   SbPlayerGetInfo(player_, &info);
   preroll_timestamp_ = base::TimeDelta::FromMicroseconds(
       SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
   preroll_timestamp_ =
       base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
   cached_video_frames_decoded_ = info.total_video_frames;
   cached_video_frames_dropped_ = info.dropped_video_frames;
 
@@ -572,9 +572,9 @@ void StarboardPlayer::CreatePlayerWithUrl(const std::string& url) {
   DLOG(INFO) << "SbPlayerCreateWithUrl passed url " << url;
   player_ = SbPlayerCreateWithUrl(
       url.c_str(), window_,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
       SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
       &StarboardPlayer::PlayerStatusCB,
       &StarboardPlayer::EncryptedMediaInitDataEncounteredCB,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
@@ -620,9 +620,9 @@ void StarboardPlayer::CreatePlayer() {
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 
   player_ = SbPlayerCreate(window_, video_codec, audio_codec,
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
                            SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
                            drm_system_, has_audio ? &audio_header : NULL,
                            &StarboardPlayer::DeallocateSampleCB,
                            &StarboardPlayer::DecoderStatusCB,
@@ -698,9 +698,10 @@ void StarboardPlayer::WriteBufferInternal(
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+  auto sample_type = DemuxerStreamTypeToSbMediaType(type);
+#if SB_API_VERSION < 10
   SbPlayerWriteSample(
-      player_, DemuxerStreamTypeToSbMediaType(type),
+      player_, sample_type,
 #if SB_API_VERSION >= 6
       allocations.buffers(), allocations.buffer_sizes(),
 #else   // SB_API_VERSION >= 6
@@ -711,14 +712,16 @@ void StarboardPlayer::WriteBufferInternal(
       SB_TIME_TO_SB_MEDIA_TIME(buffer->timestamp().InMicroseconds()),
       type == DemuxerStream::VIDEO ? &video_info : NULL,
       drm_info.subsample_count > 0 ? &drm_info : NULL);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
-  SbPlayerWriteSample2(player_, DemuxerStreamTypeToSbMediaType(type),
-                       allocations.buffers(), allocations.buffer_sizes(),
-                       allocations.number_of_buffers(),
-                       buffer->timestamp().InMicroseconds(),
-                       type == DemuxerStream::VIDEO ? &video_info : NULL,
-                       drm_info.subsample_count > 0 ? &drm_info : NULL);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
+  DCHECK_GT(SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, sample_type), 0);
+  DCHECK_EQ(allocations.number_of_buffers(), 1);
+  SbPlayerSampleInfo sample_info = {
+      allocations.buffers()[0], allocations.buffer_sizes()[0],
+      buffer->timestamp().InMicroseconds(),
+      type == DemuxerStream::VIDEO ? &video_info : NULL,
+      drm_info.subsample_count > 0 ? &drm_info : NULL};
+  SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
+#endif  // SB_API_VERSION < 10
 }
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -818,13 +821,13 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
     SbPlayerSeek(player_,
                  SB_TIME_TO_SB_MEDIA_TIME(preroll_timestamp_.InMicroseconds()),
                  ticket_);
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
     SbPlayerSeek2(player_, preroll_timestamp_.InMicroseconds(), ticket_);
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
     SetVolume(volume_);
     SbPlayerSetPlaybackRate(player_, playback_rate_);
     return;

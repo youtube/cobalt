@@ -118,15 +118,15 @@ void SbPlayerPrivate::SetBounds(int z_index,
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
 void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
 void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
   SB_DCHECK(out_player_info != NULL);
 
   starboard::ScopedLock lock(mutex_);
-#if SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION < 10
   out_player_info->duration_pts = SB_PLAYER_NO_DURATION;
   if (is_paused_) {
     out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(media_time_);
@@ -134,7 +134,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
     out_player_info->current_media_pts = SB_TIME_TO_SB_MEDIA_TIME(
         GetMediaTime(media_time_, media_time_updated_at_, playback_rate_));
   }
-#else   // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#else   // SB_API_VERSION < 10
   out_player_info->duration = SB_PLAYER_NO_DURATION;
   if (is_paused_) {
     out_player_info->current_media_timestamp = media_time_;
@@ -142,7 +142,7 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
     out_player_info->current_media_timestamp =
         GetMediaTime(media_time_, media_time_updated_at_, playback_rate_);
   }
-#endif  // SB_API_VERSION < SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;

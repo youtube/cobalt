@@ -20,6 +20,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"
 #include "nb/multipart_allocator.h"
+#include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 

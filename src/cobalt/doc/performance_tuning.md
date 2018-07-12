@@ -30,6 +30,32 @@ performance, build Cobalt in the "gold" configuration.
 **Tags:** *framerate, startup, browse-to-watch, cpu memory, input latency.*
 
 
+### Switch JavaScript Engine to V8
+
+Cobalt supports both SpiderMonkey and V8 as JavaScript engines.  SpiderMonkey
+is the default JavaScript engine since it is the most compatible in that it
+does not require your platform to support Just-In-Time (JIT) compiling.
+However, if your platform supports it, we strongly recommend that you use
+V8, as it has been shown to provide 20-50% speed improvements on JavaScript
+execution across the board.  Note however that V8 has also been found to
+consume around 10MB more memory than SpiderMonkey.
+
+To enable V8, you must modify the `GetVariables()` method in your
+`gyp_configuration.py` file and ensure that the variables dictionary that is
+returned contains the following key/value pairs:
+
+```
+{
+  'javascript_engine': 'v8',
+  'cobalt_enable_jit': 1,
+}
+```
+
+Note also that use of V8 requires Starboard version 10 or higher.
+
+**Tags:** *startup, browse-to-watch, cpu memory, input latency.*
+
+
 ### Framerate throttling
 
 If you're willing to accept a lower framerate, there is potential that

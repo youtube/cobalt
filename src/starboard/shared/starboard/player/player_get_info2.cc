@@ -17,7 +17,7 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#if SB_API_VERSION >= 10
 void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -31,4 +31,4 @@ void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
 
   player->GetInfo(out_player_info);
 }
-#endif  // SB_API_VERSION >= SB_DEPRECATE_SB_MEDIA_TIME_API_VERSION
+#endif  // SB_API_VERSION >= 10

@@ -66,6 +66,12 @@ int64 Linear16AudioEncoder::GetEstimatedOutputBitsPerSecond(
   return params.GetBitsPerSecond();
 }
 
+void Linear16AudioEncoder::OnSetFormat(
+    const media_stream::AudioParameters& params) {
+  DCHECK_EQ(params.bits_per_sample(), 16);
+  DCHECK_EQ(params.channel_count(), 1);
+}
+
 }  // namespace encoders
 }  // namespace media_capture
 }  // namespace cobalt

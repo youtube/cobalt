@@ -169,7 +169,7 @@ int PlanesPerFormat(SbDecodeTargetFormat format) {
       return 1;
     case kSbDecodeTargetFormat2PlaneYUVNV12:
       return 2;
-#if SB_API_VERSION >= SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
 #endif
     case kSbDecodeTargetFormat3PlaneYUVI420:
@@ -232,7 +232,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
       }
 #endif  // SB_API_VERSION >= 7
     } break;
-#if SB_API_VERSION >= SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420:
 #endif
     case kSbDecodeTargetFormat3PlaneYUVI420: {
@@ -260,7 +260,7 @@ DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
     } break;
-#if SB_API_VERSION >= SB_10_BIT_YUV_I420_DECODE_TARGET_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 10
     case kSbDecodeTargetFormat3Plane10BitYUVI420: {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitBT2020;
     } break;

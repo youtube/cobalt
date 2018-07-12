@@ -94,10 +94,10 @@ DrmSystem::DrmSystem(const char* key_system)
                                             ,
                                             OnSessionKeyStatusesChangedFunc
 #endif  // SB_HAS(DRM_KEY_STATUSES)
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
                                             ,
                                             OnServerCertificateUpdatedFunc
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
                                             ,
                                             OnSessionClosedFunc
@@ -134,7 +134,7 @@ scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession(
                                      ));  // NOLINT(whitespace/parens)
 }
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 bool DrmSystem::IsServerCertificateUpdatable() {
   return SbDrmIsServerCertificateUpdatable(wrapped_drm_system_);
 }
@@ -149,7 +149,7 @@ void DrmSystem::UpdateServerCertificate(
   SbDrmUpdateServerCertificate(wrapped_drm_system_, ticket, certificate,
                                certificate_size);
 }
-#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#else   // SB_API_VERSION >= 10
 bool DrmSystem::IsServerCertificateUpdatable() { return false; }
 
 void DrmSystem::UpdateServerCertificate(
@@ -157,7 +157,7 @@ void DrmSystem::UpdateServerCertificate(
     ServerCertificateUpdatedCallback server_certificate_updated_callback) {
   NOTREACHED();
 }
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 void DrmSystem::GenerateSessionUpdateRequest(
     Session* session, const std::string& type, const uint8_t* init_data,
@@ -319,7 +319,7 @@ void DrmSystem::OnSessionClosed(const std::string& session_id) {
 }
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
                                            const std::string& error_message) {
   auto iter = ticket_to_server_certificate_updated_map_.find(ticket);
@@ -330,16 +330,16 @@ void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
   iter->second.Run(status, error_message);
   ticket_to_server_certificate_updated_map_.erase(iter);
 }
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 // static
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
     SbDrmSystem wrapped_drm_system, void* context, int ticket,
     SbDrmStatus status, SbDrmSessionRequestType type, const char* error_message,
     const void* session_id, int session_id_size, const void* content,
     int content_size, const char* url) {
-#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#else   // SB_API_VERSION >= 10
 void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
     SbDrmSystem wrapped_drm_system, void* context, int ticket,
     const void* session_id, int session_id_size, const void* content,
@@ -348,7 +348,7 @@ void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
       session_id ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError;
   SbDrmSessionRequestType type = kSbDrmSessionRequestTypeLicenseRequest;
   const char* error_message = NULL;
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
   DCHECK(context);
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
@@ -374,14 +374,14 @@ void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
 }
 
 // static
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
                                      void* context, int ticket,
                                      SbDrmStatus status,
                                      const char* error_message,
                                      const void* /*session_id*/,
                                      int /*session_id_size*/) {
-#else   // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#else   // SB_API_VERSION >= 10
 void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
                                      void* context, int ticket,
                                      const void* /*session_id*/,
@@ -389,7 +389,7 @@ void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
   SbDrmStatus status =
       succeeded ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError;
   const char* error_message = NULL;
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
   DCHECK(context);
   DrmSystem* drm_system = static_cast<DrmSystem*>(context);
   DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
@@ -434,7 +434,7 @@ void DrmSystem::OnSessionKeyStatusesChangedFunc(
 }
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
 // static
 void DrmSystem::OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
                                                void* context, int ticket,
@@ -449,7 +449,7 @@ void DrmSystem::OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
                             drm_system->weak_this_, ticket, status,
                             error_message ? std::string(error_message) : ""));
 }
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 #if SB_HAS(DRM_SESSION_CLOSED)
 // static

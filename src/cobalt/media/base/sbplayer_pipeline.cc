@@ -909,14 +909,14 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 #endif  // !SB_HAS(AUDIOLESS_VIDEO)
 
-#if SB_API_VERSION < SB_AUDIO_ONLY_VIDEO_API_VERSION
+#if SB_API_VERSION < 10
   if (video_stream == NULL) {
     LOG(INFO) << "The video has to contain a video track.";
     ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
                          "The video has to contain a video track.");
     return;
   }
-#endif  // SB_API_VERSION < SB_AUDIO_ONLY_VIDEO_API_VERSION
+#endif  // SB_API_VERSION < 10
 
   if (audio_stream == NULL && video_stream == NULL) {
     LOG(INFO) << "The video has to contain an audio track or a video track.";

@@ -48,11 +48,13 @@ VertexBufferObject::VertexBufferObject(
 }
 
 VertexBufferObject::~VertexBufferObject() {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DLOG(INFO) << "Deleted VBO with buffer id " << mesh_vertex_buffer_;
   GL_CALL(glDeleteBuffers(1, &mesh_vertex_buffer_));
 }
 
 void VertexBufferObject::Bind() const {
+  DCHECK(thread_checker_.CalledOnValidThread());
   GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, mesh_vertex_buffer_));
 }
 

@@ -40,11 +40,11 @@ TEST(SbDrmTest, AnySupportedKeySystems) {
   EXPECT_TRUE(any_supported_key_systems) << " no DRM key systems supported";
 }
 
-#if SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#if SB_API_VERSION >= 10
 TEST(SbDrmTest, NullCallbacks) {
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
           key_system, NULL /* context */,
@@ -160,9 +160,9 @@ TEST(SbDrmTest, NullCallbacks) {
 #endif  // SB_HAS(DRM_KEY_STATUSES)
   }
 }
-#endif  // SB_API_VERSION >= SB_NULL_CALLBACKS_INVALID_RETURN_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#if SB_API_VERSION >= 10
 TEST(SbDrmTest, MultiDrm) {
   const int kMaxPlayersPerKeySystem = 16;
   std::vector<SbDrmSystem> created_drm_systems;
@@ -186,7 +186,7 @@ TEST(SbDrmTest, MultiDrm) {
     SbDrmDestroySystem(drm_system);
   }
 }
-#endif  // SB_API_VERSION >= SB_MULTI_PLAYER_API_VERSION
+#endif  // SB_API_VERSION >= 10
 
 }  // namespace
 }  // namespace nplb
