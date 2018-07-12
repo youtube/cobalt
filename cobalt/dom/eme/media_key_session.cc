@@ -90,9 +90,9 @@ MediaKeySession::MediaKeySession(
     const scoped_refptr<media::DrmSystem>& drm_system,
     script::ScriptValueFactory* script_value_factory,
     const ClosedCallback& closed_callback)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
-      // TODO: Remove this workaround.
+    : // TODO: Remove this workaround.
       ALLOW_THIS_IN_INITIALIZER_LIST(invidualization_fetcher_delegate_(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
 #if SB_HAS(DRM_KEY_STATUSES)
