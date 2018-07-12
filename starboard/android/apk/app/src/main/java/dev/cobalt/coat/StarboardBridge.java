@@ -214,10 +214,6 @@ public class StarboardBridge {
 
   private static native boolean nativeIsReleaseBuild();
 
-  protected Context getAppContext() {
-    return appContext;
-  }
-
   protected Holder<Activity> getActivityHolder() {
     return activityHolder;
   }
