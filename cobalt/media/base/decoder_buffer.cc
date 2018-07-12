@@ -4,6 +4,8 @@
 
 #include "cobalt/media/base/decoder_buffer.h"
 
+#include <vector>
+
 #include "cobalt/build/build_config.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
@@ -42,10 +44,23 @@ DecoderBuffer::ScopedAllocatorPtr::ScopedAllocatorPtr(Allocator* allocator,
 #endif  // SB_API_VERSION >= 10
     allocations_ = allocator_->Allocate(size + padding, alignment,
                                         static_cast<intptr_t>(type));
+    static bool logged_warning = false;
     if (padding > 0) {
       if (allocations_.number_of_buffers() > 0) {
-        char zeros[COBALT_MEDIA_BUFFER_PADDING + 1] = {0};
-        allocations_.Write(size, zeros, COBALT_MEDIA_BUFFER_PADDING);
+        const int kMaxPadding = 1024;
+        if (padding > kMaxPadding) {
+          if (!logged_warning) {
+            LOG(WARNING) << "Media buffer padding is larger than "
+                         << kMaxPadding
+                         << ", this will cause extra allocations.";
+            logged_warning = true;
+          }
+          std::vector<char> zeros(padding + 1, 0);
+          allocations_.Write(size, zeros.data(), padding);
+        } else {
+          char zeros[kMaxPadding + 1] = {0};
+          allocations_.Write(size, zeros, padding);
+        }
         allocations_.ShrinkTo(size);
       }
     }
