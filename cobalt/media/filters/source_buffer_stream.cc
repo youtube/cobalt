@@ -1603,10 +1603,19 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
 
   VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
 
+#if SB_API_VERSION >= 10
+  resolution_width_ = config.visible_rect().size().width();
+  resolution_height_ = config.visible_rect().size().height();
+  bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
+  codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
+  memory_limit_ = SbMediaGetVideoBufferBudget(
+      codec_, resolution_height_, resolution_width_, bits_per_pixel_);
+#else   // SB_API_VERSION >= 10
   // TODO: Reduce the memory limit when there is no more 4k samples cached.
   if (resolution > kVideoResolution1080p) {
     memory_limit_ = COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
   }
+#endif  // SB_API_VERSION >= 10
 
   return true;
 }
