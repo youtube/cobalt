@@ -17,14 +17,18 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// This is the legacy default value of the GYP variable.
+#define LEGACY_ALLOCATION_UNIT 1 * 1024 * 1024
+
 int SbMediaGetBufferAllocationUnit() {
-#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)
+#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT) && \
+    COBALT_MEDIA_BUFFER_ALLOCATION_UNIT != LEGACY_ALLOCATION_UNIT
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT will be deprecated "
                       "in a future Starboard version.";
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_ALLOCATION_UNIT;
 #else   // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
-  return 0;
+  return 1 * 1024 * 1024;
 #endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT
 }
 #endif  // SB_API_VERSION >= 10
