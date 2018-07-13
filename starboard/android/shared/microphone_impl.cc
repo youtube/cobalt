@@ -54,6 +54,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   int Read(void* out_audio_data, int audio_data_size) SB_OVERRIDE;
 
   void SetPermission(bool is_granted);
+  static bool RequestMicrophoneConnection();
 
  private:
   enum State { kWaitPermission, kPermissionGranted, kOpened, kClosed };
@@ -68,7 +69,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void ClearBuffer();
 
   bool RequestAudioPermission();
-  bool RequestMicrophoneConnection();
+  bool RequestMicrophoneDisconnection();
   bool StartRecording();
   bool StopRecording();
 
@@ -114,10 +115,18 @@ bool SbMicrophoneImpl::RequestAudioPermission() {
   return j_permission;
 }
 
+// static
 bool SbMicrophoneImpl::RequestMicrophoneConnection() {
   JniEnvExt* env = JniEnvExt::Get();
   jboolean j_microphone =
       env->CallStarboardBooleanMethodOrAbort("isMicrophoneConnected", "()Z");
+  return j_microphone;
+}
+
+bool SbMicrophoneImpl::RequestMicrophoneDisconnection() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean j_microphone =
+      env->CallStarboardBooleanMethodOrAbort("isMicrophoneDisconnected", "()Z");
   return j_microphone;
 }
 
@@ -129,7 +138,7 @@ bool SbMicrophoneImpl::Open() {
     return true;
   }
 
-  if (!RequestMicrophoneConnection()) {
+  if (RequestMicrophoneDisconnection()) {
     SB_DLOG(WARNING) << "No microphone connected.";
     return false;
   } else if (!RequestAudioPermission()) {
@@ -446,7 +455,14 @@ void SbMicrophoneImpl::ClearBuffer() {
 int SbMicrophonePrivate::GetAvailableMicrophones(
     SbMicrophoneInfo* out_info_array,
     int info_array_size) {
-  // TODO: Detect if a microphone is available.
+  // Note that there is no way of checking for a connected microphone/device
+  // before API 23, so GetAvailableMicrophones() will always return 0 on APIs <
+  // 23.
+  if (!starboard::android::shared::SbMicrophoneImpl::
+          RequestMicrophoneConnection()) {
+    SB_DLOG(WARNING) << "No microphone connected.";
+    return 0;
+  }
   if (out_info_array && info_array_size > 0) {
     // Only support one microphone.
     out_info_array[0].id = reinterpret_cast<SbMicrophoneId>(1);
