@@ -22,9 +22,13 @@
 #include "jpeglib.h"
 #include "jmemsys.h"            /* import the system-dependent declarations */
 
+#if defined(NEED_STARBOARD_MEMORY)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #ifndef HAVE_STDLIB_H           /* <stdlib.h> should declare malloc(),free() */
 extern void *malloc(size_t size);
 extern void free(void *ptr);
+#endif
 #endif
 
 
