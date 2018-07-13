@@ -34,10 +34,19 @@ TEST(AbsTest, Negative) {
   EXPECT_EQ(3, abs(-3));
 }
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wliteral-conversion"
+#endif
+
 TEST(AbsTest, FloatPositive) {
   // this converts/truncates argument 3.41223 to 3, and then passes into abs
   EXPECT_EQ(3, abs(3.41223));
 }
+
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 
 }  // namespace
 }  // namespace nplb
