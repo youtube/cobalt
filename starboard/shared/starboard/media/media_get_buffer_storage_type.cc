@@ -17,11 +17,11 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+
 SbMediaBufferStorageType SbMediaGetBufferStorageType() {
 // Use define forwarded from GYP variable.
 #if defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY)
-  SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_STORAGE_TYPE_MEMORY will be "
-                      "deprecated in a future Starboard version.";
+  // This is the legacy default value of the GYP variable, so don't warn.
   return kSbMediaBufferStorageTypeMemory;
 #elif defined(COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE)
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE will be "
