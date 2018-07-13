@@ -82,7 +82,7 @@ specific and limited set of people, and may disappear at any time.
 
 ## Older branching schemes
 
-Older branches have been following differench branch naming schemes, and for
+Older branches have been following different branch naming schemes, and for
 a description of those schemes, the version of this branching.md file within
 those branches should be consulted.
 
