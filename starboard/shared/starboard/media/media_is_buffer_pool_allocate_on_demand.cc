@@ -17,14 +17,22 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// This is the legacy default value of the GYP variable.
+#define LEGACY_ALLOCATE_ON_DEMAND 1
+
 bool SbMediaIsBufferPoolAllocateOnDemand() {
-#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+#if defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND) && \
+    COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND != LEGACY_ALLOCATE_ON_DEMAND
 #pragma message(                                                           \
     "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND will be deprecated in a " \
     "future Starboard version.")
   return static_cast<bool>(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND);
-#else   // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+#else   // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND) &&
+  // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND !=
+  // LEGACY_ALLOCATE_ON_DEMAND
   return true;
-#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND)
+#endif  // defined(COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND) &&
+        // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND !=
+        // LEGACY_ALLOCATE_ON_DEMAND
 }
 #endif  // SB_API_VERSION >= 10
