@@ -1588,9 +1588,11 @@ DLLEXPORT unsigned char *tjAlloc(int bytes);
  * alignment, or NULL if an error occurred (see #tjGetErrorStr2().)  This
  * buffer should be freed using #tjFree().
  */
+#if !defined(STARBOARD)
 DLLEXPORT unsigned char *tjLoadImage(const char *filename, int *width,
                                      int align, int *height, int *pixelFormat,
                                      int flags);
+#endif
 
 
 /**
@@ -1625,9 +1627,11 @@ DLLEXPORT unsigned char *tjLoadImage(const char *filename, int *width,
  *
  * @return 0 if successful, or -1 if an error occurred (see #tjGetErrorStr2().)
  */
+#if !defined(STARBOARD)
 DLLEXPORT int tjSaveImage(const char *filename, unsigned char *buffer,
                           int width, int pitch, int height, int pixelFormat,
                           int flags);
+#endif
 
 
 /**
