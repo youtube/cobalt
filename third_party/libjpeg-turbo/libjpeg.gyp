@@ -40,9 +40,7 @@
         'jdapimin.c',
         'jdapistd.c',
         'jdarith.c',
-        'jdatadst.c',
         'jdatadst-tj.c',
-        'jdatasrc.c',
         'jdatasrc-tj.c',
         'jdcoefct.c',
         'jdcolor.c',
@@ -80,18 +78,22 @@
         'jquant2.c',
         'jutils.c',
         'jversion.h',
-        'rdbmp.c',
-        'rdppm.c',
         'transupp.h',
         'transupp.c',
         'turbojpeg.h',
         'turbojpeg.c',
-        'wrbmp.c',
-        'wrppm.c',
+        # These dependecies are needed for file io
+        # and are not currently used by Cobalt.
+        #'rdbmp.c',
+        #'rdppm.c',
+        #'wrbmp.c',
+        #'wrppm.c',
+        #'jdatasrc.c',
+        #'jdatadst.c',
       ],
       'conditions': [
         #x86_64 specific optimizations
-        ['target_arch == "x64"', {
+        ['<(yasm_exists) == 1 and target_arch == "x64"', {
           'sources': [
             'simd/x86_64/jsimdcpu.asm',
             'simd/x86_64/jfdctflt-sse.asm',
@@ -133,7 +135,7 @@
                     '../../out/<(RULE_INPUT_ROOT).asm.o',
                   ],
                   'action': [
-                    'yasm',
+                    '<(path_to_yasm)',
                     '-DELF',
                     '-D__x86_64__',
                     '-DPIC',

@@ -29,20 +29,30 @@
 /* TurboJPEG/LJT:  this implements the TurboJPEG API using libjpeg or
    libjpeg-turbo */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
 #include <jinclude.h>
+
+#include <setjmp.h>
 #define JPEG_INTERNALS
 #include <jpeglib.h>
 #include <jerror.h>
-#include <setjmp.h>
 #include <errno.h>
 #include "./turbojpeg.h"
 #include "./tjutil.h"
 #include "transupp.h"
 #include "./jpegcomp.h"
 #include "./cdjpeg.h"
+
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/strings_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/configuration.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/character.h"
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#endif
 
 extern void jpeg_mem_dest_tj(j_compress_ptr, unsigned char **, unsigned long *,
                              boolean);
@@ -163,7 +173,9 @@ static int cs2pf[JPEG_NUMCS] = {
   retval = -1;  goto bailout; \
 }
 #define _throwunix(m) { \
-  snprintf(errStr, JMSG_LENGTH_MAX, "%s\n%s", m, strerror(errno)); \
+  char message[512]; \
+  SbSystemGetErrorString(errno, message, SB_ARRAY_SIZE_INT(message)); \
+  snprintf(errStr, JMSG_LENGTH_MAX, "%s\n%s", m, message); \
   retval = -1;  goto bailout; \
 }
 #define _throw(m) { \
@@ -250,7 +262,7 @@ static int setCompDefaults(struct jpeg_compress_struct *cinfo, int pixelFormat,
 
     if (sscanf(env, "%d%c", &temp, &tempc) >= 1 && temp >= 0 &&
         temp <= 65535) {
-      if (toupper(tempc) == 'B') {
+      if (SbCharacterToUpper(tempc) == 'B') {
         cinfo->restart_interval = temp;
         cinfo->restart_in_rows = 0;
       } else
@@ -1006,14 +1018,14 @@ DLLEXPORT int tjCompressFromYUVPlanes(tjhandle handle,
         int j, k;
 
         for (j = 0; j < MIN(th[i], ph[i] - crow[i]); j++) {
-          memcpy(tmpbuf[i][j], inbuf[i][crow[i] + j], pw[i]);
+          MEMCOPY(tmpbuf[i][j], inbuf[i][crow[i] + j], pw[i]);
           /* Duplicate last sample in row to fill out MCU */
           for (k = pw[i]; k < iw[i]; k++)
             tmpbuf[i][j][k] = tmpbuf[i][j][pw[i] - 1];
         }
         /* Duplicate last row to fill out MCU */
         for (j = ph[i] - crow[i]; j < th[i]; j++)
-          memcpy(tmpbuf[i][j], tmpbuf[i][ph[i] - crow[i] - 1], iw[i]);
+          MEMCOPY(tmpbuf[i][j], tmpbuf[i][ph[i] - crow[i] - 1], iw[i]);
         yuvptr[i] = tmpbuf[i];
       } else
         yuvptr[i] = &inbuf[i][crow[i]];
@@ -1680,7 +1692,7 @@ DLLEXPORT int tjDecompressToYUVPlanes(tjhandle handle,
 
       for (i = 0; i < dinfo->num_components; i++) {
         for (j = 0; j < MIN(th[i], ph[i] - crow[i]); j++) {
-          memcpy(outbuf[i][crow[i] + j], tmpbuf[i][j], pw[i]);
+          MEMCOPY(outbuf[i][crow[i] + j], tmpbuf[i][j], pw[i]);
         }
       }
     }
@@ -1943,7 +1955,8 @@ bailout:
   return retval;
 }
 
-
+/* These functions aren't currently needed by Cobalt and require starboardization. */
+#if !defined(STARBOARD)
 DLLEXPORT unsigned char *tjLoadImage(const char *filename, int *width,
                                      int align, int *height, int *pixelFormat,
                                      int flags)
@@ -2032,8 +2045,10 @@ bailout:
   if (retval < 0 && dstBuf) { free(dstBuf);  dstBuf = NULL; }
   return dstBuf;
 }
+#endif
 
 
+#if !defined(STARBOARD)
 DLLEXPORT int tjSaveImage(const char *filename, unsigned char *buffer,
                           int width, int pitch, int height, int pixelFormat,
                           int flags)
@@ -2105,3 +2120,4 @@ bailout:
   if (file) fclose(file);
   return retval;
 }
+#endif

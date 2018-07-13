@@ -30,19 +30,27 @@
  * This program tests the various code paths in the TurboJPEG C Wrapper
  */
 
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 #include <errno.h>
 #include "tjutil.h"
 #include "turbojpeg.h"
 #include "md5/md5.h"
 #include "cmyk.h"
+
 #ifdef _WIN32
+
+#ifdef STARBOARD
+#include <starboard/time.h>
+#else
 #include <time.h>
 #define random()  rand()
-#else
-#include <unistd.h>
+#endif
 #endif
 
 
