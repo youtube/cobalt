@@ -34,6 +34,14 @@ _APK_DIR = os.path.join(os.path.dirname(__file__), os.path.pardir, 'apk')
 _APK_BUILD_ID_FILE = os.path.join(_APK_DIR, 'build.id')
 _COBALT_GRADLE = os.path.join(_APK_DIR, 'cobalt-gradle.sh')
 
+# Maps the Android ABI to the name of the toolchain.
+_ABI_TOOLCHAIN_NAME = {
+    'x86': 'i686-linux-android',
+    'armeabi': 'arm-linux-androideabi',
+    'armeabi-v7a': 'arm-linux-androideabi',
+    'arm64-v8a': 'aarch64-linux-android',
+}
+
 
 class AndroidConfiguration(PlatformConfiguration):
   """Starboard Android platform configuration."""
@@ -42,10 +50,12 @@ class AndroidConfiguration(PlatformConfiguration):
   def __init__(self, platform, android_abi, asan_enabled_by_default=False):
     super(AndroidConfiguration, self).__init__(platform,
                                                asan_enabled_by_default)
+    self._target_toolchain = None
+    self._host_toolchain = None
+
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
     self.android_abi = android_abi
-    self.ndk_tools = sdk_utils.GetToolsPath(android_abi)
 
     self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment()
     self.android_home = sdk_utils.GetSdkPath()
@@ -109,29 +119,122 @@ class AndroidConfiguration(PlatformConfiguration):
     return env_variables
 
   def GetTargetToolchain(self):
-    tools_bin = os.path.join(self.ndk_tools, 'bin')
-    return self._GetToolchain(
-        cc_path=os.path.join(tools_bin, 'clang'),
-        cxx_path=os.path.join(tools_bin, 'clang++'))
+    if not self._target_toolchain:
+      tool_prefix = os.path.join(
+          sdk_utils.GetToolsPath(self.android_abi), 'bin',
+          _ABI_TOOLCHAIN_NAME[self.android_abi] + '-')
+      cc_path = tool_prefix + 'clang'
+      cxx_path = tool_prefix + 'clang++'
+      ar_path = tool_prefix + 'ar'
+      clang_flags = [
+          # We'll pretend not to be Linux, but Starboard instead.
+          '-U__linux__',
+
+          # libwebp uses the cpufeatures library to detect ARM NEON support
+          '-I{}/sources/android/cpufeatures'.format(self.android_ndk_home),
+
+          # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
+          '-ffunction-sections',
+          '-funwind-tables',
+          '-fstack-protector-strong',
+          '-no-canonical-prefixes',
+
+          # Other flags
+          '-fsigned-char',
+          '-fno-limit-debug-info',
+          '-fno-exceptions',
+          '-fcolor-diagnostics',
+          '-fno-strict-aliasing',  # See http://crbug.com/32204
+
+          # Default visibility is hidden to enable dead stripping.
+          '-fvisibility=hidden',
+          # Any warning will stop the build.
+          '-Werror',
+
+          # Don't warn about register variables (in base and net)
+          '-Wno-deprecated-register',
+          # Don't warn about deprecated ICU methods (in googleurl and net)
+          '-Wno-deprecated-declarations',
+          # Don't warn about comparing unsigned value < 0 (in v8 and icu)
+          '-Wno-tautological-compare',
+          # Skia doesn't use overrides.
+          '-Wno-inconsistent-missing-override',
+          # shifting a negative signed value is undefined
+          '-Wno-shift-negative-value',
+          # Don't warn for implicit sign conversions. (in v8 and protobuf)
+          '-Wno-sign-conversion',
+      ]
+      clang_defines = [
+          # Enable compile-time decisions based on the ABI
+          'ANDROID_ABI={}'.format(self.android_abi),
+          # -DANDROID is an argument to some ifdefs in the NDK's eglplatform.h
+          'ANDROID',
+          # Cobalt on Linux flag
+          'COBALT_LINUX',
+          # So that we get the PRI* macros from inttypes.h
+          '__STDC_FORMAT_MACROS',
+          # Enable GNU extensions to get prototypes like ffsl.
+          '_GNU_SOURCE=1',
+          # Undefining __linux__ causes the system headers to make wrong
+          # assumptions about which C-library is used on the platform.
+          '__BIONIC__',
+          # Undefining __linux__ leaves libc++ without a threads implementation.
+          # TODO: See if there's a way to make libcpp threading use Starboard.
+          '_LIBCPP_HAS_THREAD_API_PTHREAD',
+      ]
+      linker_flags = [
+          # Use the static LLVM libc++.
+          '-static-libstdc++',
+
+          # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
+          '-Wl,--build-id',
+          '-Wl,--warn-shared-textrel',
+          '-Wl,--fatal-warnings',
+          '-Wl,--gc-sections',
+          '-Wl,-z,nocopyreloc',
+
+          # Wrapper synchronizes punch-out video bounds with the UI frame.
+          '-Wl,--wrap=eglSwapBuffers',
+      ]
+      self._target_toolchain = [
+          clang.CCompiler(
+              path=cc_path,
+              defines=clang_defines,
+              extra_flags=clang_flags),
+          clang.CxxCompiler(
+              path=cxx_path,
+              defines=clang_defines,
+              extra_flags=clang_flags + [
+                  '-std=c++11',
+              ]),
+          clang.AssemblerWithCPreprocessor(
+              path=cc_path,
+              defines=clang_defines,
+              extra_flags=clang_flags),
+          ar.StaticThinLinker(path=ar_path),
+          ar.StaticLinker(path=ar_path),
+          clangxx.SharedLibraryLinker(path=cxx_path, extra_flags=linker_flags),
+          clangxx.ExecutableLinker(path=cxx_path, extra_flags=linker_flags),
+      ]
+    return self._target_toolchain
 
   def GetHostToolchain(self):
-    return self._GetToolchain(
-        cc_path=self.host_compiler_environment['CC_host'],
-        cxx_path=self.host_compiler_environment['CXX_host'])
-
-  def _GetToolchain(self, cc_path, cxx_path):
-    return [
-        clang.CCompiler(path=cc_path),
-        clang.CxxCompiler(path=cxx_path),
-        clang.AssemblerWithCPreprocessor(path=cc_path),
-        ar.StaticThinLinker(),
-        ar.StaticLinker(),
-        clangxx.ExecutableLinker(path=cxx_path),
-        clangxx.SharedLibraryLinker(path=cxx_path),
-        cp.Copy(),
-        touch.Stamp(),
-        bash.Shell(),
-    ]
+    if not self._host_toolchain:
+      cc_path = self.host_compiler_environment['CC_host'],
+      cxx_path = self.host_compiler_environment['CXX_host']
+      self._host_toolchain = [
+          clang.CCompiler(path=cc_path),
+          clang.CxxCompiler(path=cxx_path),
+          clang.AssemblerWithCPreprocessor(path=cc_path),
+          ar.StaticThinLinker(),
+          ar.StaticLinker(),
+          clangxx.ExecutableLinker(path=cxx_path),
+          clangxx.SharedLibraryLinker(path=cxx_path),
+          cp.Copy(),
+          touch.Stamp(),
+          bash.Shell(),
+      ]
+    return self._host_toolchain
 
   def GetLauncher(self):
     """Gets the module used to launch applications on this platform."""
