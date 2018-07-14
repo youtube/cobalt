@@ -17,6 +17,40 @@
 
 {
   'includes': [
-    '<(DEPTH)/starboard/linux/x64x11/shared/starboard_platform_target.gypi',
+    '../../shared/starboard_platform.gypi'
+  ],
+  'targets': [
+    {
+      'target_name': 'starboard_platform',
+      'type': 'static_library',
+
+      'sources': [
+        '<@(starboard_platform_sources)',
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_only.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.h',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.h',
+      ],
+      'sources!': [
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc',
+      ],
+      'defines': [
+        'SB_PLAYER_ENABLE_VIDEO_DUMPER',
+        # This must be defined when building Starboard, and must not when
+        # building Starboard client code.
+        'STARBOARD_IMPLEMENTATION',
+      ],
+      'dependencies': [
+        '<@(starboard_platform_dependencies)',
+      ],
+      'conditions': [
+        ['has_cdm==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
+          ],
+        }],
+      ],
+    },
   ],
 }
