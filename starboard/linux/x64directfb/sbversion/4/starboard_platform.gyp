@@ -17,8 +17,37 @@
 
 {
   'includes': [
-    # Note that we are 'includes'ing a 'gyp' file, not a 'gypi' file.  The idea
-    # is that we just want this file to *be* the parent gyp file.
-    '<(DEPTH)/starboard/linux/x64directfb/starboard_platform.gyp',
+    '../../starboard_platform.gypi'
+  ],
+  'targets': [
+    {
+      'target_name': 'starboard_platform',
+      'type': 'static_library',
+      'sources': [
+        '<@(starboard_platform_sources)',
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_only.cc',
+      ],
+      'sources!': [
+        '<(DEPTH)/starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc',
+      ],
+      'include_dirs': [
+        '/usr/include/directfb',
+      ],
+      'defines': [
+        # This must be defined when building Starboard, and must not when
+        # building Starboard client code.
+        'STARBOARD_IMPLEMENTATION',
+      ],
+      'dependencies': [
+        '<@(starboard_platform_dependencies)',
+      ],
+      'conditions': [
+        ['has_cdm==1', {
+          'dependencies': [
+            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
+          ],
+        }],
+      ],
+    },
   ],
 }
