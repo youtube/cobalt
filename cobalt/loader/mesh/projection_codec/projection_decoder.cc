@@ -459,12 +459,19 @@ void ProjectionDecoder::DeflateDecompress() {
     return;
   }
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
   size_t size = static_cast<size_t>(reader_.bits_remaining() / 8);
   if (size > std::numeric_limits<uInt>::max()) {
     LOG(ERROR) << "Data is bigger than zlib's uInt max";
     error_ = true;
     return;
   }
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 
   z_stream stream = {0};
   int status = inflateInit2(&stream, -MAX_WBITS);
