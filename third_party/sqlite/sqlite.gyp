@@ -184,7 +184,7 @@
                 '-Wno-tautological-compare',
               ],
             }],
-            ['clang==1 and (OS=="lb_shell" or OS=="starboard") and target_os=="linux"', {
+            ['clang==1 and (OS=="lb_shell" or OS=="starboard") and (target_os=="android" or target_os=="linux")', {
               'cflags': [
                 # Only recent versions of clang have this warning.
                 '-Wno-pointer-bool-conversion',
