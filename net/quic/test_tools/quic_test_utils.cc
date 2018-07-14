@@ -133,8 +133,15 @@ string HexDumpWithMarks(const char* data, int length,
     }
     hex = hex + "  ";
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-constant-compare"
+#endif
     for (const char *p = row; p < row + 4 && p < row + length; ++p)
       hex += (*p >= 0x20 && *p <= 0x7f) ? (*p) : '.';
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 
     hex = hex + '\n';
   }
