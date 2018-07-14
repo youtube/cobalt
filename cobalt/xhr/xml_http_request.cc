@@ -89,6 +89,10 @@ const char* kStateNames[] = {"Unsent", "Opened", "HeadersReceived", "Loading",
                              "Done"};
 const char* kMethodNames[] = {"GET", "POST", "HEAD", "DELETE", "PUT"};
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
 const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
   if (request_type >= 0 && request_type < arraysize(kMethodNames)) {
     return kMethodNames[request_type];
@@ -106,6 +110,9 @@ const char* StateName(XMLHttpRequest::State state) {
     return "";
   }
 }
+#if __clang__
+#pragma clang diagnostic push
+#endif
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 bool IsForbiddenMethod(const std::string& method) {
