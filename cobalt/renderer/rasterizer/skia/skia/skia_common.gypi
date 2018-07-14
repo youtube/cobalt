@@ -79,6 +79,11 @@
         ],
       },
     }],
+    ['clang == 1', {
+      'cflags': [
+        '-Wno-tautological-compare',
+      ],
+    }],
   ],
 
   'defines': [
