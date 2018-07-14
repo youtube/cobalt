@@ -89,6 +89,10 @@ bool IsCORSSafelistedMethod(net::URLFetcher::RequestType input_type) {
   return false;
 }
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
 const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
   if (request_type >= 0 && request_type < arraysize(kMethodNames)) {
     return kMethodNames[request_type];
@@ -97,6 +101,10 @@ const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
     return "";
   }
 }
+#if __clang__
+#pragma clang diagnostic push
+#endif
+
 // This constant is an imposed limit on the time an entry can be alive in
 // the preflight cache if the provided max-age value is even greater.
 // The number is the same as the limit in WebKit.
