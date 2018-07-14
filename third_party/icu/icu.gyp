@@ -43,6 +43,12 @@
       'U_CHARSET_IS_UTF8=1',
     ],
     'conditions': [
+      ['clang == 1', {
+        'cflags': [
+          # ICU has some `unsigned < 0` checks.
+          '-Wno-tautological-compare',
+        ],
+      }],
       ['component=="static_library"', {
         'defines': [
           'U_STATIC_IMPLEMENTATION',
