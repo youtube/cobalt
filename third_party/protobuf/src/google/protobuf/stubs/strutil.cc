@@ -669,6 +669,10 @@ string CHexEscape(const string& src) {
 //    platforms, including errno preservation in error-free calls.
 // ----------------------------------------------------------------------
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
 int32 strto32_adaptor(const char *nptr, char **endptr, int base) {
   const int saved_errno = errno;
   errno = 0;
@@ -703,6 +707,9 @@ uint32 strtou32_adaptor(const char *nptr, char **endptr, int base) {
     errno = saved_errno;
   return static_cast<uint32>(result);
 }
+#if __clang__
+#pragma clang diagnostic pop
+#endif
 
 inline bool safe_parse_sign(string* text  /*inout*/,
                             bool* negative_ptr  /*output*/) {
