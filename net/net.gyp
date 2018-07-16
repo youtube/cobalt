@@ -701,11 +701,6 @@
         'websockets/websocket_throttle.h',
       ],
       'conditions': [
-        ['clang == 1', {
-          'cflags': [
-            '-Wno-tautological-compare',
-          ],
-        }],
         ['enable_spdy == 0', {
           'sources/': [
             ['exclude', 'spdy/'],
