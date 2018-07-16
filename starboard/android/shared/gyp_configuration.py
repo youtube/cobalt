@@ -155,6 +155,8 @@ class AndroidConfiguration(PlatformConfiguration):
           '-Wno-deprecated-register',
           # Don't warn about deprecated ICU methods (in googleurl and net)
           '-Wno-deprecated-declarations',
+          # Don't warn about comparing unsigned value < 0 (in v8 and icu)
+          '-Wno-tautological-compare',
           # Skia doesn't use overrides.
           '-Wno-inconsistent-missing-override',
           # shifting a negative signed value is undefined
