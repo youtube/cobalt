@@ -180,21 +180,17 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       max_interbuffer_distance_(kNoTimestamp) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
+#if SB_API_VERSION >= 10
+  // This gets updated via taking a max in UpdateMediaBufferMembers.
+  memory_limit_ = 0;
+#else   // SB_API_VERSION >= 10
   VideoResolution resolution =
       GetVideoResolution(video_config.visible_rect().size());
-#if SB_API_VERSION >= 10
-  resolution_width_ = video_config.visible_rect().size().width();
-  resolution_height_ = video_config.visible_rect().size().height();
-  bits_per_pixel_ = video_config.webm_color_metadata().BitsPerChannel;
-  codec_ = MediaVideoCodecToSbMediaVideoCodec(video_config.codec());
-
-  memory_limit_ = SbMediaGetVideoBufferBudget(
-      codec_, resolution_width_, resolution_height_, bits_per_pixel_);
-#else   // SB_API_VERSION >= 10
   memory_limit_ = resolution <= kVideoResolution1080p
                       ? COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
                       : COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
 #endif  // SB_API_VERSION >= 10
+  UpdateMediaBufferMembers(video_config);
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
@@ -1571,6 +1567,28 @@ bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config) {
   return true;
 }
 
+void SourceBufferStream::UpdateMediaBufferMembers(
+    const VideoDecoderConfig& config) {
+  DVLOG(3) << "UpdateMediaBufferMembers.";
+#if SB_API_VERSION >= 10
+  resolution_width_ = config.visible_rect().size().width();
+  resolution_height_ = config.visible_rect().size().height();
+  bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
+  codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
+  // TODO: Reduce the memory limit when there is no more 4k samples cached.
+  memory_limit_ = std::max(
+      memory_limit_,
+      static_cast<size_t>(SbMediaGetVideoBufferBudget(
+          codec_, resolution_height_, resolution_width_, bits_per_pixel_)));
+#else   // SB_API_VERSION >= 10
+  VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
+  // TODO: Reduce the memory limit when there is no more 4k samples cached.
+  if (resolution > kVideoResolution1080p) {
+    memory_limit_ = COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
+  }
+#endif  // SB_API_VERSION >= 10
+}
+
 bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   DCHECK(!video_configs_.empty());
   DCHECK(audio_configs_.empty());
@@ -1601,21 +1619,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config) {
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
 
-  VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
-
-#if SB_API_VERSION >= 10
-  resolution_width_ = config.visible_rect().size().width();
-  resolution_height_ = config.visible_rect().size().height();
-  bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
-  codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
-  memory_limit_ = SbMediaGetVideoBufferBudget(
-      codec_, resolution_height_, resolution_width_, bits_per_pixel_);
-#else   // SB_API_VERSION >= 10
-  // TODO: Reduce the memory limit when there is no more 4k samples cached.
-  if (resolution > kVideoResolution1080p) {
-    memory_limit_ = COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K;
-  }
-#endif  // SB_API_VERSION >= 10
+  UpdateMediaBufferMembers(config);
 
   return true;
 }
