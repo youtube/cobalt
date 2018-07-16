@@ -44,6 +44,13 @@ def main():
       default=False,
       help='Delete build.id file.')
 
+  parser.add_argument(
+      '--build-id',
+      '-b',
+      type=int,
+      default=0,
+      help='Build id to save. If not passed, value will be loaded remotely.')
+
   options = parser.parse_args()
 
   # Update the build id to the latest, even if one is already set.
@@ -55,14 +62,16 @@ def main():
   if options.delete:
     return 0
 
-  build_id = gyp_utils.GetBuildNumber()
-  if not build_id:
+  if not options.build_id:
+    options.build_id = gyp_utils.GetBuildNumber()
+
+  if not options.build_id:
     logging.error('Unable to retrieve build id.')
     return RETVAL_ERROR
 
   try:
     with open(_BUILD_ID_PATH, 'w') as build_id_file:
-      build_id_file.write('{0}'.format(build_id))
+      build_id_file.write('{0}'.format(options.build_id))
   except RuntimeError as e:
     logging.error(e)
     return RETVAL_ERROR
