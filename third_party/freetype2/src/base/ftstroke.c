@@ -1989,18 +1989,11 @@
     FT_Error  error;
 
 
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wtautological-constant-compare"
-#endif
     if ( !stroker || border > 1 )
     {
       error = FT_THROW( Invalid_Argument );
       goto Exit;
     }
-#if __clang__
-#pragma clang diagnostic pop
-#endif
 
     error = ft_stroke_border_get_counts( stroker->borders + border,
                                          &num_points, &num_contours );
