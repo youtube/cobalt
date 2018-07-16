@@ -456,6 +456,13 @@ class Document : public Node,
 
   // Reference to HTML element context.
   HTMLElementContext* const html_element_context_;
+
+  // Explicitly store a weak pointer to the page visibility state object.
+  // It is possible that we destroy the page visibility state object before
+  // Document, during shutdown, so this allows us to handle that situation
+  // more gracefully than crashing.
+  base::WeakPtr<page_visibility::PageVisibilityState> page_visibility_state_;
+
   // Reference to the associated window object.
   Window* window_;
   // Associated DOM implementation object.
