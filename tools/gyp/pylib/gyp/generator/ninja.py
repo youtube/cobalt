@@ -130,6 +130,16 @@ def StripPrefix(arg, prefix):
   return arg
 
 
+def GetGeneratorVariables(flavor):
+  generator_variables = copy.copy(generator_default_variables)
+  if GetToolchainOrNone(flavor):
+    GetToolchainOrNone(
+        flavor).SetAdditionalGypVariables(generator_variables)
+  else:
+    CalculateVariables(generator_variables, {'flavor': flavor})
+  return generator_variables
+
+
 def QuoteShellArgument(arg, flavor):
   """Quote a string such that it will be interpreted as a single argument
   by the shell."""
@@ -1641,12 +1651,7 @@ class NinjaWriter:
     if not type:
       type = spec['type']
 
-    default_variables = copy.copy(generator_default_variables)
-    if GetToolchainOrNone(self.flavor):
-      GetToolchainOrNone(
-          self.flavor).SetAdditionalGypVariables(default_variables)
-    else:
-      CalculateVariables(default_variables, {'flavor': self.flavor})
+    default_variables = GetGeneratorVariables(self.flavor)
 
     # Compute filename prefix: the product prefix, or a default for
     # the product type.
