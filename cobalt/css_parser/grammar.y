@@ -38,7 +38,7 @@
 %}
 
 // Token values returned by a scanner.
-%union TokenValue {
+%union {
   float real;
   int integer;
   TrivialIntPair integer_pair;
