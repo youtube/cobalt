@@ -21,6 +21,7 @@ using namespace mozilla::Compression;
 // later within the anonymous namespace.
 #ifdef _MSC_VER
 #include <intrin.h>
+#include <vector>
 #endif
 
 namespace {
