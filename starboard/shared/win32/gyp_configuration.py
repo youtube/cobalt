@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 import config.base
-import starboard.shared.win32.sdk_configuration as sdk_configuration
+import starboard.shared.win32.sdk_configuration as win_sdk_configuration
 from starboard.tools.paths import STARBOARD_ROOT
 from starboard.tools.testing import test_filter
 
@@ -45,7 +45,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def __init__(self, platform):
     super(Win32SharedConfiguration, self).__init__(platform)
-    self.sdk = sdk_configuration.SdkConfiguration()
+    self.sdk = win_sdk_configuration.SdkConfiguration()
 
   def GetVariables(self, configuration):
     sdk = self.sdk
