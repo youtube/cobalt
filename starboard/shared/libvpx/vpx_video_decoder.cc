@@ -15,6 +15,7 @@
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 
 #include "starboard/linux/shared/decode_target_internal.h"
+#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -150,9 +151,13 @@ bool VideoDecoder::UpdateDecodeTarget(
   return true;
 }
 
-void VideoDecoder::ReportError() {
+void VideoDecoder::ReportError(const std::string& error_message) {
   error_occured_ = true;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+  error_cb_(kSbPlayerErrorDecode, error_message);
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
   error_cb_();
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
 
 void VideoDecoder::InitializeCodec() {
@@ -165,7 +170,9 @@ void VideoDecoder::InitializeCodec() {
   vpx_codec_err_t status =
       vpx_codec_dec_init(context_.get(), vpx_codec_vp9_dx(), &vpx_config, 0);
   if (status != VPX_CODEC_OK) {
-    ReportError();
+    SB_LOG(ERROR) << "vpx_codec_dec_init() failed with " << status;
+    ReportError(
+        FormatString("vpx_codec_dec_init() failed with status %d.", status));
     context_.reset();
   }
 }
@@ -212,7 +219,8 @@ void VideoDecoder::DecodeOneBuffer(
                        input_buffer->size(), &timestamp, 0);
   if (status != VPX_CODEC_OK) {
     SB_DLOG(ERROR) << "vpx_codec_decode() failed, status=" << status;
-    ReportError();
+    ReportError(
+        FormatString("vpx_codec_decode() failed with status %d.", status));
     return;
   }
 
@@ -225,7 +233,7 @@ void VideoDecoder::DecodeOneBuffer(
 
   if (vpx_image->user_priv != &timestamp) {
     SB_DLOG(ERROR) << "Invalid output timestamp.";
-    ReportError();
+    ReportError("Invalid output timestamp.");
     return;
   }
 
@@ -233,7 +241,7 @@ void VideoDecoder::DecodeOneBuffer(
     SB_DCHECK(vpx_image->fmt == VPX_IMG_FMT_I420)
         << "Invalid vpx_image->fmt: " << vpx_image->fmt;
     if (vpx_image->fmt != VPX_IMG_FMT_I420) {
-      ReportError();
+      ReportError(FormatString("Invalid vpx_image->fmt: %d.", vpx_image->fmt));
       return;
     }
   }
@@ -248,7 +256,7 @@ void VideoDecoder::DecodeOneBuffer(
       vpx_image->stride[VPX_PLANE_U] != vpx_image->stride[VPX_PLANE_V] ||
       vpx_image->planes[VPX_PLANE_Y] >= vpx_image->planes[VPX_PLANE_U] ||
       vpx_image->planes[VPX_PLANE_U] >= vpx_image->planes[VPX_PLANE_V]) {
-    ReportError();
+    ReportError("Invalid yuv plane format.");
     return;
   }
 

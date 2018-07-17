@@ -19,6 +19,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/log.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace android {
@@ -373,7 +374,8 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   } else if (status == MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
     drm_system_->OnInsufficientOutputProtection();
   } else {
-    error_cb_();
+    error_cb_(kSbPlayerErrorDecode,
+              FormatString("%s failed with status %d.", action_name, status));
   }
 
   if (retry) {

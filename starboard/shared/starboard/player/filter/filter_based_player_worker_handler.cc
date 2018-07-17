@@ -35,6 +35,9 @@ namespace {
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
+using std::placeholders::_1;
+using std::placeholders::_2;
+
 // TODO: Make this configurable inside SbPlayerCreate().
 const SbTimeMonotonic kUpdateInterval = 200 * kSbTimeMillisecond;
 
@@ -130,7 +133,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
       return false;
     }
     audio_renderer_->Initialize(
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeAudio),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -142,7 +149,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
         new MediaTimeProviderImpl(scoped_ptr<MonotonicSystemTimeProvider>(
             new MonotonicSystemTimeProviderImpl)));
     media_time_provider_impl_->Initialize(
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeAudio),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -167,7 +178,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
       return false;
     }
     video_renderer_->Initialize(
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, _1, _2),
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnError, this),
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeVideo),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
@@ -372,20 +387,31 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
   return true;
 }
 
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+void FilterBasedPlayerWorkerHandler::OnError(SbPlayerError error,
+                                             const std::string& error_message) {
+  if (!BelongsToCurrentThread()) {
+    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnError, this, error,
+                       error_message));
+    return;
+  }
+
+  if (update_player_error_cb_) {
+    update_player_error_cb_(error, error_message.empty()
+                                       ? "FilterBasedPlayerWorkerHandler error."
+                                       : error_message);
+  }
+}
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
 void FilterBasedPlayerWorkerHandler::OnError() {
   if (!BelongsToCurrentThread()) {
     Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
     return;
   }
 
-#if SB_HAS(PLAYER_ERROR_MESSAGE)
-  if (update_player_error_cb_) {
-    update_player_error_cb_("FilterBasedPlayerWorkerHandler error.");
-  }
-#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
   update_player_state_cb_(kSbPlayerStateError);
-#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 }
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   if (!BelongsToCurrentThread()) {
