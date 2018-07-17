@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_
 
+#include <string>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -78,7 +80,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
-  void ReportError();
+  void ReportError(const std::string& error_message);
 
   // The following three functions are only called on the decoder thread except
   // that TeardownCodec() can also be called on other threads when the decoder
