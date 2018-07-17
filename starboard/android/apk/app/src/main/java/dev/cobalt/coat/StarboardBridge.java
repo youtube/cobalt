@@ -376,6 +376,18 @@ public class StarboardBridge {
     return devices.length > 0;
   }
 
+  /**
+   * Checks if the microphone is muted.
+   *
+   * @return true if the microphone mute is on.
+   */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public boolean isMicrophoneMute() {
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
+    return audioManager.isMicrophoneMute();
+  }
+
   /** @return true if we have an active network connection and it's on a wireless network. */
   @SuppressWarnings("unused")
   @UsedByNative

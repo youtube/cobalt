@@ -55,6 +55,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
 
   void SetPermission(bool is_granted);
   static bool RequestMicrophoneConnection();
+  static bool IsMicrophoneMute();
 
  private:
   enum State { kWaitPermission, kPermissionGranted, kOpened, kClosed };
@@ -127,6 +128,14 @@ bool SbMicrophoneImpl::RequestMicrophoneDisconnection() {
   JniEnvExt* env = JniEnvExt::Get();
   jboolean j_microphone =
       env->CallStarboardBooleanMethodOrAbort("isMicrophoneDisconnected", "()Z");
+  return j_microphone;
+}
+
+// static
+bool SbMicrophoneImpl::IsMicrophoneMute() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean j_microphone =
+      env->CallStarboardBooleanMethodOrAbort("isMicrophoneMute", "()Z");
   return j_microphone;
 }
 
@@ -223,8 +232,9 @@ bool SbMicrophoneImpl::StopRecording() {
 }
 
 int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
-  if (state_ == kClosed) {
-    // No audio data is read from a stopped microphone; return an error.
+  if (state_ == kClosed || IsMicrophoneMute()) {
+    // No audio data is read from a stopped or muted microphone; return an
+    // error.
     return -1;
   }
 
@@ -463,6 +473,11 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     SB_DLOG(WARNING) << "No microphone connected.";
     return 0;
   }
+  if (starboard::android::shared::SbMicrophoneImpl::IsMicrophoneMute()) {
+    SB_DLOG(WARNING) << "Microphone is muted.";
+    return 0;
+  }
+
   if (out_info_array && info_array_size > 0) {
     // Only support one microphone.
     out_info_array[0].id = reinterpret_cast<SbMicrophoneId>(1);
