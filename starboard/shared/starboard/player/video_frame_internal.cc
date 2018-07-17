@@ -22,6 +22,8 @@ namespace shared {
 namespace starboard {
 namespace player {
 
+#if !defined(SB_USE_STUB_PLAYER)
+
 namespace {
 
 bool s_yuv_to_rgb_lookup_table_initialized = false;
@@ -246,6 +248,8 @@ void VideoFrame::InitializeToInvalidFrame() {
   native_texture_context_ = NULL;
   free_native_texture_func_ = NULL;
 }
+
+#endif  // #if !defined(SB_USE_STUB_PLAYER)
 
 }  // namespace player
 }  // namespace starboard

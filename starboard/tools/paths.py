@@ -17,6 +17,11 @@
 
 import os
 
-import starboard
+STARBOARD_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.path.pardir))
 
-STARBOARD_ROOT = os.path.abspath(os.path.dirname(starboard.__file__))
+# The absolute path to the root of the project.
+REPOSITORY_ROOT = os.path.abspath(os.path.join(STARBOARD_ROOT, os.path.pardir))
+
+# The absolute path to the build output directory.
+BUILD_OUTPUT_ROOT = os.path.join(REPOSITORY_ROOT, 'out')
