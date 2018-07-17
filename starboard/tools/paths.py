@@ -22,6 +22,12 @@ import os
 STARBOARD_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.path.pardir))
 
+# The absolute path to the root of the project.
+REPOSITORY_ROOT = os.path.abspath(os.path.join(STARBOARD_ROOT, os.path.pardir))
+
+# The absolute path to the build output directory.
+BUILD_OUTPUT_ROOT = os.path.join(REPOSITORY_ROOT, 'out')
+
 if __name__ == '__main__':
   # All functionality stored in TestRunPaths() to avoid py-lint from warning'
   # about shadowing global variables in local functions.

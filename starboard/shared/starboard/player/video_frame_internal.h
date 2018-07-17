@@ -28,6 +28,14 @@ namespace shared {
 namespace starboard {
 namespace player {
 
+#if defined(SB_USE_STUB_PLAYER)
+
+class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
+ private:
+  SB_DISALLOW_COPY_AND_ASSIGN(VideoFrame);
+};
+
+#else
 // A video frame produced by a video decoder.
 class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
  public:
@@ -106,6 +114,8 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
 
   SB_DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };
+
+#endif  // #if !defined(SB_USE_STUB_PLAYER)
 
 }  // namespace player
 }  // namespace starboard
