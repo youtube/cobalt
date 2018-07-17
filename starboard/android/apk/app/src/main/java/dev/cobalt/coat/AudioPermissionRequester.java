@@ -28,6 +28,8 @@ public class AudioPermissionRequester {
   private final Context context;
   private final Holder<Activity> activityHolder;
   private long nativePermissionRequestor;
+  // Only use in synchronized methods.
+  private boolean requestAudioPermissionStarted;
 
   public AudioPermissionRequester(Context context, Holder<Activity> activityHolder) {
     this.context = context;
@@ -40,7 +42,8 @@ public class AudioPermissionRequester {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  public boolean requestRecordAudioPermission(long nativePermissionRequestor) {
+  public synchronized boolean requestRecordAudioPermission(long nativePermissionRequestor) {
+    this.nativePermissionRequestor = nativePermissionRequestor;
     Activity activity = activityHolder.get();
     if (activity == null) {
       return false;
@@ -50,17 +53,19 @@ public class AudioPermissionRequester {
         == PackageManager.PERMISSION_GRANTED) {
       return true;
     }
+    if (!requestAudioPermissionStarted) {
+      ActivityCompat.requestPermissions(
+          activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
+      requestAudioPermissionStarted = true;
+    }
 
-    this.nativePermissionRequestor = nativePermissionRequestor;
-    ActivityCompat.requestPermissions(
-        activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio_apr);
     return false;
   }
 
   /** Handles the RECORD_AUDIO request result. */
-  public void onRequestPermissionsResult(
+  public synchronized void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
-    if (requestCode == R.id.rc_record_audio_apr) {
+    if (requestCode == R.id.rc_record_audio) {
       // If the request is cancelled, the result arrays are empty.
       if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
         // Permission granted.
@@ -69,6 +74,7 @@ public class AudioPermissionRequester {
         // Permission denied.
         nativeSetPermission(nativePermissionRequestor, false);
       }
+      requestAudioPermissionStarted = false;
     }
   }
 

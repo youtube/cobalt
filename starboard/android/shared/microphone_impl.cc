@@ -535,7 +535,7 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_AudioPermissionRequester_nativeSetPermission(
+Java_dev_cobalt_coat_AudioPermissionRequester_nativeHandlePermission(
     JNIEnv* env,
     jobject unused_this,
     jlong nativeSbMicrophoneImpl,
