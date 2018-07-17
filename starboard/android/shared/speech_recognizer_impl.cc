@@ -270,6 +270,28 @@ Java_dev_cobalt_coat_VoiceRecognizer_nativeOnError(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_VoiceRecognizer_nativeHandlePermission(
+    JNIEnv* env,
+    jobject jcaller,
+    jlong nativeSpeechRecognizerImpl,
+    jboolean is_granted) {
+  starboard::ScopedLock lock(s_speech_recognizer_mutex_);
+
+  starboard::android::shared::SbSpeechRecognizerImpl* native =
+      reinterpret_cast<starboard::android::shared::SbSpeechRecognizerImpl*>(
+          nativeSpeechRecognizerImpl);
+  // This is called by the Android UI thread and it is possible that the
+  // SbSpeechRecognizer is destroyed before this is called.
+  if (native != s_speech_recognizer) {
+    SB_DLOG(WARNING) << "The speech recognizer is destroyed.";
+    return;
+  }
+  if (!is_granted) {
+    native->OnError(starboard::android::shared::kErrorInsufficientPermissions);
+  }
+}
+
+extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VoiceRecognizer_nativeOnResults(
     JniEnvExt* env,
     jobject unused_this,
