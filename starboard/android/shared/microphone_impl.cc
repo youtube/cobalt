@@ -54,7 +54,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   int Read(void* out_audio_data, int audio_data_size) SB_OVERRIDE;
 
   void SetPermission(bool is_granted);
-  static bool RequestMicrophoneConnection();
+  static bool IsMicrophoneConnected();
   static bool IsMicrophoneMute();
 
  private:
@@ -70,7 +70,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void ClearBuffer();
 
   bool RequestAudioPermission();
-  bool RequestMicrophoneDisconnection();
+  bool IsMicrophoneDisconnected();
   bool StartRecording();
   bool StopRecording();
 
@@ -81,8 +81,6 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   SLAndroidSimpleBufferQueueItf buffer_object_;
   SLAndroidConfigurationItf config_object_;
 
-  // Microphone info.
-  SbMicrophoneInfo info_;
   // Keeps track of the microphone's current state.
   State state_;
   // Audio data that has been delivered to the buffer queue.
@@ -117,14 +115,14 @@ bool SbMicrophoneImpl::RequestAudioPermission() {
 }
 
 // static
-bool SbMicrophoneImpl::RequestMicrophoneConnection() {
+bool SbMicrophoneImpl::IsMicrophoneConnected() {
   JniEnvExt* env = JniEnvExt::Get();
   jboolean j_microphone =
       env->CallStarboardBooleanMethodOrAbort("isMicrophoneConnected", "()Z");
   return j_microphone;
 }
 
-bool SbMicrophoneImpl::RequestMicrophoneDisconnection() {
+bool SbMicrophoneImpl::IsMicrophoneDisconnected() {
   JniEnvExt* env = JniEnvExt::Get();
   jboolean j_microphone =
       env->CallStarboardBooleanMethodOrAbort("isMicrophoneDisconnected", "()Z");
@@ -147,7 +145,7 @@ bool SbMicrophoneImpl::Open() {
     return true;
   }
 
-  if (RequestMicrophoneDisconnection()) {
+  if (IsMicrophoneDisconnected()) {
     SB_DLOG(WARNING) << "No microphone connected.";
     return false;
   } else if (!RequestAudioPermission()) {
@@ -468,8 +466,7 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
   // Note that there is no way of checking for a connected microphone/device
   // before API 23, so GetAvailableMicrophones() will always return 0 on APIs <
   // 23.
-  if (!starboard::android::shared::SbMicrophoneImpl::
-          RequestMicrophoneConnection()) {
+  if (!starboard::android::shared::SbMicrophoneImpl::IsMicrophoneConnected()) {
     SB_DLOG(WARNING) << "No microphone connected.";
     return 0;
   }
