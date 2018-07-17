@@ -14,32 +14,29 @@
 
 package dev.cobalt.coat;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 
 /**
  * This class uses Android's SpeechRecognizer to perform speech recognition. Using Android's
- * platform recognizer offers several benefits, like good good quality and good local fallback when
- * no data connection is available.
+ * platform recognizer offers several benefits such as good quality and good local fallback when no
+ * data connection is available.
  */
 public class VoiceRecognizer {
   private final Context context;
   private final Holder<Activity> activityHolder;
   private final Handler mainHandler = new Handler(Looper.getMainLooper());
+  private final AudioPermissionRequester audioPermissionRequester;
   private SpeechRecognizer speechRecognizer;
 
   // Native pointer to C++ SbSpeechRecognizerImpl.
@@ -49,8 +46,6 @@ public class VoiceRecognizer {
   private boolean continuous;
   private boolean interimResults;
   private int maxAlternatives;
-
-  private volatile boolean requestAudioPermissionStarted;
 
   // Internal class to handle events from Android's SpeechRecognizer and route
   // them to native.
@@ -102,9 +97,13 @@ public class VoiceRecognizer {
     }
   };
 
-  public VoiceRecognizer(Context context, Holder<Activity> activityHolder) {
+  public VoiceRecognizer(
+      Context context,
+      Holder<Activity> activityHolder,
+      AudioPermissionRequester audioPermissionRequester) {
     this.context = context;
     this.activityHolder = activityHolder;
+    this.audioPermissionRequester = audioPermissionRequester;
   }
 
   @SuppressWarnings("unused")
@@ -113,14 +112,24 @@ public class VoiceRecognizer {
       boolean continuous,
       boolean interimResults,
       int maxAlternatives,
-      long nativeSpeechRecognizerImpl) {
+      long nativeSpeechRecognizer) {
     this.continuous = continuous;
     this.interimResults = interimResults;
     this.maxAlternatives = maxAlternatives;
-    this.nativeSpeechRecognizerImpl = nativeSpeechRecognizerImpl;
+    this.nativeSpeechRecognizerImpl = nativeSpeechRecognizer;
 
-    if (requestRecordAudioPermission()) {
+    if (this.audioPermissionRequester.requestRecordAudioPermission(
+        this.nativeSpeechRecognizerImpl)) {
       startRecognitionInternal();
+    } else {
+      mainHandler.post(
+          new Runnable() {
+            @Override
+            public void run() {
+              nativeOnError(
+                  nativeSpeechRecognizerImpl, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
+            }
+          });
     }
   }
 
@@ -141,55 +150,6 @@ public class VoiceRecognizer {
           }
         };
     mainHandler.post(runnable);
-  }
-
-  /**
-   * Request for the RECORD_AUDIO permission. Returns true if the permission is granted and returns
-   * false if the permission is not granted at this moment and starting to request RECORD_AUDIO
-   * permission.
-   */
-  // TODO: Refactor this to use the same functionality in AudioPermissionRequester.
-  public synchronized boolean requestRecordAudioPermission() {
-    Activity activity = activityHolder.get();
-    if (activity == null) {
-      mainHandler.post(
-          new Runnable() {
-            @Override
-            public void run() {
-              nativeOnError(
-                  nativeSpeechRecognizerImpl, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
-            }
-          });
-      return false;
-    }
-
-    if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO)
-        != PackageManager.PERMISSION_GRANTED) {
-      if (!requestAudioPermissionStarted) {
-        ActivityCompat.requestPermissions(
-            activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio_vr);
-        requestAudioPermissionStarted = true;
-      }
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  /** Handles the RECORD_AUDIO request result. */
-  public synchronized void onRequestPermissionsResult(
-      int requestCode, String[] permissions, int[] grantResults) {
-    if (requestCode == R.id.rc_record_audio_vr) {
-      // If request is cancelled, the result arrays are empty.
-      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-        // Permission was granted.
-        startRecognitionInternal();
-      } else {
-        // Permission denied.
-        nativeOnError(nativeSpeechRecognizerImpl, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
-      }
-      requestAudioPermissionStarted = false;
-    }
   }
 
   private void startRecognitionInternal() {

@@ -107,8 +107,9 @@ public class StarboardBridge {
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager);
-    this.voiceRecognizer = new VoiceRecognizer(appContext, activityHolder);
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
+    this.voiceRecognizer =
+        new VoiceRecognizer(appContext, activityHolder, audioPermissionRequester);
     nativeInitialize();
   }
 
@@ -514,7 +515,6 @@ public class StarboardBridge {
 
   void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
     userAuthorizer.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    voiceRecognizer.onRequestPermissionsResult(requestCode, permissions, grantResults);
     audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
