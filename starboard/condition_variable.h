@@ -20,7 +20,9 @@
 #define STARBOARD_CONDITION_VARIABLE_H_
 
 #ifdef __cplusplus
+extern "C++" {
 #include <deque>
+}  // extern "C++"
 #endif
 
 #include "starboard/export.h"

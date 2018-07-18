@@ -258,6 +258,7 @@ SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
 // based on type for C++ callers.
 
 #ifdef __cplusplus
+extern "C++" {
 namespace starboard {
 namespace atomic {
 
@@ -395,7 +396,7 @@ inline SbAtomic64 Release_Load(volatile const SbAtomic64* ptr) {
 
 }  // namespace atomic
 }  // namespace starboard
-
+}  // extern "C++"
 #endif
 
 // Include the platform definitions of these functions, which should be defined
@@ -406,6 +407,7 @@ inline SbAtomic64 Release_Load(volatile const SbAtomic64* ptr) {
 
 #include "starboard/mutex.h"
 
+extern "C++" {
 namespace starboard {
 
 // Provides atomic types like integer and float. Some types like atomic_int32_t
@@ -737,6 +739,7 @@ class atomic_double : public atomic_number<double> {
 };
 
 }  // namespace starboard
+}  // extern "C++"
 
 #endif  // __cplusplus
 
