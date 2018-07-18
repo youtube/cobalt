@@ -11,7 +11,7 @@ import sys
 def import_selenium_module(submodule=None):
   """Dynamically imports a selenium.webdriver submodule.
 
-  This is done because selenium 3.0 is not commonly pre-installed
+  This is done because selenium 3.* is not commonly pre-installed
   on workstations, and we want to have a friendly error message for that
   case.
 
@@ -30,8 +30,8 @@ def import_selenium_module(submodule=None):
     module = importlib.import_module(module_path)
     if submodule is None:
       # Only the top-level module has __version__
-      if not module.__version__.startswith('3.0'):
-        raise ImportError('Not version 3.0.x')
+      if not module.__version__.startswith('3.'):
+        raise ImportError('Not version 3.x.x')
   except ImportError:
     sys.stderr.write('Could not import {}\n'
                      'Please install selenium >= 3.0.0b2.\n'
