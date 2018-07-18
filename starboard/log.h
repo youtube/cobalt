@@ -22,8 +22,10 @@
 #include <stdarg.h>
 
 #ifdef __cplusplus
+extern "C++" {
 #include <sstream>
 #include <string>
+}  // extern "C++"
 #endif
 
 #include "starboard/configuration.h"
@@ -124,6 +126,7 @@ SB_EXPORT bool SbLogIsTty();
 // If we are a C++ program, then we provide a selected subset of base/logging
 // macros and assertions. See that file for more comments.
 
+extern "C++" {
 namespace starboard {
 namespace logging {
 
@@ -188,6 +191,7 @@ class LogMessageVoidify {
 
 }  // namespace logging
 }  // namespace starboard
+}  // extern "C++"
 
 #define SB_LOG_MESSAGE_INFO                            \
   ::starboard::logging::LogMessage(__FILE__, __LINE__, \

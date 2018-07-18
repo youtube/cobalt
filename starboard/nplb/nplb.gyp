@@ -104,6 +104,7 @@
         'drm_helpers.h',
         'drm_is_server_certificate_updatable_test.cc',
         'drm_update_server_certificate_test.cc',
+        'extern_c_test.cc',
         'file_can_open_test.cc',
         'file_close_test.cc',
         'file_get_info_test.cc',
