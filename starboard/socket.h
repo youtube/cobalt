@@ -34,8 +34,10 @@
 #define STARBOARD_SOCKET_H_
 
 #ifdef __cplusplus
+extern "C++" {
 #include <iomanip>
 #include <iostream>
+}  // extern "C++"
 #endif
 
 #include "starboard/export.h"
@@ -423,6 +425,9 @@ SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
 #endif
 
 #ifdef __cplusplus
+
+extern "C++" {
+
 // An inline C++ wrapper to SbSocket.
 class Socket {
  public:
@@ -512,9 +517,7 @@ class Socket {
 
   SbSocket socket_;
 };
-#endif
 
-#ifdef __cplusplus
 // Let SbSocketAddresses be output to log streams.
 inline std::ostream& operator<<(std::ostream& os,
                                 const SbSocketAddress& address) {
@@ -556,6 +559,9 @@ inline std::ostream& operator<<(std::ostream& os,
   os << ":" << address.port;
   return os;
 }
+
+}  // extern "C++"
+
 #endif
 
 #endif  // STARBOARD_SOCKET_H_

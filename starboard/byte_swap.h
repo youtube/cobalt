@@ -84,6 +84,8 @@ SB_EXPORT uint64_t SbByteSwapU64(uint64_t value);
 
 #ifdef __cplusplus
 
+extern "C++" {
+
 #include <algorithm>
 
 template <typename T>
@@ -122,6 +124,8 @@ template <>
 inline uint64_t SbByteSwap(uint64_t value) {
   return SbByteSwapU64(value);
 }
+
+}  // extern "C++"
 
 #endif
 
