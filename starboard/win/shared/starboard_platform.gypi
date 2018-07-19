@@ -179,6 +179,7 @@
             # This requires SDK 10.0.17095.0 (set in sdk_configuration.py) and
             # Xbox One Platform Extension SDK 17095.1000.
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Xbox.ApplicationResourcesContract/1.0.0.0/Windows.Xbox.ApplicationResourcesContract.winmd"',
+            '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.UI.ViewManagement.ViewManagementViewScalingContract/1.0.0.0/Windows.UI.ViewManagement.ViewManagementViewScalingContract.winmd"',
           ]
         }
       },
