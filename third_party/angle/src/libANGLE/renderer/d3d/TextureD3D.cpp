@@ -325,6 +325,9 @@ gl::Error TextureD3D::fastUnpackPixels(const gl::PixelUnpackState &unpack, const
 
 GLint TextureD3D::creationLevels(GLsizei width, GLsizei height, GLsizei depth) const
 {
+    // To save memory, do not use mipmaps with STARBOARD -- this configuration
+    // only uses bilinear filtering at most, so mipmaps aren't needed.
+#if !defined(STARBOARD)
     if ((gl::isPow2(width) && gl::isPow2(height) && gl::isPow2(depth)) ||
         mRenderer->getNativeExtensions().textureNPOT)
     {
@@ -332,6 +335,7 @@ GLint TextureD3D::creationLevels(GLsizei width, GLsizei height, GLsizei depth) c
         return gl::log2(std::max(std::max(width, height), depth)) + 1;
     }
     else
+#endif
     {
         // OpenGL ES 2.0 without GL_OES_texture_npot does not permit NPOT mipmaps.
         return 1;
