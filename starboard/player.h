@@ -81,6 +81,13 @@ typedef enum SbPlayerState {
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
 typedef enum SbPlayerError {
   kSbPlayerErrorDecode,
+#if SB_API_VERSION >= 10
+  // The playback capability of the player has changed, likely because of a
+  // change of the system environment.  For example, the system may support vp9
+  // decoding with an external GPU.  When the external GPU is detached, this
+  // error code can signal the app to retry the playback, possibly with h264.
+  kSbPlayerErrorCapabilityChanged,
+#endif  // SB_API_VERSION >= 10
 #if SB_HAS(PLAYER_WITH_URL)
   // The following error codes are used by the URL player to report detailed
   // errors. They are not required in non-URL player mode.

@@ -124,6 +124,13 @@ self-contained mechanism.
 `SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES` has to be defined to continue
 support int16 audio samples after this version.
 
+### Add kSbPlayerErrorCapabilityChanged to SbPlayerError
+
+This allows the SbPlayer implementation to notify the app that its playback
+capability has changed during a video playback.  For example, the system may
+support vp9 decoding with an external GPU.  When the external GPU is detached,
+this error code can signal the app to retry the playback, possibly with h264.
+
 ### Add support for SbSystemSupportsResume()
 
 Platforms doesn't need to resume after suspend can return false in
