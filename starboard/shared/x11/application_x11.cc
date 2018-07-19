@@ -777,7 +777,6 @@ void ApplicationX11::Composite() {
         }
       }
       window->BeginComposite();
-#if !defined(SB_USE_STUB_PLAYER)
       for (auto& iter : frame_infos) {
         FrameInfo& frame_info = iter.second;
 
@@ -789,7 +788,6 @@ void ApplicationX11::Composite() {
                                     frame_info.width, frame_info.height,
                                     frame_info.frame);
       }
-#endif  // !defined(SB_USE_STUB_PLAYER)
       window->EndComposite();
     }
   }

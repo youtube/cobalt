@@ -177,7 +177,6 @@ void SbWindowPrivate::CompositeVideoFrame(
     int bounds_width,
     int bounds_height,
     const starboard::scoped_refptr<VideoFrame>& frame) {
-#if !defined(SB_USE_STUB_PLAYER)
   if (frame != NULL && frame->format() == VideoFrame::kBGRA32 &&
       frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
     if (frame->width() != video_pixmap_width ||
@@ -251,7 +250,6 @@ void SbWindowPrivate::CompositeVideoFrame(
                      composition_picture, 0, 0, 0, 0, dest_x, dest_y,
                      video_width, video_height);
   }
-#endif  // #if !defined(SB_USE_STUB_PLAYER)
 }
 
 void SbWindowPrivate::EndComposite() {
