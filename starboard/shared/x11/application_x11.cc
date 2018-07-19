@@ -689,12 +689,11 @@ void ApplicationX11::Composite() {
         index = frame_read_index_;
       }
       FrameInfo& frame_info = frame_infos_[frame_read_index_];
-#if !defined(SB_USE_STUB_PLAYER)
+
       if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
           frame_info.frame->format() != VideoFrame::kBGRA32) {
         frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
       }
-#endif  // #if !defined(SB_USE_STUB_PLAYER)
       window->Composite(frame_info.x, frame_info.y, frame_info.width,
                         frame_info.height, frame_info.frame);
     }

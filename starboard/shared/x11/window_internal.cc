@@ -188,7 +188,7 @@ void SbWindowPrivate::Composite(
   XRenderColor black = {0x0000, 0x0000, 0x0000, 0xFFFF};
   XRenderFillRectangle(display, PictOpSrc, composition_picture, &black, 0, 0,
                        width, height);
-#if !defined(SB_USE_STUB_PLAYER)
+
   if (frame != NULL && frame->format() == VideoFrame::kBGRA32 &&
       frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
     if (frame->width() != video_pixmap_width ||
@@ -262,7 +262,6 @@ void SbWindowPrivate::Composite(
                      composition_picture, 0, 0, 0, 0, dest_x, dest_y,
                      video_width, video_height);
   }
-#endif  // #if !defined(SB_USE_STUB_PLAYER)
 
   // Composite (with blending) the GL output on top of the composition pixmap
   // that already has the current video frame if video is playing.
