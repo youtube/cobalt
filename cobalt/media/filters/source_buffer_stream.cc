@@ -1579,7 +1579,7 @@ void SourceBufferStream::UpdateMediaBufferMembers(
   memory_limit_ = std::max(
       memory_limit_,
       static_cast<size_t>(SbMediaGetVideoBufferBudget(
-          codec_, resolution_height_, resolution_width_, bits_per_pixel_)));
+          codec_, resolution_width_, resolution_height_, bits_per_pixel_)));
 #else   // SB_API_VERSION >= 10
   VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
   // TODO: Reduce the memory limit when there is no more 4k samples cached.
