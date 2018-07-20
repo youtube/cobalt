@@ -11,6 +11,7 @@
 // to convert `const void* const` to `void*` when calling memchr from
 // corecrt_memory.h.
 #include <string>
+#include <vector>
 
 using namespace mozilla::Compression;
 
@@ -21,7 +22,6 @@ using namespace mozilla::Compression;
 // later within the anonymous namespace.
 #ifdef _MSC_VER
 #include <intrin.h>
-#include <vector>
 #endif
 
 namespace {
