@@ -1142,6 +1142,9 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
       ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK, message);
       break;
     case kSbPlayerErrorDecode:
+#if SB_API_VERSION >= 10
+    case kSbPlayerErrorCapabilityChanged:
+#endif  // SB_API_VERSION >= 10
       ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
       break;
     case kSbPlayerErrorSrcNotSupported:
