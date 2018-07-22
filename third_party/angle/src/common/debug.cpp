@@ -19,6 +19,10 @@
 #include "common/angleutils.h"
 #include "common/Optional.h"
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#endif  // defined(STARBOARD)
+
 namespace gl
 {
 
@@ -138,6 +142,16 @@ LogMessage::~LogMessage()
 
 void Trace(LogSeverity severity, const char *message)
 {
+#if defined(STARBOARD)
+    if (severity == LOG_WARN)
+    {
+        SB_LOG(WARNING) << "Angle: " << message;
+    }
+    else if (severity == LOG_ERR)
+    {
+        SB_LOG(ERROR) << "Angle: " << message;
+    }
+#endif  // defined(STARBOARD)
     if (!ShouldCreateLogMessage(severity))
     {
         return;
