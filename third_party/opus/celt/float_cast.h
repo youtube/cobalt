@@ -126,8 +126,8 @@ static OPUS_INLINE opus_int32 float2int(float x) {return _mm_cvt_ss2si(_mm_set_s
 
 #if (defined(__GNUC__) && defined(__STDC__) && __STDC__ && __STDC_VERSION__ >= 199901L)
         /* supported by gcc in C99 mode, but not by all other compilers */
-        #warning "Don't have the functions lrint() and lrintf ()."
-        #warning "Replacing these functions with a standard C cast."
+        // #warning "Don't have the functions lrint() and lrintf ()."
+        // #warning "Replacing these functions with a standard C cast."
 #endif /* __STDC_VERSION__ >= 199901L */
         #include <math.h>
         #define float2int(flt) ((int)(floor(.5+flt)))
