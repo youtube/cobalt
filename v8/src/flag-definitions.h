@@ -308,7 +308,7 @@ DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
 // Flags for optimization types.
-DEFINE_BOOL(optimize_for_size, true,
+DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
             "speed")
 
