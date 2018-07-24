@@ -739,6 +739,10 @@ void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error,
           WebMediaPlayer::kNetworkStateDecodeError,
           message.empty() ? "Audio renderer splice failed." : message);
       break;
+    case PLAYBACK_CAPABILITY_CHANGED:
+      SetNetworkError(WebMediaPlayer::kNetworkStateCapabilityChangedError,
+                      message.empty() ? "Capability changed." : message);
+      break;
   }
 }
 
