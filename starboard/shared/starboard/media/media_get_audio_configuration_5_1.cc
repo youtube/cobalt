@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Implementation of SbMediaGetAudioOutputCount for a single stereo output.
+// Implementation of SbMediaGetAudioConfiguration for a 5.1 surround sound.
 
 #include "starboard/media.h"
 
-#if SB_API_VERSION >= 10
-#error File media_get_audio_output_count_stereo_only.cc is deprecated, \
-    consider using media_get_audio_output_count_single_audio_output.cc instead.
-#else  // SB_API_VERSION >= 10
-#pragma message(                                                            \
-    "File media_get_audio_output_count_stereo_only.cc will be deprecated, " \
-    "consider using media_get_audio_output_count_single_audio_output.cc "   \
-    "instead.")
-#endif  // SB_API_VERSION >= 10
-int SbMediaGetAudioOutputCount() {
-  return 1;
+bool SbMediaGetAudioConfiguration(
+    int output_index,
+    SbMediaAudioConfiguration* out_configuration) {
+  if (output_index != 0 || out_configuration == NULL) {
+    return false;
+  }
+
+  out_configuration->index = 0;
+  out_configuration->connector = kSbMediaAudioConnectorNone;
+  out_configuration->latency = 0;
+  out_configuration->coding_type = kSbMediaAudioCodingTypePcm;
+  // There are 6 channels in 5.1 surround sound.
+  out_configuration->number_of_channels = 6;
+  return true;
 }
