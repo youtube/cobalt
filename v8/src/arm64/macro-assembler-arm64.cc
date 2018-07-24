@@ -1204,7 +1204,12 @@ void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireSameSizeAs(count);
 
+#if V8_OS_STARBOARD
+  // TODO: Investigate and fix the crash when using the following code.
+  if (false) {
+#else
   if (FLAG_optimize_for_size) {
+#endif // V8_OS_STARBOARD
     Label loop, done;
 
     Subs(temp, count, 1);
