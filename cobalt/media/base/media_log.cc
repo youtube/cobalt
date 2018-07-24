@@ -143,6 +143,8 @@ std::string MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "audio renderer: output device reported an error";
     case AUDIO_RENDERER_ERROR_SPLICE_FAILED:
       return "audio renderer: post-decode audio splicing failed";
+    case PLAYBACK_CAPABILITY_CHANGED:
+      return "pipeline: playback capability changed";
   }
   NOTREACHED();
   return NULL;
