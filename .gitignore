@@ -233,7 +233,7 @@ v8.log
 /third_party/mozjs
 /third_party/mozjs-45
 /third_party/openssl
-/third_party/opus/src
+/third_party/opus
 /third_party/ots
 /third_party/pdfsqueeze
 /third_party/pefile
