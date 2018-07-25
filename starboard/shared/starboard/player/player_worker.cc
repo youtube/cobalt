@@ -30,6 +30,7 @@ namespace {
 
 using std::placeholders::_1;
 using std::placeholders::_2;
+using std::placeholders::_3;
 
 // 8 ms is enough to ensure that DoWritePendingSamples() is called twice for
 // every frame in HFR.
@@ -101,8 +102,10 @@ PlayerWorker::~PlayerWorker() {
   // effects are gone.
 }
 
-void PlayerWorker::UpdateMediaInfo(SbTime time, int dropped_video_frames) {
-  update_media_info_cb_(time, dropped_video_frames, ticket_);
+void PlayerWorker::UpdateMediaInfo(SbTime time,
+                                   int dropped_video_frames,
+                                   bool underflow) {
+  update_media_info_cb_(time, dropped_video_frames, ticket_, underflow);
 }
 
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
@@ -178,11 +181,11 @@ void PlayerWorker::DoInit() {
   update_player_error_cb =
       std::bind(&PlayerWorker::UpdatePlayerError, this, _1, _2);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-  if (handler_->Init(player_,
-                     std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2),
-                     std::bind(&PlayerWorker::player_state, this),
-                     std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
-                     update_player_error_cb)) {
+  if (handler_->Init(
+          player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
+          std::bind(&PlayerWorker::player_state, this),
+          std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
+          update_player_error_cb)) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
