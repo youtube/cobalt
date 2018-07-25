@@ -54,8 +54,9 @@ void VideoRenderAlgorithm::Render(
 
     bool is_audio_playing;
     bool is_audio_eos_played;
+    bool is_underflow;
     SbTime playback_time = media_time_provider->GetCurrentMediaTime(
-        &is_audio_playing, &is_audio_eos_played);
+        &is_audio_playing, &is_audio_eos_played, &is_underflow);
     if (!is_audio_playing) {
       break;
     }
