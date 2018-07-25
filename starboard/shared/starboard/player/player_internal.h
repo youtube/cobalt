@@ -67,22 +67,26 @@ struct SbPlayerPrivate {
   static int number_of_players() { return number_of_players_; }
 
  private:
-  void UpdateMediaInfo(SbTime media_time, int dropped_video_frames, int ticket);
+  void UpdateMediaInfo(SbTime media_time,
+                       int dropped_video_frames,
+                       int ticket,
+                       bool underflow);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
 
   starboard::Mutex mutex_;
-  int ticket_;
-  SbTime media_time_;
+  int ticket_ = SB_PLAYER_INITIAL_TICKET;
+  SbTime media_time_ = 0;
   SbTimeMonotonic media_time_updated_at_;
-  int frame_width_;
-  int frame_height_;
-  bool is_paused_;
-  double playback_rate_;
-  double volume_;
-  int total_video_frames_;
-  int dropped_video_frames_;
+  int frame_width_ = 0;
+  int frame_height_ = 0;
+  bool is_paused_ = false;
+  double playback_rate_ = 1.0;
+  double volume_ = 1.0;
+  int total_video_frames_ = 0;
+  int dropped_video_frames_ = 0;
+  bool underflow_ = false;
 
   starboard::scoped_ptr<PlayerWorker> worker_;
 
