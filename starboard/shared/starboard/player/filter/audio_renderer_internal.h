@@ -45,6 +45,8 @@ namespace starboard {
 namespace player {
 namespace filter {
 
+const int kFramesInBufferBeginUnderflow = 1024;
+
 // A class that sits in between the audio decoder, the audio sink and the
 // pipeline to coordinate data transfer between these parties.  It also serves
 // as the authority of playback time.
@@ -86,7 +88,9 @@ class AudioRenderer : public MediaTimeProvider,
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(SbTime seek_to_time) override;
-  SbTime GetCurrentMediaTime(bool* is_playing, bool* is_eos_played) override;
+  SbTime GetCurrentMediaTime(bool* is_playing,
+                             bool* is_eos_played,
+                             bool* is_underflow) override;
 
  private:
   enum EOSState {
@@ -185,6 +189,10 @@ class AudioRenderer : public MediaTimeProvider,
   SbTime max_drift_ = 0;
   int64_t total_frames_consumed_ = 0;
 #endif  // SB_LOG_MEDIA_TIME_STATS
+
+  // Set to true when there are fewer than |kFramesInBufferBeginUnderflow|
+  // frames in buffer. Set to false when the queue is full or EOS.
+  bool underflow_ = false;
 };
 
 }  // namespace filter
