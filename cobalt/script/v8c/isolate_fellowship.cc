@@ -27,9 +27,34 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
+namespace {
 // This file will also be touched and rebuilt every time V8 is re-built
 // according to the update_snapshot_time gyp target.
 const char kIsolateFellowshipBuildTime[] = __DATE__ " " __TIME__;
+
+const char* kV8CommandLineFlags[] = {"--optimize_for_size",
+                                     // Starboard disallow rwx memory access.
+                                     "--write_protect_code_memory",
+                                     // Cobalt's TraceMembers and
+                                     // ScriptValue::*Reference do not currently
+                                     // support incremental tracing.
+                                     "--noincremental_marking_wrappers",
+#if defined(COBALT_GC_ZEAL)
+                                     "--gc_interval=1200"
+#endif
+};
+
+
+// Configure v8's global command line flag options for Cobalt.
+// It can be called more than once, but make sure it is called before any
+// v8 instance is created.
+void V8FlagsInit() {
+  for (auto flag_str : kV8CommandLineFlags) {
+    v8::V8::SetFlagsFromString(flag_str, SbStringGetLength(flag_str));
+  }
+}
+
+} // namespace
 
 IsolateFellowship::IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::IsolateFellowship");
@@ -39,6 +64,10 @@ IsolateFellowship::IsolateFellowship() {
   v8::V8::Initialize();
   array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
+  // If a new snapshot data is needed, a temporary v8 isoalte will be created
+  // to write the snapshot data. We need to make sure all global command line
+  // flags are set before that.
+  V8FlagsInit();
   InitializeStartupData();
 }
 
