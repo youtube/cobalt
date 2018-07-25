@@ -24,6 +24,7 @@
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
+#include "starboard/once.h"
 
 namespace cobalt {
 namespace script {
@@ -98,6 +99,15 @@ void GCEpilogueCallback(v8::Isolate* isolate, v8::GCType type,
   }
 }
 
+SbOnceControl v8_flag_init_once_control = SB_ONCE_INITIALIZER;
+
+// Configure v8's global command line flag options for Cobalt.
+void V8FlagInitOnce() {
+  char optimize_for_size_flag_str[] = "--optimize_for_size=true";
+  v8::V8::SetFlagsFromString(optimize_for_size_flag_str,
+                             sizeof(optimize_for_size_flag_str));
+}
+
 }  // namespace
 
 V8cEngine::V8cEngine(const Options& options) : options_(options) {
@@ -118,6 +128,7 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
                     "significantly slow down startup time.";
   }
 
+  SbOnce(&v8_flag_init_once_control, V8FlagInitOnce);
   isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);
 
