@@ -36,6 +36,7 @@ HTMLElementContext::HTMLElementContext()
       remote_typeface_cache_(NULL),
       mesh_cache_(NULL),
       dom_stat_tracker_(NULL),
+      page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
       video_playback_rate_multiplier_(1.f),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
@@ -80,6 +81,7 @@ HTMLElementContext::HTMLElementContext(
       dom_stat_tracker_(dom_stat_tracker),
       font_language_script_(font_language_script),
       page_visibility_state_(initial_application_state),
+      page_visibility_state_weak_ptr_factory_(&page_visibility_state_),
       video_playback_rate_multiplier_(video_playback_rate_multiplier),
       synchronous_loader_interrupt_(synchronous_loader_interrupt),
       sync_load_thread_("Synchronous Load"),

@@ -1,4 +1,4 @@
-# Copyright 2017 The Cobalt Authors. All Rights Reserved.
+# Copyright 2018 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Cobalt-on-Linux-specific configuration.
-
 {
+  'includes': [
+    '<(DEPTH)/starboard/shared/widevine/widevine3.gypi',
+  ],
   'variables': {
-    'in_app_dial%': 1,
-    'cobalt_media_source_2016': 1,
-  }, # end of variables
+    'platform_oem_sources': [
+      '<(DEPTH)/starboard/keyboxes/linux/linux.h',
+      '<(DEPTH)/starboard/keyboxes/linux/linux_client.c',
+      '<(DEPTH)/starboard/linux/shared/wv_keybox_linux.cc',
+    ],
+  },
+  'target_defaults': {
+    'defines': [
+      'COBALT_WIDEVINE_KEYBOX_INCLUDE="<(DEPTH)/starboard/keyboxes/widevine_settings_linux.h"',
+    ],
+  },
 }

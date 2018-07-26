@@ -112,10 +112,12 @@
 // Will cause a compiler error with |msg| if |expr| is false. |msg| must be a
 // valid identifier, and must be a unique type in the scope of the declaration.
 #if defined(__cplusplus)
+extern "C++" {
 namespace starboard {
 template <bool>
 struct CompileAssert {};
 }  // namespace starboard
+}  // extern "C++"
 
 #define SB_COMPILE_ASSERT(expr, msg)                              \
   typedef ::starboard::CompileAssert<(                            \

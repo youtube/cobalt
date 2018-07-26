@@ -115,6 +115,7 @@ struct cobalt_yyltype {
 // to avoid global namespace pollution.
 #if BISON_VERSION_MAJOR >= 3
 #include "cobalt/css_parser/grammar_generated.h"
+typedef YYSTYPE TokenValue;
 #else
 #include "cobalt/css_parser/grammar-bison-2_generated.h"
 #endif

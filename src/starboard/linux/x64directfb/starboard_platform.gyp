@@ -31,13 +31,6 @@
       'dependencies': [
         '<@(starboard_platform_dependencies)',
       ],
-      'conditions': [
-        ['has_cdm==1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
-          ],
-        }],
-      ],
     },
   ],
 }

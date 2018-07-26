@@ -17,15 +17,21 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// This is the legacy default value of the GYP variable.
+#define LEGACY_INITIAL_CAPACITY 21 * 1024 * 1024
+
 int SbMediaGetInitialBufferCapacity() {
-#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY) && \
+    COBALT_MEDIA_BUFFER_INITIAL_CAPACITY != LEGACY_INITIAL_CAPACITY
 #pragma message(                                                           \
     "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY will be deprecated in a future " \
     "Starboard version.")
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_INITIAL_CAPACITY;
-#else  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+#else   // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY) &&
+  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY != LEGACY_INITIAL_CAPACITY
   return 21 * 1024 * 1024;
-#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)
+#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY) &&
+        // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY != LEGACY_INITIAL_CAPACITY
 }
 #endif  // SB_API_VERSION >= 10
