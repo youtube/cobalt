@@ -35,26 +35,5 @@
     'starboard_platform_sources!': [
       '<(DEPTH)/starboard/shared/starboard/player/player_set_bounds.cc',
     ],
-
-    'conditions': [
-      ['has_cdm==1', {
-        'starboard_platform_sources': [
-          '<(DEPTH)/starboard/linux/x64x11/media_is_output_protected.cc',
-
-          '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
-          '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
-          '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
-          '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
-          '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
-
-          '<(DEPTH)/starboard/shared/widevine/drm_create_system.cc',
-          '<(DEPTH)/starboard/shared/widevine/drm_is_server_certificate_updatable.cc',
-          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.cc',
-          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.h',
-          '<(DEPTH)/starboard/shared/widevine/drm_update_server_certificate.cc',
-          '<(DEPTH)/starboard/shared/widevine/media_is_supported.cc',
-        ],
-      }],
-    ],
   },
 }

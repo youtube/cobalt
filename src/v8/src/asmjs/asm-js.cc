@@ -378,11 +378,18 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Unexpected heap size");
       return MaybeHandle<Object>();
     }
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
     // Currently WebAssembly only supports heap sizes within the uint32_t range.
     if (size > std::numeric_limits<uint32_t>::max()) {
       ReportInstantiationFailure(script, position, "Unexpected heap size");
       return MaybeHandle<Object>();
     }
+#if __clang__
+#pragma clang diagnostic pop
+#endif
   } else {
     memory = Handle<JSArrayBuffer>::null();
   }

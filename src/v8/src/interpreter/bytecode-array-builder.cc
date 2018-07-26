@@ -188,6 +188,10 @@ class UnsignedOperandHelper {
 
  private:
   static bool IsValid(size_t value) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
     switch (type_info) {
       case OperandTypeInfo::kFixedUnsignedByte:
         return value <= kMaxUInt8;
@@ -198,6 +202,9 @@ class UnsignedOperandHelper {
       default:
         UNREACHABLE();
     }
+#if __clang__
+#pragma clang diagnostic pop
+#endif
   }
 };
 

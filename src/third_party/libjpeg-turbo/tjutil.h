@@ -28,12 +28,23 @@
 
 #ifdef _WIN32
 #ifndef __MINGW32__
+
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
 #define snprintf(str, n, format, ...) \
   _snprintf_s(str, n, _TRUNCATE, format, __VA_ARGS__)
 #endif
+
+#endif
+
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/strings_poem.h"
+#else
 #define strcasecmp  stricmp
 #define strncasecmp  strnicmp
+#endif
 #endif
 
 #ifndef min

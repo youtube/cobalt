@@ -132,8 +132,15 @@ static int do_esc_char(unsigned long c, unsigned char flags, char *do_quotes,
     unsigned char chflgs, chtmp;
     char tmphex[HEX_SIZE(long) + 3];
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
     if (c > 0xffffffffL)
         return -1;
+#if __clang__
+#pragma clang diagnostic pop
+#endif
     if (c > 0xffff) {
         BIO_snprintf(tmphex, sizeof tmphex, "\\W%08lX", c);
         if (!io_ch(arg, tmphex, 10))

@@ -17,16 +17,22 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// This is the legacy default value of the GYP variable.
+#define LEGACY_BUFFER_ALIGNMENT 1
+
 int SbMediaGetBufferAlignment(SbMediaType type) {
   SB_UNREFERENCED_PARAMETER(type);
-#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT)
+#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT) && \
+    COBALT_MEDIA_BUFFER_ALIGNMENT != LEGACY_BUFFER_ALIGNMENT
 #pragma message(                                                    \
     "COBALT_MEDIA_BUFFER_ALIGNMENT will be deprecated in a future " \
     "Starboard version.")
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_ALIGNMENT;
-#else   // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
-  return 1 * 1024 * 1024;
-#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT
+#else   // defined(COBALT_MEDIA_BUFFER_ALIGNMENT && COBALT_MEDIA_BUFFER_ALIGNMENT
+  // != LEGACY_BUFFER_ALIGNMENT
+  return 1;
+#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT &&
+        // COBALT_MEDIA_BUFFER_ALIGNMENT != LEGACY_BUFFER_ALIGNMENT
 }
 #endif  // SB_API_VERSION >= 10

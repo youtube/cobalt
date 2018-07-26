@@ -17,14 +17,20 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// This is the legacy default value of the GYP variable.
+#define LEGACY_NON_VIDEO_BUDGET 5 * 1024 * 1024
+
 int SbMediaGetAudioBufferBudget() {
-#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) && \
+    COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET != LEGACY_NON_VIDEO_BUDGET
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET will be deprecated "
                       "in a future Starboard version.";
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET;
-#else  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#else   // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) &&
+  // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET != LEGACY_NON_VIDEO_BUDGET
   return 5 * 1024 * 1024;
-#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) &&
+        // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET != LEGACY_NON_VIDEO_BUDGET
 }
 #endif  // SB_API_VERSION >= 10

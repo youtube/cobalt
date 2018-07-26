@@ -17,16 +17,22 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+
+#define LEGACY_BUFFER_PADDING 0
+
 int SbMediaGetBufferPadding(SbMediaType type) {
   SB_UNREFERENCED_PARAMETER(type);
-#if defined(COBALT_MEDIA_BUFFER_PADDING)
+#if defined(COBALT_MEDIA_BUFFER_PADDING) && \
+    COBALT_MEDIA_BUFFER_PADDING != LEGACY_BUFFER_PADDING
 #pragma message(                                                            \
     "COBALT_MEDIA_BUFFER_PADDING will be deprecated in a future Starboard " \
     "version.")
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_PADDING;
-#else   // defined(COBALT_MEDIA_BUFFER_PADDING)
+#else   // defined(COBALT_MEDIA_BUFFER_PADDING) && COBALT_MEDIA_BUFFER_PADDING !=
+  // LEGACY_BUFFER_PADDING
   return 0;
-#endif  // defined(COBALT_MEDIA_BUFFER_PADDING)
+#endif  // defined(COBALT_MEDIA_BUFFER_PADDING) && COBALT_MEDIA_BUFFER_PADDING
+        // != LEGACY_BUFFER_PADDING
 }
 #endif  // SB_API_VERSION >= 10

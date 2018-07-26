@@ -19,6 +19,7 @@
   'variables': {
     'target_arch%': 'x64',
     'target_os': 'linux',
+    'yasm_exists': 1,
 
     'platform_libraries': [
       '-lasound',
