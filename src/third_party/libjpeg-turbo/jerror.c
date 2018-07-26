@@ -27,10 +27,16 @@
 #include "jversion.h"
 #include "jerror.h"
 
-#include <stdlib.h>
-
 #ifdef USE_WINDOWS_MESSAGEBOX
 #include <windows.h>
+#endif
+
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/string.h"
+#include "starboard/system.h"
+// Applications should not leave the standard error handler registered.
+#define exit(x) SbSystemBreakIntoDebugger(x)
 #endif
 
 #ifndef EXIT_FAILURE            /* define exit() codes if not provided */
@@ -109,7 +115,9 @@ output_message(j_common_ptr cinfo)
              MB_OK | MB_ICONERROR);
 #else
   /* Send it to stderr, adding a newline */
+#if !defined(STARBOARD)
   fprintf(stderr, "%s\n", buffer);
+#endif
 #endif
 }
 

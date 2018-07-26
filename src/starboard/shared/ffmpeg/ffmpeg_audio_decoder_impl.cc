@@ -21,6 +21,7 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
@@ -128,7 +129,13 @@ void AudioDecoderImpl<FFMPEG>::Decode(
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
                      << " with input buffer size: " << input_buffer->size()
                      << " and frame decoded: " << frame_decoded;
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    error_cb_(
+        kSbPlayerErrorDecode,
+        FormatString("avcodec_decode_audio4() failed with result %d.", result));
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
     error_cb_();
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     return;
   }
 

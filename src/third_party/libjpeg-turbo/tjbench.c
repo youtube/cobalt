@@ -26,11 +26,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#endif
 #include <errno.h>
 #include <cdjpeg.h>
 #include "./tjutil.h"

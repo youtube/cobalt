@@ -181,9 +181,10 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 }  // namespace
 
 WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
-                                 const HandleRequestCallback& callback)
+                                 const HandleRequestCallback& callback,
+                                 const std::string& address_cval_name)
     : handle_request_callback_(callback),
-      server_address_("Cobalt.Server.WebDriver",
+      server_address_(address_cval_name,
                       "Address to communicate with WebDriver.") {
   // Create http server
   factory_.reset(new net::TCPListenSocketFactory(listen_ip, port));
