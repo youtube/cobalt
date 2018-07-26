@@ -4,8 +4,10 @@
 
 #include "src/base/utils/random-number-generator.h"
 
+#if !V8_OS_STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
+#endif  // !V8_OS_STARBOARD
 
 #include <algorithm>
 #include <new>
@@ -41,7 +43,9 @@ RandomNumberGenerator::RandomNumberGenerator() {
     }
   }
 
-#if V8_OS_CYGWIN || V8_OS_WIN
+#if V8_OS_STARBOARD
+  SetSeed(SbSystemGetRandomUInt64());
+#elif V8_OS_CYGWIN || V8_OS_WIN
   // Use rand_s() to gather entropy on Windows. See:
   // https://code.google.com/p/v8/issues/detail?id=2905
   unsigned first_half, second_half;
