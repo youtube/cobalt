@@ -22,6 +22,30 @@
       "revId": "e4913428912c0cd6e31ddbef23d3ee871132fb8b",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "bbe4ea9d_a7158c06",
+        "filename": "src/tools/gyp/pylib/gyp/generator/ninja.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 81,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-07-26T19:32:54Z",
+      "side": 1,
+      "message": "No, good catch, it\u0027s removed now, thanks!",
+      "parentUuid": "e2d0fe3a_a75de41f",
+      "range": {
+        "startLine": 81,
+        "startChar": 5,
+        "endLine": 81,
+        "endChar": 13
+      },
+      "revId": "e4913428912c0cd6e31ddbef23d3ee871132fb8b",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
     }
   ]
 }
