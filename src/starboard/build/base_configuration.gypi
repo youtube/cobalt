@@ -36,6 +36,12 @@
       'sb_enable_lib%': 0,
     },
 
+    # Enables the yasm compiler to be used to compile .asm files.
+    'yasm_exists%': 0,
+
+    # Where yasm can be found on the target device.
+    'path_to_yasm%': "yasm",
+
     # Enabling this variable enables pedantic levels of warnings for the current
     # toolchain.
     'sb_pedantic_warnings%': 0,
@@ -121,6 +127,9 @@
     'compiler_flags%': [],
     'linker_flags%': [],
 
+    # TODO: Replace linker_flags_(config) with linker_shared_flags_(config)
+    # and linker_executable_flags_(config) to distinguish the flags for
+    # SharedLibraryLinker and ExecutableLinker.
     'compiler_flags_debug%': [],
     'compiler_flags_c_debug%': [],
     'compiler_flags_cc_debug%': [],

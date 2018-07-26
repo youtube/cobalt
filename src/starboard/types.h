@@ -37,6 +37,10 @@
 #include <inttypes.h>
 #endif  // SB_HAS(STDINT_H)
 
+#if SB_HAS(SYS_TYPES_H)
+#include <sys/types.h>
+#endif  // SB_HAS(SYS_TYPES_H)
+
 #if SB_HAS(STDDEF_H)
 #include <stddef.h>
 #endif

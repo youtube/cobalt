@@ -17,17 +17,28 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// This is the legacy default value of the GYP variable.
+#define LEGACY_GARBAGE_COLLECTION_DURATION 170
+
 SbTime SbMediaGetBufferGarbageCollectionDurationThreshold() {
-#if defined( \
-    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
-  // Use define forwarded from GYP variable.
+#if defined(                                                                 \
+    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS) && \
+    COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS !=  \
+        LEGACY_GARBAGE_COLLECTION_DURATION
+// Use define forwarded from GYP variable.
 #pragma message(                                                            \
     "COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS " \
     "will be deprecated in a future Starboard version.")
   return COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS *
          kSbTimeSecond;
-#else  // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+#else   // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+  // &&
+  // COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS !=
+  // LEGACY_GARBAGE_COLLECTION_DURATION
   return 170 * kSbTimeSecond;
 #endif  // defined(COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS)
+        // &&
+  // COBALT_MEDIA_SOURCE_GARBAGE_COLLECTION_DURATION_THRESHOLD_IN_SECONDS !=
+  // LEGACY_GARBAGE_COLLECTION_DURATION
 }
 #endif  // SB_API_VERSION >= 10

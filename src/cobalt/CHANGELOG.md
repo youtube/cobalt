@@ -2,7 +2,7 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
-## Version 17
+## Version 19
  - **Add support for V8 JavaScript Engine**
 
    Cobalt now supports V8 (in addition to SpiderMonkey) as JavaScript engines.

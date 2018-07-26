@@ -65,6 +65,11 @@
             4133,
           ],
           'conditions': [
+            ['clang == 1', {
+              'cflags': [
+                '-Wno-tautological-compare',
+              ],
+            }],
             ['OS!="win"', {'product_name': 'png'}],
             ['OS=="win"', {
               'type': '<(component)',
