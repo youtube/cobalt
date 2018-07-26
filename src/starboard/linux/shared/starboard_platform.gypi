@@ -17,7 +17,7 @@
   ],
   'variables': {
     'variables': {
-      'has_cdm%': '<!(test -e <(DEPTH)/third_party/cdm/cdm/include/content_decryption_module.h && echo 1 || echo 0)',
+      'has_cdm%': '<!(test -e <(DEPTH)/third_party/ce_cdm/cdm/include/cdm.h && echo 1 || echo 0)',
     },
     # This has_cdm gets exported to gyp files that include this one.
     'has_cdm%': '<(has_cdm)',
@@ -226,8 +226,8 @@
       '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
       '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_buffer_budget.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_stereo_only.cc',
-      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_stereo_only.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_5_1.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_single_audio_output.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_buffer_alignment.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc',
@@ -310,6 +310,15 @@
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
       '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
     ],
+    'starboard_platform_dependencies': [
+      '<(DEPTH)/starboard/common/common.gyp:common',
+      '<(DEPTH)/starboard/linux/shared/starboard_base_symbolize.gyp:starboard_base_symbolize',
+      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
+      '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
+      '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
+      '<(DEPTH)/third_party/libvpx/libvpx.gyp:libvpx',
+      '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
+    ],
     'conditions': [
       ['use_dlmalloc_allocator==1', {
         'starboard_platform_sources': [
@@ -331,47 +340,45 @@
         ],
       }],
       ['has_cdm==1', {
-          'dependencies': [
-            '<(DEPTH)/starboard/linux/x64x11/widevine.gyp:wvcdm_static',
-          ],
-          'starboard_platform_sources': [
-            '<(DEPTH)/starboard/linux/x64x11/media_is_output_protected.cc',
+        'starboard_platform_dependencies': [
+          '<(DEPTH)/starboard/linux/shared/widevine3.gyp:oemcrypto',
+          '<(DEPTH)/starboard/linux/shared/widevine3.gyp:widevine_ce_cdm_static',
+        ],
+        'starboard_platform_sources': [
+          '<(DEPTH)/starboard/linux/shared/media_is_output_protected.cc',
+          '<(DEPTH)/starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc',
 
-            '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
-            '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
-            '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
-            '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
-            '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
+          '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
+          '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
+          '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
+          '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
+          '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
 
-            '<(DEPTH)/starboard/shared/widevine/drm_create_system.cc',
-            '<(DEPTH)/starboard/shared/widevine/drm_is_server_certificate_updatable.cc',
-            '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.cc',
-            '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.h',
-            '<(DEPTH)/starboard/shared/widevine/drm_update_server_certificate.cc',
-            '<(DEPTH)/starboard/shared/widevine/media_is_supported.cc',
-          ],
-        }, {
-          'starboard_platform_sources': [
-            '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
-            '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
-            '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
-            '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
-          ],
+          '<(DEPTH)/starboard/shared/widevine/drm_create_system.cc',
+          '<(DEPTH)/starboard/shared/widevine/drm_is_server_certificate_updatable.cc',
+          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine3.cc',
+          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine3.h',
+          '<(DEPTH)/starboard/shared/widevine/drm_update_server_certificate.cc',
+          '<(DEPTH)/starboard/shared/widevine/media_is_supported.cc',
+          '<(DEPTH)/starboard/shared/widevine/widevine_storage.cc',
+          '<(DEPTH)/starboard/shared/widevine/widevine_storage.h',
+          '<(DEPTH)/starboard/shared/widevine/widevine_timer.cc',
+          '<(DEPTH)/starboard/shared/widevine/widevine_timer.h',
+        ],
+      }, {
+        'starboard_platform_sources': [
+          '<(DEPTH)/starboard/shared/starboard/media/media_is_output_protected.cc',
+          '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_is_server_certificate_updatable.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
+          '<(DEPTH)/starboard/shared/stub/drm_update_server_certificate.cc',
+          '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
+        ],
       }],
-    ],
-    'starboard_platform_dependencies': [
-      '<(DEPTH)/starboard/common/common.gyp:common',
-      '<(DEPTH)/starboard/linux/shared/starboard_base_symbolize.gyp:starboard_base_symbolize',
-      '<(DEPTH)/starboard/shared/ffmpeg/ffmpeg.gyp:ffmpeg_dynamic_load',
-      '<(DEPTH)/third_party/dlmalloc/dlmalloc.gyp:dlmalloc',
-      '<(DEPTH)/third_party/libevent/libevent.gyp:libevent',
-      '<(DEPTH)/third_party/libvpx/libvpx.gyp:libvpx',
     ],
   },
   'conditions': [

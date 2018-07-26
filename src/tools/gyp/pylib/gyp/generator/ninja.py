@@ -15,6 +15,7 @@ import sys
 
 from cobalt.build import config
 
+
 import gyp
 import gyp.common
 
@@ -128,6 +129,16 @@ def StripPrefix(arg, prefix):
   if arg.startswith(prefix):
     return arg[len(prefix):]
   return arg
+
+
+def GetGeneratorVariables(flavor):
+  generator_variables = copy.copy(generator_default_variables)
+  if GetToolchainOrNone(flavor):
+    GetToolchainOrNone(
+        flavor).SetAdditionalGypVariables(generator_variables)
+  else:
+    CalculateVariables(generator_variables, {'flavor': flavor})
+  return generator_variables
 
 
 def QuoteShellArgument(arg, flavor):
@@ -1208,9 +1219,14 @@ class NinjaWriter:
                                                   'host' else '')
         libraries = spec.get(libraries_keyword, []) + config.get(
             libraries_keyword, [])
+
+        ldflags_executable = GetConfigFlags(
+            config, self.toolset, 'ldflags_executable')
+        if not ldflags_executable:
+          ldflags_executable = GetConfigFlags(config, self.toolset, 'ldflags')
+
         ldflags = gyp.common.uniquer(
-            map(self.ExpandSpecial,
-                GetConfigFlags(config, self.toolset, 'ldflags') + libraries))
+            map(self.ExpandSpecial, ldflags_executable + libraries))
 
         executable_linker_flags = executable_linker.GetFlags(ldflags)
         self.ninja.variable('{0}_flags'.format(rule_name),
@@ -1231,9 +1247,13 @@ class NinjaWriter:
                                                   'host' else '')
         libraries = spec.get(libraries_keyword, []) + config.get(
             libraries_keyword, [])
+
+        ldflags_shared = GetConfigFlags(config, self.toolset, 'ldflags_shared')
+        if not ldflags_shared:
+          ldflags_shared = GetConfigFlags(config, self.toolset, 'ldflags')
+
         ldflags = gyp.common.uniquer(
-            map(self.ExpandSpecial,
-                GetConfigFlags(config, self.toolset, 'ldflags') + libraries))
+            map(self.ExpandSpecial, ldflags_shared + libraries))
 
         shared_library_linker_flags = shared_library_linker.GetFlags(ldflags)
         self.ninja.variable('{0}_flags'.format(rule_name),
@@ -1274,6 +1294,10 @@ class NinjaWriter:
         ]
 
         link_deps.extend(extra_link_deps)
+
+      tail_deps = GetConfigFlags(config, self.toolset, 'TailDependencies')
+      if tail_deps:
+        link_deps.extend(map(self.ExpandSpecial, tail_deps))
 
       output = self.ComputeOutput(spec)
       self.target.binary = output
@@ -1641,12 +1665,7 @@ class NinjaWriter:
     if not type:
       type = spec['type']
 
-    default_variables = copy.copy(generator_default_variables)
-    if GetToolchainOrNone(self.flavor):
-      GetToolchainOrNone(
-          self.flavor).SetAdditionalGypVariables(default_variables)
-    else:
-      CalculateVariables(default_variables, {'flavor': self.flavor})
+    default_variables = GetGeneratorVariables(self.flavor)
 
     # Compute filename prefix: the product prefix, or a default for
     # the product type.
@@ -2074,6 +2093,16 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     for host_tool in host_toolchain:
       MaybeWriteRule(master_ninja, host_tool, 'host', shell)
     master_ninja.newline()
+
+    # Copy the gyp-win-tool to the toplevel_build.
+    # Also write python to the master_ninja.
+    if flavor in microsoft_flavors:
+      gyp.common.CopyTool(flavor, toplevel_build)
+      GetToolchainOrNone(flavor).GenerateEnvironmentFiles(
+          toplevel_build, generator_flags, OpenOutput)
+      master_ninja.variable('python', sys.executable)
+      master_ninja.newline()
+
   except NotImplementedError:
     # Fall back to the legacy toolchain.
 

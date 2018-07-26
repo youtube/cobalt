@@ -69,6 +69,7 @@ Document::Document(HTMLElementContext* html_element_context,
                    const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(Node(this)),
       html_element_context_(html_element_context),
+      page_visibility_state_(html_element_context_->page_visibility_state()),
       window_(options.window),
       implementation_(new DOMImplementation(html_element_context)),
       style_sheets_(new cssom::StyleSheetList()),
@@ -97,7 +98,7 @@ Document::Document(HTMLElementContext* html_element_context,
       render_postponed_(false) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
-  html_element_context_->page_visibility_state()->AddObserver(this);
+  page_visibility_state_->AddObserver(this);
 
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);
@@ -883,7 +884,9 @@ void Document::SetViewport(const math::Size& viewport_size) {
 }
 
 Document::~Document() {
-  html_element_context_->page_visibility_state()->RemoveObserver(this);
+  if (page_visibility_state_) {
+    page_visibility_state_->RemoveObserver(this);
+  }
   // Ensure that all outstanding weak ptrs become invalid.
   // Some objects that will be released while this destructor runs may
   // have weak ptrs to |this|.

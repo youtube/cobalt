@@ -141,8 +141,8 @@ class HTMLElementContext {
     return reduced_image_cache_capacity_manager_;
   }
 
-  page_visibility::PageVisibilityState* page_visibility_state() {
-    return &page_visibility_state_;
+  base::WeakPtr<page_visibility::PageVisibilityState> page_visibility_state() {
+    return page_visibility_state_weak_ptr_factory_.GetWeakPtr();
   }
 
  private:
@@ -165,6 +165,8 @@ class HTMLElementContext {
   DomStatTracker* const dom_stat_tracker_;
   const std::string font_language_script_;
   page_visibility::PageVisibilityState page_visibility_state_;
+  base::WeakPtrFactory<page_visibility::PageVisibilityState>
+      page_visibility_state_weak_ptr_factory_;
   const float video_playback_rate_multiplier_;
   base::WaitableEvent* synchronous_loader_interrupt_ = nullptr;
 

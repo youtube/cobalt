@@ -23,7 +23,11 @@
 #include "../jsimd.h"
 #include "jconfigint.h"
 
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#else
 #include <stdlib.h>
+#endif
 
 /*
  * In the PIC cases, we have no guarantee that constants will keep
