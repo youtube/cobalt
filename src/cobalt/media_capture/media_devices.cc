@@ -79,7 +79,7 @@ MediaDevices::EnumerateDevices() {
 
   scoped_ptr<speech::Microphone> microphone =
       CreateMicrophone(settings_->microphone_options());
-  if (microphone) {
+  if (microphone && microphone->IsValid()) {
     scoped_refptr<Wrappable> media_device(
         new MediaDeviceInfo(script_value_factory_, kMediaDeviceKindAudioinput,
                             microphone->Label()));

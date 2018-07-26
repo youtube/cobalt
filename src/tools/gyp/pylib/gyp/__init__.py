@@ -101,7 +101,7 @@ def Load(build_files, format, default_variables={},
   # avoiding collisions with user and automatic variables.
   default_variables['GENERATOR'] = formats[0]
 
-  for (key, val) in generator.generator_default_variables.items():
+  for (key, val) in generator.GetGeneratorVariables(params['flavor']).items():
     default_variables.setdefault(key, val)
 
   # Give the generator the opportunity to set additional variables based on

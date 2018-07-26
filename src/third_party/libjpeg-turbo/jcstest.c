@@ -28,8 +28,12 @@
 
 /* This program demonstrates how to check for the colorspace extension
    capabilities of libjpeg-turbo at both compile time and run time. */
-
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
+#endif
+
 #include <jpeglib.h>
 #include <jerror.h>
 #include <setjmp.h>

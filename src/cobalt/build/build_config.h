@@ -15,40 +15,57 @@
 #ifndef COBALT_BUILD_BUILD_CONFIG_H_
 #define COBALT_BUILD_BUILD_CONFIG_H_
 
-#if COBALT_MEDIA_BUFFER_INITIAL_CAPACITY < 0
+#if defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY) && \
+    COBALT_MEDIA_BUFFER_INITIAL_CAPACITY < 0
 #error cobalt_media_buffer_initial_capacity has to be greater than or equal to 0
-#endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_INITIAL_CAPACITY) &&
+        // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY < 0
 
-#if COBALT_MEDIA_BUFFER_ALLOCATION_UNIT < 0
+#if defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT) && \
+    COBALT_MEDIA_BUFFER_ALLOCATION_UNIT < 0
 #error cobalt_media_buffer_allocation_unit has to be greater than or equal to 0
-#endif  // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_ALLOCATION_UNIT) &&
+        // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT < 0
 
-#if COBALT_MEDIA_BUFFER_ALIGNMENT < 0
+#if defined(COBALT_MEDIA_BUFFER_ALIGNMENT) && COBALT_MEDIA_BUFFER_ALIGNMENT < 0
 #error "cobalt_media_buffer_alignment has to be greater than or equal to 0."
-#endif  // COBALT_MEDIA_BUFFER_ALIGNMENT < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_ALIGNMENT) &&
+        // COBALT_MEDIA_BUFFER_ALIGNMENT < 0
 
-#if COBALT_MEDIA_BUFFER_PADDING < 0
+#if defined(COBALT_MEDIA_BUFFER_PADDING) && COBALT_MEDIA_BUFFER_PADDING < 0
 #error "cobalt_media_buffer_padding has to be greater than or equal to 0."
-#endif  // COBALT_MEDIA_BUFFER_PADDING < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_PADDING) && COBALT_MEDIA_BUFFER_PADDING <
+        // 0
 
-#if COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET < 8 * 1024 * 1024
+#if defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET) && \
+    COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET < 8 * 1024 * 1024
 #error cobalt_media_buffer_progressive_budget has to be greater than or equal \
            to 8 MB.
-#endif  // COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET) &&
+        // COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET < 0
 
-#if COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET <= 0
+#if defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) && \
+    COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET <= 0
 #error "cobalt_media_buffer_non_video_budget has to be greater than 0."
-#endif  // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET) &&
+        // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET < 0
 
-#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P <= 0
+#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) && \
+    COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P <= 0
 #error "cobalt_media_buffer_video_budget_1080p has to be greater than 0."
-#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P < 0
+#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) &&
+        // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P < 0
 
-#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K < COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+#if defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K) &&    \
+    defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) && \
+    COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <              \
+        COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
 #error cobalt_media_buffer_video_budget_4k has to be greater than or equal to \
            cobalt_media_buffer_video_budget_1080p.
-#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <
-        //     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
+#endif  // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K) &&
+        // defined(COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P) &&
+        // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <
+        // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
 
 #if COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != 0
 #if COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P <  \

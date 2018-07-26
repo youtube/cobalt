@@ -17,6 +17,10 @@
 #include "starboard/log.h"
 
 #if SB_API_VERSION >= 10
+// These are the legacy default values of the GYP variables.
+#define LEGACY_MAX_CAPACITY_1080P 36 * 1024 * 1024
+#define LEGACY_MAX_CAPACITY_4K 65 * 1024 * 1024
+
 int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
@@ -26,22 +30,28 @@ int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec,
   if ((resolution_width <= 1920 && resolution_height <= 1080) ||
       resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
       resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
-#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P) && \
+    COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != LEGACY_MAX_CAPACITY_1080P
     SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P will be "
                         "deprecated in a future Starboard version.";
     // Use define forwarded from GYP variable.
     return COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P;
-#else  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+#else   // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P) &&
+    // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != LEGACY_MAX_CAPACITY_1080P
     return 36 * 1024 * 1024;
-#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P)
+#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P) &&
+        // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != LEGACY_MAX_CAPACITY_1080P
   }
-#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+#if defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K) && \
+    COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
   SB_DLOG(WARNING) << "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K will be "
                       "deprecated in a future Starboard version.";
   // Use define forwarded from GYP variable.
   return COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K;
-#else  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+#else   // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K) &&
+  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
   return 65 * 1024 * 1024;
-#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K)
+#endif  // defined(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K) &&
+        // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != LEGACY_MAX_CAPACITY_4K
 }
 #endif  // SB_API_VERSION >= 10

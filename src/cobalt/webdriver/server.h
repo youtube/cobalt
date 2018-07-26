@@ -79,8 +79,11 @@ class WebDriverServer : private net::HttpServer::Delegate {
       HttpMethod, const std::string&, scoped_ptr<base::Value>,
       scoped_ptr<ResponseHandler>)> HandleRequestCallback;
 
+  // |address_cval_name| is the name of the CVal that identifies the Webdriver
+  // address and port
   WebDriverServer(int port, const std::string& listen_ip,
-                  const HandleRequestCallback& callback);
+                  const HandleRequestCallback& callback,
+                  const std::string& address_cval_name);
 
  protected:
   // net::HttpServer::Delegate implementation.

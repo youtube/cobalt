@@ -74,6 +74,13 @@
         # Typically when 32-bit value is assigned to a 64-bit pointer value.
         4312,
       ],
+      'conditions': [
+        ['clang == 1', {
+          'cflags': [
+            '-Wno-tautological-compare',
+          ],
+        }],
+      ],
     },
   ], # targets
 }

@@ -32,9 +32,13 @@
  * images using the TurboJPEG C API
  */
 
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/stdio_poem.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 #include <errno.h>
 #include <turbojpeg.h>
 

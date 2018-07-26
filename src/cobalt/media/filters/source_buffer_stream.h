@@ -475,6 +475,9 @@ class MEDIA_EXPORT SourceBufferStream : private SourceBufferStreamState {
   // garbage collection.
   base::TimeDelta GetBufferedDurationForGarbageCollection() const;
 
+  // Updates Media Buffer related member variables based on the video config.
+  void UpdateMediaBufferMembers(const VideoDecoderConfig& config);
+
   // Used to report log messages that can help the web developer figure out what
   // is wrong with the content.
   scoped_refptr<MediaLog> media_log_;

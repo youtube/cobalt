@@ -23,6 +23,7 @@ class CompilerBase(object):
   def __init__(self, **kwargs):
     self._path = common.GetPath('clang', **kwargs)
     self._extra_flags = kwargs.get('extra_flags', [])
+    self._defines = kwargs.get('defines', [])
 
   def GetPath(self):
     return self._path
@@ -60,6 +61,7 @@ class CCompiler(CompilerBase, abstract.CCompiler):
   """Compiles C sources using Clang."""
 
   def __init__(self, **kwargs):
+    # pylint:disable=useless-super-delegation
     super(CCompiler, self).__init__(**kwargs)
 
   def GetCommand(self, path, extra_flags, flags, shell):
@@ -80,6 +82,7 @@ class CxxCompiler(CompilerBase, abstract.CxxCompiler):
   """Compiles C++ sources using Clang."""
 
   def __init__(self, **kwargs):
+    # pylint:disable=useless-super-delegation
     super(CxxCompiler, self).__init__(**kwargs)
 
   def GetCommand(self, path, extra_flags, flags, shell):
@@ -89,7 +92,9 @@ class CxxCompiler(CompilerBase, abstract.CxxCompiler):
     return 'CXX $out'
 
   def GetFlags(self, defines, include_dirs, cflags):
-    define_flags = ['-D{0}'.format(define) for define in defines]
+    define_flags = [
+        '-D{0}'.format(define) for define in self._defines + defines
+    ]
     include_dir_flags = [
         '-I{0}'.format(include_dir) for include_dir in include_dirs
     ]
@@ -100,6 +105,7 @@ class ObjectiveCxxCompiler(CompilerBase, abstract.ObjectiveCxxCompiler):
   """Compiles Objective-C++ sources using Clang."""
 
   def __init__(self, **kwargs):
+    # pylint:disable=useless-super-delegation
     super(ObjectiveCxxCompiler, self).__init__(**kwargs)
 
   def GetCommand(self, path, extra_flags, flags, shell):
@@ -109,7 +115,9 @@ class ObjectiveCxxCompiler(CompilerBase, abstract.ObjectiveCxxCompiler):
     return 'OBJCXX $out'
 
   def GetFlags(self, defines, include_dirs, cflags):
-    define_flags = ['-D{0}'.format(define) for define in defines]
+    define_flags = [
+        '-D{0}'.format(define) for define in self._defines + defines
+    ]
     include_dir_flags = [
         '-I{0}'.format(include_dir) for include_dir in include_dirs
     ]
@@ -121,6 +129,7 @@ class AssemblerWithCPreprocessor(CompilerBase,
   """Compiles assembler sources that contain C preprocessor directives."""
 
   def __init__(self, **kwargs):
+    # pylint:disable=useless-super-delegation
     super(AssemblerWithCPreprocessor, self).__init__(**kwargs)
 
   def GetCommand(self, path, extra_flags, flags, shell):
@@ -131,7 +140,9 @@ class AssemblerWithCPreprocessor(CompilerBase,
     return 'ASM $out'
 
   def GetFlags(self, defines, include_dirs, cflags):
-    define_flags = ['-D{0}'.format(define) for define in defines]
+    define_flags = [
+        '-D{0}'.format(define) for define in self._defines + defines
+    ]
     include_dir_flags = [
         '-I{0}'.format(include_dir) for include_dir in include_dirs
     ]
