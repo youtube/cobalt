@@ -49,8 +49,13 @@ scoped_array<uint8> EncodeRGBAToBuffer(const uint8_t* pixel_data, int width,
 
   *out_size = jpegSize;
 
-  // Copy the memory from the buffer to a scoped_array to return to the caller.
-  return scoped_array<uint8>(jpeg_buffer);
+  // Copy the memory to return to the caller.
+  // tjCompress2 allocates the data with malloc, and scoped_array deallocates
+  // with delete, so the data has to be copied in.
+  scoped_array<uint8> out_buffer(new uint8[jpegSize]);
+  memcpy(out_buffer.get(), &(jpeg_buffer[0]), jpegSize);
+  SbMemoryDeallocate(jpeg_buffer);
+  return out_buffer.Pass();
 }
 
 }  // namespace jpeg_utils
