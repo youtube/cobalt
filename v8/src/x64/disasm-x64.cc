@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#if !V8_OS_STARBOARD
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#endif
 
 #if V8_TARGET_ARCH_X64
 
@@ -2822,6 +2824,9 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) {
 
 
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
+#if V8_OS_STARBOARD
+  SB_NOTIMPLEMENTED();
+#else
   NameConverter converter;
   Disassembler d(converter);
   for (byte* pc = begin; pc < end;) {
@@ -2840,6 +2845,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     }
     fprintf(f, "  %s\n", buffer.start());
   }
+#endif
 }
 
 }  // namespace disasm

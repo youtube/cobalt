@@ -208,6 +208,7 @@ void CodeEventLogger::RegExpCodeCreateEvent(AbstractCode* code,
 }
 
 
+#if !V8_OS_STARBOARD
 // Linux perf tool logging support
 class PerfBasicLogger : public CodeEventLogger {
  public:
@@ -407,6 +408,7 @@ void LowLevelLogger::CodeMovingGCEvent() {
 
   LogWriteBytes(&tag, sizeof(tag));
 }
+#endif  // V8_OS_STARBOARD
 
 class JitLogger : public CodeEventLogger {
  public:
@@ -1756,6 +1758,7 @@ bool Logger::SetUp(Isolate* isolate) {
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
   log_ = new Log(this, log_file_name.str().c_str());
 
+#if !V8_OS_STARBOARD
   if (FLAG_perf_basic_prof) {
     perf_basic_logger_ = new PerfBasicLogger();
     addCodeEventListener(perf_basic_logger_);
@@ -1770,6 +1773,7 @@ bool Logger::SetUp(Isolate* isolate) {
     ll_logger_ = new LowLevelLogger(log_file_name.str().c_str());
     addCodeEventListener(ll_logger_);
   }
+#endif  // !V8_OS_STARBOARD
 
   ticker_ = new Ticker(isolate, FLAG_prof_sampling_interval);
 
@@ -1846,11 +1850,13 @@ FILE* Logger::TearDown() {
   delete ticker_;
   ticker_ = nullptr;
 
+#if !V8_OS_STARBOARD
   if (perf_basic_logger_) {
     removeCodeEventListener(perf_basic_logger_);
     delete perf_basic_logger_;
     perf_basic_logger_ = nullptr;
   }
+#endif  // V8_OS_STARBOARD
 
   if (perf_jit_logger_) {
     removeCodeEventListener(perf_jit_logger_);
@@ -1858,11 +1864,13 @@ FILE* Logger::TearDown() {
     perf_jit_logger_ = nullptr;
   }
 
+#if !V8_OS_STARBOARD
   if (ll_logger_) {
     removeCodeEventListener(ll_logger_);
     delete ll_logger_;
     ll_logger_ = nullptr;
   }
+#endif  // V8_OS_STARBOARD
 
   if (jit_logger_) {
     removeCodeEventListener(jit_logger_);
