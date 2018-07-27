@@ -527,9 +527,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   }
   options.storage_manager_options.savegame_options.id = partition_key;
 
+
   base::optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
-  if (partition_key == default_key) {
+  if (command_line->HasSwitch(
+          browser::switches::kForceMigrationForStoragePartitioning) ||
+      partition_key == default_key) {
     options.storage_manager_options.savegame_options.fallback_to_default_id =
         true;
   }
