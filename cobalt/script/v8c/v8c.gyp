@@ -161,29 +161,30 @@
       # its update indicates V8 code change.
       'target_name': 'update_snapshot_time',
       'type': 'none',
+      'hard_dependency': 1,
       'dependencies': [
         '<(DEPTH)/v8/src/v8.gyp:v8_base',
         '<(DEPTH)/v8/src/v8.gyp:v8_initializers',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
       ],
       'variables': {
-        'script_path': '<(DEPTH)/starboard/build/touch.py',
-        'output_path': '<(DEPTH)/cobalt/script/v8c/isolate_fellowship.cc',
+        'touch_script_path': '<(DEPTH)/starboard/build/touch.py',
+        'touch_file_path': '<(DEPTH)/cobalt/script/v8c/isolate_fellowship.cc',
+        'dummy_output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/script/v8c/isolate_fellowship_is_touched.stamp',
       },
       'actions': [
         {
           'action_name': 'update_snapshot_time',
           'inputs': [
-            '<(script_path)',
+            '<(touch_script_path)',
             '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_base<(STATIC_LIB_SUFFIX)',
             '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_initializers<(STATIC_LIB_SUFFIX)',
             '<(PRODUCT_DIR)/obj/v8/src/<(STATIC_LIB_PREFIX)v8_libplatform<(STATIC_LIB_SUFFIX)',
           ],
           'outputs': [
-            '<(output_path)',
+            '<(dummy_output_path)',
           ],
-          'action': ['python', '<(script_path)',
-                     '<(output_path)',
+          'action': ['python', '<(touch_script_path)', '<(touch_file_path)', '<(dummy_output_path)',
           ],
           'message': 'Updating V8 snapshot creation time.',
         },
