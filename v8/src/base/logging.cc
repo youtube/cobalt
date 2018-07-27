@@ -5,9 +5,11 @@
 #include "src/base/logging.h"
 
 #include <cctype>
+#if !V8_OS_STARBOARD
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#endif
 
 #include "src/base/debug/stack_trace.h"
 #include "src/base/platform/platform.h"
@@ -120,8 +122,10 @@ DEFINE_CHECK_OP_IMPL(GT)
 }  // namespace v8
 
 void V8_Fatal(const char* file, int line, const char* format, ...) {
+#if !V8_OS_STARBOARD
   fflush(stdout);
   fflush(stderr);
+#endif
   v8::base::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file,
                            line);
   va_list arguments;
@@ -132,7 +136,9 @@ void V8_Fatal(const char* file, int line, const char* format, ...) {
 
   if (v8::base::g_print_stack_trace) v8::base::g_print_stack_trace();
 
+#if !V8_OS_STARBOARD
   fflush(stderr);
+#endif
   v8::base::OS::Abort();
 }
 
