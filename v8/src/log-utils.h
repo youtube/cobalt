@@ -5,7 +5,9 @@
 #ifndef V8_LOG_UTILS_H_
 #define V8_LOG_UTILS_H_
 
+#if !V8_OS_STARBOARD
 #include <stdio.h>
+#endif
 
 #include <cstdarg>
 

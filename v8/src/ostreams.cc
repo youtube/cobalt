@@ -12,6 +12,10 @@
 #endif
 #endif
 
+#if V8_OS_STARBOARD
+#include "src/poems.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -22,19 +26,29 @@ OFStreamBase::~OFStreamBase() {}
 
 
 int OFStreamBase::sync() {
+#if !V8_OS_STARBOARD
   std::fflush(f_);
+#endif
   return 0;
 }
 
 
 OFStreamBase::int_type OFStreamBase::overflow(int_type c) {
+#if V8_OS_STARBOARD
+  return c;
+#else
   return (c != EOF) ? std::fputc(c, f_) : c;
+#endif
 }
 
 
 std::streamsize OFStreamBase::xsputn(const char* s, std::streamsize n) {
+#if V8_OS_STARBOARD
+  return n;
+#else
   return static_cast<std::streamsize>(
       std::fwrite(s, 1, static_cast<size_t>(n), f_));
+#endif
 }
 
 
