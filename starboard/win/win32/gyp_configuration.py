@@ -131,8 +131,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
        'web_platform_tests': [
           '*WebPlatformTest.Run*',
        ],
-
-      'player_filter_tests': [ test_filter.FILTER_ALL ],
   }
 
   def GetVariables(self, configuration):

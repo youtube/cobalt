@@ -127,8 +127,10 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
 
-  # All windows flavors do not use player_filter_tests. If this is not included
-  # then the the ninja build will fail due to missing player_filter_tests.
   _FILTERED_TESTS = {
-      'player_filter_tests': [ test_filter.FILTER_ALL ],
+      'player_filter_tests': [
+          # TODO: debug these failures.
+          'AudioDecoderTests/AudioDecoderTest.SingleInvalidInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
+      ],
   }
