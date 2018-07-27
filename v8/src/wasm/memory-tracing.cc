@@ -43,8 +43,13 @@ void TraceMemoryOperation(ExecutionEngine engine, const MemoryTracingInfo* info,
       eng_c = 'I';
       break;
   }
+#if V8_OS_STARBOARD
+  SbLogFormatF("%c %8d+0x%-6x %s @%08x %s\n", eng_c, func_index, position,
+         info->is_store ? "store" : "load ", info->address, value.start());
+#else
   printf("%c %8d+0x%-6x %s @%08x %s\n", eng_c, func_index, position,
          info->is_store ? "store" : "load ", info->address, value.start());
+#endif
 }
 
 }  // namespace wasm

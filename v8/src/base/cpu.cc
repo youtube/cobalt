@@ -33,11 +33,13 @@
 #endif
 
 #include <ctype.h>
+#if !V8_OS_STARBOARD
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#endif
 
 #include "src/base/logging.h"
 #if V8_OS_WIN

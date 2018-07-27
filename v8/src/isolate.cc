@@ -4,7 +4,9 @@
 
 #include "src/isolate.h"
 
+#if !V8_OS_STARBOARD
 #include <stdlib.h>
+#endif  // V8_OS_STARBOARD
 
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
@@ -1130,6 +1132,9 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   Handle<Object> exception_handle(exception, this);
 
   if (FLAG_print_all_exceptions) {
+#if V8_OS_STARBOARD
+    SB_NOTIMPLEMENTED();
+#else
     printf("=========================================================\n");
     printf("Exception thrown:\n");
     if (location) {
@@ -1160,6 +1165,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
     printf("Stack Trace:\n");
     PrintStack(stdout);
     printf("=========================================================\n");
+#endif  // V8_OS_STARBOARD
   }
 
   // Determine whether a message needs to be created for the given exception
