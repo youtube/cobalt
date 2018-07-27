@@ -107,7 +107,10 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           '.SunnyDaySourceNotLoopback/1',
       ],
       'nplb_blitter_pixel_tests': [test_filter.FILTER_ALL],
-      # TODO: enable player_filter_tests.
-      'player_filter_tests': [test_filter.FILTER_ALL],
+      'player_filter_tests': [
+          # TODO: debug these failures.
+          'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
+          'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
+      ],
       'starboard_platform_tests': [test_filter.FILTER_ALL],
   }
