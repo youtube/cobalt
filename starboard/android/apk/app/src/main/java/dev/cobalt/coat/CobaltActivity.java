@@ -47,6 +47,11 @@ public abstract class CobaltActivity extends NativeActivity {
   private static final String SPLASH_URL_ARG = "--fallback_splash_screen_url=";
   private static final java.lang.String META_DATA_SPLASH_URL = "cobalt.SPLASH_URL";
 
+  private static final String FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
+      "--force_migration_for_storage_partitioning";
+  private static final String META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
+      "cobalt.force_migration_for_storage_partitioning";
+
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
 
@@ -178,6 +183,9 @@ public abstract class CobaltActivity extends NativeActivity {
             if (splashUrl != null) {
               args.add(SPLASH_URL_ARG + splashUrl);
             }
+          }
+          if (ai.metaData.getBoolean(META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING)) {
+            args.add(FORCE_MIGRATION_FOR_STORAGE_PARTITIONING);
           }
         }
       } catch (NameNotFoundException e) {
