@@ -68,6 +68,19 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add support for using C++11 standard unordered maps and sets.
+//   By setting SB_HAS_STD_UNORDERED_HASH to 1, a platform can be configured
+//   to use C++11 standard hash table implementations, specifically, using:
+//   . std::unordered_map<> for base::hash_map<>, and
+//   . std::unordered_multimap<> for base::hash_multimap<>, and
+//   . std::unordered_set<> for base::hash_set<>, and
+//   . std::unordered_multiset<> for base::hash_multiset<>.
+//   When SB_HAS_STD_UNORDERED_HASH is used, it is no longer necessary to
+//   specify SB_HAS_LONG_LONG_HASH, SB_HAS_STRING_HASH, SB_HAS_HASH_USING,
+//   SB_HAS_HASH_VALUE, SB_HAS_HASH_WARNING, SB_HASH_MAP_INCLUDE,
+//   SB_HASH_NAMESPACE, or SB_HASH_SET_INCLUDE.
+#define SB_HAS_STD_UNORDERED_HASH_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -397,6 +410,30 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_IMPORT_PLATFORM."
 #endif
 
+#if SB_API_VERSION >= SB_HAS_STD_UNORDERED_HASH_API_VERSION
+#if !SB_HAS(STD_UNORDERED_HASH)
+
+#if !defined(SB_HASH_MAP_INCLUDE)
+#error \
+    "Your platform must define SB_HASH_MAP_INCLUDE or "\
+    "define SB_HAS_STD_UNORDERED_HASH 1."
+#endif
+
+#if !defined(SB_HASH_NAMESPACE)
+#error \
+    "Your platform must define SB_HASH_NAMESPACE or "\
+    "define SB_HAS_STD_UNORDERED_HASH 1."
+#endif
+
+#if !defined(SB_HASH_SET_INCLUDE)
+#error \
+    "Your platform must define SB_HASH_SET_INCLUDE or "\
+    "define SB_HAS_STD_UNORDERED_HASH 1."
+#endif
+
+#endif  // !SB_HAS(STD_UNORDERED_HASH)
+#else   // SB_API_VERSION >= SB_HAS_STD_UNORDERED_HASH_API_VERSION
+
 #if !defined(SB_HASH_MAP_INCLUDE)
 #error "Your platform must define SB_HASH_MAP_INCLUDE."
 #endif
@@ -409,6 +446,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HASH_SET_INCLUDE."
 #endif
 
+#endif  // SB_API_VERSION >= SB_HAS_STD_UNORDERED_HASH_API_VERSION
 #if !defined(SB_FILE_MAX_NAME) || SB_FILE_MAX_NAME < 2
 #error "Your platform must define SB_FILE_MAX_NAME > 1."
 #endif
@@ -601,8 +639,9 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #if SB_API_VERSION >= 10
 #if !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
-#error Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API \
-    version 10 or later.
+#error \
+    "Your platform must define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING in API "\
+    "version 10 or later."
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #endif  // SB_API_VERSION >= 10
 
