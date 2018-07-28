@@ -431,7 +431,7 @@
             'mfbt/double-conversion/ieee.h',
             'mfbt/double-conversion/strtod.h',
             'mfbt/double-conversion/utils.h',
-            'mfbt/Endian.h',
+            'mfbt/EndianUtils.h',
             'mfbt/EnumeratedArray.h',
             'mfbt/EnumeratedRange.h',
             'mfbt/EnumSet.h',
