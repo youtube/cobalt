@@ -57,15 +57,17 @@ MediaSessionClient::GetAvailableActions() {
   // Note that this is essentially the "media session actions update algorithm"
   // inverted.
   AvailableActionsSet result = AvailableActionsSet();
+  MediaSessionPlaybackState playback_state = GetActualPlaybackState();
+  bool session_is_active = playback_state != kMediaSessionPlaybackStateNone;
 
   for (MediaSession::ActionMap::iterator it =
          media_session_->action_map_.begin();
        it != media_session_->action_map_.end();
        ++it) {
-    result[it->first] = true;
+    result[it->first] = session_is_active;
   }
 
-  switch (GetActualPlaybackState()) {
+  switch (playback_state) {
     case kMediaSessionPlaybackStatePlaying:
       // "If the active media session’s actual playback state is playing, remove
       // play from available actions."
