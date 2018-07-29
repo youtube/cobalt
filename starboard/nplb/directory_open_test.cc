@@ -24,10 +24,13 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#define EXPECT_FILE_EXISTS(path) \
+  EXPECT_TRUE(SbFileExists(path.c_str())) << "Filename is " << path.c_str()
+
 TEST(SbDirectoryOpenTest, SunnyDay) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_FILE_EXISTS(path);
 
   SbFileError error = kSbFileErrorMax;
   SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
@@ -39,7 +42,7 @@ TEST(SbDirectoryOpenTest, SunnyDay) {
 TEST(SbDirectoryOpenTest, SunnyDayWithNullError) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_FILE_EXISTS(path);
 
   SbDirectory directory = SbDirectoryOpen(path.c_str(), NULL);
   EXPECT_TRUE(SbDirectoryIsValid(directory));
@@ -49,7 +52,7 @@ TEST(SbDirectoryOpenTest, SunnyDayWithNullError) {
 TEST(SbDirectoryOpenTest, ManySunnyDay) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_FILE_EXISTS(path);
 
   const int kMany = SB_FILE_MAX_OPEN;
   SbDirectory directories[kMany] = {0};
@@ -69,7 +72,7 @@ TEST(SbDirectoryOpenTest, ManySunnyDay) {
 TEST(SbDirectoryOpenTest, FailsInvalidPath) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_FILE_EXISTS(path);
 
   // Funny way to make sure the directory seems valid but doesn't exist.
   int len = static_cast<int>(path.length());
