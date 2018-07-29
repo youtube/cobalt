@@ -182,7 +182,7 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
   void OnCriticalError(HRESULT) override {}
 
   ComPtr<IXAudio2> x_audio2_;
-  IXAudio2MasteringVoice* mastering_voice_;
+  IXAudio2MasteringVoice* mastering_voice_ = nullptr;
 
   // This mutex protects |audio_sinks_to_add_| and |audio_sinks_to_delete_|.
   Mutex mutex_;
@@ -335,7 +335,10 @@ XAudioAudioSinkType::XAudioAudioSinkType() {
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   x_audio2_->RegisterForCallbacks(this);
-  CHECK_HRESULT_OK(x_audio2_->CreateMasteringVoice(&mastering_voice_));
+  HRESULT hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
+
+  SB_LOG_IF(WARNING, FAILED(hr)) << "Audio failed to CreateMasteringVoice(), "
+                                    "sound will be disabled.";
 }
 
 SbAudioSink XAudioAudioSinkType::Create(
