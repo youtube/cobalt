@@ -41,7 +41,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.proc = subprocess.Popen(
         [self.executable_path] + self.target_command_line_params,
         stdout=self.output_file,
-        stderr=self.output_file)
+        stderr=self.output_file,
+        universal_newlines=True)
     self.pid = self.proc.pid
     self.proc.communicate()
     self.proc.poll()
