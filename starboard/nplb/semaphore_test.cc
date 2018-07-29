@@ -79,7 +79,7 @@ class ThreadTakesWaitSemaphore : public AbstractTestThread {
   SbTime result_wait_time_;
 };
 
-TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
+TEST(Semaphore, FLAKY_ThreadTakesWait_PutBeforeTimeExpires) {
   SbTime wait_time = kSbTimeMillisecond * 80;
   ThreadTakesWaitSemaphore thread(wait_time);
   thread.Start();
