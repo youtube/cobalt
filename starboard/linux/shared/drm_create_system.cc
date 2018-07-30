@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,6 @@
 #include "starboard/log.h"
 #include "starboard/shared/widevine/drm_system_widevine3.h"
 #include "starboard/string.h"
-
-#warning "This implementation is meant to use for testing purpose only."
-#warning "|company_name| and |model_name| should be replaced in production."
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -54,8 +51,6 @@ SbDrmSystem SbDrmCreateSystem(
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
     return kSbDrmSystemInvalid;
   }
-  SB_LOG(ERROR) << "|company_name| and |model_name| are set to \"www\", "
-                << "premium content playback resolution may be limited.";
   return new starboard::shared::widevine::SbDrmSystemWidevine(
       context, update_request_callback, session_updated_callback
 #if SB_HAS(DRM_KEY_STATUSES)
@@ -70,5 +65,5 @@ SbDrmSystem SbDrmCreateSystem(
       ,
       session_closed_callback
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
-      , "www", "www");
+      , "Linux", "Linux");
 }
