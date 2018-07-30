@@ -345,6 +345,7 @@
           '<(DEPTH)/starboard/linux/shared/widevine3.gyp:widevine_ce_cdm_static',
         ],
         'starboard_platform_sources': [
+          '<(DEPTH)/starboard/linux/shared/drm_create_system.cc',
           '<(DEPTH)/starboard/linux/shared/media_is_output_protected.cc',
           '<(DEPTH)/starboard/linux/shared/oemcrypto_engine_device_properties_linux.cc',
 
@@ -354,7 +355,6 @@
           '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
           '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
 
-          '<(DEPTH)/starboard/shared/widevine/drm_create_system.cc',
           '<(DEPTH)/starboard/shared/widevine/drm_is_server_certificate_updatable.cc',
           '<(DEPTH)/starboard/shared/widevine/drm_system_widevine3.cc',
           '<(DEPTH)/starboard/shared/widevine/drm_system_widevine3.h',
