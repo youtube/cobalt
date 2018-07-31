@@ -422,6 +422,9 @@ public class MediaCodecUtil {
   /** Determine whether findVideoDecoderResult is capable of playing HDR VP9 */
   public static boolean isHdrCapableVp9Decoder(FindVideoDecoderResult findVideoDecoderResult) {
     CodecCapabilities codecCapabilities = findVideoDecoderResult.codecCapabilities;
+    if (codecCapabilities == null) {
+      return false;
+    }
     CodecProfileLevel[] codecProfileLevels = codecCapabilities.profileLevels;
     if (codecProfileLevels == null) {
       return false;
