@@ -14,12 +14,27 @@
 
 #include "starboard/socket.h"
 
+#include <sstream>
+#include <string>
 #include <winsock2.h>
 
 #include "starboard/log.h"
 #include "starboard/shared/win32/socket_internal.h"
 
 namespace sbwin32 = starboard::shared::win32;
+
+namespace {
+std::string CreateErrorString(const SbSocketAddress* addr, int error) {
+  std::stringstream out;
+  if (addr) {
+    out << "Sendto failed while sending to port " << addr->port
+        << ". Last Error: 0x" << std::hex << error;
+  } else {
+    out << "Sendto failed because of error: 0x" << std::hex << error;
+  }
+  return out.str();
+}
+}  // namespace
 
 int SbSocketSendTo(SbSocket socket,
                    const char* data,
@@ -50,7 +65,7 @@ int SbSocketSendTo(SbSocket socket,
     if ((last_error == WSAEWOULDBLOCK) || (last_error == WSAECONNABORTED)) {
       socket->writable.store(false);
     } else {
-      SB_DLOG(ERROR) << "send failed, last_error = " << last_error;
+      SB_DLOG(ERROR) << CreateErrorString(destination, last_error);
     }
     socket->error = sbwin32::TranslateSocketErrorStatus(last_error);
     return -1;
@@ -82,8 +97,9 @@ int SbSocketSendTo(SbSocket socket,
     }
 
     int last_error = WSAGetLastError();
+
     if (last_error != WSAEWOULDBLOCK) {
-      SB_DLOG(ERROR) << "sendto failed, last_error = " << last_error;
+      SB_DLOG(ERROR) << CreateErrorString(destination, last_error);
     }
     socket->error = sbwin32::TranslateSocketErrorStatus(last_error);
     return -1;
