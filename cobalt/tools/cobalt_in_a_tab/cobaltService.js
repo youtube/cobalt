@@ -51,6 +51,14 @@ let CobaltService = class CobaltService{
         return this.fetchRequest(address, dataObject, resolveFunction);
     }
 
+    deleteSession(sessionId){
+        let address = `${this.webdriverAddress}/session/${sessionId}`;
+        let dataObject = {
+            method: "DELETE"
+        };
+        return this.fetchRequest(address, dataObject);
+    }
+
     getElement(sessionId){
         let address = `${this.webdriverAddress}/session/${sessionId}/element`;
         let data = {
