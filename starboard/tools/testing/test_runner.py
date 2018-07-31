@@ -90,11 +90,12 @@ class TestLineReader(object):
     while not self.stop_event.is_set():
       line = self.read_pipe.readline()
       if line:
+        # Normalize line endings to unix.
+        line = line.replace('\r', '')
         sys.stdout.write(line)
         sys.stdout.flush()
       else:
         break
-
       self.output_lines.write(line)
 
   def Start(self):
