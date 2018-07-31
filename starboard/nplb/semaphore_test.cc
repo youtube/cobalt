@@ -79,8 +79,8 @@ class ThreadTakesWaitSemaphore : public AbstractTestThread {
   SbTime result_wait_time_;
 };
 
-TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
-  SbTime timeout_time = kSbTimeMillisecond * 80;
+TEST(Semaphore, FLAKY_ThreadTakesWait_PutBeforeTimeExpires) {
+  SbTime timeout_time = kSbTimeMillisecond * 250;
   SbTime wait_time = kSbTimeMillisecond;
   ThreadTakesWaitSemaphore thread(timeout_time);
   thread.Start();
@@ -91,7 +91,7 @@ TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
   thread.Join();
 
   EXPECT_TRUE(thread.result_signaled_);
-  EXPECT_LT(thread.result_wait_time_, wait_time);
+  EXPECT_LT(thread.result_wait_time_, timeout_time);
 }
 
 double IsDoubleNear(double first, double second, double diff_threshold) {
