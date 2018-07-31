@@ -52,6 +52,7 @@ window.onload = async function(){
         window.addEventListener("keydown", sendKeyPress);
         window.addEventListener("beforeunload", function(e){
             cobaltService.stopScreencast(sessionId);
+            cobaltService.deleteSession(sessionId);
         }, false);
 
         // Start requesting screenshots.
