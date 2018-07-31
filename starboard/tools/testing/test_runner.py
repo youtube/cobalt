@@ -410,6 +410,8 @@ class TestRunner(object):
 
     print "\nTEST RUN COMPLETE. RESULTS BELOW:\n"
 
+    failed_test_groups = []
+
     for result_set in results:
 
       target_name = result_set[0]
@@ -426,6 +428,7 @@ class TestRunner(object):
       if return_code != 0:
         error = True
         test_status = "FAILED"
+        failed_test_groups.append(target_name)
 
       print "{}: {}.".format(target_name, test_status)
       if run_count == 0:
@@ -440,6 +443,7 @@ class TestRunner(object):
         print "  FAILED: {}".format(failed_count)
         total_failed_count += failed_count
         total_flaky_failed_count += len(flaky_failed_tests)
+        failed_tests.add(target_name)
         print "\n  FAILED TESTS:"
         for line in failed_tests:
           print "    {}".format(line)
@@ -460,6 +464,9 @@ class TestRunner(object):
       result = False
 
     print "TEST RUN {}.".format(overall_status)
+    if failed_test_groups:
+      failed_test_groups = list(set(failed_test_groups))
+      print "  FAILED TESTS GROUPS: {}".format(', '.join(failed_test_groups))
     print "  TOTAL TESTS RUN: {}".format(total_run_count)
     print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
     print "  TOTAL TESTS FAILED: {}".format(total_failed_count)
