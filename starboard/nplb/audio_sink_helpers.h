@@ -73,6 +73,8 @@ class AudioSinkTestEnvironment {
       const AudioSinkTestFrameBuffers& frame_buffers);
   ~AudioSinkTestEnvironment();
 
+  bool is_valid() const { return SbAudioSinkIsValid(sink_); }
+
   static int sample_rate() {
     return SbAudioSinkGetNearestSupportedSampleFrequency(kSampleRateCD);
   }
