@@ -25,6 +25,7 @@ namespace nplb {
 TEST(SbAudioSinkTest, UpdateStatusCalled) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
   AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
 
   EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
   EXPECT_TRUE(environment.WaitUntilUpdateStatusCalled());
@@ -33,6 +34,7 @@ TEST(SbAudioSinkTest, UpdateStatusCalled) {
 TEST(SbAudioSinkTest, SomeFramesConsumed) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
   AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
 
   environment.AppendFrame(1);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
@@ -41,6 +43,7 @@ TEST(SbAudioSinkTest, SomeFramesConsumed) {
 TEST(SbAudioSinkTest, AllFramesConsumed) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
   AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
 
   environment.AppendFrame(1024);
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
@@ -49,6 +52,7 @@ TEST(SbAudioSinkTest, AllFramesConsumed) {
 TEST(SbAudioSinkTest, MultipleAppendAndConsume) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
   AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
 
   int frames_to_append = frame_buffers.frames_per_channel();
 
@@ -61,6 +65,8 @@ TEST(SbAudioSinkTest, MultipleAppendAndConsume) {
 TEST(SbAudioSinkTest, Pause) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
   AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
+
   environment.SetIsPlaying(false);
 
   int frames_to_append = frame_buffers.frames_per_channel();
@@ -78,6 +84,8 @@ TEST(SbAudioSinkTest, ContinuousAppend) {
   AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
 
   AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
+
   int sample_rate = environment.sample_rate();
   // We are trying to send 1/4s worth of audio samples.
   int frames_to_append = sample_rate / 4;
