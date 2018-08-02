@@ -20,6 +20,11 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec /*video_codec*/,
                                        int /*frame_width*/,
                                        int /*frame_height*/,
                                        int64_t /*bitrate*/,
-                                       int /*fps*/) {
+                                       int /*fps*/
+#if SB_API_VERSION >= 10
+                                       ,
+                                       bool /*decode_to_texture_required*/
+#endif                                      // SB_API_VERSION >= 10
+                                       ) {
   return false;
 }

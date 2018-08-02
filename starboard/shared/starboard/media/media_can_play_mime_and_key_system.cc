@@ -41,7 +41,12 @@ const int64_t kDefaultAudioChannels = 2;
 //
 // Note that canPlayType() doesn't support extra parameters like width, height
 // and channels.
-SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type) {
+SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type,
+                                           bool decode_to_texture_required) {
+#if SB_API_VERSION < 10
+  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
+#endif  // SB_API_VERSION < 10
+
   const std::vector<std::string>& codecs = mime_type.GetCodecs();
 
   SB_DCHECK(codecs.size() == 2) << codecs.size();
@@ -74,7 +79,12 @@ SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type) {
       }
     }
     if (!SbMediaIsVideoSupported(video_codec, width, height, kDefaultBitRate,
-                                 fps)) {
+                                 fps
+#if SB_API_VERSION >= 10
+                                 ,
+                                 decode_to_texture_required
+#endif  // SB_API_VERSION >= 10
+                                 )) {
       return kSbMediaSupportTypeNotSupported;
     }
   }
@@ -104,6 +114,9 @@ SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type) {
 //   isTypeSupported(audio/webm; codecs="opus")
 //   isTypeSupported(audio/mp4; codecs="mp4a.40.2"; channels=2)
 //   isTypeSupported(audio/mp4; codecs="mp4a.40.2"; channels=99)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; decode-to-texture=true)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; decode-to-texture=false)
+//   isTypeSupported(video/mp4; codecs="avc1.4d401e"; decode-to-texture=invalid)
 SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
                                            const char* key_system) {
   SB_DCHECK(mime_type.is_valid());
@@ -118,6 +131,19 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     }
   }
 
+  bool decode_to_texture_required = false;
+#if SB_API_VERSION >= 10
+  std::string decode_to_texture_value =
+      mime_type.GetParamStringValue("decode-to-texture", "false");
+  if (decode_to_texture_value == "true") {
+    decode_to_texture_required = true;
+  } else if (decode_to_texture_value != "false") {
+    // If an invalid value (e.g. not "true" or "false") is passed in for
+    // decode-to-texture, trivially reject.
+    return kSbMediaSupportTypeNotSupported;
+  }
+#endif  // SB_API_VERSION >= 10
+
   if (codecs.size() == 0) {
     // When there is no codecs listed, returns |kSbMediaSupportTypeMaybe| and
     // reject unsupported formats when query again with valid "codecs".
@@ -130,7 +156,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
 
   if (codecs.size() == 2) {
     SB_DCHECK(SbStringGetLength(key_system) == 0);
-    return CanPlayProgressiveVideo(mime_type);
+    return CanPlayProgressiveVideo(mime_type, decode_to_texture_required);
   }
 
   SB_DCHECK(codecs.size() == 1);
@@ -208,7 +234,12 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
 
     int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
 
-    if (SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps)) {
+    if (SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
+#if SB_API_VERSION >= 10
+                                ,
+                                decode_to_texture_required
+#endif  // SB_API_VERSION >= 10
+                                )) {
       return kSbMediaSupportTypeProbably;
     }
 
