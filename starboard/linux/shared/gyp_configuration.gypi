@@ -20,6 +20,7 @@
     'target_arch%': 'x64',
     'target_os': 'linux',
     'yasm_exists': 1,
+    'sb_widevine_platform' : 'linux',
 
     'platform_libraries': [
       '-lasound',
