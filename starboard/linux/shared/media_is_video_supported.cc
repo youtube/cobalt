@@ -21,7 +21,24 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
-                                       int fps) {
+                                       int fps
+#if SB_API_VERSION >= 10
+                                       ,
+                                       bool decode_to_texture_required
+#endif  // SB_API_VERSION >= 10
+                                       ) {
+#if SB_API_VERSION >= 10
+#if SB_HAS(BLITTER)
+  if (decode_to_texture_required) {
+    return false;
+  }
+#else
+  // Assume that all non-Blitter Linux platforms can play decode-to-texture
+  // video just as well as normal video.
+  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
+#endif  // SB_HAS(BLITTER)
+#endif  // SB_API_VERSION >= 10
+
   return (video_codec == kSbMediaVideoCodecH264 ||
           video_codec == kSbMediaVideoCodecVp9) &&
          frame_width <= 1920 && frame_height <= 1080 &&
