@@ -79,7 +79,12 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
-                                       int fps) {
+                                       int fps,
+                                       bool decode_to_texture_required) {
+  // Win32 platforms use decode-to-texture by default so there is no special
+  // constraints if decode-to-texture support is specifically required.
+  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
+
   int max_width = 1920;
   int max_height = 1080;
 

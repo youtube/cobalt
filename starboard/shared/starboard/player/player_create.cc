@@ -80,7 +80,12 @@ SbPlayer SbPlayerCreate(SbWindow window,
   if (video_codec != kSbMediaVideoCodecNone &&
       !SbMediaIsVideoSupported(video_codec, kDefaultFrameWidth,
                                kDefaultFrameHeight, kDefaultBitRate,
-                               kDefaultFrameRate)) {
+                               kDefaultFrameRate
+#if SB_API_VERSION >= 10
+                               ,
+                               output_mode == kSbPlayerOutputModeDecodeToTexture
+#endif
+                               )) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
   }

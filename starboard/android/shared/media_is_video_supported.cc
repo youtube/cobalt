@@ -28,7 +28,12 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
-                                       int fps) {
+                                       int fps,
+                                       bool decode_to_texture_required) {
+  // While not necessarily true, for now we assume that all Android devices
+  // can play decode-to-texture video just as well as normal video.
+  SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
+
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     return false;
