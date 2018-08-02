@@ -117,7 +117,13 @@ const char kProdHelp[] =
     "Use this flag to simulate production build behavior.";
 
 const char kProxy[] = "proxy";
-const char kProxyHelp[] = "Specifies a proxy to use for network connections.";
+const char kProxyHelp[] =
+    "Specifies a proxy to use for network connections. "
+    "See comments in net::ProxyRules::ParseFromString() for more information. "
+    "If you do not explicitly provide a scheme when providing the proxy server "
+    "URL, it will default to HTTP.  So for example, for a HTTPS proxy you "
+    "would want to specify '--proxy=\"https=https://localhost:443\"' instead "
+    "of '--proxy=\"https=localhost:443\"'.";
 
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 const char kRemoteDebuggingPortHelp[] =
