@@ -46,6 +46,7 @@ class WebMediaPlayer {
     kNetworkStateFormatError,
     kNetworkStateNetworkError,
     kNetworkStateDecodeError,
+    kNetworkStateCapabilityChangedError,
   };
 
   enum ReadyState {
