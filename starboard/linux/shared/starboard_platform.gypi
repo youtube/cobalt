@@ -341,8 +341,8 @@
       }],
       ['has_cdm==1', {
         'starboard_platform_dependencies': [
-          '<(DEPTH)/starboard/linux/shared/widevine3.gyp:oemcrypto',
-          '<(DEPTH)/starboard/linux/shared/widevine3.gyp:widevine_ce_cdm_static',
+          '<(DEPTH)/starboard/shared/widevine/widevine3.gyp:oemcrypto',
+          '<(DEPTH)/starboard/shared/widevine/widevine3.gyp:widevine_ce_cdm_static',
         ],
         'starboard_platform_sources': [
           '<(DEPTH)/starboard/linux/shared/drm_create_system.cc',

@@ -19,6 +19,7 @@
   'variables': {
     'target_arch%': 'x64',
     'target_os': 'linux',
+    'sb_widevine_platform' : 'linux',
 
     'platform_libraries': [
       '-lasound',
