@@ -121,7 +121,7 @@ FileHandle log_file = NULL;
 
 // what should be prepended to each message?
 bool log_process_id = false;
-bool log_thread_id = false;
+bool log_thread_id = true;
 bool log_timestamp = true;
 bool log_tickcount = false;
 
@@ -794,7 +794,9 @@ void LogMessage::Init(const char* file, int line) {
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (log_timestamp) {
 #if defined(OS_STARBOARD)
-    EzTimeT t = EzTimeTGetNow(NULL);
+    EzTimeValue time_value;
+    EzTimeValueGetNow(&time_value, NULL);
+    EzTimeT t = time_value.tv_sec;
     struct EzTimeExploded local_time = {0};
     EzTimeTExplodeLocal(&t, &local_time);
     struct EzTimeExploded* tm_time = &local_time;
@@ -815,6 +817,9 @@ void LogMessage::Init(const char* file, int line) {
             << std::setw(2) << tm_time->tm_hour
             << std::setw(2) << tm_time->tm_min
             << std::setw(2) << tm_time->tm_sec
+#if defined(OS_STARBOARD)
+            << '.' << std::setw(6) << time_value.tv_usec
+#endif
             << ':';
   }
   if (log_tickcount)
