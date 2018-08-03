@@ -31,6 +31,9 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbDrmSystem drm_system) {
   SB_UNREFERENCED_PARAMETER(codec);
   SB_UNREFERENCED_PARAMETER(drm_system);
+#if SB_HAS(BLITTER)
+  return output_mode == kSbPlayerOutputModePunchOut;
+#endif
 
 #if defined(SB_FORCE_DECODE_TO_TEXTURE_ONLY)
   // Starboard lib targets may not draw directly to the window, so punch through
