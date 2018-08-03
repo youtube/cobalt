@@ -72,7 +72,16 @@ class CSSRule : public script::Wrappable,
   void set_parent_style_sheet(CSSStyleSheet *parent_style_sheet);
 
   int index() const { return index_; }
-  void set_index(int index) { index_ = index; }
+
+  // This may be overridden for derived classes representing groups of rules
+  // such that when the parent rule's index is updated, the children's rules
+  // are also updated.
+  virtual void SetIndex(int index) { index_ = index; }
+
+  // Returns how many indices this rule consumes within its parent rule list.
+  // It is useful to override this value for rule groups such that each inner
+  // rule is represented as an index within all its parents.
+  virtual int IndexWidth() const { return 1; }
 
   virtual void Accept(CSSRuleVisitor *visitor) = 0;
   virtual void AttachToCSSStyleSheet(CSSStyleSheet *style_sheet) = 0;
@@ -86,7 +95,7 @@ class CSSRule : public script::Wrappable,
   virtual ~CSSRule() {}
 
  private:
-  int index_;
+  int index_ = 0;
   base::WeakPtr<CSSRule> parent_rule_;
   base::WeakPtr<CSSStyleSheet> parent_style_sheet_;
 
