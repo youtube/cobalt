@@ -20,16 +20,13 @@
 namespace cobalt {
 namespace cssom {
 
-CSSGroupingRule::CSSGroupingRule() {}
-
 CSSGroupingRule::CSSGroupingRule(
     const scoped_refptr<CSSRuleList>& css_rule_list)
-    : css_rule_list_(css_rule_list) {}
+    : css_rule_list_(css_rule_list) {
+  DCHECK(css_rule_list_);
+}
 
 const scoped_refptr<CSSRuleList>& CSSGroupingRule::css_rules() {
-  if (!css_rule_list_) {
-    set_css_rules(new CSSRuleList());
-  }
   return css_rule_list_;
 }
 
@@ -37,6 +34,20 @@ unsigned int CSSGroupingRule::InsertRule(const std::string& rule,
                                          unsigned int index) {
   return css_rules()->InsertRule(rule, index);
 }
+
+void CSSGroupingRule::SetIndex(int index) {
+  int index_difference = index - this->index();
+  CSSRule::SetIndex(index);
+
+  // Update all of our child rules' indices so that they are consistently
+  // indexed within the parent's rule indices.
+  for (unsigned int i = 0; i < css_rule_list_->length(); ++i) {
+    css_rule_list_->Item(i)->SetIndex(css_rule_list_->Item(i)->index() +
+                                      index_difference);
+  }
+}
+
+int CSSGroupingRule::IndexWidth() const { return css_rule_list_->length(); }
 
 void CSSGroupingRule::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {

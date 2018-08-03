@@ -31,6 +31,8 @@ using ::testing::Return;
 
 class FakeCSSGroupingRule : public CSSGroupingRule {
  public:
+  FakeCSSGroupingRule() : CSSGroupingRule(new CSSRuleList()) {}
+
   // From CSSRule.
   Type type() const override { return kMediaRule; }
   std::string css_text(
