@@ -18,6 +18,7 @@
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_rule_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/media_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -60,7 +61,8 @@ TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSFontFaceRule) {
 
 TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSMediaRule) {
   scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
-  scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
+  scoped_refptr<CSSMediaRule> rule =
+      new CSSMediaRule(new MediaList(), new CSSRuleList());
   rule_list->AppendCSSRule(rule);
 
   ASSERT_EQ(1, rule_list->length());

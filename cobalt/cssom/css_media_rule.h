@@ -37,7 +37,6 @@ class PropertyValue;
 //   https://www.w3.org/TR/cssom/#the-cssmediarule-interface
 class CSSMediaRule : public CSSConditionRule {
  public:
-  CSSMediaRule();
   CSSMediaRule(const scoped_refptr<MediaList>& media_list,
                const scoped_refptr<CSSRuleList>& css_rule_list);
 

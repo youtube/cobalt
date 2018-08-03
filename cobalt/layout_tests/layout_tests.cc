@@ -157,6 +157,11 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSSImages3LayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-images")));
+// Custom CSS Media Queries (https://www.w3.org/TR/css3-mediaqueries/) test
+// cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSMediaQueriesLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-mediaqueries")));
 // Custom CSS Text (https://www.w3.org/TR/css-text-3/) test cases.
 INSTANTIATE_TEST_CASE_P(
     CSSText3LayoutTests, LayoutTest,
