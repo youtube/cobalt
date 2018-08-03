@@ -19,6 +19,7 @@
 #include <sstream>
 #include <string>
 
+#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/mutex.h"
 #include "starboard/system.h"
@@ -145,7 +146,17 @@ void LogMessage::Init(const char* file, int line) {
 
   stream_ << '[';
   stream_ << SbThreadGetId() << ':';
-  stream_ << SbTimeGetMonotonicNow() << ':';
+  EzTimeValue time_value;
+  EzTimeValueGetNow(&time_value, NULL);
+  EzTimeT t = time_value.tv_sec;
+  struct EzTimeExploded local_time = {0};
+  EzTimeTExplodeLocal(&t, &local_time);
+  struct EzTimeExploded* tm_time = &local_time;
+  stream_ << std::setfill('0') << std::setw(2) << 1 + tm_time->tm_mon
+          << std::setw(2) << tm_time->tm_mday << '/' << std::setw(2)
+          << tm_time->tm_hour << std::setw(2) << tm_time->tm_min << std::setw(2)
+          << tm_time->tm_sec << '.' << std::setw(6) << time_value.tv_usec
+          << ':';
   stream_ << log_priority_names[priority_];
   stream_ << ":" << filename << "(" << line << ")] ";
   message_start_ = stream_.tellp();

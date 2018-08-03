@@ -23,6 +23,7 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/<(starboard_path)/starboard_platform.gyp:starboard_platform',
+        '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
         '<(DEPTH)/starboard/starboard_headers_only.gyp:starboard_headers_only',
         'common/common.gyp:common',
       ],
