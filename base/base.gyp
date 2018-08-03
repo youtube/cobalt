@@ -20,7 +20,6 @@
       },
       'dependencies': [
         '<(DEPTH)/nb/nb.gyp:nb',
-        '<(DEPTH)/starboard/client_porting/eztime/eztime.gyp:eztime',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
         '<(DEPTH)/testing/gtest.gyp:gtest_prod',
         '<(DEPTH)/third_party/modp_b64/modp_b64.gyp:modp_b64',
