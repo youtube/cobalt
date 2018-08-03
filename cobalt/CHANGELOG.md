@@ -55,6 +55,14 @@ This document records all notable changes made to Cobalt since the last release.
    has been deprecated and will be removed in this version. Please upgrade
    to bison 3.x.
 
+ - **Fix issue with CSS media queries not assigning correct rule indices**
+
+   An issue was discovered and fixed where CSS rules defined within `@media`
+   rules would be assigned a CSS rule index relative to their position within
+   the nested `@media` rule rather than being assigned an index relative to
+   their position within the parent CSS file.  As a result, rules may have been
+   assigned incorrect precedence during CSS rule matching.
+
 ## Version 16
  - **Rebase libwebp to version 1.0.0**
 
