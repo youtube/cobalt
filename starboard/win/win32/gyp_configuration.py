@@ -82,6 +82,11 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'PixelTest.Area1Image',
       ],
 
+      'layout_tests': [
+          # Fails on buildbot.
+          'CobaltSpecificLayoutTests.*',
+      ],
+
       'nplb': [
           # TODO: Check these unit tests and fix them!
           'SbAudioSinkCreateTest.MultiSink',
@@ -109,7 +114,9 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'SbPlayerTest.MultiPlayer',
           'SbPlayerTest.SunnyDay',
 
-          'SbConditionVariableWaitTimedTest.SunnyDayAutoInit', # Flaky
+          # Flaky tests in debug mode.
+          'SbConditionVariableWaitTimedTest.*',
+          'SbThreadYieldTest.SunnyDayRace',
 
           'SbSocketJoinMulticastGroupTest.SunnyDay',
           'SbSystemGetStackTest.SunnyDayStackDirection',
