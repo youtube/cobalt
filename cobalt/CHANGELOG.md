@@ -49,11 +49,10 @@ This document records all notable changes made to Cobalt since the last release.
    implement voice-enabled features without relying on the platform's capability
    to perform speech recognition.
 
- - **Bison 2 deprecation**
+ - **Bison 3 required**
 
    Support for compiling with version 2.x of the GNU bison parser generator
-   has been deprecated and will be removed in this version. Please upgrade
-   to bison 3.x.
+   has been removed. Please update to version 3.x.
 
  - **Fix issue with CSS media queries not assigning correct rule indices**
 
