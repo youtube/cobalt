@@ -18,6 +18,7 @@ from __future__ import print_function
 import imp
 import logging
 import os
+import subprocess
 import sys
 
 from starboard.tools.testing import test_filter
@@ -54,6 +55,14 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module
 
+  def GetVideoProcessorDescription(self):
+    try:
+      cmd = 'powershell -command "(Get-WmiObject Win32_VideoController).Description"'
+      return subprocess.check_output(cmd, shell=True).splitlines()[0]
+    except Exception as err:
+      logging.error("Could not detect video card because: " + str(err))
+      return "UNKNOWN"
+
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
 
@@ -71,7 +80,11 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       filters = super(WinWin32PlatformConfig, self).GetTestFilters()
       for target, tests in self._FILTERED_TESTS.iteritems():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
-      return filters
+      # Remove layouts tests when running on VMWare computers.
+      if "vmware" in self.GetVideoProcessorDescription().lower():
+        logging.warning("layout_tests disabled when running on VMWare")
+        filters.extend(test_filter.TestFilter(\
+            'layout_tests', test_filter.FILTER_ALL))
 
   _FILTERED_TESTS = {
       'renderer_test': [
@@ -80,11 +93,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'PixelTest.Width1Image',
           'PixelTest.Height1Image',
           'PixelTest.Area1Image',
-      ],
-
-      'layout_tests': [
-          # Fails on buildbot.
-          'CobaltSpecificLayoutTests.*',
       ],
 
       'nplb': [
