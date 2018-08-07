@@ -38,7 +38,8 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
                   IClient* client,
                   void* context) override;
 
-  // Cancel all timers associated with |client|.
+  // Cancel all timers associated with |client|.  No timer should be called on
+  // the specific client after this function returns.
   void cancel(IClient* client) override;
 
  private:
