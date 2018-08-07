@@ -69,11 +69,10 @@ Log::Log(Logger* logger, const char* file_name)
 }
 
 FILE* Log::Close() {
+  FILE* result = nullptr;
 #if V8_OS_STARBOARD
   SB_NOTIMPLEMENTED();
-  return nullptr;
 #else
-  FILE* result = nullptr;
   if (output_handle_ != nullptr) {
     if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
       fclose(output_handle_);
@@ -81,6 +80,7 @@ FILE* Log::Close() {
       result = output_handle_;
     }
   }
+#endif
   output_handle_ = nullptr;
 
   DeleteArray(format_buffer_);
@@ -88,7 +88,6 @@ FILE* Log::Close() {
 
   is_stopped_ = false;
   return result;
-#endif
 }
 
 Log::MessageBuilder::MessageBuilder(Log* log)
