@@ -21,6 +21,7 @@
 #include <ios>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 #include "starboard/log.h"
 #include "starboard/shared/win32/error_utils.h"
@@ -107,6 +108,7 @@ std::string ImfAttributesToString(IMFAttributes* type) {
     GUID key;
     PROPVARIANT val;
     type->GetItemByIndex(i, &key, &val);
+    PropVariantClear(&val);
 
     MF_ATTRIBUTE_TYPE attrib_type;
     hr = type->GetItemType(key, &attrib_type);
@@ -151,14 +153,18 @@ std::string ImfAttributesToString(IMFAttributes* type) {
       }
 
       case MF_ATTRIBUTE_STRING: {
-        wchar_t buff[128];
-        UINT buff_size = sizeof(buff);
-        hr = type->GetString(key, buff, buff_size, NULL);
+        UINT32 length = 0;
+        hr = type->GetStringLength(key, &length);
         CheckResult(hr);
-        ss << buff << "\n";
+        ++length;  // For trailing 0.
+        std::vector<wchar_t> buffer(length);
+        hr = type->GetString(key, buffer.data(), length, NULL);
+        CheckResult(hr);
+        ss << buffer.data() << "\n";
         break;
       }
-      default: {
+
+      case MF_ATTRIBUTE_IUNKNOWN: {
         SB_NOTIMPLEMENTED();
         break;
       }
@@ -170,12 +176,89 @@ std::string ImfAttributesToString(IMFAttributes* type) {
 
 }  // namespace.
 
-void CopyUint32Property(GUID key, const IMFMediaType* source,
-                        IMFMediaType* destination) {
-  UINT32 val = 0;
-  const_cast<IMFMediaType*>(source)->GetUINT32(key, &val);
-  HRESULT hr = destination->SetUINT32(key, val);
+void CopyProperties(IMFMediaType* source, IMFMediaType* destination) {
+  UINT32 attribute_count = 0;
+  HRESULT hr = source->GetCount(&attribute_count);
   CheckResult(hr);
+  for (UINT32 i = 0; i < attribute_count; ++i) {
+    GUID key;
+    PROPVARIANT variant;
+    hr = source->GetItemByIndex(i, &key, &variant);
+    CheckResult(hr);
+    PropVariantClear(&variant);
+
+    MF_ATTRIBUTE_TYPE attrib_type;
+    hr = source->GetItemType(key, &attrib_type);
+    CheckResult(hr);
+
+    switch (attrib_type) {
+      case MF_ATTRIBUTE_GUID: {
+        GUID value_guid;
+        hr = source->GetGUID(key, &value_guid);
+        CheckResult(hr);
+        hr = destination->SetGUID(key, value_guid);
+        CheckResult(hr);
+        break;
+      }
+
+      case MF_ATTRIBUTE_DOUBLE: {
+        double value = 0;
+        hr = source->GetDouble(key, &value);
+        CheckResult(hr);
+        hr = destination->SetDouble(key, value);
+        CheckResult(hr);
+        break;
+      }
+
+      case MF_ATTRIBUTE_BLOB: {
+        UINT32 blob_size = 0;
+        hr = source->GetBlobSize(key, &blob_size);
+        CheckResult(hr);
+        std::vector<UINT8> blob(blob_size);
+        hr = source->GetBlob(key, blob.data(), blob_size, &blob_size);
+        CheckResult(hr);
+        hr = destination->SetBlob(key, blob.data(), blob_size);
+        CheckResult(hr);
+        break;
+      }
+
+      case MF_ATTRIBUTE_UINT32: {
+        UINT32 int_val = 0;
+        hr = source->GetUINT32(key, &int_val);
+        CheckResult(hr);
+        hr = destination->SetUINT32(key, int_val);
+        CheckResult(hr);
+        break;
+      }
+
+      case MF_ATTRIBUTE_UINT64: {
+        UINT64 int_val = 0;
+        hr = source->GetUINT64(key, &int_val);
+        CheckResult(hr);
+        hr = destination->SetUINT64(key, int_val);
+        CheckResult(hr);
+        break;
+      }
+
+      case MF_ATTRIBUTE_STRING: {
+        UINT32 length = 0;
+        hr = source->GetStringLength(key, &length);
+        CheckResult(hr);
+        ++length;  // For trailing 0.
+        std::vector<wchar_t> buffer(length);
+        hr = source->GetString(key, buffer.data(), length, NULL);
+        CheckResult(hr);
+        hr = destination->SetString(key, buffer.data());
+        CheckResult(hr);
+        break;
+      }
+
+      case MF_ATTRIBUTE_IUNKNOWN: {
+        SB_NOTIMPLEMENTED();
+        break;
+      }
+    }
+  }
 }
 
 std::ostream& operator<<(std::ostream& os, const IMFMediaType& media_type) {

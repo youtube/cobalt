@@ -28,8 +28,7 @@ std::ostream& operator<<(std::ostream& os, const IMFMediaType& media_type);
 
 std::string ToString(IMFAttributes* type);
 
-void CopyUint32Property(GUID key, const IMFMediaType* source,
-                        IMFMediaType* destination);
+void CopyProperties(IMFMediaType* source, IMFMediaType* destination);
 
 }  // namespace win32
 }  // namespace shared

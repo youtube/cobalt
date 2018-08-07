@@ -50,23 +50,33 @@ GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
 class WinAudioFormat {
  public:
   explicit WinAudioFormat(const SbMediaAudioHeader& audio_header) {
-    // The WAVEFORMATEX structure has many specializations with varying
-    // data attached at the end.
-    format_buffer_.resize(sizeof(WAVEFORMATEX) +
-                          audio_header.audio_specific_config_size);
-    WAVEFORMATEX* wave_format = WaveFormatData();
+    // The HEAACWAVEFORMAT structure has many specializations with varying data
+    // appended at the end.
+    // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
+    // HEAACWAVEFORMAT.
+    format_buffer_.resize(sizeof(HEAACWAVEFORMAT) +
+                          audio_header.audio_specific_config_size - 1);
+    HEAACWAVEFORMAT* wave_format =
+        reinterpret_cast<HEAACWAVEFORMAT*>(format_buffer_.data());
 
-    wave_format->nAvgBytesPerSec = audio_header.average_bytes_per_second;
-    wave_format->nBlockAlign = audio_header.block_alignment;
-    wave_format->nChannels = audio_header.number_of_channels;
-    wave_format->nSamplesPerSec = audio_header.samples_per_second;
-    wave_format->wBitsPerSample = audio_header.bits_per_sample;
-    wave_format->wFormatTag = audio_header.format_tag;
-    wave_format->cbSize = audio_header.audio_specific_config_size;
+    wave_format->wfInfo.wfx.nAvgBytesPerSec = 0;
+    wave_format->wfInfo.wfx.nBlockAlign = audio_header.block_alignment;
+    wave_format->wfInfo.wfx.nChannels = audio_header.number_of_channels;
+    wave_format->wfInfo.wfx.nSamplesPerSec = audio_header.samples_per_second;
+    wave_format->wfInfo.wfx.wBitsPerSample = audio_header.bits_per_sample;
+    wave_format->wfInfo.wfx.wFormatTag = WAVE_FORMAT_MPEG_HEAAC;
+    // The "-1" is used to account for pbAudioSpecificConfig[1] at the end of
+    // HEAACWAVEFORMAT.
+    wave_format->wfInfo.wfx.cbSize =
+        sizeof(HEAACWAVEFORMAT) - sizeof(WAVEFORMATEX) +
+        audio_header.audio_specific_config_size - 1;
+
+    wave_format->wfInfo.wPayloadType = 0;                     // RAW
+    wave_format->wfInfo.wAudioProfileLevelIndication = 0xfe;  // Unknown Profile
+    wave_format->wfInfo.wStructType = 0;  // AudioSpecificConfig()
 
     if (audio_header.audio_specific_config_size > 0) {
-      uint8_t* config_data = format_buffer_.data() + sizeof(WAVEFORMATEX);
-      SbMemoryCopy(config_data,
+      SbMemoryCopy(wave_format->pbAudioSpecificConfig,
                    audio_header.audio_specific_config,
                    audio_header.audio_specific_config_size);
     }
@@ -97,15 +107,9 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
   WinAudioFormat audio_fmt(audio);
   hr = MFInitMediaTypeFromWaveFormatEx(
       input_type.Get(), audio_fmt.WaveFormatData(), audio_fmt.Size());
-
-  CheckResult(hr);
-
-  hr = input_type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0);  // raw aac
   CheckResult(hr);
 
   GUID win32_audio_type = ConvertToWin32AudioCodec(codec);
-  hr = input_type->SetGUID(MF_MT_SUBTYPE, win32_audio_type);
-  CheckResult(hr);
 
   std::vector<ComPtr<IMFMediaType>> available_types =
       GetAllInputMediaTypes(MediaTransform::kStreamId, transform.Get());
@@ -114,14 +118,7 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
   SB_DCHECK(available_types.size());
 
   ComPtr<IMFMediaType> selected = available_types[0];
-  std::vector<GUID> attribs = {
-      MF_MT_AUDIO_BLOCK_ALIGNMENT, MF_MT_AUDIO_SAMPLES_PER_SECOND,
-      MF_MT_AUDIO_AVG_BYTES_PER_SECOND, MF_MT_AUDIO_NUM_CHANNELS,
-  };
-
-  for (auto it = attribs.begin(); it != attribs.end(); ++it) {
-    CopyUint32Property(*it, input_type.Get(), selected.Get());
-  }
+  CopyProperties(input_type.Get(), selected.Get());
 
   scoped_ptr<MediaTransform> output(new MediaTransform(transform));
   output->SetInputType(selected);
