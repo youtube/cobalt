@@ -31,10 +31,6 @@
 #include "cobalt/script/script_value_factory.h"
 #include "starboard/drm.h"
 
-// TODO: Remove this workaround.
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
-
 namespace cobalt {
 namespace dom {
 namespace eme {
@@ -72,24 +68,6 @@ class MediaKeySession : public EventTarget {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  // TODO: Remove this workaround.
-  class IndividualizationFetcherDelegate : public net::URLFetcherDelegate {
-   public:
-    explicit IndividualizationFetcherDelegate(
-        MediaKeySession* media_key_session);
-    void OnURLFetchDownloadData(const net::URLFetcher* source,
-                                scoped_ptr<std::string> download_data) override;
-    void OnURLFetchComplete(const net::URLFetcher* source) override;
-    bool ShouldSendDownloadData() override { return true; }
-
-   private:
-    MediaKeySession* media_key_session_;
-    std::string response_;
-  };
-  IndividualizationFetcherDelegate invidualization_fetcher_delegate_;
-  scoped_ptr<net::URLFetcher> invidualization_fetcher_;
-  void OnIndividualizationResponse(const std::string& response);
-
   ~MediaKeySession() override;
 
   void OnSessionUpdateRequestGenerated(
