@@ -67,7 +67,7 @@ class DecryptingDecoder {
 
   // TODO: Clarify the thread pattern of this class.
   const std::string type_;  // For debugging purpose.
-  SbDrmSystemPlayready* drm_system_;
+  DrmSystemPlayready* drm_system_;
 
   scoped_ptr<MediaTransform> decryptor_;
   scoped_ptr<MediaTransform> decoder_;

@@ -33,7 +33,7 @@ namespace shared {
 namespace win32 {
 
 // Adapts PlayReady decryption module to Starboard's |SbDrmSystem|.
-class SbDrmSystemPlayready : public SbDrmSystemPrivate {
+class DrmSystemPlayready : public SbDrmSystemPrivate {
  public:
   class License : public RefCountedThreadSafe<License> {
    public:
@@ -50,13 +50,13 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
     virtual bool IsHDCPRequired() = 0;
   };
 
-  SbDrmSystemPlayready(
+  DrmSystemPlayready(
       void* context,
       SbDrmSessionUpdateRequestFunc session_update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
       SbDrmSessionClosedFunc session_closed_callback);
-  ~SbDrmSystemPlayready() override;
+  ~DrmSystemPlayready() override;
 
   static bool IsKeySystemSupported(const char* key_system);
 

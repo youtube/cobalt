@@ -20,9 +20,9 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-scoped_refptr<SbDrmSystemPlayready::License>
-SbDrmSystemPlayready::License::Create(const void* initialization_data,
-                                      int initialization_data_size) {
+scoped_refptr<DrmSystemPlayready::License> DrmSystemPlayready::License::Create(
+    const void* initialization_data,
+    int initialization_data_size) {
   SB_UNREFERENCED_PARAMETER(initialization_data);
   SB_UNREFERENCED_PARAMETER(initialization_data_size);
   return NULL;

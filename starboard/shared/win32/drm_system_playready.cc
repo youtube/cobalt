@@ -69,7 +69,7 @@ std::string GetHexRepresentation(const T& value) {
 class ActiveDrmSystems {
  public:
   ::starboard::Mutex mutex_;
-  std::vector<starboard::shared::win32::SbDrmSystemPlayready*> active_systems_;
+  std::vector<starboard::shared::win32::DrmSystemPlayready*> active_systems_;
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(ActiveDrmSystems, GetActiveDrmSystems);
@@ -82,12 +82,12 @@ namespace win32 {
 
 void DrmSystemOnUwpResume() {
   ::starboard::ScopedLock lock(GetActiveDrmSystems()->mutex_);
-  for (SbDrmSystemPlayready* item : GetActiveDrmSystems()->active_systems_) {
+  for (DrmSystemPlayready* item : GetActiveDrmSystems()->active_systems_) {
     item->OnUwpResume();
   }
 }
 
-SbDrmSystemPlayready::SbDrmSystemPlayready(
+DrmSystemPlayready::DrmSystemPlayready(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
@@ -108,7 +108,7 @@ SbDrmSystemPlayready::SbDrmSystemPlayready(
   GetActiveDrmSystems()->active_systems_.push_back(this);
 }
 
-SbDrmSystemPlayready::~SbDrmSystemPlayready() {
+DrmSystemPlayready::~DrmSystemPlayready() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   ScopedLock lock(GetActiveDrmSystems()->mutex_);
   auto& active_systems = GetActiveDrmSystems()->active_systems_;
@@ -116,11 +116,11 @@ SbDrmSystemPlayready::~SbDrmSystemPlayready() {
       active_systems.begin(), active_systems.end(), this));
 }
 
-bool SbDrmSystemPlayready::IsKeySystemSupported(const char* key_system) {
+bool DrmSystemPlayready::IsKeySystemSupported(const char* key_system) {
   return SbStringCompareAll(key_system, kPlayReadyKeySystem) == 0;
 }
 
-void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
+void DrmSystemPlayready::GenerateSessionUpdateRequest(
     int ticket,
     const char* type,
     const void* initialization_data,
@@ -159,11 +159,11 @@ void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
   pending_requests_[session_id] = license;
 }
 
-void SbDrmSystemPlayready::UpdateSession(int ticket,
-                                         const void* key,
-                                         int key_size,
-                                         const void* session_id,
-                                         int session_id_size) {
+void DrmSystemPlayready::UpdateSession(int ticket,
+                                       const void* key,
+                                       int key_size,
+                                       const void* session_id,
+                                       int session_id_size) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   std::string session_id_copy(static_cast<const char*>(session_id),
@@ -231,8 +231,8 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
   }
 }
 
-void SbDrmSystemPlayready::CloseSession(const void* session_id,
-                                        int session_id_size) {
+void DrmSystemPlayready::CloseSession(const void* session_id,
+                                      int session_id_size) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   key_statuses_changed_callback_(this, context_, session_id, session_id_size, 0,
@@ -246,7 +246,7 @@ void SbDrmSystemPlayready::CloseSession(const void* session_id,
   successful_requests_.erase(session_id_copy);
 }
 
-SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
+SbDrmSystemPrivate::DecryptStatus DrmSystemPlayready::Decrypt(
     InputBuffer* buffer) {
   const SbDrmSampleInfo* drm_info = buffer->drm_info();
 
@@ -283,7 +283,7 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
   return kRetry;
 }
 
-void SbDrmSystemPlayready::ReportKeyStatusChanged_Locked(
+void DrmSystemPlayready::ReportKeyStatusChanged_Locked(
     const std::string& session_id) {
   // mutex_ must be held by caller
   ::starboard::ScopedTryLock lock_should_fail(mutex_);
@@ -302,7 +302,7 @@ void SbDrmSystemPlayready::ReportKeyStatusChanged_Locked(
       1, &drm_key_id, &(item.status_));
 }
 
-scoped_refptr<SbDrmSystemPlayready::License> SbDrmSystemPlayready::GetLicense(
+scoped_refptr<DrmSystemPlayready::License> DrmSystemPlayready::GetLicense(
     const uint8_t* key_id,
     int key_id_size) {
   GUID key_id_copy;
@@ -322,14 +322,14 @@ scoped_refptr<SbDrmSystemPlayready::License> SbDrmSystemPlayready::GetLicense(
   return NULL;
 }
 
-void SbDrmSystemPlayready::OnUwpResume() {
+void DrmSystemPlayready::OnUwpResume() {
   for (auto& item : successful_requests_) {
     session_closed_callback_(this, context_,
         item.first.data(), static_cast<int>(item.first.size()));
   }
 }
 
-std::string SbDrmSystemPlayready::GenerateAndAdvanceSessionId() {
+std::string DrmSystemPlayready::GenerateAndAdvanceSessionId() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   std::stringstream ss;

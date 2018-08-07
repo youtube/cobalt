@@ -20,10 +20,10 @@
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system) {
-  using ::starboard::shared::win32::SbDrmSystemPlayready;
+  using ::starboard::shared::win32::DrmSystemPlayready;
 
   SB_UNREFERENCED_PARAMETER(video_codec);
   SB_UNREFERENCED_PARAMETER(audio_codec);
 
-  return SbDrmSystemPlayready::IsKeySystemSupported(key_system);
+  return DrmSystemPlayready::IsKeySystemSupported(key_system);
 }

@@ -106,7 +106,7 @@ DecryptingDecoder::DecryptingDecoder(const std::string& type,
                                      SbDrmSystem drm_system)
     : type_(type), decoder_(decoder.Pass()) {
   SB_DCHECK(decoder_.get());
-  drm_system_ = static_cast<SbDrmSystemPlayready*>(drm_system);
+  drm_system_ = static_cast<DrmSystemPlayready*>(drm_system);
 }
 
 DecryptingDecoder::~DecryptingDecoder() {
@@ -200,7 +200,7 @@ bool DecryptingDecoder::TryWriteInputBuffer(
         return false;
       }
       decoder_->ResetFromDrained();
-      scoped_refptr<SbDrmSystemPlayready::License> license =
+      scoped_refptr<DrmSystemPlayready::License> license =
           drm_system_->GetLicense(key_id, key_id_size);
       if (license && license->usable()) {
         decryptor_.reset(new MediaTransform(license->decryptor()));
