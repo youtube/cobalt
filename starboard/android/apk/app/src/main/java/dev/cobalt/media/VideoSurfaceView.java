@@ -20,11 +20,9 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.util.AttributeSet;
-import android.util.Size;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 
 /**
@@ -34,7 +32,9 @@ import dev.cobalt.util.Log;
 public class VideoSurfaceView extends SurfaceView {
 
   public static native void nativeOnLayoutNeeded();
+
   public static native void nativeOnLayoutScheduled();
+
   public static native void nativeOnGlobalLayout();
 
   private Rect videoBounds;
@@ -63,15 +63,13 @@ public class VideoSurfaceView extends SurfaceView {
     videoBounds = new Rect();
     setBackgroundColor(Color.TRANSPARENT);
     getHolder().addCallback(new SurfaceHolderCallback());
-
-    // Fix the surface size to avoid re-creating it whenever the player bounds change.
-    Size displaySize = DisplayUtil.getSystemDisplaySize(context);
-    getHolder().setFixedSize(displaySize.getWidth(), displaySize.getHeight());
   }
 
   public boolean updateVideoBounds(final int x, final int y, final int width, final int height) {
-    if (videoBounds.left != x || videoBounds.top != y
-        || videoBounds.right != x + width || videoBounds.bottom != y + height) {
+    if (videoBounds.left != x
+        || videoBounds.top != y
+        || videoBounds.right != x + width
+        || videoBounds.bottom != y + height) {
       videoBounds.set(x, y, x + width, y + height);
       return true;
     }
