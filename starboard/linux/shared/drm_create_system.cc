@@ -15,7 +15,7 @@
 #include "starboard/drm.h"
 
 #include "starboard/log.h"
-#include "starboard/shared/widevine/drm_system_widevine3.h"
+#include "starboard/shared/widevine/drm_system_widevine.h"
 #include "starboard/string.h"
 
 SbDrmSystem SbDrmCreateSystem(
@@ -33,6 +33,7 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionClosedFunc session_closed_callback
 #endif  // SB_API_VERSION >= 10
     ) {
+  using starboard::shared::widevine::DrmSystemWidevine;
   if (!update_request_callback || !session_updated_callback) {
     return kSbDrmSystemInvalid;
   }
@@ -46,24 +47,24 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 #endif  // SB_API_VERSION >= 10
-  if (SbStringCompareAll(key_system, "com.widevine") != 0 &&
-      SbStringCompareAll(key_system, "com.widevine.alpha")) {
+  if (!DrmSystemWidevine::IsKeySystemSupported(key_system)) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
     return kSbDrmSystemInvalid;
   }
-  return new starboard::shared::widevine::SbDrmSystemWidevine(
-      context, update_request_callback, session_updated_callback
+  return new DrmSystemWidevine(context, update_request_callback,
+                               session_updated_callback
 #if SB_HAS(DRM_KEY_STATUSES)
-      ,
-      key_statuses_changed_callback
+                               ,
+                               key_statuses_changed_callback
 #endif  // SB_HAS(DRM_KEY_STATUSES)
 #if SB_API_VERSION >= 10
-      ,
-      server_certificate_updated_callback
+                               ,
+                               server_certificate_updated_callback
 #endif  // SB_API_VERSION >= 10
 #if SB_HAS(DRM_SESSION_CLOSED)
-      ,
-      session_closed_callback
+                               ,
+                               session_closed_callback
 #endif  // SB_HAS(DRM_SESSION_CLOSED)
-      , "Linux", "Linux");
+                               ,
+                               "Linux", "Linux");
 }
