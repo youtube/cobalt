@@ -22,7 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "starboard/drm.h"
 
@@ -272,7 +272,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #endif  // SB_API_VERSION >= 10
 
   const SbDrmSystem wrapped_drm_system_;
-  MessageLoop* const message_loop_;
+  scoped_refptr<base::MessageLoopProxy> const message_loop_;
 
   // Factory should only be used to create the initial weak pointer. All
   // subsequent weak pointers are created by copying the initial one. This is
@@ -280,8 +280,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   base::WeakPtrFactory<DrmSystem> weak_ptr_factory_;
   base::WeakPtr<DrmSystem> weak_this_;
 
+  int next_ticket_ = 0;
   // Supports concurrent calls to |GenerateSessionUpdateRequest|.
-  int next_session_update_request_ticket_;
   TicketToSessionUpdateRequestMap ticket_to_session_update_request_map_;
 
   // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
@@ -290,7 +290,6 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   TicketToServerCertificateUpdatedMap ticket_to_server_certificate_updated_map_;
 
   // Supports concurrent calls to |Session::Update|.
-  int next_session_update_ticket_;
   TicketToSessionUpdateMap ticket_to_session_update_map_;
 
   DISALLOW_COPY_AND_ASSIGN(DrmSystem);
