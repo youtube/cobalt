@@ -19,7 +19,7 @@
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system) {
   SB_UNREFERENCED_PARAMETER(drm_system);
 
-  return false;
+  return true;
 }
 
 #endif  // SB_API_VERSION >= 10

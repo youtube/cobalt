@@ -356,8 +356,8 @@
           '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
 
           '<(DEPTH)/starboard/shared/widevine/drm_is_server_certificate_updatable.cc',
-          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine3.cc',
-          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine3.h',
+          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.cc',
+          '<(DEPTH)/starboard/shared/widevine/drm_system_widevine.h',
           '<(DEPTH)/starboard/shared/widevine/drm_update_server_certificate.cc',
           '<(DEPTH)/starboard/shared/widevine/media_is_supported.cc',
           '<(DEPTH)/starboard/shared/widevine/widevine_storage.cc',
