@@ -100,7 +100,14 @@ SbPlayer SbPlayerCreate(SbWindow window,
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
-  return new SbPlayerPrivate(audio_codec, video_codec, sample_deallocate_func,
-                             decoder_status_func, player_status_func,
-                             player_error_func, context, handler.Pass());
+  SbPlayer player = new SbPlayerPrivate(
+      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
+      player_status_func, player_error_func, context, handler.Pass());
+
+  // TODO: accomplish this through more direct means.
+  // Set the bounds to initialize the VideoSurfaceView. The initial values don't
+  // matter.
+  SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
+
+  return player;
 }

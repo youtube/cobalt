@@ -33,7 +33,10 @@ SB_EXPORT_PLATFORM EGLBoolean __wrap_eglSwapBuffers(
   // TODO: It is possible for the new UI frame to be displayed too late
   // (especially if there's a lot to render), so this case still needs to
   // be handled.
-  starboard::android::shared::WaitForVideoBoundsUpdate();
+
+  // Note, we're no longer calling WaitForVideoBoundsUpdate because it does
+  // not work properly without calling SurfaceHolder setFixedSize.
+  // starboard::android::shared::WaitForVideoBoundsUpdate();
 
   return __real_eglSwapBuffers(dpy, surface);
 }

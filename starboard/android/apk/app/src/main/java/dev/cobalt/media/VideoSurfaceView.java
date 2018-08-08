@@ -63,6 +63,10 @@ public class VideoSurfaceView extends SurfaceView {
     videoBounds = new Rect();
     setBackgroundColor(Color.TRANSPARENT);
     getHolder().addCallback(new SurfaceHolderCallback());
+
+    // TODO: Avoid recreating the surface when the player bounds change.
+    // Recreating the surface is time-consuming and complicates synchronizing
+    // punch-out video when the position / size is animated.
   }
 
   public boolean updateVideoBounds(final int x, final int y, final int width, final int height) {
