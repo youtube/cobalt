@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "8ca9e574_2f475076",
+        "filename": "src/third_party/skia/src/sksl/SkSLCPPCodeGenerator.cpp",
+        "patchSetId": 2
+      },
+      "lineNbr": 40,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-08-08T16:36:05Z",
+      "side": 1,
+      "message": "Even though |reuse| is only used in this scope, va_end() should match the call to va_copy(), so either va_copy() should be moved in to this scope where it is used, or va_end() should be moved down to the outer scope.",
+      "range": {
+        "startLine": 40,
+        "startChar": 8,
+        "endLine": 40,
+        "endChar": 14
+      },
+      "revId": "93f9d95ea6c8d92e0a393959c0d55d61a80ac842",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "17a84eb6_833944a3",
+        "filename": "src/third_party/skia/src/sksl/SkSLString.cpp",
+        "patchSetId": 2
+      },
+      "lineNbr": 53,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-08-08T16:36:05Z",
+      "side": 1,
+      "message": "Even though |reuse| is only used in this scope, va_end() should match the call to va_copy(), so either va_copy() should be moved in to this scope where it is used, or va_end() should be moved down to the outer scope.",
+      "range": {
+        "startLine": 53,
+        "startChar": 8,
+        "endLine": 53,
+        "endChar": 14
+      },
+      "revId": "93f9d95ea6c8d92e0a393959c0d55d61a80ac842",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
