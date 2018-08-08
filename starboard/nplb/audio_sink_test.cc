@@ -17,6 +17,8 @@
 #include <algorithm>
 
 #include "starboard/nplb/audio_sink_helpers.h"
+#include "starboard/thread.h"
+#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -36,7 +38,7 @@ TEST(SbAudioSinkTest, SomeFramesConsumed) {
   AudioSinkTestEnvironment environment(frame_buffers);
   ASSERT_TRUE(environment.is_valid());
 
-  environment.AppendFrame(1);
+  environment.AppendFrame(512);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
 }
 
@@ -78,6 +80,18 @@ TEST(SbAudioSinkTest, Pause) {
   EXPECT_EQ(free_space, environment.GetFrameBufferFreeSpaceAmount());
   environment.SetIsPlaying(true);
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
+}
+
+TEST(SbAudioSinkTest, Underflow) {
+  AudioSinkTestFrameBuffers frame_buffers(SbAudioSinkGetMaxChannels());
+  AudioSinkTestEnvironment environment(frame_buffers);
+  ASSERT_TRUE(environment.is_valid());
+
+  environment.AppendFrame(1024);
+  EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
+  SbThreadSleep(250 * kSbTimeMillisecond);
+  environment.AppendFrame(1024);
+  EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());
 }
 
 TEST(SbAudioSinkTest, ContinuousAppend) {
