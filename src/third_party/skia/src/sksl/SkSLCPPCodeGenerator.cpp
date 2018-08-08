@@ -37,6 +37,7 @@ void CPPCodeGenerator::writef(const char* s, va_list va) {
     } else {
         std::unique_ptr<char[]> heap(new char[length + 1]);
         vsprintf(heap.get(), s, copy);
+        va_end(copy);
         fOut->write(heap.get(), length);
     }
 }
