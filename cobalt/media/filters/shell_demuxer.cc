@@ -461,14 +461,9 @@ void ShellDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // Notify host of each disjoint range.
   host_->OnBufferedTimeRangesChanged(buffered);
 
-  // Post the task with a delay to make the request loop a bit friendly to
-  // other tasks as otherwise IssueNextRequest(), Request(), AllocateBuffer(),
-  // and Download() can form a tight loop on the |blocking_thread_|.
-  const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(5);
-  blocking_thread_.message_loop_proxy()->PostDelayedTask(
+  blocking_thread_.message_loop_proxy()->PostTask(
       FROM_HERE,
-      base::Bind(&ShellDemuxer::IssueNextRequest, base::Unretained(this)),
-      kDelay);
+      base::Bind(&ShellDemuxer::IssueNextRequest, base::Unretained(this)));
 }
 
 void ShellDemuxer::IssueNextRequest() {
