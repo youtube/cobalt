@@ -21,16 +21,10 @@ import os
 import subprocess
 import sys
 
+import _env  # pylint: disable=unused-import
+
 from starboard.tools.testing import test_filter
-
-# Import the shared win platform configuration.
-sys.path.append(
-    os.path.realpath(
-        os.path.join(
-            os.path.dirname(__file__), os.pardir, os.pardir, 'shared',
-            'win32')))
-import gyp_configuration
-
+import starboard.shared.win32.gyp_configuration as gyp_configuration
 
 def CreatePlatformConfig():
   try:
@@ -69,7 +63,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     Returns:
       A list of initialized TestFilter objects.
     """
-
     if not self.IsWin10orHigher():
       logging.error('Tests can only be executed on Win10 and higher.')
       return [test_filter.DISABLE_TESTING]
@@ -85,6 +78,7 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
         logging.warning("layout_tests disabled when running on VMWare")
         filters.extend(test_filter.TestFilter(\
             'layout_tests', test_filter.FILTER_ALL))
+      return filters
 
   _FILTERED_TESTS = {
       'renderer_test': [
