@@ -34,6 +34,9 @@ class CryptoEngineXb1 : public CryptoEngine {
   OEMCrypto_HDCP_Capability config_maximum_hdcp_capability() override {
     return kWidevineMaximumHdcpVersion;
   }
+
+  // Max buffer size for encoded buffer.
+  size_t max_buffer_size() override { return 3840 * 2160 * 2; }
 };
 
 CryptoEngine* CryptoEngine::MakeCryptoEngine(
