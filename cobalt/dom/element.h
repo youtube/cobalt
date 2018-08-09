@@ -93,6 +93,11 @@ class Element : public Node {
   void RemoveAttribute(const std::string& name);
   bool HasAttribute(const std::string& name) const;
 
+  base::optional<std::string> GetAttributeNS(const std::string& namespace_uri,
+                                             const std::string& name) const;
+  bool HasAttributeNS(const std::string& namespace_uri,
+                      const std::string& name) const;
+
   scoped_refptr<HTMLCollection> GetElementsByTagName(
       const std::string& local_name) const;
   scoped_refptr<HTMLCollection> GetElementsByClassName(
