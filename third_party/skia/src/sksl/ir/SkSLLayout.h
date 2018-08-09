@@ -165,7 +165,7 @@ struct Layout {
             separator = ", ";
         }
         if (fInputAttachmentIndex >= 0) {
-            result += separator + "input_attachment_index = " + to_string(fBuiltin);
+            result += separator + "input_attachment_index = " + to_string(fInputAttachmentIndex);
             separator = ", ";
         }
         if (fOriginUpperLeft) {
