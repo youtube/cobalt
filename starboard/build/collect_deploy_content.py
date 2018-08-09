@@ -66,10 +66,18 @@ def main(argv):
   for subdir in options.subdirs:
     logging.info('+ %s', subdir)
 
-  if os.path.exists(options.output_dir):
-    if _USE_WINDOWS_SYMLINK:
-      win_symlink.Rmtree(options.output_dir)
-    else:
+  # shutil.rmtree() does not document it's behavior about
+  # how symbolic links UNDER the root directry are traversed.
+  # Following the symlinks and deleting content under windows
+  # causes problems. But under unix systems it may just delete
+  # the symbolink instead of the original content.
+  if _USE_WINDOWS_SYMLINK:
+    # Don't delete objects in original folder.
+    pass
+  else:
+    # TODO: Investigate removing shutil.rmtree() and replacing
+    # it with a recursive delete function which removes symlinks.
+    if os.path.isdir(options.output_dir):
       shutil.rmtree(options.output_dir)
 
   for subdir in options.subdirs:
