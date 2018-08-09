@@ -1,4 +1,4 @@
-body {
+.black {
     background-color: black;
 }
 
@@ -15,4 +15,27 @@ body {
 
 .visibleScreen {
     visibility: visible;
+}
+
+.table {
+    display: table;
+}
+
+.row {
+    display: table-row;
+    align-items: center;
+}
+
+.listItem {
+    display: table-cell;
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.inline {
+    display: inline;
+}
+
+.buttonListItem {
+    display: block;
 }
