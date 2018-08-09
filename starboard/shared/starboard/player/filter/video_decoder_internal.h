@@ -81,8 +81,7 @@ class VideoDecoder {
   // of the video pipeline like the VideoRendererSink may also cache frames.  It
   // is the responsibility of the decoder to ensure that this wouldn't result in
   // anything catastrophic.
-  // TODO:  Turn this into pure virtual.
-  virtual size_t GetMaxNumberOfCachedFrames() const { return 12; }
+  virtual size_t GetMaxNumberOfCachedFrames() const = 0;
 
   // Send encoded video frame stored in |input_buffer| to decode.
   virtual void WriteInputBuffer(
