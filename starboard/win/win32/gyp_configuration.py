@@ -71,13 +71,14 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       return [test_filter.DISABLE_TESTING]
     else:
       filters = super(WinWin32PlatformConfig, self).GetTestFilters()
-      for target, tests in self._FILTERED_TESTS.iteritems():
-        filters.extend(test_filter.TestFilter(target, test) for test in tests)
-      # Remove layouts tests when running on VMWare computers.
+      filtered_tests = dict(self._FILTERED_TESTS)  # Copy.
+      # On the VWware buildbot Layout tests consume too much graphics memory
+      # and crash the system. Therefore all layout tests are filtered for this
+      # platform.
       if "vmware" in self.GetVideoProcessorDescription().lower():
-        logging.warning("layout_tests disabled when running on VMWare")
-        filters.extend(test_filter.TestFilter(\
-            'layout_tests', test_filter.FILTER_ALL))
+        filtered_tests.update( {'layout_tests': [ test_filter.FILTER_ALL] } )
+      for target, tests in filtered_tests.iteritems():
+        filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
 
   _FILTERED_TESTS = {
