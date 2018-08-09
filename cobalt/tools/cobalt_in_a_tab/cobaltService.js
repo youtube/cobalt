@@ -1,12 +1,24 @@
 let CobaltService = class CobaltService{
-    constructor(){
-        this.webdriverAddress = "http://localhost:4444";
+    constructor(){}
+
+    async initialize(){
+        this.cobaltIP = await this.getCobaltIP();
+        this.webdriverAddress = this.cobaltIP + ":4444";
+
         this.screencastAddress = "";
         this.imageId = 0;
-    };
+    }
+
+    async getCobaltIP(){
+        return new Promise((resolve) => {
+            chrome.storage.sync.get('selected_ip', function(data) {
+                resolve(data.selected_ip);
+            });
+        });
+    }
 
     setScreencastPort(port){
-        this.screencastAddress = "http://localhost:" + port;
+        this.screencastAddress = this.cobaltIP + ":" + port;
     }
 
     // Boilerplate code. It makes a request to |address| with |data|
