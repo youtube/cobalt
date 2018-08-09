@@ -16,6 +16,8 @@
 #define COBALT_SCRIPT_V8C_ISOLATE_FELLOWSHIP_H_
 
 #include "base/memory/singleton.h"
+#include "cobalt/script/v8c/cobalt_platform.h"
+#include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"
 #include "v8/include/v8.h"
 
@@ -34,7 +36,7 @@ struct IsolateFellowship {
                      StaticMemorySingletonTraits<IsolateFellowship>>::get();
   }
 
-  v8::Platform* platform = nullptr;
+  scoped_refptr<CobaltPlatform> platform = nullptr;
   v8::ArrayBuffer::Allocator* array_buffer_allocator = nullptr;
   v8::StartupData startup_data = {nullptr, 0};
 
