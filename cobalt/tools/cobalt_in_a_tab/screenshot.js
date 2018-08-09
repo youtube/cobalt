@@ -22,6 +22,7 @@ let mouseInterval = null;
 let parentContainer = null;
 
 window.onload = async function(){
+    await cobaltService.initialize();
     // Create image tags with the appropriate css.
     parentContainer = document.getElementById("screenContainer");
     if (numScreens < 1) return;
@@ -133,7 +134,7 @@ function subscribeToMouseEvents(){
     window.addEventListener('mousemove', saveMousePos);
     window.addEventListener('click', sendClick);
     window.addEventListener('scroll', sendScroll);
-    mouseInterval = setInterval(sendMousePos, 500);
+    mouseInterval = setInterval(sendMousePos, 200);
 }
 
 if (typeof KeyEvent === 'undefined') {
