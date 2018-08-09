@@ -53,8 +53,8 @@ namespace {
 class CustomEventTest : public ::testing::Test {
  public:
   CustomEventTest()
-      : environment_settings_(new script::EnvironmentSettings),
-        message_loop_(MessageLoop::TYPE_DEFAULT),
+      : message_loop_(MessageLoop::TYPE_DEFAULT),
+        environment_settings_(new script::EnvironmentSettings),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser(mock_error_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
@@ -87,11 +87,10 @@ class CustomEventTest : public ::testing::Test {
   bool EvaluateScript(const std::string& js_code, std::string* result);
 
  private:
-  scoped_ptr<script::JavaScriptEngine> engine_;
-  scoped_refptr<script::GlobalEnvironment> global_environment_;
-
-  const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   MessageLoop message_loop_;
+  scoped_ptr<script::JavaScriptEngine> engine_;
+  const scoped_ptr<script::EnvironmentSettings> environment_settings_;
+  scoped_refptr<script::GlobalEnvironment> global_environment_;
   MockErrorCallback mock_error_callback_;
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;

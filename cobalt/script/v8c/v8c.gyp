@@ -21,6 +21,8 @@
         'algorithm_helpers.cc',
         'algorithm_helpers.h',
         'callback_function_conversion.h',
+        'cobalt_platform.cc',
+        'cobalt_platform.h',
         'conversion_helpers.cc',
         'conversion_helpers.h',
         'entry_scope.h',
