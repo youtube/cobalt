@@ -140,7 +140,7 @@ void EnsureWidevineCdmIsInitialized(const std::string& company_name,
                << client_info.company_name << "\", and model_name: \""
                << client_info.model_name << "\".";
 
-  auto log_level = wv3cdm::kVerbose;
+  auto log_level = wv3cdm::kInfo;
 #if COBALT_BUILD_TYPE_GOLD
   log_level = wv3cdm::kSilent;
 #endif  // COBALT_BUILD_TYPE_GOLD
