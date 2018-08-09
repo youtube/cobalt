@@ -14,6 +14,8 @@
 
 #include <string.h>
 
+#include <algorithm>
+
 #include "starboard/file.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
@@ -50,6 +52,19 @@ void BasicTest(SbSystemPathId id,
 #undef LOCAL_CONTEXT
 }
 
+void UnmodifiedOnFailureTest(SbSystemPathId id, int line) {
+  char path[kPathSize];
+  SbMemorySet(path, 0xCD, kPathSize);
+  for (size_t i = 0; i <= kPathSize; ++i) {
+    if (SbSystemGetPath(id, path, i)) {
+      return;
+    }
+    for (auto ch : path) {
+      ASSERT_EQ('\xCD', ch) << "Context : id=" << id << ", line=" << line;
+    }
+  }
+}
+
 TEST(SbSystemGetPathTest, ReturnsRequiredPaths) {
   BasicTest(kSbSystemPathContentDirectory, true, true, __LINE__);
   BasicTest(kSbSystemPathCacheDirectory, true, true, __LINE__);
@@ -83,6 +98,15 @@ TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
   BasicTest(kSbSystemPathCacheDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontConfigurationDirectory, false, false, __LINE__);
+}
+
+TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
+  UnmodifiedOnFailureTest(kSbSystemPathDebugOutputDirectory, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPathTempDirectory, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPathTestOutputDirectory, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPathCacheDirectory, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPathFontDirectory, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPathFontConfigurationDirectory, __LINE__);
 }
 
 TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {

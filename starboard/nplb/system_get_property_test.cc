@@ -62,6 +62,19 @@ void BasicTest(SbSystemPropertyId id,
 #undef LOCAL_CONTEXT
 }
 
+void UnmodifiedOnFailureTest(SbSystemPropertyId id, int line) {
+  char value[kValueSize] = {0};
+  SbMemorySet(value, 0xCD, kValueSize);
+  for (size_t i = 0; i <= kValueSize; ++i) {
+    if (SbSystemGetProperty(id, value, i)) {
+      return;
+    }
+    for (auto ch : value) {
+      ASSERT_EQ('\xCD', ch) << "Context : id=" << id << ", line=" << line;
+    }
+  }
+}
+
 TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyFriendlyName, true, true, __LINE__);
   BasicTest(kSbSystemPropertyPlatformName, true, true, __LINE__);
@@ -98,6 +111,25 @@ TEST(SbSystemGetPropertyTest, FailsGracefullyNullBufferAndZeroLength) {
 
 TEST(SbSystemGetPropertyTest, FailsGracefullyBogusId) {
   BasicTest(static_cast<SbSystemPropertyId>(99999), true, false, __LINE__);
+}
+
+TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
+  UnmodifiedOnFailureTest(kSbSystemPropertyChipsetModelNumber, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyFirmwareVersion, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyFriendlyName, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyManufacturerName, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyBrandName, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyModelName, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyModelYear, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyNetworkOperatorName, __LINE__);
+  UnmodifiedOnFailureTest(kSbSystemPropertyPlatformName, __LINE__);
+#if SB_API_VERSION < 10
+  UnmodifiedOnFailureTest(kSbSystemPropertyPlatformUuid, __LINE__);
+#endif  // SB_API_VERSION < 10
+  UnmodifiedOnFailureTest(kSbSystemPropertySpeechApiKey, __LINE__);
+#if SB_API_VERSION >= 5
+  UnmodifiedOnFailureTest(kSbSystemPropertyUserAgentAuxField, __LINE__);
+#endif  // SB_API_VERSION >= 5
 }
 
 TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
