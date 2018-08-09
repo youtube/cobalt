@@ -420,7 +420,7 @@ void Window::ClearInterval(int handle) {
   }
 }
 
-void Window::DestroyTimers() { window_timers_.reset(); }
+void Window::DestroyTimers() { window_timers_->DisableCallbacks(); }
 
 scoped_refptr<Storage> Window::local_storage() const { return local_storage_; }
 
