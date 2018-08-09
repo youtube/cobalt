@@ -114,6 +114,22 @@ void Element::set_text_content(
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 
+base::optional<std::string> Element::GetAttributeNS(
+    const std::string& namespace_uri, const std::string& name) const {
+  // TODO: Implement namespaces, if we actually need this.
+  NOTIMPLEMENTED();
+  UNREFERENCED_PARAMETER(namespace_uri);
+  return GetAttribute(name);
+}
+
+bool Element::HasAttributeNS(const std::string& namespace_uri,
+                             const std::string& name) const {
+  // TODO: Implement namespaces, if we actually need this.
+  NOTIMPLEMENTED();
+  UNREFERENCED_PARAMETER(namespace_uri);
+  return HasAttribute(name);
+}
+
 scoped_refptr<NamedNodeMap> Element::attributes() {
   TRACK_MEMORY_SCOPE("DOM");
   scoped_refptr<NamedNodeMap> named_node_map = named_node_map_.get();
