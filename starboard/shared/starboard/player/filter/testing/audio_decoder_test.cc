@@ -68,7 +68,9 @@ std::string ResolveTestFileName(const char* filename) {
 
 class AudioDecoderTest : public ::testing::TestWithParam<const char*> {
  public:
-  AudioDecoderTest() : dmp_reader_(ResolveTestFileName(GetParam()).c_str()) {}
+  AudioDecoderTest() : dmp_reader_(ResolveTestFileName(GetParam()).c_str()) {
+    SB_LOG(INFO) << "Testing " << GetParam();
+  }
   void SetUp() override {
     ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
