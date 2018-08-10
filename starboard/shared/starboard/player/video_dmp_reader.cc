@@ -64,15 +64,21 @@ using std::placeholders::_2;
 
 VideoDmpReader::VideoDmpReader(const char* filename)
     : reverse_byte_order_(false),
-      read_cb_(std::bind(&VideoDmpReader::ReadFromFile, this, _1, _2)) {
-  SB_CHECK(SbFileCanOpen(filename, kSbFileOpenOnly | kSbFileRead))
-      << "Can't open " << filename;
-  file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-  SB_DCHECK(SbFileIsValid(file_));
+      read_cb_(std::bind(&VideoDmpReader::ReadFromCache, this, _1, _2)) {
+  ScopedFile file(filename, kSbFileOpenOnly | kSbFileRead);
+  SB_CHECK(file.IsValid()) << "Failed to open " << filename;
+  int64_t file_size = file.GetSize();
+  SB_CHECK(file_size >= 0);
+
+  file_cache_.resize(file_size);
+  int bytes_read = file.Read(file_cache_.data(), file_size);
+  SB_CHECK(bytes_read == file_size);
 
   Parse();
 
-  SbFileClose(file_);
+  // To free memory used by |file_cache_|.
+  decltype(file_cache_) empty;
+  file_cache_.swap(empty);
 }
 
 VideoDmpReader::~VideoDmpReader() {}
@@ -111,7 +117,7 @@ void VideoDmpReader::Parse() {
   }
   for (;;) {
     uint32_t type;
-    int bytes_read = ReadFromFile(&type, sizeof(type));
+    int bytes_read = ReadFromCache(&type, sizeof(type));
     if (bytes_read <= 0) {
       break;
     }
@@ -205,8 +211,12 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
                          std::move(data), video_sample_info);
 }
 
-int VideoDmpReader::ReadFromFile(void* buffer, int bytes_to_read) {
-  return SbFileRead(file_, static_cast<char*>(buffer), bytes_to_read);
+int VideoDmpReader::ReadFromCache(void* buffer, int bytes_to_read) {
+  bytes_to_read = std::min(
+      bytes_to_read, static_cast<int>(file_cache_.size()) - file_cache_offset_);
+  SbMemoryCopy(buffer, file_cache_.data() + file_cache_offset_, bytes_to_read);
+  file_cache_offset_ += bytes_to_read;
+  return bytes_to_read;
 }
 
 }  // namespace video_dmp
