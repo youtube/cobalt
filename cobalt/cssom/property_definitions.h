@@ -244,8 +244,8 @@ namespace BASE_HASH_NAMESPACE {
 #if defined(BASE_HASH_USE_HASH_STRUCT)
 
 // Forward declaration in case <hash_fun.h> is not #include'd.
-template <typename Key>
-struct hash;
+template <>
+struct hash<cobalt::cssom::PropertyKey>;
 
 template <>
 struct hash<cobalt::cssom::PropertyKey> {
