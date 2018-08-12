@@ -159,10 +159,20 @@ namespace base {
 using BASE_HASH_NAMESPACE::hash;
 #endif
 #if SB_HAS(STD_UNORDERED_HASH)
-template<class K, class V> using hash_map = std::unordered_map<K, V>;
-template<class K, class V> using hash_multimap = std::unordered_multimap<K, V>;
-template<class K> using hash_multiset = std::unordered_multiset<K>;
-template<class K> using hash_set = std::unordered_set<K>;
+template <class K,
+          class V,
+          class Hash = std::hash<K>,
+          class KeyEqual = std::equal_to<K>>
+using hash_map = std::unordered_map<K, V, Hash, KeyEqual>;
+template <class K,
+          class V,
+          class Hash = std::hash<K>,
+          class KeyEqual = std::equal_to<K>>
+using hash_multimap = std::unordered_multimap<K, V, Hash, KeyEqual>;
+template <class K, class Hash = std::hash<K>, class KeyEqual = std::equal_to<K>>
+using hash_multiset = std::unordered_multiset<K, Hash, KeyEqual>;
+template <class K, class Hash = std::hash<K>, class KeyEqual = std::equal_to<K>>
+using hash_set = std::unordered_set<K, Hash, KeyEqual>;
 #else  // SB_HAS(STD_UNORDERED_HASH)
 using BASE_HASH_NAMESPACE::hash_map;
 using BASE_HASH_NAMESPACE::hash_multimap;
