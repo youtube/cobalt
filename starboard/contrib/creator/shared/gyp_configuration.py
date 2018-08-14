@@ -72,8 +72,9 @@ class CreatorConfiguration(platform_configuration.PlatformConfiguration):
 
   def GetEnvironmentVariables(self):
     self.ci20_home = self._GetCi20Home()
-    self.host_compiler_environment = build.GetHostCompilerEnvironment(
-        clang.GetClangSpecification(), False)
+    if not hasattr(self, 'host_compiler_environment'):
+      self.host_compiler_environment = build.GetHostCompilerEnvironment(
+          clang.GetClangSpecification(), False)
     env_variables = self.host_compiler_environment
     env_variables = {
         'CC': self.host_compiler_environment['CC_host'],
