@@ -43,6 +43,7 @@ class CreatorCI20X11Configuration(shared_configuration.CreatorConfiguration):
         ar.StaticThinLinker(),
         ar.StaticLinker(),
         clangxx.ExecutableLinker(path=cxx_path),
+        clangxx.SharedLibraryLinker(path=cxx_path),
         cp.Copy(),
         touch.Stamp(),
         bash.Shell(),
