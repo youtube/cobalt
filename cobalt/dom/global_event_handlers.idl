@@ -18,7 +18,7 @@
 interface GlobalEventHandlers {
   attribute EventHandler onblur;
   attribute EventHandler onclick;
-  attribute OnErrorEventListener onerror;
+  attribute OnErrorEventHandler onerror;
   attribute EventHandler onfocus;
 
   attribute EventHandler onkeydown;
