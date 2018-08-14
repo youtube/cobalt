@@ -24,11 +24,18 @@
       '<(DEPTH)/starboard/shared/starboard/link_receiver.cc',
       '<(DEPTH)/starboard/shared/x11/application_x11.cc',
       '<(DEPTH)/starboard/shared/x11/egl_swap_buffers.cc',
+      '<(DEPTH)/starboard/shared/x11/player_set_bounds.cc',
       '<(DEPTH)/starboard/shared/x11/window_create.cc',
       '<(DEPTH)/starboard/shared/x11/window_destroy.cc',
       '<(DEPTH)/starboard/shared/x11/window_get_platform_handle.cc',
       '<(DEPTH)/starboard/shared/x11/window_get_size.cc',
       '<(DEPTH)/starboard/shared/x11/window_internal.cc',
+    ],
+
+    # Exclude shared implementations specified by the included .gypi if this
+    # file already specifies a platform-specific version.
+    'starboard_platform_sources!': [
+      '<(DEPTH)/starboard/shared/starboard/player/player_set_bounds.cc',
     ],
   },
 }
