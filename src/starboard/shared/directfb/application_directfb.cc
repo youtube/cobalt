@@ -523,6 +523,9 @@ shared::starboard::Application::Event* ApplicationDirectFB::DFBEventToEvent(
 
     SbInputData* data = new SbInputData();
     SbMemorySet(data, 0, sizeof(*data));
+#if SB_API_VERSION >= 10
+    data->timestamp = SbTimeGetMonotonicNow();
+#endif // SB_API_VERSION >= 10
     data->window = window_;
     SB_DCHECK(SbWindowIsValid(data->window));
     data->type = (event.type == DIET_KEYPRESS ? kSbInputEventTypePress
