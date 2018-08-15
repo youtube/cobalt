@@ -656,6 +656,10 @@ std::vector<TestParam> GetSupportedTests() {
                   ,
               false
 #endif  // SB_API_VERSION >= 10
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+              ,
+              kSbMediaTransferIdUnspecified
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
               )) {
         test_params.push_back({output_mode, filename});
       }

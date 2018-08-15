@@ -68,6 +68,12 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add SbMediaTransferId* argument |eotf| to SbMediaIsVideoSupported, so the
+// platform may indicate support of resolution, bitrate, fps, and codec
+// conditioned on eotf. Also, remove the function
+// SbMediaIsTransferCharacteristicsSupported which is no longer necessary.
+#define SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Add support for using C++11 standard unordered maps and sets.
 //   By setting SB_HAS_STD_UNORDERED_HASH to 1, a platform can be configured
 //   to use C++11 standard hash table implementations, specifically, using:
@@ -585,6 +591,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #define SB_HAS_DRM_KEY_STATUSES 1
 #endif  // defined(SB_HAS_DRM_KEY_STATUSES)
 #endif  // SB_API_VERSION >= 6
+
+#if SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION
+#if defined(SB_HAS_MEDIA_EOTF_CHECK_SUPPORT)
+#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#error "SB_HAS_MEDIA_EOTF_CHECK_SUPPORT is required in this API version."
+#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+#else   // defined(SB_HAS_MEDIA_EOTF_CHECK_SUPPORT)
+#define SB_HAS_MEDIA_EOTF_CHECK_SUPPORT 1
+#endif  // defined(SB_HAS_MEDIA_EOTF_CHECK_SUPPORT)
+#endif  // SB_API_VERSION >= SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION
 
 #if SB_API_VERSION >= 10
 #if defined(SB_HAS_DRM_SESSION_CLOSED)
