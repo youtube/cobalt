@@ -25,6 +25,7 @@
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/dom_token_list.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/html_div_element.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/named_node_map.h"
@@ -554,12 +555,39 @@ TEST_F(ElementTest, OuterHTML) {
           ->AsElement();
   element_b2->AppendChild(new Text(document_, "Text"));
 
+  element_a->AppendChild(new Text(document_, "\n  "));
+
+  // Start specifically testing that the "style" attribute is serialized
+  // correctly.
+  scoped_refptr<HTMLElement> div_element_1 =
+      element_a->AppendChild(new HTMLDivElement(document_))->AsElement()
+          ->AsHTMLElement();
+  div_element_1->SetAttribute("style", "height: 20px;");
+
+  element_a->AppendChild(new Text(document_, "\n  "));
+
+  scoped_refptr<HTMLElement> div_element_2 =
+      element_a->AppendChild(new HTMLDivElement(document_))->AsElement()
+          ->AsHTMLElement();
+  div_element_2->AsHTMLElement()->style()->set_width("10px", nullptr);
+
+  element_a->AppendChild(new Text(document_, "\n  "));
+
+  scoped_refptr<HTMLElement> div_element_3 =
+      element_a->AppendChild(new HTMLDivElement(document_))->AsElement()
+          ->AsHTMLElement();
+  div_element_3->SetAttribute("style", "height: 20px;");
+  div_element_3->AsHTMLElement()->style()->set_width("10px", nullptr);
+
   element_a->AppendChild(new Text(document_, "\n"));
 
   const char kExpectedHTML[] =
       "<root><element_a key=\"value\">\n"
       "  <element_b1 just_key></element_b1>\n"
       "  <element_b2>Text</element_b2>\n"
+      "  <div style=\"height: 20px;\"></div>\n"
+      "  <div style=\"width: 10px;\"></div>\n"
+      "  <div style=\"height: 20px; width: 10px;\"></div>\n"
       "</element_a></root>";
   EXPECT_EQ(kExpectedHTML, root->outer_html(NULL));
 

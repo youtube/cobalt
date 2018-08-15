@@ -1863,6 +1863,9 @@ class CodeTracer final : public Malloced {
   };
 
   void OpenFile() {
+#if V8_OS_STARBOARD
+    SB_NOTIMPLEMENTED();
+#else
     if (!ShouldRedirect()) {
       return;
     }
@@ -1872,9 +1875,13 @@ class CodeTracer final : public Malloced {
     }
 
     scope_depth_++;
+#endif
   }
 
   void CloseFile() {
+#if V8_OS_STARBOARD
+    SB_NOTIMPLEMENTED();
+#else
     if (!ShouldRedirect()) {
       return;
     }
@@ -1883,6 +1890,7 @@ class CodeTracer final : public Malloced {
       fclose(file_);
       file_ = nullptr;
     }
+#endif
   }
 
   FILE* file() const { return file_; }

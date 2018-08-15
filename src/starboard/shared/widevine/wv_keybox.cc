@@ -18,7 +18,7 @@
 #include <vector>
 
 extern "C" {
-#include "starboard/keyboxes/linux/linux.h"
+#include COBALT_WIDEVINE_KEYBOX_TRANSFORM_INCLUDE
 };
 
 #include "third_party/ce_cdm/oemcrypto/mock/src/wv_keybox.h"
@@ -42,19 +42,17 @@ bool WvKeybox::Prepare() {
 
   // Replace obfuscated with de-obfiscated and install.
   uint8_t clear_key[sizeof(kObfuscatedKey)];
-  linux_client(clear_key, const_cast<unsigned char*>(kObfuscatedKey));
+  COBALT_WIDEVINE_KEYBOX_TRANSFORM_FUNCTION(
+      clear_key, const_cast<unsigned char*>(kObfuscatedKey));
   SbMemoryCopy(&keybox.device_key_, clear_key, sizeof(keybox.device_key_));
 
   // Erase |de_obfuscated| because it contains clear key
   SbMemorySet(&clear_key, 0, sizeof(clear_key));
-  if (!InstallKeybox(reinterpret_cast<const uint8_t*>(&keybox),
-                     sizeof(WidevineKeybox))) {
-    return false;
-  }
-
+  bool installed = InstallKeybox(reinterpret_cast<const uint8_t*>(&keybox),
+                                 sizeof(WidevineKeybox));
   // Erase temporary kKeybox's copy because it is de-obfuscated
   SbMemorySet(&keybox, 0, sizeof(WidevineKeybox));
-  return true;
+  return installed;
 }
 
 }  // namespace wvoec_mock

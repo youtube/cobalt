@@ -17,6 +17,10 @@
 
 #include "include/v8-util.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/log.h"
+#endif
+
 namespace v8_inspector {
 
 namespace {
@@ -1049,10 +1053,14 @@ std::pair<int64_t, int64_t> V8Debugger::debuggerIdFor(
 }
 
 void V8Debugger::dumpAsyncTaskStacksStateForTest() {
+#if V8_OS_STARBOARD
+  SB_NOTIMPLEMENTED();
+#else
   fprintf(stdout, "Async stacks count: %d\n", m_asyncStacksCount);
   fprintf(stdout, "Scheduled async tasks: %zu\n", m_asyncTaskStacks.size());
   fprintf(stdout, "Recurring async tasks: %zu\n", m_recurringTasks.size());
   fprintf(stdout, "\n");
+#endif
 }
 
 }  // namespace v8_inspector

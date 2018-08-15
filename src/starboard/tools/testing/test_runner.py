@@ -29,8 +29,8 @@ import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
 from starboard.tools import build
 from starboard.tools import command_line
-from starboard.tools.testing import test_filter
 from starboard.tools.testing import build_tests
+from starboard.tools.testing import test_filter
 
 _TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
@@ -90,11 +90,12 @@ class TestLineReader(object):
     while not self.stop_event.is_set():
       line = self.read_pipe.readline()
       if line:
+        # Normalize line endings to unix.
+        line = line.replace("\r", "")
         sys.stdout.write(line)
         sys.stdout.flush()
       else:
         break
-
       self.output_lines.write(line)
 
   def Start(self):
@@ -409,6 +410,8 @@ class TestRunner(object):
 
     print "\nTEST RUN COMPLETE. RESULTS BELOW:\n"
 
+    failed_test_groups = []
+
     for result_set in results:
 
       target_name = result_set[0]
@@ -425,6 +428,7 @@ class TestRunner(object):
       if return_code != 0:
         error = True
         test_status = "FAILED"
+        failed_test_groups.append(target_name)
 
       print "{}: {}.".format(target_name, test_status)
       if run_count == 0:
@@ -459,6 +463,9 @@ class TestRunner(object):
       result = False
 
     print "TEST RUN {}.".format(overall_status)
+    if failed_test_groups:
+      failed_test_groups = list(set(failed_test_groups))
+      print "  FAILED TESTS GROUPS: {}".format(", ".join(failed_test_groups))
     print "  TOTAL TESTS RUN: {}".format(total_run_count)
     print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
     print "  TOTAL TESTS FAILED: {}".format(total_failed_count)

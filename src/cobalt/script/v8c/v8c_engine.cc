@@ -19,7 +19,6 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/script/v8c/isolate_fellowship.h"
@@ -99,15 +98,6 @@ void GCEpilogueCallback(v8::Isolate* isolate, v8::GCType type,
   }
 }
 
-SbOnceControl v8_flag_init_once_control = SB_ONCE_INITIALIZER;
-
-// Configure v8's global command line flag options for Cobalt.
-void V8FlagInitOnce() {
-  char optimize_for_size_flag_str[] = "--optimize_for_size=true";
-  v8::V8::SetFlagsFromString(optimize_for_size_flag_str,
-                             sizeof(optimize_for_size_flag_str));
-}
-
 }  // namespace
 
 V8cEngine::V8cEngine(const Options& options) : options_(options) {
@@ -128,9 +118,10 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
                     "significantly slow down startup time.";
   }
 
-  SbOnce(&v8_flag_init_once_control, V8FlagInitOnce);
   isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);
+  isolate_fellowship->platform->RegisterIsolateOnThread(isolate_,
+                                                        MessageLoop::current());
 
   // There are 2 total isolate data slots, one for the sole |V8cEngine| (us),
   // and one for the |V8cGlobalEnvironment|.
@@ -158,6 +149,8 @@ V8cEngine::~V8cEngine() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::~V8cEngine");
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  IsolateFellowship::GetInstance()->platform->UnregisterIsolateOnThread(
+      isolate_);
   // Send a low memory notification to V8 in order to force a garbage
   // collection before shut down.  This is required to run weak callbacks that
   // are responsible for freeing native objects that live in the internal

@@ -46,8 +46,11 @@ enum PipelineStatus {
   AUDIO_RENDERER_ERROR = 19,
   AUDIO_RENDERER_ERROR_SPLICE_FAILED = 20,
 
+  // Transient errors.
+  PLAYBACK_CAPABILITY_CHANGED = 22,
+
   // Must be equal to the largest value ever logged.
-  PIPELINE_STATUS_MAX = PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED,
+  PIPELINE_STATUS_MAX = PLAYBACK_CAPABILITY_CHANGED,
 };
 
 typedef base::Callback<void(PipelineStatus)> PipelineStatusCB;

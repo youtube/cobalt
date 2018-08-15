@@ -1,3 +1,41 @@
-body {
+.black {
     background-color: black;
+}
+
+#screenContainer {
+    position: relative;
+}
+
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+}
+
+.visibleScreen {
+    visibility: visible;
+}
+
+.table {
+    display: table;
+}
+
+.row {
+    display: table-row;
+    align-items: center;
+}
+
+.listItem {
+    display: table-cell;
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.inline {
+    display: inline;
+}
+
+.buttonListItem {
+    display: block;
 }

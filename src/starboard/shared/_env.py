@@ -1,3 +1,4 @@
+#
 # Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,20 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{
-  'variables': {
-     'platform_oem_sources': [
-       '<(DEPTH)/starboard/keyboxes/linux/linux.h',
-       '<(DEPTH)/starboard/keyboxes/linux/linux_client.c',
-       'wv_keybox.cc',
-     ],
-  },
-  'includes': [
-    '<(DEPTH)/starboard/shared/widevine/widevine.gypi',
-  ],
-  'target_defaults': {
-    'defines': [
-      'COBALT_WIDEVINE_KEYBOX_INCLUDE="starboard/keyboxes/widevine_settings_linux.h"',
-    ],
-  },
-}
+#
+"""Ask the parent directory to load the project environment."""
+
+from imp import load_source
+from os import path
+import sys
+
+_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
+if not path.exists(_ENV):
+  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
+  sys.exit(1)
+load_source('', _ENV)

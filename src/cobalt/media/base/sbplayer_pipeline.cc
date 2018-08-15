@@ -1142,18 +1142,28 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
       ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK, message);
       break;
     case kSbPlayerErrorDecode:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+      break;
 #if SB_API_VERSION >= 10
     case kSbPlayerErrorCapabilityChanged:
 #endif  // SB_API_VERSION >= 10
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
       break;
     case kSbPlayerErrorSrcNotSupported:
       ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_COULD_NOT_OPEN, message);
       break;
   }
 #else
-  DCHECK_EQ(error, kSbPlayerErrorDecode);
-  ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+  switch (error) {
+    case kSbPlayerErrorDecode:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+      break;
+#if SB_API_VERSION >= 10
+    case kSbPlayerErrorCapabilityChanged:
+      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
+      break;
+#endif  // SB_API_VERSION >= 10
+  }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 }
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)

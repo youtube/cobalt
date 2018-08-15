@@ -73,6 +73,8 @@ class CSSRuleList : public base::SupportsWeakPtr<CSSRuleList>,
   CSSRules css_rules_;
   CSSStyleSheet* parent_css_style_sheet_;
 
+  int next_index_ = 0;
+
   DISALLOW_COPY_AND_ASSIGN(CSSRuleList);
 };
 
