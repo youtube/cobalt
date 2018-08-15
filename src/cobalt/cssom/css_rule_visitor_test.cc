@@ -21,6 +21,7 @@
 #include "cobalt/cssom/css_keyframes_rule.h"
 #include "cobalt/cssom/css_media_rule.h"
 #include "cobalt/cssom/css_style_rule.h"
+#include "cobalt/cssom/media_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -45,7 +46,8 @@ TEST(CSSRuleVisitorTest, VisitsCSSStyleRule) {
 }
 
 TEST(CSSRuleVisitorTest, VisitsCSSMediaRule) {
-  scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
+  scoped_refptr<CSSMediaRule> rule =
+      new CSSMediaRule(new MediaList(), new CSSRuleList());
   MockCSSRuleVisitor mock_visitor;
   EXPECT_CALL(mock_visitor, VisitCSSMediaRule(rule.get()));
   rule->Accept(&mock_visitor);

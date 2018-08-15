@@ -21,7 +21,6 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "starboard/file.h"
-#include "v8/include/libplatform/libplatform.h"
 
 namespace cobalt {
 namespace script {
@@ -34,7 +33,8 @@ const char kIsolateFellowshipBuildTime[] = __DATE__ " " __TIME__;
 IsolateFellowship::IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::IsolateFellowship");
   // TODO: Initialize V8 ICU stuff here as well.
-  platform = v8::platform::CreateDefaultPlatform();
+  platform = new CobaltPlatform(
+      std::unique_ptr<v8::Platform>(v8::platform::CreateDefaultPlatform()));
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
   array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
@@ -46,10 +46,6 @@ IsolateFellowship::~IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::~IsolateFellowship");
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
-
-  DCHECK(platform);
-  delete platform;
-  platform = nullptr;
 
   DCHECK(array_buffer_allocator);
   delete array_buffer_allocator;

@@ -35,11 +35,18 @@ extern "C" {
 // |frame_height|: The frame height of the media content.
 // |bitrate|: The bitrate of the media content.
 // |fps|: The number of frames per second in the media content.
+// |decode_to_texture_required|: Whether or not the resulting video frames can
+//                               be decoded and used as textures by the GPU.
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
-                                       int fps);
+                                       int fps
+#if SB_API_VERSION >= 10
+                                       ,
+                                       bool decode_to_texture_required
+#endif  // SB_API_VERSION >= 10
+                                       );
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function

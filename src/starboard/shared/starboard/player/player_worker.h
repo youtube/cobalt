@@ -43,8 +43,10 @@ namespace player {
 // they needn't maintain the thread and queue internally.
 class PlayerWorker {
  public:
-  typedef std::function<
-      void(SbTime media_time, int dropped_video_frames, int ticket)>
+  typedef std::function<void(SbTime media_time,
+                             int dropped_video_frames,
+                             int ticket,
+                             bool underflow)>
       UpdateMediaInfoCB;
 
   struct Bounds {
@@ -58,7 +60,8 @@ class PlayerWorker {
   // All functions of this class will be called from the JobQueue thread.
   class Handler {
    public:
-    typedef std::function<void(SbTime media_time, int dropped_video_frames)>
+    typedef std::function<
+        void(SbTime media_time, int dropped_video_frames, bool underflow)>
         UpdateMediaInfoCB;
     typedef std::function<SbPlayerState()> GetPlayerStateCB;
     typedef std::function<void(SbPlayerState player_state)> UpdatePlayerStateCB;
@@ -158,7 +161,7 @@ class PlayerWorker {
   }
 
  private:
-  void UpdateMediaInfo(SbTime time, int dropped_video_frames);
+  void UpdateMediaInfo(SbTime time, int dropped_video_frames, bool underflow);
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);

@@ -22,11 +22,11 @@
 namespace cobalt {
 namespace cssom {
 
-CSSMediaRule::CSSMediaRule() {}
-
 CSSMediaRule::CSSMediaRule(const scoped_refptr<MediaList>& media_list,
                            const scoped_refptr<CSSRuleList>& css_rule_list)
-    : CSSConditionRule(css_rule_list), media_list_(media_list) {}
+    : CSSConditionRule(css_rule_list), media_list_(media_list) {
+  DCHECK(media_list_);
+}
 
 const scoped_refptr<MediaList>& CSSMediaRule::media() const {
   return media_list_;
@@ -49,15 +49,9 @@ void CSSMediaRule::set_css_text(const std::string& /* css_text */,
   NOTIMPLEMENTED() << "CSSMediaRule css_text setting not implemented yet.";
 }
 
-std::string CSSMediaRule::condition_text() {
-  return media_list_ ? media_list_->media_text() : "";
-}
+std::string CSSMediaRule::condition_text() { return media_list_->media_text(); }
 
 void CSSMediaRule::set_condition_text(const std::string& condition) {
-  if (!media_list_) {
-    DCHECK(parent_style_sheet());
-    media_list_ = new MediaList(parent_style_sheet()->css_parser());
-  }
   media_list_->set_media_text(condition);
 }
 
@@ -67,11 +61,8 @@ void CSSMediaRule::Accept(CSSRuleVisitor* visitor) {
 
 bool CSSMediaRule::EvaluateConditionValueAndReturnIfChanged(
     const math::Size& viewport_size) {
-  bool condition_value = true;
-  if (media_list_) {
-    condition_value = media_list_->EvaluateConditionValue(viewport_size);
-  }
-  return SetConditionValueAndTestIfChanged(condition_value);
+  return SetConditionValueAndTestIfChanged(
+      media_list_->EvaluateConditionValue(viewport_size));
 }
 
 void CSSMediaRule::AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) {
