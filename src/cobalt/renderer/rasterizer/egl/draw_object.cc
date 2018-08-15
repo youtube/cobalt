@@ -205,7 +205,7 @@ void DrawObject::GetRCornerValues(math::RectF* rect,
   }
   if (corners->bottom_left.IsSquare()) {
     corners->bottom_left.horizontal = 0.0f;
-    corners->bottom_right.horizontal = 0.0f;
+    corners->bottom_left.vertical = 0.0f;
   }
 
   // Ensure corner sizes are non-zero to allow generic handling of square and

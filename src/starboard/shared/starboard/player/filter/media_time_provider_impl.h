@@ -49,7 +49,9 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(SbTime seek_to_time) override;
-  SbTime GetCurrentMediaTime(bool* is_playing, bool* is_eos_played) override;
+  SbTime GetCurrentMediaTime(bool* is_playing,
+                             bool* is_eos_played,
+                             bool* is_underflow) override;
 
   // When video end of stream is reached and the current media time passes the
   // video duration, |is_eos_played| of GetCurrentMediaTime() will return true.

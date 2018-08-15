@@ -35,7 +35,6 @@ class CSSRuleVisitor;
 //   https://www.w3.org/TR/css3-conditional/#cssgroupingrule
 class CSSGroupingRule : public CSSRule {
  public:
-  CSSGroupingRule();
   explicit CSSGroupingRule(const scoped_refptr<CSSRuleList>& css_rule_list);
 
   // Web API: CSSGroupingRule
@@ -54,6 +53,9 @@ class CSSGroupingRule : public CSSRule {
     UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
+
+  void SetIndex(int index) override;
+  int IndexWidth() const override;
 
   // Sets the CSS rule list for the grouping rule.
   void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);

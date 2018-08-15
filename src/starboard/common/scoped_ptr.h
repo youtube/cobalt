@@ -358,11 +358,18 @@ bool operator!=(C* p1, const scoped_array<C>& p2) {
   return p1 != p2.get();
 }
 
-// This class wraps the c library function free() in a class that can be
+// This class wraps the SbMemoryDeallocate() function in a class that can be
 // passed as a template argument to scoped_ptr_malloc below.
 class ScopedPtrMallocFree {
  public:
   inline void operator()(void* x) const { SbMemoryDeallocate(x); }
+};
+
+// This class wraps the SbMemoryDeallocateAligned() function in a class that
+// can be passed as a template argument to scoped_ptr_malloc below.
+class ScopedPtrMallocFreeAligned {
+ public:
+  inline void operator()(void* x) const { SbMemoryDeallocateAligned(x); }
 };
 
 // scoped_ptr_malloc<> is similar to scoped_ptr<>, but it accepts a

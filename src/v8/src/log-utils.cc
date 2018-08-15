@@ -11,6 +11,10 @@
 #include "src/utils.h"
 #include "src/version.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/log.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -66,6 +70,9 @@ Log::Log(Logger* logger, const char* file_name)
 
 FILE* Log::Close() {
   FILE* result = nullptr;
+#if V8_OS_STARBOARD
+  SB_NOTIMPLEMENTED();
+#else
   if (output_handle_ != nullptr) {
     if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
       fclose(output_handle_);
@@ -73,6 +80,7 @@ FILE* Log::Close() {
       result = output_handle_;
     }
   }
+#endif
   output_handle_ = nullptr;
 
   DeleteArray(format_buffer_);

@@ -938,11 +938,20 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
     const backend::TextureEGL** out_texture,
     math::Matrix3F* out_texcoord_transform,
     math::RectF* out_content_rect) {
+
   // Check whether the node is visible.
   math::RectF mapped_bounds = draw_state_.transform.MapRect(node->GetBounds());
+
+  if (!mapped_bounds.IsExpressibleAsRect()) {
+    DLOG(WARNING) << "Invalid rectangle of " << mapped_bounds.ToString()
+                  << " will not be rendered";
+    return;
+  }
+
   math::RectF rounded_out_bounds = RoundOut(mapped_bounds, 0.0f);
   math::RectF clipped_bounds =
       math::IntersectRects(rounded_out_bounds, draw_state_.scissor);
+
   if (clipped_bounds.IsEmpty()) {
     out_content_rect->SetRect(0.0f, 0.0f, 0.0f, 0.0f);
     return;

@@ -288,9 +288,11 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
 }
 
 SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
-                                          bool* is_eos_played) {
+                                          bool* is_eos_played,
+                                          bool* is_underflow) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
+  SB_DCHECK(is_underflow);
 
   SbTime media_time = 0;
   SbTimeMonotonic now = -1;
@@ -303,6 +305,7 @@ SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
 
     *is_playing = !paused_ && !seeking_;
     *is_eos_played = IsEndOfStreamPlayed_Locked();
+    *is_underflow = underflow_;
     if (*is_eos_played && !ended_cb_called_) {
       ended_cb_called_ = true;
       Schedule(ended_cb_);
@@ -463,10 +466,12 @@ void AudioRenderer::UpdateVariablesOnSinkThread_Locked(
   }
 
   is_eos_reached_on_sink_thread_ = eos_state_ >= kEOSSentToSink;
-  is_playing_on_sink_thread_ = !paused_ && !seeking_;
   frames_in_buffer_on_sink_thread_ = static_cast<int>(
       frames_sent_to_sink_ + silence_frames_written_after_eos_on_sink_thread_ -
       frames_consumed_by_sink_ - frames_consumed_on_sink_thread_);
+  underflow_ |=
+      frames_in_buffer_on_sink_thread_ < kFramesInBufferBeginUnderflow;
+  is_playing_on_sink_thread_ = !paused_ && !seeking_ && !underflow_;
   offset_in_frames_on_sink_thread_ =
       (frames_consumed_by_sink_ + frames_consumed_on_sink_thread_) %
       max_cached_frames_;
@@ -596,6 +601,7 @@ void AudioRenderer::ProcessAudioData() {
           seeking_ = false;
           Schedule(prerolled_cb_);
         }
+        underflow_ = false;
       }
 
       resampled_audio = resampler_->WriteEndOfStream();
@@ -643,10 +649,13 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   *is_frame_buffer_full = false;
 
-  if (seeking_ && time_stretcher_.IsQueueFull()) {
+  if (time_stretcher_.IsQueueFull()) {
     ScopedLock lock(mutex_);
-    seeking_ = false;
-    Schedule(prerolled_cb_);
+    if (seeking_) {
+      seeking_ = false;
+      Schedule(prerolled_cb_);
+    }
+    underflow_ = false;
   }
 
   if (seeking_ || playback_rate_ == 0.0) {

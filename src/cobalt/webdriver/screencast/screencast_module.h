@@ -15,6 +15,7 @@
 #ifndef COBALT_WEBDRIVER_SCREENCAST_SCREENCAST_MODULE_H_
 #define COBALT_WEBDRIVER_SCREENCAST_SCREENCAST_MODULE_H_
 
+#include <queue>
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
@@ -28,43 +29,20 @@ namespace cobalt {
 namespace webdriver {
 namespace screencast {
 
-// This class is responsible for taking screenshots at regular intervals for the
-// Screencast Module. It's main components are a timer and a callback that takes
-// screenshots The class keeps the last encoded screenshot as a base64 encoded
-// string.
-class RepeatingScreenshotTaker {
- public:
-  typedef base::Callback<void(
-      const scoped_refptr<loader::image::EncodedStaticImage>& image_data)>
-      ScreenshotCompleteCallback;
-  typedef base::Callback<void(loader::image::EncodedStaticImage::ImageFormat,
-                              const ScreenshotCompleteCallback&)>
-      GetScreenshotFunction;
-
-  RepeatingScreenshotTaker(base::TimeDelta screenshot_interval,
-                           const GetScreenshotFunction& screenshot_function);
-
-  std::string GetCurrentScreenshot();
-
- private:
-  // Takes a screenshot, encodes it as a JPEG, converts it to a base64 string,
-  // and saves it as current_screenshot.
-  void TakeScreenshot();
-
-  // The latest available screenshot
-  std::string current_screenshot_;
-
-  scoped_ptr<base::Timer> timed_screenshots_;
-
-  GetScreenshotFunction screenshot_function_;
+struct WaitingRequest : public base::RefCounted<WaitingRequest> {
+  scoped_ptr<webdriver::WebDriverDispatcher::CommandResultHandler>
+      result_handler;
+  int request_id;
 };
 
 // The Screencast Module waits for requests from the server. When the
-// WebDriverDispatcher gets a request for a screenshot it responds with the
-// latest taken screenshot from the RepeatingScreenshotTaker. The server
-// recognises one command - /screenshot. That will return a base64 encoded JPEG
-// image. The client should repeatedly ask for screenshots from this server to
-// get the desired "screencast" affect.
+// WebDriverDispatcher gets a request for a screenshot it puts the request in a
+// queue.  A timer takes screenshots at the current frame rate. When a
+// screenshot is finished, it will be sent to the first valid request on the
+// queue. The server recognises one command - /screenshot:id. That will return a
+// JPEG image. The client should repeatedly ask for screenshots from this server
+// to get the desired "screencast" affect, and it can layer these requests for
+// the optimal framerate.
 class ScreencastModule {
  public:
   typedef base::Callback<void(
@@ -80,14 +58,24 @@ class ScreencastModule {
   ~ScreencastModule();
 
  private:
+  void TakeScreenshot();
   void StartServer(int server_port, const std::string& listen_ip);
 
+  void StopTimer();
   void StopServer();
 
-  void GetRecentScreenshot(
+  void PutRequestInQueue(
       const base::Value* parameters,
       const WebDriverDispatcher::PathVariableMap* path_variables,
       scoped_ptr<WebDriverDispatcher::CommandResultHandler> result_handler);
+
+  // This method will search the queue for the first valid request. A valid
+  // request must have an id higher than the last valid request. When an invalid
+  // request is popped off the queue, the screencast server will respond to the
+  // request with an error. At the first valid request, the server will respond
+  // with an image and return.
+  void SendScreenshotToNextInQueue(
+      const scoped_refptr<loader::image::EncodedStaticImage>& screenshot);
 
   // All operations including HTTP server will occur on this thread.
   base::Thread screenshot_thread_;
@@ -102,8 +90,32 @@ class ScreencastModule {
   // The |screenshot_dispatcher_| sends responses through this HTTP server.
   scoped_ptr<WebDriverServer> screenshot_server_;
 
-  // This constantly compresses screenshots
-  RepeatingScreenshotTaker screenshot_taker_;
+  // The id of the last valid request the screencast server responded to.
+  int last_served_request_;
+
+  // A queue of all the requests, valid or invalid, that are waiting on a
+  // response from the screencast server.
+  std::queue<scoped_refptr<WaitingRequest>> incoming_requests_;
+
+  // Takes a screenshot of the most current frame.
+  GetScreenshotFunction screenshot_function_;
+
+  // This timer is responsible for taking screenshots at regular intervals.
+  scoped_ptr<base::Timer> screenshot_timer_;
+
+  // This event is responsible for a safe shutdown. The event will be signalled
+  // only after the timer has been shutdown and will not request any more
+  // screenshots, and the |num_screenshots_processing_| is zero. Without this
+  // check, the processing screenshots would try to call
+  // SendScreenshotToNextInQueue after the object is destroyed, causing an
+  // error.
+  base::WaitableEvent no_screenshots_pending_;
+
+  // The number of screenshots that |screenshot_timer_| has triggered that are
+  // not complete.
+  int num_screenshots_processing_;
+  // The maximum number of requests that will process simultaneously.
+  int max_num_screenshots_processing_ = 2;
 };
 
 }  // namespace screencast
