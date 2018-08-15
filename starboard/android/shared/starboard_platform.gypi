@@ -116,7 +116,6 @@
         'media_is_audio_supported.cc',
         'media_is_output_protected.cc',
         'media_is_supported.cc',
-        'media_is_transfer_characteristics_supported.cc',
         'media_is_video_supported.cc',
         'media_set_output_protection.cc',
         'microphone_impl.cc',

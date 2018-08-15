@@ -400,8 +400,15 @@ class MediaCodecBridge {
       MediaCrypto crypto,
       ColorInfo colorInfo) {
     MediaCodec mediaCodec = null;
+
+    boolean findHDRDecoder = android.os.Build.VERSION.SDK_INT >= 24 && colorInfo != null;
+    // On first pass, try to find a decoder with HDR if the color info is non-null.
     MediaCodecUtil.FindVideoDecoderResult findVideoDecoderResult =
-        MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0);
+        MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, findHDRDecoder);
+    if (findVideoDecoderResult.name.equals("") && findHDRDecoder) {
+      // On second pass, forget HDR.
+      findVideoDecoderResult = MediaCodecUtil.findVideoDecoder(mime, isSecure, 0, 0, 0, 0, false);
+    }
     try {
       String decoderName = findVideoDecoderResult.name;
       if (decoderName.equals("") || findVideoDecoderResult.videoCapabilities == null) {
