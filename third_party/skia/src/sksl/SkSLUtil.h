@@ -21,6 +21,10 @@
 #include "GrShaderCaps.h"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#endif
+
 #ifdef SKSL_STANDALONE
 #if defined(_WIN32) || defined(__SYMBIAN32__)
 #define SKSL_BUILD_FOR_WIN
@@ -287,6 +291,10 @@ NORETURN void sksl_abort();
 #define SKSL_PRINTF_LIKE(A, B)
 #endif
 
+#if defined(STARBOARD)
+#define ABORT(...) (SbLogFormatF(__VA_ARGS__), sksl_abort())
+#else
 #define ABORT(...) (printf(__VA_ARGS__), sksl_abort())
+#endif
 
 #endif
