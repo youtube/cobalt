@@ -33,7 +33,8 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
 
   std::string directory_name = files[0].filename();
   directory_name.resize(directory_name.find_last_of(SB_FILE_SEP_CHAR));
-  EXPECT_TRUE(SbFileExists(directory_name.c_str()));
+  EXPECT_TRUE(SbFileExists(directory_name.c_str()))
+      << "Directory_name is " << directory_name;
 
   SbFileError error = kSbFileErrorMax;
   SbDirectory directory = SbDirectoryOpen(directory_name.c_str(), &error);
@@ -88,15 +89,13 @@ TEST(SbDirectoryGetNextTest, FailureNullEntry) {
 
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(SbFileExists(path.c_str()));
+  EXPECT_TRUE(SbFileExists(path.c_str())) << "Directory is " << path;
 
   SbFileError error = kSbFileErrorMax;
   SbDirectory directory = SbDirectoryOpen(path.c_str(), &error);
   EXPECT_TRUE(SbDirectoryIsValid(directory));
   EXPECT_EQ(kSbFileOk, error);
-
   EXPECT_FALSE(SbDirectoryGetNext(directory, NULL));
-
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
 

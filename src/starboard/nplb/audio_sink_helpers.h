@@ -73,6 +73,8 @@ class AudioSinkTestEnvironment {
       const AudioSinkTestFrameBuffers& frame_buffers);
   ~AudioSinkTestEnvironment();
 
+  bool is_valid() const { return SbAudioSinkIsValid(sink_); }
+
   static int sample_rate() {
     return SbAudioSinkGetNearestSupportedSampleFrequency(kSampleRateCD);
   }
@@ -114,10 +116,11 @@ class AudioSinkTestEnvironment {
   Mutex mutex_;
   ConditionVariable condition_variable_;
 
-  int update_source_status_call_count_;
-  int frames_appended_;
-  int frames_consumed_;
-  bool is_playing_;
+  int update_source_status_call_count_ = 0;
+  int frames_appended_ = 0;
+  int frames_consumed_ = 0;
+  bool is_playing_ = true;
+  bool is_eos_reached_ = false;
 };
 
 }  // namespace nplb

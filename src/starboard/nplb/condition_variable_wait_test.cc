@@ -49,7 +49,7 @@ TEST(SbConditionVariableWaitTest, SunnyDayAutoInit) {
 }
 
 TEST(SbConditionVariableWaitTest, SunnyDay) {
-  const int kMany = 64;
+  const int kMany = SB_MAX_THREADS > 64 ? 64 : SB_MAX_THREADS;
   WaiterContext context;
 
   SbThread threads[kMany];

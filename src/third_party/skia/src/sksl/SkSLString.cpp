@@ -21,6 +21,7 @@ String String::printf(const char* fmt, ...) {
     va_start(args, fmt);
     String result;
     result.vappendf(fmt, args);
+    va_end(args);
     return result;
 }
 
@@ -29,6 +30,7 @@ void String::appendf(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     this->vappendf(fmt, args);
+    va_end(args);
 }
 #endif
 
@@ -50,6 +52,7 @@ void String::vappendf(const char* fmt, va_list args) {
         VSNPRINTF(newBuffer.get(), size + 1, fmt, reuse);
         this->append(newBuffer.get(), size);
     }
+    va_end(reuse);
 }
 
 

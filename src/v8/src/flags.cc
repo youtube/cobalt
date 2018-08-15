@@ -498,7 +498,11 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
 
   if (FLAG_help) {
     PrintHelp();
+#if V8_OS_STARBOARD
+    SbSystemRequestStop(0);
+#else
     exit(0);
+#endif
   }
   // parsed all flags successfully
   return return_code;

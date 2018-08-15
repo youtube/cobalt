@@ -23,9 +23,15 @@
 #include "../../jsimddct.h"
 #include "../jsimd.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
+#ifdef STARBOARD
+#include "starboard/client_porting/poem/strings_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/configuration.h"
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/character.h"
+#else
+#include "starboard/client_porting/poem/stdio_poem.h"
+#endif
 
 static unsigned int simd_support = ~0;
 static unsigned int simd_huffman = 1;

@@ -56,7 +56,6 @@ class CSSConditionRule : public CSSGroupingRule {
   DEFINE_WRAPPABLE_TYPE(CSSConditionRule);
 
  protected:
-  CSSConditionRule();
   explicit CSSConditionRule(const scoped_refptr<CSSRuleList>& css_rule_list);
 
   ~CSSConditionRule() override {}

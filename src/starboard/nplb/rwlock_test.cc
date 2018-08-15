@@ -117,7 +117,7 @@ class ThreadHoldsWriteLockForTime : public AbstractTestThread {
  private:
   SharedData* shared_data_;
 };
-TEST(RWLock, HoldsLockForTime) {
+TEST(RWLock, FLAKY_HoldsLockForTime) {
   const SbTime kTimeToHold = kSbTimeMillisecond * 5;
   const SbTime kAllowedError = kSbTimeMillisecond * 10;
 
