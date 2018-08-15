@@ -84,6 +84,10 @@ SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type,
                                  ,
                                  decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+                                 ,
+                                 kSbMediaTransferIdUnspecified
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                  )) {
       return kSbMediaSupportTypeNotSupported;
     }
@@ -203,9 +207,12 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     }
 
     std::string eotf = mime_type.GetParamStringValue("eotf", "");
+    SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
     if (!eotf.empty()) {
-      SbMediaTransferId transfer_id = GetTransferIdFromString(eotf);
-      if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
+      transfer_id = GetTransferIdFromString(eotf);
+      // If the eotf is not known, reject immediately - without checking with
+      // the platform.
+      if (transfer_id == kSbMediaTransferIdUnknown) {
         return kSbMediaSupportTypeNotSupported;
       }
     }
@@ -237,7 +244,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     if (SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
 #if SB_API_VERSION >= 10
                                 ,
-                                decode_to_texture_required
+                                decode_to_texture_required, transfer_id
 #endif  // SB_API_VERSION >= 10
                                 )) {
       return kSbMediaSupportTypeProbably;

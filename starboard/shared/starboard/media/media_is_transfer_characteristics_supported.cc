@@ -16,7 +16,10 @@
 
 #include "starboard/media.h"
 
+#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
 SB_EXPORT bool SbMediaIsTransferCharacteristicsSupported(
     SbMediaTransferId transfer_id) {
-  return transfer_id == kSbMediaTransferIdBt709;
+  return transfer_id == kSbMediaTransferIdBt709 ||
+         transfer_id == kSbMediaTransferIdUnspecified;
 }
+#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)

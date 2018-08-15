@@ -85,6 +85,10 @@ SbPlayer SbPlayerCreate(SbWindow window,
                                ,
                                output_mode == kSbPlayerOutputModeDecodeToTexture
 #endif
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+                               ,
+                               kSbMediaTransferIdUnspecified
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                )) {
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
