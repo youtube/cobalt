@@ -41,11 +41,11 @@ struct SbDrmSystemPrivate {
 
   virtual DecryptStatus Decrypt(InputBuffer* buffer) = 0;
 
-#if SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#if SB_API_VERSION >= 10
   virtual void UpdateServerCertificate(int ticket,
                                        const void* certificate,
                                        int certificate_size) = 0;
-#endif  // SB_API_VERSION >= SB_DRM_REFINEMENT_API_VERSION
+#endif  // SB_API_VERSION >= 10
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_DRM_DRM_SYSTEM_INTERNAL_H_

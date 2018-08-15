@@ -14,6 +14,8 @@
 
 // This file contains a definition of CSS grammar.
 
+%require "3.0"
+
 // A reentrant parser.
 %define api.pure full
 

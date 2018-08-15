@@ -31,24 +31,35 @@ namespace cobalt {
 namespace dom {
 namespace {
 
+const char kStyleAttributeName[] = "style";
+
 void WriteAtttributes(const scoped_refptr<const Element>& element,
                       std::ostream* out_stream) {
-  if (element->HasAttributes()) {
-    const Element::AttributeMap& attributes = element->attribute_map();
-    typedef std::map<std::string, std::string> SortedAttributeMap;
-    SortedAttributeMap sorted_attribute_map;
-    sorted_attribute_map.insert(attributes.begin(), attributes.end());
+  const Element::AttributeMap& attributes = element->attribute_map();
+  typedef std::map<std::string, std::string> SortedAttributeMap;
+  SortedAttributeMap sorted_attribute_map;
+  sorted_attribute_map.insert(attributes.begin(), attributes.end());
 
-    for (SortedAttributeMap::const_iterator iter = sorted_attribute_map.begin();
-         iter != sorted_attribute_map.end(); ++iter) {
-      const std::string& name = iter->first;
-      const std::string& value = iter->second;
+  {
+    // The "style" attribute is handled specially because HTMLElements store
+    // it explicitly as a cssom::CSSDeclaredStyleDeclaration structure instead
+    // of as an attribute string, so we add it (or replace it) explicitly in the
+    // attribute map.
+    base::optional<std::string> style_attribute = element->GetStyleAttribute();
+    if (style_attribute && !style_attribute->empty()) {
+      sorted_attribute_map[kStyleAttributeName] = std::move(*style_attribute);
+    }
+  }
 
-      *out_stream << " " << name;
-      if (!value.empty()) {
-        *out_stream << "="
-                    << "\"" << value << "\"";
-      }
+  for (SortedAttributeMap::const_iterator iter = sorted_attribute_map.begin();
+       iter != sorted_attribute_map.end(); ++iter) {
+    const std::string& name = iter->first;
+    const std::string& value = iter->second;
+
+    *out_stream << " " << name;
+    if (!value.empty()) {
+      *out_stream << "="
+                  << "\"" << value << "\"";
     }
   }
 }

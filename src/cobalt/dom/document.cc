@@ -214,6 +214,7 @@ scoped_refptr<Element> Document::CreateElement(const std::string& local_name) {
 scoped_refptr<Element> Document::CreateElementNS(
     const std::string& namespace_uri, const std::string& local_name) {
   // TODO: Implement namespaces, if we actually need this.
+  NOTIMPLEMENTED();
   UNREFERENCED_PARAMETER(namespace_uri);
   return CreateElement(local_name);
 }
