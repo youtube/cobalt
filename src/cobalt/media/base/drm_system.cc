@@ -196,7 +196,9 @@ void DrmSystem::UpdateSession(
 }
 
 void DrmSystem::CloseSession(const std::string& session_id) {
+#if !SB_HAS(DRM_SESSION_CLOSED)
   id_to_session_map_.erase(session_id);
+#endif // !SB_HAS(DRM_SESSION_CLOSED)
   SbDrmCloseSession(wrapped_drm_system_, session_id.c_str(), session_id.size());
 }
 
