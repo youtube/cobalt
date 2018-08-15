@@ -380,10 +380,17 @@ public class MediaCodecUtil {
   @SuppressWarnings("unused")
   @UsedByNative
   public static boolean hasVideoDecoderFor(
-      String mimeType, boolean secure, int frameWidth, int frameHeight, int bitrate, int fps) {
-    return !findVideoDecoder(mimeType, secure, frameWidth, frameHeight, bitrate, fps)
-        .name
-        .equals("");
+      String mimeType,
+      boolean secure,
+      int frameWidth,
+      int frameHeight,
+      int bitrate,
+      int fps,
+      boolean mustSupportHdr) {
+    FindVideoDecoderResult findVideoDecoderResult =
+        findVideoDecoder(mimeType, secure, frameWidth, frameHeight, bitrate, fps, mustSupportHdr);
+    return !findVideoDecoderResult.name.equals("")
+        && (!mustSupportHdr || isHdrCapableVp9Decoder(findVideoDecoderResult));
   }
 
   /**
@@ -406,16 +413,8 @@ public class MediaCodecUtil {
       return false;
     }
 
-    // Ideally we would just add this as a parameter to |findVideoDecoder|,
-    // however the shared starboard player implementation of
-    // |CanPlayMimeAndKeySystem| will call
-    // |SbMediaIsTransferCharacteristicsSupported| as a separate function.  We
-    // make the reasonable assumption that no system will have two hardware
-    // VP9 decoders with one capable of playing HDR at lower
-    // resolutions/bitrates, and another not capable of playing HDR at higher
-    // resolutions/bitrates.
     FindVideoDecoderResult findVideoDecoderResult =
-        findVideoDecoder(VP9_MIME_TYPE, false, 0, 0, 0, 0);
+        findVideoDecoder(VP9_MIME_TYPE, false, 0, 0, 0, 0, true);
     return isHdrCapableVp9Decoder(findVideoDecoderResult);
   }
 
@@ -444,7 +443,13 @@ public class MediaCodecUtil {
    * "" otherwise.
    */
   public static FindVideoDecoderResult findVideoDecoder(
-      String mimeType, boolean secure, int frameWidth, int frameHeight, int bitrate, int fps) {
+      String mimeType,
+      boolean secure,
+      int frameWidth,
+      int frameHeight,
+      int bitrate,
+      int fps,
+      boolean hdr) {
     Log.v(
         TAG,
         String.format(
@@ -560,8 +565,13 @@ public class MediaCodecUtil {
             (secure && !name.endsWith(SECURE_DECODER_SUFFIX))
                 ? (name + SECURE_DECODER_SUFFIX)
                 : name;
+        FindVideoDecoderResult findVideoDecoderResult =
+            new FindVideoDecoderResult(resultName, videoCapabilities, codecCapabilities);
+        if (hdr && !isHdrCapableVp9Decoder(findVideoDecoderResult)) {
+          continue;
+        }
         Log.v(TAG, String.format("Found suitable decoder, %s", name));
-        return new FindVideoDecoderResult(resultName, videoCapabilities, codecCapabilities);
+        return findVideoDecoderResult;
       }
     }
     return new FindVideoDecoderResult("", null, null);

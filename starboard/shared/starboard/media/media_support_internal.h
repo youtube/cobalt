@@ -46,6 +46,10 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        ,
                                        bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+                                       ,
+                                       SbMediaTransferId eotf
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                        );
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
@@ -57,6 +61,7 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
 SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                                        int64_t bitrate);
 
+#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
 // Indicates whether this platform supports |transfer_id| as a transfer
 // characteristics.  If |transfer_id| is not supported under any condition, this
 // function returns |false|.
@@ -64,6 +69,7 @@ SB_EXPORT bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 // |transfer_id|: The id of transfer charateristics listed in SbMediaTransferId.
 SB_EXPORT bool SbMediaIsTransferCharacteristicsSupported(
     SbMediaTransferId transfer_id);
+#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
 
 #ifdef __cplusplus
 }  // extern "C"
