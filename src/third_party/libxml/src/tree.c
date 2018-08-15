@@ -1686,7 +1686,7 @@ xmlNodeListGetString(xmlDocPtr doc, const xmlNode *list, int inLine)
             if (inLine) {
                 ret = xmlStrcat(ret, node->content);
             } else {
-                xmlChar *buffer;
+                xmlChar *buffer = NULL;
 
 		if (attr) {
 #ifdef LIBXML_OUTPUT_ENABLED

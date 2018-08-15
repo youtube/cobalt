@@ -22,9 +22,9 @@ const OEMCrypto_HDCP_Capability kWidevineMaximumHdcpVersion = HDCP_V1;
 
 namespace wvoec_mock {
 
-class CryptoEngineXb1 : public CryptoEngine {
+class CryptoEngineLinux : public CryptoEngine {
  public:
-  explicit CryptoEngineXb1(std::auto_ptr<wvcdm::FileSystem> file_system)
+  explicit CryptoEngineLinux(std::auto_ptr<wvcdm::FileSystem> file_system)
       : CryptoEngine(file_system) {}
 
   OEMCrypto_HDCP_Capability config_current_hdcp_capability() override {
@@ -34,11 +34,14 @@ class CryptoEngineXb1 : public CryptoEngine {
   OEMCrypto_HDCP_Capability config_maximum_hdcp_capability() override {
     return kWidevineMaximumHdcpVersion;
   }
+
+  // Max buffer size for encoded buffer.
+  size_t max_buffer_size() override { return 3840 * 2160 * 2; }
 };
 
 CryptoEngine* CryptoEngine::MakeCryptoEngine(
     std::auto_ptr<wvcdm::FileSystem> file_system) {
-  return new CryptoEngineXb1(file_system);
+  return new CryptoEngineLinux(file_system);
 }
 
 }  // namespace wvoec_mock

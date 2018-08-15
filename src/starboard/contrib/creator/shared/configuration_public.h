@@ -88,7 +88,7 @@
 #define SB_HAS_CROSS_CORE_SCHEDULER 1
 
 // The API version implemented by this platform.
-#define SB_API_VERSION 6
+#define SB_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- System Header Configuration -------------------------------------------
 
@@ -276,6 +276,14 @@
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 0
 
+#if SB_API_VERSION >= 8
+// Whether the current platform implements the on screen keyboard interface.
+#define SB_HAS_ON_SCREEN_KEYBOARD 0
+
+// Whether the current platform uses a media player that relies on a URL.
+#define SB_HAS_PLAYER_WITH_URL 0
+#endif  // SB_API_VERSION >= 8
+
 // --- Media Configuration ---------------------------------------------------
 
 // Specifies whether this platform has support for a possibly-decrypting
@@ -325,6 +333,13 @@
 // use the default thread stack size.  Set to non-zero to explicitly set the
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
+
+// Specifies whether this platform updates audio frames asynchronously.  In such
+// case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to
+// indicate the absolute time that the consumed audio frames are reported.
+// Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more
+// details.
+#define SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING 0
 
 // --- Decoder-only Params ---
 

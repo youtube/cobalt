@@ -192,6 +192,14 @@ const char kEnableMapToMeshRectanglarHelp[] =
     "video on platforms that do not support stereoscopy natively, letting the "
     "client apply a stereo mesh projection (one that differs for each eye).";
 
+const char kForceMigrationForStoragePartitioning[] =
+    "force_migration_for_storage_partitioning";
+const char kForceMigrationForStoragePartitioningHelp[] =
+    "Overrides the default storage migration policy when upgrading to "
+    "partitioned storage and forces data migration regardless of the"
+    "initial app url. The default policy is to migrate data only for"
+    "https://www.youtube.com/tv.";
+
 // If toggled, framerate statistics will be printed to stdout after each
 // animation completes, or after a maximum number of frames has been collected.
 const char kFPSPrint[] = "fps_stdout";
@@ -366,6 +374,8 @@ std::string HelpMessage() {
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
+        {kForceMigrationForStoragePartitioning,
+         kForceMigrationForStoragePartitioningHelp},
         {kFPSPrint, kFPSPrintHelp}, {kFPSOverlay, kFPSOverlayHelp},
         {kHelp, kHelpHelp},
         {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},

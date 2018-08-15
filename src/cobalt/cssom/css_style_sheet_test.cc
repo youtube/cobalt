@@ -111,7 +111,8 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaRuleAddition) {
   scoped_refptr<CSSRuleList> rule_list =
       css_style_sheet_->css_rules_same_origin();
   // A CSSMediaRule with no expression always evaluates to true.
-  scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
+  scoped_refptr<CSSMediaRule> rule =
+      new CSSMediaRule(new MediaList(), new CSSRuleList());
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
   css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
@@ -131,7 +132,8 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
   scoped_refptr<MediaQuery> media_query(new MediaQuery(false));
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query);
-  scoped_refptr<CSSMediaRule> rule = new CSSMediaRule(media_list, NULL);
+  scoped_refptr<CSSMediaRule> rule =
+      new CSSMediaRule(media_list, new CSSRuleList());
   scoped_refptr<CSSRuleList> rule_list =
       css_style_sheet_->css_rules_same_origin();
 
@@ -159,7 +161,8 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
       new MediaQuery(true, media_features.Pass()));
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query);
-  scoped_refptr<CSSMediaRule> rule = new CSSMediaRule(media_list, NULL);
+  scoped_refptr<CSSMediaRule> rule =
+      new CSSMediaRule(media_list, new CSSRuleList());
 
   // This should result in a call to OnCSSMutation(), because a media rule is
   // added to the style sheet.

@@ -86,12 +86,7 @@ void AudioSinkTestFrameBuffers::Init() {
 
 AudioSinkTestEnvironment::AudioSinkTestEnvironment(
     const AudioSinkTestFrameBuffers& frame_buffers)
-    : frame_buffers_(frame_buffers),
-      condition_variable_(mutex_),
-      update_source_status_call_count_(0),
-      frames_appended_(0),
-      frames_consumed_(0),
-      is_playing_(true) {
+    : frame_buffers_(frame_buffers), condition_variable_(mutex_) {
   sink_ = SbAudioSinkCreate(
       frame_buffers_.channels(), sample_rate(), frame_buffers_.sample_type(),
       frame_buffers_.storage_type(), frame_buffers_.frame_buffers(),
@@ -151,6 +146,7 @@ bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
 
 bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
   ScopedLock lock(mutex_);
+  is_eos_reached_ = true;
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
   while (frames_appended_ != frames_consumed_) {
     SbTime time_elapsed = SbTimeGetMonotonicNow() - start;
@@ -169,9 +165,9 @@ void AudioSinkTestEnvironment::OnUpdateSourceStatus(int* frames_in_buffer,
                                                     bool* is_eos_reached) {
   ScopedLock lock(mutex_);
   *frames_in_buffer = frames_appended_ - frames_consumed_;
-  *offset_in_frames = frames_appended_ % frame_buffers_.frames_per_channel();
+  *offset_in_frames = frames_consumed_ % frame_buffers_.frames_per_channel();
   *is_playing = is_playing_;
-  *is_eos_reached = false;
+  *is_eos_reached = is_eos_reached_;
   ++update_source_status_call_count_;
   condition_variable_.Signal();
 }
