@@ -22,9 +22,18 @@ import os
 import shutil
 import sys
 
+import _env # pylint: disable=unused-import
+
 # The name of an environment variable that when set to |'1'|, signals to us that
 # we should log all output directories that we have populated.
 _SHOULD_LOG_ENV_KEY = 'STARBOARD_GYP_SHOULD_LOG_COPIES'
+
+
+_USE_WINDOWS_SYMLINK = sys.platform in ['win32', 'cygwin'] and \
+                       not hasattr(os, 'symlink')
+
+if _USE_WINDOWS_SYMLINK:
+  import starboard.build.win_symlink as win_symlink
 
 
 def EscapePath(path):
@@ -57,8 +66,19 @@ def main(argv):
   for subdir in options.subdirs:
     logging.info('+ %s', subdir)
 
-  if os.path.exists(options.output_dir):
-    shutil.rmtree(options.output_dir)
+  # shutil.rmtree() does not document it's behavior about
+  # how symbolic links UNDER the root directry are traversed.
+  # Following the symlinks and deleting content under windows
+  # causes problems. But under unix systems it may just delete
+  # the symbolink instead of the original content.
+  if _USE_WINDOWS_SYMLINK:
+    # Don't delete objects in original folder.
+    pass
+  else:
+    # TODO: Investigate removing shutil.rmtree() and replacing
+    # it with a recursive delete function which removes symlinks.
+    if os.path.isdir(options.output_dir):
+      shutil.rmtree(options.output_dir)
 
   for subdir in options.subdirs:
     src_path = os.path.abspath(
@@ -71,14 +91,18 @@ def main(argv):
 
     logging.info('%s => %s', dst_path, rel_path)
 
-    # TODO: Add an alternate implementation for win32.
     if not os.path.exists(dst_dir):
       os.makedirs(dst_dir)
-    os.symlink(rel_path, dst_path)
+
+    if _USE_WINDOWS_SYMLINK:
+      win_symlink.CreateReparsePoint(src_path, dst_path)
+    else:
+      os.symlink(rel_path, dst_path)
 
   if options.stamp_file:
     with open(options.stamp_file, 'w') as stamp_file:
       stamp_file.write('\n'.join(options.subdirs))
+
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))

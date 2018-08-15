@@ -36,5 +36,6 @@
 #define memcpy(x, y, z) SbMemoryCopy(x, y, z)
 #define calloc(x, y) SbMemoryCalloc(x, y)
 #define strdup(s) SbStringDuplicate(s)
+#define snprintf(a, b, c, ...) SbStringFormatF(a, b, c, __VA_ARGS__)
 
 #endif  // V8_POEMS_H_

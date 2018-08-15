@@ -4,13 +4,15 @@
   "description": "Run cobalt through chrome.",
   "manifest_version": 2,
   "permissions":
-    ["tabs", "webRequest", "webRequestBlocking", "*://*/"],
+    ["tabs", "webRequest", "webRequestBlocking", "*://*/", "storage"],
   "background": {
     "scripts": ["background.js"],
     "persistent": true
   },
+  "options_page": "options.html",
   "browser_action": {
-    "default_title": "Cobalt"
+    "default_title": "Cobalt",
+    "default_popup": "popup.html" 
   },
   "web_accessible_resources": [
     "cobaltService.js"

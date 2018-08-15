@@ -462,9 +462,10 @@ void FilterBasedPlayerWorkerHandler::Update() {
     }
     bool is_playing;
     bool is_eos_played;
+    bool is_underflow;
     auto media_time = GetMediaTimeProvider()->GetCurrentMediaTime(
-        &is_playing, &is_eos_played);
-    update_media_info_cb_(media_time, dropped_frames);
+        &is_playing, &is_eos_played, &is_underflow);
+    update_media_info_cb_(media_time, dropped_frames, is_underflow);
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateInterval);

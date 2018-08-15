@@ -36,6 +36,7 @@ class MediaError : public script::Wrappable {
     kMediaErrDecode = 3,
     kMediaErrSrcNotSupported = 4,
     kMediaErrEncrypted = 5,
+    kMediaErrCapabilityChanged = 1000,
   };
 
   // Custom, not in any spec.

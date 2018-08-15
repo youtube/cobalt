@@ -79,9 +79,16 @@ is_windows = platform.system() == 'Windows'
 
 microsoft_flavors = [
     'win', 'win-win32', 'win-win32-lib',
-    'xb1', 'xb1-future', 'xb1-youtubetv', 'xb1-mainappbeta'
 ]
-sony_flavors = ['ps3', 'ps4', 'ps4-vr']
+sony_flavors = []
+
+try:
+  import private_ninja_flavors
+  microsoft_flavors += private_ninja_flavors.PrivateMicrosoftFlavors()
+  sony_flavors += private_ninja_flavors.PrivateSonyFlavors()
+except ImportError:
+  pass
+
 windows_host_flavors = microsoft_flavors + sony_flavors
 
 

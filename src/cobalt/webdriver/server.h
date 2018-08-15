@@ -57,6 +57,9 @@ class WebDriverServer : private net::HttpServer::Delegate {
     // Called after a successful WebDriver command.
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
     virtual void Success(scoped_ptr<base::Value>) = 0;
+    // |content_type| specifies the type of the data using HTTP mime types.
+    virtual void SuccessData(const std::string& content_type, const char* data,
+                             int len) = 0;
 
     // Called after a failed WebDriver command
     // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Failed_Commands

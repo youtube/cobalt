@@ -14,8 +14,9 @@
 
 {
   'variables': {
-    'enable_map_to_mesh%': 1,
+    'enable_map_to_mesh': 1,
   },
+
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',
     'configurations': {

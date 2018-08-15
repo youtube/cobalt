@@ -17,8 +17,7 @@
     # RasPi 2 is ARMv7
     'arm_version': 7,
     'armv7': 1,
-    'arm_neon': 0, # Disable neon until it shows measurable
-                   # benefit under cobalt benchmarks.
+    'arm_neon': 1,
     'arm_float_abi': 'hard',
 
     'compiler_flags': [
@@ -26,8 +25,7 @@
       '-march=armv7-a',
       '-mtune=cortex-a8',
       '-mfloat-abi=hard',
-      #'-mfpu=neon-vfpv4',  # Disable neon until it shows measurable
-                            # benefit under cobalt benchmarks.
+      '-mfpu=neon-vfpv4',
     ],
   },
 }

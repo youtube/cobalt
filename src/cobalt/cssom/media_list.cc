@@ -78,6 +78,11 @@ void MediaList::Append(const scoped_refptr<MediaQuery>& media_query) {
 }
 
 bool MediaList::EvaluateConditionValue(const math::Size& viewport_size) {
+  if (media_queries_.empty()) {
+    // A CSSMediaRule with no expressions always evaluates to true.
+    return true;
+  }
+
   for (MediaQueries::iterator it = media_queries_.begin();
        it != media_queries_.end(); ++it) {
     if ((*it)->EvaluateConditionValue(viewport_size)) {

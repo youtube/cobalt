@@ -16,6 +16,12 @@ Viola! The Cobalt icon should show in the top right corner of your chrome browse
 
 1. Launch Cobalt
 2. Press the Cobalt extension icon
+3. Select the device you want to connect to
+
+## Save custom IP endpoints
+
+1. Right-click on the Cobalt extension icon and choose "options"
+2. From here you can save and name device endpoints for future use
 
 ## Future Goals:
 

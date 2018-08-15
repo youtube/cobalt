@@ -14,6 +14,12 @@
         'BMP_SUPPORTED',
         'PPM_SUPPORTED'
       ],
+      'variables': {
+        'no_simd_files': [
+          'jsimd.h',
+          'jsimd_none.c',
+        ]
+      },
       'sources': [
         'cdjpeg.h',
         'jaricom.c',
@@ -82,6 +88,7 @@
         'transupp.c',
         'turbojpeg.h',
         'turbojpeg.c',
+        '<@(no_simd_files)',
         # These dependecies are needed for file io
         # and are not currently used by Cobalt.
         #'rdbmp.c',
@@ -92,8 +99,22 @@
         #'jdatadst.c',
       ],
       'conditions': [
-        #x86_64 specific optimizations
+        # arm processor specific optimizations.
+        ['target_arch == "arm" and arm_neon == 1', {
+          'sources!': [
+            '<@(no_simd_files)'
+          ],
+          'sources': [
+            'simd/arm/jsimd.c',
+            'simd/arm/jsimd_neon.S',
+            'simd/jsimd.h',
+          ],
+        }],
+        # x86_64 specific optimizations.
         ['<(yasm_exists) == 1 and target_arch == "x64"', {
+          'sources!': [
+            '<@(no_simd_files)'
+          ],
           'sources': [
             'simd/x86_64/jsimdcpu.asm',
             'simd/x86_64/jfdctflt-sse.asm',
@@ -125,7 +146,7 @@
             'simd/x86_64/jsimd.c',
             'simd/jsimd.h',
           ],
-          #rules for assembling .asm files with yarn
+          # Rules for assembling .asm files with yasm.
           'rules': [
             {
               'rule_name': 'assemble',
@@ -152,13 +173,7 @@
             },
           ],
           },
-          #no optimizations
-          {
-            'sources': [
-              'jsimd.h',
-              'jsimd_none.c'
-            ]
-          }]
+        ]
       ],
     },
   ],

@@ -410,10 +410,10 @@ class InfiniteCache::Worker : public base::RefCountedThreadSafe<Worker> {
  private:
   friend class base::RefCountedThreadSafe<Worker>;
 #if defined(BASE_HASH_USE_HASH_STRUCT)
-  typedef BASE_HASH_NAMESPACE::hash_map<
+  typedef base::hash_map<
       Key, Details, BASE_HASH_NAMESPACE::hash<Key>, Key_eq> KeyMap;
 #else
-  typedef BASE_HASH_NAMESPACE::hash_map<
+  typedef base::hash_map<
       Key, Details, BASE_HASH_NAMESPACE::hash_compare<Key, Key_less> > KeyMap;
 #endif
 

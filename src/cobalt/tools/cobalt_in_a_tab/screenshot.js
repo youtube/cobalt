@@ -1,64 +1,106 @@
 import cobaltService from "./cobaltService.js";
 
+// The unique ID needed for almost every webdriver command.
 let sessionId = null;
-let screenshotFrame = null;
+// A container holding all the screens sending requests for frames.
+let screenList = [];
+// The number of screens requesting frames from Cobalt.
+// This must be greater than 1, but can be optimized for performance.
+// On flakey networks, more may be necessary.
+// 3-4 are recommended for stable behavior on a reliable, fast network.
+let numScreens = 4;
+// The screen that is currently displayed to the user.
+let visibleScreen = null;
+// The current position of the mouse relative to the screens.
 let mousePosition = {xPos: 0, yPos:0};
+// The ID of cobalt's body element.
+// Used to send mouse positioning instructions.
 let bodyElementId = null;
+// A cancelable event that sends mouse position to Cobalt.
 let mouseInterval = null;
+// The div that contains all the image frames.
+let parentContainer = null;
 
 window.onload = async function(){
-    screenshotFrame = document.getElementById('screen');
+    await cobaltService.initialize();
+    // Create image tags with the appropriate css.
+    parentContainer = document.getElementById("screenContainer");
+    if (numScreens < 1) return;
+    for (let i = 0; i < numScreens; i++){
+        // Create an image and append it to DOM.
+        let newScreen = document.createElement("img");
+        newScreen.id = "screen" + i;
+        newScreen.classList.add("screen");
+        parentContainer.appendChild(newScreen);
+        screenList.push(newScreen);
+    }
 
+    // Grab a current session.
     let sessions = await cobaltService.getSessions();
-    //grab a current session
     if(sessions.length > 0){
         sessionId = sessions[0];
     }
     else{
-        //create a new session if none are already created
+        // Create a new session if none are already created.
         sessionId = await cobaltService.makeSession();
     }
+    // Get Webdriver body element for mouse positioning.
     bodyElementId = await cobaltService.getElement(sessionId);
-    console.log("session ID is " + sessionId);
 
     cobaltService.startScreencast(sessionId).then((response) => {
-        cobaltService.setScreencastPort(response)
+        cobaltService.setScreencastPort(response);
         subscribeToMouseEvents();
-        //16fps
-        setInterval(takeScreenshot, 500);
+        window.addEventListener("keydown", sendKeyPress);
+        window.addEventListener("beforeunload", function(e){
+            cobaltService.stopScreencast(sessionId);
+            cobaltService.deleteSession(sessionId);
+        }, false);
+
+        // Start requesting screenshots.
+        for (let i = 0; i < screenList.length; i++) {
+            assignScreenshotURLAndId(screenList[i]);
+            // No screenshots are currently displayed.
+            screenList[i].currentImageId = -1;
+            visibleScreen = screenList[0];
+        }
     });
+
+    // Assign image behavior.
+    for (let i = 0; i < screenList.length; i++) {
+        screenList[i].onload = () => { imageLoaded(screenList[i]) };
+        // Reload on error.
+        // TODO - differentiate between types of errors.
+        screenList[i].onerror = () => { assignScreenshotURLAndId(screenList[i]) };
+    }
 }
 
-window.addEventListener("beforeunload", function(e){
-    cobaltService.stopScreencast(sessionId);
- }, false);
+function assignScreenshotURLAndId(screen){
+    let nextImageId = cobaltService.createNextScreenshotId();
+    screen.nextImageId = nextImageId;
+    screen.src = cobaltService.getScreenshotURL() + nextImageId;
+}
 
-function takeScreenshot(){
-    cobaltService.getScreenshot(sessionId)
-    .then((imageSrc) => {
-        screenshotFrame.src = `data:image/jpeg;base64,${imageSrc}`;
-    })
-    .catch((error) => {
-        console.log(error);
-    });
+function imageLoaded(screen){
+    // The image will only become visible if it's more recent than the last image.
+    if(screen.nextImageId > visibleScreen.currentImageId){
+        visibleScreen.classList.remove("visibleScreen");
+        screen.classList.add("visibleScreen");
+        visibleScreen = screen;
+    }
+    screen.currentImageId = screen.nextImageId;
+    assignScreenshotURLAndId(screen);
 }
 
 function sendClick(event){
-    console.log("send click")
     let data = {
         button: event.button
-    }
+    };
     cobaltService.sendClick(sessionId, data);
 }
 
 function sendScroll(event){
-    //prevent default browser action like scrolling on mouseKey
+    // Prevent default browser action like scrolling on mouseKey.
     event.preventDefault();
-
-    let data = {
-
-    }
-    cobaltService.sendScroll(sessionId, scroll)
 }
 
 function saveMousePos(event){
@@ -68,49 +110,32 @@ function saveMousePos(event){
     };
 }
 
-function sendMousePos(event){
-    let viewportOffset = screenshotFrame.getBoundingClientRect();
+// Requests that get stalled send outdated mouse positions,
+// so only send one at a time. This will help ensure no mouse
+// movements are delayed.
+var mouseLock = false;
+function sendMousePos(){
+    if (mouseLock) return;
+    let viewportOffset = parentContainer.getBoundingClientRect();
 
     let data = {
         element: bodyElementId,
         xoffset: mousePosition.xPos - viewportOffset.left,
         yoffset: mousePosition.yPos - viewportOffset.top
-    }
-    console.log(data)
-    cobaltService.sendMouseMove(sessionId, data);
+    };
+    mouseLock = true;
+    cobaltService.sendMouseMove(sessionId, data)
+    .then((response) => {
+        mouseLock = false;
+    });
 }
 
 function subscribeToMouseEvents(){
-    //send mouse events
-    screenshotFrame.addEventListener('mouseenter', (event) => {
-
-        //subscribe to events
-        window.addEventListener('mousemove', saveMousePos);
-        window.addEventListener('click', sendClick);
-        window.addEventListener('scroll', sendScroll);
-        mouseInterval = setInterval(sendMousePos, 500);
-    });
-
-    //unsubscribe from mouse events
-    screenshotFrame.addEventListener('mouseleave', () => {
-        window.removeEventListener('mousemove', saveMousePos);
-        window.removeEventListener('click', sendClick);
-        window.removeEventListener('scroll', sendScroll);
-        clearInterval(sendMousePos);
-    })
+    window.addEventListener('mousemove', saveMousePos);
+    window.addEventListener('click', sendClick);
+    window.addEventListener('scroll', sendScroll);
+    mouseInterval = setInterval(sendMousePos, 200);
 }
-
-function sendKeyPress(event){
-    console.log("send key press")
-    //prevent default browser action like scrolling on mouseKey
-    event.preventDefault();
-
-    let uKeyCode = mapKeyCode(event.keyCode);
-    if(uKeyCode === null) uKeyCode = event.key;
-    cobaltService.sendKeystrokes(sessionId, [uKeyCode]);
-}
-
-window.addEventListener('keydown', sendKeyPress)
 
 if (typeof KeyEvent === 'undefined') {
     var KeyEvent = {
@@ -233,7 +258,7 @@ if (typeof KeyEvent === 'undefined') {
 }
 
 function mapKeyCode(code){
-    //want to optimize this for all printable characters ideally
+    // We want to optimize this for all printable characters ideally.
     switch(code){
         case KeyEvent.DOM_VK_UP:
             return '\ue013';
@@ -258,4 +283,13 @@ function mapKeyCode(code){
         default:
             return null;
     }
+}
+
+function sendKeyPress(event){
+    // Prevent default browser action like scrolling on mouseKey.
+    event.preventDefault();
+
+    let uKeyCode = mapKeyCode(event.keyCode);
+    if(uKeyCode === null) uKeyCode = event.key;
+    cobaltService.sendKeystrokes(sessionId, [uKeyCode]);
 }

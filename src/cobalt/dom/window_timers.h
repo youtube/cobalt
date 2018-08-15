@@ -44,6 +44,12 @@ class WindowTimers {
 
   void ClearAllIntervalsAndTimeouts();
 
+  // When called, it will irreversibly put the WindowTimers object in an
+  // inactive state where timer callbacks are ignored.  This is useful when
+  // we're in the process of shutting down and wish to drain the JavaScript
+  // event queue without adding more on to the end of it.
+  void DisableCallbacks();
+
  private:
   class TimerInfo : public base::RefCounted<TimerInfo> {
    public:
@@ -74,6 +80,10 @@ class WindowTimers {
   Timers timers_;
   int current_timer_index_;
   script::Wrappable* const owner_;
+
+  // Set to false when we're about to shutdown, to ensure that no new JavaScript
+  // is fired as we are waiting for it to drain.
+  bool callbacks_active_ = true;
 
   DISALLOW_COPY_AND_ASSIGN(WindowTimers);
 };

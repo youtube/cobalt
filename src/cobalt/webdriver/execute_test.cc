@@ -127,7 +127,7 @@ TEST_F(ScriptExecutorTest, ExecuteSync) {
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
-TEST_F(ScriptExecutorTest, ExecuteAsync) {
+TEST_F(ScriptExecutorTest, FLAKY_ExecuteAsync) {
   // Create a script that will call the async callback after 50 ms, with
   // an async timeout of 100 ms.
   auto gc_prevented_params = ScriptExecutorParams::Create(

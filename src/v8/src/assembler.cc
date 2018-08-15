@@ -1423,9 +1423,20 @@ ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
 }
 
+#if V8_OS_STARBOARD
+namespace {
+int no_printf(const char *format, ...) {
+  return 0;
+}
+}
+ExternalReference ExternalReference::printf_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(no_printf)));
+}
+#else
 ExternalReference ExternalReference::printf_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(std::printf)));
 }
+#endif
 
 template <typename SubjectChar, typename PatternChar>
 ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {

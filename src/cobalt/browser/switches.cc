@@ -117,7 +117,13 @@ const char kProdHelp[] =
     "Use this flag to simulate production build behavior.";
 
 const char kProxy[] = "proxy";
-const char kProxyHelp[] = "Specifies a proxy to use for network connections.";
+const char kProxyHelp[] =
+    "Specifies a proxy to use for network connections. "
+    "See comments in net::ProxyRules::ParseFromString() for more information. "
+    "If you do not explicitly provide a scheme when providing the proxy server "
+    "URL, it will default to HTTP.  So for example, for a HTTPS proxy you "
+    "would want to specify '--proxy=\"https=https://localhost:443\"' instead "
+    "of '--proxy=\"https=localhost:443\"'.";
 
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
 const char kRemoteDebuggingPortHelp[] =
@@ -191,6 +197,14 @@ const char kEnableMapToMeshRectanglarHelp[] =
     "to accept the 'rectangular' keyword. Useful to get rectangular stereo "
     "video on platforms that do not support stereoscopy natively, letting the "
     "client apply a stereo mesh projection (one that differs for each eye).";
+
+const char kForceMigrationForStoragePartitioning[] =
+    "force_migration_for_storage_partitioning";
+const char kForceMigrationForStoragePartitioningHelp[] =
+    "Overrides the default storage migration policy when upgrading to "
+    "partitioned storage and forces data migration regardless of the"
+    "initial app url. The default policy is to migrate data only for"
+    "https://www.youtube.com/tv.";
 
 // If toggled, framerate statistics will be printed to stdout after each
 // animation completes, or after a maximum number of frames has been collected.
@@ -366,6 +380,8 @@ std::string HelpMessage() {
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
         {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
+        {kForceMigrationForStoragePartitioning,
+         kForceMigrationForStoragePartitioningHelp},
         {kFPSPrint, kFPSPrintHelp}, {kFPSOverlay, kFPSOverlayHelp},
         {kHelp, kHelpHelp},
         {kImageCacheSizeInBytes, kImageCacheSizeInBytesHelp},

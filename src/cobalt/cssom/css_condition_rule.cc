@@ -25,8 +25,6 @@ bool CSSConditionRule::SetConditionValueAndTestIfChanged(
   return cached_condition_value_changed;
 }
 
-CSSConditionRule::CSSConditionRule() : cached_condition_value_(false) {}
-
 CSSConditionRule::CSSConditionRule(
     const scoped_refptr<CSSRuleList>& css_rule_list)
     : CSSGroupingRule(css_rule_list), cached_condition_value_(false) {}

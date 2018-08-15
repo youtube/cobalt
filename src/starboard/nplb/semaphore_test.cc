@@ -79,19 +79,19 @@ class ThreadTakesWaitSemaphore : public AbstractTestThread {
   SbTime result_wait_time_;
 };
 
-TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
-  SbTime wait_time = kSbTimeMillisecond * 80;
-  ThreadTakesWaitSemaphore thread(wait_time);
+TEST(Semaphore, FLAKY_ThreadTakesWait_PutBeforeTimeExpires) {
+  SbTime timeout_time = kSbTimeMillisecond * 250;
+  SbTime wait_time = kSbTimeMillisecond;
+  ThreadTakesWaitSemaphore thread(timeout_time);
   thread.Start();
 
-  SbThreadSleep(wait_time / 2);
+  SbThreadSleep(wait_time);
   thread.semaphore_.Put();
 
   thread.Join();
 
   EXPECT_TRUE(thread.result_signaled_);
-  EXPECT_NEAR(thread.result_wait_time_ * 1.0, wait_time * 0.5,
-              kSbTimeMillisecond * 10.0);  // Error threshold
+  EXPECT_LT(thread.result_wait_time_, timeout_time);
 }
 
 double IsDoubleNear(double first, double second, double diff_threshold) {
@@ -102,7 +102,7 @@ double IsDoubleNear(double first, double second, double diff_threshold) {
   return diff < diff_threshold;
 }
 
-TEST(Semaphore, ThreadTakesWait_TimeExpires) {
+TEST(Semaphore, FLAKY_ThreadTakesWait_TimeExpires) {
   const int attempts = 20;  // Retest up to 20 times.
   bool passed = false;
 

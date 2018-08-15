@@ -1,8 +1,9 @@
-chrome.browserAction.onClicked.addListener(function(){
-    //open a new tab
-    createProperties = {
-        url: chrome.extension.getURL('cobaltView.html')
-    };
-    chrome.tabs.create(createProperties, function(tab){
+// Local machine is the first "Default" IP.
+chrome.runtime.onInstalled.addListener(function() {
+    chrome.storage.sync.set({
+        ip_endpoints: [{
+            device: 'Local',
+            endpoint: 'http://localhost'
+        }],
     });
 });
