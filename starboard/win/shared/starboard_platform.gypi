@@ -117,6 +117,7 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_get_video_buffer_budget.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_is_transfer_characteristics_supported.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
@@ -141,7 +142,6 @@
       '<(DEPTH)/starboard/shared/starboard/player/player_write_end_of_stream.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_write_sample2.cc',
-      '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
     ],
 
     'win32_shared_misc_files': [
