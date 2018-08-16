@@ -69,14 +69,14 @@ public class AudioPermissionRequester {
       // If the request is cancelled, the result arrays are empty.
       if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
         // Permission granted.
-        nativeSetPermission(nativePermissionRequestor, true);
+        nativeHandlePermission(nativePermissionRequestor, true);
       } else {
         // Permission denied.
-        nativeSetPermission(nativePermissionRequestor, false);
+        nativeHandlePermission(nativePermissionRequestor, false);
       }
       requestAudioPermissionStarted = false;
     }
   }
 
-  private native void nativeSetPermission(long nativePermissionRequestor, boolean isGranted);
+  private native void nativeHandlePermission(long nativePermissionRequestor, boolean isGranted);
 }
