@@ -113,7 +113,7 @@ TEST(SbSystemGetPropertyTest, FailsGracefullyBogusId) {
   BasicTest(static_cast<SbSystemPropertyId>(99999), true, false, __LINE__);
 }
 
-TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
+TEST(SbSystemGetPropertyTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPropertyChipsetModelNumber, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyFirmwareVersion, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPropertyFriendlyName, __LINE__);
