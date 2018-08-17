@@ -19,9 +19,12 @@
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
+#warning "You are using the old SbStorageWriteRecord implementation, please"\
+         "consider switching to the new posix/win32 implementation."
+
 bool SbStorageWriteRecord(SbStorageRecord record,
-                          const char* data,
-                          int64_t data_size) {
+                         const char* data,
+                         int64_t data_size) {
   if (!SbStorageIsValidRecord(record) || !data || data_size < 0) {
     return false;
   }
