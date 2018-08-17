@@ -15,6 +15,9 @@
 #include "starboard/system.h"
 
 #include <sys/utsname.h>
+
+#include <string>
+
 #include "starboard/log.h"
 #include "starboard/string.h"
 
@@ -60,19 +63,10 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       if (uname(&name) == -1)
         return false;
 
-      if (SbStringCopy(out_value, "Raspian ", value_length) >= value_length)
-        return false;
+      std::string temp =
+          starboard::FormatString("Raspian %s %s", name.sysname, name.machine);
 
-      if (SbStringConcat(out_value, name.sysname, value_length) >= value_length)
-        return false;
-
-      if (SbStringConcat(out_value, " ", value_length) >= value_length)
-        return false;
-
-      if (SbStringConcat(out_value, name.machine, value_length) >= value_length)
-        return false;
-
-      return true;
+      return CopyStringAndTestIfSuccess(out_value, value_length, temp.c_str());
     }
 
     default:
