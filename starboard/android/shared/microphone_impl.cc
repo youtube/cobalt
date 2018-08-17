@@ -54,7 +54,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   int Read(void* out_audio_data, int audio_data_size) SB_OVERRIDE;
 
   void SetPermission(bool is_granted);
-  static bool IsMicrophoneConnected();
+  static bool IsMicrophoneDisconnected();
   static bool IsMicrophoneMute();
 
  private:
@@ -70,7 +70,6 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   void ClearBuffer();
 
   bool RequestAudioPermission();
-  bool IsMicrophoneDisconnected();
   bool StartRecording();
   bool StopRecording();
 
@@ -115,13 +114,6 @@ bool SbMicrophoneImpl::RequestAudioPermission() {
 }
 
 // static
-bool SbMicrophoneImpl::IsMicrophoneConnected() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneConnected", "()Z");
-  return j_microphone;
-}
-
 bool SbMicrophoneImpl::IsMicrophoneDisconnected() {
   JniEnvExt* env = JniEnvExt::Get();
   jboolean j_microphone =
@@ -464,9 +456,10 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     SbMicrophoneInfo* out_info_array,
     int info_array_size) {
   // Note that there is no way of checking for a connected microphone/device
-  // before API 23, so GetAvailableMicrophones() will always return 0 on APIs <
-  // 23.
-  if (!starboard::android::shared::SbMicrophoneImpl::IsMicrophoneConnected()) {
+  // before API 23, so GetAvailableMicrophones() will assume a microphone is
+  // connected and always return 1 on APIs < 23.
+  if (starboard::android::shared::SbMicrophoneImpl::
+          IsMicrophoneDisconnected()) {
     SB_DLOG(WARNING) << "No microphone connected.";
     return 0;
   }
