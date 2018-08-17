@@ -335,23 +335,6 @@ public class StarboardBridge {
   }
 
   /**
-   * Checks if a microphone is connected to the system.
-   *
-   * @return true if at least one device is connected.
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public boolean isMicrophoneConnected() {
-    if (Build.VERSION.SDK_INT >= 23) {
-      return isMicrophoneConnectedV23();
-    } else {
-      // There is no way of checking for a connected microphone/device before API 23, so cannot
-      // guarantee that a microphone is connected.
-      return false;
-    }
-  }
-
-  /**
    * Checks if there is no microphone connected to the system.
    *
    * @return true if no device is connected.
