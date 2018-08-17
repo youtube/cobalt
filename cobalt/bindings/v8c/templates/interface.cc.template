@@ -661,7 +661,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
 {% endif %}
 
     // The location of the property is determined as follows:
-{% if attribute.is_static %}
+{% if attribute.on_interface %}
     // Operations installed on the interface object must be static methods, so
     // no need to specify a signature, i.e. no need to do type check against a
     // holder.
@@ -669,7 +669,7 @@ void InitializeTemplate(v8::Isolate* isolate) {
     // If the attribute is a static attribute, then there is a single
     // corresponding property and it exists on the interface's interface object.
     function_template->
-{% elif attribute.is_unforgeable or is_global_interface %}
+{% elif attribute.on_instance %}
     // Otherwise, if the attribute is unforgeable on the interface or if the
     // interface was declared with the [Global] extended attribute, then the
     // property exists on every object that implements the interface.
@@ -741,11 +741,11 @@ void InitializeTemplate(v8::Isolate* isolate) {
     method_template->SetLength({{operation.length}});
 
     // The location of the property is determined as follows:
-{% if operation.is_static %}
+{% if operation.on_interface %}
     // If the operation is static, then the property exists on the interface
     // object.
     function_template->
-{% elif operation.is_unforgeable or is_global_interface %}
+{% elif operation.on_instance %}
     // Otherwise, if the operation is unforgeable on the interface or if the
     // interface was declared with the [Global] extended attribute, then the
     // property exists on every object that implements the interface.
