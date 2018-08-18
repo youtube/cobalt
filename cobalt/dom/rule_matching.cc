@@ -600,12 +600,13 @@ bool RemoveNodesFromMatchingNodes(
   // |parent_nodes| and |matching_nodes|, as these two containers are kept in
   // sync.
   for (const auto& parent_node_to_remove : parent_nodes_to_remove) {
-    for (size_t index = 0; index < parent_nodes->size(); ++index) {
+    for (size_t index = 0; index < parent_nodes->size();) {
       if (parent_node_to_remove == (*parent_nodes)[index]) {
         node_removed = true;
         parent_nodes->erase(parent_nodes->begin() + index);
         matching_nodes->erase(matching_nodes->begin() + index);
-        break;
+      } else {
+        ++index;
       }
     }
   }
