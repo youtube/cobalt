@@ -73,6 +73,8 @@ public class CobaltMediaSession
 
   // We re-use the builder to hold onto the most recent metadata and add artwork later.
   private MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder();
+  // We re-use the builder to hold onto the most recent playback state.
+  private PlaybackState.Builder playbackStateBuilder = new PlaybackState.Builder();
 
   // Duplicated in starboard/android/shared/android_media_session_client.h
   // PlaybackState
@@ -143,6 +145,10 @@ public class CobaltMediaSession
             nativeInvokeAction(PlaybackState.ACTION_SEEK_TO, pos);
           }
         });
+    // |metadataBuilder| may still have no fields at this point, yielding empty metadata.
+    mediaSession.setMetadata(metadataBuilder.build());
+    // |playbackStateBuilder| may still have no fields at this point.
+    mediaSession.setPlaybackState(playbackStateBuilder.build());
   }
 
   private static void checkMainLooperThread() {
@@ -163,8 +169,21 @@ public class CobaltMediaSession
       // when the transient condition ends and we would leave playback paused.
       return;
     }
+    Log.i(TAG, "Media focus: " + PLAYBACK_STATE_NAME[playbackState]);
     wakeLock(playbackState == PLAYBACK_STATE_PLAYING);
     audioFocus(playbackState == PLAYBACK_STATE_PLAYING);
+
+    boolean activating = playbackState != PLAYBACK_STATE_NONE && !mediaSession.isActive();
+    boolean deactivating = playbackState == PLAYBACK_STATE_NONE && mediaSession.isActive();
+    if (activating) {
+      // Resuming or new playbacks land here.
+      setMediaSession();
+    }
+    mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
+    if (deactivating) {
+      // Suspending lands here.
+      mediaSession.release();
+    }
   }
 
   private void wakeLock(boolean lock) {
@@ -291,8 +310,6 @@ public class CobaltMediaSession
     suspended = false;
     // Undoing what may have been done in suspendInternal().
     configureMediaFocus(playbackState);
-    setMediaSession();
-    mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
   }
 
   public void suspend() {
@@ -315,9 +332,11 @@ public class CobaltMediaSession
     // active SbPlayer is destroyed and we release media focus, even if the HTML5 app still thinks
     // it's in a playing state. We'll configure it again in resumeInternal() and the HTML5 app will
     // be none the wiser.
+    playbackStateBuilder.setState(
+        playbackState,
+        PlaybackState.PLAYBACK_POSITION_UNKNOWN,
+        playbackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
     configureMediaFocus(PLAYBACK_STATE_NONE);
-    mediaSession.setActive(false);
-    mediaSession.release();
   }
 
   private static void nativeInvokeAction(long action) {
@@ -383,20 +402,23 @@ public class CobaltMediaSession
         break;
     }
 
-    mediaSession.setPlaybackState(
+    playbackStateBuilder =
         new PlaybackState.Builder()
             .setActions(actions)
             .setState(
                 androidPlaybackState,
                 PlaybackState.PLAYBACK_POSITION_UNKNOWN,
-                playbackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f)
-            .build());
+                playbackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
+    mediaSession.setPlaybackState(playbackStateBuilder.build());
 
+    // Reset the metadata to make sure we don't retain any fields from previous playback.
+    metadataBuilder = new MediaMetadata.Builder();
     metadataBuilder
         .putString(MediaMetadata.METADATA_KEY_TITLE, title)
         .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
         .putString(MediaMetadata.METADATA_KEY_ALBUM, album)
         .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artworkLoader.getOrLoadArtwork(artwork));
+    // Update the metadata as soon as we can - even before artwork is loaded.
     mediaSession.setMetadata(metadataBuilder.build());
   }
 
