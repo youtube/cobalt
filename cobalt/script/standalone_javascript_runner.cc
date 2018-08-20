@@ -30,6 +30,7 @@ StandaloneJavascriptRunner::StandaloneJavascriptRunner(
 }
 
 void StandaloneJavascriptRunner::RunInteractive() {
+#if defined(COBALT_LINUX)
   while (!std::cin.eof() && std::cin.good()) {
     // Interactive prompt.
     std::cout << "> ";
@@ -42,6 +43,9 @@ void StandaloneJavascriptRunner::RunInteractive() {
     }
   }
   std::cout << std::endl;
+#else
+  NOTIMPLEMENTED();
+#endif
 }
 
 void StandaloneJavascriptRunner::ExecuteFile(const FilePath& path) {
