@@ -524,6 +524,9 @@ void DevInput::CreateRepeatKey() {
 void DevInput::CreateKey(int key, int state, bool is_repeat) {
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
+#if SB_API_VERSION >= 10
+  data->timestamp = SbTimeGetMonotonicNow();
+#endif  // SB_API_VERSION >= 10
   data->window = window_;
   data->type = (state == 0 ? kSbInputEventTypeUnpress : kSbInputEventTypePress);
   data->device_type = kSbInputDeviceTypeRemote;
