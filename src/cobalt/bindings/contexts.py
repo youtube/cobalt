@@ -30,6 +30,7 @@ from name_conversion import get_interface_name
 from overload_context import get_overload_contexts
 from v8_attributes import is_constructor_attribute
 from v8_interface import method_overloads_by_name
+import v8_utilities
 
 
 def is_date_type(idl_type):
@@ -397,6 +398,12 @@ class ContextBuilder(object):
             self.typed_object_to_cobalt_type(interface, operation),
         'is_static':
             operation.is_static,
+        'on_instance':
+            v8_utilities.on_instance(interface, operation),
+        'on_interface':
+            v8_utilities.on_interface(interface, operation),
+        'on_prototype':
+            v8_utilities.on_prototype(interface, operation),
         'call_with':
             operation.extended_attributes.get('CallWith', None),
         'raises_exception':
@@ -406,7 +413,6 @@ class ContextBuilder(object):
         'unsupported':
             'NotSupported' in operation.extended_attributes,
     }
-
     context.update(self.partial_context(interface, operation))
     return context
 
@@ -486,6 +492,12 @@ class ContextBuilder(object):
             self.typed_object_to_cobalt_type(interface, attribute),
         'is_static':
             attribute.is_static,
+        'on_instance':
+            v8_utilities.on_instance(interface, attribute),
+        'on_interface':
+            v8_utilities.on_interface(interface, attribute),
+        'on_prototype':
+            v8_utilities.on_prototype(interface, attribute),
         'is_read_only':
             attribute.is_read_only,
         'call_with':
@@ -598,6 +610,9 @@ class ContextBuilder(object):
       context['idl_name'] = context['overloads'][0]['idl_name']
       context['conditional'] = context['overloads'][0]['conditional']
       context['unsupported'] = context['overloads'][0]['unsupported']
+      context['on_instance'] = context['overloads'][0]['on_instance']
+      context['on_interface'] = context['overloads'][0]['on_interface']
+      context['on_prototype'] = context['overloads'][0]['on_prototype']
       for overload in context['overloads']:
         assert context['conditional'] == overload['conditional'], (
             'All overloads must have the same conditional.')
