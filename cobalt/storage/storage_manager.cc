@@ -86,7 +86,7 @@ void StorageManager::WithReadOnlyMemoryStore(
                               base::Unretained(this), callback));
     return;
   }
-
+  FinishInit();
   callback.Run(*memory_store_.get());
 }
 
@@ -98,7 +98,7 @@ void StorageManager::WithMemoryStore(const MemoryStoreCallback& callback) {
                               base::Unretained(this), callback));
     return;
   }
-
+  FinishInit();
   callback.Run(memory_store_.get());
   FlushOnChange();
 }
