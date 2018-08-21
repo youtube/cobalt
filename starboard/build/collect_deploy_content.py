@@ -41,6 +41,30 @@ def EscapePath(path):
   return path.replace(' ', '\\ ')
 
 
+def _ClearDir(path):
+  if _USE_WINDOWS_SYMLINK:
+    for f in os.listdir(path):
+      # Handle symlink vs files vs directories.
+      f = os.path.join(path, f)
+      if win_symlink.IsReparsePoint(f):
+        # Only delete the symlink and not the files in the referenced
+        # directory.
+        win_symlink.UnlinkReparsePoint(f)
+      elif os.path.isdir(f):
+        # Recursive step.
+        _ClearDir(f)
+      elif os.path.isfile(f):
+        os.remove(f)
+      else:
+        logging.info('Unknown file type %s', f)
+    os.remove(path)
+  else:
+    # Note that shutil.rmtree() has undocumented behavior on *nix systems
+    # for subitems which are symlink directories. The symlink is deleted
+    # but the subitems in the referenced directory are NOT deleted.
+    shutil.rmtree(path)
+
+
 def main(argv):
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -66,19 +90,8 @@ def main(argv):
   for subdir in options.subdirs:
     logging.info('+ %s', subdir)
 
-  # shutil.rmtree() does not document it's behavior about
-  # how symbolic links UNDER the root directry are traversed.
-  # Following the symlinks and deleting content under windows
-  # causes problems. But under unix systems it may just delete
-  # the symbolink instead of the original content.
-  if _USE_WINDOWS_SYMLINK:
-    # Don't delete objects in original folder.
-    pass
-  else:
-    # TODO: Investigate removing shutil.rmtree() and replacing
-    # it with a recursive delete function which removes symlinks.
-    if os.path.isdir(options.output_dir):
-      shutil.rmtree(options.output_dir)
+  if os.path.isdir(options.output_dir):
+    _ClearDir(options.output_dir)
 
   for subdir in options.subdirs:
     src_path = os.path.abspath(

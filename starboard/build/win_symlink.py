@@ -51,12 +51,12 @@ def IsReparsePoint(path):
 
 
 def UnlinkReparsePoint(link_dir):
-  """ Mimics os.unlink for usage. """
+  """ Mimics os.unlink for usage. The sym link_dir is removed."""
   return _UnlinkReparsePoint(link_dir)
 
 
 def Rmtree(dirpath):
-  """ Mimics shutil.rmtree for usage. """
+  """ Like shutil.rmtree but follows reparse points"""
   return _Rmtree(dirpath)
 
 
@@ -66,8 +66,6 @@ def Rmtree(dirpath):
 
 
 def _Rmtree(dirpath):
-  """ Mimics shutil.rmtree, since that function won't handle
-  reparse points. """
   delete_path = dirpath
   reparse_path = _ReadReparsePoint(dirpath)
   delete_path = reparse_path if reparse_path else dirpath
@@ -75,9 +73,8 @@ def _Rmtree(dirpath):
     return
   if not os.path.exists(delete_path):
     raise IOError("path " + delete_path + " does not exist.")
-  paths = os.listdir(delete_path)
   for path in os.listdir(delete_path):
-    fullpath = os.path.join(dirpath, path)
+    fullpath = os.path.join(delete_path, path)
     if os.path.isdir(fullpath):
       _Rmtree(fullpath)
     elif os.path.isfile(fullpath):
@@ -171,13 +168,16 @@ def _IsSamePath(p1, p2):
   except:
     return False
 
+
 def UnitTest():
   """Tests that a small directory hierarchy can be created and then symlinked,
   and then removed."""
   tmp_dir = os.path.join(os.environ['temp'], 'win_symlink')
   from_dir = os.path.join(tmp_dir, 'from_dir')
+  test_txt = os.path.join(from_dir, 'test.txt')
   inner_dir = os.path.join(from_dir, 'inner_dir')
   link_dir = os.path.join(tmp_dir, 'link')
+  link_dir2 = os.path.join(tmp_dir, 'link2')
   if IsReparsePoint(link_dir):
     print "Deleting previous link_dir:", link_dir
     UnlinkReparsePoint(link_dir)
@@ -191,13 +191,29 @@ def UnitTest():
     os.makedirs(from_dir)
   if not os.path.isdir(inner_dir):
     os.makedirs(inner_dir)
+  with open(test_txt, 'w') as fd:
+    fd.write('hello world')
+
+  # Check that the ReadReparsePoint handles non link objects ok.
+  if ReadReparsePoint(from_dir):
+    raise IOError("Exepected ReadReparsePoint() to return None for " + from_dir)
+  if ReadReparsePoint(test_txt):
+    raise IOError("Exepected ReadReparsePoint() to return None for " + test_txt)
 
   CreateReparsePoint(from_dir, link_dir)
+
   link_created_ok = IsReparsePoint(link_dir)
   if link_created_ok:
     print("Link created: " + str(link_created_ok))
   else:
     raise IOError("Failed to create link " + link_dir)
+
+  CreateReparsePoint(from_dir, link_dir2)
+  if not IsReparsePoint(link_dir2):
+    raise IOError("Failed to create link " + link_dir2)
+  UnlinkReparsePoint(link_dir2)
+  if os.path.exists(link_dir2):
+    raise IOError("Still exists: " + link_dir2)
 
   from_dir_2 = ReadReparsePoint(link_dir)
   if _IsSamePath(from_dir_2, from_dir):
@@ -211,6 +227,7 @@ def UnitTest():
   if os.path.exists(from_dir):
     raise IOError("From Dir " + from_dir + " still exits.")
   print "Test completed."
+
 
 if __name__ == "__main__":
   UnitTest()
