@@ -97,7 +97,9 @@ AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
 class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
  public:
   VideoDecoderTest()
-      : dmp_reader_(ResolveTestFileName(GetParam().filename).c_str()) {}
+      : dmp_reader_(ResolveTestFileName(GetParam().filename).c_str()) {
+    SB_LOG(INFO) << "Testing " << GetParam().filename;
+  }
 
   void SetUp() override {
     ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
@@ -571,6 +573,9 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
                             video_decoder_->GetMaxNumberOfCachedFrames();
       }));
   WriteEndOfStream();
+  if (decoded_frames_.size() >= video_decoder_->GetMaxNumberOfCachedFrames()) {
+    return;
+  }
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(DrainOutputs(
       &error_occurred, [=](const Event& event, bool* continue_process) {
