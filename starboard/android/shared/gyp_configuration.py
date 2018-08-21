@@ -196,9 +196,7 @@ class AndroidConfiguration(PlatformConfiguration):
       ]
       self._target_toolchain = [
           clang.CCompiler(
-              path=cc_path,
-              defines=clang_defines,
-              extra_flags=clang_flags),
+              path=cc_path, defines=clang_defines, extra_flags=clang_flags),
           clang.CxxCompiler(
               path=cxx_path,
               defines=clang_defines,
@@ -206,9 +204,7 @@ class AndroidConfiguration(PlatformConfiguration):
                   '-std=c++11',
               ]),
           clang.AssemblerWithCPreprocessor(
-              path=cc_path,
-              defines=clang_defines,
-              extra_flags=clang_flags),
+              path=cc_path, defines=clang_defines, extra_flags=clang_flags),
           ar.StaticThinLinker(path=ar_path),
           ar.StaticLinker(path=ar_path),
           clangxx.SharedLibraryLinker(path=cxx_path, extra_flags=linker_flags),
@@ -252,6 +248,7 @@ class AndroidConfiguration(PlatformConfiguration):
       'nplb': [
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
+          'SbAudioSinkTest.Underflow',
           'SbMicrophoneGetAvailableTest.LabelIsValid',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
