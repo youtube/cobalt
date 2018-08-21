@@ -120,6 +120,7 @@ class AndroidConfiguration(PlatformConfiguration):
       'nplb': [
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
+          'SbAudioSinkTest.Underflow',
           'SbMicrophoneGetAvailableTest.LabelIsValid',
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDayDestination/0',
