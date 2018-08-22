@@ -133,7 +133,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       const auto& mastering_metadata = color_metadata->mastering_metadata;
       j_color_info.Reset(env->NewObjectOrAbort(
           "dev/cobalt/media/MediaCodecBridge$ColorInfo", "(IIIFFFFFFFFFF)V",
-          color_standard, color_transfer, color_range,
+          color_range, color_standard, color_transfer,
           mastering_metadata.primary_r_chromaticity_x,
           mastering_metadata.primary_r_chromaticity_y,
           mastering_metadata.primary_g_chromaticity_x,
