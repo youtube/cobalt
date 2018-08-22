@@ -23,10 +23,11 @@ from starboard.tools import command_line
 RE_WEBDRIVER_LISTEN = re.compile(r'Starting WebDriver server on port (\d+)')
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
 RE_WINDOWDRIVER_CREATED = re.compile(
-    r'^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+')
+    r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+'
+)
 # Pattern to match Cobalt log line for when a WebModule is has been loaded.
 RE_WEBMODULE_LOADED = re.compile(
-    r'^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule')
+    r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule')
 
 # selenium imports
 # pylint: disable=C0103
