@@ -153,7 +153,7 @@
               'extension': 'asm',
                   'inputs': [ ],
                   'outputs': [
-                    '../../out/<(RULE_INPUT_ROOT).asm.o',
+                    '<(PRODUCT_DIR)/obj/third_party/libjpeg-turbo/<(RULE_INPUT_ROOT).asm.o',
                   ],
                   'action': [
                     '<(path_to_yasm)',
@@ -165,7 +165,7 @@
                     '-f',
                     'elf64',
                     '-o',
-                    "$out",
+                    "<(PRODUCT_DIR)/$out",
                     '<(RULE_INPUT_PATH)',
                   ],
                   'process_outputs_as_sources': 1,
