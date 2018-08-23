@@ -646,7 +646,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
-          : dom::Window::kClockTypeSystemTime,
+          : (data.options.limit_performance_timer_resolution
+                 ? dom::Window::kClockTypeResolutionLimitedSystemTime
+                 : dom::Window::kClockTypeSystemTime),
 #else
       dom::Window::kClockTypeSystemTime,
 #endif

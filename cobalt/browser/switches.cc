@@ -191,6 +191,13 @@ const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 const char kDisableJavaScriptJitHelp[] =
     "Specifies that javascript jit should be disabled.";
 
+const char kDisableTimerResolutionLimit[] = "disable_timer_resolution_limit";
+const char kDisableTimerResolutionLimitHelp[] =
+    "By default, window.performance.now() will return values at a clamped "
+    "minimum resolution of 20us.  By specifying this flag, the limit will be "
+    "removed and the resolution will be 1us (or larger depending on the "
+    "platform.";
+
 const char kEnableMapToMeshRectanglar[] = "enable_map_to_mesh_rectangular";
 const char kEnableMapToMeshRectanglarHelp[] =
     "If toggled and map-to-mesh is supported on this platform, this allows it "
@@ -379,6 +386,7 @@ std::string HelpMessage() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
+        {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
         {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},
