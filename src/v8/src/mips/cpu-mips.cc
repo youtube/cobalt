@@ -4,6 +4,10 @@
 
 // CPU specific code for arm independent of OS goes here.
 
+#ifndef __linux__
+#define __linux__
+#endif
+
 #include <sys/syscall.h>
 #include <unistd.h>
 
