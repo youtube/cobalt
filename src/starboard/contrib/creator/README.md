@@ -26,6 +26,12 @@ Directory where this package is extracted should be exported as CI20_HOME.
 
     export CI20_HOME=<PATH_TO_DIRECTORY_WHERE_PACKAGE_IS_EXTRACTED>
 
+## JavaScript engine
+
+Default configuration for JavaScript engine is V8 with JIT enabled.
+Alternative configuration is to use mozjs-45, which has JIT disabled by defualt.
+Configuration with mozjs-45 is only available when building Cobalt with Clang.
+
 ## Building
 
 Follow all generic instructions from:
@@ -50,6 +56,20 @@ Commands for building are:
 
     cobalt/build/gyp_cobalt -C gold creator-ci20x11
     ninja -j4 -C out/creator-ci20x11_gold cobalt
+
+Using mozjs-45 JavaScript engine:
+
+    cobalt/build/gyp_cobalt -C debug creator-ci20x11-mozjs
+    ninja -j4 -C out/creator-ci20x11-mozjs_debug all
+
+    cobalt/build/gyp_cobalt -C devel creator-ci20x11-mozjs
+    ninja -j4 -C out/creator-ci20x11-mozjs_devel all
+
+    cobalt/build/gyp_cobalt -C qa creator-ci20x11-mozjs
+    ninja -j4 -C out/creator-ci20x11-mozjs_qa cobalt
+
+    cobalt/build/gyp_cobalt -C gold creator-ci20x11-mozjs
+    ninja -j4 -C out/creator-ci20x11-mozjs_gold cobalt
 
 ### Building with GCC 4.9
 
