@@ -151,16 +151,7 @@ Window::Window(
           mesh_cache, dom_stat_tracker, font_language_script,
           initial_application_state, synchronous_loader_interrupt,
           video_playback_rate_multiplier)),
-      performance_(new Performance(
-#if defined(ENABLE_TEST_RUNNER)
-          clock_type == kClockTypeTestRunner
-              ? test_runner_->GetClock()
-              :
-#endif
-              new base::MinimumResolutionClock(
-                  new base::SystemMonotonicClock(),
-                  base::TimeDelta::FromMicroseconds(
-                      kPerformanceTimerMinResolutionInMicroseconds)))),
+      performance_(new Performance(MakePerformanceClock(clock_type))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -228,6 +219,29 @@ void Window::StartDocumentLoad(
                          dom_parser->ParseDocumentAsync(
                              document_, base::SourceLocation(url.spec(), 1, 1)),
                          error_callback));
+}
+
+scoped_refptr<base::Clock> Window::MakePerformanceClock(ClockType clock_type) {
+  switch (clock_type) {
+    case kClockTypeTestRunner: {
+#if defined(ENABLE_TEST_RUNNER)
+      return test_runner_->GetClock();
+#else
+      NOTREACHED();
+#endif
+    } break;
+    case kClockTypeSystemTime: {
+      return new base::SystemMonotonicClock();
+    } break;
+    case kClockTypeResolutionLimitedSystemTime: {
+      return new base::MinimumResolutionClock(
+          new base::SystemMonotonicClock(),
+          base::TimeDelta::FromMicroseconds(
+              kPerformanceTimerMinResolutionInMicroseconds));
+    } break;
+  }
+  NOTREACHED();
+  return scoped_refptr<base::Clock>();
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
