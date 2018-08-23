@@ -208,6 +208,9 @@ def UnitTest():
   else:
     raise IOError("Failed to create link " + link_dir)
 
+  if not os.path.exists(link_dir):
+    raise IOError('os.path.exists(link_dir) is False.')
+
   CreateReparsePoint(from_dir, link_dir2)
   if not IsReparsePoint(link_dir2):
     raise IOError("Failed to create link " + link_dir2)
