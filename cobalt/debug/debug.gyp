@@ -75,6 +75,7 @@
         ['cobalt_copy_debug_console==1', {
           'dependencies': [
             'debug_copy_web_files',
+            'devtools/devtools.gyp:devtools_frontend',
           ],
         }],
       ],
