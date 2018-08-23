@@ -232,6 +232,11 @@ class WebModule : public LifecycleObserver {
     // color of transparent will replace existing pixel values, effectively
     // clearing the screen.
     bool clear_window_with_background_color;
+
+    // As a preventative measure against Spectre attacks, we explicitly limit
+    // the resolution of the performance timer by default.  Setting this option
+    // can allow the limit to be disabled.
+    bool limit_performance_timer_resolution = true;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

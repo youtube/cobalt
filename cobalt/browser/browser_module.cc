@@ -337,6 +337,10 @@ BrowserModule::BrowserModule(const GURL& url,
   options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
+  if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
+    options_.web_module_options.limit_performance_timer_resolution = false;
+  }
+
   base::optional<std::string> extension_object_name =
       GetWebAPIExtensionObjectPropertyName();
   if (extension_object_name) {

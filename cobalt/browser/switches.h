@@ -90,6 +90,8 @@ extern const char kWebDriverPortHelp[];
 
 extern const char kDisableJavaScriptJit[];
 extern const char kDisableJavaScriptJitHelp[];
+extern const char kDisableTimerResolutionLimit[];
+extern const char kDisableTimerResolutionLimitHelp[];
 extern const char kEnableMapToMeshRectanglar[];
 extern const char kForceMigrationForStoragePartitioning[];
 extern const char kFPSPrint[];
