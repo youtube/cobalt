@@ -72,11 +72,18 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     else:
       filters = super(WinWin32PlatformConfig, self).GetTestFilters()
       filtered_tests = dict(self._FILTERED_TESTS)  # Copy.
-      # On the VWware buildbot Layout tests consume too much graphics memory
-      # and crash the system. Therefore all layout tests are filtered for this
-      # platform.
+      # On the VWware buildbot doesn't have a lot of video memory and
+      # the following tests will fail or crash the system. Therefore they
+      # are filtered out.
+      # UPDATE: This might actually be a memory leak:
+      #   https://b.***REMOVED***/issues/113123413
+      # TODO: Remove these filters once the bug has been addressed.
       if "vmware" in self.GetVideoProcessorDescription().lower():
         filtered_tests.update( {'layout_tests': [ test_filter.FILTER_ALL] } )
+        filtered_tests.update( {'renderer_test': [ test_filter.FILTER_ALL] } )
+        filtered_tests.update(
+            {'player_filter_tests': [ test_filter.FILTER_ALL] })
+
       for target, tests in filtered_tests.iteritems():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       return filters
