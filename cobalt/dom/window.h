@@ -26,6 +26,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/timer.h"
 #include "cobalt/base/application_state.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
@@ -122,7 +123,11 @@ class Window : public EventTarget,
   typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
   typedef base::Callback<SbWindow()> GetSbWindowCallback;
 
-  enum ClockType { kClockTypeTestRunner, kClockTypeSystemTime };
+  enum ClockType {
+    kClockTypeTestRunner,
+    kClockTypeSystemTime,
+    kClockTypeResolutionLimitedSystemTime
+  };
 
   Window(
       int width, int height, float device_pixel_ratio,
@@ -389,6 +394,8 @@ class Window : public EventTarget,
       loader::FetcherFactory* fetcher_factory, const GURL& url,
       Parser* dom_parser,
       const base::Callback<void(const std::string&)>& error_callback);
+  scoped_refptr<base::Clock> MakePerformanceClock(Window::ClockType clock_type);
+
   class RelayLoadEvent;
 
   ~Window() override;
