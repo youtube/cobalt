@@ -42,9 +42,11 @@ def EscapePath(path):
 
 
 def _ClearDir(path):
+  path = os.path.normpath(path)
   if not os.path.exists(path): # Works for symlinks for both *nix and Windows.
     return
   if _USE_WINDOWS_SYMLINK:
+    path = os.path.abspath(path)
     for f in os.listdir(path):
       # Handle symlink vs files vs directories.
       f = os.path.join(path, f)
