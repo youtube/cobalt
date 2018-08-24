@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "117f11a9_7d7c9594",
+        "filename": "src/v8/src/base/cpu.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 82,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-08-24T00:05:36Z",
+      "side": 1,
+      "message": "Is there a crash if we omit this?\n\nWe are currently omitting this for Arm platforms, and performance is still excellent.  We are tracking this issue internally though so that we can setup capabilities more faithfully later, so of course we would then address MIPS as well when it comes to that.\n\nWhile I would prefer omitting this for now, if we truly must enable this code, I would suggest then that you instead do, somewhere in this file:\n\n#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64\n// Assume that if we\u0027re on a MIPS platform, we\u0027re on Linux.\n#define V8_OS_LINUX 1\n#endif\n\nthis way, we don\u0027t enable this block of code for non-MIPS platforms.",
+      "range": {
+        "startLine": 82,
+        "startChar": 16,
+        "endLine": 82,
+        "endChar": 34
+      },
+      "revId": "d4a19d36ac786d1e628157aa2524fdd3977924a9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "972705c9_2ef88027",
+        "filename": "src/v8/src/mips/cpu-mips.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-08-24T00:05:36Z",
+      "side": 1,
+      "message": "Would you be willing to remove this and #if V8_OS_STARBOARD, call SbMemoryFlush() instead? \n It will unnecessarily flush the data cache as well, but my guess is that this will not be so bad...  However it probably deserves a comment as a heads up.\n\nIf you are concerned about performance, let me know and we can discuss more.",
+      "range": {
+        "startLine": 7,
+        "startChar": 0,
+        "endLine": 10,
+        "endChar": 0
+      },
+      "revId": "d4a19d36ac786d1e628157aa2524fdd3977924a9",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
