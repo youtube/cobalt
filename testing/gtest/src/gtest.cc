@@ -35,19 +35,15 @@
 #include "gtest/internal/custom/gtest.h"
 #include "gtest/gtest-spi.h"
 
-#if !GTEST_OS_STARBOARD
+#if GTEST_OS_STARBOARD
+#include "starboard/system.h"
+#else
 #include <ctype.h>
-#include <math.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <wchar.h>
 #include <wctype.h>
-#else
-#include <math.h>
-#include <stdarg.h>
-#include "starboard/system.h"
 #endif
 
 #include <algorithm>
@@ -55,15 +51,16 @@
 #include <limits>
 #include <list>
 #include <map>
+#include <math.h>
 #include <ostream>  // NOLINT
 #include <sstream>
+#include <stdarg.h>
 #include <vector>
 
 #if GTEST_OS_STARBOARD
-
 // Starboard does not require any additional includes.
 
-#elif GTEST_OS_LINUX
+#elif GTEST_OS_STARBOARD
 
 // TODO(kenton@google.com): Use autoconf to detect availability of
 // gettimeofday().
@@ -3377,7 +3374,7 @@ void TestEventRepeater::OnTestIterationEnd(const UnitTest& unit_test,
 
 // End TestEventRepeater
 
-#if !GTEST_OS_STARBOARD
+
 // This class generates an XML output file.
 class XmlUnitTestResultPrinter : public EmptyTestEventListener {
  public:
@@ -3464,6 +3461,14 @@ XmlUnitTestResultPrinter::XmlUnitTestResultPrinter(const char* output_file)
 // Called after the unit test ends.
 void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                   int /*iteration*/) {
+#if GTEST_OS_STARBOARD
+  std::stringstream stream;
+  PrintXmlUnitTest(&stream, unit_test);
+  starboard::ScopedFile cache_file(
+      output_file_.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+  cache_file.WriteAll(StringStreamToString(&stream).c_str(),
+                      static_cast<int>(StringStreamToString(&stream).size()));
+#else
   FILE* xmlout = NULL;
   FilePath output_file(output_file_);
   FilePath output_dir(output_file.RemoveFileName());
@@ -3492,6 +3497,7 @@ void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   PrintXmlUnitTest(&stream, unit_test);
   fprintf(xmlout, "%s", StringStreamToString(&stream).c_str());
   fclose(xmlout);
+#endif
 }
 
 // Returns an XML-escaped copy of the input string str.  If is_attribute
@@ -3783,7 +3789,7 @@ std::string XmlUnitTestResultPrinter::TestPropertiesAsXmlAttributes(
 }
 
 // End XmlUnitTestResultPrinter
-#endif  // !GTEST_OS_STARBOARD
+
 
 #if GTEST_CAN_STREAM_RESULTS_
 
@@ -4440,12 +4446,10 @@ void UnitTestImpl::SuppressTestEventsIfInSubprocess() {
 // UnitTestOptions. Must not be called before InitGoogleTest.
 void UnitTestImpl::ConfigureXmlOutput() {
   const std::string& output_format = UnitTestOptions::GetOutputFormat();
-#if !GTEST_OS_STARBOARD
   if (output_format == "xml") {
     listeners()->SetDefaultXmlGenerator(new XmlUnitTestResultPrinter(
         UnitTestOptions::GetAbsolutePathToOutputFile().c_str()));
   } else
-#endif  // !GTEST_OS_STARBOARD
       if (output_format != "") {
     internal::posix::PrintF("WARNING: unrecognized output format \"%s\" "
                             "ignored.\n", output_format.c_str());
@@ -4736,7 +4740,6 @@ bool UnitTestImpl::RunAllTests() {
 // function will write over it. If the variable is present, but the file cannot
 // be created, prints an error and exits.
 void WriteToShardStatusFileIfNeeded() {
-#if !GTEST_OS_STARBOARD
   const char* const test_shard_file = posix::GetEnv(kTestShardStatusFile);
   if (test_shard_file != NULL) {
     FILE* const file = posix::FOpen(test_shard_file, "w");
@@ -4748,9 +4751,9 @@ void WriteToShardStatusFileIfNeeded() {
       internal::posix::Flush();
       exit(EXIT_FAILURE);
     }
-    fclose(file);
+    posix::FClose(file);
   }
-#endif  // !GTEST_OS_STARBOARD
+
 }
 
 // Checks whether sharding is enabled by examining the relevant
@@ -5304,7 +5307,7 @@ bool ParseGoogleTestFlag(const char* const arg) {
 void LoadFlagsFromFile(const std::string& path) {
   FILE* flagfile = posix::FOpen(path.c_str(), "r");
   if (!flagfile) {
-    fprintf(stderr,
+    internal::posix::PrintF(stderr,
             "Unable to open file \"%s\"\n",
             GTEST_FLAG(flagfile).c_str());
     fflush(stderr);
