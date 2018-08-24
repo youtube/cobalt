@@ -83,6 +83,11 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
         filtered_tests.update( {'renderer_test': [ test_filter.FILTER_ALL] } )
         filtered_tests.update(
             {'player_filter_tests': [ test_filter.FILTER_ALL] })
+        # TODO: Figure out why these tests are flaky on buildbot.
+        nplb_tests = filtered_tests.get('nplb', [])
+        nplb_tests.append('RWLock.*HoldsLockForTime')
+        nplb_tests.append('Semaphore.*ThreadTakesWait_TimeExpires')
+        filtered_tests.update({'nplb': nplb_tests })
 
       for target, tests in filtered_tests.iteritems():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)

@@ -31,7 +31,7 @@ def GetWindowsVersion():
   for l in lines:
     m = re.search(r'Version\s([0-9\.]+)', out)
     if m and m.group(1):
-      major, minor, build = m.group(1).split('.')
+      major, minor, build = m.group(1).split('.')[0:3]
       return (int(major), int(minor), int(build))
   raise IOError('Could not retrieve windows version')
 
