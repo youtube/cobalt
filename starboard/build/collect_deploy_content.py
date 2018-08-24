@@ -63,7 +63,7 @@ def _ClearDir(path):
       os.remove(path)
     except Exception as err:
       print("Error occured while trying to remove " + path +\
-            " because of " + str(err)))
+            " because of " + str(err))
   else:
     # Note that shutil.rmtree() has undocumented behavior on *nix systems
     # for subitems which are symlink directories. The symlink is deleted
