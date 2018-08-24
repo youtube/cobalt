@@ -41,7 +41,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <wchar.h>
 #include <wctype.h>
 #endif
@@ -55,6 +54,7 @@
 #include <ostream>  // NOLINT
 #include <sstream>
 #include <stdarg.h>
+#include <time.h>
 #include <vector>
 
 #if GTEST_OS_STARBOARD
@@ -3595,7 +3595,7 @@ std::string FormatTimeInMillisAsSeconds(TimeInMillis ms) {
 static bool PortableLocaltime(time_t seconds, struct tm* out) {
 #if defined(_MSC_VER)
   return localtime_s(out, &seconds) == 0;
-#elif defined(__MINGW32__) || defined(__MINGW64__)
+#elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__ORBIS__)
   // MINGW <time.h> provides neither localtime_r nor localtime_s, but uses
   // Windows' localtime(), which has a thread-local tm buffer.
   struct tm* tm_ptr = localtime(&seconds);  // NOLINT
