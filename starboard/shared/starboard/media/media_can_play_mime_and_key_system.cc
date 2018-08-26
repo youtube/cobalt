@@ -244,8 +244,12 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
     if (SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
 #if SB_API_VERSION >= 10
                                 ,
-                                decode_to_texture_required, transfer_id
+                                decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+                                ,
+                                transfer_id
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                 )) {
       return kSbMediaSupportTypeProbably;
     }
