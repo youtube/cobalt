@@ -9,6 +9,7 @@
 
 #include "jit/BaselineFrame.h"
 #include "jit/BaselineIC.h"
+#include "jit/MacroAssembler-inl.h"
 #include "jit/MacroAssembler.h"
 #include "jit/SharedICRegisters.h"
 

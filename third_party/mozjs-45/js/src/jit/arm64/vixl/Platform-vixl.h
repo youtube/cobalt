@@ -27,13 +27,23 @@
 #ifndef VIXL_PLATFORM_H
 #define VIXL_PLATFORM_H
 
+#include "js-config.h"
+
+#if defined(STARBOARD)
+#include "starboard/system.h"
+
+namespace vixl {
+inline void HostBreakpoint(int64_t code = 0) {
+  SbSystemBreakIntoDebugger();
+}
+}  // namespace vixl
+#else
 // Define platform specific functionalities.
 #include <signal.h>
-
-#include "js-config.h"
 
 namespace vixl {
 inline void HostBreakpoint(int64_t code = 0) { raise(SIGINT); }
 } // namespace vixl
+#endif
 
 #endif
