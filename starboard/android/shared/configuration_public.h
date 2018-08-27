@@ -330,6 +330,10 @@
 // stack size for media stack threads.
 #define SB_MEDIA_THREAD_STACK_SIZE 0U
 
+// SbMediaTransferId argument |eotf| to SbMediaIsVideoSupported and remove the
+// function SbMediaIsTransferCharacteristicsSupported.
+#define SB_HAS_MEDIA_EOTF_CHECK_SUPPORT 1
+
 // --- Decoder-only Params ---
 
 // Specifies how media buffers must be aligned on this platform as some
