@@ -141,9 +141,19 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
        ],
 
        'net_unittests': [
+           # These Async tests are temporarily excluded. What's happening
+           # is that there is a bug where aysnc file io does not complete
+           # before the file is deleted in test cleanup. The file does not
+           # delete because of an the open file handle.
            'FileStreamTest.AsyncRead_EarlyDelete',
            'FileStreamTest.AsyncOpenAndDelete',
+           'FileStreamTest.AsyncWrite',
+           'FileStreamTest.AsyncWriteClose',
+           'FileStreamTest.AsyncWriteRead',
            'FileStreamTest.AsyncWrite_EarlyDelete',
+           'FileStreamTest.AsyncWrite_FromOffset',
+           'FileStreamTest.BasicAsyncReadWrite',
+           'FileStreamTest.BasicAsyncWriteRead',
            'HostResolverImplDnsTest.DnsTaskUnspec',
            'UDPListenSocketTest.DoRead',
            'UDPListenSocketTest.DoReadReturnsNullAtEnd',
