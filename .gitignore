@@ -197,6 +197,7 @@ v8.log
 /third_party/hunspell
 /third_party/hunspell_dictionaries
 /third_party/icu
+/third_party/inspector_protocol
 /third_party/jarjar
 /third_party/jasmine
 /third_party/jsoncpp/source
@@ -245,6 +246,7 @@ v8.log
 /third_party/pthreads-win32
 /third_party/pyftpdlib/src
 /third_party/pywebsocket/src
+/third_party/pyjson5
 /third_party/pylib
 /third_party/pymox/src
 /third_party/python_24
