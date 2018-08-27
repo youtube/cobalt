@@ -535,6 +535,10 @@ AsmJSProfilingFrameIterator::AsmJSProfilingFrameIterator(const AsmJSActivation& 
         MOZ_ASSERT(offsetInModule < codeRange->end());
         uint32_t offsetInCodeRange = offsetInModule - codeRange->begin();
         void** sp = (void**)state.sp;
+#if defined(JS_CODEGEN_ARM64) && __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
 #if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
         if (offsetInCodeRange < PushedRetAddr) {
             // First instruction of the ARM/MIPS function; the return address is
@@ -569,6 +573,9 @@ AsmJSProfilingFrameIterator::AsmJSProfilingFrameIterator(const AsmJSActivation& 
             callerFP_ = CallerFPFromFP(fp);
             AssertMatchesCallSite(*module_, codeRange, callerPC_, callerFP_, fp);
         }
+#if defined(JS_CODEGEN_ARM64) && __clang__
+#pragma clang diagnostic pop
+#endif
         break;
       }
       case AsmJSModule::CodeRange::Entry: {
