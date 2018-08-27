@@ -31,9 +31,9 @@
     # allows for the specification of default values that get referenced by
     # a top level scope.
     'variables': {
-      # 'sb_enable_lib' is initially defined inside this inner 'variables' dict
-      # so that it can be accessed by 'sb_enable_lib' below.
       'sb_enable_lib%': 0,
+      'sb_static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
+      'sb_static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
     },
 
     # Enables the yasm compiler to be used to compile .asm files.
@@ -55,10 +55,10 @@
     'sb_disable_microphone_idl%': 0,
 
     # Directory path to static contents.
-    'sb_static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
+    'sb_static_contents_output_base_dir%': '<(sb_static_contents_output_base_dir)',
 
     # Directory path to static contents' data.
-    'sb_static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
+    'sb_static_contents_output_data_dir%': '<(sb_static_contents_output_data_dir)',
 
     # Contains the name of the hosting OS. The value is defined by the gyp
     # wrapper script.
