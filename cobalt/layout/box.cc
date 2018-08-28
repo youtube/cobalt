@@ -330,8 +330,14 @@ LayoutUnit Box::GetBorderBoxHeight() const {
   return border_top_width() + GetPaddingBoxHeight() + border_bottom_width();
 }
 
-SizeLayoutUnit Box::GetBorderBoxSize() const {
-  return SizeLayoutUnit(GetBorderBoxWidth(), GetBorderBoxHeight());
+SizeLayoutUnit Box::GetClampedBorderBoxSize() const {
+  // Border box size depends on the content, padding, and border areas
+  // Its dimensions cannot be negative because the content, padding, and border
+  // areas must be at least zero
+  // (https://www.w3.org/TR/css-box-3/#the-css-box-model)
+  return SizeLayoutUnit(
+    std::max(LayoutUnit(0), GetBorderBoxWidth()),
+    std::max(LayoutUnit(0), GetBorderBoxHeight()));
 }
 
 Vector2dLayoutUnit Box::GetBorderBoxOffsetFromRoot(
@@ -352,8 +358,14 @@ LayoutUnit Box::GetPaddingBoxHeight() const {
   return padding_top() + height() + padding_bottom();
 }
 
-SizeLayoutUnit Box::GetPaddingBoxSize() const {
-  return SizeLayoutUnit(GetPaddingBoxWidth(), GetPaddingBoxHeight());
+SizeLayoutUnit Box::GetClampedPaddingBoxSize() const {
+  // Padding box size depends on the content and padding areas
+  // Its dimensions cannot be negative because the content and padding areas
+  // must be at least zero
+  // (https://www.w3.org/TR/css-box-3/#the-css-box-model)
+  return SizeLayoutUnit(
+    std::max(LayoutUnit(0), GetPaddingBoxWidth()),
+    std::max(LayoutUnit(0), GetPaddingBoxHeight()));
 }
 
 Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromRoot(
@@ -1219,7 +1231,7 @@ bool HasAnimatedOutline(const web_animations::AnimationSet* animation_set) {
 }  // namespace
 
 base::optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
-  UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
+  UsedBorderRadiusProvider border_radius_provider(GetClampedBorderBoxSize());
   render_tree::RoundedCorner border_top_left_radius;
   render_tree::RoundedCorner border_top_right_radius;
   render_tree::RoundedCorner border_bottom_right_radius;
@@ -1263,7 +1275,7 @@ base::optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
                             border_bottom_right_radius,
                             border_bottom_left_radius);
     rounded_corners =
-        rounded_corners->Normalize(math::RectF(GetBorderBoxSize()));
+        rounded_corners->Normalize(math::RectF(GetClampedBorderBoxSize()));
   }
 
   return rounded_corners;
@@ -1288,7 +1300,8 @@ base::optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
           : rounded_corners;
 
   if (padding_rounded_corners) {
-    return padding_rounded_corners->Normalize(math::RectF(GetPaddingBoxSize()));
+    return padding_rounded_corners->Normalize(math::RectF(
+        GetClampedPaddingBoxSize()));
   } else {
     return padding_rounded_corners;
   }
@@ -1336,7 +1349,8 @@ void Box::RenderAndAnimateBoxShadow(
           shadow_blur_sigma, GetUsedColor(shadow_value->color()));
 
       math::SizeF shadow_rect_size =
-          shadow_value->has_inset() ? GetPaddingBoxSize() : GetBorderBoxSize();
+          shadow_value->has_inset() ? GetClampedPaddingBoxSize() :
+                                      GetClampedBorderBoxSize();
 
       // Inset nodes apply within the border, starting at the padding box.
       math::PointF rect_offset =
@@ -1386,7 +1400,7 @@ void Box::RenderAndAnimateBorder(
     return;
   }
 
-  math::RectF rect(GetBorderBoxSize());
+  math::RectF rect(GetClampedBorderBoxSize());
   RectNode::Builder rect_node_builder(rect);
   SetupBorderNodeFromStyle(rounded_corners, computed_style(),
                            &rect_node_builder);
@@ -1412,7 +1426,7 @@ void Box::RenderAndAnimateBorder(
 
 void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
                                   AnimateNode::Builder* animate_node_builder) {
-  math::RectF rect(GetBorderBoxSize());
+  math::RectF rect(GetClampedBorderBoxSize());
   RectNode::Builder rect_node_builder(rect);
   bool has_animated_outline = HasAnimatedOutline(animations());
   if (has_animated_outline) {
@@ -1437,7 +1451,7 @@ void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
 math::RectF Box::GetBackgroundRect() {
   return math::RectF(
       math::PointF(border_left_width().toFloat(), border_top_width().toFloat()),
-      GetPaddingBoxSize());
+      GetClampedPaddingBoxSize());
 }
 
 void Box::RenderAndAnimateBackgroundColor(
@@ -1607,7 +1621,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
   // Note that while it is unintuitive that we clip to the padding box and
   // not the content box, this behavior is consistent with Chrome and IE.
   //   https://www.w3.org/TR/CSS21/visufx.html#overflow
-  math::SizeF padding_size = GetPaddingBoxSize();
+  math::SizeF padding_size = GetClampedPaddingBoxSize();
   FilterNode::Builder filter_node_builder(content_node);
   filter_node_builder.viewport_filter = ViewportFilter(
       math::RectF(border_node_offset.x() + border_left_width().toFloat(),
@@ -1638,7 +1652,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
         base::Bind(&PopulateBaseStyleForMatrixTransformNode),
         base::Bind(&SetupMatrixTransformNodeFromCSSSStyleTransform,
                    math::RectF(PointAtOffsetFromOrigin(border_node_offset),
-                               GetBorderBoxSize())),
+                               GetClampedBorderBoxSize())),
         *css_computed_style_declaration(), css_transform_node,
         animate_node_builder);
 
@@ -1649,7 +1663,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateTransform(
     math::Matrix3F matrix = GetCSSTransform(
         computed_style()->transform(), computed_style()->transform_origin(),
         math::RectF(PointAtOffsetFromOrigin(border_node_offset),
-                    GetBorderBoxSize()));
+                    GetClampedBorderBoxSize()));
     if (matrix.IsIdentity()) {
       return border_node;
     } else {
