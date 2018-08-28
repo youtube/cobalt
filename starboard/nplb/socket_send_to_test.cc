@@ -138,6 +138,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketUntilBlocking) {
   scoped_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
                               GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(trio);
   // Push data into socket until it dies.
   uint64_t num_bytes = 0;
   while (num_bytes < kMaxTransferLimit) {
@@ -169,6 +170,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
   scoped_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
                               GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(trio);
 
   // Kills the server, the client socket will have it's connection reset during
   // one of the subsequent writes.
