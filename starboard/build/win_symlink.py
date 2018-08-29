@@ -140,7 +140,7 @@ def _UnlinkReparsePoint(link_dir):
   # The folder will now be unlinked, but will still exist.
   if os.path.isdir(link_dir):
     try:
-      os.removedirs(link_dir)
+      os.remove(link_dir)
     except Exception as err:
       print(__file__ + " could not remove " + link_dir)
       print(str(err))
