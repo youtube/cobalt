@@ -19,6 +19,7 @@
 
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/string_piece.h"
 #include "base/synchronization/lock.h"
 
 namespace base {
@@ -54,12 +55,14 @@ class TokenStorage {
 #if defined(BASE_HASH_USE_HASH_STRUCT)
 
 uint32 hash(const char* str) {
-  return BASE_HASH_NAMESPACE::hash<const char*>()(str);
+  return BASE_HASH_NAMESPACE::hash<base::StringPiece>()(str);
 }
 
 #else
 
-uint32 hash(const char* str) { return BASE_HASH_NAMESPACE::hash_value(str); }
+uint32 hash(const char* str) {
+  return BASE_HASH_NAMESPACE::hash_value(base::StringPiece(str));
+}
 
 #endif  // COMPILER
 
