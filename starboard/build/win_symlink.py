@@ -32,6 +32,8 @@ build 14972, which is not widely available yet.
 import os
 import shutil
 import subprocess
+import stat
+import time
 import traceback
 
 
@@ -65,6 +67,21 @@ def Rmtree(dirpath):
 #####################
 
 
+def _RemoveEmptyDirectory(path):
+  _RETRY_TIMES = 10
+  for i in range(0, _RETRY_TIMES):
+    try:
+      os.chmod(path, stat.S_IWRITE)
+      os.rmdir(path)
+      return
+    except Exception:
+      if i == _RETRY_TIMES-1:
+        raise
+      else:
+        time.sleep(.1)
+        pass
+
+
 def _Rmtree(dirpath):
   delete_path = dirpath
   reparse_path = _ReadReparsePoint(dirpath)
@@ -89,7 +106,7 @@ def _Rmtree(dirpath):
     UnlinkReparsePoint(dirpath)
   if os.path.isdir(delete_path):
     try:
-      os.removedirs(delete_path)
+      _RemoveEmptyDirectory(delete_path)
     except Exception as err:
       print("Error while removing " + delete_path \
             + " because " + str(err))
@@ -124,7 +141,7 @@ def _CreateReparsePoint(from_folder, link_folder):
   from_folder = os.path.abspath(from_folder)
   link_folder = os.path.abspath(link_folder)
   if os.path.isdir(link_folder):
-    os.removedirs(link_folder)
+    _RemoveEmptyDirectory(link_folder)
   else:
     _UnlinkReparsePoint(link_folder)  # Deletes if it exists.
   cmd_parts = ['mklink', '/j', link_folder, from_folder]
@@ -140,14 +157,14 @@ def _UnlinkReparsePoint(link_dir):
   # The folder will now be unlinked, but will still exist.
   if os.path.isdir(link_dir):
     try:
-      os.remove(link_dir)
+      _RemoveEmptyDirectory(link_dir)
     except Exception as err:
       print(__file__ + " could not remove " + link_dir)
       print(str(err))
   if _IsReparsePoint(link_dir):
     raise IOError("Link still exists: " + _ReadReparsePoint(link_dir))
   if os.path.isdir(link_dir):
-    raise IOError("Link as folder still exists: " + link_dir)
+    print("WARNING - Link as folder still exists: " + link_dir)
 
 
 def _IsSamePath(p1, p2):
