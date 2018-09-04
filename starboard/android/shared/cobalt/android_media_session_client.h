@@ -15,6 +15,8 @@
 #ifndef STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
 #define STARBOARD_ANDROID_SHARED_COBALT_ANDROID_MEDIA_SESSION_CLIENT_H_
 
+#include "starboard/player.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -24,6 +26,10 @@ namespace cobalt {
 enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
 void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
+
+// TODO: Pass the necessary info through web MediaSession so we don't need to
+// short-circuit to the player implementation to get info about the playback.
+void UpdateActiveSessionPlatformPlayer(SbPlayer player);
 
 }  // namespace cobalt
 }  // namespace shared
