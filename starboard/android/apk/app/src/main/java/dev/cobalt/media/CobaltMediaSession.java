@@ -348,6 +348,8 @@ public class CobaltMediaSession
   public void updateMediaSession(
       final int playbackState,
       final long actions,
+      final long positionMs,
+      final float speed,
       final String title,
       final String artist,
       final String album,
@@ -356,7 +358,9 @@ public class CobaltMediaSession
         new Runnable() {
           @Override
           public void run() {
-            updateMediaSessionInternal(playbackState, actions, title, artist, album, artwork);
+            updateMediaSessionInternal(
+                playbackState, actions, positionMs, speed,
+                title, artist, album, artwork);
           }
         });
   }
@@ -365,6 +369,8 @@ public class CobaltMediaSession
   private void updateMediaSessionInternal(
       int playbackState,
       long actions,
+      long positionMs,
+      float speed,
       String title,
       String artist,
       String album,
@@ -389,26 +395,30 @@ public class CobaltMediaSession
     }
 
     int androidPlaybackState;
+    String stateName;
     switch (playbackState) {
       case PLAYBACK_STATE_PLAYING:
         androidPlaybackState = PlaybackState.STATE_PLAYING;
+        stateName = "PLAYING";
         break;
       case PLAYBACK_STATE_PAUSED:
         androidPlaybackState = PlaybackState.STATE_PAUSED;
+        stateName = "PAUSED";
         break;
       case PLAYBACK_STATE_NONE:
       default:
         androidPlaybackState = PlaybackState.STATE_NONE;
+        stateName = "NONE";
         break;
     }
+
+    Log.i(TAG, String.format(
+        "MediaSession state: %s, position: %d ms, speed: %f x", stateName, positionMs, speed));
 
     playbackStateBuilder =
         new PlaybackState.Builder()
             .setActions(actions)
-            .setState(
-                androidPlaybackState,
-                PlaybackState.PLAYBACK_POSITION_UNKNOWN,
-                playbackState == PLAYBACK_STATE_PLAYING ? 1.0f : 0.0f);
+            .setState(androidPlaybackState, positionMs, speed);
     mediaSession.setPlaybackState(playbackStateBuilder.build());
 
     // Reset the metadata to make sure we don't retain any fields from previous playback.
