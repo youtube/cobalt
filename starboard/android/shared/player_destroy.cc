@@ -20,11 +20,13 @@
 using starboard::android::shared::cobalt::kNone;
 using starboard::android::shared::cobalt::
     UpdateActiveSessionPlatformPlaybackState;
+using starboard::android::shared::cobalt::UpdateActiveSessionPlatformPlayer;
 
 void SbPlayerDestroy(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
     return;
   }
   UpdateActiveSessionPlatformPlaybackState(kNone);
+  UpdateActiveSessionPlatformPlayer(kSbPlayerInvalid);
   delete player;
 }
