@@ -441,11 +441,14 @@ public class StarboardBridge {
   void updateMediaSession(
       int playbackState,
       long actions,
+      long positionMs,
+      float speed,
       String title,
       String artist,
       String album,
       MediaImage[] artwork) {
-    cobaltMediaSession.updateMediaSession(playbackState, actions, title, artist, album, artwork);
+    cobaltMediaSession.updateMediaSession(
+        playbackState, actions, positionMs, speed, title, artist, album, artwork);
   }
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
