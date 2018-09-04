@@ -243,8 +243,10 @@ int TCPClientSocketStarboard::DoConnect() {
     return ERR_INVALID_ARGUMENT;
   }
 
-  bool success = SbSocketConnect(socket_, &address);
-  DCHECK_EQ(true, success);
+  SbSocketError error = SbSocketConnect(socket_, &address);
+  if (error != kSbSocketOk) {
+    DCHECK_EQ(kSbSocketPending, error);
+  }
 
   int rv = MapLastSocketError(socket_);
   if (rv != ERR_IO_PENDING) {
