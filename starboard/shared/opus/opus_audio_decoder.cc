@@ -148,6 +148,8 @@ void OpusAudioDecoder::Reset() {
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
+
+  CancelPendingJobs();
 }
 
 bool OpusAudioDecoder::is_valid() const {
