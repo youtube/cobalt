@@ -48,6 +48,11 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(algorithm_ != NULL);
   SB_DCHECK(sink_ != NULL);
+  SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
+  SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
+      << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
+      << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."
+      << " Playback performance may not be ideal.";
 }
 
 VideoRenderer::~VideoRenderer() {
