@@ -21,7 +21,7 @@
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/filter/callback.h"
+#include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 

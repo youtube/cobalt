@@ -26,7 +26,7 @@
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.h',
-      '<(DEPTH)/starboard/shared/starboard/player/filter/callback.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/common.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/cpu_video_frame.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/cpu_video_frame.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.cc',

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CALLBACK_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CALLBACK_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_COMMON_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_COMMON_H_
 
 #include <functional>
 #include <string>
@@ -42,4 +42,4 @@ typedef std::function<void()> EndedCB;
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CALLBACK_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_COMMON_H_
