@@ -370,6 +370,10 @@ TEST_P(VideoDecoderTest, PrerollFrameCount) {
   EXPECT_GT(video_decoder_->GetPrerollFrameCount(), 0);
 }
 
+TEST_P(VideoDecoderTest, MaxNumberOfCachedFrames) {
+  EXPECT_GT(video_decoder_->GetMaxNumberOfCachedFrames(), 1);
+}
+
 TEST_P(VideoDecoderTest, PrerollTimeout) {
   EXPECT_GE(video_decoder_->GetPrerollTimeout(), 0);
 }
