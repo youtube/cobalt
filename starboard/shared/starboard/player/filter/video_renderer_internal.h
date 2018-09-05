@@ -24,7 +24,7 @@
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/filter/callback.h"
+#include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
