@@ -108,8 +108,10 @@ const char kNullSavegameHelp[] =
     "sessions and no data being persisted to future sessions. It effectively "
     "makes the app run as if it has no local storage.";
 
-const char kPartialLayout[] = "partial_layout";
-const char kPartialLayoutHelp[] = "Switches partial layout: on | off";
+const char kDisablePartialLayout[] = "disable_partial_layout";
+const char kDisablePartialLayoutHelp[] =
+    "Causes layout to re-compute the boxes for the entire DOM rather than "
+    "re-using boxes for elements that have not been invalidated.";
 
 const char kProd[] = "prod";
 const char kProdHelp[] =
@@ -371,7 +373,7 @@ std::string HelpMessage() {
         {kMinLogLevel, kMinLogLevelHelp},
         {kNullAudioStreamer, kNullAudioStreamerHelp},
         {kNullSavegame, kNullSavegameHelp},
-        {kPartialLayout, kPartialLayoutHelp}, {kProd, kProdHelp},
+        {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
         {kProxy, kProxyHelp}, {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
         {kRequireCSP, kRequireCSPHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},

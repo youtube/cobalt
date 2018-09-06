@@ -341,6 +341,11 @@ BrowserModule::BrowserModule(const GURL& url,
     options_.web_module_options.limit_performance_timer_resolution = false;
   }
 
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  options_.web_module_options.enable_partial_layout =
+      !command_line->HasSwitch(switches::kDisablePartialLayout);
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
   base::optional<std::string> extension_object_name =
       GetWebAPIExtensionObjectPropertyName();
   if (extension_object_name) {
