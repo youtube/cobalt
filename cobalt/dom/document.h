@@ -348,7 +348,7 @@ class Document : public Node,
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   bool partial_layout_is_enabled() { return partial_layout_is_enabled_; }
-  void SetPartialLayout(const std::string& mode_string);
+  void SetPartialLayout(bool enabled);
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Triggers a synchronous layout.
