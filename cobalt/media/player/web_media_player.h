@@ -82,6 +82,13 @@ class WebMediaPlayer {
     kCORSModeUseCredentials,
   };
 
+  struct PlayerStatistics {
+    uint64_t audio_bytes_decoded = 0;
+    uint64_t video_bytes_decoded = 0;
+    uint32_t video_frames_decoded = 0;
+    uint32_t video_frames_dropped = 0;
+  };
+
   virtual ~WebMediaPlayer() {}
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -141,10 +148,7 @@ class WebMediaPlayer {
 
   virtual float MediaTimeForTimeValue(float timeValue) const = 0;
 
-  virtual unsigned GetDecodedFrameCount() const = 0;
-  virtual unsigned GetDroppedFrameCount() const = 0;
-  virtual unsigned GetAudioDecodedByteCount() const = 0;
-  virtual unsigned GetVideoDecodedByteCount() const = 0;
+  virtual PlayerStatistics GetStatistics() const = 0;
 
   virtual scoped_refptr<VideoFrameProvider> GetVideoFrameProvider() {
     return NULL;
