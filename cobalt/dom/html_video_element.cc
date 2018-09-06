@@ -87,10 +87,16 @@ scoped_refptr<VideoPlaybackQuality> HTMLVideoElement::GetVideoPlaybackQuality(
   DCHECK(dom_settings->window());
   DCHECK(dom_settings->window()->performance());
 
-  return new VideoPlaybackQuality(
-      dom_settings->window()->performance()->Now(),
-      player() ? static_cast<uint32>(player()->GetDecodedFrameCount()) : 0,
-      player() ? static_cast<uint32>(player()->GetDroppedFrameCount()) : 0);
+  if (player()) {
+    auto player_stats = player()->GetStatistics();
+    return new VideoPlaybackQuality(
+        dom_settings->window()->performance()->Now(),
+        static_cast<uint32>(player_stats.video_frames_decoded),
+        static_cast<uint32>(player_stats.video_frames_dropped));
+  } else {
+    return new VideoPlaybackQuality(
+        dom_settings->window()->performance()->Now(), 0, 0);
+  }
 }
 
 scoped_refptr<VideoFrameProvider> HTMLVideoElement::GetVideoFrameProvider() {
