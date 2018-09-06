@@ -160,8 +160,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Internal states of loading and network.
   // TODO(hclam): Ask the pipeline about the state rather than having reading
   // them from members which would cause race conditions.
-  WebMediaPlayer::NetworkState GetNetworkState() const override;
-  WebMediaPlayer::ReadyState GetReadyState() const override;
+  NetworkState GetNetworkState() const override;
+  ReadyState GetReadyState() const override;
 
   bool DidLoadingProgress() const override;
 
@@ -170,10 +170,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   float MediaTimeForTimeValue(float timeValue) const override;
 
-  unsigned GetDecodedFrameCount() const override;
-  unsigned GetDroppedFrameCount() const override;
-  unsigned GetAudioDecodedByteCount() const override;
-  unsigned GetVideoDecodedByteCount() const override;
+  PlayerStatistics GetStatistics() const override;
 
   scoped_refptr<VideoFrameProvider> GetVideoFrameProvider() override;
 
@@ -210,10 +207,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   // Helpers that set the network/ready state and notifies the client if
   // they've changed.
-  void SetNetworkState(WebMediaPlayer::NetworkState state);
-  void SetNetworkError(WebMediaPlayer::NetworkState state,
-                       const std::string& message);
-  void SetReadyState(WebMediaPlayer::ReadyState state);
+  void SetNetworkState(NetworkState state);
+  void SetNetworkError(NetworkState state, const std::string& message);
+  void SetReadyState(ReadyState state);
 
   // Destroy resources held.
   void Destroy();
@@ -238,8 +234,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   base::Thread pipeline_thread_;
 
   // TODO(hclam): get rid of these members and read from the pipeline directly.
-  WebMediaPlayer::NetworkState network_state_;
-  WebMediaPlayer::ReadyState ready_state_;
+  NetworkState network_state_;
+  ReadyState ready_state_;
 
   // Keep a list of buffered time ranges.
   Ranges<base::TimeDelta> buffered_;
