@@ -4,12 +4,15 @@
 
 // CPU specific code for arm independent of OS goes here.
 
+// Starboard implementation will use SbMemoryFlush().
+#if !defined(V8_OS_STARBOARD)
 #include <sys/syscall.h>
 #include <unistd.h>
 
 #ifdef __mips
 #include <asm/cachectl.h>
 #endif  // #ifdef __mips
+#endif  // !defined(V8_OS_STARBOARD)
 
 #if V8_TARGET_ARCH_MIPS
 
@@ -34,6 +37,12 @@ void CpuFeatures::FlushICache(void* start, size_t size) {
   char *end = reinterpret_cast<char *>(start) + size;
   cacheflush(
     reinterpret_cast<intptr_t>(start), reinterpret_cast<intptr_t>(end), 0);
+#elif defined(V8_OS_STARBOARD)
+  // SbMemoryFlush uses BCACHE as argument for _flush_cache() call.
+  // This should not affect performance, since MIPS kernel only uses BCACHE,
+  // according to:
+  // https://elixir.bootlin.com/linux/latest/source/arch/mips/mm/cache.c#L74
+  SbMemoryFlush(start, size);
 #else  // ANDROID
   int res;
   // See http://www.linux-mips.org/wiki/Cacheflush_Syscall.
