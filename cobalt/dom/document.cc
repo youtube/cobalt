@@ -833,33 +833,10 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-void Document::SetPartialLayout(const std::string& mode_string) {
-  std::vector<std::string> mode_tokens;
-  Tokenize(mode_string, ",", &mode_tokens);
-  for (std::vector<std::string>::iterator mode_token_iterator =
-           mode_tokens.begin();
-       mode_token_iterator != mode_tokens.end(); ++mode_token_iterator) {
-    const std::string& mode_token = *mode_token_iterator;
-    if (mode_token == "wipe") {
-      scoped_refptr<HTMLHtmlElement> current_html = html();
-      if (current_html) {
-        current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
-      }
-      DLOG(INFO) << "Partial Layout state wiped";
-    } else if (mode_token == "off") {
-      partial_layout_is_enabled_ = false;
-      DLOG(INFO) << "Partial Layout mode turned off";
-    } else if (mode_token == "on") {
-      partial_layout_is_enabled_ = true;
-      DLOG(INFO) << "Partial Layout mode turned on";
-    } else if (mode_token == "undefined") {
-      DLOG(INFO) << "Partial Layout mode is currently "
-                 << (partial_layout_is_enabled_ ? "on" : "off");
-    } else {
-      DLOG(WARNING) << "Partial Layout mode \"" << mode_string
-                    << "\" not recognized.";
-    }
-  }
+void Document::SetPartialLayout(bool enabled) {
+  partial_layout_is_enabled_ = enabled;
+  DLOG(INFO) << "Partial Layout is "
+             << (partial_layout_is_enabled_ ? "on" : "off");
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
