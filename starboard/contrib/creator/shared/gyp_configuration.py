@@ -52,6 +52,12 @@ class CreatorConfiguration(platform_configuration.PlatformConfiguration):
         config_name, use_clang=1)
     variables.update({
         'sysroot': sysroot,
+        'javascript_engine': 'v8',
+        'cobalt_enable_jit': 1,
+        'v8_target_arch': 'mipsel',
+        'mips_arch_variant': 'r2',
+        'mips_fpu_mode': 'fp32',
+        'mips_float_abi': 'hard',
     })
 
     return variables
