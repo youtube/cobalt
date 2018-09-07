@@ -18,6 +18,7 @@
 #include <list>
 
 #include "starboard/atomic.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
@@ -114,6 +115,14 @@ class VideoRenderer : JobQueue::JobOwner {
   Frames decoder_frames_;
   Mutex sink_frames_mutex_;
   Frames sink_frames_;
+
+#if !defined(STARBOARD_BUILD_TYPE_GOLD)
+#define ENABLE_VIDEO_FRAME_LAG_LOG 1
+#endif  // !defined(STARBOARD_BUILD_TYPE_GOLD)
+
+#if ENABLE_VIDEO_FRAME_LAG_LOG
+  optional<SbTimeMonotonic> time_of_last_lag_warning_;
+#endif  // ENABLE_VIDEO_FRAME_LAG_LOG
 };
 
 }  // namespace filter
