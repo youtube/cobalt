@@ -87,6 +87,9 @@
 //   SB_HASH_NAMESPACE, or SB_HASH_SET_INCLUDE.
 #define SB_HAS_STD_UNORDERED_HASH_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add support for audio in ac3.
+#define SB_HAS_AC3_AUDIO_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -661,6 +664,15 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING)
 #endif  // SB_API_VERSION >= 10
 
+#if SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
+#if defined(SB_HAS_AC3_SUPPORT)
+#if !SB_HAS(AC3_SUPPORT)
+#error "SB_HAS_AC3_SUPPORT is required in this API version."
+#endif  // !SB_HAS(AC3_SUPPORT)
+#else   // defined(SB_HAS_AC3_SUPPORT)
+#define SB_HAS_AC3_SUPPORT 1
+#endif  // defined(SB_HAS_AC3_SUPPORT)
+#endif  // SB_API_VERSION >= SB_HAS_AC3_AUDIO_API_VERSION
 // --- Derived Configuration -------------------------------------------------
 
 // Whether the current platform is little endian.
