@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "starboard/configuration.h"
 #include "starboard/memory.h"
 
 using base::Time;
@@ -28,6 +29,10 @@ namespace media {
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
   if (codec == kCodecAAC) {
     return kSbMediaAudioCodecAac;
+#if SB_HAS(AC3_AUDIO)
+  } else if (codec == kCodecAC3) {
+    return kSbMediaAudioCodecAc3;
+#endif  // SB_HAS(AC3_AUDIO)
   } else if (codec == kCodecVorbis) {
     return kSbMediaAudioCodecVorbis;
   } else if (codec == kCodecOpus) {
