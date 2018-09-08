@@ -94,6 +94,9 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       return filters
 
   _FILTERED_TESTS = {
+      'base_unittests': [
+          'PathServiceTest.Get',
+      ],
       'renderer_test': [
           'ResourceProviderTest.ManyTexturesCanBeCreatedAndDestroyedQuickly', # Flaky.
           'ResourceProviderTest.TexturesCanBeCreatedFromSecondaryThread',
@@ -110,6 +113,16 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           'SbAudioSinkCreateTest.SunnyDayAllCombinations',
           'SbAudioSinkIsAudioSampleTypeSupportedTest.SunnyDay',
           'SbAudioSinkTest.*',
+
+          # TODO: Find out why these are flaky!
+          'SbDirectoryCanOpenTest.SunnyDay',
+          'SbDirectoryGetNextTest.SunnyDay',
+          'SbDirectoryGetNextTest.FailureNullEntry',
+          'SbDirectoryOpenTest.SunnyDay',
+          'SbDirectoryOpenTest.SunnyDayWithNullError',
+          'SbDirectoryOpenTest.ManySunnyDay',
+          'SbDirectoryOpenTest.FailsInvalidPath',
+          'SbSocketWaiterWakeUpTest.CallFromOtherThreadWakesUp',
 
           'SbMicrophoneCloseTest.SunnyDayCloseAreCalledMultipleTimes',
           'SbMicrophoneOpenTest.SunnyDay',
