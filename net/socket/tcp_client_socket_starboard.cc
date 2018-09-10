@@ -63,14 +63,15 @@ int CreateSocket(AddressFamily family, SbSocket* socket) {
                                  : kSbSocketAddressTypeIpv4;
   *socket = SbSocketCreate(type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(*socket)) {
-    DLOG(ERROR) << "SbSocketCreate";
-    return SbSystemGetLastError();
+    auto error = SbSystemGetLastError();
+    DLOG(ERROR) << "SbSocketCreate failed with error " << error;
+    return error;
   }
 
   int error = SetupSocket(*socket);
   if (error) {
     if (!SbSocketDestroy(*socket)) {
-      DLOG(ERROR) << "SbSocketDestroy";
+      DLOG(ERROR) << "SbSocketDestroy failed with error " << error;
     }
 
     *socket = kSbSocketInvalid;
