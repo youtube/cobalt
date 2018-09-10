@@ -301,4 +301,5 @@ void TestSuite::Initialize() {
 }
 
 void TestSuite::Shutdown() {
+  logging::CloseLogFile();
 }
