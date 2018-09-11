@@ -58,6 +58,12 @@ class ComponentConnector {
   // Creates a Runtime.Remote object from an ValueHandleHolder.
   JSONObject CreateRemoteObject(const script::ValueHandleHolder* object);
 
+  // Runs a JavaScript function with JSON parameters, and sends the event it
+  // returns to the |DebugServer| referenced by this object.
+  void SendScriptEvent(const std::string& method,
+                       const std::string& command,
+                       const JSONObject& params);
+
   // Sends an event to the |DebugServer| referenced by this object.
   void SendEvent(const std::string& method, const JSONObject& params);
 
