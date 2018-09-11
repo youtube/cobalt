@@ -17,17 +17,12 @@
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
-#include <list>
-#include <map>
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
-#include "base/stl_util.h"
-#include "base/synchronization/lock.h"
 #include "cobalt/base/log_message_handler.h"
-#include "cobalt/base/source_location.h"
 #include "cobalt/debug/debugger.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
@@ -103,18 +98,6 @@ class DebugHub : public script::Wrappable {
   std::string GetConsoleValue(const std::string& name) const;
 
   int GetDebugConsoleMode() const;
-
-  // Gets the collection of registered command channels as an alphabetically
-  // ordered, space-separated list.
-  std::string GetCommandChannels() const;
-
-  // Gets the help strings for a specified command channel.
-  std::string GetCommandChannelShortHelp(const std::string& channel) const;
-  std::string GetCommandChannelLongHelp(const std::string& channel) const;
-
-  // Sends a command to be handled by registered handers.
-  // This lets the JavaScript debug console trigger actions in the app.
-  void SendCommand(const std::string& channel, const std::string& message);
 
   DEFINE_WRAPPABLE_TYPE(DebugHub);
   void TraceMembers(script::Tracer* tracer) override;

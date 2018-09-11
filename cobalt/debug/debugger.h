@@ -24,6 +24,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
+#include "cobalt/debug/console_command.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/debugger_event_target.h"
@@ -71,15 +72,26 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   explicit Debugger(const GetDebugServerCallback& get_debug_server_callback);
   ~Debugger();
 
-  // Non-standard JavaScript extension API.
   void Attach(const AttachCallbackArg& callback);
   void Detach(const AttachCallbackArg& callback);
+
+  // Sends a devtools protocol command to be executed in the context of the main
+  // WebModule that is being debugged.
   void SendCommand(const std::string& method, const std::string& json_params,
                    const CommandCallbackArg& callback);
+
   const base::optional<std::string>& last_error() const { return last_error_; }
   const scoped_refptr<DebuggerEventTarget>& on_event() const {
     return on_event_;
   }
+
+  const script::Sequence<ConsoleCommand> console_commands() const;
+
+  // Sends a console command to be handled in the context of the debug WebModule
+  // by a registered hander. This lets the JavaScript debug console trigger
+  // actions in the app.
+  void SendConsoleCommand(const std::string& command,
+                          const std::string& message);
 
   DEFINE_WRAPPABLE_TYPE(Debugger);
   void TraceMembers(script::Tracer* tracer) override;

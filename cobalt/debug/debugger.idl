@@ -22,10 +22,14 @@
 
   void attach(AttachCallback cb);
   void detach(AttachCallback cb);
+
   void sendCommand(DOMString method, DOMString jsonParams, CommandCallback cb);
 
   readonly attribute DOMString? lastError;
   readonly attribute DebuggerEventTarget onEvent;
+
+  readonly attribute sequence<ConsoleCommand> consoleCommands;
+  void sendConsoleCommand(DOMString command, DOMString message);
 };
 
 callback AttachCallback = void();
