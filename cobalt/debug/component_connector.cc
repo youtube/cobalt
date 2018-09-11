@@ -95,6 +95,27 @@ JSONObject ComponentConnector::CreateRemoteObject(
   }
 }
 
+void ComponentConnector::SendScriptEvent(const std::string& method,
+                                         const std::string& command,
+                                         const JSONObject& params) {
+  if (!server_) {
+    DLOG(WARNING) << "Not attached to debug server. Not sending " << method;
+    return;
+  }
+
+  script::ScriptDebugger::ScopedPauseOnExceptionsState no_pause(
+      script_debugger_, script::ScriptDebugger::kNone);
+  JSONObject command_result = server_->RunScriptCommand(command, params);
+  base::DictionaryValue* event;
+  if (command_result->GetDictionary(DebugServer::kResult, &event)) {
+    server_->OnEvent(method, JSONObject(event->DeepCopy()));
+  } else {
+    std::string error;
+    command_result->GetString(DebugServer::kErrorMessage, &error);
+    DLOG(ERROR) << "Script event failed (" << method << "): " << error;
+  }
+}
+
 void ComponentConnector::SendEvent(const std::string& method,
                                    const JSONObject& params) {
   if (server_) {

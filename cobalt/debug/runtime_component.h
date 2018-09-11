@@ -33,17 +33,14 @@ class RuntimeComponent {
  private:
   // Command handlers.
   JSONObject CallFunctionOn(const JSONObject& params);
+  JSONObject CompileScript(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
   JSONObject Enable(const JSONObject& params);
   JSONObject Evaluate(const JSONObject& params);
+  JSONObject GlobalLexicalScopeNames(const JSONObject& params);
   JSONObject GetProperties(const JSONObject& params);
   JSONObject ReleaseObject(const JSONObject& params);
   JSONObject ReleaseObjectGroup(const JSONObject& params);
-
-  // Sends an event to the client to notify an execution context has been
-  // created. Currently we just send this event once when the component
-  // is enabled, passing default values.
-  void OnExecutionContextCreated();
 
   // Helper object to connect to the debug server, etc.
   ComponentConnector* connector_;

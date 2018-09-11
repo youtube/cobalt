@@ -25,11 +25,9 @@
 namespace cobalt {
 namespace debug {
 
-namespace {
-// Error response message field.
-const char kErrorMessage[] = "error.message";
-const char kResult[] = "result";
-}  // namespace
+// static
+const char DebugServer::kErrorMessage[] = "error.message";
+const char DebugServer::kResult[] = "result";
 
 void DebugServer::AddClient(DebugClient* client) { clients_.insert(client); }
 
