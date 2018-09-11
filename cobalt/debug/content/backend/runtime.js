@@ -37,6 +37,22 @@ devtoolsBackend.createRemoteObjectCallback = function(object, params) {
 
 devtoolsBackend.runtime = {};
 
+// Creates an executionContextCreated event.
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#event-executionContextCreated
+devtoolsBackend.runtime.executionContextCreatedEvent = function() {
+  var event = {
+    context: {
+      id: 1,
+      origin: window.location.origin,
+      name: "Cobalt",
+      auxData: {
+        isDefault: true
+      }
+    }
+  };
+  return JSON.stringify(event);
+}
+
 // Calls a function on a previously accessed RemoteObject with an argument list
 // and returns a new RemoteObject. Used extensively by devtools for
 // auto-completion. The new RemoteObject uses the same |objectGroup| as the
@@ -64,7 +80,7 @@ devtoolsBackend.runtime.callFunctionOn = function(params) {
 }
 
 // Evaluates a string and returns a RemoteObject.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#command-evaluate
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#method-evaluate
 devtoolsBackend.runtime.evaluate = function(params) {
   var result = {};
   var value = null;
@@ -108,6 +124,14 @@ devtoolsBackend.runtime.evaluate = function(params) {
     this._removeCommandLineAPI();
   }
 
+  return JSON.stringify(result);
+}
+
+// Returns all let, const and class variables from global scope.
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#method-globalLexicalScopeNames
+devtoolsBackend.runtime.globalLexicalScopeNames = function(params) {
+  var result = [];
+  // TODO: Get the globals.
   return JSON.stringify(result);
 }
 

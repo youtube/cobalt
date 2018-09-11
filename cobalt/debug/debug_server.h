@@ -88,6 +88,10 @@ class DebugClient;
 
 class DebugServer {
  public:
+  // JSONObject field names in command results.
+  static const char kErrorMessage[];
+  static const char kResult[];
+
   // Callback to pass a command response to the client.
   typedef base::Callback<void(const base::optional<std::string>& response)>
       CommandCallback;
