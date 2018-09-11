@@ -28,25 +28,17 @@ const char kScriptFile[] = "runtime.js";
 
 // Command "methods" (names):
 const char kCallFunctionOn[] = "Runtime.callFunctionOn";
+const char kCompileScript[] = "Runtime.compileScript";
 const char kDisable[] = "Runtime.disable";
 const char kEnable[] = "Runtime.enable";
 const char kEvaluate[] = "Runtime.evaluate";
 const char kGetProperties[] = "Runtime.getProperties";
+const char kGlobalLexicalScopeNames[] = "Runtime.globalLexicalScopeNames";
 const char kReleaseObject[] = "Runtime.releaseObject";
 const char kReleaseObjectGroup[] = "Runtime.releaseObjectGroup";
 
 // Event "methods" (names):
 const char kExecutionContextCreated[] = "Runtime.executionContextCreated";
-
-// Parameter names:
-const char kContextFrameId[] = "context.frameId";
-const char kContextId[] = "context.id";
-const char kContextName[] = "context.name";
-
-// Constant parameter values:
-const char kContextFrameIdValue[] = "Cobalt";
-const int kContextIdValue = 1;
-const char kContextNameValue[] = "Cobalt";
 }  // namespace
 
 RuntimeComponent::RuntimeComponent(ComponentConnector* connector)
@@ -60,11 +52,18 @@ RuntimeComponent::RuntimeComponent(ComponentConnector* connector)
       kCallFunctionOn,
       base::Bind(&RuntimeComponent::CallFunctionOn, base::Unretained(this)));
   connector_->AddCommand(
+      kCompileScript,
+      base::Bind(&RuntimeComponent::CompileScript, base::Unretained(this)));
+  connector_->AddCommand(
       kDisable, base::Bind(&RuntimeComponent::Disable, base::Unretained(this)));
   connector_->AddCommand(
       kEnable, base::Bind(&RuntimeComponent::Enable, base::Unretained(this)));
   connector_->AddCommand(kEvaluate, base::Bind(&RuntimeComponent::Evaluate,
                                                base::Unretained(this)));
+  connector_->AddCommand(
+    kGlobalLexicalScopeNames,
+    base::Bind(&RuntimeComponent::GlobalLexicalScopeNames,
+               base::Unretained(this)));
   connector_->AddCommand(
       kGetProperties,
       base::Bind(&RuntimeComponent::GetProperties, base::Unretained(this)));
@@ -74,6 +73,14 @@ RuntimeComponent::RuntimeComponent(ComponentConnector* connector)
   connector_->AddCommand(kReleaseObjectGroup,
                          base::Bind(&RuntimeComponent::ReleaseObjectGroup,
                                     base::Unretained(this)));
+}
+
+JSONObject RuntimeComponent::CompileScript(const JSONObject& params) {
+  UNREFERENCED_PARAMETER(params);
+  // TODO: Parse the JS without eval-ing it... This is to support:
+  // a) Multi-line input from the devtools console
+  // b) https://developers.google.com/web/tools/chrome-devtools/snippets
+  return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject RuntimeComponent::CallFunctionOn(const JSONObject& params) {
@@ -87,12 +94,20 @@ JSONObject RuntimeComponent::Disable(const JSONObject& params) {
 
 JSONObject RuntimeComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
-  OnExecutionContextCreated();
+  JSONObject event_params;
+  connector_->SendScriptEvent(kExecutionContextCreated,
+                              "runtime.executionContextCreatedEvent",
+                              event_params);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
   return connector_->RunScriptCommand("runtime.evaluate", params);
+}
+
+JSONObject RuntimeComponent::GlobalLexicalScopeNames(const JSONObject& params) {
+  return connector_->RunScriptCommand("runtime.globalLexicalScopeNames",
+                                      params);
 }
 
 JSONObject RuntimeComponent::GetProperties(const JSONObject& params) {
@@ -105,14 +120,6 @@ JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
 
 JSONObject RuntimeComponent::ReleaseObject(const JSONObject& params) {
   return connector_->RunScriptCommand("runtime.releaseObject", params);
-}
-
-void RuntimeComponent::OnExecutionContextCreated() {
-  JSONObject event(new base::DictionaryValue());
-  event->SetString(kContextFrameId, kContextFrameIdValue);
-  event->SetInteger(kContextId, kContextIdValue);
-  event->SetString(kContextName, kContextNameValue);
-  connector_->SendEvent(kExecutionContextCreated, event);
 }
 
 }  // namespace debug
