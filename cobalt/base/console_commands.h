@@ -87,7 +87,7 @@ class ConsoleCommandManager {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Command handler map type.
-  typedef std::multimap<std::string, const CommandHandler*> CommandHandlerMap;
+  typedef std::map<std::string, const CommandHandler*> CommandHandlerMap;
 
   // Methods to register/unregister command handlers.
   // These are intended only to be called from the command handler objects.
