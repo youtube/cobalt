@@ -103,7 +103,7 @@ function initDebugCommands() {
       'Get the debugger client. The debugger client can be used to issue ' +
       'JavaScript debugging commands to the main web module.';
 
-  addUserCommands();
+  addConsoleCommands();
 }
 
 function help(command) {
@@ -148,21 +148,18 @@ function dir(objectName) {
   executeMain(js);
 }
 
-function addUserCommands() {
-  var channelString = window.debugHub.getCommandChannels();
-  var channels = channelString.split(' ');
-  for (var i = 0; i < channels.length; i++) {
-    addSingleUserCommand(channels[i])
+function addConsoleCommands() {
+  var consoleCommands = window.debugHub.debugger.consoleCommands;
+  for (var i = 0; i < consoleCommands.length; i++) {
+    var c = consoleCommands[i];
+    addOneConsoleCommand(c.command, c.shortHelp, c.longHelp);
   }
 }
 
-function addSingleUserCommand(channel) {
-  var channelHelp = window.debugHub.getCommandChannelShortHelp(channel);
-  debug[channel] = function(message) {
-    window.debugHub.sendCommand(channel, message);
+function addOneConsoleCommand(command, shortHelp, longHelp) {
+  debug[command] = function(message) {
+    window.debugHub.debugger.sendConsoleCommand(command, message);
   }
-  debug[channel].shortHelp =
-      window.debugHub.getCommandChannelShortHelp(channel);
-  debug[channel].longHelp =
-      window.debugHub.getCommandChannelLongHelp(channel);
+  debug[command].shortHelp = shortHelp;
+  debug[command].longHelp = longHelp;
 }
