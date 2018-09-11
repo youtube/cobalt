@@ -82,7 +82,7 @@ const script::Sequence<ConsoleCommand> Debugger::console_commands() const {
       base::ConsoleCommandManager::GetInstance();
   DCHECK(command_mananger);
   if (command_mananger) {
-    std::set<std::string> commands = command_mananger->GetRegisteredChannels();
+    std::set<std::string> commands = command_mananger->GetRegisteredCommands();
     for (std::set<std::string>::const_iterator it = commands.begin();
          it != commands.end(); ++it) {
       ConsoleCommand console_command;
