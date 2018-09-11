@@ -26,10 +26,10 @@ ConsoleCommandManager* ConsoleCommandManager::GetInstance() {
 #if defined(ENABLE_DEBUG_CONSOLE)
 
 ConsoleCommandManager::CommandHandler::CommandHandler(
-    const std::string& channel,
+    const std::string& command,
     const ConsoleCommandManager::CommandCallback& callback,
     const std::string& short_help, const std::string& long_help)
-    : channel_(channel),
+    : command_(command),
       callback_(callback),
       short_help_(short_help),
       long_help_(long_help) {
@@ -44,69 +44,69 @@ ConsoleCommandManager::CommandHandler::~CommandHandler() {
   manager->UnregisterCommandHandler(this);
 }
 
-void ConsoleCommandManager::HandleCommand(const std::string& channel,
+void ConsoleCommandManager::HandleCommand(const std::string& command,
                                           const std::string& message) const {
-  DCHECK_GT(channel.length(), size_t(0));
+  DCHECK_GT(command.length(), size_t(0));
   base::AutoLock auto_lock(lock_);
-  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
-  if (iter != command_channel_map_.end()) {
+  CommandHandlerMap::const_iterator iter = command_command_map_.find(command);
+  if (iter != command_command_map_.end()) {
     iter->second->callback().Run(message);
   } else {
-    DLOG(WARNING) << "No command handler registered for channel: " << channel;
+    DLOG(WARNING) << "No handler registered for command: " << command;
   }
 }
 
-std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
+std::set<std::string> ConsoleCommandManager::GetRegisteredCommands() const {
   std::set<std::string> result;
   base::AutoLock auto_lock(lock_);
-  for (CommandHandlerMap::const_iterator iter = command_channel_map_.begin();
-       iter != command_channel_map_.end(); ++iter) {
+  for (CommandHandlerMap::const_iterator iter = command_command_map_.begin();
+       iter != command_command_map_.end(); ++iter) {
     result.insert(iter->first);
   }
   return result;
 }
 
 std::string ConsoleCommandManager::GetShortHelp(
-    const std::string& channel) const {
+    const std::string& command) const {
   base::AutoLock auto_lock(lock_);
-  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
-  if (iter != command_channel_map_.end()) {
+  CommandHandlerMap::const_iterator iter = command_command_map_.find(command);
+  if (iter != command_command_map_.end()) {
     return iter->second->short_help();
   }
-  return "No help available for unregistered channel: " + channel;
+  return "No help available for unregistered command: " + command;
 }
 
 std::string ConsoleCommandManager::GetLongHelp(
-    const std::string& channel) const {
+    const std::string& command) const {
   base::AutoLock auto_lock(lock_);
-  CommandHandlerMap::const_iterator iter = command_channel_map_.find(channel);
-  if (iter != command_channel_map_.end()) {
+  CommandHandlerMap::const_iterator iter = command_command_map_.find(command);
+  if (iter != command_command_map_.end()) {
     return iter->second->long_help();
   }
-  return "No help available for unregistered channel: " + channel;
+  return "No help available for unregistered command: " + command;
 }
 
 void ConsoleCommandManager::RegisterCommandHandler(
     const CommandHandler* handler) {
-  DCHECK_GT(handler->channel().length(), size_t(0));
+  DCHECK_GT(handler->command().length(), size_t(0));
   base::AutoLock auto_lock(lock_);
-  command_channel_map_[handler->channel()] = handler;
+  command_command_map_[handler->command()] = handler;
 }
 
 void ConsoleCommandManager::UnregisterCommandHandler(
     const CommandHandler* handler) {
-  DCHECK_GT(handler->channel().length(), size_t(0));
+  DCHECK_GT(handler->command().length(), size_t(0));
   base::AutoLock auto_lock(lock_);
-  command_channel_map_.erase(handler->channel());
+  command_command_map_.erase(handler->command());
 }
 
 #else   // ENABLE_DEBUG_CONSOLE
 
 ConsoleCommandManager::CommandHandler::CommandHandler(
-    const std::string& channel,
+    const std::string& command,
     const ConsoleCommandManager::CommandCallback& callback,
     const std::string& short_help, const std::string& long_help) {
-  UNREFERENCED_PARAMETER(channel);
+  UNREFERENCED_PARAMETER(command);
   UNREFERENCED_PARAMETER(callback);
   UNREFERENCED_PARAMETER(short_help);
   UNREFERENCED_PARAMETER(long_help);
@@ -114,25 +114,25 @@ ConsoleCommandManager::CommandHandler::CommandHandler(
 
 ConsoleCommandManager::CommandHandler::~CommandHandler() {}
 
-void ConsoleCommandManager::HandleCommand(const std::string& channel,
+void ConsoleCommandManager::HandleCommand(const std::string& command,
                                           const std::string& message) const {
-  UNREFERENCED_PARAMETER(channel);
+  UNREFERENCED_PARAMETER(command);
   UNREFERENCED_PARAMETER(message);
 }
 
-std::set<std::string> ConsoleCommandManager::GetRegisteredChannels() const {
+std::set<std::string> ConsoleCommandManager::GetRegisteredCommands() const {
   return std::set<std::string>();
 }
 
 std::string ConsoleCommandManager::GetShortHelp(
-    const std::string& channel) const {
-  UNREFERENCED_PARAMETER(channel);
+    const std::string& command) const {
+  UNREFERENCED_PARAMETER(command);
   return "";
 }
 
 std::string ConsoleCommandManager::GetLongHelp(
-    const std::string& channel) const {
-  UNREFERENCED_PARAMETER(channel);
+    const std::string& command) const {
+  UNREFERENCED_PARAMETER(command);
   return "";
 }
 #endif  // ENABLE_DEBUG_CONSOLE
