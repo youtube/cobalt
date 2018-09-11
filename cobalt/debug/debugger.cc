@@ -16,8 +16,11 @@
 
 #include "cobalt/debug/debugger.h"
 
+#include <set>
+
 #include "base/json/json_writer.h"
 #include "base/values.h"
+#include "cobalt/base/console_commands.h"
 
 namespace cobalt {
 namespace debug {
@@ -71,6 +74,33 @@ void Debugger::SendCommand(const std::string& method,
   debug_client_->SendCommand(
       method, json_params,
       base::Bind(&Debugger::OnCommandResponse, this, callback_info));
+}
+
+const script::Sequence<ConsoleCommand> Debugger::console_commands() const {
+  script::Sequence<ConsoleCommand> result;
+  base::ConsoleCommandManager* command_mananger =
+      base::ConsoleCommandManager::GetInstance();
+  DCHECK(command_mananger);
+  if (command_mananger) {
+    std::set<std::string> commands = command_mananger->GetRegisteredChannels();
+    for (std::set<std::string>::const_iterator it = commands.begin();
+         it != commands.end(); ++it) {
+      ConsoleCommand console_command;
+      console_command.set_command(*it);
+      console_command.set_short_help(command_mananger->GetShortHelp(*it));
+      console_command.set_long_help(command_mananger->GetLongHelp(*it));
+      result.push_back(console_command);
+    }
+  }
+  return result;
+}
+
+void Debugger::SendConsoleCommand(const std::string& command,
+                                  const std::string& message) {
+  base::ConsoleCommandManager* console_command_manager =
+      base::ConsoleCommandManager::GetInstance();
+  DCHECK(console_command_manager);
+  console_command_manager->HandleCommand(command, message);
 }
 
 void Debugger::TraceMembers(script::Tracer* tracer) {
