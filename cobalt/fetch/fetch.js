@@ -425,6 +425,8 @@
       controller.enqueue(new Uint8Array(data))
     } else if (isArrayBufferView(data)) {
       controller.enqueue(new Uint8Array(data.buffer))
+    } else if (data instanceof Blob) {
+      controller.enqueue(new Uint8Array(FetchInternal.blobToArrayBuffer(data)))
     } else {
       throw new TypeError(errorString)
     }
@@ -452,6 +454,8 @@
       if (!this[HEADERS_SLOT].get('content-type')) {
         if (typeof body === 'string') {
           this[HEADERS_SLOT].set('content-type', 'text/plain;charset=UTF-8')
+        } else if (body instanceof Blob && body.type !== "") {
+          this[HEADERS_SLOT].set('content-type', body.type)
         }
       }
     }

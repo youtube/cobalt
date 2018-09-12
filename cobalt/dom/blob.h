@@ -72,6 +72,10 @@ class Blob : public script::Wrappable {
 
   const std::string& type() const { return type_; }
 
+  script::Handle<script::ArrayBuffer> array_buffer() const {
+    return script::Handle<script::ArrayBuffer>(buffer_reference_);
+  }
+
   DEFINE_WRAPPABLE_TYPE(Blob);
 
  private:
