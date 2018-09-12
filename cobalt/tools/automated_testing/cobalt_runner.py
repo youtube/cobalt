@@ -319,6 +319,10 @@ class CobaltRunner(object):
     else:
       return json.loads(json_result)
 
+  def GetUserAgent(self):
+    """Returns the User Agent string."""
+    return self.ExecuteJavaScript('return navigator.userAgent;')
+
   def PollUntilFound(self, css_selector, expected_num=None):
     """Polls until an element is found.
 
