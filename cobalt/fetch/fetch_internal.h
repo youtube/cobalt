@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/blob.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/typed_arrays.h"
@@ -45,6 +46,12 @@ class FetchInternal : public script::Wrappable {
   static std::string DecodeFromUTF8(
       const script::Handle<script::Uint8Array>& data,
       script::ExceptionState* exception_state);
+
+  // Translate a dom Blob to ArrayBuffer.
+  static script::Handle<script::ArrayBuffer> BlobToArrayBuffer(
+      const scoped_refptr<dom::Blob>& blob) {
+    return blob->array_buffer();
+  }
 
   DEFINE_WRAPPABLE_TYPE(FetchInternal);
 };
