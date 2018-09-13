@@ -67,6 +67,9 @@
             'debug_web_server.cc',
             'debug_web_server.h',
           ],
+          'dependencies': [
+            'devtools/devtools.gyp:devtools',
+          ],
           'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
           'all_dependent_settings': {
             'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
@@ -75,7 +78,6 @@
         ['cobalt_copy_debug_console==1', {
           'dependencies': [
             'debug_copy_web_files',
-            'devtools/devtools.gyp:devtools_frontend',
           ],
         }],
       ],
