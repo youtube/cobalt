@@ -122,4 +122,4 @@ if __name__ == '__main__':
   # make module-owned variables like device_param accessible to the tests.
   main_module = importlib.import_module(
       'cobalt.black_box_tests.black_box_tests')
-  main_module.main()
+  sys.exit(main_module.main())
