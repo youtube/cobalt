@@ -1,4 +1,4 @@
-"""Open Cobalt in preload mode and find a basic element."""
+"""Ensure that Cobalt can have persistent cookie across sessions/launches."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -11,8 +11,6 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 from cobalt.tools.automated_testing import webdriver_utils
 
 keys = webdriver_utils.import_selenium_module('webdriver.common.keys')
-
-_MAX_RESUME_WAIT_SECONDS = 30
 
 
 class PersistentCookieTest(black_box_tests.BlackBoxTestCase):

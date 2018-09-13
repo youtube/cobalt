@@ -1,4 +1,4 @@
-"""Set a JS timer that expires after exiting preload mode."""
+"""Ensure that client page can use eval() when CSP is missing."""
 
 from __future__ import absolute_import
 from __future__ import division
