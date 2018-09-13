@@ -418,7 +418,8 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
 
   v8::Local<v8::String> source;
   if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
-                               v8::NewStringType::kNormal)
+                               v8::NewStringType::kNormal,
+                               v8c_source_code->source_utf8().length())
            .ToLocal(&source)) {
     LOG(WARNING) << "Failed to convert source code to V8 UTF-8 string.";
     return {};

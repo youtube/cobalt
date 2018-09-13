@@ -1,4 +1,4 @@
-"""Set a JS timer that expires after exiting preload mode."""
+"""Ensure that Cobalt prohibits eval() when CSP is present in client page."""
 
 from __future__ import absolute_import
 from __future__ import division

@@ -1,4 +1,4 @@
-"""Open Cobalt in preload mode and find a basic element."""
+"""Verify that fonts are loaded correctly after preload event."""
 
 from __future__ import absolute_import
 from __future__ import division
