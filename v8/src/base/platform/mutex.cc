@@ -261,15 +261,15 @@ RecursiveMutex::~RecursiveMutex() {
 }
 
 void RecursiveMutex::Lock() {
-  native_handle_.lock();
+  native_handle_.Acquire();
 }
 
 void RecursiveMutex::Unlock() {
-  native_handle_.unlock();
+  native_handle_.Release();
 }
 
 bool RecursiveMutex::TryLock() {
-  return native_handle_.try_lock();
+  return native_handle_.AcquireTry();
 }
 
 #endif  // V8_OS_POSIX
