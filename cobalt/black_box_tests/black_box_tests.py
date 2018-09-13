@@ -26,9 +26,9 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
 ]
 # These tests only need app launchers with webdriver.
 _TESTS_NO_SIGNAL = [
-    'persistent_cookie',
     'allow_eval',
     'disable_eval_with_csp',
+    'persistent_cookie',
 ]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
