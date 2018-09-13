@@ -79,7 +79,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   SkFontStyleSet_Cobalt(
       const FontFamilyInfo& family_info, const char* base_path,
       SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
-      SkMutex* const manager_owned_mutex);
+      SkMutex* const manager_owned_mutex, bool enable_not_found_log);
 
   // From SkFontStyleSet
   int count() override;

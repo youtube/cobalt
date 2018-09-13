@@ -37,24 +37,26 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
 
   PriorityStyleSetArrayMap priority_fallback_families;
 
+  bool is_system_font_set = system_font_config_directory != NULL &&
+                            *system_font_config_directory != '\0' &&
+                            system_font_files_directory != NULL &&
+                            *system_font_files_directory != '\0';
+
   // Cobalt fonts are loaded first.
   {
     TRACE_EVENT0("cobalt::renderer", "LoadCobaltFontFamilies");
-    ParseConfigAndBuildFamilies(cobalt_font_config_directory,
-                                cobalt_font_files_directory,
-                                &priority_fallback_families);
+    ParseConfigAndBuildFamilies(
+        cobalt_font_config_directory, cobalt_font_files_directory,
+        &priority_fallback_families, !is_system_font_set);
   }
 
   // Only attempt to load the system font families if the system directories
   // have been populated.
-  if (system_font_config_directory != NULL &&
-      *system_font_config_directory != '\0' &&
-      system_font_files_directory != NULL &&
-      *system_font_files_directory != '\0') {
+  if (is_system_font_set) {
     TRACE_EVENT0("cobalt::renderer", "LoadSystemFontFamilies");
     ParseConfigAndBuildFamilies(system_font_config_directory,
                                 system_font_files_directory,
-                                &priority_fallback_families);
+                                &priority_fallback_families, true);
   }
 
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
@@ -257,7 +259,8 @@ SkTypeface* SkFontMgr_Cobalt::onLegacyCreateTypeface(const char family_name[],
 
 void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
     const char* font_config_directory, const char* font_files_directory,
-    PriorityStyleSetArrayMap* priority_fallback_families) {
+    PriorityStyleSetArrayMap* priority_fallback_families,
+    bool enable_not_found_log) {
   SkTDArray<FontFamilyInfo*> config_font_families;
   {
     TRACE_EVENT0("cobalt::renderer", "SkFontConfigParser::GetFontFamilies()");
@@ -265,14 +268,15 @@ void SkFontMgr_Cobalt::ParseConfigAndBuildFamilies(
                                         &config_font_families);
   }
   BuildNameToFamilyMap(font_files_directory, &config_font_families,
-                       priority_fallback_families);
+                       priority_fallback_families, enable_not_found_log);
   config_font_families.deleteAll();
 }
 
 void SkFontMgr_Cobalt::BuildNameToFamilyMap(
     const char* font_files_directory,
     SkTDArray<FontFamilyInfo*>* config_font_families,
-    PriorityStyleSetArrayMap* priority_fallback_families) {
+    PriorityStyleSetArrayMap* priority_fallback_families,
+    bool enable_not_found_log) {
   TRACE_EVENT0("cobalt::renderer", "SkFontMgr_Cobalt::BuildNameToFamilyMap()");
   for (int i = 0; i < config_font_families->count(); i++) {
     FontFamilyInfo& family_info = *(*config_font_families)[i];
@@ -287,7 +291,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
 
     sk_sp<SkFontStyleSet_Cobalt> new_family(new SkFontStyleSet_Cobalt(
         family_info, font_files_directory, &local_typeface_stream_manager_,
-        &family_mutex_));
+        &family_mutex_, enable_not_found_log));
 
     // Do not add the family if none of its fonts were available. This allows
     // the configuration files to specify a superset of all fonts, and ones that
