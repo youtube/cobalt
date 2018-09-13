@@ -22,6 +22,7 @@
     'gtest_target_type': 'shared_library',
 
     'gl_type': 'system_gles2',
+    'enable_remote_debugging': 0,
 
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
