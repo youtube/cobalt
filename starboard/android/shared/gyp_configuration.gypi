@@ -22,6 +22,7 @@
     'gtest_target_type': 'shared_library',
 
     'gl_type': 'system_gles2',
+    'enable_remote_debugging': 0,
 
     # Create v8 snapshot and embed into executable at build-time.
     'cobalt_v8_buildtime_snapshot': 'true',
