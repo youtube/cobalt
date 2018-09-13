@@ -116,11 +116,13 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   void ParseConfigAndBuildFamilies(
       const char* font_config_directory, const char* font_files_directory,
-      PriorityStyleSetArrayMap* priority_fallback_families);
+      PriorityStyleSetArrayMap* priority_fallback_families,
+      bool enable_not_found_log);
   void BuildNameToFamilyMap(
       const char* font_files_directory,
       SkTDArray<FontFamilyInfo*>* config_font_families,
-      PriorityStyleSetArrayMap* priority_fallback_families);
+      PriorityStyleSetArrayMap* priority_fallback_families,
+      bool enable_not_found_log);
   void GeneratePriorityOrderedFallbackFamilies(
       const PriorityStyleSetArrayMap& priority_fallback_families);
   void FindDefaultFamily(const SkTArray<SkString, true>& default_families);
