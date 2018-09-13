@@ -18,9 +18,6 @@
 
 {
   'variables': {
-    # TODO: Define this in cobalt_configuration.gypi based on cobalt_config
-    'debug_devtools': 0,
-
     'all_devtools_files': [
       "front_end/accessibility/AccessibilityModel.js",
       "front_end/accessibility/accessibilityNode.css",
@@ -1101,26 +1098,36 @@
       "toolbox",
       "worker_app",
     ],
-
-    'devtools_frontend_resources': [
-      "aria_properties",
-      "build_release_devtools",
-      "copy_embedder_scripts",
-      "copy_emulated_devices_images",
-      "copy_inspector_images",
-      "devtools_extension_api",
-      "frontend_protocol_sources",
-      "supported_css_properties",
-    ],
   },
 
   'targets': [
     {
       # This is the main roll-up target to generate the devtools frontend files
       # that go into the content directory.
-      'target_name': 'devtools_frontend',
+      'target_name': 'devtools',
       'type': 'none',
-      'dependencies': [ '<@(devtools_frontend_resources)' ],
+      'dependencies': [
+        'aria_properties',
+        'build_release_devtools',
+        'copy_embedder_scripts',
+        'copy_emulated_devices_images',
+        'copy_inspector_images',
+        'devtools_extension_api',
+        'frontend_protocol_sources',
+        'supported_css_properties',
+      ],
+    },
+
+    {
+      # This is an alternate roll-up target to generate the devtools frontend
+      # files, including the uncompiled version for debugging devtools itself.
+      'target_name': 'debug_devtools',
+      'type': 'none',
+      'dependencies': [
+        'devtools',
+        'build_debug_devtools',
+        'copy_aria_properties',
+      ],
     },
 
     {
@@ -1280,78 +1287,68 @@
         ],
       }],
     },
-  ],
 
-  'conditions': [
-    ['debug_devtools == 1', {
-      'variables': {
-        'devtools_frontend_resources': [
-          "build_debug_devtools",
-          "copy_aria_properties",
-        ]
-      },
-      'targets': [
-        {
-          'target_name': 'build_debug_devtools',
-          'type': 'none',
-          'dependencies': [ 'copy_generated_scripts' ],
-          'actions': [{
-            'action_name': 'build_debug_devtools_applications',
-            'variables': {
-              'script_path': 'scripts/build/build_debug_applications.py',
-              'input_path': 'front_end',
-            },
-            'inputs': [
-              '<(script_path)',
-              '<@(all_devtools_files)',
-              '<@(application_templates)',
-            ],
-            'outputs': [
-              '<(resources_out_debug_dir)/devtools_app.html',
-              '<(resources_out_debug_dir)/inspector.html',
-              '<(resources_out_debug_dir)/integration_test_runner.html',
-              '<(resources_out_debug_dir)/js_app.html',
-              '<(resources_out_debug_dir)/ndb_app.html',
-              '<(resources_out_debug_dir)/node_app.html',
-              '<(resources_out_debug_dir)/toolbox.html',
-              '<(resources_out_debug_dir)/worker_app.html',
-            ],
-            'action': [
-              'python',
-              '<(script_path)',
-              '<@(devtools_applications)',
-              '--input_path',
-              '<(input_path)',
-              '--output_path',
-              '<(resources_out_debug_dir)',
-            ],
-          }],
+    {
+      'target_name': 'build_debug_devtools',
+      'type': 'none',
+      'dependencies': [ 'copy_generated_scripts' ],
+      'actions': [{
+        'action_name': 'build_debug_devtools_applications',
+        'variables': {
+          'script_path': 'scripts/build/build_debug_applications.py',
+          'input_path': 'front_end',
         },
-        {
-          'target_name': 'copy_generated_scripts',
-          'type': 'none',
-          'dependencies': [
-            'frontend_protocol_sources',
-            'supported_css_properties',
-          ],
-          'copies': [{
-            'files': [ '<@(generated_scripts)' ],
-            'destination': '<(resources_out_debug_dir)',
-          }],
-        },
-        {
-          'target_name': 'copy_aria_properties',
-          'type': 'none',
-          'dependencies': [
-            'aria_properties',
-            'build_debug_devtools',
-          ],
-          'copies': [{
-            'files': [ '<@(generated_aria_properties)' ],
-            'destination': '<(resources_out_debug_dir)/accessibility',
-          }],
-        },
+        'inputs': [
+          '<(script_path)',
+          '<@(all_devtools_files)',
+          '<@(application_templates)',
+        ],
+        'outputs': [
+          '<(resources_out_debug_dir)/devtools_app.html',
+          '<(resources_out_debug_dir)/inspector.html',
+          '<(resources_out_debug_dir)/integration_test_runner.html',
+          '<(resources_out_debug_dir)/js_app.html',
+          '<(resources_out_debug_dir)/ndb_app.html',
+          '<(resources_out_debug_dir)/node_app.html',
+          '<(resources_out_debug_dir)/toolbox.html',
+          '<(resources_out_debug_dir)/worker_app.html',
+        ],
+        'action': [
+          'python',
+          '<(script_path)',
+          '<@(devtools_applications)',
+          '--input_path',
+          '<(input_path)',
+          '--output_path',
+          '<(resources_out_debug_dir)',
+        ],
+      }],
+    },
+
+    {
+      'target_name': 'copy_generated_scripts',
+      'type': 'none',
+      'dependencies': [
+        'frontend_protocol_sources',
+        'supported_css_properties',
       ],
-    }]
+      'copies': [{
+        'files': [ '<@(generated_scripts)' ],
+        'destination': '<(resources_out_debug_dir)',
+      }],
+    },
+
+    {
+      'target_name': 'copy_aria_properties',
+      'type': 'none',
+      'dependencies': [
+        'aria_properties',
+        'build_debug_devtools',
+      ],
+      'copies': [{
+        'files': [ '<@(generated_aria_properties)' ],
+        'destination': '<(resources_out_debug_dir)/accessibility',
+      }],
+    },
   ],
 }
