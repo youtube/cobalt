@@ -48,7 +48,9 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   }
 
   // TODO: Handle UTF8 failuire here somehow too.
-  *out_string = *v8::String::Utf8Value(isolate, string);
+  v8::String::Utf8Value utf8_value(isolate, string);
+  DCHECK(0 <= utf8_value.length());
+  out_string->assign(*utf8_value, utf8_value.length());
 }
 
 // ValueHandle -> JSValue
