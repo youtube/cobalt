@@ -81,8 +81,6 @@ class AndroidConfiguration(PlatformConfiguration):
             self.android_ndk_home,
         'ANDROID_ABI':
             self.android_abi,
-        'enable_remote_debugging':
-            0,
         'include_path_platform_deploy_gypi':
             'starboard/android/shared/platform_deploy.gypi',
         'javascript_engine':
