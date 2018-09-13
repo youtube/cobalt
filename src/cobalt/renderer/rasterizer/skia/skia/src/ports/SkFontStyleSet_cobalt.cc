@@ -73,7 +73,7 @@ int MatchScore(const SkFontStyle& pattern, const SkFontStyle& candidate) {
 SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     const FontFamilyInfo& family_info, const char* base_path,
     SkFileMemoryChunkStreamManager* const local_typeface_stream_manager,
-    SkMutex* const manager_owned_mutex)
+    SkMutex* const manager_owned_mutex, bool enable_not_found_log)
     : local_typeface_stream_manager_(local_typeface_stream_manager),
       manager_owned_mutex_(manager_owned_mutex),
       is_fallback_family_(family_info.is_fallback_family),
@@ -98,7 +98,9 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     // Validate that the file exists at this location. If it does not, then skip
     // over it; it isn't being added to the set.
     if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
-      DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
+      if (enable_not_found_log) {
+        DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
+      }
       continue;
     }
 
