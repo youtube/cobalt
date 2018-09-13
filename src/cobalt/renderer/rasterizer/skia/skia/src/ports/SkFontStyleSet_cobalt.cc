@@ -19,8 +19,10 @@
 
 #include "SkOSFile.h"
 #include "base/debug/trace_event.h"
+#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/path_service.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "third_party/skia/src/utils/SkOSPath.h"
@@ -89,6 +91,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   }
 
   family_name_ = family_info.names[0];
+  FilePath system_fonts;
+  PathService::Get(base::DIR_SYSTEM_FONTS, &system_fonts);
+  bool find_fail_ignore =
+      !system_fonts.empty() && (system_fonts.value().compare(base_path));
 
   for (int i = 0; i < family_info.fonts.count(); ++i) {
     const FontFileInfo& font_file = family_info.fonts[i];
@@ -98,7 +104,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     // Validate that the file exists at this location. If it does not, then skip
     // over it; it isn't being added to the set.
     if (!sk_exists(file_path.c_str(), kRead_SkFILE_Flag)) {
-      DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
+      if (!find_fail_ignore)
+        DLOG(INFO) << "Failed to find font file: " << file_path.c_str();
       continue;
     }
 
