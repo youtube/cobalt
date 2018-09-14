@@ -103,7 +103,6 @@ class AudioRenderer : public MediaTimeProvider,
   const int max_cached_frames_;
   const int max_frames_per_append_;
 
-  ErrorCB error_cb_;
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
