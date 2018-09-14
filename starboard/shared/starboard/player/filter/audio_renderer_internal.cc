@@ -182,11 +182,14 @@ bool AudioRenderer::IsSeekingInProgress() const {
 void AudioRenderer::Initialize(const ErrorCB& error_cb,
                                const PrerolledCB& prerolled_cb,
                                const EndedCB& ended_cb) {
+  SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
+  SB_DCHECK(!error_cb_);
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
 
+  error_cb_ = error_cb;
   prerolled_cb_ = prerolled_cb;
   ended_cb_ = ended_cb;
 
@@ -509,7 +512,13 @@ void AudioRenderer::OnFirstOutput() {
       kSbMediaAudioFrameStorageTypeInterleaved,
       reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
       max_cached_frames_, this);
-  SB_DCHECK(audio_renderer_sink_->HasStarted());
+  if (!audio_renderer_sink_->HasStarted()) {
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+    error_cb_(kSbPlayerErrorDecode, "failed to start audio sink");
+#else   // SB_HAS(PLAYER_ERROR_MESSAGE)
+    error_cb_();
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+  }
 }
 
 void AudioRenderer::LogFramesConsumed() {
