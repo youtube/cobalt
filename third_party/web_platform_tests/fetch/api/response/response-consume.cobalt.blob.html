@@ -78,7 +78,7 @@
 
     var textData = JSON.stringify("This is response's body");
     var textResponseInit = { "headers": [["Content-Type", "text/PLAIN"]] };
-    var blob = new Blob([textData], { "type": "application/octet-stream" });
+    var blob = new Blob([stringToArray(textData).buffer], { "type": "application/octet-stream" });
     var multipartBoundary = "boundary-" + Math.random();
     var formTextResponseInit = { "headers": [["Content-Type", 'multipart/FORM-data; boundary="' + multipartBoundary + '"']] };
     var formTextData = stringToMultipartFormTextData(multipartBoundary, "name", textData);
