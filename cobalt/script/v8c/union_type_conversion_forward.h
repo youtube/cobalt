@@ -33,8 +33,8 @@ namespace script {
 namespace v8c {
 
 template <typename T1, typename T2>
-void ToJSValue(v8::Isolate* isolate, const script::UnionType2<T1, T2>& in_union,
-               v8::Local<v8::Value>* out_value);
+void ToJSValue(v8::Isolate* isolate, const script::UnionType2<T1,
+    T2>& in_union, v8::Local<v8::Value>* out_value);
 
 template <typename T1, typename T2>
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
@@ -42,9 +42,8 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  script::UnionType2<T1, T2>* out_union);
 
 template <typename T1, typename T2, typename T3>
-void ToJSValue(v8::Isolate* isolate,
-               const script::UnionType3<T1, T2, T3>& in_union,
-               v8::Local<v8::Value>* out_value);
+void ToJSValue(v8::Isolate* isolate, const script::UnionType3<T1, T2,
+    T3>& in_union, v8::Local<v8::Value>* out_value);
 
 template <typename T1, typename T2, typename T3>
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
@@ -52,14 +51,22 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  script::UnionType3<T1, T2, T3>* out_union);
 
 template <typename T1, typename T2, typename T3, typename T4>
-void ToJSValue(v8::Isolate* isolate,
-               const script::UnionType4<T1, T2, T3, T4>& in_union,
-               v8::Local<v8::Value>* out_value);
+void ToJSValue(v8::Isolate* isolate, const script::UnionType4<T1, T2, T3,
+    T4>& in_union, v8::Local<v8::Value>* out_value);
 
 template <typename T1, typename T2, typename T3, typename T4>
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,
                  script::UnionType4<T1, T2, T3, T4>* out_union);
+
+template <typename T1, typename T2, typename T3, typename T4, typename T5>
+void ToJSValue(v8::Isolate* isolate, const script::UnionType5<T1, T2, T3, T4,
+    T5>& in_union, v8::Local<v8::Value>* out_value);
+
+template <typename T1, typename T2, typename T3, typename T4, typename T5>
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 script::UnionType5<T1, T2, T3, T4, T5>* out_union);
 
 }  // namespace v8c
 }  // namespace script

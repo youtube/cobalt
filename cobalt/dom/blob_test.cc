@@ -62,19 +62,24 @@ TEST(BlobTest, Constructors) {
 
   script::Handle<script::DataView> data_view_mid_3 =
       script::DataView::New(global_environment, array_buffer, 1, 3);
+  std::string text("text");
+
   script::Sequence<Blob::BlobPart> parts;
   parts.push_back(Blob::BlobPart(blob_with_buffer));
   parts.push_back(Blob::BlobPart(data_view_mid_3));
   parts.push_back(Blob::BlobPart(array_buffer));
+  parts.push_back(Blob::BlobPart(text));
   scoped_refptr<Blob> blob_with_parts = new Blob(environment_settings, parts);
 
-  ASSERT_EQ(13UL, blob_with_parts->size());
+  ASSERT_EQ(17UL, blob_with_parts->size());
   ASSERT_TRUE(blob_with_parts->data());
   EXPECT_EQ(0x6, blob_with_parts->data()[0]);
   EXPECT_EQ(0x7, blob_with_parts->data()[5]);
   EXPECT_EQ(0, blob_with_parts->data()[6]);
   EXPECT_EQ(0x7B, blob_with_parts->data()[11]);
   EXPECT_EQ(0xCD, blob_with_parts->data()[12]);
+  EXPECT_EQ('t', blob_with_parts->data()[13]);
+  EXPECT_EQ('x', blob_with_parts->data()[15]);
 }
 
 // Tests that further changes to a buffer from which a blob was constructed
