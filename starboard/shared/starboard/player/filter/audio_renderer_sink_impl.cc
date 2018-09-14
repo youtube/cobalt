@@ -73,9 +73,6 @@ void AudioRendererSinkImpl::Start(
       audio_frame_storage_type, frame_buffers, frames_per_channel,
       &AudioRendererSinkImpl::UpdateSourceStatusFunc,
       &AudioRendererSinkImpl::ConsumeFramesFunc, this);
-  if (!SbAudioSinkIsValid(audio_sink_)) {
-    return;
-  }
   // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
   // support play/pause.
   audio_sink_->SetPlaybackRate(playback_rate_);
