@@ -628,6 +628,260 @@ inline std::ostream& operator<<(
   return stream;
 }
 
+
+template <typename T1, typename T2, typename T3, typename T4, typename T5>
+class UnionType5 {
+ public:
+  UnionType5() : specific_type_(kUnspecified) {}
+
+  explicit UnionType5(typename internal::UnionTypeTraits<T1>::ArgType arg)
+      : specific_type_(kTypeT1) {
+    new (storage_.void_data()) T1(arg);
+  }
+  explicit UnionType5(typename internal::UnionTypeTraits<T2>::ArgType arg)
+      : specific_type_(kTypeT2) {
+    new (storage_.void_data()) T2(arg);
+  }
+  explicit UnionType5(typename internal::UnionTypeTraits<T3>::ArgType arg)
+      : specific_type_(kTypeT3) {
+    new (storage_.void_data()) T3(arg);
+  }
+  explicit UnionType5(typename internal::UnionTypeTraits<T4>::ArgType arg)
+      : specific_type_(kTypeT4) {
+    new (storage_.void_data()) T4(arg);
+  }
+  explicit UnionType5(typename internal::UnionTypeTraits<T5>::ArgType arg)
+      : specific_type_(kTypeT5) {
+    new (storage_.void_data()) T5(arg);
+  }
+
+  UnionType5(const UnionType5& other) {
+    ConstructFromOther(other);
+  }
+
+  UnionType5& operator=(const UnionType5& other) {
+    if (&other != this) {
+      Destruct();
+      ConstructFromOther(other);
+    }
+    return *this;
+  }
+
+  ~UnionType5() {
+    Destruct();
+  }
+
+  // Forward these checks to the UnionTypeCheck helper class, which works around
+  // being unable to do template specializations in class scope.
+  template <typename S>
+  bool IsType() const {
+    return UnionTypeCheck<S>::IsType(this);
+  }
+  template <typename S>
+  typename internal::UnionTypeTraits<S>::ReturnType AsType() {
+    return UnionTypeCheck<S>::AsType(this);
+  }
+  template <typename S>
+  typename internal::UnionTypeTraits<S>::ConstReturnType AsType() const {
+    return UnionTypeCheck<S>::AsType(this);
+  }
+
+ private:
+  // Internal helper class for checking and getting the union's specific type.
+  // Only partial class template specializations are allowed in class scope,
+  // hence the extra dummy template variable.
+  template <typename U, bool = false>
+  class UnionTypeCheck {
+    // Attempting to query for types that are not part of the union will
+    // result in a compile-time error.
+    COMPILE_ASSERT(sizeof(U) == 0, UnsupportedType);
+  };
+
+  // Specializations of the UnionTypeCheck class for each member type of the
+  // union.
+  template <bool dummy>
+  class UnionTypeCheck<T1, dummy> {
+    static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return union_value->specific_type_ == kTypeT1;
+    }
+    static typename internal::UnionTypeTraits<T1>::ReturnType
+        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T1>());
+    }
+    static typename internal::UnionTypeTraits<T1>::ConstReturnType
+        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T1>());
+    }
+    friend class UnionType5<T1, T2, T3, T4, T5>;
+  };
+
+  template <bool dummy>
+  class UnionTypeCheck<T2, dummy> {
+    static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return union_value->specific_type_ == kTypeT2;
+    }
+    static typename internal::UnionTypeTraits<T2>::ReturnType
+        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T2>());
+    }
+    static typename internal::UnionTypeTraits<T2>::ConstReturnType
+        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T2>());
+    }
+    friend class UnionType5<T1, T2, T3, T4, T5>;
+  };
+
+  template <bool dummy>
+  class UnionTypeCheck<T3, dummy> {
+    static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return union_value->specific_type_ == kTypeT3;
+    }
+    static typename internal::UnionTypeTraits<T3>::ReturnType
+        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T3>());
+    }
+    static typename internal::UnionTypeTraits<T3>::ConstReturnType
+        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T3>());
+    }
+    friend class UnionType5<T1, T2, T3, T4, T5>;
+  };
+
+  template <bool dummy>
+  class UnionTypeCheck<T4, dummy> {
+    static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return union_value->specific_type_ == kTypeT4;
+    }
+    static typename internal::UnionTypeTraits<T4>::ReturnType
+        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T4>());
+    }
+    static typename internal::UnionTypeTraits<T4>::ConstReturnType
+        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T4>());
+    }
+    friend class UnionType5<T1, T2, T3, T4, T5>;
+  };
+
+  template <bool dummy>
+  class UnionTypeCheck<T5, dummy> {
+    static bool IsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return union_value->specific_type_ == kTypeT5;
+    }
+    static typename internal::UnionTypeTraits<T5>::ReturnType
+        AsType(UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T5>());
+    }
+    static typename internal::UnionTypeTraits<T5>::ConstReturnType
+        AsType(const UnionType5<T1, T2, T3, T4, T5>* union_value) {
+      return *(union_value->storage_.template data_as<T5>());
+    }
+    friend class UnionType5<T1, T2, T3, T4, T5>;
+  };
+
+  enum SpecificType {
+    kUnspecified = 0,
+    kTypeT1,
+    kTypeT2,
+    kTypeT3,
+    kTypeT4,
+    kTypeT5,
+  };
+
+  union StorageUnion {
+    base::AlignedMemory<sizeof(T1), ALIGNOF(T1)> t1;
+    base::AlignedMemory<sizeof(T2), ALIGNOF(T2)> t2;
+    base::AlignedMemory<sizeof(T3), ALIGNOF(T3)> t3;
+    base::AlignedMemory<sizeof(T4), ALIGNOF(T4)> t4;
+    base::AlignedMemory<sizeof(T5), ALIGNOF(T5)> t5;
+  };
+
+  void ConstructFromOther(const UnionType5& other) {
+    specific_type_ = other.specific_type_;
+    switch (specific_type_) {
+      case kTypeT1:
+        new (storage_.void_data()) T1(other.AsType<T1>());
+        break;
+      case kTypeT2:
+        new (storage_.void_data()) T2(other.AsType<T2>());
+        break;
+      case kTypeT3:
+        new (storage_.void_data()) T3(other.AsType<T3>());
+        break;
+      case kTypeT4:
+        new (storage_.void_data()) T4(other.AsType<T4>());
+        break;
+      case kTypeT5:
+        new (storage_.void_data()) T5(other.AsType<T5>());
+        break;
+      case kUnspecified:
+        // no-op
+        break;
+    }
+  }
+
+  void Destruct() {
+    switch (specific_type_) {
+      case kTypeT1:
+        storage_.template data_as<T1>()->T1::~T1();
+        break;
+      case kTypeT2:
+        storage_.template data_as<T2>()->T2::~T2();
+        break;
+      case kTypeT3:
+        storage_.template data_as<T3>()->T3::~T3();
+        break;
+      case kTypeT4:
+        storage_.template data_as<T4>()->T4::~T4();
+        break;
+      case kTypeT5:
+        storage_.template data_as<T5>()->T5::~T5();
+        break;
+      case kUnspecified:
+        // no-op
+        break;
+    }
+    specific_type_ = kUnspecified;
+  }
+
+  base::AlignedMemory<sizeof(StorageUnion), ALIGNOF(StorageUnion)> storage_;
+  SpecificType specific_type_;
+
+  // Count the number of numeric types in this union. There can be a max of one.
+  // Otherwise, the JS->Cobalt conversion is ambiguous.
+  // The spec doesn't seem to describe this limitation, but this is what Blink
+  // does.
+  static const int kNumNumericTypes =
+      (internal::UnionTypeTraits<T1>::is_numeric_type ? 1 : 0) +
+      (internal::UnionTypeTraits<T2>::is_numeric_type ? 1 : 0) +
+      (internal::UnionTypeTraits<T3>::is_numeric_type ? 1 : 0) +
+      (internal::UnionTypeTraits<T4>::is_numeric_type ? 1 : 0) +
+      (internal::UnionTypeTraits<T5>::is_numeric_type ? 1 : 0);
+  COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
+};
+
+// Needed to instantiate base::optional<UnionTypeN>
+template <typename T1, typename T2, typename T3, typename T4, typename T5>
+inline std::ostream& operator<<(
+    std::ostream& stream, const UnionType5<T1, T2, T3, T4, T5>& union_value) {
+
+  if (union_value.template IsType<T1>()) {
+    stream << union_value.template AsType<T1>();
+  } else if (union_value.template IsType<T2>()) {
+    stream << union_value.template AsType<T2>();
+  } else if (union_value.template IsType<T3>()) {
+    stream << union_value.template AsType<T3>();
+  } else if (union_value.template IsType<T4>()) {
+    stream << union_value.template AsType<T4>();
+  } else if (union_value.template IsType<T5>()) {
+    stream << union_value.template AsType<T5>();
+  } else {
+    stream << "Undefined union type.";
+  }
+
+  return stream;
+}
+
 }  // namespace script
 }  // namespace cobalt
 

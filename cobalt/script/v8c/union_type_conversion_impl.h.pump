@@ -6,7 +6,7 @@ $$ http://code.google.com/p/googletest/wiki/PumpManual
 $$
 
 $$ Maximum number of different member types in a union.
-$var MAX_MEMBERS = 4
+$var MAX_MEMBERS = 5
 // Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
