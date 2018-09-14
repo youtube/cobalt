@@ -16,12 +16,10 @@
 
 [
   Constructor,
-  // TODO: Accept DOMString blob parts in the following union.
-  Constructor(sequence<(ArrayBuffer or ArrayBufferView or DataView or Blob)> blobParts, optional BlobPropertyBag options),
+  Constructor(sequence<(ArrayBuffer or ArrayBufferView or DataView or Blob or USVString)> blobParts, optional BlobPropertyBag options),
   ConstructorCallWith=EnvironmentSettings
 ]
 interface Blob {
   readonly attribute unsigned long long size;
-  // TODO: Use for blob fetching and decoding.
   readonly attribute DOMString type;
 };
