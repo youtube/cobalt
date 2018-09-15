@@ -28,9 +28,7 @@ ScreenShotWriter::ScreenShotWriter(renderer::Pipeline* pipeline)
     : pipeline_(pipeline),
       screenshot_thread_("Screenshot IO thread") {
   DCHECK(pipeline);
-  base::Thread::Options options;
-  options.message_loop_type = MessageLoop::TYPE_IO;
-  screenshot_thread_.StartWithOptions(options);
+  screenshot_thread_.Start();
 }
 
 void ScreenShotWriter::RequestScreenshotToFile(
