@@ -68,5 +68,16 @@ std::string FetchInternal::DecodeFromUTF8(
   return std::string();
 }
 
+// static
+script::Handle<script::ArrayBuffer> FetchInternal::BlobToArrayBuffer(
+    script::EnvironmentSettings* settings,
+    const scoped_refptr<dom::Blob>& blob) {
+  dom::DOMSettings* dom_settings =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  // Create a copy of the data so that the caller cannot modify the Blob.
+  return script::ArrayBuffer::New(dom_settings->global_environment(),
+                                  blob->data(), blob->size());
+}
+
 }  // namespace fetch
 }  // namespace cobalt
