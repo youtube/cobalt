@@ -397,7 +397,8 @@
         if (results.length === 0) {
           data = new Uint8Array(0)
         } else if (results.length === 1) {
-          data = new Uint8Array(results[0])
+          // Create a view of the ArrayBuffer. No copy is made.
+          data = new Uint8Array(results[0].buffer)
         } else {
           data = new Uint8Array(resultsLength)
           for (var i = 0, len = results.length, offset = 0; i < len; i++) {
@@ -418,13 +419,16 @@
 
   // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
   function extractBody(controller, data, errorString) {
+    // Copy the incoming data. This is to prevent subsequent changes to |data|
+    // from impacting the Body's contents, and also to prevent changes to the
+    // Body's contents from impacting the original data.
     if (!data) {
     } else if (typeof data === 'string') {
       controller.enqueue(FetchInternal.encodeToUTF8(data))
     } else if (ArrayBuffer.prototype.isPrototypeOf(data)) {
-      controller.enqueue(new Uint8Array(data))
+      controller.enqueue(new Uint8Array(data.slice(0)))
     } else if (isArrayBufferView(data)) {
-      controller.enqueue(new Uint8Array(data.buffer))
+      controller.enqueue(new Uint8Array(data.buffer.slice(0)))
     } else if (data instanceof Blob) {
       controller.enqueue(new Uint8Array(FetchInternal.blobToArrayBuffer(data)))
     } else {
@@ -803,7 +807,8 @@
 
       var fetchUpdate = function(data) {
         if (!cancelled) {
-          // Data is already an Uint8Array.
+          // Data is already a Uint8Array. Enqueue a reference to this, rather
+          // than make a copy of it, since caller no longer references it.
           responseStreamController.enqueue(data)
         }
       }

@@ -49,9 +49,8 @@ class FetchInternal : public script::Wrappable {
 
   // Translate a dom Blob to ArrayBuffer.
   static script::Handle<script::ArrayBuffer> BlobToArrayBuffer(
-      const scoped_refptr<dom::Blob>& blob) {
-    return blob->array_buffer();
-  }
+      script::EnvironmentSettings* settings,
+      const scoped_refptr<dom::Blob>& blob);
 
   DEFINE_WRAPPABLE_TYPE(FetchInternal);
 };
