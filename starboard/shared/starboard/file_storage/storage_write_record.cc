@@ -19,9 +19,10 @@
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
-#warning "You are using the old SbStorageWriteRecord implementation, it does"\
-         " not guarantee automic storage record writing, please consider"\
-         " switching to the new posix/win32 implementation."
+#pragma message( \
+    "You are using the old SbStorageWriteRecord implementation, it does not"\
+    " guarantee automic storage record writing, please consider switching to"\
+    " the new posix/win32 implementation.")
 
 bool SbStorageWriteRecord(SbStorageRecord record,
                           const char* data,
