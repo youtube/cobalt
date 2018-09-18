@@ -24,6 +24,11 @@
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
       ],
       'conditions': [
+        ['clang and target_arch == "x64"', {
+          'dependencies': [
+            '<(DEPTH)/third_party/musl/musl.gyp:c'
+          ],
+        }],
         ['cobalt_enable_lib == 1', {
           'sources': [
             'lib/cobalt.def',
