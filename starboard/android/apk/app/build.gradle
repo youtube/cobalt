@@ -34,7 +34,7 @@ println "TARGET: ${cobaltTarget}"
 
 android {
     compileSdkVersion 27
-    buildToolsVersion "27.0.3"
+    buildToolsVersion "28.0.2"
 
     signingConfigs {
         // A signing config that matches what is implicitly used for the "debug" build type.
@@ -52,9 +52,6 @@ android {
         versionCode 1
         versionName "${buildId}"
         manifestPlaceholders = [applicationName: "CoAT: ${cobaltTarget}"]
-        ndk {
-            abiFilters buildAbi
-        }
         externalNativeBuild {
             cmake {
                 arguments "-DCOBALT_TARGET=${cobaltTarget}"
@@ -157,9 +154,9 @@ if (project.hasProperty('cobaltDeployApk')) {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:support-annotations:27.1.0'
-    implementation 'com.android.support:leanback-v17:27.1.0'
-    implementation 'com.android.support:support-v4:27.1.0'
-    implementation 'com.google.android.gms:play-services-auth:11.8.0'
+    implementation 'com.android.support:support-annotations:27.1.1'
+    implementation 'com.android.support:leanback-v17:27.1.1'
+    implementation 'com.android.support:support-v4:27.1.1'
+    implementation 'com.google.android.gms:play-services-auth:15.0.1'
     implementation 'com.google.protobuf:protobuf-lite:3.0.1'
 }
