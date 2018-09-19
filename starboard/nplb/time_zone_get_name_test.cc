@@ -25,6 +25,9 @@ TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
 
   ASSERT_NE(name, static_cast<const char*>(NULL));
 
+  // "UTC" is not a valid local time zone name.
+  EXPECT_NE(name, "UTC");
+
   int i = 0;
   while (name[i] != '\0') {
     ++i;
