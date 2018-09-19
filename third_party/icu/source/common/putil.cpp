@@ -630,6 +630,9 @@ uprv_tzset()
 U_CAPI int32_t U_EXPORT2
 uprv_timezone()
 {
+#if U_PLATFORM == U_STARBOARD
+  return SbTimeZoneGetCurrent() * 60;
+#else
 #ifdef U_TIMEZONE
     return U_TIMEZONE;
 #else
@@ -660,6 +663,7 @@ uprv_timezone()
         tdiff += 3600;
 #endif
     return tdiff;
+#endif
 #endif
 }
 
