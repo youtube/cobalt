@@ -90,14 +90,20 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
 }  // namespace
 
 LocalizedStrings::LocalizedStrings(const std::string& language) {
+  match_type_ = MatchType::kNoMatch;
   bool did_load_strings = LoadStrings(language);
 
-  if (!did_load_strings) {
+  if (did_load_strings) {
+    match_type_ = MatchType::kPrimaryMatch;
+  } else {
     // Failed to load strings - try generic version of the language.
     size_t dash = language.find_first_of("-_");
     if (dash != std::string::npos) {
       std::string generic_lang(language.c_str(), dash);
       did_load_strings = LoadStrings(generic_lang);
+      if (did_load_strings) {
+        match_type_ = MatchType::kSecondaryMatch;
+      }
     }
   }
 
@@ -111,6 +117,10 @@ std::string LocalizedStrings::GetString(const std::string& id,
     return fallback;
   }
   return iter->second;
+}
+
+LocalizedStrings::MatchType LocalizedStrings::GetMatchType() const {
+  return match_type_;
 }
 
 bool LocalizedStrings::LoadStrings(const std::string& language) {
