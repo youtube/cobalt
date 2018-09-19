@@ -280,6 +280,7 @@ v8.log
 /third_party/webrtc
 /third_party/webrtc/internal
 /third_party/webrtc/modules/video_coding/codecs/vp8_internal
+/third_party/winflexbison
 /third_party/wix
 /third_party/woff2
 /third_party/xdg-utils
