@@ -33,6 +33,11 @@ TEST(SbTimeZoneGetCurrentTest, IsKindOfSane) {
 
   // ... and +24 hours from the Prime Meridian, inclusive
   EXPECT_LE(zone, 24 * 60);
+
+  if (zone == 0) {
+    SB_LOG(WARNING) << "SbTimeZoneGetCurrent() returns 0. This is only correct "
+                       "if the current time zone is the same as UTC";
+  }
 }
 
 }  // namespace
