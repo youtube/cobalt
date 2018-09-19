@@ -30,11 +30,14 @@ namespace starboard {
 // Initialized from a language-specific file in a simple, CSV-style format.
 class LocalizedStrings {
  public:
+  enum MatchType { kNoMatch, kPrimaryMatch, kSecondaryMatch };
   explicit LocalizedStrings(const std::string& language);
 
   // Gets a localized string.
   std::string GetString(const std::string& id,
                         const std::string& fallback) const;
+
+  MatchType GetMatchType() const;
 
  private:
   typedef std::map<std::string, std::string> StringMap;
@@ -52,6 +55,7 @@ class LocalizedStrings {
   bool LoadSingleString(const std::string& message);
 
   StringMap strings_;
+  MatchType match_type_ = kNoMatch;
 };
 
 }  // namespace starboard
