@@ -24,7 +24,7 @@
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
       ],
       'conditions': [
-        ['clang and target_arch == "x64" and not target_os == "tvos"', {
+        ['clang and not target_os == "tvos"', {
           'dependencies': [
             '<(DEPTH)/third_party/musl/musl.gyp:c'
           ],
