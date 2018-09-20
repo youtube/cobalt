@@ -19,6 +19,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -34,6 +35,7 @@
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/blob.h"
@@ -578,6 +580,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
 
+  bool log_tts = false;
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  log_tts = CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
+#endif
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
@@ -619,7 +626,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #else
       dom::Window::kClockTypeSystemTime,
 #endif
-      splash_screen_cache_callback, system_caption_settings_);
+      splash_screen_cache_callback, system_caption_settings_, log_tts);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());

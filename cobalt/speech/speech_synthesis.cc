@@ -22,8 +22,8 @@
 namespace cobalt {
 namespace speech {
 
-SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator)
-    : paused_(false), navigator_(navigator) {
+SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator, bool log_output)
+    : log_output_(log_output), paused_(false), navigator_(navigator) {
 #if SB_HAS(SPEECH_SYNTHESIS)
   const char* kVoiceName = "Cobalt";
   std::string voice_urn(kVoiceName);
@@ -83,6 +83,9 @@ void SpeechSynthesis::DispatchErrorEvent(
 
 void SpeechSynthesis::Speak(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance) {
+  if (log_output_) {
+    LOG(INFO) << "JavaScript Text-to-speech: " << utterance->text();
+  }
   if (paused_) {
     // When the synthesis is paused, the utterance needs to be added to a queue
     // and preserved until synthesis is canceled or resumed.
