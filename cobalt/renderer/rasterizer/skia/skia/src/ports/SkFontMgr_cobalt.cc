@@ -46,11 +46,14 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   }
 
   // Only attempt to load the system font families if the system directories
-  // have been populated.
+  // have been populated and if the system font directory is not equal to the
+  // cobalt directory.
   if (system_font_config_directory != NULL &&
       *system_font_config_directory != '\0' &&
       system_font_files_directory != NULL &&
-      *system_font_files_directory != '\0') {
+      *system_font_files_directory != '\0' &&
+      (0 != SbStringCompareAll(cobalt_font_files_directory,
+                               system_font_files_directory))) {
     TRACE_EVENT0("cobalt::renderer", "LoadSystemFontFamilies");
     ParseConfigAndBuildFamilies(system_font_config_directory,
                                 system_font_files_directory,
