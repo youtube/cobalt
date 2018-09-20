@@ -16,8 +16,6 @@
 
 #include <string>
 
-#include "base/command_line.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/dom/navigator.h"
 #include "starboard/speech_synthesis.h"
 
@@ -25,7 +23,7 @@ namespace cobalt {
 namespace speech {
 
 SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator)
-    : log_output_(false), paused_(false), navigator_(navigator) {
+    : paused_(false), navigator_(navigator) {
 #if SB_HAS(SPEECH_SYNTHESIS)
   const char* kVoiceName = "Cobalt";
   std::string voice_urn(kVoiceName);
@@ -35,14 +33,6 @@ SpeechSynthesis::SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator)
   voices_.push_back(
       new SpeechSynthesisVoice(voice_urn, kVoiceName, voice_lang, false, true));
 #endif
-
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  // Check for a command-line override to log TTS outputs.
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kUseTTS)) {
-    log_output_ = true;
-  }
-#endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 }
 
 SpeechSynthesis::~SpeechSynthesis() {}
@@ -93,9 +83,6 @@ void SpeechSynthesis::DispatchErrorEvent(
 
 void SpeechSynthesis::Speak(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance) {
-  if (log_output_) {
-    LOG(INFO) << "JavaScript Text-to-speech: " << utterance->text();
-  }
   if (paused_) {
     // When the synthesis is paused, the utterance needs to be added to a queue
     // and preserved until synthesis is canceled or resumed.
