@@ -62,19 +62,24 @@ class ThreadedWebServer(object):
   def __init__(self,
                handler=MakeRequestHandlerClass(os.path.dirname(__file__))):
     _ThreadedTCPServer.allow_reuse_address = True
-    # Get the socket address for the ANY interface.  Doing it this way
-    # has it so that it will work for IPv4, and IPv6 only networks.
-    # Note that putting '::' as the hostname does not work at this time
-    # (see https://bugs.python.org/issue20215).  Instead, the following code
-    # was inspired by https://docs.python.org/2/library/socket.html.
-    for result in socket.getaddrinfo(None, 0, socket.AF_UNSPEC,
-                                     socket.SOCK_STREAM, 0, socket.AI_PASSIVE):
-      # This is (0.0.0.0, 0) or equivalent in IPv6 (could be more than 2
-      # elements).
-      socket_address = result[4]
-      break
 
-    self._server = _ThreadedTCPServer(socket_address, handler)
+    try:
+      self._server = _ThreadedTCPServer(('0.0.0.0', 8000), handler)
+    except socket.error:
+      # Get the socket address for the ANY interface.  Doing it this way
+      # has it so that it will work for IPv4, and IPv6 only networks.
+      # Note that putting '::' as the hostname does not work at this time
+      # (see https://bugs.python.org/issue20215).  Instead, the following code
+      # was inspired by https://docs.python.org/2/library/socket.html.
+      for result in socket.getaddrinfo(None, 0, socket.AF_UNSPEC,
+                                       socket.SOCK_STREAM, 0, socket.AI_PASSIVE
+                                       ):
+        # This is (0.0.0.0, 0) or equivalent in IPv6 (could be more than 2
+        # elements).
+        socket_address = result[4]
+        break
+      self._server = _ThreadedTCPServer(socket_address, handler)
+
     self._server_thread = None
 
     self._bound_port = self._server.server_address[1]
