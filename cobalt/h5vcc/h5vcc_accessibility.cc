@@ -112,10 +112,6 @@ bool H5vccAccessibility::high_contrast_text() const {
 }
 
 bool H5vccAccessibility::text_to_speech() const {
-  if (ShouldForceTextToSpeech()) {
-    // If forcing TTS, return true so that JavaScript TTS will also be enabled.
-    return true;
-  }
   SbAccessibilityTextToSpeechSettings settings;
   SbMemorySet(&settings, 0, sizeof(settings));
 
