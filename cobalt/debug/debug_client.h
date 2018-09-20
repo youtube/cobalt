@@ -65,6 +65,13 @@ class DebugClient {
   // Whether this client is currently attached to a server.
   bool IsAttached();
 
+  // Sends a command to the attached server, with a callback for the response.
+  void SendCommand(const std::string& method, const std::string& json_params,
+                   const DebugServer::CommandCallback& callback);
+
+ private:
+  friend class DebugServer;
+
   // Called by the server when it is destroyed.
   void OnDetach(const std::string& reason);
 
@@ -72,11 +79,6 @@ class DebugClient {
   void OnEvent(const std::string& method,
                const base::optional<std::string>& json_params);
 
-  // Sends a command to the attached server, with a callback for the response.
-  void SendCommand(const std::string& method, const std::string& json_params,
-                   const DebugServer::CommandCallback& callback);
-
- private:
   // No ownership. Access must be protected by |server_lock_|.
   DebugServer* server_;
 
