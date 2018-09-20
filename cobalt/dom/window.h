@@ -175,7 +175,8 @@ class Window : public EventTarget,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
       const CacheCallback& splash_screen_cache_callback = CacheCallback(),
-      const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr);
+      const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr,
+      bool log_tts=false);
 
   // Web API: Window
   //
