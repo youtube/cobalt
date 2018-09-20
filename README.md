@@ -223,11 +223,16 @@ Here's a quick and dirty guide to get to build the code on Linux.
 
          out/linux-x64x11_debug/cobalt [--url=<url>]
 
-      * If you want to use `http` instead of `https`, you must pass the
-        `--allow_http` flag to the Cobalt command-line.
       * If you want to connect to an `https` host that doesn't have a
         certificate validatable by our set of root CAs, you must pass the
         `--ignore_certificate_errors` flag to the Cobalt command-line.
+      * Cobalt requires that the HTML5 content be fetched over HTTPS and
+        enforces CSP when compiled in the "gold" configuration. However, if
+        CSP is served in other builds, Cobalt still respects it. Currently
+        Cobalt is at CSP level 2.
+      * When the HTML5 content is served with a special "h5vcc-location-src"
+        CSP directive, a navigation jail is enabled in Cobalt that cannot be
+        disabled via Cobalt options.
       * See [`cobalt/browser/switches.cc`](cobalt/browser/switches.cc) for more
         command-line options.
 
