@@ -44,7 +44,7 @@ class SpeechSynthesis : public dom::EventTarget {
   typedef script::Sequence<scoped_refptr<SpeechSynthesisVoice> >
       SpeechSynthesisVoiceSequence;
 
-  explicit SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator);
+  explicit SpeechSynthesis(const scoped_refptr<dom::Navigator>& navigator, bool log_output);
 
   // Readonly Attributes.
   bool pending() const { return !utterances_.empty(); }
@@ -75,6 +75,7 @@ class SpeechSynthesis : public dom::EventTarget {
       const scoped_refptr<SpeechSynthesisUtterance>& utterance,
       SpeechSynthesisErrorCode error_code);
 
+  bool log_output_;
   bool paused_;
   typedef std::list<scoped_refptr<SpeechSynthesisUtterance> > UtterancesList;
   UtterancesList utterances_;

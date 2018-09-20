@@ -130,7 +130,8 @@ Window::Window(
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
-    const scoped_refptr<captions::SystemCaptionSettings>& captions)
+    const scoped_refptr<captions::SystemCaptionSettings>& captions,
+    bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
     : EventTarget(kUnpackOnErrorEvents),
@@ -173,7 +174,7 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
       crypto_(new Crypto()),
-      speech_synthesis_(new speech::SpeechSynthesis(navigator_)),
+      speech_synthesis_(new speech::SpeechSynthesis(navigator_, log_tts)),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
