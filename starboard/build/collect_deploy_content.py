@@ -20,7 +20,9 @@ import argparse
 import logging
 import os
 import shutil
+import stat
 import sys
+import traceback
 
 import _env # pylint: disable=unused-import
 
@@ -40,16 +42,16 @@ def EscapePath(path):
   """Returns a path with spaces escaped."""
   return path.replace(' ', '\\ ')
 
-
 def _ClearDir(path):
   path = os.path.normpath(path)
   if not os.path.exists(path): # Works for symlinks for both *nix and Windows.
     return
   if _USE_WINDOWS_SYMLINK:
     path = os.path.abspath(path)
-    for f in os.listdir(path):
+    child_names = os.listdir(path)
+    for child_name in child_names:
       # Handle symlink vs files vs directories.
-      f = os.path.join(path, f)
+      f = os.path.join(path, child_name)
       if win_symlink.IsReparsePoint(f):
         # Only delete the symlink and not the files in the referenced
         # directory.
@@ -57,15 +59,20 @@ def _ClearDir(path):
       elif os.path.isdir(f):
         # Recursive step.
         _ClearDir(f)
+        try:
+          os.chmod(f, stat.S_IWRITE)  # Removes read only.
+          os.rmdir(f)
+        except Exception as err:
+          traceback.print_exc()
+          print("Error occured while trying to remove " + path +\
+                " because of " + str(err))
       elif os.path.isfile(f):
         os.remove(f)
       else:
         logging.info('Unknown file type %s', f)
-    try:
-      os.remove(path)
-    except Exception as err:
-      print("Error occured while trying to remove " + path +\
-            " because of " + str(err))
+    final_files = os.listdir(path)
+    if final_files:
+      print("There are still files left: " + ','.join(final_files))
   else:
     # Note that shutil.rmtree() has undocumented behavior on *nix systems
     # for subitems which are symlink directories. The symlink is deleted
