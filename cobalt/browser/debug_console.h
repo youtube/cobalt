@@ -27,6 +27,8 @@
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/dom/window.h"
 #include "googleurl/src/gurl.h"
 
@@ -52,6 +54,16 @@ class DebugConsole : public LifecycleObserver {
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
   bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
+
+  // Filters a pointer event.
+  // Returns true if the event should be passed on to other handlers,
+  // false if it was consumed within this function.
+  bool FilterPointerEvent(base::Token type, const dom::PointerEventInit& event);
+
+  // Filters a wheel event.
+  // Returns true if the event should be passed on to other handlers,
+  // false if it was consumed within this function.
+  bool FilterWheelEvent(base::Token type, const dom::WheelEventInit& event);
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // Inject an on screen keyboard input event.
