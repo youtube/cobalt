@@ -381,17 +381,29 @@ TEST_F(ScannerTest, ScansInvalidNumber) {
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }
 
-TEST_F(ScannerTest, ScansScientificNotationNumber) {
-  // Scientific notation is required by the standard but is not supported
-  // by WebKit or Blink. So we don't support it either.
+TEST_F(ScannerTest, ScansScientificNotationNumberWithNegativeExponent) {
   Scanner scanner("1e-14", &string_pool_);
 
-  ASSERT_EQ(kInvalidNumberToken,
-            yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("1", token_value_.string);
+  ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_FLOAT_EQ(0.00000000000001f, token_value_.real);
 
-  ASSERT_EQ(kIdentifierToken, yylex(&token_value_, &token_location_, &scanner));
-  ASSERT_EQ("e-14", token_value_.string);
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansScientificNotationNumberWithPositiveExponent) {
+  Scanner scanner("2.5e+6", &string_pool_);
+
+  ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(2500000, token_value_.real);
+
+  ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
+}
+
+TEST_F(ScannerTest, ScansScientificNotationNumberWithUnsignedExponent) {
+  Scanner scanner("3e5", &string_pool_);
+
+  ASSERT_EQ(kRealToken, yylex(&token_value_, &token_location_, &scanner));
+  ASSERT_EQ(300000, token_value_.real);
 
   ASSERT_EQ(kEndOfFileToken, yylex(&token_value_, &token_location_, &scanner));
 }

@@ -666,8 +666,6 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   number.begin = input_iterator_;
 
   // Negative numbers are handled in the grammar.
-  // Scientific notation is required by the standard but is not supported
-  // neither by WebKit nor Blink.
   bool dot_seen(false);
   while (true) {
     if (!IsAsciiDigit(input_iterator_[0])) {
@@ -681,7 +679,6 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
     }
     ++input_iterator_;
   }
-  number.end = input_iterator_;
 
   if (UNLIKELY(parsing_mode_ == kNthChildMode) && !dot_seen &&
       IsAsciiAlphaCaselessEqual(*input_iterator_, 'n')) {
@@ -696,16 +693,38 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
     return kNthToken;
   }
 
+  // Handle numbers in scientific notation.
+  bool is_scientific(false);
+  if (IsAsciiAlphaCaselessEqual(*input_iterator_, 'e')) {
+    // Only one exponent symbol is allowed for a number,
+    // and it must be followed by a sign and digits, or just digits.
+    int exponent_prefix = 0;
+    if ((input_iterator_[1] == '-' || input_iterator_[1] == '+') &&
+         IsAsciiDigit(input_iterator_[2])) {
+      exponent_prefix = 3;
+    }
+    if (IsAsciiDigit(input_iterator_[1])) {
+      exponent_prefix = 2;
+    }
+    if (exponent_prefix > 0) {
+      is_scientific = true;
+      input_iterator_ = input_iterator_ + exponent_prefix;
+    }
+    while (IsAsciiDigit(input_iterator_[0])) {
+      ++input_iterator_;
+    }
+  }
+
+  number.end = input_iterator_;
   char* number_end(const_cast<char*>(number.end));
   // We parse into |double| for two reasons:
   //   - C++03 doesn't have std::strtof() function;
   //   - |float|'s significand is not large enough to represent |int| precisely.
   // |number_end| is used by std::strtod() as a pure output parameter - it's
   // input value is not used. std::strtod() may parse more of the number than
-  // we expect, e.g. in the case of scientific notation or hexadecimal format.
-  // In these cases (number_end != number.end), return an invalid number token.
+  // we expect, e.g. in the case of hexadecimal format. In these cases
+  // (number_end != number.end), return an invalid number token.
   double real_as_double(std::strtod(number.begin, &number_end));
-
   if (number_end != number.end ||
       real_as_double != real_as_double ||  // n != n if and only if it's NaN.
       real_as_double == std::numeric_limits<float>::infinity() ||
@@ -740,7 +759,8 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
     return kPercentageToken;
   }
 
-  if (!dot_seen && real_as_double <= std::numeric_limits<int>::max()) {
+  if (!dot_seen && !is_scientific &&
+      real_as_double <= std::numeric_limits<int>::max()) {
     token_value->integer = static_cast<int>(real_as_double);
     return kIntegerToken;
   }
