@@ -1045,6 +1045,14 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // If the debug console is fully visible, it gets the next chance to handle
+  // pointer events.
+  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_->FilterPointerEvent(type, event)) {
+      return;
+    }
+  }
+
   trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -1063,6 +1071,14 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // If the debug console is fully visible, it gets the next chance to handle
+  // wheel events.
+  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_->FilterWheelEvent(type, event)) {
+      return;
+    }
+  }
+
   trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
