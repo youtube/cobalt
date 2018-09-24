@@ -55,17 +55,16 @@ int SetupSocket(SbSocket socket) {
   return 0;
 }
 
-// Creates a new socket and sets default parameters for it. Returns the OS error
-// code (or 0 on success).
+// Creates a new socket and sets default parameters for it.
 int CreateSocket(AddressFamily family, SbSocket* socket) {
   SbSocketAddressType type = family == ADDRESS_FAMILY_IPV6
                                  ? kSbSocketAddressTypeIpv6
                                  : kSbSocketAddressTypeIpv4;
   *socket = SbSocketCreate(type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(*socket)) {
-    auto error = SbSystemGetLastError();
-    DLOG(ERROR) << "SbSocketCreate failed with error " << error;
-    return error;
+    DLOG(ERROR) << "SbSocketCreate failed with error "
+                << SbSystemGetLastError();
+    return ERR_FAILED;
   }
 
   int error = SetupSocket(*socket);
