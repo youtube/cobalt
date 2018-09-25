@@ -2,6 +2,11 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 20
+ - **Improvements and Bug Fixes**
+  - Fix bug where Cobalt would not refresh the layout when the textContent
+    property of a DOM TextNode is modified.
+
 ## Version 19
  - **Add support for V8 JavaScript Engine**
 
