@@ -5,6 +5,7 @@
 #include "base/threading/post_task_and_reply_impl.h"
 
 #include "base/bind.h"
+#include "base/debug/leak_annotations.h"
 #include "base/location.h"
 #include "base/message_loop_proxy.h"
 
@@ -74,6 +75,11 @@ bool PostTaskAndReplyImpl::PostTaskAndReply(
     const tracked_objects::Location& from_here,
     const Closure& task,
     const Closure& reply) {
+  // As mentioned in a comment above, this code is prepared to leak in the case
+  // that the original calling message loop goes away while the task is being
+  // processed.  Therefore, explicitly recognize this possibility by allowing
+  // memory leaks here.
+  ANNOTATE_SCOPED_MEMORY_LEAK;
   PostTaskAndReplyRelay* relay =
       new PostTaskAndReplyRelay(from_here, task, reply);
   if (!PostTask(from_here, Bind(&PostTaskAndReplyRelay::Run,
