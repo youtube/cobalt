@@ -9,4 +9,5 @@ size-related-style-change-should-trigger-size-update-of-absolute-positioned-chil
 size-related-style-change-should-trigger-size-update-of-absolute-positioned-descendants
 size-related-style-change-should-trigger-size-update-of-static-descendants
 size-related-style-change-should-trigger-size-update-of-static-siblings
+text-node-text-content-mutation
 transform-style-change-should-trigger-size-update
