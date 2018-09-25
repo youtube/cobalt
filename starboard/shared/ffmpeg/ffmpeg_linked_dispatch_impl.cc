@@ -77,6 +77,7 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   INITSYMBOL(avcodec_alloc_frame);
   INITSYMBOL(avcodec_get_frame_defaults);
 #endif
+  INITSYMBOL(avcodec_align_dimensions2);
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_version);
