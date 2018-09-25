@@ -14,6 +14,7 @@
 
 #include "cobalt/dom/character_data.h"
 
+#include "cobalt/dom/document.h"
 #include "cobalt/dom/mutation_reporter.h"
 
 namespace cobalt {
@@ -26,6 +27,12 @@ void CharacterData::set_data(const std::string& data) {
   MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
   mutation_reporter.ReportCharacterDataMutation(data_);
   data_ = data;
+
+  InvalidateLayoutBoxesOfNodeAndAncestors();
+  Document* document = node_document();
+  if (document) {
+    document->OnDOMMutation();
+  }
 }
 
 }  // namespace dom
