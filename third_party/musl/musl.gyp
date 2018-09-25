@@ -19,7 +19,7 @@
           'musl_arch': 'x86_64'
         }
     }],
-    ['target_arch == "x86"', {
+    ['target_arch == "x86" or target_arch == "ia32"', {
       'variables': {
          'musl_arch': 'i386'
        }
