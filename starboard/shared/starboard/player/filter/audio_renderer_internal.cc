@@ -99,16 +99,10 @@ AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
 
   frame_buffers_[0] = &frame_buffer_[0];
 
-#if defined(NDEBUG)
-  const bool kLogFramesConsumed = false;
-#else
-  const bool kLogFramesConsumed = true;
-#endif
-  if (kLogFramesConsumed) {
-    log_frames_consumed_closure_ =
-        std::bind(&AudioRenderer::LogFramesConsumed, this);
-    Schedule(log_frames_consumed_closure_, kSbTimeSecond);
-  }
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
+           kCheckAudioSinkStatusInterval);
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
 AudioRenderer::~AudioRenderer() {
@@ -285,9 +279,10 @@ void AudioRenderer::Seek(SbTime seek_to_time) {
 
   CancelPendingJobs();
 
-  if (log_frames_consumed_closure_) {
-    Schedule(log_frames_consumed_closure_, kSbTimeSecond);
-  }
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
+           kCheckAudioSinkStatusInterval);
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
 SbTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
@@ -380,6 +375,10 @@ void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
                                     int* offset_in_frames,
                                     bool* is_playing,
                                     bool* is_eos_reached) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  sink_callbacks_since_last_check_.increment();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
   {
     ScopedTryLock lock(mutex_);
     if (lock.is_locked()) {
@@ -422,6 +421,10 @@ void AudioRenderer::ConsumeFrames(int frames_consumed
                                   SbTime frames_consumed_at
 #endif  // SB_HAS(ASYNC_AUDIO_FRAMES_REPORTING)
                                   ) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  sink_callbacks_since_last_check_.increment();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
 // Note that occasionally thread context switch may cause that the time
 // recorded here is several milliseconds later than the time |frames_consumed|
 // is recorded.  This causes the audio time to drift as much as the difference
@@ -519,19 +522,6 @@ void AudioRenderer::OnFirstOutput() {
     error_cb_();
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
   }
-}
-
-void AudioRenderer::LogFramesConsumed() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SbTimeMonotonic time_since =
-      SbTimeGetMonotonicNow() - frames_consumed_set_at_;
-  if (time_since > kSbTimeSecond) {
-    SB_DLOG(WARNING) << "|frames_consumed_| has not been updated for "
-                     << (time_since / kSbTimeSecond) << "."
-                     << ((time_since / (kSbTimeSecond / 10)) % 10)
-                     << " seconds";
-  }
-  Schedule(log_frames_consumed_closure_, kSbTimeSecond);
 }
 
 bool AudioRenderer::IsEndOfStreamPlayed_Locked() const {
@@ -718,6 +708,34 @@ bool AudioRenderer::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   return frames_appended > 0;
 }
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+void AudioRenderer::CheckAudioSinkStatus() {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  // Check if sink callbacks are called too frequently.
+  if (sink_callbacks_since_last_check_.load() > kMaxSinkCallbacksBetweenCheck) {
+    SB_LOG(WARNING) << "Sink callback has been called for "
+                    << sink_callbacks_since_last_check_.load()
+                    << " time since last check, which is too frequently.";
+  }
+
+  sink_callbacks_since_last_check_.store(0);
+
+  if (paused_ || playback_rate_ == 0.0) {
+    return;
+  }
+
+  // Check if sink has updated.
+  SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - frames_consumed_set_at_;
+  if (elapsed > kCheckAudioSinkStatusInterval) {
+    SB_DLOG(WARNING) << "|frames_consumed_| has not been updated for "
+                     << elapsed / kSbTimeSecond << " seconds.";
+  }
+  Schedule(std::bind(&AudioRenderer::CheckAudioSinkStatus, this),
+           kCheckAudioSinkStatusInterval);
+}
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
 }  // namespace filter
 }  // namespace player

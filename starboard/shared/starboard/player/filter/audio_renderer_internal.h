@@ -18,6 +18,7 @@
 #include <functional>
 #include <vector>
 
+#include "starboard/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
@@ -33,6 +34,7 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/time.h"
 #include "starboard/types.h"
 
 // Uncomment the following statement to log the media time stats with deviation
@@ -140,7 +142,6 @@ class AudioRenderer : public MediaTimeProvider,
   void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
 
   void OnFirstOutput();
-  void LogFramesConsumed();
   bool IsEndOfStreamPlayed_Locked() const;
 
   void OnDecoderConsumed();
@@ -162,7 +163,6 @@ class AudioRenderer : public MediaTimeProvider,
   uint8_t* frame_buffers_[1];
 
   int32_t pending_decoder_outputs_;
-  std::function<void()> log_frames_consumed_closure_;
 
   bool can_accept_more_data_;
   JobQueue::JobToken process_audio_data_job_token_;
@@ -194,6 +194,14 @@ class AudioRenderer : public MediaTimeProvider,
   // Set to true when there are fewer than |kFramesInBufferBeginUnderflow|
   // frames in buffer. Set to false when the queue is full or EOS.
   bool underflow_ = false;
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  static const int32_t kMaxSinkCallbacksBetweenCheck = 1024;
+  static const SbTime kCheckAudioSinkStatusInterval = kSbTimeSecond;
+  void CheckAudioSinkStatus();
+
+  atomic_int32_t sink_callbacks_since_last_check_;
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
 }  // namespace filter
