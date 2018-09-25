@@ -42,4 +42,8 @@ typedef std::function<void()> EndedCB;
 }  // namespace shared
 }  // namespace starboard
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+#define SB_PLAYER_FILTER_ENABLE_STATE_CHECK 1
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_COMMON_H_
