@@ -53,6 +53,15 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
       << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."
       << " Playback performance may not be ideal.";
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  last_buffering_state_update_ = SbTimeGetMonotonicNow();
+  last_output_ = last_buffering_state_update_;
+  last_can_accept_more_data = last_buffering_state_update_;
+  Schedule(std::bind(&VideoRenderer::CheckBufferingState, this),
+           kCheckBufferingStateInterval);
+  time_of_last_lag_warning_ = SbTimeGetMonotonicNow() - kMinLagWarningInterval;
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
 VideoRenderer::~VideoRenderer() {
@@ -98,6 +107,11 @@ void VideoRenderer::WriteSample(
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  buffering_state_ = kWaitForConsumption;
+  last_buffering_state_update_ = SbTimeGetMonotonicNow();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
   if (end_of_stream_written_.load()) {
     SB_LOG(ERROR) << "Appending video sample at " << input_buffer->timestamp()
                   << " after EOS reached.";
@@ -111,37 +125,6 @@ void VideoRenderer::WriteSample(
 
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
-
-#if ENABLE_VIDEO_FRAME_LAG_LOG
-  {
-    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-    if (!decoder_frames_.empty()) {
-      auto frame = decoder_frames_.back();
-      bool is_playing;
-      bool is_eos_played;
-      bool is_underflow;
-      SbTime media_time = media_time_provider_->GetCurrentMediaTime(
-          &is_playing, &is_eos_played, &is_underflow);
-      if (!is_eos_played) {
-        const int kMaxDiffFrameMediaTime = 2 * kSbTimeSecond;
-        const int kMinLagWarningPeriod = 10 * kSbTimeSecond;
-        SbTime frame_time = frame->timestamp();
-        SbTime diff_media_frame_time = media_time - frame_time;
-        SbTimeMonotonic monotonic_now = SbTimeGetMonotonicNow();
-        if (diff_media_frame_time > kMaxDiffFrameMediaTime &&
-            (!time_of_last_lag_warning_ ||
-             monotonic_now - time_of_last_lag_warning_.value() >=
-                 kMinLagWarningPeriod)) {
-          SB_LOG(WARNING) << "Video renderer wrote sample with frame time"
-                          << " lagging "
-                          << diff_media_frame_time * 1.0f / kSbTimeSecond
-                          << " s behind media time";
-          time_of_last_lag_warning_ = monotonic_now;
-        }
-      }
-    }
-  }
-#endif  // ENABLE_VIDEO_FRAME_LAG_LOG
 
   decoder_->WriteInputBuffer(input_buffer);
 }
@@ -192,13 +175,25 @@ void VideoRenderer::Seek(SbTime seek_to_time) {
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  buffering_state_ = kWaitForBuffer;
+  end_of_stream_decoded_.store(false);
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
 bool VideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
-  return number_of_frames_.load() <
-             static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
-         !end_of_stream_written_.load() && need_more_input_.load();
+  bool can_accept_more_data =
+      number_of_frames_.load() <
+          static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
+      !end_of_stream_written_.load() && need_more_input_.load();
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  if (can_accept_more_data) {
+    last_can_accept_more_data = SbTimeGetMonotonicNow();
+  }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  return can_accept_more_data;
 }
 
 void VideoRenderer::SetBounds(int z_index,
@@ -230,6 +225,13 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
   }
 
   if (frame) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+    last_output_ = SbTimeGetMonotonicNow();
+    if (frame->is_end_of_stream()) {
+      end_of_stream_decoded_.store(true);
+    }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
     SB_DCHECK(first_input_written_);
 
     bool frame_too_early = false;
@@ -242,6 +244,11 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
       }
     }
     if (!frame_too_early) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      if (!frame->is_end_of_stream()) {
+        CheckForFrameLag(frame->timestamp());
+      }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       ScopedLock scoped_lock(decoder_frames_mutex_);
       decoder_frames_.push_back(frame);
       number_of_frames_.increment();
@@ -254,6 +261,13 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
       Schedule(prerolled_cb_);
     }
   }
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  if (status == VideoDecoder::kNeedMoreInput) {
+    buffering_state_ = kWaitForBuffer;
+    last_buffering_state_update_ = SbTimeGetMonotonicNow();
+  }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   need_more_input_.store(status == VideoDecoder::kNeedMoreInput);
 }
@@ -290,6 +304,67 @@ void VideoRenderer::OnSeekTimeout() {
     }
   }
 }
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+void VideoRenderer::CheckBufferingState() {
+  if (end_of_stream_decoded_.load()) {
+    return;
+  }
+  auto now = SbTimeGetMonotonicNow();
+  if (!end_of_stream_written_.load()) {
+    auto elasped = now - last_buffering_state_update_;
+    if (elasped > kDelayBeforeWarning) {
+      switch (buffering_state_) {
+        case kWaitForBuffer:
+          SB_LOG(ERROR) << "Haven't received input buffer for " << elasped
+                        << " microseconds.";
+          break;
+        case kWaitForConsumption:
+          SB_LOG(ERROR) << "Haven't consumed input buffer for " << elasped
+                        << " microseconds.";
+          break;
+      }
+    }
+    elasped = now - last_can_accept_more_data;
+    SB_LOG_IF(ERROR, elasped > kDelayBeforeWarning)
+        << "Haven't ready for input for " << elasped << " microseconds. "
+        << "Frame backlog/max frames: " << number_of_frames_.load() << "/"
+        << decoder_->GetMaxNumberOfCachedFrames();
+  }
+  auto elasped = now - last_output_;
+  SB_LOG_IF(ERROR, elasped > kDelayBeforeWarning)
+      << "Haven't received any output for " << elasped << " microseconds.";
+  Schedule(std::bind(&VideoRenderer::CheckBufferingState, this),
+           kCheckBufferingStateInterval);
+}
+
+void VideoRenderer::CheckForFrameLag(SbTime last_decoded_frame_timestamp) {
+  SbTimeMonotonic now = SbTimeGetMonotonicNow();
+  // Limit check frequency to minimize call to GetCurrentMediaTime().
+  if (now - time_of_last_lag_warning_ < kMinLagWarningInterval) {
+    return;
+  }
+  time_of_last_lag_warning_ = now;
+
+  bool is_playing;
+  bool is_eos_played;
+  bool is_underflow;
+  SbTime media_time = media_time_provider_->GetCurrentMediaTime(
+      &is_playing, &is_eos_played, &is_underflow);
+  if (is_eos_played) {
+    return;
+  }
+  SbTime frame_time = last_decoded_frame_timestamp;
+  SbTime diff_media_frame_time = media_time - frame_time;
+  if (diff_media_frame_time <= kDelayBeforeWarning) {
+    return;
+  }
+  SB_LOG(WARNING) << "Video renderer wrote sample with frame time"
+                  << " lagging " << diff_media_frame_time * 1.0f / kSbTimeSecond
+                  << " s behind media time";
+}
+
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
 }  // namespace filter
 }  // namespace player
