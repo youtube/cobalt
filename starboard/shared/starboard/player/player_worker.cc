@@ -110,8 +110,8 @@ void PlayerWorker::UpdateMediaInfo(SbTime time,
 
 void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-  SB_DCHECK(!error_occurred_) << "Player state should not update after error.";
   if (error_occurred_) {
+    SB_LOG(WARNING) << "Player state is updated after an error.";
     return;
   }
 #else   // SB_HAS(PLAYER_ERROR_MESSAGE)
