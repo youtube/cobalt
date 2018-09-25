@@ -74,7 +74,32 @@
         # stand-alone libc++.
         'COBALT_MUSL_W_GLIBC_HEADERS'
       ],
+      'conditions': [
+        ['musl_arch in ["i386", "x86_64", "aarch64"]', {
+          'sources': [
+            'src/fenv/<(musl_arch)/fenv.s'
+          ],
+        }],
+        ['musl_arch == "arm"', {
+          'sources': [
+            'src/fenv/arm/fenv.c',
+            'src/fenv/arm/fenv-hf.S'
+          ],
+        }],
+        ['musl_arch == "mips"', {
+          'sources': [
+            'src/fenv/mips/fenv.Sa,'
+            'src/fenv/mips/fenv-sf.c'
+          ],
+        }]
+      ],
       'sources': [
+        'src/fenv/fegetexceptflag.c',
+        'src/fenv/feholdexcept.c',
+        'src/fenv/fesetexceptflag.c',
+        'src/fenv/fesetround.c',
+        'src/fenv/feupdateenv.c',
+        'src/fenv/__flt_rounds.c',
         'src/math/acos.c',
         'src/math/acosf.c',
         'src/math/acosh.c',
