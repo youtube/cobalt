@@ -235,6 +235,7 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_flush_buffers);
   INITSYMBOL(avcodec_, avcodec_alloc_frame);
   INITSYMBOL(avcodec_, avcodec_get_frame_defaults);
+  INITSYMBOL(avcodec_, avcodec_align_dimensions2);
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
