@@ -1,4 +1,9 @@
+   # With glibc headers, we cannot check __hwcap yet
+   # Which is fine in this case, as the XMM registers
+   # were introduced in CPUs starting in 1999.
+#ifndef COBALT_MUSL_W_GLIBC_HEADERS
 .hidden __hwcap
+#endif
 
 .global feclearexcept
 .type feclearexcept,@function
@@ -6,12 +11,14 @@ feclearexcept:
 	mov 4(%esp),%ecx
 	and $0x3f,%ecx
 	fnstsw %ax
+#ifndef COBALT_MUSL_W_GLIBC_HEADERS
 		# consider sse fenv as well if the cpu has XMM capability
 	call 1f
 1:	addl $__hwcap-1b,(%esp)
 	pop %edx
 	testl $0x02000000,(%edx)
 	jz 2f
+#endif
 		# maintain exceptions in the sse mxcsr, clear x87 exceptions
 	test %eax,%ecx
 	jz 1f
@@ -70,12 +77,14 @@ __fesetround:
 	andb $0xf3,1(%esp)
 	or %ch,1(%esp)
 	fldcw (%esp)
+#ifndef COBALT_MUSL_W_GLIBC_HEADERS
 		# consider sse fenv as well if the cpu has XMM capability
 	call 1f
 1:	addl $__hwcap-1b,(%esp)
 	pop %edx
 	testl $0x02000000,(%edx)
 	jz 1f
+#endif
 	stmxcsr (%esp)
 	shl $3,%ch
 	andb $0x9f,1(%esp)
@@ -99,12 +108,14 @@ fegetenv:
 	mov 4(%esp),%ecx
 	xor %eax,%eax
 	fnstenv (%ecx)
+#ifndef COBALT_MUSL_W_GLIBC_HEADERS
 		# consider sse fenv as well if the cpu has XMM capability
 	call 1f
 1:	addl $__hwcap-1b,(%esp)
 	pop %edx
 	testl $0x02000000,(%edx)
 	jz 1f
+#endif
 	push %eax
 	stmxcsr (%esp)
 	pop %edx
@@ -132,11 +143,15 @@ fesetenv:
 	fldenv (%esp)
 	add $28,%esp
 		# consider sse fenv as well if the cpu has XMM capability
+#ifdef COBALT_MUSL_W_GLIBC_HEADERS
+2:
+#else
 2:	call 1f
 1:	addl $__hwcap-1b,(%esp)
 	pop %edx
 	testl $0x02000000,(%edx)
 	jz 1f
+#endif
 		# mxcsr := same rounding mode, cleared exceptions, default mask
 	and $0xc00,%ecx
 	shl $3,%ecx
@@ -152,11 +167,13 @@ fetestexcept:
 	and $0x3f,%ecx
 	fnstsw %ax
 		# consider sse fenv as well if the cpu has XMM capability
+#ifndef COBALT_MUSL_W_GLIBC_HEADERS
 	call 1f
 1:	addl $__hwcap-1b,(%esp)
 	pop %edx
 	testl $0x02000000,(%edx)
 	jz 1f
+#endif
 	stmxcsr 4(%esp)
 	or 4(%esp),%eax
 1:	and %ecx,%eax
