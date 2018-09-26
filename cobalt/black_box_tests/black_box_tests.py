@@ -58,9 +58,12 @@ class BlackBoxTestCase(unittest.TestCase):
   def tearDownClass(cls):
     print('Done ' + cls.__name__)
 
-  def CreateCobaltRunner(self, url, target_params=None):
+  def CreateCobaltRunner(self, url, target_params=[]):
+    all_target_params = target_params
+    if _device_params.target_params is not None:
+      all_target_params += _device_params.target_params
     new_runner = black_box_cobalt_runner.BlackBoxCobaltRunner(
-        device_params=_device_params, url=url, target_params=target_params)
+        device_params=_device_params, url=url, target_params=all_target_params)
     return new_runner
 
 
@@ -97,11 +100,13 @@ class BlackBoxTests(object):
   def Run(self):
     logging.basicConfig(level=logging.DEBUG)
     GetDeviceParams()
+
     if self.test_name:
       suite = unittest.TestLoader().loadTestsFromModule(
           importlib.import_module(_TEST_DIR_PATH + self.test_name))
     else:
-      suite = LoadTests(_device_params.platform, _device_params.config, _device_params.device_id)
+      suite = LoadTests(_device_params.platform, _device_params.config,
+                        _device_params.device_id)
     return_code = not unittest.TextTestRunner(
         verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
     return return_code
