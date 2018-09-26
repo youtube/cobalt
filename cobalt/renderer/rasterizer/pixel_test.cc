@@ -1103,6 +1103,17 @@ TEST_F(PixelTest, RedTextIn500PtFont) {
                                        ColorRGBA(1.0f, 0, 0, 1.0)));
 }
 
+TEST_F(PixelTest, TooManyGlyphs) {
+  // Overflow the glyph atlas to force path rendering.
+  CompositionNode::Builder builder;
+  for (char ch = 33; ch < 127; ++ch) {
+    builder.AddChild(CreateTextNodeWithinSurface(
+        GetResourceProvider(), std::string(1, ch), FontStyle(), 500,
+        ColorRGBA(0, 0, 0, 0.1)));
+  }
+  TestTree(new CompositionNode(builder));
+}
+
 TEST_F(PixelTest, ShearedText) {
   TestTree(new MatrixTransformNode(
       CreateTextNodeWithinSurface(GetResourceProvider(), "Cobalt", FontStyle(),
