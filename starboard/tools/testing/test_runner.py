@@ -91,8 +91,12 @@ class TestLineReader(object):
       if line:
         # Normalize line endings to unix.
         line = line.replace("\r", "")
-        sys.stdout.write(line)
-        sys.stdout.flush()
+        try:
+          sys.stdout.write(line)
+          sys.stdout.flush()
+        except IOError as err:
+          self.output_lines.write("error: " + str(err) + '\n')
+          return
       else:
         break
       self.output_lines.write(line)
