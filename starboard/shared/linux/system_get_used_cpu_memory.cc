@@ -26,68 +26,54 @@
 #include "starboard/string.h"
 
 // We find the current amount of used memory on Linux by opening
-// '/proc/self/status' and scan the file for its "VmRSS" entry.  Essentially,
-// we need to parse a buffer that has the following format:
+// '/proc/self/status' and scan the file for its "VmRSS" and "VmSwap" entries.
+// Essentially, we need to parse a buffer that has the following format:
 //
 // xxxxxx:       45327 kB
 // yyyyyy:          23 kB
 // VmRSS:        87432 kB
 // zzzzzz:        3213 kB
+// VmSwap:          15 kB
 // ...
 //
-// And here, we would want to return the value 87432 * 1024.
+// And here, we would want to return the value 87432 * 1024 + 15 * 1024 (i.e.
+// (VmRSS + VmSwap) * 1024).
 // See http://man7.org/linux/man-pages/man5/proc.5.html for more details.
 
-// Searches for the value of VmRSS and returns it.  Will modify |buffer| in
-// order to do so quickly and easily.
-int64_t SearchForVmRSSValue(char* buffer, size_t length) {
-  // Search for the string ""VmRSS:".
-  const char kSearchString[] = "\nVmRSS:";
-  enum State {
-    // We are currently searching for kSearchString
-    kSearchingForSearchString,
-    // We found the search string and are advancing through spaces/tabs until
-    // we see a number.
-    kAdvancingSpacesToNumber,
-    // We found the number and are now searching for the end of it.
-    kFindingEndOfNumber,
-  };
-  State state = kSearchingForSearchString;
-  const char* number_start = NULL;
-  for (size_t i = 0; i < length - sizeof(kSearchString); ++i) {
-    if (state == kSearchingForSearchString) {
-      if (SbStringCompare(&buffer[i], kSearchString,
-                          sizeof(kSearchString) - 1) == 0) {
-        // Advance until we find a number.
-        state = kAdvancingSpacesToNumber;
-        i += sizeof(kSearchString) - 2;
-      }
-    } else if (state == kAdvancingSpacesToNumber) {
-      if (buffer[i] >= '0' && buffer[i] <= '9') {
-        // We found the start of the number, record where that is and then
-        // continue searching for the end of the number.
-        number_start = &buffer[i];
-        state = kFindingEndOfNumber;
-      }
-    } else {
-      SB_DCHECK(state == kFindingEndOfNumber);
-      if (buffer[i] < '0' || buffer[i] > '9') {
-        // Drop a null at the end of the number so that we can call atoi() on
-        // it and return.
-        buffer[i] = '\0';
-        return SbStringAToI(number_start);
-      }
-    }
+// Searches for a specific value we're interested in and return it.  Will
+// modify |buffer| in order to do so quickly and easily.  Returns the memory
+// value in bytes (not kilobytes as it is presented in /proc/self/status).
+int64_t SearchForMemoryValue(
+    const char* search_key, const char* buffer) {
+  const char* found = SbStringFindString(buffer, search_key);
+  if (!found) {
+    SB_LOG(ERROR) << "Could not find '" << search_key << "' in "
+                  << "/proc/self/status.";
+    return 0;
   }
 
-  SB_LOG(ERROR) << "Could not find 'VmRSS:' in /proc/self/status.";
-  return 0;
+  while (*found != '\0' && (*found < '0' || *found > '9')) {
+    ++found;
+  }
+
+  if (*found == '\0') {
+    SB_LOG(ERROR) << "Unexpected end of string when searching for '"
+                  << search_key << "' in /proc/self/status.";
+    return 0;
+  }
+
+  // Convert the number string into an integer.
+  int64_t memory_value_in_kilobytes = 0;
+  while (*found >= '0' && *found <= '9') {
+    memory_value_in_kilobytes = memory_value_in_kilobytes * 10 + (*found - '0');
+    ++found;
+  }
+
+  return memory_value_in_kilobytes * 1024;
 }
 
 int64_t SbSystemGetUsedCPUMemory() {
   // Read our process' current physical memory usage from /proc/self/status.
-  // This requires a bit of parsing through the output to find the value for
-  // the "VmRSS" field which indicates used physical memory.
   starboard::ScopedFile status_file("/proc/self/status",
                                     kSbFileOpenOnly | kSbFileRead);
   if (!status_file.IsValid()) {
@@ -100,19 +86,15 @@ int64_t SbSystemGetUsedCPUMemory() {
   // Read the entire file into memory.
   const int kBufferSize = 2048;
   char buffer[kBufferSize];
-  int remaining = kBufferSize;
-  char* output_pointer = buffer;
-  do {
-    int result = status_file.Read(output_pointer, remaining);
-    if (result <= 0)
-      break;
+  int bytes_read = status_file.ReadAll(buffer, kBufferSize);
 
-    remaining -= result;
-    output_pointer += result;
-  } while (remaining);
+  // Ensure that this is a null-terminated string.
+  if (bytes_read == kBufferSize) {
+    bytes_read = kBufferSize - 1;
+  }
+  buffer[bytes_read] = '\0';
 
   // Return the result, multiplied by 1024 because it is given in kilobytes.
-  return SearchForVmRSSValue(buffer,
-                             static_cast<size_t>(output_pointer - buffer)) *
-         1024;
+  return SearchForMemoryValue("VmRSS", buffer) +
+         SearchForMemoryValue("VmSwap", buffer);
 }
