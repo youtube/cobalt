@@ -70,6 +70,7 @@ class CobaltRunner(object):
     device_id = None
     config = None
     out_directory = None
+    target_params = None
 
   class WindowDriverCreatedTimeoutException(Exception):
     """Exception thrown when WindowDriver was not created in time."""
@@ -93,9 +94,9 @@ class CobaltRunner(object):
       url:              The intial URL to launch Cobalt on.
       log_file:         The log file's name string.
       target_params:    An array of command line arguments to launch Cobalt
-      with.
+        with.
       success_message:  Optional success message to be printed on successful
-      exit.
+        exit.
     """
 
     self.test_script_started = threading.Event()
@@ -309,6 +310,7 @@ class CobaltRunner(object):
 
     Args:
       cval_name: Name of the cval.
+
     Returns:
       Python object represented by the JSON cval string
     """
@@ -329,6 +331,7 @@ class CobaltRunner(object):
     Args:
       css_selector: A CSS selector
       expected_num: The expected number of the selector type to be found.
+
     Raises:
       Underlying WebDriver exceptions
     """
@@ -344,6 +347,7 @@ class CobaltRunner(object):
 
     Args:
       unique_selector: A CSS selector that will select only one element
+
     Raises:
       AssertException: the element isn't unique
     Returns:
@@ -356,6 +360,7 @@ class CobaltRunner(object):
 
     Args:
       css_selector: A CSS selector
+
     Raises:
       AssertException: the element isn't found
     """
@@ -371,6 +376,7 @@ class CobaltRunner(object):
     Args:
       css_selector: A CSS selector
       expected_num: Expected number of matching elements
+
     Raises:
       AssertException: expected_num isn't met
     Returns:
@@ -413,6 +419,7 @@ class CobaltRunner(object):
 
     Args:
       url:  URL string to be loaded by Cobalt.
+
     Raises:
       Underlying WebDriver exceptions
     """
@@ -441,5 +448,9 @@ def GetDeviceParamsFromCommandLine():
   device_params.config = args.config
   device_params.device_id = args.device_id
   device_params.out_directory = args.out_directory
+  if args.target_params == None:
+    device_params.target_params = []
+  else:
+    device_params.target_params = [args.target_params]
 
   return device_params
