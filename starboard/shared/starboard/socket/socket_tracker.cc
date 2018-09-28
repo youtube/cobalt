@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/socket/socket_tracker.h"
 
 #include <sstream>
+#include <utility>
 
 #include "starboard/log.h"
 
@@ -45,7 +46,9 @@ void SocketTracker::OnCreate(SbSocket socket,
 void SocketTracker::OnDestroy(SbSocket socket) {
   ScopedLock scoped_lock(mutex_);
   auto iter = sockets_.find(socket);
-  SB_DCHECK(iter != sockets_.end());
+  if (iter == sockets_.end()) {
+    return;
+  }
   sockets_.erase(iter);
 }
 
@@ -185,6 +188,21 @@ std::string SocketTracker::ConvertToString_Locked(
   return ss.str();
 }
 
+std::multimap<SbTimeMonotonic, SbSocket>
+SocketTracker::ComputeIdleTimePerSocketForWaiter(SbSocketWaiter waiter) {
+  std::multimap<SbTimeMonotonic, SbSocket> idle_times_to_sockets;
+  for (auto it = sockets_.begin(); it != sockets_.end(); ++it) {
+    if ((SbSocketWaiterIsValid(it->second.waiter) &&
+         it->second.waiter != waiter) ||
+        it->second.state == kListened) {
+      continue;
+    }
+    SbTimeMonotonic time_idle = ComputeTimeIdle(it->second);
+    idle_times_to_sockets.insert(std::make_pair(time_idle, it->first));
+  }
+  return idle_times_to_sockets;
+}
+
 std::string SocketTracker::ConvertToString_Locked(
     const SocketRecord& record) const {
   mutex_.DCheckAcquired();
@@ -209,10 +227,14 @@ std::string SocketTracker::ConvertToString_Locked(
       ss << ", listen called,";
       break;
   }
-  ss << " has been idle for "
-     << (SbTimeGetMonotonicNow() - record.last_activity) / kSbTimeSecond
+  ss << " has been idle for " << ComputeTimeIdle(record) * 1.0f / kSbTimeSecond
      << " seconds";
   return ss.str();
+}
+
+// static
+SbTimeMonotonic SocketTracker::ComputeTimeIdle(const SocketRecord& record) {
+  return SbTimeGetMonotonicNow() - record.last_activity;
 }
 
 }  // namespace socket
