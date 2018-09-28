@@ -82,6 +82,8 @@ class SocketTracker {
   State GetState(SbSocket socket);
 
   void LogTrackedSockets();
+  std::multimap<SbTimeMonotonic, SbSocket> ComputeIdleTimePerSocketForWaiter(
+      SbSocketWaiter waiter);
 
  private:
   struct SocketRecord {
@@ -96,6 +98,7 @@ class SocketTracker {
 
   std::string ConvertToString_Locked(SbSocketAddress address) const;
   std::string ConvertToString_Locked(const SocketRecord& record) const;
+  static SbTimeMonotonic ComputeTimeIdle(const SocketRecord& record);
 
   Mutex mutex_;
   std::map<SbSocket, SocketRecord> sockets_;
