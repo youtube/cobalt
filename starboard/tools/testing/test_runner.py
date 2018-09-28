@@ -32,11 +32,11 @@ from starboard.tools import command_line
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
 
-_TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
+_TOTAL_TESTS_REGEX = (r"^\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
-_TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
-_TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
-_SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
+_TESTS_PASSED_REGEX = r"^\[  PASSED  \] (.*) tests?"
+_TESTS_FAILED_REGEX = r"^\[  FAILED  \] (.*) tests?, listed below:"
+_SINGLE_TEST_FAILED_REGEX = r"^\[  FAILED  \] (.*)"
 
 
 def _FilterTests(target_list, filters, config_name):
@@ -367,16 +367,20 @@ class TestRunner(object):
     failed_count = 0
     failed_tests = []
 
+    total_test_prog = re.compile(_TOTAL_TESTS_REGEX)
+    tests_passed_prog = re.compile(_TESTS_PASSED_REGEX)
+    tests_failed_prog = re.compile(_TESTS_FAILED_REGEX)
+
     for idx, line in enumerate(results):
-      total_tests_match = re.search(_TOTAL_TESTS_REGEX, line)
+      total_tests_match = total_test_prog.search(line)
       if total_tests_match:
         total_count = int(total_tests_match.group(1))
 
-      passed_match = re.search(_TESTS_PASSED_REGEX, line)
+      passed_match = tests_passed_prog.search(line)
       if passed_match:
         passed_count = int(passed_match.group(1))
 
-      failed_match = re.search(_TESTS_FAILED_REGEX, line)
+      failed_match = tests_failed_prog.search(line)
       if failed_match:
         failed_count = int(failed_match.group(1))
         # Descriptions of all failed tests appear after this line
