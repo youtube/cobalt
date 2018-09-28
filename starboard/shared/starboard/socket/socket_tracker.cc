@@ -126,6 +126,14 @@ bool SocketTracker::IsSocketTracked(SbSocket socket) {
   return iter != sockets_.end();
 }
 
+const optional<SbSocketAddress>& SocketTracker::GetLocalAddress(
+    SbSocket socket) const {
+  ScopedLock scoped_lock(mutex_);
+  auto iter = sockets_.find(socket);
+  SB_DCHECK(iter != sockets_.end());
+  return iter->second.local_address;
+}
+
 void SocketTracker::OnListen(SbSocket socket) {
   ScopedLock scoped_lock(mutex_);
   auto iter = sockets_.find(socket);
