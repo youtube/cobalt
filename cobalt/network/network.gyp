@@ -27,6 +27,7 @@
         'socket_address_parser.h',
         'cookie_jar_impl.cc',
         'cookie_jar_impl.h',
+        'job_factory_config.h',
         'net_poster.cc',
         'net_poster.h',
         'local_network.cc',

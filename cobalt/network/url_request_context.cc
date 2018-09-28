@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/threading/worker_pool.h"
+#include "cobalt/network/job_factory_config.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
 #include "cobalt/network/proxy_config_service.h"
@@ -115,7 +116,14 @@ URLRequestContext::URLRequestContext(storage::StorageManager* storage_manager,
   cache->set_mode(net::HttpCache::DISABLE);
   storage_.set_http_transaction_factory(cache);
 
-  storage_.set_job_factory(new net::URLRequestJobFactoryImpl());
+  std::unique_ptr<net::URLRequestJobFactory> job_factory(
+      new net::URLRequestJobFactoryImpl());
+
+#if defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
+  ConfigureRequestJobFactory(job_factory.get());
+#endif  // defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
+
+  storage_.set_job_factory(job_factory.release());
 }
 
 URLRequestContext::~URLRequestContext() {}
