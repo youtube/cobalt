@@ -69,6 +69,7 @@ class SocketTracker {
   void OnSendTo(SbSocket socket, const SbSocketAddress* destination);
   void OnResolve(const char* hostname, const SbSocketResolution& resolution);
   bool IsSocketTracked(SbSocket socket);
+  const optional<SbSocketAddress>& GetLocalAddress(SbSocket socket) const;
   void OnListen(SbSocket socket);
   void OnAddWaiter(SbSocket socket, SbSocketWaiter waiter);
   void OnRemoveWaiter(SbSocket socket, SbSocketWaiter waiter);
