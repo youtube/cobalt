@@ -1141,6 +1141,8 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
   on_error_triggered_count_++;
 #endif
 
+  LOG(INFO) << "Network error: " << error;
+
   // Set |pending_navigate_url_| to the url where the error occurred. This will
   // cause the OnError callback to Navigate() to this URL if it receives a
   // positive response; otherwise, if Cobalt is currently preloaded or
