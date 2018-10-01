@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 
+#if !defined(COBALT)
 OFStreamBase::OFStreamBase(FILE* f) : f_(f) {}
 
 
@@ -42,6 +43,9 @@ OFStream::OFStream(FILE* f) : std::ostream(nullptr), buf_(f) {
   DCHECK_NOT_NULL(f);
   rdbuf(&buf_);
 }
+#else
+OFStream::OFStream(FILE* f) : std::ostream(nullptr) {}
+#endif  // !defined(COBALT)
 
 
 OFStream::~OFStream() {}
