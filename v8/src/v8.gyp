@@ -37,16 +37,13 @@
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
 
-    'v8_use_snapshot': 0,
+    'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
     'v8_optimized_debug': 0,
     'v8_use_external_startup_data': 0,
     # TODO: Enable i18n support.
     'v8_enable_i18n_support': 0,
   },
   'target_defaults': {
-    'defines': [
-      'V8_OS_STARBOARD=1',
-    ],
     'msvs_disabled_warnings': [4267, 4312, 4351, 4355, 4800, 4838],
     'conditions': [
       ['cobalt_config == "debug"', {
@@ -181,6 +178,11 @@
           'toolsets': ['target'],
         }],
       ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }],
+      ],
     },
     {
       'target_name': 'v8_initializers',
@@ -312,6 +314,11 @@
           ],
         }],
       ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }],
+      ],
     },
     {
       'target_name': 'v8_snapshot',
@@ -426,7 +433,12 @@
             'BUILDING_V8_SHARED',
           ],
         }],
-      ]
+      ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }],
+      ],
     },
     {
       'target_name': 'v8_external_snapshot',
@@ -1893,6 +1905,17 @@
           ],
         }],
       ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }, {
+          'conditions': [
+            ['v8_target_arch=="x64" and host_os=="linux"', {
+              'sources': ['trap-handler/handler-inside.cc']
+            }],
+          ],
+        }],
+      ],
     },
     {
       'target_name': 'v8_libbase',
@@ -1975,6 +1998,9 @@
             'src/common/android/include',
           ],
         }],
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }],
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -2010,9 +2036,49 @@
           }
         ],
         ['OS=="starboard"', {
-          'sources': [
-            'base/debug/stack_trace_starboard.cc',
-            'base/platform/platform-starboard.cc',
+          'target_conditions': [
+            ['_toolset=="host"', {
+              # if _toolset="host", we use the native host build which does not
+              # involve Starboard at all.
+              'target_conditions': [
+                ['host_os=="linux"', {
+                  'ldflags_host': [
+                    '-ldl',
+                    '-lrt'
+                  ],
+                  'sources': [
+                    'base/debug/stack_trace_posix.cc',
+                    'base/platform/platform-linux.cc',
+                    'base/platform/platform-posix.h',
+                    'base/platform/platform-posix.cc',
+                    'base/platform/platform-posix-time.h',
+                    'base/platform/platform-posix-time.cc',
+                  ],
+                }],
+                ['host_os=="win"', {
+                  # Most of the following codes are copied from 'OS="win"'
+                  # section.
+                  'defines': [
+                    '_CRT_RAND_S'  # for rand_s()
+                  ],
+                  'variables': {
+                    'gyp_generators': '<!(echo $GYP_GENERATORS)',
+                  },
+                  'sources': [
+                    'base/debug/stack_trace_win.cc',
+                    'base/platform/platform-win32.cc',
+                    'base/win32-headers.h',
+                  ],
+                  'msvs_disabled_warnings': [4351, 4355, 4800],
+                }],
+              ],
+            }, {
+              # If _toolset=="target", build with target platform's Starboard.
+              'sources': [
+                'base/debug/stack_trace_starboard.cc',
+                'base/platform/platform-starboard.cc',
+              ],
+            }],
           ],
         }],
         ['OS=="android"', {
@@ -2282,6 +2348,11 @@
           'defines': [ 'BUILDING_V8_PLATFORM_SHARED' ],
         }]
       ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }],
+      ],
       'direct_dependent_settings': {
         'include_dirs': [
           '../include',
@@ -2310,6 +2381,11 @@
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
+        }],
+      ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
         }],
       ],
       'direct_dependent_settings': {
@@ -2373,7 +2449,12 @@
         }, {
           'toolsets': ['target'],
         }],
-      ]
+      ],
+      'target_conditions': [
+        ['_toolset=="target"', {
+          'defines': ['V8_OS_STARBOARD=1'],
+        }],
+      ],
     },
     {
       'target_name': 'js2c',
