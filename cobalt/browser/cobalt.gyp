@@ -24,7 +24,7 @@
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
       ],
       'conditions': [
-        ['clang and target_os not in ["tvos", "orbis"]', {
+        ['clang and target_os not in ["tvos", "android", "orbis"]', {
           'dependencies': [
             '<(DEPTH)/third_party/musl/musl.gyp:c'
           ],
