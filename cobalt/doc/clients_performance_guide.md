@@ -5,7 +5,7 @@ that when employed will result in improved performance of Cobalt client apps.
 
 [TOC]
 
-### Avoid large opacity animations of DOM subtrees.
+## Avoid large opacity animations of DOM subtrees.
 
 Be careful when applying the CSS opacity property to DOM subtrees.  When
 applying opacity to a DOM leaf node, the renderer can usually easily render the
@@ -16,15 +16,67 @@ offscreen surface, render to that surface *without* opacity, and then finally
 render the offscreen surface onto the onscreen surface *with* the set opacity
 applied.
 
-For example, when following this method on a subtree of 3 cascading rectangles,
+For some examples, suppose we have the following CSS:
+
+```
+<head>
+  <style>
+    .rectangle {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+    }
+    .red {
+      background-color: red;
+    }
+    .green {
+      background-color: green;
+      transform: translate(25px, 25px);
+    }
+    .blue {
+      background-color: blue;
+      transform: translate(50px, 50px);
+    }
+    .half-opacity {
+      opacity: 0.5;
+    }
+  </style>
+</head>
+```
+
+Then when applying opacity to a subtree of 3 cascading rectangles,
+```
+<body>
+  <div class="half-opacity">
+    <div class="rectangle red"></div>
+    <div class="rectangle green"></div>
+    <div class="rectangle blue"></div>
+  </div>
+</body>
+```
 the results will look like this:
 
 ![Opacity applied to subtree](resources/clients_performance_guide/opacity_on_subtree.png)
 
-For comparison, this is what it would look like if the opacity was applied
-individually to each leaf node:
+which requires the browser to produce an offscreen surface the size of all three
+rectangles, which can be expensive for performance and memory.
+
+For comparison, when opacity is applied to leaf nodes individually,
+```
+<body>
+  <div>
+    <div class="rectangle red half-opacity"></div>
+    <div class="rectangle green half-opacity"></div>
+    <div class="rectangle blue half-opacity"></div>
+  </div>
+</body>
+```
+the results will look like this:
 
 ![Opacity to each element of subtree](resources/clients_performance_guide/opacity_on_individuals.png)
+
+which is less expensive because each rectangle can be rendered directly with
+the specified opacity value.
 
 The problem in the first case where opacity is applied to the subtree is that
 switching render targets to and from an offscreen surface is time consuming
@@ -34,7 +86,7 @@ possible that Cobalt may cache the result, it is not guaranteed, and may not be
 possible if the subtree is being animated.  Additionally, the offscreen surface
 will of course consume memory that wouldn't have been required otherwise.
 
-#### Similar situations
+### Similar situations
 
 While opacity tends to be the most common instigator of the behavior described
 above, there are other situations that can trigger offscreen surface usage.
@@ -44,7 +96,7 @@ They are:
    `transform: rotate(...)`)
  - Setting `overflow: hideen` on a subtree parent element with rounded corners.
 
-### Explicitly set Image `src` attributes to `''` when finished with them.
+## Explicitly set Image `src` attributes to `''` when finished with them.
 
 Cobalt maintains an image cache with a preset capacity (e.g. default of 32MB on
 platforms with 1080p UIs, but it can be customized).  When an image goes out
