@@ -868,6 +868,7 @@ void Application::OnNetworkEvent(const base::Event* event) {
   const network::NetworkEvent* network_event =
       base::polymorphic_downcast<const network::NetworkEvent*>(event);
   if (network_event->type() == network::NetworkEvent::kDisconnection) {
+    LOG(INFO) << "Detected a network disconnection.";
     network_status_ = kDisconnectedNetworkStatus;
     ++network_disconnect_count_;
     browser_module_->Navigate(GURL("h5vcc://network-failure"));
