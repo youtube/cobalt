@@ -165,8 +165,6 @@ class V8_BASE_EXPORT RecursiveMutex final {
 #elif V8_OS_WIN
   typedef CRITICAL_SECTION NativeHandle;
 #elif V8_OS_STARBOARD
-  // TODO: Implement recursive mutex with a hand rolled recursive mutex built
-  // out of SbMutex instead.
   typedef starboard::RecursiveMutex NativeHandle;
 #endif
 

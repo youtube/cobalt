@@ -13,7 +13,9 @@
 #include "src/flags.h"
 #include "src/globals.h"
 
+#if V8_OS_STARBOARD
 #include "starboard/log.h"
+#endif  //V8_OS_STARBOARD
 
 #if V8_OS_LINUX
 #include <ucontext.h>
@@ -74,7 +76,7 @@ inline bool IsTrapHandlerEnabled() {
   return FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED;
 }
 
-#if defined(STARBOARD)
+#if defined(V8_OS_STARBOARD)
 inline bool IsThreadInWasm() {
   SB_NOTREACHED();
   return false;
@@ -85,7 +87,6 @@ inline void ClearThreadInWasm() { SB_NOTREACHED(); }
 extern THREAD_LOCAL int g_thread_in_wasm_code;
 
 inline bool IsThreadInWasm() {
-  SB_NOTIMPLEMENTED();
   return g_thread_in_wasm_code;
 }
 
@@ -102,7 +103,7 @@ inline void ClearThreadInWasm() {
     g_thread_in_wasm_code = false;
   }
 }
-#endif
+#endif  // V8_OS_STARBOARD
 
 bool RegisterDefaultSignalHandler();
 V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
