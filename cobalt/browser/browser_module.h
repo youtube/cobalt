@@ -150,7 +150,8 @@ class BrowserModule {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugServer* GetDebugServer();
+  scoped_ptr<debug::DebugClient> CreateDebugClient(
+      debug::DebugClient::Delegate* delegate);
   void GetDebugServerInternal(debug::DebugServer** out_debug_server);
 #endif  // ENABLE_DEBUG_CONSOLE
 

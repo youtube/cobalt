@@ -527,7 +527,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   }
   options.storage_manager_options.savegame_options.id = partition_key;
 
-
   base::optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
   if (command_line->HasSwitch(
@@ -710,7 +709,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   int remote_debugging_port = GetRemoteDebuggingPort();
   debug_web_server_.reset(new debug::DebugWebServer(
       remote_debugging_port,
-      base::Bind(&BrowserModule::GetDebugServer,
+      base::Bind(&BrowserModule::CreateDebugClient,
                  base::Unretained(browser_module_.get()))));
 #endif  // ENABLE_REMOTE_DEBUGGING
 
