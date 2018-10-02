@@ -189,8 +189,8 @@ MessageLog.prototype.displayMessages = function() {
   }
 }
 
-MessageLog.prototype.pageUp = function() {
-  this.displayPos += this.SCROLL_SIZE;
+MessageLog.prototype.scrollUp = function(size) {
+  this.displayPos += size;
   var max = this.buffer.size - this.DISPLAY_AT_HEAD;
   if (this.displayPos > max) {
     this.displayPos = max;
@@ -198,12 +198,20 @@ MessageLog.prototype.pageUp = function() {
   this.displayMessages();
 }
 
-MessageLog.prototype.pageDown = function() {
-  this.displayPos -= this.SCROLL_SIZE;
+MessageLog.prototype.scrollDown = function(size) {
+  this.displayPos -= size;
   if (this.displayPos < 0) {
     this.displayPos = 0;
   }
   this.displayMessages();
+}
+
+MessageLog.prototype.pageUp = function() {
+  this.scrollUp(this.SCROLL_SIZE);
+}
+
+MessageLog.prototype.pageDown = function() {
+  this.scrollDown(this.SCROLL_SIZE);
 }
 
 MessageLog.prototype.toHead = function() {

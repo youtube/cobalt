@@ -23,10 +23,10 @@ namespace cobalt {
 namespace browser {
 namespace {
 
-// Name of the channel to listen for trace commands from the debug console.
-const char kTraceCommandChannel[] = "trace";
+// Name of the trace command from the debug console.
+const char kTraceCommand[] = "trace";
 
-// Help strings for the trace command channel.
+// Help strings for the trace command.
 const char kTraceCommandShortHelp[] = "Starts/stops execution tracing.";
 const char kTraceCommandLongHelp[] =
     "If a trace is currently running, stops it and saves the result; "
@@ -51,7 +51,7 @@ bool TraceManager::IsTracing() {
 TraceManager::TraceManager()
     : self_message_loop_(MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(trace_command_handler_(
-          kTraceCommandChannel,
+          kTraceCommand,
           base::Bind(&TraceManager::OnTraceMessage, base::Unretained(this)),
           kTraceCommandShortHelp, kTraceCommandLongHelp)),
       ALLOW_THIS_IN_INITIALIZER_LIST(input_trace_command_handler_(

@@ -229,6 +229,14 @@ function executeCurrentCommand() {
   executeCommand(command);
 }
 
+function onWheel(event) {
+  if (event.deltaY > 0) {
+    messageLog.scrollDown(event.deltaY);
+  } else if (event.deltaY < 0) {
+    messageLog.scrollUp(-event.deltaY);
+  }
+}
+
 function onKeydown(event) {
   var key = event.key;
   if (key == 'Unidentified') {
@@ -313,6 +321,7 @@ function start() {
   createConsoleValues();
   initDebugCommands();
   addLogMessageCallback();
+  document.addEventListener('wheel', onWheel);
   document.addEventListener('keypress', onKeypress);
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('keyup', onKeyup);

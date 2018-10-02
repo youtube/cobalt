@@ -21,7 +21,7 @@
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/filter/callback.h"
+#include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
@@ -81,6 +81,9 @@ class VideoDecoder {
   // of the video pipeline like the VideoRendererSink may also cache frames.  It
   // is the responsibility of the decoder to ensure that this wouldn't result in
   // anything catastrophic.
+  // Also it is worth noting that the return value should always greater than 1
+  // for the video renderer to work properly.  It should be at least 4 for
+  // acceptable playback performance.  A number greater than 6 is recommended.
   virtual size_t GetMaxNumberOfCachedFrames() const = 0;
 
   // Send encoded video frame stored in |input_buffer| to decode.

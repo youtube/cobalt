@@ -18,13 +18,14 @@
 #include <list>
 
 #include "starboard/atomic.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/filter/callback.h"
+#include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -114,6 +115,28 @@ class VideoRenderer : JobQueue::JobOwner {
   Frames decoder_frames_;
   Mutex sink_frames_mutex_;
   Frames sink_frames_;
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  enum BufferingState {
+    kWaitForBuffer,
+    kWaitForConsumption,
+  };
+
+  static const SbTimeMonotonic kCheckBufferingStateInterval = kSbTimeSecond;
+  static const SbTimeMonotonic kDelayBeforeWarning = 2 * kSbTimeSecond;
+  static const SbTimeMonotonic kMinLagWarningInterval = 10 * kSbTimeSecond;
+
+  void CheckBufferingState();
+  void CheckForFrameLag(SbTime last_decoded_frame_timestamp);
+
+  volatile BufferingState buffering_state_ = kWaitForBuffer;
+  volatile SbTimeMonotonic last_buffering_state_update_ = 0;
+  volatile SbTimeMonotonic last_output_ = 0;
+  mutable volatile SbTime last_can_accept_more_data = 0;
+  atomic_bool end_of_stream_decoded_;
+
+  SbTimeMonotonic time_of_last_lag_warning_;
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
 }  // namespace filter

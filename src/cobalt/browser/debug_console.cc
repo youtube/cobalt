@@ -211,6 +211,22 @@ bool DebugConsole::FilterKeyEvent(base::Token type,
   return false;
 }
 
+bool DebugConsole::FilterWheelEvent(base::Token type,
+                                    const dom::WheelEventInit& event) {
+  // Assume here the full debug console is visible - pass all events to its
+  // web module, and return false to indicate the event has been consumed.
+  web_module_->InjectWheelEvent(type, event);
+  return false;
+}
+
+bool DebugConsole::FilterPointerEvent(base::Token type,
+                                      const dom::PointerEventInit& event) {
+  // Assume here the full debug console is visible - pass all events to its
+  // web module, and return false to indicate the event has been consumed.
+  web_module_->InjectPointerEvent(type, event);
+  return false;
+}
+
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 bool DebugConsole::InjectOnScreenKeyboardInputEvent(
     base::Token type, const dom::InputEventInit& event) {

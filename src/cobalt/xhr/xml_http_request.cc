@@ -709,6 +709,7 @@ void XMLHttpRequest::OnURLFetchDownloadData(
   UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_NE(state_, kDone);
+  ChangeState(kLoading);
 
   // Preserve the response body only for regular XHR requests. Fetch requests
   // process the response in pieces, so do not need to keep the whole response.
@@ -716,8 +717,6 @@ void XMLHttpRequest::OnURLFetchDownloadData(
     response_body_.Append(reinterpret_cast<const uint8*>(download_data->data()),
                           download_data->size());
   }
-
-  ChangeState(kLoading);
 
   if (fetch_callback_) {
     script::Handle<script::Uint8Array> data =
@@ -767,9 +766,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
 
 // Reset some variables in case the XHR object is reused.
 void XMLHttpRequest::PrepareForNewRequest() {
-  response_body_.Clear();
   request_headers_.Clear();
-  response_array_buffer_reference_.reset();
   // Below are variables used for CORS.
   request_body_text_.clear();
   is_cross_origin_ = false;
@@ -828,6 +825,7 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
 }
 
 void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   GURL new_url = url_fetcher_->GetURL();
   // Since we moved redirect from url_request to here, we also need to
   // handle redirecting too many times.
@@ -1086,6 +1084,10 @@ void XMLHttpRequest::AllowGarbageCollection() {
 
 void XMLHttpRequest::StartRequest(const std::string& request_body) {
   TRACK_MEMORY_SCOPE("XHR");
+
+  response_body_.Clear();
+  response_array_buffer_reference_.reset();
+
   network::NetworkModule* network_module =
       settings_->fetcher_factory()->network_module();
   url_fetcher_.reset(net::URLFetcher::Create(request_url_, method_, this));

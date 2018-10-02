@@ -279,7 +279,13 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
     return false;
   }
 
-  int pitch = AlignUp(av_frame_->width, kAlignment * 2);
+  int codec_aligned_width = av_frame_->width;
+  int codec_aligned_height = av_frame_->height;
+  int codec_linesize_align[AV_NUM_DATA_POINTERS];
+  ffmpeg_->avcodec_align_dimensions2(codec_context_,
+      &codec_aligned_width, &codec_aligned_height, codec_linesize_align);
+
+  int pitch = AlignUp(av_frame_->width, codec_linesize_align[0] * 2);
 
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
       av_frame_->width, av_frame_->height, pitch, av_frame_->reordered_opaque,
@@ -417,10 +423,17 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
     return ret;
   }
 
-  // Align to kAlignment * 2 as we will divide y_stride by 2 for u and v planes
-  size_t y_stride = AlignUp(codec_context->width, kAlignment * 2);
+  int codec_aligned_width = codec_context->width;
+  int codec_aligned_height = codec_context->height;
+  int codec_linesize_align[AV_NUM_DATA_POINTERS];
+  ffmpeg_->avcodec_align_dimensions2(codec_context,
+      &codec_aligned_width, &codec_aligned_height, codec_linesize_align);
+
+  // Align to linesize alignment * 2 as we will divide y_stride by 2 for
+  // u and v planes.
+  size_t y_stride = AlignUp(codec_context->width, codec_linesize_align[0] * 2);
   size_t uv_stride = y_stride / 2;
-  size_t aligned_height = AlignUp(codec_context->height, kAlignment * 2);
+  size_t aligned_height = codec_aligned_height;
 
   uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(SbMemoryAllocateAligned(
       kAlignment, GetYV12SizeInBytes(y_stride, aligned_height)));
@@ -463,10 +476,17 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
     return ret;
   }
 
-  // Align to kAlignment * 2 as we will divide y_stride by 2 for u and v planes
-  size_t y_stride = AlignUp(codec_context->width, kAlignment * 2);
+  int codec_aligned_width = codec_context->width;
+  int codec_aligned_height = codec_context->height;
+  int codec_linesize_align[AV_NUM_DATA_POINTERS];
+  ffmpeg_->avcodec_align_dimensions2(codec_context,
+      &codec_aligned_width, &codec_aligned_height, codec_linesize_align);
+
+  // Align to linesize alignment * 2 as we will divide y_stride by 2 for
+  // u and v planes.
+  size_t y_stride = AlignUp(codec_context->width, codec_linesize_align[0] * 2);
   size_t uv_stride = y_stride / 2;
-  size_t aligned_height = AlignUp(codec_context->height, kAlignment * 2);
+  size_t aligned_height = codec_aligned_height;
   uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(SbMemoryAllocateAligned(
       kAlignment, GetYV12SizeInBytes(y_stride, aligned_height)));
 

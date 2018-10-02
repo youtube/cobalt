@@ -23,10 +23,11 @@ from starboard.tools import command_line
 RE_WEBDRIVER_LISTEN = re.compile(r'Starting WebDriver server on port (\d+)')
 # Pattern to match Cobalt log line for when a WindowDriver has been created.
 RE_WINDOWDRIVER_CREATED = re.compile(
-    r'^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+')
+    r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Created WindowDriver: ID=\S+'
+)
 # Pattern to match Cobalt log line for when a WebModule is has been loaded.
 RE_WEBMODULE_LOADED = re.compile(
-    r'^\[\d+/\d+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule')
+    r'^\[[\d:]+/[\d.]+:INFO:browser_module\.cc\(\d+\)\] Loaded WebModule')
 
 # selenium imports
 # pylint: disable=C0103
@@ -242,15 +243,14 @@ class CobaltRunner(object):
 
   def _KillLauncher(self):
     """Kills the launcher and its attached Cobalt instance."""
-    try:
-      self.launcher.Kill()
-    except Exception as e:  # pylint: disable=broad-except
-      sys.stderr.write('Exception killing launcher:\n')
-      sys.stderr.write('{}\n'.format(str(e)))
+    self.ExecuteJavaScript('window.close();')
 
     self.runner_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
     if self.runner_thread.isAlive():
-      sys.stderr.write('***Runner thread still alive***\n')
+      sys.stderr.write(
+          '***Runner thread still alive after sending graceful shutdown command, try again by killing app***\n'
+      )
+      self.launcher.Kill()
     # Once the write end of the pipe has been closed by the launcher, the reader
     # thread will get EOF and exit.
     self.reader_thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
@@ -301,6 +301,9 @@ class CobaltRunner(object):
         thread.interrupt_main()
     return 0
 
+  def ExecuteJavaScript(self, js_code):
+    return self.webdriver.execute_script(js_code)
+
   def GetCval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
 
@@ -310,11 +313,15 @@ class CobaltRunner(object):
       Python object represented by the JSON cval string
     """
     javascript_code = 'return h5vcc.cVal.getValue(\'{}\')'.format(cval_name)
-    json_result = self.webdriver.execute_script(javascript_code)
+    json_result = self.ExecuteJavaScript(javascript_code)
     if json_result is None:
       return None
     else:
       return json.loads(json_result)
+
+  def GetUserAgent(self):
+    """Returns the User Agent string."""
+    return self.ExecuteJavaScript('return navigator.userAgent;')
 
   def PollUntilFound(self, css_selector, expected_num=None):
     """Polls until an element is found.

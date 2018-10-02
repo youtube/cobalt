@@ -302,7 +302,7 @@ class Box : public base::RefCounted<Box> {
 
   LayoutUnit GetBorderBoxWidth() const;
   LayoutUnit GetBorderBoxHeight() const;
-  SizeLayoutUnit GetBorderBoxSize() const;
+  SizeLayoutUnit GetClampedBorderBoxSize() const;
 
   Vector2dLayoutUnit GetBorderBoxOffsetFromRoot(
       bool transform_forms_root) const;
@@ -311,7 +311,7 @@ class Box : public base::RefCounted<Box> {
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
   LayoutUnit GetPaddingBoxHeight() const;
-  SizeLayoutUnit GetPaddingBoxSize() const;
+  SizeLayoutUnit GetClampedPaddingBoxSize() const;
 
   Vector2dLayoutUnit GetPaddingBoxOffsetFromRoot(
       bool transform_forms_root) const;

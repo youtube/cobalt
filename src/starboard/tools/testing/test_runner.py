@@ -32,16 +32,15 @@ from starboard.tools import command_line
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
 
-_TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
+_TOTAL_TESTS_REGEX = (r"^\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
-_TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
-_TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
-_SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
+_TESTS_PASSED_REGEX = r"^\[  PASSED  \] (.*) tests?"
+_TESTS_FAILED_REGEX = r"^\[  FAILED  \] (.*) tests?, listed below:"
+_SINGLE_TEST_FAILED_REGEX = r"^\[  FAILED  \] (.*)"
 
 
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
-
   targets = {}
   for target in target_list:
     targets[target] = []
@@ -92,8 +91,12 @@ class TestLineReader(object):
       if line:
         # Normalize line endings to unix.
         line = line.replace("\r", "")
-        sys.stdout.write(line)
-        sys.stdout.flush()
+        try:
+          sys.stdout.write(line)
+          sys.stdout.flush()
+        except IOError as err:
+          self.output_lines.write("error: " + str(err) + '\n')
+          return
       else:
         break
       self.output_lines.write(line)
@@ -176,11 +179,12 @@ class TestRunner(object):
                platform,
                config,
                device_id,
-               single_target,
+               specified_targets,
                target_params,
                out_directory,
                application_name=None,
-               dry_run=False):
+               dry_run=False,
+               xml_output_dir=None):
     self.platform = platform
     self.config = config
     self.device_id = device_id
@@ -190,37 +194,41 @@ class TestRunner(object):
     self._app_config = self._platform_config.GetApplicationConfiguration(
         application_name)
     self.dry_run = dry_run
+    self.xml_output_dir = xml_output_dir
     self.threads = []
 
     # If a particular test binary has been provided, configure only that one.
-    if single_target:
-      self.test_targets = self._GetSingleTestTarget(single_target)
+    if specified_targets:
+      self.test_targets = self._GetSpecifiedTestTargets(specified_targets)
     else:
       self.test_targets = self._GetTestTargets()
 
     self.test_env_vars = self._GetAllTestEnvVariables()
 
-  def _GetSingleTestTarget(self, single_target):
-    """Sets up a single test target for a given platform and configuration.
+  def _GetSpecifiedTestTargets(self, specified_targets):
+    """Sets up specified test targets for a given platform and configuration.
 
     Args:
-      single_target:  The name of a test target to run.
+      specified_targets:  Array of test names to run.
 
     Returns:
-      A mapping from the test binary name to a list of filters for that binary.
+      A mapping from the test binary names to a list of filters for that binary.
       If the test has no filters, its list is empty.
 
     Raises:
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    targets = _FilterTests([single_target], self._GetTestFilters(), self.config)
-    if not targets:
-      # If the provided target name has been filtered,
-      # nothing will be run.
+    targets = _FilterTests(
+        specified_targets, self._GetTestFilters(), self.config)
+    if len(targets) != len(specified_targets):
+      # If any of the provided target names have been filtered,
+      # they will not all run.
       sys.stderr.write(
-          "\"{}\" has been filtered; no tests will be run.\n".format(
-              single_target))
+          "Test list has been filtered. Not all will run.\n"
+          "Original list: \"{}\".\n"
+          "Filtered list: \"{}\".\n".format(
+              specified_targets, list(targets.keys())))
 
     return targets
 
@@ -284,6 +292,18 @@ class TestRunner(object):
     if self.test_targets[target_name]:
       test_params.append("--gtest_filter=-{}".format(":".join(
           self.test_targets[target_name])))
+
+    # Have gtest create and save a test result xml
+    if self.xml_output_dir:
+      xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
+      try:
+        os.makedirs(xml_output_subdir)
+      except OSError:
+        pass
+      xml_output_path = os.path.join(xml_output_subdir, "sponge_log.xml")
+      print "Xml output for this test will be saved to: %s" % xml_output_path
+      test_params.append("--gtest_output=xml:%s" % xml_output_path)
+
     test_params.extend(self.target_params)
 
     launcher = abstract_launcher.LauncherFactory(
@@ -347,16 +367,20 @@ class TestRunner(object):
     failed_count = 0
     failed_tests = []
 
+    total_test_prog = re.compile(_TOTAL_TESTS_REGEX)
+    tests_passed_prog = re.compile(_TESTS_PASSED_REGEX)
+    tests_failed_prog = re.compile(_TESTS_FAILED_REGEX)
+
     for idx, line in enumerate(results):
-      total_tests_match = re.search(_TOTAL_TESTS_REGEX, line)
+      total_tests_match = total_test_prog.search(line)
       if total_tests_match:
         total_count = int(total_tests_match.group(1))
 
-      passed_match = re.search(_TESTS_PASSED_REGEX, line)
+      passed_match = tests_passed_prog.search(line)
       if passed_match:
         passed_count = int(passed_match.group(1))
 
-      failed_match = re.search(_TESTS_FAILED_REGEX, line)
+      failed_match = tests_failed_prog.search(line)
       if failed_match:
         failed_count = int(failed_match.group(1))
         # Descriptions of all failed tests appear after this line
@@ -522,7 +546,6 @@ class TestRunner(object):
 
 
 def main():
-
   arg_parser = command_line.CreateParser()
   arg_parser.add_argument(
       "-b",
@@ -542,7 +565,10 @@ def main():
       action="store_true",
       help="Specifies to show what would be done without actually doing it.")
   arg_parser.add_argument(
-      "-t", "--target_name", help="Name of executable target.")
+      "-t",
+      "--target_name",
+      action="append",
+      help="Name of executable target. Repeatable for multiple targets.")
   arg_parser.add_argument(
       "-a",
       "--application_name",
@@ -553,6 +579,12 @@ def main():
       help="Flags to pass to the ninja build system. Provide them exactly"
       " as you would on the command line between a set of double quotation"
       " marks.")
+  arg_parser.add_argument(
+      "-x",
+      "--xml_output_dir",
+      help="If defined, results will be saved as xml files in given directory."
+      " Output for each test suite will be in it's own subdirectory and file:"
+      " <xml_output_dir>/<test_suite_name>/sponge_log.xml")
 
   args = arg_parser.parse_args()
 
@@ -563,7 +595,7 @@ def main():
 
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, target_params, args.out_directory,
-                      args.application_name, args.dry_run)
+                      args.application_name, args.dry_run, args.xml_output_dir)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.

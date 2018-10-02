@@ -337,6 +337,15 @@ BrowserModule::BrowserModule(const GURL& url,
   options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
+  if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
+    options_.web_module_options.limit_performance_timer_resolution = false;
+  }
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  options_.web_module_options.enable_partial_layout =
+      !command_line->HasSwitch(switches::kDisablePartialLayout);
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
   base::optional<std::string> extension_object_name =
       GetWebAPIExtensionObjectPropertyName();
   if (extension_object_name) {
@@ -1036,6 +1045,14 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // If the debug console is fully visible, it gets the next chance to handle
+  // pointer events.
+  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_->FilterPointerEvent(type, event)) {
+      return;
+    }
+  }
+
   trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -1054,6 +1071,14 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
+  // If the debug console is fully visible, it gets the next chance to handle
+  // wheel events.
+  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_->FilterWheelEvent(type, event)) {
+      return;
+    }
+  }
+
   trace_manager_.OnInputEventProduced();
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -1115,6 +1140,8 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   on_error_triggered_count_++;
 #endif
+
+  LOG(INFO) << "Network error: " << error;
 
   // Set |pending_navigate_url_| to the url where the error occurred. This will
   // cause the OnError callback to Navigate() to this URL if it receives a

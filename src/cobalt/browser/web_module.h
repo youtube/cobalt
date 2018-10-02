@@ -232,6 +232,16 @@ class WebModule : public LifecycleObserver {
     // color of transparent will replace existing pixel values, effectively
     // clearing the screen.
     bool clear_window_with_background_color;
+
+    // As a preventative measure against Spectre attacks, we explicitly limit
+    // the resolution of the performance timer by default.  Setting this option
+    // can allow the limit to be disabled.
+    bool limit_performance_timer_resolution = true;
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+    // Whether layout is optimized to re-use boxes for still-valid elements.
+    bool enable_partial_layout = true;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -416,10 +426,6 @@ class WebModule : public LifecycleObserver {
 
   void CancelSynchronousLoads();
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  void OnPartialLayoutConsoleCommandReceived(const std::string& message);
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
   // The message loop this object is running on.
   MessageLoop* message_loop() const { return thread_.message_loop(); }
 
@@ -430,12 +436,6 @@ class WebModule : public LifecycleObserver {
   // All sub-objects of this object are created on this thread, and all public
   // member functions are re-posted to this thread if necessary.
   base::Thread thread_;
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  // Handles the 'partial_layout' command.
-  scoped_ptr<base::ConsoleCommandManager::CommandHandler>
-      partial_layout_command_handler_;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 };
 
 }  // namespace browser

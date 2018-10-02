@@ -162,6 +162,7 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       flush_external_offscreen_draws_.Run();
     }
   }
+  graphics_state->SetDirty();
 
   SortOffscreenDraws(&offscreen_draws_, &sorted_offscreen_draws_);
   SortOnscreenDraws(&onscreen_draws_, &sorted_onscreen_draws_);

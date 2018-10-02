@@ -100,11 +100,10 @@ SbThread SbThreadCreate(int64_t stack_size,
     return kSbThreadInvalid;
   }
 
-#if !SB_HAS_QUIRK(NO_PTHREAD_ATTR_SETDETACHSTATE)
   pthread_attr_setdetachstate(
       &attributes,
       (joinable ? PTHREAD_CREATE_JOINABLE : PTHREAD_CREATE_DETACHED));
-#endif  // NO_PTHREAD_ATTR_SETDETACHSTATE
+
   if (stack_size > 0) {
     pthread_attr_setstacksize(&attributes, stack_size);
   }

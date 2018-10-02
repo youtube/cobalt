@@ -34,8 +34,8 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/stack_size_constants.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/debug/debug_server_module.h"
 #include "cobalt/dom/blob.h"
@@ -76,27 +76,6 @@ namespace {
 // The maximum number of element depth in the DOM tree. Elements at a level
 // deeper than this could be discarded, and will not be rendered.
 const int kDOMMaxElementDepth = 32;
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-// Help string for the 'partial_layout' command.
-const char kPartialLayoutCommandShortHelp[] =
-    "Controls partial layout: on | off | wipe | wipe,off";
-const char kPartialLayoutCommandLongHelp[] =
-    "Controls partial layout.\n"
-    "\n"
-    "Syntax:\n"
-    "  debug.partial_layout('CMD [, CMD ...]')\n"
-    "\n"
-    "Where CMD can be:\n"
-    "  on   : turn partial layout on.\n"
-    "  off  : turn partial layout off.\n"
-    "  wipe : wipe the box tree.\n"
-    "\n"
-    "Example:\n"
-    "  debug.partial_layout('off,wipe')\n"
-    "\n"
-    "To wipe the box tree and turn partial layout off.";
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 bool CacheUrlContent(SplashScreenCache* splash_screen_cache, const GURL& url,
                      const std::string& content) {
@@ -197,10 +176,6 @@ class WebModule::Impl {
   // Clears disables timer related objects
   // so that the message loop can easily exit
   void ClearAllIntervalsAndTimeouts();
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  void OnPartialLayoutConsoleCommandReceived(const std::string& message);
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that
@@ -428,12 +403,6 @@ class WebModule::Impl {
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;
 
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  // Handles the 'partial_layout' command.
-  scoped_ptr<base::ConsoleCommandManager::CommandHandler>
-      partial_layout_command_handler_;
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
   scoped_ptr<media_session::MediaSessionClient> media_session_client_;
 
   scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
@@ -611,6 +580,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
 
+  bool log_tts = false;
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  log_tts = CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
+#endif
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
@@ -646,11 +620,13 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
-          : dom::Window::kClockTypeSystemTime,
+          : (data.options.limit_performance_timer_resolution
+                 ? dom::Window::kClockTypeResolutionLimitedSystemTime
+                 : dom::Window::kClockTypeSystemTime),
 #else
       dom::Window::kClockTypeSystemTime,
 #endif
-      splash_screen_cache_callback, system_caption_settings_);
+      splash_screen_cache_callback, system_caption_settings_, log_tts);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -713,6 +689,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
         new DocumentLoadedObserver(data.options.loaded_callbacks));
     window_->document()->AddObserver(document_load_observer_.get());
   }
+
+#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+  window_->document()->SetPartialLayout(data.options.enable_partial_layout);
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   is_running_ = true;
 }
@@ -941,17 +921,6 @@ void WebModule::Impl::ProcessOnRenderTreeRasterized(
 void WebModule::Impl::CancelSynchronousLoads() {
   synchronous_loader_interrupt_.Signal();
 }
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-void WebModule::Impl::OnPartialLayoutConsoleCommandReceived(
-    const std::string& message) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(is_running_);
-  DCHECK(window_);
-  DCHECK(window_->document());
-  window_->document()->SetPartialLayout(message);
-}
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 void WebModule::Impl::OnCspPolicyChanged() {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -1329,29 +1298,10 @@ WebModule::WebModule(
   message_loop()->PostBlockingTask(
       FROM_HERE, base::Bind(&WebModule::Initialize, base::Unretained(this),
                             construction_data));
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(browser::switches::kPartialLayout)) {
-    const std::string partial_layout_string =
-        command_line->GetSwitchValueASCII(browser::switches::kPartialLayout);
-    OnPartialLayoutConsoleCommandReceived(partial_layout_string);
-  }
-  partial_layout_command_handler_.reset(
-      new base::ConsoleCommandManager::CommandHandler(
-          browser::switches::kPartialLayout,
-          base::Bind(&WebModule::OnPartialLayoutConsoleCommandReceived,
-                     base::Unretained(this)),
-          kPartialLayoutCommandShortHelp, kPartialLayoutCommandLongHelp));
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 }
 
 WebModule::~WebModule() {
   DCHECK(message_loop());
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-  partial_layout_command_handler_.reset();
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Create a destruction observer to shut down the WebModule once all pending
   // tasks have been executed and the message loop is about to be destroyed.
@@ -1523,19 +1473,6 @@ void WebModule::ClearAllIntervalsAndTimeouts() {
                               base::Unretained(impl_.get())));
   }
 }
-
-#if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-void WebModule::OnPartialLayoutConsoleCommandReceived(
-    const std::string& message) {
-  DCHECK(message_loop());
-  DCHECK(impl_);
-
-  message_loop()->PostTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::OnPartialLayoutConsoleCommandReceived,
-                 base::Unretained(impl_.get()), message));
-}
-#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 #if defined(ENABLE_WEBDRIVER)
 scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(

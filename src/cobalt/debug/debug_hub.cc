@@ -20,8 +20,6 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/base/c_val.h"
-#include "cobalt/base/console_commands.h"
-#include "cobalt/base/source_location.h"
 
 namespace cobalt {
 namespace debug {
@@ -139,62 +137,6 @@ std::string DebugHub::GetConsoleValue(const std::string& name) const {
 
 int DebugHub::GetDebugConsoleMode() const {
   return get_hud_mode_callback_.Run();
-}
-
-// TODO: This function should be modified to return an array of strings instead
-// of a single space-separated string, once the bindings support return of a
-// string array.
-std::string DebugHub::GetCommandChannels() const {
-  std::string result = "";
-  base::ConsoleCommandManager* command_mananger =
-      base::ConsoleCommandManager::GetInstance();
-  DCHECK(command_mananger);
-
-  if (command_mananger) {
-    std::set<std::string> channels = command_mananger->GetRegisteredChannels();
-    for (std::set<std::string>::const_iterator it = channels.begin();
-         it != channels.end(); ++it) {
-      result += (*it);
-      std::set<std::string>::const_iterator next = it;
-      ++next;
-      if (next != channels.end()) {
-        result += " ";
-      }
-    }
-  }
-  return result;
-}
-
-std::string DebugHub::GetCommandChannelShortHelp(
-    const std::string& channel) const {
-  std::string result = "<undefined>";
-  base::ConsoleCommandManager* command_mananger =
-      base::ConsoleCommandManager::GetInstance();
-  DCHECK(command_mananger);
-  if (command_mananger) {
-    result = command_mananger->GetShortHelp(channel);
-  }
-  return result;
-}
-
-std::string DebugHub::GetCommandChannelLongHelp(
-    const std::string& channel) const {
-  std::string result = "<undefined>";
-  base::ConsoleCommandManager* command_mananger =
-      base::ConsoleCommandManager::GetInstance();
-  DCHECK(command_mananger);
-  if (command_mananger) {
-    result = command_mananger->GetLongHelp(channel);
-  }
-  return result;
-}
-
-void DebugHub::SendCommand(const std::string& channel,
-                           const std::string& message) {
-  base::ConsoleCommandManager* console_command_manager =
-      base::ConsoleCommandManager::GetInstance();
-  DCHECK(console_command_manager);
-  console_command_manager->HandleCommand(channel, message);
 }
 
 }  // namespace debug

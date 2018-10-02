@@ -158,6 +158,7 @@
         'once_test.cc',
         'optional_test.cc',
         'random_helpers.cc',
+        'recursive_mutex_test.cc',
         'rwlock_test.cc',
         'semaphore_test.cc',
         'socket_accept_test.cc',

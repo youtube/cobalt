@@ -23,10 +23,10 @@ namespace media_session {
 class DefaultMediaSessionClient : public MediaSessionClient {
  public:
   DefaultMediaSessionClient() {}
-  virtual ~DefaultMediaSessionClient() {}
+  ~DefaultMediaSessionClient() override {}
 
  private:
-  virtual void OnMediaSessionChanged() {}
+  void OnMediaSessionChanged() override {}
 };
 
 // static

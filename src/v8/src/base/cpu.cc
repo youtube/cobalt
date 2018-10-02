@@ -4,6 +4,11 @@
 
 #include "src/base/cpu.h"
 
+#if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+// Assume that if we're on a MIPS platform, we're on Linux.
+#define V8_OS_LINUX 1
+#endif
+
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif

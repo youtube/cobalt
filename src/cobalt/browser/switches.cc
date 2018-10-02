@@ -108,8 +108,10 @@ const char kNullSavegameHelp[] =
     "sessions and no data being persisted to future sessions. It effectively "
     "makes the app run as if it has no local storage.";
 
-const char kPartialLayout[] = "partial_layout";
-const char kPartialLayoutHelp[] = "Switches partial layout: on | off";
+const char kDisablePartialLayout[] = "disable_partial_layout";
+const char kDisablePartialLayoutHelp[] =
+    "Causes layout to re-compute the boxes for the entire DOM rather than "
+    "re-using boxes for elements that have not been invalidated.";
 
 const char kProd[] = "prod";
 const char kProdHelp[] =
@@ -190,6 +192,13 @@ const char kWebDriverPortHelp[] =
 const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 const char kDisableJavaScriptJitHelp[] =
     "Specifies that javascript jit should be disabled.";
+
+const char kDisableTimerResolutionLimit[] = "disable_timer_resolution_limit";
+const char kDisableTimerResolutionLimitHelp[] =
+    "By default, window.performance.now() will return values at a clamped "
+    "minimum resolution of 20us.  By specifying this flag, the limit will be "
+    "removed and the resolution will be 1us (or larger depending on the "
+    "platform.";
 
 const char kEnableMapToMeshRectanglar[] = "enable_map_to_mesh_rectangular";
 const char kEnableMapToMeshRectanglarHelp[] =
@@ -364,7 +373,7 @@ std::string HelpMessage() {
         {kMinLogLevel, kMinLogLevelHelp},
         {kNullAudioStreamer, kNullAudioStreamerHelp},
         {kNullSavegame, kNullSavegameHelp},
-        {kPartialLayout, kPartialLayoutHelp}, {kProd, kProdHelp},
+        {kDisablePartialLayout, kDisablePartialLayoutHelp}, {kProd, kProdHelp},
         {kProxy, kProxyHelp}, {kRemoteDebuggingPort, kRemoteDebuggingPortHelp},
         {kRequireCSP, kRequireCSPHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
@@ -379,6 +388,7 @@ std::string HelpMessage() {
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
+        {kDisableTimerResolutionLimit, kDisableTimerResolutionLimitHelp},
         {kEnableMapToMeshRectanglar, kEnableMapToMeshRectanglarHelp},
         {kForceMigrationForStoragePartitioning,
          kForceMigrationForStoragePartitioningHelp},

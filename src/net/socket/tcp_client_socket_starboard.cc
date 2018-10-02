@@ -55,22 +55,22 @@ int SetupSocket(SbSocket socket) {
   return 0;
 }
 
-// Creates a new socket and sets default parameters for it. Returns the OS error
-// code (or 0 on success).
+// Creates a new socket and sets default parameters for it.
 int CreateSocket(AddressFamily family, SbSocket* socket) {
   SbSocketAddressType type = family == ADDRESS_FAMILY_IPV6
                                  ? kSbSocketAddressTypeIpv6
                                  : kSbSocketAddressTypeIpv4;
   *socket = SbSocketCreate(type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(*socket)) {
-    DLOG(ERROR) << "SbSocketCreate";
-    return SbSystemGetLastError();
+    DLOG(ERROR) << "SbSocketCreate failed with error "
+                << SbSystemGetLastError();
+    return ERR_FAILED;
   }
 
   int error = SetupSocket(*socket);
   if (error) {
     if (!SbSocketDestroy(*socket)) {
-      DLOG(ERROR) << "SbSocketDestroy";
+      DLOG(ERROR) << "SbSocketDestroy failed with error " << error;
     }
 
     *socket = kSbSocketInvalid;
@@ -243,8 +243,10 @@ int TCPClientSocketStarboard::DoConnect() {
     return ERR_INVALID_ARGUMENT;
   }
 
-  bool success = SbSocketConnect(socket_, &address);
-  DCHECK_EQ(true, success);
+  SbSocketError error = SbSocketConnect(socket_, &address);
+  if (error != kSbSocketOk) {
+    DCHECK_EQ(kSbSocketPending, error);
+  }
 
   int rv = MapLastSocketError(socket_);
   if (rv != ERR_IO_PENDING) {

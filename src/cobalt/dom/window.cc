@@ -130,7 +130,8 @@ Window::Window(
     int csp_insecure_allowed_token, int dom_max_element_depth,
     float video_playback_rate_multiplier, ClockType clock_type,
     const CacheCallback& splash_screen_cache_callback,
-    const scoped_refptr<captions::SystemCaptionSettings>& captions)
+    const scoped_refptr<captions::SystemCaptionSettings>& captions,
+    bool log_tts)
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
     : EventTarget(kUnpackOnErrorEvents),
@@ -151,16 +152,7 @@ Window::Window(
           mesh_cache, dom_stat_tracker, font_language_script,
           initial_application_state, synchronous_loader_interrupt,
           video_playback_rate_multiplier)),
-      performance_(new Performance(
-#if defined(ENABLE_TEST_RUNNER)
-          clock_type == kClockTypeTestRunner
-              ? test_runner_->GetClock()
-              :
-#endif
-              new base::MinimumResolutionClock(
-                  new base::SystemMonotonicClock(),
-                  base::TimeDelta::FromMicroseconds(
-                      kPerformanceTimerMinResolutionInMicroseconds)))),
+      performance_(new Performance(MakePerformanceClock(clock_type))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -182,7 +174,7 @@ Window::Window(
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
       crypto_(new Crypto()),
-      speech_synthesis_(new speech::SpeechSynthesis(navigator_)),
+      speech_synthesis_(new speech::SpeechSynthesis(navigator_, log_tts)),
       ALLOW_THIS_IN_INITIALIZER_LIST(local_storage_(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -228,6 +220,29 @@ void Window::StartDocumentLoad(
                          dom_parser->ParseDocumentAsync(
                              document_, base::SourceLocation(url.spec(), 1, 1)),
                          error_callback));
+}
+
+scoped_refptr<base::Clock> Window::MakePerformanceClock(ClockType clock_type) {
+  switch (clock_type) {
+    case kClockTypeTestRunner: {
+#if defined(ENABLE_TEST_RUNNER)
+      return test_runner_->GetClock();
+#else
+      NOTREACHED();
+#endif
+    } break;
+    case kClockTypeSystemTime: {
+      return new base::SystemMonotonicClock();
+    } break;
+    case kClockTypeResolutionLimitedSystemTime: {
+      return new base::MinimumResolutionClock(
+          new base::SystemMonotonicClock(),
+          base::TimeDelta::FromMicroseconds(
+              kPerformanceTimerMinResolutionInMicroseconds));
+    } break;
+  }
+  NOTREACHED();
+  return scoped_refptr<base::Clock>();
 }
 
 const scoped_refptr<Document>& Window::document() const { return document_; }
@@ -353,6 +368,9 @@ scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
+  SB_NOTIMPLEMENTED();
+  LOG(WARNING) << "btoa() can not take a string containing NUL right now. "
+                  "Please avoid using it!";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);

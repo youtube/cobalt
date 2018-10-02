@@ -536,32 +536,16 @@ float WebMediaPlayerImpl::MediaTimeForTimeValue(float timeValue) const {
   return ConvertSecondsToTimestamp(timeValue).InSecondsF();
 }
 
-unsigned WebMediaPlayerImpl::GetDecodedFrameCount() const {
+WebMediaPlayer::PlayerStatistics WebMediaPlayerImpl::GetStatistics() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  PipelineStatistics stats = pipeline_->GetStatistics();
-  return stats.video_frames_decoded;
-}
-
-unsigned WebMediaPlayerImpl::GetDroppedFrameCount() const {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-
-  PipelineStatistics stats = pipeline_->GetStatistics();
-  return stats.video_frames_dropped;
-}
-
-unsigned WebMediaPlayerImpl::GetAudioDecodedByteCount() const {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-
-  PipelineStatistics stats = pipeline_->GetStatistics();
-  return stats.audio_bytes_decoded;
-}
-
-unsigned WebMediaPlayerImpl::GetVideoDecodedByteCount() const {
-  DCHECK_EQ(main_loop_, MessageLoop::current());
-
-  PipelineStatistics stats = pipeline_->GetStatistics();
-  return stats.video_bytes_decoded;
+  PlayerStatistics statistics;
+  PipelineStatistics pipeline_stats = pipeline_->GetStatistics();
+  statistics.audio_bytes_decoded = pipeline_stats.audio_bytes_decoded;
+  statistics.video_bytes_decoded = pipeline_stats.video_bytes_decoded;
+  statistics.video_frames_decoded = pipeline_stats.video_frames_decoded;
+  statistics.video_frames_dropped = pipeline_stats.video_frames_dropped;
+  return statistics;
 }
 
 scoped_refptr<VideoFrameProvider> WebMediaPlayerImpl::GetVideoFrameProvider() {

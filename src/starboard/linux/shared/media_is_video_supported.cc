@@ -26,7 +26,17 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        ,
                                        bool decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+                                       ,
+                                       SbMediaTransferId eotf
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
                                        ) {
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+  if (eotf != kSbMediaTransferIdBt709 &&
+      eotf != kSbMediaTransferIdUnspecified) {
+    return false;
+  }
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
 #if SB_API_VERSION >= 10
 #if SB_HAS(BLITTER)
   if (decode_to_texture_required) {
