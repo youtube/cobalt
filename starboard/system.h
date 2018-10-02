@@ -246,7 +246,7 @@ static SB_C_INLINE bool SbSystemPlatformErrorIsValid(
 // any required interaction, such as by showing a dialog.
 //
 // The return value is a handle that may be used in a subsequent call to
-// |SbClearPlatformError|. For example, the handle could be used to
+// |SbSystemClearPlatformError|. For example, the handle could be used to
 // programatically dismiss a dialog that was raised in response to the error.
 // The lifetime of the object referenced by the handle is until the user reacts
 // to the error or the error is dismissed by a call to
