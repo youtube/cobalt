@@ -62,7 +62,7 @@ base::optional<std::string> DebugServer::CreateRemoteObject(
 
 void DebugServer::SendCommand(const std::string& method,
                               const std::string& json_params,
-                              CommandCallback callback) {
+                              DebugClient::CommandCallback callback) {
   // Create a closure that will run the command and the response callback.
   // The task is either posted to the debug target (WebModule) thread if
   // that thread is running normally, or added to a queue of debugger tasks

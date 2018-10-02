@@ -80,7 +80,7 @@ class DebugHub : public script::Wrappable {
   static const int kLogFatal = logging::LOG_FATAL;
 
   DebugHub(const GetHudModeCallback& get_hud_mode_callback,
-           const Debugger::GetDebugServerCallback& get_debug_server_callback);
+           const CreateDebugClientCallback& create_debug_client_callback);
   ~DebugHub();
 
   // Gets the JavaScript debugger client interface.

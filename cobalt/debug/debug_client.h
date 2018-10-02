@@ -17,12 +17,15 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "cobalt/debug/debug_server.h"
 
 namespace cobalt {
 namespace debug {
+
+// Forward declaration of the server class that DebugClient can connect to.
+class DebugServer;
 
 // An object that can connect to a debug server. A debug server can accept
 // connections from multiple debug clients, for example to support simultaneous
@@ -59,6 +62,10 @@ class DebugClient {
     virtual ~Delegate();
   };
 
+  // Callback to receive a command response from the server.
+  typedef base::Callback<void(const base::optional<std::string>& response)>
+      CommandCallback;
+
   DebugClient(DebugServer* server, Delegate* delegate);
   ~DebugClient();
 
@@ -67,7 +74,7 @@ class DebugClient {
 
   // Sends a command to the attached server, with a callback for the response.
   void SendCommand(const std::string& method, const std::string& json_params,
-                   const DebugServer::CommandCallback& callback);
+                   const CommandCallback& callback);
 
  private:
   friend class DebugServer;
@@ -89,6 +96,11 @@ class DebugClient {
   // from a different thread.
   base::Lock server_lock_;
 };
+
+// Callback to create a DebugClient that's already attached to the main web
+// module DebugServer, and sends events to the specified Delegate.
+typedef base::Callback<scoped_ptr<DebugClient>(DebugClient::Delegate*)>
+    CreateDebugClientCallback;
 
 }  // namespace debug
 }  // namespace cobalt

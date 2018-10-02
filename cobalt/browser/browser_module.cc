@@ -377,7 +377,7 @@ BrowserModule::BrowserModule(const GURL& url,
                  base::Unretained(this)),
       &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
+      base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -1305,7 +1305,8 @@ void BrowserModule::CreateWindowDriverInternal(
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-debug::DebugServer* BrowserModule::GetDebugServer() {
+scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
+    debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
   debug::DebugServer* debug_server = NULL;
   self_message_loop_->PostBlockingTask(
@@ -1313,7 +1314,8 @@ debug::DebugServer* BrowserModule::GetDebugServer() {
       base::Bind(&BrowserModule::GetDebugServerInternal, base::Unretained(this),
                  base::Unretained(&debug_server)));
   DCHECK(debug_server);
-  return debug_server;
+  return scoped_ptr<debug::DebugClient>(
+      new debug::DebugClient(debug_server, delegate));
 }
 
 void BrowserModule::GetDebugServerInternal(

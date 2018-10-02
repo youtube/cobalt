@@ -21,24 +21,24 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "cobalt/base/console_commands.h"
+#include "cobalt/debug/json_object.h"
 
 namespace cobalt {
 namespace debug {
 
-Debugger::Debugger(const GetDebugServerCallback& get_debug_server_callback)
-    : get_debug_server_callback_(get_debug_server_callback),
+Debugger::Debugger(
+    const CreateDebugClientCallback& create_debug_client_callback)
+    : create_debug_client_callback_(create_debug_client_callback),
       on_event_(new DebuggerEventTarget()) {}
 
 Debugger::~Debugger() {}
 
 void Debugger::Attach(const AttachCallbackArg& callback) {
   last_error_ = base::nullopt;
-  DebugServer* debug_server = get_debug_server_callback_.Run();
+  debug_client_ = create_debug_client_callback_.Run(this);
 
-  // |debug_server| may be NULL if the WebModule is not available at this time.
-  if (debug_server) {
-    debug_client_.reset(new DebugClient(debug_server, this));
-  } else {
+  // |debug_client_| may be NULL if the WebModule is not available at this time.
+  if (!debug_client_) {
     DLOG(WARNING) << "Debug server unavailable.";
     last_error_ = "Debug server unavailable.";
   }
