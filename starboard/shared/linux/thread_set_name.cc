@@ -28,8 +28,7 @@ void SbThreadSetName(const char* name) {
     return;
   }
 
-  const int kMaxThreadNameLength = 16;
-  char buffer[kMaxThreadNameLength];
+  char buffer[SB_MAX_THREAD_NAME_LENGTH] = {};
 
   if (SbStringGetLength(name) >= SB_ARRAY_SIZE_INT(buffer)) {
     SbStringCopy(buffer, name, SB_ARRAY_SIZE_INT(buffer));
