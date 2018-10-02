@@ -260,16 +260,16 @@ typedef enum SbKey {
   // Gamepad extensions to windows virtual key codes.
   // http://www.w3.org/TR/gamepad/
 
-  // Xbox A, PS O or X (depending on region), WiiU B
+  // Xbox A, PS O or X (depending on region), Switch A
   kSbKeyGamepad1 = 0x8000,
 
-  // Xbox B, PS X or O (depending on region), WiiU A key
+  // Xbox B, PS X or O (depending on region), Switch B
   kSbKeyGamepad2 = 0x8001,
 
-  // Xbox X, PS square, WiiU Y
+  // Xbox X, PS square, Switch X
   kSbKeyGamepad3 = 0x8002,
 
-  // Xbox Y, PS triangle, WiiU X
+  // Xbox Y, PS triangle, Switch Y
   kSbKeyGamepad4 = 0x8003,
 
   // Pretty much every gamepad has bumpers at the top front of the controller,
