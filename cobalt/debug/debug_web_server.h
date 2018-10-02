@@ -24,7 +24,6 @@
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/debug/debug_client.h"
-#include "cobalt/debug/debug_server.h"
 #include "net/base/stream_listen_socket.h"
 #include "net/server/http_server.h"
 
@@ -39,13 +38,8 @@ namespace debug {
 class DebugWebServer : public net::HttpServer::Delegate,
                        public DebugClient::Delegate {
  public:
-  // Callback to get the debug server. The debug server is owned by the
-  // WebModule it connects to, and this class can get a reference to is using
-  // a callback specified in the constructor.
-  typedef base::Callback<DebugServer*()> GetDebugServerCallback;
-
   DebugWebServer(int port,
-                 const GetDebugServerCallback& get_debug_server_callback);
+                 const CreateDebugClientCallback& create_debug_client_callback);
   ~DebugWebServer();
 
  protected:
@@ -86,7 +80,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   scoped_ptr<net::StreamListenSocketFactory> factory_;
   // net::HttpServer is a ref-counted object, so we have to use scoped_refptr.
   scoped_refptr<net::HttpServer> server_;
-  GetDebugServerCallback get_debug_server_callback_;
+  CreateDebugClientCallback create_debug_client_callback_;
 
   // The debug client that connects to the server.
   scoped_ptr<DebugClient> debug_client_;

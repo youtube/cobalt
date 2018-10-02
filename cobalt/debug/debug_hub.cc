@@ -40,10 +40,10 @@ class ScopedSetter {
 
 DebugHub::DebugHub(
     const GetHudModeCallback& get_hud_mode_callback,
-    const Debugger::GetDebugServerCallback& get_debug_server_callback)
+    const CreateDebugClientCallback& create_debug_client_callback)
     : message_loop_(MessageLoop::current()),
       get_hud_mode_callback_(get_hud_mode_callback),
-      debugger_(new Debugger(get_debug_server_callback)),
+      debugger_(new Debugger(create_debug_client_callback)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_ptr_(weak_ptr_factory_.GetWeakPtr()),
       is_logging_(false) {
