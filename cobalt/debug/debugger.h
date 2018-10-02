@@ -26,7 +26,6 @@
 #include "base/optional.h"
 #include "cobalt/debug/console_command.h"
 #include "cobalt/debug/debug_client.h"
-#include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/debugger_event_target.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
@@ -51,11 +50,6 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
       CommandCallback;
   typedef script::ScriptValue<CommandCallback> CommandCallbackArg;
 
-  // Callback to be run to get the debug server. The debug server is owned by
-  // the web module to which it connects, and this callback allows this object
-  // to get a reference to it.
-  typedef base::Callback<DebugServer*()> GetDebugServerCallback;
-
   // Thread-safe ref-counted struct used to pass asynchronously executed
   // command callbacks around. Stores the message loop the callback must be
   // executed on as well as the callback itself.
@@ -69,7 +63,8 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
     friend class base::RefCountedThreadSafe<CommandCallbackInfo>;
   };
 
-  explicit Debugger(const GetDebugServerCallback& get_debug_server_callback);
+  explicit Debugger(
+      const CreateDebugClientCallback& create_debug_client_callback);
   ~Debugger();
 
   void Attach(const AttachCallbackArg& callback);
@@ -118,8 +113,8 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
       const scoped_refptr<CommandCallbackInfo>& callback_info,
       base::optional<std::string> response) const;
 
-  // Callback to be run to get a reference to the debug server.
-  GetDebugServerCallback get_debug_server_callback_;
+  // Callback to be run to create a debug client.
+  CreateDebugClientCallback create_debug_client_callback_;
 
   // Debug client that connects to the server.
   scoped_ptr<DebugClient> debug_client_;

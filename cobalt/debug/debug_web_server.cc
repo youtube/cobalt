@@ -117,9 +117,9 @@ const char kParamsField[] = "params";
 }  // namespace
 
 DebugWebServer::DebugWebServer(
-    int port, const GetDebugServerCallback& get_debug_server_callback)
+    int port, const CreateDebugClientCallback& create_debug_client_callback)
     : http_server_thread_("DebugWebServer"),
-      get_debug_server_callback_(get_debug_server_callback),
+      create_debug_client_callback_(create_debug_client_callback),
       websocket_id_(-1),
       // Local address will be set when the web server is successfully started.
       local_address_("Cobalt.Server.DevTools", "<NOT RUNNING>",
@@ -211,8 +211,7 @@ void DebugWebServer::OnWebSocketRequest(
   websocket_id_ = connection_id;
   server_->AcceptWebSocket(connection_id, info);
 
-  DebugServer* debug_server = get_debug_server_callback_.Run();
-  debug_client_.reset(new DebugClient(debug_server, this));
+  debug_client_ = create_debug_client_callback_.Run(this);
 }
 
 void DebugWebServer::OnWebSocketMessage(int connection_id,
