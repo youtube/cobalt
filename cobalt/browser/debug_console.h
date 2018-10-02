@@ -47,7 +47,7 @@ class DebugConsole : public LifecycleObserver {
       const math::Size& window_dimensions,
       render_tree::ResourceProvider* resource_provider,
       float layout_refresh_rate,
-      const debug::Debugger::GetDebugServerCallback& get_debug_server_callback);
+      const debug::CreateDebugClientCallback& create_debug_client_callback);
   ~DebugConsole();
 
   // Filters a key event.

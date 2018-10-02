@@ -20,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
@@ -29,6 +28,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -38,9 +38,6 @@
 
 namespace cobalt {
 namespace debug {
-
-// Forward declaration of the client class that can connect to a DebugServer.
-class DebugClient;
 
 // The core of the debugging system. The overall architecture of the debugging
 // system is documented here:
@@ -92,10 +89,6 @@ class DebugServer {
   static const char kErrorMessage[];
   static const char kResult[];
 
-  // Callback to pass a command response to the client.
-  typedef base::Callback<void(const base::optional<std::string>& response)>
-      CommandCallback;
-
   // A command execution function stored in the command registry.
   typedef base::Callback<JSONObject(const JSONObject& params)> Command;
 
@@ -140,7 +133,7 @@ class DebugServer {
   // May be called from any thread - the command will be run on |message_loop_|
   // and the callback will be run on the message loop of the caller.
   void SendCommand(const std::string& method, const std::string& json_params,
-                   CommandCallback callback);
+                   DebugClient::CommandCallback callback);
 
   // Sets or unsets the paused state and calls |HandlePause| if set.
   // Must be called on the debug target (WebModule) thread.
@@ -153,10 +146,11 @@ class DebugServer {
 
   // Type to store a command callback and the current message loop.
   struct CommandCallbackInfo {
-    explicit CommandCallbackInfo(const CommandCallback& command_callback)
+    explicit CommandCallbackInfo(
+        const DebugClient::CommandCallback& command_callback)
         : callback(command_callback), message_loop(MessageLoop::current()) {}
 
-    CommandCallback callback;
+    DebugClient::CommandCallback callback;
     MessageLoop* message_loop;
   };
 
