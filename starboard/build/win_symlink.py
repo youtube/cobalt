@@ -57,9 +57,11 @@ def UnlinkReparsePoint(link_dir):
   return _UnlinkReparsePoint(link_dir)
 
 
-def Rmtree(dirpath):
-  """ Like shutil.rmtree but follows reparse points"""
-  return _Rmtree(dirpath)
+def RmtreeShallow(dirpath):
+  """ Like shutil.rmtree on linux, which deletes symlinks but doesn't follow
+  them. Note that shutil.rmtree on windows will follow the symlink and delete
+  the files in the original directory!"""
+  return _RmtreeShallow(dirpath)
 
 
 #####################
@@ -82,34 +84,9 @@ def _RemoveEmptyDirectory(path):
         pass
 
 
-def _Rmtree(dirpath):
-  delete_path = dirpath
-  reparse_path = _ReadReparsePoint(dirpath)
-  delete_path = reparse_path if reparse_path else dirpath
-  if not delete_path:
-    return
-  if not os.path.exists(delete_path):
-    raise IOError("path " + delete_path + " does not exist.")
-  for path in os.listdir(delete_path):
-    fullpath = os.path.join(delete_path, path)
-    if os.path.isdir(fullpath):
-      _Rmtree(fullpath)
-    elif os.path.isfile(fullpath):
-      os.remove(fullpath)
-    else:
-      child_reparse_path = _ReadReparsePoint(fullpath)
-      if child_reparse_path:
-        _Rmtree(child_reparse_path)
-      else:
-        raise IOError("Unknown path type: " + fullpath)
-  if reparse_path:
-    UnlinkReparsePoint(dirpath)
-  if os.path.isdir(delete_path):
-    try:
-      _RemoveEmptyDirectory(delete_path)
-    except Exception as err:
-      print("Error while removing " + delete_path \
-            + " because " + str(err))
+def _RmtreeShallow(path):
+  path = os.path.abspath(path)
+  subprocess.check_output(['cmd', '/c', 'rmdir', '/S', '/Q', path])
 
 
 def _ReadReparsePoint(path):
@@ -144,9 +121,13 @@ def _CreateReparsePoint(from_folder, link_folder):
     _RemoveEmptyDirectory(link_folder)
   else:
     _UnlinkReparsePoint(link_folder)  # Deletes if it exists.
-  cmd_parts = ['mklink', '/j', link_folder, from_folder]
-  # Shell is required for reparse point creation.
-  subprocess.check_output(' '.join(cmd_parts), shell=True)
+
+  par_dir = os.path.dirname(link_folder)
+  if not os.path.isdir(par_dir):
+    os.makedirs(par_dir)
+  cmd_parts = ['cmd', '/c', 'mklink', '/j', link_folder, from_folder]
+  subprocess.check_output(cmd_parts)
+
 
 
 def _UnlinkReparsePoint(link_dir):
@@ -241,11 +222,11 @@ def UnitTest():
   else:
     raise IOError("Link mismatch: " + from_dir_2 + ' != ' + from_dir)
 
-  Rmtree(link_dir)
+  RmtreeShallow(link_dir)
   if os.path.exists(link_dir):
     raise IOError("Link dir " + link_dir + " still exists.")
-  if os.path.exists(from_dir):
-    raise IOError("From Dir " + from_dir + " still exits.")
+  if not os.path.exists(from_dir):
+    raise IOError("From Dir " + from_dir + " was deleted!")
   print "Test completed."
 
 
