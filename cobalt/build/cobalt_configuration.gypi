@@ -214,6 +214,9 @@
     # Set to 1 to enable filtering of HTTP headers before sending.
     'enable_xhr_header_filtering%': 0,
 
+    # Set to 1 to enable setting Interceptors on the URLRequestJobFactory
+    'enable_configure_request_job_factory%': 0,
+
     # List of platform-specific targets that get compiled into cobalt.
     'cobalt_platform_dependencies%': [],
 
