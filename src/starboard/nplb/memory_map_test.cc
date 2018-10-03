@@ -206,11 +206,11 @@ CopySumFunctionIntoMemory(void* memory) {
 // to executable.
 TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
   SbMemoryMapFlags exec_flags[] = {
-    SbMemoryMapFlags(kSbMemoryMapProtectExec),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec),
-    SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectExec),
-    SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectWrite |
-                     kSbMemoryMapProtectExec),
+      SbMemoryMapFlags(kSbMemoryMapProtectExec),
+      SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec),
+      SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectExec),
+      SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite |
+                       kSbMemoryMapProtectExec),
   };
   for (auto exec_flag : exec_flags) {
     void* memory = SbMemoryMap(kSize, exec_flag, "test");

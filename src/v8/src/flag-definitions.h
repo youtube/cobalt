@@ -612,11 +612,7 @@ DEFINE_BOOL(gc_global, false, "always perform global GCs")
 DEFINE_INT(random_gc_interval, 0,
            "Collect garbage after random(0, X) allocations. It overrides "
            "gc_interval.")
-#if defined(COBALT_GC_ZEAL)
-DEFINE_INT(gc_interval, 1200, "garbage collect after <n> allocations")
-#else
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
-#endif
 DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
 DEFINE_BOOL(trace_gc, false,
@@ -641,21 +637,11 @@ DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
 DEFINE_BOOL(trace_mutator_utilization, false,
             "print mutator utilization, allocation speed, gc speed")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
-#if defined(COBALT)
-// Cobalt's TraceMembers and ScriptValue::*Reference do not currently support
-// incremental tracing.
-DEFINE_BOOL(incremental_marking_wrappers, false,
-            "use incremental marking for marking wrappers")
-#else  // defined(COBALT)
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
-#endif  // defined(COBALT)
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
-#if defined(COBALT)
-// Starboard disallow rwx memory access.
-DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
-#endif
+DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
 #ifdef V8_CONCURRENT_MARKING
 #define V8_CONCURRENT_MARKING_BOOL true
 #else

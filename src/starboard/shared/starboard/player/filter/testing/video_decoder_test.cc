@@ -368,6 +368,10 @@ TEST_P(VideoDecoderTest, PrerollFrameCount) {
   EXPECT_GT(video_decoder_->GetPrerollFrameCount(), 0);
 }
 
+TEST_P(VideoDecoderTest, MaxNumberOfCachedFrames) {
+  EXPECT_GT(video_decoder_->GetMaxNumberOfCachedFrames(), 1);
+}
+
 TEST_P(VideoDecoderTest, PrerollTimeout) {
   EXPECT_GE(video_decoder_->GetPrerollTimeout(), 0);
 }
@@ -651,6 +655,10 @@ std::vector<TestParam> GetSupportedTests() {
                   ,
               false
 #endif  // SB_API_VERSION >= 10
+#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+              ,
+              kSbMediaTransferIdUnspecified
+#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
               )) {
         test_params.push_back({output_mode, filename});
       }

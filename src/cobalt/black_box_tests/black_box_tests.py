@@ -64,13 +64,13 @@ class BlackBoxTestCase(unittest.TestCase):
     return new_runner
 
 
-def LoadTests(platform, config):
+def LoadTests(platform, config, device_id):
 
   launcher = abstract_launcher.LauncherFactory(
       platform,
       'cobalt',
       config,
-      device_id=None,
+      device_id=device_id,
       target_params=None,
       output_file=None,
       out_directory=None)
@@ -101,7 +101,7 @@ class BlackBoxTests(object):
       suite = unittest.TestLoader().loadTestsFromModule(
           importlib.import_module(_TEST_DIR_PATH + self.test_name))
     else:
-      suite = LoadTests(_device_params.platform, _device_params.config)
+      suite = LoadTests(_device_params.platform, _device_params.config, _device_params.device_id)
     return_code = not unittest.TextTestRunner(
         verbosity=0, stream=sys.stdout).run(suite).wasSuccessful()
     return return_code
@@ -123,4 +123,4 @@ if __name__ == '__main__':
   # make module-owned variables like device_param accessible to the tests.
   main_module = importlib.import_module(
       'cobalt.black_box_tests.black_box_tests')
-  main_module.main()
+  sys.exit(main_module.main())

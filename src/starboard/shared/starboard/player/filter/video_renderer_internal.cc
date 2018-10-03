@@ -48,6 +48,11 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(algorithm_ != NULL);
   SB_DCHECK(sink_ != NULL);
+  SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
+  SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
+      << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
+      << decoder_->GetMaxNumberOfCachedFrames() << ", which is less than 4."
+      << " Playback performance may not be ideal.";
 }
 
 VideoRenderer::~VideoRenderer() {
@@ -106,6 +111,37 @@ void VideoRenderer::WriteSample(
 
   SB_DCHECK(need_more_input_.load());
   need_more_input_.store(false);
+
+#if ENABLE_VIDEO_FRAME_LAG_LOG
+  {
+    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
+    if (!decoder_frames_.empty()) {
+      auto frame = decoder_frames_.back();
+      bool is_playing;
+      bool is_eos_played;
+      bool is_underflow;
+      SbTime media_time = media_time_provider_->GetCurrentMediaTime(
+          &is_playing, &is_eos_played, &is_underflow);
+      if (!is_eos_played) {
+        const int kMaxDiffFrameMediaTime = 2 * kSbTimeSecond;
+        const int kMinLagWarningPeriod = 10 * kSbTimeSecond;
+        SbTime frame_time = frame->timestamp();
+        SbTime diff_media_frame_time = media_time - frame_time;
+        SbTimeMonotonic monotonic_now = SbTimeGetMonotonicNow();
+        if (diff_media_frame_time > kMaxDiffFrameMediaTime &&
+            (!time_of_last_lag_warning_ ||
+             monotonic_now - time_of_last_lag_warning_.value() >=
+                 kMinLagWarningPeriod)) {
+          SB_LOG(WARNING) << "Video renderer wrote sample with frame time"
+                          << " lagging "
+                          << diff_media_frame_time * 1.0f / kSbTimeSecond
+                          << " s behind media time";
+          time_of_last_lag_warning_ = monotonic_now;
+        }
+      }
+    }
+  }
+#endif  // ENABLE_VIDEO_FRAME_LAG_LOG
 
   decoder_->WriteInputBuffer(input_buffer);
 }

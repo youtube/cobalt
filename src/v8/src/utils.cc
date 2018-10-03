@@ -394,7 +394,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     Isolate* isolate, MemCopyUint16Uint8Function stub);
 
-#elif (V8_OS_POSIX && V8_OS_STARBOARD) && V8_HOST_ARCH_MIPS
+#elif (V8_OS_POSIX || V8_OS_STARBOARD) && V8_HOST_ARCH_MIPS
 V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
     &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.

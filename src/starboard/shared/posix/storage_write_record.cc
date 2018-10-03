@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,11 @@
 #include <algorithm>
 
 #include "starboard/file.h"
+#include "starboard/log.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
+#include "starboard/string.h"
 
-#pragma message( \
-    "You are using the old SbStorageWriteRecord implementation, it does not"\
-    " guarantee automic storage record writing, please consider switching to"\
-    " the new posix/win32 implementation.")
+const char kTempFileSuffix[] = ".temp";
 
 bool SbStorageWriteRecord(SbStorageRecord record,
                           const char* data,
@@ -31,21 +30,39 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     return false;
   }
 
-  int64_t position = SbFileSeek(record->file, kSbFileFromBegin, 0);
-  if (position != 0) {
+#if SB_API_VERSION >= 6
+  const char* name = record->name.c_str();
+#else
+  const char* name = NULL;
+#endif
+  char original_file_path[SB_FILE_MAX_PATH];
+  if (!starboard::shared::starboard::GetUserStorageFilePath(
+          record->user, name, original_file_path, SB_FILE_MAX_PATH)) {
+    return false;
+  }
+  char temp_file_path[SB_FILE_MAX_PATH];
+  SbStringCopy(temp_file_path, original_file_path, SB_FILE_MAX_PATH);
+  SbStringConcat(temp_file_path, kTempFileSuffix, SB_FILE_MAX_PATH);
+
+  SbFileError error;
+  SbFile temp_file = SbFileOpen(
+      temp_file_path, kSbFileCreateAlways | kSbFileWrite | kSbFileRead, NULL,
+      &error);
+  if (error != kSbFileOk) {
     return false;
   }
 
-  SbFileTruncate(record->file, 0);
+  SbFileTruncate(temp_file, 0);
 
   const char* source = data;
   int64_t to_write = data_size;
   while (to_write > 0) {
     int to_write_max =
         static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
-    int bytes_written = SbFileWrite(record->file, source, to_write_max);
+    int bytes_written = SbFileWrite(temp_file, source, to_write_max);
     if (bytes_written < 0) {
-      SbFileTruncate(record->file, 0);
+      SbFileClose(temp_file);
+      SbFileDelete(temp_file_path);
       return false;
     }
 
@@ -53,6 +70,17 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     to_write -= bytes_written;
   }
 
-  SbFileFlush(record->file);
+  SbFileFlush(temp_file);
+
+  if (!SbFileClose(record->file) || !SbFileDelete(original_file_path)) {
+    return false;
+  }
+
+  if (rename(temp_file_path, original_file_path) != 0) {
+    return false;
+  }
+
+  record->file = temp_file;
+
   return true;
 }

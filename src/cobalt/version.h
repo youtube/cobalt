@@ -35,6 +35,6 @@
 //                  release is cut.
 //.
 
-#define COBALT_VERSION "19.lts.1"
+#define COBALT_VERSION "19.lts.2"
 
 #endif  // COBALT_VERSION_H_

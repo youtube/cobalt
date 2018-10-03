@@ -120,11 +120,11 @@ api/response/multi-globals/url-parsing.html,DISABLE
 # Fails because Blob is not fully supported.
 api/response/response-cancel-stream.html,DISABLE
 api/response/response-clone.html,PASS
-api/response/response-consume.cobalt.html,PASS
+api/response/response-consume.cobalt.blob.html,PASS
 api/response/response-consume.html,DISABLE
 api/response/response-consume-empty.cobalt.html,PASS
 api/response/response-consume-empty.html,DISABLE
-api/response/response-consume-stream.cobalt.html,PASS
+api/response/response-consume-stream.cobalt.blob.html,PASS
 api/response/response-consume-stream.html,DISABLE
 api/response/response-error.html,PASS
 # Fails because implementation is a polyfill.
