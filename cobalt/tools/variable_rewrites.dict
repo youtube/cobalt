@@ -28,6 +28,7 @@
     "custom_media_session_client",
     "enable_about_scheme",
     "enable_account_manager",
+    "enable_configure_request_job_factory",
     "enable_crash_log",
     "enable_fake_microphone",
     "enable_file_scheme",
