@@ -71,6 +71,9 @@ TEST(SbSocketJoinMulticastGroupTest, SunnyDay) {
         continue;
       }
 
+      // Clean up the sockets.
+      EXPECT_TRUE(SbSocketDestroy(send_socket));
+      EXPECT_TRUE(SbSocketDestroy(receive_socket));
       FAIL() << "Failed to send multicast packet: " << error;
       return;
     }
