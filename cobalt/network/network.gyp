@@ -77,6 +77,19 @@
             'ENABLE_NETWORK_LOGGING',
           ],
         }],
+        ['enable_configure_request_job_factory == 1', {
+          'dependencies': [
+            '<@(cobalt_platform_dependencies)',
+          ],
+          'defines': [
+            'ENABLE_CONFIGURE_REQUEST_JOB_FACTORY',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'ENABLE_CONFIGURE_REQUEST_JOB_FACTORY',
+            ],
+          },
+        }],
       ],
       'export_dependent_settings': [
         '<(DEPTH)/net/net.gyp:net',
