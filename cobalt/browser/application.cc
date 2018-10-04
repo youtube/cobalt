@@ -499,6 +499,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     options.storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  if (command_line->HasSwitch(browser::switches::kDisableOnScreenKeyboard)) {
+    options.enable_on_screen_keyboard = false;
+  }
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
 #if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
