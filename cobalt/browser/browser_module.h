@@ -101,6 +101,7 @@ class BrowserModule {
     base::optional<GURL> fallback_splash_screen_url;
     base::optional<math::Size> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
+    bool enable_on_screen_keyboard = true;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
