@@ -250,12 +250,18 @@ bool GetDERAndCacheIfNeeded(X509Certificate::OSCertHandle cert,
 X509Certificate::OSCertHandle X509Certificate::DupOSCertHandle(
     OSCertHandle cert_handle) {
   DCHECK(cert_handle);
+
+#if defined(OPENSSL_IS_BORINGSSL)
+  X509_up_ref(cert_handle);
+#else
   // Using X509_dup causes the entire certificate to be reparsed. This
   // conversion, besides being non-trivial, drops any associated
   // application-specific data set by X509_set_ex_data. Using CRYPTO_add
   // just bumps up the ref-count for the cert, without causing any allocations
   // or deallocations.
   CRYPTO_add(&cert_handle->references, 1, CRYPTO_LOCK_X509);
+#endif  // defined(OPENSSL_IS_BORINGSSL)
+
   return cert_handle;
 }
 
