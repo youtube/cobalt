@@ -23,8 +23,6 @@ namespace shared {
 namespace starboard {
 namespace socket {
 
-#if SB_ENABLE_SOCKET_TRACKER
-
 // static
 SocketTracker* SocketTracker::GetInstance() {
   static SocketTracker s_socket_tracker;
@@ -37,7 +35,8 @@ void SocketTracker::OnCreate(SbSocket socket,
   SocketRecord record;
   record.address_type = address_type;
   record.protocol = protocol;
-  record.last_activity_ = SbTimeGetMonotonicNow();
+  record.last_activity = SbTimeGetMonotonicNow();
+  record.state = kCreated;
 
   ScopedLock scoped_lock(mutex_);
   sockets_[socket] = record;
@@ -56,6 +55,8 @@ void SocketTracker::OnConnect(SbSocket socket,
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
   iter->second.remote_address = remote_address;
+  SB_DCHECK(iter->second.state == kCreated);
+  iter->second.state = kConnected;
 }
 
 void SocketTracker::OnBind(SbSocket socket,
@@ -72,13 +73,14 @@ void SocketTracker::OnAccept(SbSocket listening_socket,
   auto iter = sockets_.find(listening_socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity_ = SbTimeGetMonotonicNow();
+  iter->second.last_activity = SbTimeGetMonotonicNow();
 
   SocketRecord record;
   record.address_type = iter->second.address_type;
   record.protocol = iter->second.protocol;
-  record.last_activity_ = iter->second.last_activity_;
+  record.last_activity = iter->second.last_activity;
   record.local_address = iter->second.local_address;
+  record.state = kConnected;
 
   sockets_[accepted_socket] = record;
 }
@@ -89,7 +91,7 @@ void SocketTracker::OnReceiveFrom(SbSocket socket,
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity_ = SbTimeGetMonotonicNow();
+  iter->second.last_activity = SbTimeGetMonotonicNow();
   if (source) {
     iter->second.remote_address = *source;
   }
@@ -101,7 +103,7 @@ void SocketTracker::OnSendTo(SbSocket socket,
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity_ = SbTimeGetMonotonicNow();
+  iter->second.last_activity = SbTimeGetMonotonicNow();
   if (destination) {
     iter->second.remote_address = *destination;
   }
@@ -113,6 +115,51 @@ void SocketTracker::OnResolve(const char* hostname,
   for (int i = 0; i < resolution.address_count; ++i) {
     socket_resolutions_[resolution.addresses[i]] = hostname;
   }
+}
+
+bool SocketTracker::IsSocketTracked(SbSocket socket) {
+  ScopedLock scoped_lock(mutex_);
+  auto iter = sockets_.find(socket);
+  return iter != sockets_.end();
+}
+
+void SocketTracker::OnListen(SbSocket socket) {
+  ScopedLock scoped_lock(mutex_);
+  auto iter = sockets_.find(socket);
+  SB_DCHECK(iter != sockets_.end());
+
+  iter->second.last_activity = SbTimeGetMonotonicNow();
+  SB_DCHECK(iter->second.state == kCreated);
+  iter->second.state = kListened;
+}
+
+SocketTracker::State SocketTracker::GetState(SbSocket socket) {
+  ScopedLock scoped_lock(mutex_);
+  auto iter = sockets_.find(socket);
+  SB_DCHECK(iter != sockets_.end());
+  return iter->second.state;
+}
+
+void SocketTracker::OnAddWaiter(SbSocket socket, SbSocketWaiter waiter) {
+  ScopedLock scoped_lock(mutex_);
+  auto iter = sockets_.find(socket);
+  SB_DCHECK(iter != sockets_.end());
+
+  iter->second.last_activity = SbTimeGetMonotonicNow();
+  SB_DCHECK(!SbSocketWaiterIsValid(iter->second.waiter));
+  SB_DCHECK(SbSocketWaiterIsValid(waiter));
+  iter->second.waiter = waiter;
+}
+
+void SocketTracker::OnRemoveWaiter(SbSocket socket, SbSocketWaiter waiter) {
+  ScopedLock scoped_lock(mutex_);
+  auto iter = sockets_.find(socket);
+  SB_DCHECK(iter != sockets_.end());
+
+  iter->second.last_activity = SbTimeGetMonotonicNow();
+  SB_DCHECK(waiter == iter->second.waiter);
+  SB_DCHECK(SbSocketWaiterIsValid(waiter));
+  iter->second.waiter = kSbSocketWaiterInvalid;
 }
 
 void SocketTracker::LogTrackedSockets() {
@@ -151,13 +198,22 @@ std::string SocketTracker::ConvertToString_Locked(
   if (record.remote_address) {
     ss << " remote addr: " << ConvertToString_Locked(*record.remote_address);
   }
+  switch (record.state) {
+    case kCreated:
+      ss << ", created,";
+      break;
+    case kConnected:
+      ss << ", connect called,";
+      break;
+    case kListened:
+      ss << ", listen called,";
+      break;
+  }
   ss << " has been idle for "
-     << (SbTimeGetMonotonicNow() - record.last_activity_) / kSbTimeSecond
+     << (SbTimeGetMonotonicNow() - record.last_activity) / kSbTimeSecond
      << " seconds";
   return ss.str();
 }
-
-#endif  // SB_ENABLE_SOCKET_TRACKER
 
 }  // namespace socket
 }  // namespace starboard
