@@ -14,6 +14,8 @@
 
 #include <string>
 
+#include "starboard/configuration.h"
+
 #ifndef COBALT_BROWSER_SWITCHES_H_
 #define COBALT_BROWSER_SWITCHES_H_
 
@@ -86,6 +88,11 @@ extern const char kWebDriverListenIp[];
 extern const char kWebDriverListenIpHelp[];
 extern const char kWebDriverPort[];
 extern const char kWebDriverPortHelp[];
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+extern const char kDisableOnScreenKeyboard[];
+extern const char kDisableOnScreenKeyboardHelp[];
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kDisableJavaScriptJit[];
