@@ -239,8 +239,11 @@ BrowserModule::BrowserModule(const GURL& url,
           options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
-          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
+      on_screen_keyboard_bridge_(
+          options.enable_on_screen_keyboard
+              ? new OnScreenKeyboardStarboardBridge(base::Bind(
+                    &BrowserModule::GetSbWindow, base::Unretained(this)))
+              : NULL),
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
