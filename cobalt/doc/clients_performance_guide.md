@@ -94,7 +94,7 @@ They are:
 
  - Setting `overflow: hidden` on a rotated subtree parent element (e.g. via
    `transform: rotate(...)`)
- - Setting `overflow: hideen` on a subtree parent element with rounded corners.
+ - Setting `overflow: hidden` on a subtree parent element with rounded corners.
 
 ## Explicitly set Image `src` attributes to `''` when finished with them.
 
@@ -105,3 +105,13 @@ collector to decide when an image should be destroyed and its resources
 released, it is recommended that Image objects have their `src` attribute
 explicitly cleared (i.e. set to `''`) when they are no longer needed, so
 that Cobalt can reclaim the image resources as soon as possible.
+
+## Be conservative with usage of `border-radius`.
+
+While Cobalt has significant optimizations in place for handling the rendering
+of rounded corners, it still requires significantly more sophistication and
+processing than rendering a normal rectangle.  This applies to a number of
+different scenarios, such as using rounded corners on elements with either
+background-color or background-image.  Particularly expensive however would
+be to apply rounded corners on a parent node which has `overflow: hidden` set
+(as mentioned above), since this requires the creation of an offscreen surface.
