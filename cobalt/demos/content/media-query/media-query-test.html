@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="text/javascript">
+    // Demonstrates how media query can be used to get the value of the
+    // window resolution.
+    function PrintWindowWidth() {
+      for (var i = 0; i < 16000; ++i) {
+        query_str = "(max-width: " + i + "px)"
+        if (window.matchMedia(query_str).matches) {
+          console.log("Found window width: " + query_str);
+          return;
+        }
+      }
+      console.log("Error: Could not find window width.");
+    }
+
+    function PrintWindowHeight() {
+      for (var i = 0; i < 16000; ++i) {
+        query_str = "(max-height: " + i + "px)";
+        if (window.matchMedia(query_str).matches) {
+          console.log("Found window height: " + query_str);
+          return;
+        }
+      }
+      console.log("Error: Could not find window height.");
+    }
+
+    function PrintDpi() {
+      for (var i = 1; i < 16000; ++i) {
+        query_str = "(max-resolution:" + i + "dpi)"
+        if (window.matchMedia(query_str).matches) {
+          console.log("Found dpi: " + query_str);
+          return;
+        }
+      }
+      console.log("Error: Could not find window dpi.");
+    }
+
+
+    function intervalCallback() {
+      PrintDpi();
+      PrintWindowHeight();
+      PrintWindowWidth();
+    }
+
+    window.setInterval(intervalCallback, 500);
+  </script>
+</head>
+
+<body>
+</body>
+</html>
