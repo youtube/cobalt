@@ -166,6 +166,7 @@ v8.log
 /third_party/asan
 /third_party/bidichecker
 /third_party/bison
+/third_party/boringssl
 /third_party/brotli
 /third_party/cacheinvalidation/src
 /third_party/cdm
