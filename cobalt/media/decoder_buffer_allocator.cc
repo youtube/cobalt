@@ -226,19 +226,21 @@ void DecoderBufferAllocator::UpdateVideoConfig(
     const VideoDecoderConfig& config) {
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
-    if (!reuse_allocator_) {
-      return;
-    }
-    VideoResolution resolution =
-        GetVideoResolution(config.visible_rect().size());
 #if SB_API_VERSION >= 10
     video_codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
     resolution_width_ = config.visible_rect().size().width();
     resolution_height_ = config.visible_rect().size().height();
     bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
+#endif  // SB_API_VERSION >= 10
+    if (!reuse_allocator_) {
+      return;
+    }
+#if SB_API_VERSION >= 10
     reuse_allocator_->set_max_capacity(SbMediaGetMaxBufferCapacity(
         video_codec_, resolution_width_, resolution_height_, bits_per_pixel_));
 #else   // SB_API_VERSION >= 10
+    VideoResolution resolution =
+        GetVideoResolution(config.visible_rect().size());
     if (reuse_allocator_->max_capacity() &&
         resolution > kVideoResolution1080p) {
       reuse_allocator_->set_max_capacity(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
