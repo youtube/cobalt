@@ -121,6 +121,7 @@ public class MediaCodecUtil {
     vp9WhiteList.put("broadcom", new HashSet<String>());
     vp9WhiteList.put("Foxconn", new HashSet<String>());
     vp9WhiteList.put("Freebox", new HashSet<String>());
+    vp9WhiteList.put("Funai", new HashSet<String>());
     vp9WhiteList.put("gfiber", new HashSet<String>());
     vp9WhiteList.put("Google", new HashSet<String>());
     vp9WhiteList.put("google", new HashSet<String>());
@@ -166,6 +167,7 @@ public class MediaCodecUtil {
     vp9WhiteList.get("Foxconn").add("ba101");
     vp9WhiteList.get("Foxconn").add("bd201");
     vp9WhiteList.get("Freebox").add("Freebox Player Mini v2");
+    vp9WhiteList.get("Funai").add("PHILIPS 4K TV");
     vp9WhiteList.get("gfiber").add("GFHD254");
     vp9WhiteList.get("google").add("avko");
     vp9WhiteList.get("google").add("marlin");
