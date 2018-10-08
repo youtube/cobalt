@@ -1311,21 +1311,21 @@ void BrowserModule::CreateWindowDriverInternal(
 scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
     debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  debug::DebugServer* debug_server = NULL;
+  debug::DebugDispatcher* debug_dispatcher = NULL;
   self_message_loop_->PostBlockingTask(
       FROM_HERE,
-      base::Bind(&BrowserModule::GetDebugServerInternal, base::Unretained(this),
-                 base::Unretained(&debug_server)));
-  DCHECK(debug_server);
+      base::Bind(&BrowserModule::GetDebugDispatcherInternal,
+                 base::Unretained(this), base::Unretained(&debug_dispatcher)));
+  DCHECK(debug_dispatcher);
   return scoped_ptr<debug::DebugClient>(
-      new debug::DebugClient(debug_server, delegate));
+      new debug::DebugClient(debug_dispatcher, delegate));
 }
 
-void BrowserModule::GetDebugServerInternal(
-    debug::DebugServer** out_debug_server) {
+void BrowserModule::GetDebugDispatcherInternal(
+    debug::DebugDispatcher** out_debug_dispatcher) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
-  *out_debug_server = web_module_->GetDebugServer();
+  *out_debug_dispatcher = web_module_->GetDebugDispatcher();
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 

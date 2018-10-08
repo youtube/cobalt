@@ -287,7 +287,7 @@ void JavaScriptDebuggerComponent::OnScriptDebuggerPause(
   // Notify the clients we're about to pause.
   SendPausedEvent(call_frame.Pass());
 
-  // Tell the debug server to enter paused state - block this thread.
+  // Tell the debug dispatcher to enter paused state - block this thread.
   DCHECK(connector_->server());
   connector_->server()->SetPaused(true);
 

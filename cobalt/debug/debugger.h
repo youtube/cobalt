@@ -92,8 +92,8 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   void TraceMembers(script::Tracer* tracer) override;
 
  protected:
-  // Called by the debug server with the response of a command on the message
-  // loop the command was sent from (the message loop of this object).
+  // Called by the debug dispatcher with the response of a command on the
+  // message loop the command was sent from (the message loop of this object).
   // Passes the response to the JavaScript callback registered with the command.
   void OnCommandResponse(
       const scoped_refptr<CommandCallbackInfo>& callback_info,
@@ -116,7 +116,7 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   // Callback to be run to create a debug client.
   CreateDebugClientCallback create_debug_client_callback_;
 
-  // Debug client that connects to the server.
+  // Debug client that connects to the dispatcher.
   scoped_ptr<DebugClient> debug_client_;
 
   // This will be defined if there was an error since the last operation.
