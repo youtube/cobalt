@@ -82,7 +82,7 @@ class DebugWebServer : public net::HttpServer::Delegate,
   scoped_refptr<net::HttpServer> server_;
   CreateDebugClientCallback create_debug_client_callback_;
 
-  // The debug client that connects to the server.
+  // The debug client that connects to the dispatcher.
   scoped_ptr<DebugClient> debug_client_;
 
   int websocket_id_;
