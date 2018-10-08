@@ -34,7 +34,7 @@ namespace debug {
 // This class implements the onEvent attribute of the Chrome Debugger protocol:
 // https://developer.chrome.com/extensions/debugger#event-onEvent
 //
-// It receives events from the debug server and passes along to registered
+// It receives events from the debug dispatcher and passes along to registered
 // listeners.
 
 class DebuggerEventTarget : public script::Wrappable {
