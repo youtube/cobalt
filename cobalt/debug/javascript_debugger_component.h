@@ -125,7 +125,7 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   // Sends a Debugger.resumed event to the clients with no parameters.
   void SendResumedEvent();
 
-  // Helper object to connect to the debug server, etc.
+  // Helper object to connect to the debug dispatcher, etc.
   ComponentConnector* connector_;
 
   // Map of source providers with scoped deleter to clean up on destruction.

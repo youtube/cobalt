@@ -41,7 +41,7 @@ class PageComponent {
   JSONObject GetResourceTree(const JSONObject& params);
   JSONObject SetOverlayMessage(const JSONObject& params);
 
-  // Helper object to connect to the debug server, etc.
+  // Helper object to connect to the debug dispatcher, etc.
   ComponentConnector* connector_;
   // No ownership.
   dom::Window* window_;

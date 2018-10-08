@@ -39,8 +39,8 @@ void Debugger::Attach(const AttachCallbackArg& callback) {
 
   // |debug_client_| may be NULL if the WebModule is not available at this time.
   if (!debug_client_) {
-    DLOG(WARNING) << "Debug server unavailable.";
-    last_error_ = "Debug server unavailable.";
+    DLOG(WARNING) << "Debug dispatcher unavailable.";
+    last_error_ = "Debug dispatcher unavailable.";
   }
 
   AttachCallbackArg::Reference callback_reference(this, callback);

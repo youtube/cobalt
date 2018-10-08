@@ -29,7 +29,7 @@
 namespace cobalt {
 namespace debug {
 
-// Used by the various debug server components to run JavaScript and persist
+// Used by the various debug dispatcher components to run JavaScript and persist
 // state. An object of this class creates a persistent JavaScript object bound
 // to the global object, and executes methods on this object, passing in the
 // JSON parameters as a parameter object, and returning the result as a

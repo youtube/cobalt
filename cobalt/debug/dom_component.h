@@ -62,7 +62,7 @@ class DOMComponent {
   void RenderHighlight(const scoped_refptr<dom::DOMRect>& bounding_rect,
                        const base::DictionaryValue* highlight_config_value);
 
-  // Helper object to connect to the debug server, etc.
+  // Helper object to connect to the debug dispatcher, etc.
   ComponentConnector* connector_;
 
   // Render layer owned by this object.
