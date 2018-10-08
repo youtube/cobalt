@@ -54,6 +54,8 @@
         'v8c_heap_tracer.cc',
         'v8c_heap_tracer.h',
         'v8c_property_enumerator.h',
+        'v8c_script_debugger.cc',
+        'v8c_script_debugger.h',
         'v8c_script_value_factory.cc',
         'v8c_script_value_factory.h',
         'v8c_source_code.cc',
@@ -67,7 +69,6 @@
         'wrapper_factory.cc',
         'wrapper_factory.h',
         'wrapper_private.h',
-        '<(DEPTH)/cobalt/script/shared/stub_script_debugger.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',

@@ -53,6 +53,8 @@
         'render_overlay.h',
         'runtime_component.cc',
         'runtime_component.h',
+        'script_debugger_component.cc',
+        'script_debugger_component.h',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
