@@ -33,19 +33,19 @@
 namespace cobalt {
 namespace debug {
 
-class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
+class JavaScriptDebuggerComponent {
  public:
   explicit JavaScriptDebuggerComponent(DebugDispatcher* dispatcher);
 
   virtual ~JavaScriptDebuggerComponent();
 
-  // ScriptDebugger::Delegate implementation.
-  void OnScriptDebuggerDetach(const std::string& reason) override;
-  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame) override;
+  // Formerly ScriptDebugger::Delegate implementation.
+  void OnScriptDebuggerDetach(const std::string& reason);
+  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame);
   void OnScriptFailedToParse(
-      scoped_ptr<script::SourceProvider> source_provider) override;
+      scoped_ptr<script::SourceProvider> source_provider);
   void OnScriptParsed(
-      scoped_ptr<script::SourceProvider> source_provider) override;
+      scoped_ptr<script::SourceProvider> source_provider);
 
  private:
   // Map of SourceProvider pointers, keyed by string ID.

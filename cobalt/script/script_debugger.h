@@ -37,18 +37,17 @@ class ScriptDebugger {
   // implementation can be independent of the specific JS engine.
   class Delegate {
    public:
-    // Called when the script debugger wants to detach.
-    virtual void OnScriptDebuggerDetach(const std::string& reason) = 0;
-
     // Called when the script debugger wants to pause script execution.
-    virtual void OnScriptDebuggerPause(scoped_ptr<CallFrame> call_frame) = 0;
+    virtual void OnScriptDebuggerPause() = 0;
 
-    // Called when a script fails to parse.
-    virtual void OnScriptFailedToParse(
-        scoped_ptr<SourceProvider> source_provider) = 0;
+    // Called when the script debugger wants to resume script execution.
+    virtual void OnScriptDebuggerResume() = 0;
 
-    // Called when a script is successfully parsed.
-    virtual void OnScriptParsed(scoped_ptr<SourceProvider> source_provider) = 0;
+    // Called with the response to a previously dispatched protocol message.
+    virtual void OnScriptDebuggerResponse(const std::string& response) = 0;
+
+    // Called when a debugging protocol event occurs.
+    virtual void OnScriptDebuggerEvent(const std::string& event) = 0;
   };
 
   // Possible pause on exceptions states.
@@ -82,6 +81,10 @@ class ScriptDebugger {
   // Attach/detach the script debugger.
   virtual void Attach() = 0;
   virtual void Detach() = 0;
+
+  // For engines like V8 that directly handle protocol commands.
+  virtual bool CanDispatchProtocolMethod(const std::string& method) = 0;
+  virtual void DispatchProtocolMessage(const std::string& message) = 0;
 
   // Code execution control. Implementations may use
   // |Delegate::OnScriptDebuggerPause| to have the delegate handle the
