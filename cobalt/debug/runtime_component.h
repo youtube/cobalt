@@ -42,7 +42,7 @@ class RuntimeComponent {
   JSONObject ReleaseObject(const JSONObject& params);
   JSONObject ReleaseObjectGroup(const JSONObject& params);
 
-  // Helper object to connect to the debug server, etc.
+  // Helper object to connect to the debug dispatcher, etc.
   ComponentConnector* connector_;
 };
 

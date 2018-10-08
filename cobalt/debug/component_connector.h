@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "base/threading/thread_checker.h"
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/script_debugger.h"
 #include "cobalt/script/value_handle.h"
@@ -27,23 +27,23 @@ namespace cobalt {
 namespace debug {
 
 // Helper class for debug component objects that provide events and commands for
-// |DebugServer|.
+// |DebugDispatcher|.
 //
-// An object of this class allows a debug component to access the debug server,
-// script debugger, etc. and provides some common functionality.
+// An object of this class allows a debug component to access the debug
+// dispatcher, script debugger, etc. and provides some common functionality.
 class ComponentConnector {
  public:
-  explicit ComponentConnector(DebugServer* server,
+  explicit ComponentConnector(DebugDispatcher* server,
                               script::ScriptDebugger* script_debugger);
 
   virtual ~ComponentConnector();
 
-  // Adds a command function to the registry of the |DebugServer|
+  // Adds a command function to the registry of the |DebugDispatcher|
   // referenced by this object.
   void AddCommand(const std::string& method,
-                  const DebugServer::Command& callback);
+                  const DebugDispatcher::Command& callback);
 
-  // Removes a command function from the registry of the |DebugServer|
+  // Removes a command function from the registry of the |DebugDispatcher|
   // referenced by this object.
   void RemoveCommand(const std::string& method);
 
@@ -59,12 +59,12 @@ class ComponentConnector {
   JSONObject CreateRemoteObject(const script::ValueHandleHolder* object);
 
   // Runs a JavaScript function with JSON parameters, and sends the event it
-  // returns to the |DebugServer| referenced by this object.
+  // returns to the |DebugDispatcher| referenced by this object.
   void SendScriptEvent(const std::string& method,
                        const std::string& command,
                        const JSONObject& params);
 
-  // Sends an event to the |DebugServer| referenced by this object.
+  // Sends an event to the |DebugDispatcher| referenced by this object.
   void SendEvent(const std::string& method, const JSONObject& params);
 
   bool CalledOnValidThread() const {
@@ -74,11 +74,11 @@ class ComponentConnector {
   // Generates an error response that can be returned by any command handler.
   static JSONObject ErrorResponse(const std::string& error_message);
 
-  DebugServer* server() { return server_; }
+  DebugDispatcher* server() { return server_; }
   script::ScriptDebugger* script_debugger() const { return script_debugger_; }
 
  private:
-  DebugServer* server_;
+  DebugDispatcher* server_;
   script::ScriptDebugger* script_debugger_;
   base::ThreadChecker thread_checker_;
   std::vector<std::string> command_methods_;

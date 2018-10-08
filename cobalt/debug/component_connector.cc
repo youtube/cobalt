@@ -25,7 +25,7 @@ namespace {
 const char kErrorMessage[] = "error.message";
 }  // namespace
 
-ComponentConnector::ComponentConnector(DebugServer* server,
+ComponentConnector::ComponentConnector(DebugDispatcher* server,
                                        script::ScriptDebugger* script_debugger)
     : server_(server), script_debugger_(script_debugger) {}
 
@@ -38,7 +38,7 @@ ComponentConnector::~ComponentConnector() {
 }
 
 void ComponentConnector::AddCommand(const std::string& method,
-                                    const DebugServer::Command& callback) {
+                                    const DebugDispatcher::Command& callback) {
   if (server_) {
     server_->AddCommand(method, callback);
 
@@ -61,7 +61,7 @@ JSONObject ComponentConnector::RunScriptCommand(const std::string& command,
         script_debugger_, script::ScriptDebugger::kNone);
     return server_->RunScriptCommand(command, params);
   } else {
-    return ErrorResponse("Not attached to debug server");
+    return ErrorResponse("Not attached to debug dispatcher");
   }
 }
 
@@ -71,7 +71,7 @@ bool ComponentConnector::RunScriptFile(const std::string& filename) {
         script_debugger_, script::ScriptDebugger::kNone);
     return server_->RunScriptFile(filename);
   } else {
-    return ErrorResponse("Not attached to debug server");
+    return ErrorResponse("Not attached to debug dispatcher");
   }
 }
 
@@ -99,7 +99,7 @@ void ComponentConnector::SendScriptEvent(const std::string& method,
                                          const std::string& command,
                                          const JSONObject& params) {
   if (!server_) {
-    DLOG(WARNING) << "Not attached to debug server. Not sending " << method;
+    DLOG(WARNING) << "Not attached to debug dispatcher. Not sending " << method;
     return;
   }
 
@@ -107,11 +107,11 @@ void ComponentConnector::SendScriptEvent(const std::string& method,
       script_debugger_, script::ScriptDebugger::kNone);
   JSONObject command_result = server_->RunScriptCommand(command, params);
   base::DictionaryValue* event;
-  if (command_result->GetDictionary(DebugServer::kResult, &event)) {
+  if (command_result->GetDictionary(DebugDispatcher::kResult, &event)) {
     server_->OnEvent(method, JSONObject(event->DeepCopy()));
   } else {
     std::string error;
-    command_result->GetString(DebugServer::kErrorMessage, &error);
+    command_result->GetString(DebugDispatcher::kErrorMessage, &error);
     DLOG(ERROR) << "Script event failed (" << method << "): " << error;
   }
 }
