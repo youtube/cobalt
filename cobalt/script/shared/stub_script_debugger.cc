@@ -29,6 +29,15 @@ class StubScriptDebugger : public ScriptDebugger {
 
   void Attach() override { NOTIMPLEMENTED(); }
   void Detach() override { NOTIMPLEMENTED(); }
+
+  bool CanDispatchProtocolMethod(const std::string& method) override {
+    NOTIMPLEMENTED();
+    return false;
+  }
+  void DispatchProtocolMessage(const std::string& message) override {
+    NOTIMPLEMENTED();
+  }
+
   void Pause() override { NOTIMPLEMENTED(); }
   void Resume() override { NOTIMPLEMENTED(); }
   void SetBreakpoint(const std::string& script_id, int line_number,

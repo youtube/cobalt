@@ -20,7 +20,7 @@ function DebuggerClient() {
   this.attachState = this.DEBUGGER_DETACHED;
   this.onAttachCallback = this.onAttach.bind(this);
   this.onEventCallback = this.onEvent.bind(this);
-  this.executionContext = 0;
+  this.executionContext = undefined;
 }
 
 // Attaches to the debugger and listens for debug events.
@@ -108,6 +108,8 @@ DebuggerClient.prototype.evaluateCallback = function(result) {
     }
   } else if (result.result.description) {
     printToMessageLog(messageLog.INFO, result.result.description);
+  } else if (result.result.value) {
+    printToMessageLog(messageLog.INFO, result.result.value.toString());
   }
   printToMessageLog(messageLog.INFO, '');
 }
