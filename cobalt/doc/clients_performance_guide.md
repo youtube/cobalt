@@ -96,7 +96,7 @@ They are:
    `transform: rotate(...)`)
  - Setting `overflow: hidden` on a subtree parent element with rounded corners.
 
-## Explicitly set Image `src` attributes to `''` when finished with them.
+## Explicitly set Image src attributes to '' when finished with them.
 
 Cobalt maintains an image cache with a preset capacity (e.g. default of 32MB on
 platforms with 1080p UIs, but it can be customized).  When an image goes out
@@ -106,7 +106,7 @@ released, it is recommended that Image objects have their `src` attribute
 explicitly cleared (i.e. set to `''`) when they are no longer needed, so
 that Cobalt can reclaim the image resources as soon as possible.
 
-## Be conservative with usage of `border-radius`.
+## Be conservative with usage of the border-radius CSS property.
 
 While Cobalt has significant optimizations in place for handling the rendering
 of rounded corners, it still requires significantly more sophistication and
