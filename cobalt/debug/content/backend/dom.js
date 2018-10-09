@@ -17,6 +17,9 @@
 
 devtoolsBackend.dom = {};
 
+// Alias to match the uppercase domain of the devtools protocol.
+devtoolsBackend.DOM = devtoolsBackend.dom;
+
 // Creates and returns a new Node object corresponding to the document node,
 // including its children up to a default depth.
 // https://developer.chrome.com/devtools/docs/protocol/1.1/dom#command-getDocument

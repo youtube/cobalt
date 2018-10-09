@@ -21,6 +21,7 @@
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stl_util.h"
+#include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/call_frame.h"
@@ -134,6 +135,9 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
 
   // Map of logical breakpoints.
   BreakpointMap breakpoints_;
+
+  // Map of member functions implementing commands.
+  CommandMap<JavaScriptDebuggerComponent> commands_;
 };
 
 }  // namespace debug
