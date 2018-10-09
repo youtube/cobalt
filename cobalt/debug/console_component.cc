@@ -24,10 +24,6 @@ namespace {
 // Definitions from the set specified here:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/console
 
-// Command "methods" (names):
-const char kDisable[] = "Console.disable";
-const char kEnable[] = "Console.enable";
-
 // Parameter fields:
 const char kMessageText[] = "message.text";
 const char kMessageLevel[] = "message.level";
@@ -52,12 +48,13 @@ void ConsoleComponent::Listener::OnMessage(const std::string& message,
 ConsoleComponent::ConsoleComponent(DebugDispatcher* dispatcher,
                                    dom::Console* console)
     : dispatcher_(dispatcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
   DCHECK(dispatcher_);
-  dispatcher_->AddCommand(
-      kDisable, base::Bind(&ConsoleComponent::Disable, base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kEnable, base::Bind(&ConsoleComponent::Enable, base::Unretained(this)));
+  commands_["Console.disable"] = &ConsoleComponent::Disable;
+  commands_["Console.enable"] = &ConsoleComponent::Enable;
+
+  dispatcher_->AddDomain("Console", commands_.Bind());
 }
 
 JSONObject ConsoleComponent::Disable(const JSONObject& params) {

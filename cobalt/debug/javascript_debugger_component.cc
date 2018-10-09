@@ -26,18 +26,6 @@ namespace {
 // Command, parameter and event names as specified by the protocol:
 // https://developer.chrome.com/devtools/docs/protocol/1.1/debugger
 
-// Commands.
-const char kDisable[] = "Debugger.disable";
-const char kEnable[] = "Debugger.enable";
-const char kGetScriptSource[] = "Debugger.getScriptSource";
-const char kPause[] = "Debugger.pause";
-const char kResume[] = "Debugger.resume";
-const char kSetBreakpointByUrl[] = "Debugger.setBreakpointByUrl";
-const char kSetPauseOnExceptions[] = "Debugger.setPauseOnExceptions";
-const char kStepInto[] = "Debugger.stepInto";
-const char kStepOut[] = "Debugger.stepOut";
-const char kStepOver[] = "Debugger.stepOver";
-
 // Parameter names.
 const char kCallFrameId[] = "callFrameId";
 const char kCallFrames[] = "callFrames";
@@ -84,41 +72,26 @@ std::string BreakpointId(const std::string url, int line_number,
 
 JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
     DebugDispatcher* dispatcher)
-    : dispatcher_(dispatcher), source_providers_deleter_(&source_providers_) {
+    : dispatcher_(dispatcher),
+      source_providers_deleter_(&source_providers_),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
   DCHECK(dispatcher_);
-  dispatcher_->AddCommand(kDisable,
-                          base::Bind(&JavaScriptDebuggerComponent::Disable,
-                                     base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kEnable,
-      base::Bind(&JavaScriptDebuggerComponent::Enable, base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kGetScriptSource,
-      base::Bind(&JavaScriptDebuggerComponent::GetScriptSource,
-                 base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kPause,
-      base::Bind(&JavaScriptDebuggerComponent::Pause, base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kResume,
-      base::Bind(&JavaScriptDebuggerComponent::Resume, base::Unretained(this)));
-  dispatcher_->AddCommand(kStepInto,
-                          base::Bind(&JavaScriptDebuggerComponent::StepInto,
-                                     base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kSetBreakpointByUrl,
-      base::Bind(&JavaScriptDebuggerComponent::SetBreakpointByUrl,
-                 base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kSetPauseOnExceptions,
-      base::Bind(&JavaScriptDebuggerComponent::SetPauseOnExceptions,
-                 base::Unretained(this)));
-  dispatcher_->AddCommand(kStepOut,
-                          base::Bind(&JavaScriptDebuggerComponent::StepOut,
-                                     base::Unretained(this)));
-  dispatcher_->AddCommand(kStepOver,
-                          base::Bind(&JavaScriptDebuggerComponent::StepOver,
-                                     base::Unretained(this)));
+
+  commands_["Debugger.disable"] = &JavaScriptDebuggerComponent::Disable;
+  commands_["Debugger.enable"] = &JavaScriptDebuggerComponent::Enable;
+  commands_["Debugger.getScriptSource"] =
+      &JavaScriptDebuggerComponent::GetScriptSource;
+  commands_["Debugger.pause"] = &JavaScriptDebuggerComponent::Pause;
+  commands_["Debugger.resume"] = &JavaScriptDebuggerComponent::Resume;
+  commands_["Debugger.stepInto"] = &JavaScriptDebuggerComponent::StepInto;
+  commands_["Debugger.setBreakpointByUrl"] =
+      &JavaScriptDebuggerComponent::SetBreakpointByUrl;
+  commands_["Debugger.setPauseOnExceptions"] =
+      &JavaScriptDebuggerComponent::SetPauseOnExceptions;
+  commands_["Debugger.stepOut"] = &JavaScriptDebuggerComponent::StepOut;
+  commands_["Debugger.stepOver"] = &JavaScriptDebuggerComponent::StepOver;
+
+  dispatcher_->AddDomain("Debugger", commands_.Bind());
 }
 
 JavaScriptDebuggerComponent::~JavaScriptDebuggerComponent() {}

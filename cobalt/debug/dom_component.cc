@@ -30,17 +30,6 @@ namespace {
 // File to load JavaScript DOM debugging domain implementation from.
 const char kScriptFile[] = "dom.js";
 
-// Command "methods" (names) from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom
-const char kDisable[] = "DOM.disable";
-const char kEnable[] = "DOM.enable";
-const char kGetDocument[] = "DOM.getDocument";
-const char kRequestChildNodes[] = "DOM.requestChildNodes";
-const char kRequestNode[] = "DOM.requestNode";
-const char kResolveNode[] = "DOM.resolveNode";
-const char kHideHighlight[] = "DOM.hideHighlight";
-const char kHighlightNode[] = "DOM.highlightNode";
-
 // Parameter names:
 const char kA[] = "a";
 const char kB[] = "b";
@@ -52,27 +41,17 @@ const char kR[] = "r";
 
 DOMComponent::DOMComponent(DebugDispatcher* dispatcher,
                            scoped_ptr<RenderLayer> render_layer)
-    : dispatcher_(dispatcher), render_layer_(render_layer.Pass()) {
+    : dispatcher_(dispatcher),
+      render_layer_(render_layer.Pass()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
   DCHECK(dispatcher_);
-  dispatcher_->AddCommand(
-      kDisable, base::Bind(&DOMComponent::Disable, base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kEnable, base::Bind(&DOMComponent::Enable, base::Unretained(this)));
-  dispatcher_->AddCommand(kGetDocument, base::Bind(&DOMComponent::GetDocument,
-                                                   base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kRequestChildNodes,
-      base::Bind(&DOMComponent::RequestChildNodes, base::Unretained(this)));
-  dispatcher_->AddCommand(kRequestNode, base::Bind(&DOMComponent::RequestNode,
-                                                   base::Unretained(this)));
-  dispatcher_->AddCommand(kResolveNode, base::Bind(&DOMComponent::ResolveNode,
-                                                   base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kHighlightNode,
-      base::Bind(&DOMComponent::HighlightNode, base::Unretained(this)));
-  dispatcher_->AddCommand(
-      kHideHighlight,
-      base::Bind(&DOMComponent::HideHighlight, base::Unretained(this)));
+
+  commands_["DOM.disable"] = &DOMComponent::Disable;
+  commands_["DOM.enable"] = &DOMComponent::Enable;
+  commands_["DOM.highlightNode"] = &DOMComponent::HighlightNode;
+  commands_["DOM.hideHighlight"] = &DOMComponent::HideHighlight;
+
+  dispatcher_->AddDomain("DOM", commands_.Bind());
 }
 
 JSONObject DOMComponent::Enable(const JSONObject& params) {
@@ -88,22 +67,6 @@ JSONObject DOMComponent::Enable(const JSONObject& params) {
 JSONObject DOMComponent::Disable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
   return JSONObject(new base::DictionaryValue());
-}
-
-JSONObject DOMComponent::GetDocument(const JSONObject& params) {
-  return dispatcher_->RunScriptCommand("dom.getDocument", params);
-}
-
-JSONObject DOMComponent::RequestChildNodes(const JSONObject& params) {
-  return dispatcher_->RunScriptCommand("dom.requestChildNodes", params);
-}
-
-JSONObject DOMComponent::RequestNode(const JSONObject& params) {
-  return dispatcher_->RunScriptCommand("dom.requestNode", params);
-}
-
-JSONObject DOMComponent::ResolveNode(const JSONObject& params) {
-  return dispatcher_->RunScriptCommand("dom.resolveNode", params);
 }
 
 // Unlike most other DOM command handlers, this one is not fully implemented

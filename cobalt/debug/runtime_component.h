@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
@@ -31,18 +32,14 @@ class RuntimeComponent {
   explicit RuntimeComponent(DebugDispatcher* dispatcher);
 
  private:
-  // Command handlers.
-  JSONObject CallFunctionOn(const JSONObject& params);
   JSONObject CompileScript(const JSONObject& params);
   JSONObject Disable(const JSONObject& params);
   JSONObject Enable(const JSONObject& params);
-  JSONObject Evaluate(const JSONObject& params);
-  JSONObject GlobalLexicalScopeNames(const JSONObject& params);
-  JSONObject GetProperties(const JSONObject& params);
-  JSONObject ReleaseObject(const JSONObject& params);
-  JSONObject ReleaseObjectGroup(const JSONObject& params);
 
   DebugDispatcher* dispatcher_;
+
+  // Map of member functions implementing commands.
+  CommandMap<RuntimeComponent> commands_;
 };
 
 }  // namespace debug
