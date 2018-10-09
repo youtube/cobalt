@@ -21,6 +21,7 @@
       'target_name': 'debug',
       'type': 'static_library',
       'sources': [
+        'command_map.h',
         'console_component.cc',
         'console_component.h',
         'debug_client.cc',

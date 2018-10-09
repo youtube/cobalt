@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/console.h"
@@ -47,6 +48,9 @@ class ConsoleComponent {
 
   DebugDispatcher* dispatcher_;
   Listener console_listener_;
+
+  // Map of member functions implementing commands.
+  CommandMap<ConsoleComponent> commands_;
 };
 
 }  // namespace debug
