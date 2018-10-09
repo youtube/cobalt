@@ -23,7 +23,7 @@
   void attach(AttachCallback cb);
   void detach(AttachCallback cb);
 
-  void sendCommand(DOMString method, DOMString jsonParams, CommandCallback cb);
+  void sendCommand(DOMString method, DOMString jsonParams, ResponseCallback cb);
 
   readonly attribute DOMString? lastError;
   readonly attribute DebuggerEventTarget onEvent;
@@ -33,4 +33,4 @@
 };
 
 callback AttachCallback = void();
-callback CommandCallback = void(DOMString? response);
+callback ResponseCallback = void(DOMString? response);

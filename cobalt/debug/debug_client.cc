@@ -54,7 +54,7 @@ void DebugClient::OnDetach(const std::string& reason) {
 
 void DebugClient::SendCommand(const std::string& method,
                               const std::string& json_params,
-                              const DebugClient::CommandCallback& callback) {
+                              const DebugClient::ResponseCallback& callback) {
   base::AutoLock auto_lock(dispatcher_lock_);
   if (!dispatcher_) {
     DLOG(WARNING) << "Debug client is not attached to dispatcher.";
