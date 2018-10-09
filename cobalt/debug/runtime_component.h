@@ -19,7 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/debug_script_runner.h"
 #include "cobalt/debug/json_object.h"
 
@@ -28,7 +28,7 @@ namespace debug {
 
 class RuntimeComponent {
  public:
-  explicit RuntimeComponent(ComponentConnector* connector);
+  explicit RuntimeComponent(DebugDispatcher* dispatcher);
 
  private:
   // Command handlers.
@@ -42,8 +42,7 @@ class RuntimeComponent {
   JSONObject ReleaseObject(const JSONObject& params);
   JSONObject ReleaseObjectGroup(const JSONObject& params);
 
-  // Helper object to connect to the debug dispatcher, etc.
-  ComponentConnector* connector_;
+  DebugDispatcher* dispatcher_;
 };
 
 }  // namespace debug
