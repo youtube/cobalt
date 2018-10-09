@@ -56,7 +56,7 @@ void Debugger::Detach(const AttachCallbackArg& callback) {
 
 void Debugger::SendCommand(const std::string& method,
                            const std::string& json_params,
-                           const CommandCallbackArg& callback) {
+                           const ResponseCallbackArg& callback) {
   last_error_ = base::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
     scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
@@ -64,13 +64,13 @@ void Debugger::SendCommand(const std::string& method,
                         "Debugger is not connected - call attach first.");
     std::string json_response;
     base::JSONWriter::Write(response.get(), &json_response);
-    CommandCallbackArg::Reference callback_ref(this, callback);
+    ResponseCallbackArg::Reference callback_ref(this, callback);
     callback_ref.value().Run(json_response);
     return;
   }
 
-  scoped_refptr<CommandCallbackInfo> callback_info(
-      new CommandCallbackInfo(this, callback));
+  scoped_refptr<ResponseCallbackInfo> callback_info(
+      new ResponseCallbackInfo(this, callback));
   debug_client_->SendCommand(
       method, json_params,
       base::Bind(&Debugger::OnCommandResponse, this, callback_info));
@@ -108,12 +108,12 @@ void Debugger::TraceMembers(script::Tracer* tracer) {
 }
 
 void Debugger::OnCommandResponse(
-    const scoped_refptr<CommandCallbackInfo>& callback_info,
+    const scoped_refptr<ResponseCallbackInfo>& callback_info,
     const base::optional<std::string>& response) const {
   // Run the script callback on the message loop the command was sent from.
   callback_info->message_loop_proxy->PostTask(
-      FROM_HERE,
-      base::Bind(&Debugger::RunCommandCallback, this, callback_info, response));
+      FROM_HERE, base::Bind(&Debugger::RunResponseCallback, this, callback_info,
+                            response));
 }
 
 void Debugger::OnDebugClientEvent(const std::string& method,
@@ -131,8 +131,8 @@ void Debugger::OnDebugClientDetach(const std::string& reason) {
   on_event_->DispatchEvent(method, JSONStringify(params));
 }
 
-void Debugger::RunCommandCallback(
-    const scoped_refptr<CommandCallbackInfo>& callback_info,
+void Debugger::RunResponseCallback(
+    const scoped_refptr<ResponseCallbackInfo>& callback_info,
     base::optional<std::string> response) const {
   DCHECK_EQ(base::MessageLoopProxy::current(),
             callback_info->message_loop_proxy);

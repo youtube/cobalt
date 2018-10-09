@@ -57,11 +57,11 @@ base::optional<std::string> DebugScriptRunner::CreateRemoteObject(
   }
 }
 
-bool DebugScriptRunner::RunCommand(const std::string& command,
+bool DebugScriptRunner::RunCommand(const std::string& method,
                                    const std::string& json_params,
                                    std::string* json_result) {
   std::string script = base::StringPrintf("%s.%s(%s);", kObjectIdentifier,
-                                          command.c_str(), json_params.c_str());
+                                          method.c_str(), json_params.c_str());
   return EvaluateScript(script, json_result);
 }
 
