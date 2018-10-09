@@ -18,7 +18,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_layer.h"
 #include "cobalt/dom/dom_rect.h"
@@ -28,7 +28,7 @@ namespace debug {
 
 class DOMComponent {
  public:
-  DOMComponent(ComponentConnector* connector,
+  DOMComponent(DebugDispatcher* dispatcher,
                scoped_ptr<RenderLayer> render_layer);
 
  private:
@@ -63,7 +63,7 @@ class DOMComponent {
                        const base::DictionaryValue* highlight_config_value);
 
   // Helper object to connect to the debug dispatcher, etc.
-  ComponentConnector* connector_;
+  DebugDispatcher* dispatcher_;
 
   // Render layer owned by this object.
   scoped_ptr<RenderLayer> render_layer_;

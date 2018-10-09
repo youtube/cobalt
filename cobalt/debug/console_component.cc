@@ -49,14 +49,14 @@ void ConsoleComponent::Listener::OnMessage(const std::string& message,
   console_component_->OnMessageAdded(message, level);
 }
 
-ConsoleComponent::ConsoleComponent(ComponentConnector* connector,
+ConsoleComponent::ConsoleComponent(DebugDispatcher* dispatcher,
                                    dom::Console* console)
-    : connector_(connector),
+    : dispatcher_(dispatcher),
       ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)) {
-  DCHECK(connector_);
-  connector_->AddCommand(
+  DCHECK(dispatcher_);
+  dispatcher_->AddCommand(
       kDisable, base::Bind(&ConsoleComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher_->AddCommand(
       kEnable, base::Bind(&ConsoleComponent::Enable, base::Unretained(this)));
 }
 
@@ -76,7 +76,7 @@ void ConsoleComponent::OnMessageAdded(const std::string& text,
   params->SetString(kMessageText, text);
   params->SetString(kMessageLevel, dom::Console::GetLevelAsString(level));
   params->SetString(kMessageSource, kMessageSourceValue);
-  connector_->SendEvent(kMessageAdded, params);
+  dispatcher_->SendEvent(kMessageAdded, params);
 }
 
 }  // namespace debug

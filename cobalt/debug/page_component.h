@@ -19,7 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_layer.h"
 #include "cobalt/dom/window.h"
@@ -31,7 +31,7 @@ namespace debug {
 
 class PageComponent {
  public:
-  PageComponent(ComponentConnector* connector, dom::Window* window,
+  PageComponent(DebugDispatcher* dispatcher, dom::Window* window,
                 scoped_ptr<RenderLayer> render_layer,
                 render_tree::ResourceProvider* resource_provider);
 
@@ -41,13 +41,8 @@ class PageComponent {
   JSONObject GetResourceTree(const JSONObject& params);
   JSONObject SetOverlayMessage(const JSONObject& params);
 
-  // Helper object to connect to the debug dispatcher, etc.
-  ComponentConnector* connector_;
-  // No ownership.
   dom::Window* window_;
-  // Owned by this object.
   scoped_ptr<RenderLayer> render_layer_;
-  // No ownership.
   render_tree::ResourceProvider* resource_provider_;
 };
 
