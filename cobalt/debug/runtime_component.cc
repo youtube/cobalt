@@ -41,38 +41,37 @@ const char kReleaseObjectGroup[] = "Runtime.releaseObjectGroup";
 const char kExecutionContextCreated[] = "Runtime.executionContextCreated";
 }  // namespace
 
-RuntimeComponent::RuntimeComponent(ComponentConnector* connector)
-    : connector_(connector) {
-  DCHECK(connector_);
-  if (!connector_->RunScriptFile(kScriptFile)) {
+RuntimeComponent::RuntimeComponent(DebugDispatcher* dispatcher)
+    : dispatcher_(dispatcher) {
+  DCHECK(dispatcher_);
+  if (!dispatcher_->RunScriptFile(kScriptFile)) {
     DLOG(WARNING) << "Cannot execute Runtime initialization script.";
   }
 
-  connector_->AddCommand(
+  dispatcher_->AddCommand(
       kCallFunctionOn,
       base::Bind(&RuntimeComponent::CallFunctionOn, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher_->AddCommand(
       kCompileScript,
       base::Bind(&RuntimeComponent::CompileScript, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher_->AddCommand(
       kDisable, base::Bind(&RuntimeComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher_->AddCommand(
       kEnable, base::Bind(&RuntimeComponent::Enable, base::Unretained(this)));
-  connector_->AddCommand(kEvaluate, base::Bind(&RuntimeComponent::Evaluate,
-                                               base::Unretained(this)));
-  connector_->AddCommand(
-    kGlobalLexicalScopeNames,
-    base::Bind(&RuntimeComponent::GlobalLexicalScopeNames,
-               base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher_->AddCommand(kEvaluate, base::Bind(&RuntimeComponent::Evaluate,
+                                                base::Unretained(this)));
+  dispatcher_->AddCommand(kGlobalLexicalScopeNames,
+                          base::Bind(&RuntimeComponent::GlobalLexicalScopeNames,
+                                     base::Unretained(this)));
+  dispatcher_->AddCommand(
       kGetProperties,
       base::Bind(&RuntimeComponent::GetProperties, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher_->AddCommand(
       kReleaseObject,
       base::Bind(&RuntimeComponent::ReleaseObject, base::Unretained(this)));
-  connector_->AddCommand(kReleaseObjectGroup,
-                         base::Bind(&RuntimeComponent::ReleaseObjectGroup,
-                                    base::Unretained(this)));
+  dispatcher_->AddCommand(kReleaseObjectGroup,
+                          base::Bind(&RuntimeComponent::ReleaseObjectGroup,
+                                     base::Unretained(this)));
 }
 
 JSONObject RuntimeComponent::CompileScript(const JSONObject& params) {
@@ -84,7 +83,7 @@ JSONObject RuntimeComponent::CompileScript(const JSONObject& params) {
 }
 
 JSONObject RuntimeComponent::CallFunctionOn(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.callFunctionOn", params);
+  return dispatcher_->RunScriptCommand("runtime.callFunctionOn", params);
 }
 
 JSONObject RuntimeComponent::Disable(const JSONObject& params) {
@@ -95,31 +94,31 @@ JSONObject RuntimeComponent::Disable(const JSONObject& params) {
 JSONObject RuntimeComponent::Enable(const JSONObject& params) {
   UNREFERENCED_PARAMETER(params);
   JSONObject event_params;
-  connector_->SendScriptEvent(kExecutionContextCreated,
-                              "runtime.executionContextCreatedEvent",
-                              event_params);
+  dispatcher_->SendScriptEvent(kExecutionContextCreated,
+                               "runtime.executionContextCreatedEvent",
+                               event_params);
   return JSONObject(new base::DictionaryValue());
 }
 
 JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.evaluate", params);
+  return dispatcher_->RunScriptCommand("runtime.evaluate", params);
 }
 
 JSONObject RuntimeComponent::GlobalLexicalScopeNames(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.globalLexicalScopeNames",
-                                      params);
+  return dispatcher_->RunScriptCommand("runtime.globalLexicalScopeNames",
+                                       params);
 }
 
 JSONObject RuntimeComponent::GetProperties(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.getProperties", params);
+  return dispatcher_->RunScriptCommand("runtime.getProperties", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.releaseObjectGroup", params);
+  return dispatcher_->RunScriptCommand("runtime.releaseObjectGroup", params);
 }
 
 JSONObject RuntimeComponent::ReleaseObject(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.releaseObject", params);
+  return dispatcher_->RunScriptCommand("runtime.releaseObject", params);
 }
 
 }  // namespace debug

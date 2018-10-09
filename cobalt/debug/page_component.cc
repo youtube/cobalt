@@ -53,27 +53,26 @@ const char kLoaderIdValue[] = "Cobalt";
 const char kMimeTypeValue[] = "text/html";
 }  // namespace
 
-PageComponent::PageComponent(ComponentConnector* connector, dom::Window* window,
+PageComponent::PageComponent(DebugDispatcher* dispatcher, dom::Window* window,
                              scoped_ptr<RenderLayer> render_layer,
                              render_tree::ResourceProvider* resource_provider)
-    : connector_(connector),
-      window_(window),
+    : window_(window),
       render_layer_(render_layer.Pass()),
       resource_provider_(resource_provider) {
-  DCHECK(connector_);
+  DCHECK(dispatcher);
   DCHECK(window_);
   DCHECK(window_->document());
   DCHECK(render_layer_);
   DCHECK(resource_provider_);
 
-  connector_->AddCommand(
+  dispatcher->AddCommand(
       kDisable, base::Bind(&PageComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher->AddCommand(
       kEnable, base::Bind(&PageComponent::Enable, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher->AddCommand(
       kGetResourceTree,
       base::Bind(&PageComponent::GetResourceTree, base::Unretained(this)));
-  connector_->AddCommand(
+  dispatcher->AddCommand(
       kSetOverlayMessage,
       base::Bind(&PageComponent::SetOverlayMessage, base::Unretained(this)));
 }
