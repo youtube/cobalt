@@ -21,7 +21,7 @@
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stl_util.h"
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/call_frame.h"
 #include "cobalt/script/scope.h"
@@ -33,7 +33,7 @@ namespace debug {
 
 class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
  public:
-  explicit JavaScriptDebuggerComponent(ComponentConnector* connector);
+  explicit JavaScriptDebuggerComponent(DebugDispatcher* dispatcher);
 
   virtual ~JavaScriptDebuggerComponent();
 
@@ -126,7 +126,7 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   void SendResumedEvent();
 
   // Helper object to connect to the debug dispatcher, etc.
-  ComponentConnector* connector_;
+  DebugDispatcher* dispatcher_;
 
   // Map of source providers with scoped deleter to clean up on destruction.
   SourceProviderMap source_providers_;

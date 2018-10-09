@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/console.h"
 
@@ -26,7 +26,7 @@ namespace debug {
 
 class ConsoleComponent {
  public:
-  ConsoleComponent(ComponentConnector* connector, dom::Console* console);
+  ConsoleComponent(DebugDispatcher* dispatcher, dom::Console* console);
 
  private:
   class Listener : public dom::Console::Listener {
@@ -45,7 +45,7 @@ class ConsoleComponent {
   // Called by |console_listener_| when a new message is output.
   void OnMessageAdded(const std::string& text, dom::Console::Level level);
 
-  ComponentConnector* connector_;
+  DebugDispatcher* dispatcher_;
   Listener console_listener_;
 };
 
