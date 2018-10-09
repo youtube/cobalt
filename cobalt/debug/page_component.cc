@@ -30,15 +30,6 @@ namespace cobalt {
 namespace debug {
 
 namespace {
-// Definitions from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/page
-
-// Command "methods" (names):
-const char kDisable[] = "Page.disable";
-const char kEnable[] = "Page.enable";
-const char kGetResourceTree[] = "Page.getResourceTree";
-const char kSetOverlayMessage[] = "Page.setOverlayMessage";
-
 // Parameter field names:
 const char kFrameId[] = "result.frameTree.frame.id";
 const char kLoaderId[] = "result.frameTree.frame.loaderId";
@@ -58,23 +49,20 @@ PageComponent::PageComponent(DebugDispatcher* dispatcher, dom::Window* window,
                              render_tree::ResourceProvider* resource_provider)
     : window_(window),
       render_layer_(render_layer.Pass()),
-      resource_provider_(resource_provider) {
+      resource_provider_(resource_provider),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
   DCHECK(dispatcher);
   DCHECK(window_);
   DCHECK(window_->document());
   DCHECK(render_layer_);
   DCHECK(resource_provider_);
 
-  dispatcher->AddCommand(
-      kDisable, base::Bind(&PageComponent::Disable, base::Unretained(this)));
-  dispatcher->AddCommand(
-      kEnable, base::Bind(&PageComponent::Enable, base::Unretained(this)));
-  dispatcher->AddCommand(
-      kGetResourceTree,
-      base::Bind(&PageComponent::GetResourceTree, base::Unretained(this)));
-  dispatcher->AddCommand(
-      kSetOverlayMessage,
-      base::Bind(&PageComponent::SetOverlayMessage, base::Unretained(this)));
+  commands_["Page.disable"] = &PageComponent::Disable;
+  commands_["Page.enable"] = &PageComponent::Enable;
+  commands_["Page.getResourceTree"] = &PageComponent::GetResourceTree;
+  commands_["Page.setOverlayMessage"] = &PageComponent::SetOverlayMessage;
+
+  dispatcher->AddDomain("Page", commands_.Bind());
 }
 
 JSONObject PageComponent::Disable(const JSONObject& params) {

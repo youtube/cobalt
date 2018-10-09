@@ -37,6 +37,9 @@ devtoolsBackend.createRemoteObjectCallback = function(object, params) {
 
 devtoolsBackend.runtime = {};
 
+// Alias to match the uppercase domain of the devtools protocol.
+devtoolsBackend.Runtime = devtoolsBackend.runtime;
+
 // Creates an executionContextCreated event.
 // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#event-executionContextCreated
 devtoolsBackend.runtime.executionContextCreatedEvent = function() {
