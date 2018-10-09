@@ -21,8 +21,6 @@
       'target_name': 'debug',
       'type': 'static_library',
       'sources': [
-        'component_connector.cc',
-        'component_connector.h',
         'console_component.cc',
         'console_component.h',
         'debug_client.cc',
