@@ -65,7 +65,7 @@ class DebugClient {
 
   // Callback to receive a command response from the dispatcher.
   typedef base::Callback<void(const base::optional<std::string>& response)>
-      CommandCallback;
+      ResponseCallback;
 
   DebugClient(DebugDispatcher* dispatcher, Delegate* delegate);
   ~DebugClient();
@@ -76,7 +76,7 @@ class DebugClient {
   // Sends a command to the attached dispatcher, with a callback for the
   // response.
   void SendCommand(const std::string& method, const std::string& json_params,
-                   const CommandCallback& callback);
+                   const ResponseCallback& callback);
 
  private:
   friend class DebugDispatcher;
