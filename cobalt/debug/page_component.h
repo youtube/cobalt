@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_layer.h"
@@ -44,6 +45,9 @@ class PageComponent {
   dom::Window* window_;
   scoped_ptr<RenderLayer> render_layer_;
   render_tree::ResourceProvider* resource_provider_;
+
+  // Map of member functions implementing commands.
+  CommandMap<PageComponent> commands_;
 };
 
 }  // namespace debug
