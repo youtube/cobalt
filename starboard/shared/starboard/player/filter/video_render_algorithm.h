@@ -42,6 +42,10 @@ class VideoRenderAlgorithm {
       VideoRendererSink;
 
   virtual ~VideoRenderAlgorithm() {}
+
+  // |draw_frame_cb| can be empty.  When it is empty, this function simply runs
+  // the frame picking algorithm without calling |draw_frame_cb| to render the
+  // frame explicitly.
   virtual void Render(MediaTimeProvider* media_time_provider,
                       std::list<scoped_refptr<VideoFrame>>* frames,
                       VideoRendererSink::DrawFrameCB draw_frame_cb) = 0;
