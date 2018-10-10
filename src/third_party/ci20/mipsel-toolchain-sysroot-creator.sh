@@ -48,7 +48,8 @@ readonly BUILD_DIR=${TMP}/build
 
 readonly JAIL_MIPS32=${INSTALL_ROOT}/sysroot
 
-readonly CROSS_TARBALL="mipsel_toolchain_sysroot"
+readonly MTI_PREBUILT_URL="https://codescape.mips.com/components/toolchain/2017.10-07/Codescape.GNU.Tools.Package.2017.10-07.for.MIPS.MTI.Linux.CentOS-5.x86_64.tar.gz"
+readonly MTI_PREBUILT_SHA1SUM="c3e21b47b9d7e9c1f617c1a5e1a8255fdb97efb6"
 
 ######################################################################
 # Helper
@@ -68,7 +69,11 @@ SubBanner() {
 
 Usage() {
   echo
-  echo "$0"
+  echo "$0 <clang|gcc_4-9|gcc_mti_6-3>"
+  echo
+  echo "clang - Creates sysroot based on Debian Jessie with addition of GCC 4.9 libs"
+  echo "gcc_4-9 - Builds GCC 4.9 toolchain and creates sysroot based on Debian Jessie"
+  echo "gcc_mti_6-3 - Downloads prebuilt MTI GCC 6.3 toolchain and creates sysroot based on Debian Stretch"
   echo
 }
 
@@ -146,20 +151,27 @@ SanityCheck() {
 }
 
 ClearInstallDir() {
-  Banner "clearing dirs in ${INSTALL_ROOT}"
+  Banner "Clearing dirs in ${INSTALL_ROOT}"
   rm -rf ${INSTALL_ROOT}/*
   mkdir -p ${JAIL_MIPS32}
 }
 
 ClearBuildDir() {
-  Banner "clearing dirs in ${BUILD_DIR}"
+  Banner "Clearing dirs in ${BUILD_DIR}"
   rm -rf ${BUILD_DIR}/*
 }
 
 CreateTarBall() {
   local tarball=$1
-  Banner "creating tar ball ${tarball}"
+  Banner "Creating tar ball ${tarball}"
   tar cfz ${tarball}.tgz -C ${INSTALL_ROOT} .
+}
+
+CreateMTITarBall() {
+  local tarball=$1
+  Banner "Creating tar ball ${tarball}"
+  cp -r ${INSTALL_ROOT}"/sysroot/." $(pwd)"/toolchain/codescape/sysroot/mipsel-r2-hard/"
+  tar cfz ${tarball}.tgz -C $(pwd)"/toolchain/codescape/" .
 }
 
 # Download the toolchain source tarballs or use a local copy when available.
@@ -344,17 +356,56 @@ DownloadOrCopyAndInstallToolchain() {
   popd
 }
 
+DownloadMTI() {
+  Banner "Downloading MTI toolchain"
+  mkdir -p ${TMP}"/codescape"
+  tarball="${TMP}/${MTI_PREBUILT_URL##*/}"
+  DownloadOrCopyAndVerify ${MTI_PREBUILT_URL} ${MTI_PREBUILT_SHA1SUM}
+
+  SubBanner "Extracting from ${tarball}"
+  tar xvf ${tarball} -C ${TMP}"/codescape"
+
+  mkdir -p $(pwd)"/toolchain/codescape/mti"
+  mkdir -p $(pwd)"/toolchain/codescape/sysroot/mipsel-r2-hard"
+
+  SubBanner "Removing uneeded libs"
+
+  mti=${TMP}"/codescape/mips-mti-linux-gnu/2017.10-07"
+
+  rm -rf ${mti}"/sysroot"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/micromipsel-r2-hard-nan2008"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/micromipsel-r2-soft"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mipsel-r1-hard"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mipsel-r2-hard-nan2008"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mipsel-r2-hard-nan2008-uclibc"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mipsel-r2-hard-uclibc"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mipsel-r2-soft"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mips-r2-hard"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mips-r2-hard-nan2008"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mips-r2-hard-nan2008-uclibc"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mips-r2-hard-uclibc"
+  rm -rf ${mti}"/lib/gcc/mips-mti-linux-gnu/6.3.0/mips-r2-soft"
+  rm -rf ${mti}"/lib64"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/micromipsel-r2-hard-nan2008"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/micromipsel-r2-soft"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mipsel-r1-hard"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mipsel-r2-hard-nan2008"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mipsel-r2-hard-nan2008-uclibc"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mipsel-r2-hard-uclibc"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mipsel-r2-soft"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mips-r2-hard"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mips-r2-hard-nan2008"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mips-r2-hard-nan2008-uclibc"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mips-r2-hard-uclibc"
+  rm -rf ${mti}"/mips-mti-linux-gnu/lib/mips-r2-soft"
+
+  SubBanner "Copying toolchain"
+  cp -r ${TMP}"/codescape/mips-mti-linux-gnu/2017.10-07/." $(pwd)"/toolchain/codescape/mti/"
+}
+
 # ----------------------------------------------------------------------
 # mips32 deb files to complete our code sourcery jail
 # ----------------------------------------------------------------------
-readonly REPO_DEBIAN=http://ftp.debian.org/debian
-readonly MIPS32_PACKAGES=${REPO_DEBIAN}/dists/jessie/main/binary-mipsel/Packages.xz
-
-readonly BASE_PACKAGELIST_MIPS32=${SCRIPT_DIR}/packagelist.jessie.mipsel.base
-readonly EXTRA_PACKAGELIST_MIPS32=${SCRIPT_DIR}/packagelist.jessie.mipsel.extra
-readonly TMP_BASE_PKG_MIPS32=${TMP}/packagelist.generated.jessie.mipsel.base
-readonly TMP_EXTRA_PKG_MIPS32=${TMP}/packagelist.generated.jessie.mipsel.extra
-
 GeneratePackageLists() {
   local packages=
   local TMP_PACKAGELIST=
@@ -500,19 +551,84 @@ FixLibs() {
   popd
 }
 
+GCCCleanup() {
+  Banner "Removing uneeded GCC tools for clang build"
+
+  rm -rf ${INSTALL_ROOT}"/bin"
+  rm -rf ${INSTALL_ROOT}"/include"
+  rm -rf ${INSTALL_ROOT}"/libexec"
+  rm -rf ${INSTALL_ROOT}"/share"
+}
+
+CleanUp() {
+  Banner "Removing temporary files"
+  rm -rf $(pwd)/toolchain/*
+}
+
 ######################################################################
 # Main
 ######################################################################
 
-mkdir -p ${TMP}
-SanityCheck
-ClearInstallDir
-ClearBuildDir
-DownloadOrCopyAndInstallToolchain
-GeneratePackageLists
-InstallMissingLibraries
-FixLinks
-FixLibs
-FixIncludes
-CreateTarBall ${CROSS_TARBALL}
+if [[ $# -eq 0 ]] ; then
+  echo "You must specify a mode on the commandline:"
+  echo
+  Usage
+  exit -1
 
+elif [[ $1 == "clang" || $1 == "gcc_4-9" ]] ; then
+
+  readonly REPO_DEBIAN=http://ftp.debian.org/debian
+  readonly MIPS32_PACKAGES=${REPO_DEBIAN}/dists/jessie/main/binary-mipsel/Packages.xz
+
+  readonly BASE_PACKAGELIST_MIPS32=${SCRIPT_DIR}/packagelist.jessie.mipsel.base
+  readonly EXTRA_PACKAGELIST_MIPS32=${SCRIPT_DIR}/packagelist.jessie.mipsel.extra
+  readonly TMP_BASE_PKG_MIPS32=${TMP}/packagelist.generated.jessie.mipsel.base
+  readonly TMP_EXTRA_PKG_MIPS32=${TMP}/packagelist.generated.jessie.mipsel.extra
+
+  mkdir -p ${TMP}
+  SanityCheck
+  ClearInstallDir
+  ClearBuildDir
+  DownloadOrCopyAndInstallToolchain
+  GeneratePackageLists
+  InstallMissingLibraries
+  FixLinks
+  FixLibs
+  FixIncludes
+
+  if [[ $1 == "clang" ]] ; then
+    GCCCleanup
+    CreateTarBall "mipsel_clang_jessie_sysroot"
+  elif [[ $1 == "gcc_4-9" ]] ; then
+    CreateTarBall "mipsel_gcc_4-9_jessie_sysroot"
+  fi
+
+  CleanUp
+
+elif [[ $1 == "gcc_mti_6-3" ]] ; then
+
+  readonly REPO_DEBIAN=http://ftp.debian.org/debian
+  readonly MIPS32_PACKAGES=${REPO_DEBIAN}/dists/stretch/main/binary-mipsel/Packages.xz
+
+  readonly BASE_PACKAGELIST_MIPS32=${SCRIPT_DIR}/packagelist.stretch.mipsel.base
+  readonly EXTRA_PACKAGELIST_MIPS32=${SCRIPT_DIR}/packagelist.stretch.mipsel.extra
+  readonly TMP_BASE_PKG_MIPS32=${TMP}/packagelist.generated.stretch.mipsel.base
+  readonly TMP_EXTRA_PKG_MIPS32=${TMP}/packagelist.generated.stretch.mipsel.extra
+
+  mkdir -p ${TMP}
+  SanityCheck
+  ClearInstallDir
+  DownloadMTI
+  GeneratePackageLists
+  InstallMissingLibraries
+  FixLinks
+  FixLibs
+  FixIncludes
+  CreateMTITarBall "mipsel_gcc_mti_6-3_stretch_sysroot"
+  CleanUp
+
+else
+  Usage
+  exit -1
+
+fi

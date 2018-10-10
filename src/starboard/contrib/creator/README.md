@@ -7,20 +7,34 @@ https://www.elinux.org/MIPS_Creator_CI20
 # Building Cobalt for CI20
 
 Cobalt can be built for CI20 using LLVM toolchain (Clang and lld),
-or GCC 4.9 toolchain. In both cases sysroot based on Debian Jessie is needed.
+GCC 4.9 and GCC MTI 6.3 toolchains. In all cases sysroot based on Debian is needed.
+For building Cobalt with Clang or GCC 4.9, Debian Jessie is used as sysroot,
+and for building with GCC MTI 6.3, sysroot is based on Debian Stretch due to
+dependance on newer versions of libstdc++. For this reason, Cobalt built with GCC MTI 6.3
+toolchain can only be executed on CI20 platform with Debian Stretch or later.
 
 ## Sysroot
 
 Directory third_party/ci20 contains script mipsel-toolchain-sysroot-creator.sh,
-which will create Debian Jessie based sysroot. In addition this script will
-also build GCC toolchain.
+which will create Debian based sysroot. In addition this script will
+also build GCC 4.9 toolchain or download prebuilt GCC MTI 6.3 from https://codescape.mips.com.
 
 In order to create sysroot and toolchain run:
 
-    ./mipsel-toolchain-sysroot-creator.sh
+    ./mipsel-toolchain-sysroot-creator.sh <toolchain>
 
-Result will be a package, mipsel_toolchain_sysroot.tgz, which will contain
-sysroot and GCC toolchain.
+toolchain argument can be:
+
+clang - Creates sysroot based on Debian Jessie with addition of GCC 4.9 libs
+gcc_4-9 - Builds GCC 4.9 toolchain and creates sysroot based on Debian Jessie
+gcc_mti_6-3 - Downloads prebuilt MTI GCC 6.3 toolchain and creates sysroot
+              based on Debian Stretch
+
+Result will be a package:
+
+mipsel_clang_jessie_sysroot.tgz - contains Debian Jessie sysroot, and required GCC libs
+mipsel_gcc_4-9_jessie_sysroot.tgz - contains built GCC 4.9 toolchain and Debian Jessie sysroot
+mipsel_gcc_mti_6-3_stretch_sysroot.tgz - contains downloaded GCC MTI 6.3 toolchain and Debian Stretch sysroot
 
 Directory where this package is extracted should be exported as CI20_HOME.
 
@@ -88,6 +102,24 @@ Commands for building are:
 
     cobalt/build/gyp_cobalt -C gold creator-ci20x11-gcc-4-9
     ninja -j4 -C out/creator-ci20x11-gcc-4-9_gold cobalt
+
+### Building with GCC MTI 6.3
+
+Configuration files for GCC build are located in creator/ci20x11/gcc/6.3.mti
+
+Commands for building are:
+
+    cobalt/build/gyp_cobalt -C debug creator-ci20x11-gcc-6-3-mti
+    ninja -j4 -C out/creator-ci20x11-gcc-6-3-mti_debug all
+
+    cobalt/build/gyp_cobalt -C devel creator-ci20x11-gcc-6-3-mti
+    ninja -j4 -C out/creator-ci20x11-gcc-6-3-mti_devel all
+
+    cobalt/build/gyp_cobalt -C qa creator-ci20x11-gcc-6-3-mti
+    ninja -j4 -C out/creator-ci20x11-gcc-6-3-mti_qa cobalt
+
+    cobalt/build/gyp_cobalt -C gold creator-ci20x11-gcc-6-3-mti
+    ninja -j4 -C out/creator-ci20x11-gcc-6-3-mti_gold cobalt
 
 
 # Running Cobalt on CI20
