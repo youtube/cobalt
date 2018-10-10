@@ -60,8 +60,15 @@ base::optional<std::string> DebugScriptRunner::CreateRemoteObject(
 bool DebugScriptRunner::RunCommand(const std::string& method,
                                    const std::string& json_params,
                                    std::string* json_result) {
-  std::string script = base::StringPrintf("%s.%s(%s);", kObjectIdentifier,
-                                          method.c_str(), json_params.c_str());
+  // If either the domain or the method are undefined in JavaScript, return
+  // an empty string to indicate it's unimplemented. Otherwise go ahead and
+  // run the method, letting it fail if there's any exception.
+  std::string domain(method, 0, method.find('.'));
+  std::string script = base::StringPrintf(
+      "(typeof %s.%s === 'undefined' || typeof %s.%s === 'undefined')"
+      "    ? '' : %s.%s(%s);",
+      kObjectIdentifier, domain.c_str(), kObjectIdentifier, method.c_str(),
+      kObjectIdentifier, method.c_str(), json_params.c_str());
   return EvaluateScript(script, json_result);
 }
 
