@@ -47,7 +47,6 @@ VideoRenderer::VideoRenderer(scoped_ptr<VideoDecoder> decoder,
       number_of_frames_(0) {
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(algorithm_ != NULL);
-  SB_DCHECK(sink_ != NULL);
   SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
   SB_DLOG_IF(WARNING, decoder_->GetMaxNumberOfCachedFrames() < 4)
       << "VideoDecoder::GetMaxNumberOfCachedFrames() returns "
@@ -206,7 +205,9 @@ void VideoRenderer::SetBounds(int z_index,
                               int y,
                               int width,
                               int height) {
-  sink_->SetBounds(z_index, x, y, width, height);
+  if (sink_) {
+    sink_->SetBounds(z_index, x, y, width, height);
+  }
 }
 
 SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
@@ -214,6 +215,12 @@ SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
   // called right before VideoRenderer dtor is called and |decoder_| is set to
   // NULL inside the dtor.
   SB_DCHECK(decoder_);
+
+  // TODO: Ensure that |sink_| is NULL when decode target is used across all
+  // platforms.
+  if (!sink_) {
+    Render(VideoRendererSink::DrawFrameCB());
+  }
 
   return decoder_->GetCurrentDecodeTarget();
 }
