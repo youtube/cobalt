@@ -21,6 +21,8 @@
 #include "base/memory/scoped_ptr.h"  // For scoped_array
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/exception_state.h"
+#include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -51,6 +53,10 @@ class AudioBuffer : public script::Wrappable {
   int32 number_of_channels() const {
     return static_cast<int32>(audio_bus_->channels());
   }
+  // Copies samples from a source array to a specified channel and offset.
+  void CopyToChannel(const script::Handle<script::Float32Array>& source,
+                     uint32 channel_number, uint32 start_in_channel,
+                     script::ExceptionState* exception_state);
 
   // Custom, not in any spec
   //

@@ -26,6 +26,10 @@ interface AudioContext : EventTarget {
 
   // AudioNode creation
   AudioBufferSourceNode createBufferSource();
+
+  // AudioBuffer creation
+  AudioBuffer createBuffer(unsigned long numOfChannels, unsigned long length,
+                           float sample_rate);
 };
 
 callback DecodeSuccessCallback = void(AudioBuffer decodedData);
