@@ -48,6 +48,16 @@ AudioContext::~AudioContext() {
   }
 }
 
+scoped_refptr<AudioBuffer> AudioContext::CreateBuffer(uint32 num_of_channels,
+                                                      uint32 length,
+                                                      float sample_rate) {
+  DCHECK(main_message_loop_->BelongsToCurrentThread());
+
+  return scoped_refptr<AudioBuffer>(new AudioBuffer(sample_rate,
+      scoped_ptr<ShellAudioBus>(new ShellAudioBus(num_of_channels, length,
+      GetPreferredOutputSampleType(), kStorageTypeInterleaved))));
+}
+
 scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource() {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 

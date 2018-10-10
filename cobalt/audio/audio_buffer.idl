@@ -21,4 +21,9 @@ interface AudioBuffer {
   // in seconds
   readonly attribute double duration;
   readonly attribute long numberOfChannels;
+
+  [RaisesException] void copyToChannel(
+      Float32Array source,
+      unsigned long channelNumber,
+      optional unsigned long startInChannel = 0);
 };

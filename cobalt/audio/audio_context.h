@@ -128,6 +128,10 @@ class AudioContext : public dom::EventTarget {
   // Creates an AudioBufferSourceNode.
   scoped_refptr<AudioBufferSourceNode> CreateBufferSource();
 
+  // Creates a new, empty AudioBuffer object.
+  scoped_refptr<AudioBuffer> CreateBuffer(uint32 num_of_channels, uint32 length,
+                                          float sample_rate);
+
   const scoped_refptr<AudioLock>& audio_lock() const { return audio_lock_; }
 
   DEFINE_WRAPPABLE_TYPE(AudioContext);
