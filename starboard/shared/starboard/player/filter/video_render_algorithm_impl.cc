@@ -34,7 +34,6 @@ void VideoRenderAlgorithmImpl::Render(
     VideoRendererSink::DrawFrameCB draw_frame_cb) {
   SB_DCHECK(media_time_provider);
   SB_DCHECK(frames);
-  SB_DCHECK(draw_frame_cb);
 
   if (frames->empty() || frames->front()->is_end_of_stream()) {
     return;
@@ -102,9 +101,11 @@ void VideoRenderAlgorithmImpl::Render(
 
   if (!frames->front()->is_end_of_stream()) {
     last_frame_timestamp_ = frames->front()->timestamp();
-    auto status = draw_frame_cb(frames->front(), 0);
-    if (status == VideoRendererSink::kReleased) {
-      frames->pop_front();
+    if (draw_frame_cb) {
+      auto status = draw_frame_cb(frames->front(), 0);
+      if (status == VideoRendererSink::kReleased) {
+        frames->pop_front();
+      }
     }
   }
 }
