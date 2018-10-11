@@ -13,6 +13,8 @@
 # limitations under the License.
 
 {
+  'includes': [ '../build/contents_dir.gypi' ],
+
   'variables': {
     'sb_pedantic_warnings': 1,
   },
@@ -370,6 +372,17 @@
         # this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
       ],
+      'copies': [
+        {
+          'destination': '<(sb_static_contents_output_data_dir)',
+          'files': ['<(static_contents_source_dir)/licenses/'],
+        },
+      ],
+      'all_dependent_settings': {
+        'variables': {
+          'content_deploy_subdirs': [ 'licenses' ]
+        }
+      },
     },
   ],
 }
