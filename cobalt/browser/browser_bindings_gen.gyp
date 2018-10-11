@@ -297,6 +297,7 @@
         '../dom/navigator_language.idl',
         '../dom/navigator_plugins.idl',
         '../dom/navigator_storage_utils.idl',
+        '../dom/navigator_licenses.idl',
         '../dom/non_document_type_child_node.idl',
         '../dom/non_element_parent_node.idl',
         '../dom/parent_node.idl',
