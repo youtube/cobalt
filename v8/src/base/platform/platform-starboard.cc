@@ -402,8 +402,8 @@ void Thread::set_name(const char* name) {
 
 void Thread::Start() {
   data_->thread_ =
-      SbThreadCreate(stack_size_, kSbThreadNoPriority, kSbInvalidInt, true,
-                     name_, ThreadEntry, this);
+      SbThreadCreate(stack_size_, kSbThreadNoPriority, kSbThreadNoAffinity,
+                     true, name_, ThreadEntry, this);
 }
 
 void Thread::Join() { SbThreadJoin(data_->thread_, nullptr); }
