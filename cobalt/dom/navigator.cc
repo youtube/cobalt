@@ -23,6 +23,7 @@
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
+#include "starboard/file.h"
 #include "starboard/media.h"
 
 using cobalt::media_session::MediaSession;
@@ -44,6 +45,47 @@ Navigator::Navigator(const std::string& user_agent, const std::string& language,
       script_value_factory_(script_value_factory) {}
 
 const std::string& Navigator::language() const { return language_; }
+
+std::string GetFilenameForLicenses() {
+  const std::string licenses_relative_path = "/licenses/licenses_cobalt.txt";
+
+  char buffer[SB_FILE_MAX_PATH + 1] = {0};
+  bool got_path =
+      SbSystemGetPath(kSbSystemPathContentDirectory, buffer,
+                      SB_ARRAY_SIZE_INT(buffer));
+  if (!got_path) {
+    SB_DLOG(ERROR) << "Cannot get content path for licenses files.";
+    return std::string();
+  }
+
+  return std::string(buffer).append(licenses_relative_path);
+}
+
+const std::string Navigator::licenses() const {
+  const std::string filename = GetFilenameForLicenses();
+
+  SbFile file = SbFileOpen(filename.c_str(), kSbFileOpenOnly | kSbFileRead,
+    nullptr, nullptr);
+  if (file == kSbFileInvalid) {
+    SB_DLOG(WARNING) << "Cannot open licenses file: " << filename;
+    return std::string();
+  }
+
+  SbFileInfo info;
+  bool success = SbFileGetInfo(file, &info);
+  if (!success) {
+    SB_DLOG(WARNING) << "Cannot get information for licenses file.";
+    return std::string();
+  }
+  int fileSize = static_cast<int>(info.size);
+
+  char* buffer = new char[fileSize];
+  SbFileReadAll(file, buffer, fileSize);
+  const std::string file_contents = std::string(buffer, fileSize);
+  delete[] buffer;
+
+  return file_contents;
+}
 
 const std::string& Navigator::user_agent() const { return user_agent_; }
 
