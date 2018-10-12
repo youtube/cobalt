@@ -79,6 +79,7 @@ class ImageDecoder : public Decoder {
     kNotApplicable,
     kUnsupportedImageFormat,
     kSuspended,
+    kFinishedWithoutContent,
   };
 
   // The current longest signature is WEBP signature.
