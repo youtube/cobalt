@@ -22,4 +22,3 @@ Navigator implements NavigatorPlugins;
 Navigator implements NavigatorStorageUtils;
 Navigator implements NavigatorMediaSession;
 Navigator implements NavigatorSystemCaptionSettings;
-Navigator implements NavigatorLicenses;
