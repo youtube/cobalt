@@ -359,7 +359,9 @@ const char kVersion[] = "version";
 const char kVersionHelp[] = "Prints the current version of Cobalt";
 
 const char kViewport[] = "viewport";
-const char kViewportHelp[] = "Specifies the viewport size: width ['x' height]";
+const char kViewportHelp[] =
+    "Specifies the viewport size: "
+    "width ['x' height ['x' screen_diagonal_inches]]";
 
 const char kVideoPlaybackRateMultiplier[] = "video_playback_rate_multiplier";
 const char kVideoPlaybackRateMultiplierHelp[] =

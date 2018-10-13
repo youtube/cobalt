@@ -16,6 +16,7 @@
 #define COBALT_LAYOUT_TESTS_LAYOUT_SNAPSHOT_H_
 
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "googleurl/src/gurl.h"
@@ -29,7 +30,7 @@ namespace layout_tests {
 // At encapsulates core functionality used by both layout benchmarks and layout
 // tests.
 browser::WebModule::LayoutResults SnapshotURL(
-    const GURL& url, const math::Size& viewport_size,
+    const GURL& url, const cssom::ViewportSize& viewport_size,
     render_tree::ResourceProvider* resource_provider,
     const dom::ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_provider);

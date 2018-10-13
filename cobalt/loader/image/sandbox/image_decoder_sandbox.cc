@@ -127,12 +127,12 @@ int SandboxMain(int argc, char** argv) {
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
       FilePath(FILE_PATH_LITERAL("image_decoder_sandbox_trace.json")));
 
+  math::Size view_size(kViewportWidth, kViewportHeight);
+
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
   scoped_ptr<SystemWindow> system_window(
-      new cobalt::system_window::SystemWindow(
-          &event_dispatcher,
-          cobalt::math::Size(kViewportWidth, kViewportHeight)));
+      new cobalt::system_window::SystemWindow(&event_dispatcher, view_size));
 
   // Construct a renderer module using default options.
   RendererModule::Options renderer_module_options;

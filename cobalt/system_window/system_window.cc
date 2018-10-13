@@ -27,7 +27,6 @@
 
 namespace cobalt {
 namespace system_window {
-
 namespace {
 
 SystemWindow* g_the_window = NULL;
@@ -71,9 +70,17 @@ math::Size SystemWindow::GetWindowSize() const {
   SbWindowSize window_size;
   if (!SbWindowGetSize(window_, &window_size)) {
     DLOG(WARNING) << "SbWindowGetSize() failed.";
-    return math::Size(0, 0);
+    return math::Size();
   }
   return math::Size(window_size.width, window_size.height);
+}
+
+float SystemWindow::GetDiagonalSizeInches() const {
+#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
+  return SbWindowGetDiagonialSizeInInches(window_);
+#else
+  return = 0.f;
+#endif
 }
 
 float SystemWindow::GetVideoPixelRatio() const {
