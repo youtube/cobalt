@@ -32,11 +32,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using testing::_;
+using testing::Return;
+
 namespace cobalt {
 namespace cssom {
-
-using ::testing::_;
-using ::testing::Return;
 
 class MockMutationObserver : public MutationObserver {
  public:
@@ -115,13 +115,13 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaRuleAddition) {
       new CSSMediaRule(new MediaList(), new CSSRuleList());
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
-  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
+  css_style_sheet_->EvaluateMediaRules(ViewportSize(1920, 1080));
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   rule_list->AppendCSSRule(rule);
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
+  css_style_sheet_->EvaluateMediaRules(ViewportSize(1920, 1080));
 }
 
 TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
@@ -141,7 +141,7 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
   rule_list->AppendCSSRule(rule);
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
-  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
+  css_style_sheet_->EvaluateMediaRules(ViewportSize(1920, 1080));
 }
 
 TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
@@ -175,20 +175,19 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
   // rule matching.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->EvaluateMediaRules(math::Size(1920, 1080));
+  css_style_sheet_->EvaluateMediaRules(ViewportSize(1920, 1080));
 
   // This should not result in a call to OnCSSMutation(), because changing the
   // width to 1280 does not change the CSSMediaRule condition.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(0);
-  css_style_sheet_->EvaluateMediaRules(math::Size(1280, 1080));
+  css_style_sheet_->EvaluateMediaRules(ViewportSize(1280, 1080));
 
   // This should result in a call to OnCSSMutation(), because changing the width
   // to 640 makes the CSSMediaRule condition change. The display orientation is
   // now Portrait instead of Landscape.
-
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->EvaluateMediaRules(math::Size(640, 1080));
+  css_style_sheet_->EvaluateMediaRules(ViewportSize(640, 1080));
 }
 
 }  // namespace cssom

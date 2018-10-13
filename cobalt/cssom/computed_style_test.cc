@@ -37,6 +37,9 @@
 
 namespace cobalt {
 namespace cssom {
+namespace {
+
+const math::Size kNullSize;
 
 scoped_refptr<CSSComputedStyleDeclaration> CreateComputedStyleDeclaration(
     scoped_refptr<CSSComputedStyleData> computed_style) {
@@ -58,7 +61,7 @@ TEST(PromoteToComputedStyle, UnknownPropertyValueShouldBeEmpty) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(
       computed_style_declaration->GetPropertyValue("cobalt_cobalt_cobalt"), "");
@@ -75,7 +78,7 @@ TEST(PromoteToComputedStyle, FontWeightShouldBeBoldAsSpecified) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(FontWeightValue::GetBoldAka700(),
             computed_style->font_weight().get());
@@ -93,7 +96,7 @@ TEST(PromoteToComputedStyle, LengthValueInEmShouldBeRelativeToParentFontSize) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_font_size = base::polymorphic_downcast<LengthValue*>(
       computed_style->font_size().get());
@@ -118,7 +121,7 @@ TEST(PromoteToComputedStyle, LengthValueInRemShouldBeRelativeToRootFontSize) {
   root_computed_style->set_font_size(new LengthValue(200, kPixelsUnit));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         root_computed_style, math::Size(), NULL);
+                         root_computed_style, kNullSize, NULL);
 
   LengthValue* computed_font_size = base::polymorphic_downcast<LengthValue*>(
       computed_style->font_size().get());
@@ -164,7 +167,7 @@ TEST(PromoteToComputedStyle, LengthValueInPixelsShouldBeLeftAsSpecified) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_font_size = base::polymorphic_downcast<LengthValue*>(
       computed_style->font_size().get());
@@ -183,7 +186,7 @@ TEST(PromoteToComputedStyle, NormalLineHeightShouldBeLeftAsSpecified) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetNormal(), computed_style->line_height());
 }
@@ -201,7 +204,7 @@ TEST(PromoteToComputedStyle, LineHeightInEmShouldBeComputedAfterFontSize) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_line_height = base::polymorphic_downcast<LengthValue*>(
       computed_style->line_height().get());
@@ -222,7 +225,7 @@ TEST(PromoteToComputedStyle, TextIndentInEmShouldBeComputedAfterFontSize) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_text_indent = base::polymorphic_downcast<LengthValue*>(
       computed_style->text_indent().get());
@@ -251,7 +254,7 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
       GURL("file:///computed_style_test/style_sheet.css");
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(),
+                         parent_computed_style, kNullSize,
                          &property_key_to_base_url_map);
 
   scoped_refptr<PropertyListValue> background_image_list =
@@ -288,7 +291,7 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
       GURL("file:///computed_style_test/document.html");
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(),
+                         parent_computed_style, kNullSize,
                          &property_key_to_base_url_map);
 
   scoped_refptr<PropertyListValue> background_image_list =
@@ -314,7 +317,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithInitialValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -356,7 +359,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -397,7 +400,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -440,7 +443,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -482,7 +485,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithOneKeyword) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -524,7 +527,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoKeywords) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -566,7 +569,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoCenterKeywords) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -609,7 +612,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValues) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -652,7 +655,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValuesHaveCenter) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -696,7 +699,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithFourValues) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_position_list =
       dynamic_cast<PropertyListValue*>(
@@ -737,7 +740,7 @@ TEST(PromoteToComputedStyle, BackgroundSizeEmToPixel) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> background_size_list =
       dynamic_cast<PropertyListValue*>(computed_style->background_size().get());
@@ -766,7 +769,7 @@ TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetContain(), computed_style->background_size());
 }
@@ -783,7 +786,7 @@ TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* border_top_left_radius =
       base::polymorphic_downcast<LengthValue*>(
@@ -805,7 +808,7 @@ TEST(PromoteToComputedStyle, BorderColorWithInitialValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<RGBAColorValue> border_bottom_color =
       dynamic_cast<RGBAColorValue*>(
@@ -826,7 +829,7 @@ TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<RGBAColorValue> border_color =
       dynamic_cast<RGBAColorValue*>(computed_style->border_left_color().get());
@@ -846,7 +849,7 @@ TEST(PromoteToComputedStyle, BorderWidthWithBorderStyleNone) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<LengthValue> border_top_width =
       dynamic_cast<LengthValue*>(computed_style->border_top_width().get());
@@ -870,7 +873,7 @@ TEST(PromoteToComputedStyle, BorderWidthInEmShouldBeComputedAfterFontSize) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<LengthValue> border_left_width =
       dynamic_cast<LengthValue*>(computed_style->border_left_width().get());
@@ -902,7 +905,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> box_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->box_shadow().get());
@@ -948,7 +951,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> box_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->box_shadow().get());
@@ -994,7 +997,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> box_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->box_shadow().get());
@@ -1048,7 +1051,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithShadowList) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> box_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->box_shadow().get());
@@ -1103,7 +1106,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithNone) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->box_shadow());
 }
@@ -1120,7 +1123,7 @@ TEST(PromoteToComputedStyle, OutlineColorWithCurrentColorValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<RGBAColorValue> outline_color =
       dynamic_cast<RGBAColorValue*>(computed_style->outline_color().get());
@@ -1140,7 +1143,7 @@ TEST(PromoteToComputedStyle, OutlineWidthWithOutlineStyleNone) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<LengthValue> outline_width =
       dynamic_cast<LengthValue*>(computed_style->outline_width().get());
@@ -1163,7 +1166,7 @@ TEST(PromoteToComputedStyle, OutlineWidthInEmShouldBeComputedAfterFontSize) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<LengthValue> outline_width =
       dynamic_cast<LengthValue*>(computed_style->outline_width().get());
@@ -1183,7 +1186,7 @@ TEST(PromoteToComputedStyle, TextDecorationWithCurrentColor) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<RGBAColorValue> text_decoration_color =
       dynamic_cast<RGBAColorValue*>(
@@ -1216,7 +1219,7 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> text_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->text_shadow().get());
@@ -1260,7 +1263,7 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> text_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->text_shadow().get());
@@ -1313,7 +1316,7 @@ TEST(PromoteToComputedStyle, TextShadowWithShadowList) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> text_shadow_list =
       dynamic_cast<PropertyListValue*>(computed_style->text_shadow().get());
@@ -1367,7 +1370,7 @@ TEST(PromoteToComputedStyle, TextShadowWithNone) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->text_shadow());
 }
@@ -1388,7 +1391,7 @@ TEST(PromoteToComputedStyle, HeightPercentageInUnspecifiedHeightBlockIsAuto) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetAuto(), computed_style->height());
 }
@@ -1410,7 +1413,7 @@ TEST(PromoteToComputedStyle,
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->max_height());
 }
@@ -1432,7 +1435,7 @@ TEST(PromoteToComputedStyle,
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_min_height = base::polymorphic_downcast<LengthValue*>(
       computed_style->min_height().get());
@@ -1462,9 +1465,9 @@ TEST(PromoteToComputedStyle, MaxWidthPercentageInNegativeWidthBlockIsZero) {
 
   PromoteToComputedStyle(parent_computed_style,
                          grandparent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_max_width = base::polymorphic_downcast<LengthValue*>(
       computed_style->max_width().get());
@@ -1494,9 +1497,9 @@ TEST(PromoteToComputedStyle, MinWidthPercentageInNegativeWidthBlockIsZero) {
 
   PromoteToComputedStyle(parent_computed_style,
                          grandparent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_min_width = base::polymorphic_downcast<LengthValue*>(
       computed_style->min_width().get());
@@ -1519,7 +1522,7 @@ TEST(PromoteToComputedStyle, LineHeightPercentageIsRelativeToFontSize) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   LengthValue* computed_line_height = base::polymorphic_downcast<LengthValue*>(
       computed_style->line_height().get());
@@ -1545,7 +1548,7 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1591,7 +1594,7 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1638,7 +1641,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1685,7 +1688,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1732,7 +1735,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1779,7 +1782,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1827,7 +1830,7 @@ TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<PropertyListValue> transform_origin_list =
       dynamic_cast<PropertyListValue*>(
@@ -1874,7 +1877,7 @@ TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
       CreateComputedStyleDeclaration(parent_computed_style));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   scoped_refptr<TransformFunctionListValue> computed_transform =
       dynamic_cast<TransformFunctionListValue*>(
@@ -1912,7 +1915,7 @@ TEST(PromoteToComputedStyle,
   // (which need to know the before and after state of the property) even when
   // the property is inherited from a parent that has changed.
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   // Verify that the color is declared in the child even though it was not
   // explicitly declared.
@@ -1936,7 +1939,7 @@ TEST(PromoteToComputedStyle,
               GetPropertyAnimatable(kColorProperty));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   // Verify that the declared properties inherited from the parent are valid.
   ASSERT_TRUE(computed_style->AreDeclaredPropertiesInheritedFromParentValid());
@@ -1967,7 +1970,7 @@ TEST(PromoteToComputedStyle,
               GetPropertyAnimatable(kColorProperty));
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         parent_computed_style, math::Size(), NULL);
+                         parent_computed_style, kNullSize, NULL);
 
   // Verify that the child's color is Aqua and matches the parent's color.
   EXPECT_EQ(RGBAColorValue::GetAqua(), computed_style->color());
@@ -2005,7 +2008,7 @@ TEST(UpdateInheritedData,
 
   PromoteToComputedStyle(parent_computed_style,
                          grandparent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
   // The parent should still have the default value of normal.
   EXPECT_EQ(FontStyleValue::GetNormal(), parent_computed_style->font_style());
 
@@ -2015,7 +2018,7 @@ TEST(UpdateInheritedData,
       new CSSComputedStyleData());
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
 
   // The child should have the default value of normal.
   EXPECT_EQ(FontStyleValue::GetNormal(), computed_style->font_style());
@@ -2050,7 +2053,7 @@ TEST(UpdateInheritedData,
 
   PromoteToComputedStyle(parent_computed_style,
                          grandparent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
   // The parent should now have the inherited value of italic.
   EXPECT_EQ(FontStyleValue::GetItalic(), parent_computed_style->font_style());
 
@@ -2060,7 +2063,7 @@ TEST(UpdateInheritedData,
       new CSSComputedStyleData());
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
 
   // The child should have the inherited value of italic.
   EXPECT_EQ(FontStyleValue::GetItalic(), computed_style->font_style());
@@ -2094,7 +2097,7 @@ TEST(UpdateInheritedData,
 
   PromoteToComputedStyle(parent_computed_style,
                          grandparent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
   // The parent should now have the inherited value of italic.
   EXPECT_EQ(FontStyleValue::GetItalic(), parent_computed_style->font_style());
 
@@ -2104,7 +2107,7 @@ TEST(UpdateInheritedData,
       new CSSComputedStyleData());
 
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
-                         grandparent_computed_style, math::Size(), NULL);
+                         grandparent_computed_style, kNullSize, NULL);
 
   // The child should have the inherited value of italic.
   EXPECT_EQ(FontStyleValue::GetItalic(), computed_style->font_style());
@@ -2123,5 +2126,6 @@ TEST(UpdateInheritedData,
   EXPECT_EQ(FontStyleValue::GetOblique(), computed_style->font_style());
 }
 
+}  // namespace
 }  // namespace cssom
 }  // namespace cobalt

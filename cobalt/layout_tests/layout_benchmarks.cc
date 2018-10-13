@@ -15,6 +15,7 @@
 #include "base/string_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
@@ -27,12 +28,16 @@
 #include "cobalt/trace_event/benchmark.h"
 #include "googleurl/src/gurl.h"
 
+using cobalt::cssom::ViewportSize;
+
 namespace cobalt {
 namespace layout_tests {
 
 namespace {
 const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
+
+const ViewportSize kViewSize(kViewportWidth, kViewportHeight);
 
 // The RendererBenchmarkRunner sets up an environment where we can control
 // the number of benchmark samples we acquire from the renderer by counting
@@ -43,7 +48,7 @@ class RendererBenchmarkRunner {
   RendererBenchmarkRunner()
       : done_gathering_samples_(true, false),
         system_window_(new system_window::SystemWindow(
-            &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight))) {
+            &event_dispatcher_, kViewSize.width_height())) {
     // Since we'd like to measure the renderer, we force it to rasterize each
     // frame despite the fact that the render tree may not be changing.
     renderer::RendererModule::Options renderer_options;
@@ -180,10 +185,8 @@ void LayoutBenchmark::Experiment() {
   // benchmark.
   base::optional<browser::WebModule::LayoutResults> layout_results;
 
-  const math::Size kDefaultViewportSize(1920, 1080);
-  math::Size viewport_size = test_info_.viewport_size
-                                 ? *test_info_.viewport_size
-                                 : kDefaultViewportSize;
+  ViewportSize viewport_size =
+      test_info_.viewport_size ? *test_info_.viewport_size : kViewSize;
 
   // Set up a WebModule, load the URL and trigger layout to get layout benchmark
   // results.
