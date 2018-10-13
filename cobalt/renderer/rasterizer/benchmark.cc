@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/trace_event/benchmark.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/math/size.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
@@ -22,7 +23,6 @@
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/test/scenes/all_scenes_combined_scene.h"
 #include "cobalt/system_window/system_window.h"
-#include "cobalt/trace_event/benchmark.h"
 
 using cobalt::math::Size;
 using cobalt::math::SizeF;
@@ -79,9 +79,9 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   base::EventDispatcher event_dispatcher;
   scoped_ptr<SystemWindow> test_system_window;
   if (output_surface_type == kOutputSurfaceTypeDisplay) {
-    test_system_window.reset(new cobalt::system_window::SystemWindow(
-        &event_dispatcher,
-        cobalt::math::Size(kViewportWidth, kViewportHeight)));
+    Size view_size(kViewportWidth, kViewportHeight);
+    test_system_window.reset(
+        new cobalt::system_window::SystemWindow(&event_dispatcher, view_size));
   }
 
   // Setup our graphics system.

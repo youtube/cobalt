@@ -20,6 +20,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/wrappable.h"
 
@@ -56,7 +57,7 @@ class MediaList : public script::Wrappable {
   //
   void Append(const scoped_refptr<MediaQuery>& media_query);
 
-  bool EvaluateConditionValue(const math::Size& viewport_size);
+  bool EvaluateConditionValue(const ViewportSize& viewport_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaList);
   void TraceMembers(script::Tracer* tracer) override;

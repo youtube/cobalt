@@ -25,6 +25,7 @@
 #include "cobalt/accessibility/text_alternative.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/test/document_loader.h"
@@ -32,7 +33,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::_;
+using cobalt::cssom::ViewportSize;
+using testing::_;
 
 namespace cobalt {
 namespace accessibility {
@@ -149,7 +151,7 @@ TEST_P(TextAlternativeTest, TextAlternativeTest) {
 TEST_P(LiveRegionMutationTest, DISABLED_LiveRegionMutationTest) {
   GURL url(std::string("file:///cobalt/accessibility/testdata/live_region/" +
                        GetParam().html_file_name));
-  const math::Size kDefaultViewportSize(1280, 720);
+  const ViewportSize kDefaultViewportSize(1280, 720);
   const float kDefaultVideoPixelRatio = 1.0f;
   const float kRefreshRate = 60.0f;
 

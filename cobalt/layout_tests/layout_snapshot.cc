@@ -21,11 +21,14 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/screenshot_manager.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "starboard/window.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace layout_tests {
@@ -56,7 +59,7 @@ void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
 }  // namespace
 
 browser::WebModule::LayoutResults SnapshotURL(
-    const GURL& url, const math::Size& viewport_size,
+    const GURL& url, const ViewportSize& viewport_size,
     render_tree::ResourceProvider* resource_provider,
     const dom::ScreenshotManager::ProvideScreenshotFunctionCallback&
         screenshot_provider) {

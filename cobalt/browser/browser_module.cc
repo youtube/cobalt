@@ -38,6 +38,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
@@ -56,6 +57,8 @@
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include "starboard/ps4/core_dump_handler.h"
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 
@@ -80,8 +83,8 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
 
 base::LazyInstance<NonTrivialGlobalVariables> non_trivial_global_variables =
     LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
+}  // namespace cobalt
 #endif
 
 namespace browser {
@@ -389,8 +392,9 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
   if (qr_overlay_info_layer_) {
+    math::Size width_height = GetViewportSize().width_height();
     qr_code_overlay_.reset(new overlay_info::QrCodeOverlay(
-        GetViewportSize(), GetResourceProvider(),
+        width_height, GetResourceProvider(),
         base::Bind(&BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced,
                    base::Unretained(this))));
   }
@@ -489,7 +493,7 @@ void BrowserModule::Navigate(const GURL& url) {
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
 
   // Show a splash screen while we're waiting for the web page to load.
-  const math::Size& viewport_size = GetViewportSize();
+  const ViewportSize viewport_size = GetViewportSize();
 
   DestroySplashScreen(base::TimeDelta());
   if (options_.enable_splash_screen_on_reloads || navigate_count_ == 1) {
@@ -841,18 +845,18 @@ void BrowserModule::OnWindowMinimize() {
 }
 
 #if SB_API_VERSION >= 8
-void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
-  math::Size math_size(size.width, size.height);
+void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
+                                        float video_pixel_ratio) {
   if (web_module_) {
-    web_module_->SetSize(math_size, size.video_pixel_ratio);
+    web_module_->SetSize(viewport_size, video_pixel_ratio);
   }
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {
-    debug_console_->web_module().SetSize(math_size, size.video_pixel_ratio);
+    debug_console_->web_module().SetSize(viewport_size, video_pixel_ratio);
   }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
   if (splash_screen_) {
-    splash_screen_->web_module().SetSize(math_size, size.video_pixel_ratio);
+    splash_screen_->web_module().SetSize(viewport_size, video_pixel_ratio);
   }
 
   return;
@@ -1493,8 +1497,12 @@ void BrowserModule::InitializeSystemWindow() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeSystemWindow()");
   resource_provider_stub_ = base::nullopt;
   DCHECK(!system_window_);
-  system_window_.reset(new system_window::SystemWindow(
-      event_dispatcher_, options_.requested_viewport_size));
+  base::optional<math::Size> maybe_size;
+  if (options_.requested_viewport_size) {
+    maybe_size = options_.requested_viewport_size->width_height();
+  }
+  system_window_.reset(
+      new system_window::SystemWindow(event_dispatcher_, maybe_size));
   // Reapply automem settings now that we may have a different viewport size.
   ApplyAutoMemSettings();
 
@@ -1549,7 +1557,7 @@ void BrowserModule::DestroyRendererModule() {
 }
 
 void BrowserModule::UpdateScreenSize() {
-  math::Size size = GetViewportSize();
+  ViewportSize size = GetViewportSize();
   float video_pixel_ratio = system_window_->GetVideoPixelRatio();
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {
@@ -1566,7 +1574,7 @@ void BrowserModule::UpdateScreenSize() {
   }
 
   if (qr_code_overlay_) {
-    qr_code_overlay_->SetSize(size);
+    qr_code_overlay_->SetSize(size.width_height());
   }
 }
 
@@ -1647,15 +1655,28 @@ void BrowserModule::StartOrResumeInternalPostStateUpdate() {
   }
 }
 
-math::Size BrowserModule::GetViewportSize() {
-  // We trust the renderer module the most, if it exists.
+ViewportSize BrowserModule::GetViewportSize() {
+  // We trust the renderer module for width and height the most, if it exists.
   if (renderer_module_) {
-    return renderer_module_->render_target_size();
+    math::Size size = renderer_module_->render_target_size();
+    // ...but get the diagonal from one of the other modules.
+    float diagonal_inches = 0;
+    if (system_window_) {
+      diagonal_inches = system_window_->GetDiagonalSizeInches();
+    } else if (options_.requested_viewport_size) {
+      diagonal_inches = options_.requested_viewport_size->diagonal_inches();
+    }
+
+    ViewportSize v(size.width(), size.height(), diagonal_inches);
+    return v;
   }
 
   // If the system window exists, that's almost just as good.
   if (system_window_) {
-    return system_window_->GetWindowSize();
+    math::Size size = system_window_->GetWindowSize();
+    ViewportSize v(size.width(), size.height(),
+                   system_window_->GetDiagonalSizeInches());
+    return v;
   }
 
   // Otherwise, we assume we'll get the viewport size that was requested.
@@ -1668,13 +1689,14 @@ math::Size BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  return math::Size(1280, 720);
+  ViewportSize view_size(1280, 720, 0);
+  return view_size;
 }
 
 void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
   auto_mem_.reset(new memory_settings::AutoMem(
-      GetViewportSize(), options_.command_line_auto_mem_settings,
+      GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
       options_.build_auto_mem_settings));
 
   LOG(INFO) << "\n\n" << auto_mem_->ToPrettyPrintString(SbLogIsTty()) << "\n\n";
