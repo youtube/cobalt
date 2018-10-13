@@ -71,6 +71,8 @@
 namespace cobalt {
 namespace browser {
 
+using cobalt::cssom::ViewportSize;
+
 namespace {
 
 // The maximum number of element depth in the DOM tree. Elements at a level
@@ -189,7 +191,7 @@ class WebModule::Impl {
   void CreateDebugDispatcherIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
-  void SetSize(math::Size window_dimensions, float video_pixel_ratio);
+  void SetSize(cssom::ViewportSize window_dimensions, float video_pixel_ratio);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetWebMediaPlayerFactory(
       media::WebMediaPlayerFactory* web_media_player_factory);
@@ -586,10 +588,10 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #endif
 
   window_ = new dom::Window(
-      data.window_dimensions.width(), data.window_dimensions.height(),
-      data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
-      dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
-      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
+      data.window_dimensions, data.video_pixel_ratio,
+      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
+      fetcher_factory_.get(), loader_factory_.get(), &resource_provider_,
+      animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
       data.can_play_type_handler, data.web_media_player_factory,
@@ -1007,15 +1009,14 @@ void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   remote_typeface_cache_->SetCapacity(static_cast<uint32>(bytes));
 }
 
-void WebModule::Impl::SetSize(math::Size window_dimensions,
+void WebModule::Impl::SetSize(cssom::ViewportSize window_dimensions,
                               float video_pixel_ratio) {
   // A value of 0.0 for the video pixel ratio means that the ratio could not be
   // determined. In that case it should be assumed to be the same as the
   // graphics resolution, which corresponds to a device pixel ratio of 1.0.
   float device_pixel_ratio =
       video_pixel_ratio == 0.0f ? 1.0f : video_pixel_ratio;
-  window_->SetSize(window_dimensions.width(), window_dimensions.height(),
-                   device_pixel_ratio);
+  window_->SetSize(window_dimensions, device_pixel_ratio);
 }
 
 void WebModule::Impl::SetCamera3D(
@@ -1276,9 +1277,10 @@ WebModule::WebModule(
     const base::Closure& window_minimize_callback,
     media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
-    network::NetworkModule* network_module, const math::Size& window_dimensions,
-    float video_pixel_ratio, render_tree::ResourceProvider* resource_provider,
-    float layout_refresh_rate, const Options& options)
+    network::NetworkModule* network_module,
+    const ViewportSize& window_dimensions, float video_pixel_ratio,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
@@ -1509,12 +1511,12 @@ debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-void WebModule::SetSize(const math::Size& window_dimensions,
+void WebModule::SetSize(const ViewportSize& viewport_size,
                         float video_pixel_ratio) {
   message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::SetSize, base::Unretained(impl_.get()),
-                 window_dimensions, video_pixel_ratio));
+                 viewport_size, video_pixel_ratio));
 }
 
 void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {

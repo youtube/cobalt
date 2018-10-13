@@ -44,7 +44,7 @@ class DebugConsole : public LifecycleObserver {
       const WebModule::OnRenderTreeProducedCallback&
           render_tree_produced_callback,
       network::NetworkModule* network_module,
-      const math::Size& window_dimensions,
+      const cssom::ViewportSize& window_dimensions,
       render_tree::ResourceProvider* resource_provider,
       float layout_refresh_rate,
       const debug::CreateDebugClientCallback& create_debug_client_callback);
@@ -83,7 +83,8 @@ class DebugConsole : public LifecycleObserver {
   // Returns the currently set debug console visibility mode.
   int GetMode();
 
-  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
+  void SetSize(const cssom::ViewportSize& window_dimensions,
+               float video_pixel_ratio) {
     web_module_->SetSize(window_dimensions, video_pixel_ratio);
   }
 

@@ -24,19 +24,21 @@
 namespace cobalt {
 namespace cssom {
 
+namespace {
+
 TEST(MediaQueryTest, EvaluateEmptyQuery) {
   scoped_refptr<MediaQuery> media_query(new MediaQuery());
-  EXPECT_TRUE(media_query->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeFalse) {
   scoped_refptr<MediaQuery> media_query(new MediaQuery(false));
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrue) {
   scoped_refptr<MediaQuery> media_query(new MediaQuery(true));
-  EXPECT_TRUE(media_query->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeFalseAndMediaFeatureTrue) {
@@ -45,13 +47,13 @@ TEST(MediaQueryTest, EvaluateMediaTypeFalseAndMediaFeatureTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(false, media_features.Pass()));
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeFalseAndMediaFeatureFalse) {
@@ -60,13 +62,13 @@ TEST(MediaQueryTest, EvaluateMediaTypeFalseAndMediaFeatureFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 108)));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(ViewportSize(1920, 108)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(false, media_features.Pass()));
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrueAndMediaFeatureTrue) {
@@ -75,13 +77,13 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndMediaFeatureTrue) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_TRUE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(media_feature->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(true, media_features.Pass()));
-  EXPECT_TRUE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrueAndMediaFeatureFalse) {
@@ -90,14 +92,14 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndMediaFeatureFalse) {
   scoped_refptr<MediaFeature> media_feature(
       new MediaFeature(kOrientationMediaFeature, property));
   media_feature->set_operator(kEquals);
-  EXPECT_FALSE(media_feature->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_feature->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(true, media_features.Pass()));
 
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndFalse) {
@@ -106,14 +108,16 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndFalse) {
   scoped_refptr<MediaFeature> media_feature_1(
       new MediaFeature(kOrientationMediaFeature, property_1));
   media_feature_1->set_operator(kEquals);
-  EXPECT_FALSE(media_feature_1->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(
+      media_feature_1->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_refptr<MediaFeatureKeywordValue> property_2 =
       MediaFeatureKeywordValue::GetInterlace();
   scoped_refptr<MediaFeature> media_feature_2(
       new MediaFeature(kScanMediaFeature, property_2));
   media_feature_2->set_operator(kEquals);
-  EXPECT_FALSE(media_feature_2->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(
+      media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
@@ -121,7 +125,7 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndFalse) {
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(true, media_features.Pass()));
 
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndTrue) {
@@ -130,21 +134,23 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesFalseAndTrue) {
   scoped_refptr<MediaFeature> media_feature_1(
       new MediaFeature(kOrientationMediaFeature, property_1));
   media_feature_1->set_operator(kEquals);
-  EXPECT_FALSE(media_feature_1->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(
+      media_feature_1->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_refptr<MediaFeatureKeywordValue> property_2 =
       MediaFeatureKeywordValue::GetProgressive();
   scoped_refptr<MediaFeature> media_feature_2(
       new MediaFeature(kScanMediaFeature, property_2));
   media_feature_2->set_operator(kEquals);
-  EXPECT_TRUE(media_feature_2->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(
+      media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(true, media_features.Pass()));
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesTrueAndFalse) {
@@ -153,21 +159,23 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesTrueAndFalse) {
   scoped_refptr<MediaFeature> media_feature_1(
       new MediaFeature(kOrientationMediaFeature, property_1));
   media_feature_1->set_operator(kEquals);
-  EXPECT_TRUE(media_feature_1->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(
+      media_feature_1->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_refptr<MediaFeatureKeywordValue> property_2 =
       MediaFeatureKeywordValue::GetInterlace();
   scoped_refptr<MediaFeature> media_feature_2(
       new MediaFeature(kScanMediaFeature, property_2));
   media_feature_2->set_operator(kEquals);
-  EXPECT_FALSE(media_feature_2->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(
+      media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(true, media_features.Pass()));
-  EXPECT_FALSE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_FALSE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
 TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesTrueAndTrue) {
@@ -176,22 +184,25 @@ TEST(MediaQueryTest, EvaluateMediaTypeTrueAndFeaturesTrueAndTrue) {
   scoped_refptr<MediaFeature> media_feature_1(
       new MediaFeature(kOrientationMediaFeature, property_1));
   media_feature_1->set_operator(kEquals);
-  EXPECT_TRUE(media_feature_1->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(
+      media_feature_1->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_refptr<MediaFeatureKeywordValue> property_2 =
       MediaFeatureKeywordValue::GetProgressive();
   scoped_refptr<MediaFeature> media_feature_2(
       new MediaFeature(kScanMediaFeature, property_2));
   media_feature_2->set_operator(kEquals);
-  EXPECT_TRUE(media_feature_2->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(
+      media_feature_2->EvaluateConditionValue(ViewportSize(1920, 1080)));
 
   scoped_ptr<MediaFeatures> media_features(new MediaFeatures);
   media_features->push_back(media_feature_1);
   media_features->push_back(media_feature_2);
   scoped_refptr<MediaQuery> media_query(
       new MediaQuery(true, media_features.Pass()));
-  EXPECT_TRUE(media_query->EvaluateConditionValue(math::Size(1920, 1080)));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(1920, 1080)));
 }
 
+}  // namespace
 }  // namespace cssom
 }  // namespace cobalt

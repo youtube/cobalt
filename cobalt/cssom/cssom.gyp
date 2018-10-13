@@ -233,6 +233,7 @@
         'url_src_value.h',
         'url_value.cc',
         'url_value.h',
+        'viewport_size.h',
       ],
       'export_dependent_settings': [
         # Additionally, ensure that the include directories for generated

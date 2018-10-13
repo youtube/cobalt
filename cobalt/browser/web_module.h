@@ -33,6 +33,7 @@
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/render_overlay.h"
@@ -261,7 +262,8 @@ class WebModule : public LifecycleObserver {
             media::CanPlayTypeHandler* can_play_type_handler,
             media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
-            const math::Size& window_dimensions, float video_pixel_ratio,
+            const cssom::ViewportSize& window_dimensions,
+            float video_pixel_ratio,
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options);
   ~WebModule();
@@ -325,7 +327,8 @@ class WebModule : public LifecycleObserver {
   // Sets the size and pixel ratio of this web module, possibly causing relayout
   // and re-render with the new parameters. Does nothing if the parameters are
   // not different from the current parameters.
-  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio);
+  void SetSize(const cssom::ViewportSize& view_port_size,
+               float video_pixel_ratio);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetWebMediaPlayerFactory(
@@ -367,7 +370,7 @@ class WebModule : public LifecycleObserver {
         media::CanPlayTypeHandler* can_play_type_handler,
         media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
-        const math::Size& window_dimensions, float video_pixel_ratio,
+        const cssom::ViewportSize& window_dimensions, float video_pixel_ratio,
         render_tree::ResourceProvider* resource_provider,
         int dom_max_element_depth, float layout_refresh_rate,
         const Options& options)
@@ -396,7 +399,7 @@ class WebModule : public LifecycleObserver {
     media::CanPlayTypeHandler* can_play_type_handler;
     media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;
-    math::Size window_dimensions;
+    cssom::ViewportSize window_dimensions;
     float video_pixel_ratio;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;

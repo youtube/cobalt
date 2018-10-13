@@ -22,6 +22,7 @@
 #include "base/threading/thread.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_parser.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -70,7 +71,7 @@ class DocumentLoader : public dom::DocumentObserver {
     // Load the document in a nested message loop.
     dom::Document::Options options(url);
     options.navigation_start_clock = new base::SystemMonotonicClock();
-    options.viewport_size = math::Size(1920, 1080);
+    options.viewport_size = cssom::ViewportSize(1920, 1080);
     document_ = new dom::Document(&html_element_context_, options);
     document_->AddObserver(this);
     document_loader_.reset(new loader::Loader(

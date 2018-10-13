@@ -20,6 +20,7 @@
 #include "base/threading/platform_thread.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
 #include "cobalt/dom/window.h"
@@ -34,6 +35,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::cssom::ViewportSize;
+using testing::InSequence;
+using testing::Mock;
+
 namespace cobalt {
 namespace dom {
 
@@ -41,9 +46,6 @@ class MockErrorCallback : public base::Callback<void(const std::string&)> {
  public:
   MOCK_METHOD1(Run, void(const std::string&));
 };
-
-using ::testing::InSequence;
-using ::testing::Mock;
 
 class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {
  public:
@@ -187,10 +189,10 @@ class OnScreenKeyboardTest : public ::testing::Test {
         global_environment_(engine_->CreateGlobalEnvironment()),
         on_screen_keyboard_bridge_(new OnScreenKeyboardMockBridge()),
         window_(new Window(
-            1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-            dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
-            NULL, NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL,
-            NULL, NULL, NULL,
+            ViewportSize(1920, 1080), 1.f, base::kApplicationStateStarted,
+            css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
+            loader_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
+            &local_storage_database_, NULL, NULL, NULL, NULL,
             global_environment_
                 ->script_value_factory() /* script_value_factory */,
             NULL, NULL, url_, "", "en-US", "en",

@@ -78,14 +78,16 @@
 #include "cobalt/cssom/universal_selector.h"
 #include "cobalt/cssom/url_src_value.h"
 #include "cobalt/cssom/url_value.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::cssom::ViewportSize;
+using testing::_;
+using testing::AtLeast;
+
 namespace cobalt {
 namespace css_parser {
-
-using ::testing::_;
-using ::testing::AtLeast;
 
 class MockParserObserver {
  public:
@@ -8782,7 +8784,7 @@ TEST_F(ParserTest, ParsesValidMediaQueryWithIntegers) {
 
   // TODO: Update when media query serialization is implemented.
   ASSERT_EQ(media_query->media_query(), "");
-  math::Size size;
+  ViewportSize size;
   EXPECT_TRUE(media_query->EvaluateConditionValue(size));
 }
 
@@ -8794,7 +8796,7 @@ TEST_F(ParserTest, ParsesValidMediaListWithIntegers) {
 
   // TODO: Update when media query serialization is implemented.
   ASSERT_EQ(media_list->media_text(), ", ");
-  math::Size size;
+  ViewportSize size;
   EXPECT_TRUE(media_list->EvaluateConditionValue(size));
 }
 

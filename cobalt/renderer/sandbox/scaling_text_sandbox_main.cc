@@ -43,10 +43,9 @@ int SandboxMain(int argc, char** argv) {
 
   base::EventDispatcher event_dispatcher;
   // Create a system window to use as a render target.
+  cobalt::math::Size view_size(kViewportWidth, kViewportHeight);
   scoped_ptr<SystemWindow> system_window(
-      new cobalt::system_window::SystemWindow(
-          &event_dispatcher,
-          cobalt::math::Size(kViewportWidth, kViewportHeight)));
+      new cobalt::system_window::SystemWindow(&event_dispatcher, view_size));
 
   // Construct a renderer module using default options.
   cobalt::renderer::RendererModule::Options renderer_module_options;

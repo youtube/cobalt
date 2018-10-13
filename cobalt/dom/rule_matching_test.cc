@@ -21,6 +21,7 @@
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/element.h"
@@ -33,6 +34,8 @@
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
@@ -239,7 +242,8 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
   testing::StubWindow window;
   document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(math::Size(320, 240));
+  ViewportSize view_size(320, 240);
+  document_->SetViewport(view_size);
 
   head_->set_inner_html("<style>:focus {}</style>");
   body_->set_inner_html("<div tabIndex=\"-1\"/>");
@@ -262,7 +266,8 @@ TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
   testing::StubWindow window;
   document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(math::Size(320, 240));
+  ViewportSize view_size(320, 240);
+  document_->SetViewport(view_size);
 
   head_->set_inner_html("<style>:focus {}</style>");
   body_->set_inner_html("<div tabIndex=\"-1\"/>");

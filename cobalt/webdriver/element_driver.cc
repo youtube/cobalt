@@ -15,6 +15,7 @@
 #include "cobalt/webdriver/element_driver.h"
 
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/dom_rect_list.h"
@@ -227,7 +228,9 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
   math::RectF rect(dom_rect->left(), dom_rect->top(), dom_rect->width(),
                    dom_rect->height());
   DCHECK(element_->owner_document());
-  math::Size viewport_size = element_->owner_document()->viewport_size();
+
+  cssom::ViewportSize viewport_size =
+      element_->owner_document()->viewport_size();
   math::RectF viewport_rect(0, 0, viewport_size.width(),
                             viewport_size.height());
   rect.Intersect(viewport_rect);
