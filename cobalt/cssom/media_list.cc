@@ -21,6 +21,7 @@
 #include "cobalt/cssom/length_value.h"
 #include "cobalt/cssom/media_query.h"
 #include "cobalt/cssom/property_value.h"
+#include "cobalt/cssom/viewport_size.h"
 
 namespace cobalt {
 namespace cssom {
@@ -77,7 +78,7 @@ void MediaList::Append(const scoped_refptr<MediaQuery>& media_query) {
   media_queries_.push_back(media_query);
 }
 
-bool MediaList::EvaluateConditionValue(const math::Size& viewport_size) {
+bool MediaList::EvaluateConditionValue(const ViewportSize& viewport_size) {
   if (media_queries_.empty()) {
     // A CSSMediaRule with no expressions always evaluates to true.
     return true;

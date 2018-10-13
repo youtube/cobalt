@@ -49,9 +49,10 @@ class RendererSandbox {
 RendererSandbox::RendererSandbox()
     : trace_to_file_(
           FilePath(FILE_PATH_LITERAL("renderer_sandbox_trace.json"))) {
+  cobalt::math::Size view_size(kViewportWidth, kViewportHeight);
   // Create a system window to use as a render target.
-  system_window_.reset(new cobalt::system_window::SystemWindow(
-      &event_dispatcher_, cobalt::math::Size(kViewportWidth, kViewportHeight)));
+  system_window_.reset(
+      new cobalt::system_window::SystemWindow(&event_dispatcher_, view_size));
 
   // Construct a renderer module using default options.
   cobalt::renderer::RendererModule::Options renderer_module_options;

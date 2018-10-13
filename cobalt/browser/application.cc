@@ -63,6 +63,8 @@
 #include "googleurl/src/gurl.h"
 #include "starboard/configuration.h"
 
+using cobalt::cssom::ViewportSize;
+
 namespace cobalt {
 namespace browser {
 
@@ -228,32 +230,8 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-// Represents a parsed int.
-struct ParsedIntValue {
- public:
-  ParsedIntValue() : value_(0), error_(false) {}
-  ParsedIntValue(const ParsedIntValue& other)
-      : value_(other.value_), error_(other.error_) {}
-  int value_;
-  bool error_;  // true if there was a parse error.
-};
-
-// Parses a string like "1234x5678" to vector of parsed int values.
-std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
-  std::vector<ParsedIntValue> output;
-
-  std::vector<std::string> lengths;
-  base::SplitString(value_str, 'x', &lengths);
-
-  for (size_t i = 0; i < lengths.size(); ++i) {
-    ParsedIntValue parsed_value;
-    parsed_value.error_ = !base::StringToInt(lengths[i], &parsed_value.value_);
-    output.push_back(parsed_value);
-  }
-  return output;
-}
-
-base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
+base::optional<cssom::ViewportSize> GetRequestedViewportSize(
+    CommandLine* command_line) {
   DCHECK(command_line);
   if (!command_line->HasSwitch(browser::switches::kViewport)) {
     return base::nullopt;
@@ -261,41 +239,49 @@ base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
 
   std::string switch_value =
       command_line->GetSwitchValueASCII(browser::switches::kViewport);
-  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switch_value);
-  if (parsed_ints.size() < 1) {
+
+  std::vector<std::string> lengths;
+  base::SplitString(switch_value, 'x', &lengths);
+
+  if (lengths.empty()) {
+    DLOG(ERROR) << "Viewport " << switch_value << " is invalid.";
     return base::nullopt;
   }
 
-  const ParsedIntValue parsed_width = parsed_ints[0];
-  if (parsed_width.error_) {
-    DLOG(ERROR) << "Invalid value specified for viewport width: "
-                << switch_value << ". Using default viewport size.";
+  int width = 0;
+  if (!base::StringToInt(lengths[0], &width)) {
+    DLOG(ERROR) << "Viewport " << switch_value << " has invalid width.";
     return base::nullopt;
   }
 
-  const ParsedIntValue* parsed_height_ptr = NULL;
-  if (parsed_ints.size() >= 2) {
-    parsed_height_ptr = &parsed_ints[1];
-  }
-
-  if (!parsed_height_ptr) {
+  if (lengths.size() < 2) {
     // Allow shorthand specification of the viewport by only giving the
     // width. This calculates the height at 4:3 aspect ratio for smaller
     // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-    if (parsed_width.value_ >= 1280) {
-      return math::Size(parsed_width.value_, 9 * parsed_width.value_ / 16);
+    if (width >= 1280) {
+      return ViewportSize(width, 9 * width / 16, 0);
     }
-
-    return math::Size(parsed_width.value_, 3 * parsed_width.value_ / 4);
+    return ViewportSize(width, 3 * width / 4, 0);
   }
 
-  if (parsed_height_ptr->error_) {
-    DLOG(ERROR) << "Invalid value specified for viewport height: "
-                << switch_value << ". Using default viewport size.";
+  int height = 0;
+  if (!base::StringToInt(lengths[1], &height)) {
+    DLOG(ERROR) << "Viewport " << switch_value << " has invalid height.";
     return base::nullopt;
   }
 
-  return math::Size(parsed_width.value_, parsed_height_ptr->value_);
+  if (lengths.size() < 3) {
+    return ViewportSize(width, height);
+  }
+
+  double screen_diagonal_inches = 0.0;
+  if (!base::StringToDouble(lengths[2], &screen_diagonal_inches)) {
+    DLOG(ERROR) << "Viewport " << switch_value
+                << " has invalid screen_diagonal_inches.";
+    return base::nullopt;
+  }
+  return ViewportSize(width, height,
+                      static_cast<float>(screen_diagonal_inches));
 }
 
 std::string GetMinLogLevelString() {
@@ -435,7 +421,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  base::optional<math::Size> requested_viewport_size =
+  base::optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
   WebModule::Options web_options;
@@ -957,7 +943,12 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
   const base::WindowSizeChangedEvent* window_size_change_event =
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
-  browser_module_->OnWindowSizeChanged(window_size_change_event->size());
+
+  const auto& size = window_size_change_event->size();
+  float diagonal =
+      SbWindowGetDiagonialSizeInInches(window_size_change_event->window());
+  cssom::ViewportSize viewport_size(size.width, size.height, diagonal);
+  browser_module_->OnWindowSizeChanged(viewport_size, size.video_pixel_ratio);
 }
 #endif  // SB_API_VERSION >= 8
 

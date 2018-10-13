@@ -24,6 +24,7 @@
 #include "base/string_util.h"
 #include "base/values.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/layout_tests/test_utils.h"
 #include "cobalt/layout_tests/web_platform_test_parser.h"
@@ -34,6 +35,8 @@
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace layout_tests {
@@ -145,7 +148,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // thread.
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
 
-  const math::Size kDefaultViewportSize(640, 360);
+  const ViewportSize kDefaultViewportSize(640, 360);
 
   // Setup WebModule's auxiliary components.
 

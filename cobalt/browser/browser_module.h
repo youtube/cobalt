@@ -43,6 +43,7 @@
 #include "cobalt/browser/system_platform_error_handler.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
@@ -99,7 +100,7 @@ class BrowserModule {
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::optional<GURL> fallback_splash_screen_url;
-    base::optional<math::Size> requested_viewport_size;
+    base::optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
   };
@@ -180,7 +181,8 @@ class BrowserModule {
 
 #if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
-  void OnWindowSizeChanged(const SbWindowSize& size);
+  void OnWindowSizeChanged(const cssom::ViewportSize& viewport_size,
+                           float video_pixel_ratio);
 #endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
@@ -378,7 +380,7 @@ class BrowserModule {
   // viewport size. If there was no requested viewport size, it returns a
   // default viewport size of 1280x720 (720p). Once a system window is created,
   // it returns the confirmed size of the window.
-  math::Size GetViewportSize();
+  cssom::ViewportSize GetViewportSize();
 
   // Applies the current AutoMem settings to all applicable submodules.
   void ApplyAutoMemSettings();

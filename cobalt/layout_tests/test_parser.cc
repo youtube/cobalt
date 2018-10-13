@@ -23,6 +23,8 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/layout_tests/test_utils.h"
 
+using cobalt::cssom::ViewportSize;
+
 namespace cobalt {
 namespace layout_tests {
 
@@ -49,7 +51,7 @@ base::optional<TestInfo> ParseLayoutTestCaseLine(
   Tokenize(line_string, ":", &file_path_tokens);
   DCHECK(!file_path_tokens.empty());
 
-  base::optional<math::Size> viewport_size;
+  base::optional<cssom::ViewportSize> viewport_size;
   if (file_path_tokens.size() > 1) {
     DCHECK_EQ(2, file_path_tokens.size());
     // If there is a colon, the string that comes after the colon contains the
