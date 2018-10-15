@@ -357,6 +357,7 @@
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
+        '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
