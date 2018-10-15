@@ -101,11 +101,16 @@ TEST(RecursiveMutex, BlockOtherThread) {
 class ThreadAcquiresRecursiveMutex : public AbstractTestThread {
  public:
   explicit ThreadAcquiresRecursiveMutex(RecursiveMutex* s,
+                                        Mutex* cv_mutex,
                                         ConditionVariable* tried_lock)
-      : rmutex_(s), tried_lock_(tried_lock) {}
+      : rmutex_(s), cv_mutex_(cv_mutex), tried_lock_(tried_lock) {}
   void Run() override {
+    // This thread should not get the recursive mutex which is held by main
+    // test thread.
     EXPECT_FALSE(rmutex_->AcquireTry());
+    cv_mutex_->Acquire();
     tried_lock_->Signal();
+    cv_mutex_->Release();
     rmutex_->Acquire();
     EXPECT_TRUE(rmutex_->AcquireTry());
     rmutex_->Release();
@@ -114,20 +119,21 @@ class ThreadAcquiresRecursiveMutex : public AbstractTestThread {
 
  private:
   RecursiveMutex* rmutex_;
+  Mutex* cv_mutex_;
   ConditionVariable* tried_lock_;
 };
 
 TEST(RecursiveMutex, OtherThreadAcquires) {
   RecursiveMutex rmutex;
   Mutex cv_mutex;
+  ScopedLock scoped_lock(cv_mutex);
   ConditionVariable other_thread_tried(cv_mutex);
-  ThreadAcquiresRecursiveMutex thread(&rmutex, &other_thread_tried);
+  ThreadAcquiresRecursiveMutex thread(&rmutex, &cv_mutex, &other_thread_tried);
   rmutex.Acquire();
   EXPECT_TRUE(rmutex.AcquireTry());
 
   thread.Start();
   // Wait for the started thread to wait on the rmutex.
-  ScopedLock scoped_lock(cv_mutex);
   other_thread_tried.Wait();
 
   EXPECT_TRUE(rmutex.AcquireTry());
