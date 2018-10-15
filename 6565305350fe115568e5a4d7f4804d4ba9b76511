@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "18640ea8_9004e594",
+        "filename": "src/starboard/contrib/tizen/shared/system_has_capability.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-10-15T19:52:16Z",
+      "side": 1,
+      "message": "If your platform claims to support input timestamps, then I would also expect to see a change somewhere around wayland/dev_input.cc that sets timestamps on the input events that are generated.  Of course, feel free to simply leave this to false, in which case Cobalt will attach a timestamp to the event when it receives it, and in many cases that\u0027s just fine.",
+      "range": {
+        "startLine": 27,
+        "startChar": 13,
+        "endLine": 27,
+        "endChar": 17
+      },
+      "revId": "6565305350fe115568e5a4d7f4804d4ba9b76511",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
