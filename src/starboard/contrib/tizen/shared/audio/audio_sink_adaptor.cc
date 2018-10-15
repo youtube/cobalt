@@ -91,8 +91,9 @@ SbAudioSink SbAudioSinkCreate(
 void SbAudioSinkDestroy(SbAudioSink audio_sink) {
   if (audio_sink) {
     delete audio_sink;
+  } else {
+    SB_LOG(WARNING) << "Invalid audio sink.";
   }
-  SB_LOG(WARNING) << "Invalid audio sink.";
 }
 
 int SbAudioSinkGetMaxChannels() {
