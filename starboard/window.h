@@ -105,6 +105,14 @@ static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
 // |options|: Options that specify parameters for the window being created.
 SB_EXPORT SbWindow SbWindowCreate(const SbWindowOptions* options);
 
+// Gets the size of the diagonal between two opposing screen corners.
+//
+// A return value of 0 means that starboard does not know what the
+// screen diagonal is.
+#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
+SB_EXPORT float SbWindowGetDiagonialSizeInInches(SbWindow window);
+#endif
+
 // Sets the default options for system windows.
 //
 // |options|: The option values to use as default values. This object must not

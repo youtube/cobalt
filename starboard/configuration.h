@@ -90,6 +90,10 @@
 // Add support for audio in ac3.
 #define SB_HAS_AC3_AUDIO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Adds support for allowing the platform to override its screen diagonal
+// length via SbWindowGetDiagonialSizeInInches().
+#define SB_HAS_SCREEN_DIAGONAL_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
