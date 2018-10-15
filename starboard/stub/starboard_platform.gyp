@@ -281,6 +281,7 @@
         '<(DEPTH)/starboard/shared/stub/user_get_signed_in.cc',
         '<(DEPTH)/starboard/shared/stub/window_create.cc',
         '<(DEPTH)/starboard/shared/stub/window_destroy.cc',
+        '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_size.cc',
         '<(DEPTH)/starboard/shared/stub/window_set_default_options.cc',
