@@ -86,7 +86,7 @@ VisibilityState PageVisibilityState::GetVisibilityState() const {
 void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
   TRACE_EVENT1("cobalt::page_visibility",
                "PageVisibilityState::SetApplicationState", "state",
-               STATE_STRING(state));
+               base::GetApplicationStateString(state));
   if (application_state_ == state) {
     DLOG(WARNING) << __FUNCTION__ << ": Attempt to re-enter "
                   << STATE_STRING(application_state_);
