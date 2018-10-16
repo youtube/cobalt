@@ -46,6 +46,30 @@
       "revId": "6565305350fe115568e5a4d7f4804d4ba9b76511",
       "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "9d4a9841_f1750331",
+        "filename": "src/starboard/contrib/tizen/shared/system_has_capability.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-10-16T21:13:33Z",
+      "side": 1,
+      "message": "Hi Lin, yes you\u0027re right, I see it now, sorry I don\u0027t know why I missed it before.\n\nThanks this looks good.",
+      "parentUuid": "681855d9_02c911e5",
+      "range": {
+        "startLine": 27,
+        "startChar": 13,
+        "endLine": 27,
+        "endChar": 17
+      },
+      "revId": "6565305350fe115568e5a4d7f4804d4ba9b76511",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
     }
   ]
 }
