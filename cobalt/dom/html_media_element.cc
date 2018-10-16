@@ -278,20 +278,13 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
   DLOG_IF(ERROR, !key_system.empty())
       << "CanPlayType() only accepts one parameter but (" << key_system
       << ") is passed as a second parameter.";
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string result =
-      html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
-                                                                   "");
-  MLOG() << "(" << mime_type << ") => " << result;
-  LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ") -> "
-            << result;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  std::string result =
-      html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
-                                                                   key_system);
+      html_element_context()->can_play_type_handler()->CanPlayType(
+          true, mime_type, key_system);
   MLOG() << "(" << mime_type << ", " << key_system << ") => " << result;
   LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
             << key_system << ") -> " << result;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   return result;
 }
 
