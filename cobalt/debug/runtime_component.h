@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/command.h"
 #include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/debug_script_runner.h"
@@ -32,9 +33,9 @@ class RuntimeComponent {
   explicit RuntimeComponent(DebugDispatcher* dispatcher);
 
  private:
-  JSONObject CompileScript(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
-  JSONObject Enable(const JSONObject& params);
+  void CompileScript(const Command& command);
+  void Disable(const Command& command);
+  void Enable(const Command& command);
 
   DebugDispatcher* dispatcher_;
 

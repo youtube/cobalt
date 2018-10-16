@@ -41,26 +41,21 @@ RuntimeComponent::RuntimeComponent(DebugDispatcher* dispatcher)
   dispatcher_->AddDomain("Runtime", commands_.Bind());
 }
 
-JSONObject RuntimeComponent::CompileScript(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void RuntimeComponent::CompileScript(const Command& command) {
   // TODO: Parse the JS without eval-ing it... This is to support:
   // a) Multi-line input from the devtools console
   // b) https://developers.google.com/web/tools/chrome-devtools/snippets
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject RuntimeComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void RuntimeComponent::Disable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject RuntimeComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  JSONObject event_params;
+void RuntimeComponent::Enable(const Command& command) {
   dispatcher_->SendScriptEvent(kExecutionContextCreated,
-                               "runtime.executionContextCreatedEvent",
-                               event_params);
-  return JSONObject(new base::DictionaryValue());
+                               "runtime.executionContextCreatedEvent");
+  command.SendResponse();
 }
 
 }  // namespace debug
