@@ -54,30 +54,26 @@ DOMComponent::DOMComponent(DebugDispatcher* dispatcher,
   dispatcher_->AddDomain("DOM", commands_.Bind());
 }
 
-JSONObject DOMComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void DOMComponent::Enable(const Command& command) {
   bool initialized = dispatcher_->RunScriptFile(kScriptFile);
   if (initialized) {
-    return JSONObject(new base::DictionaryValue());
+    command.SendResponse();
   } else {
-    return dispatcher_->ErrorResponse("Cannot create DOM inspector.");
+    command.SendErrorResponse("Cannot create DOM inspector.");
   }
 }
 
-JSONObject DOMComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
-}
+void DOMComponent::Disable(const Command& command) { command.SendResponse(); }
 
 // Unlike most other DOM command handlers, this one is not fully implemented
 // in JavaScript. Instead, the JS object is used to look up the node from the
 // parameters and return its bounding client rect, then the highlight itself
 // is rendered by calling the C++ function |RenderHighlight| to set the render
 // overlay.
-JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
+void DOMComponent::HighlightNode(const Command& command) {
   // Get the bounding rectangle of the specified node.
-  JSONObject json_dom_rect =
-      dispatcher_->RunScriptCommand("dom.getBoundingClientRect", params);
+  JSONObject json_dom_rect = dispatcher_->RunScriptCommand(
+      "dom.getBoundingClientRect", command.GetParams());
   double x = 0.0;
   double y = 0.0;
   double width = 0.0;
@@ -92,6 +88,7 @@ JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
                        static_cast<float>(width), static_cast<float>(height)));
 
   // |highlight_config_value| still owned by |params|.
+  JSONObject params = JSONParse(command.GetParams());
   base::DictionaryValue* highlight_config_value = NULL;
   bool got_highlight_config =
       params->GetDictionary(kHighlightConfig, &highlight_config_value);
@@ -100,16 +97,12 @@ JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
 
   RenderHighlight(dom_rect, highlight_config_value);
 
-  // Empty response.
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject DOMComponent::HideHighlight(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void DOMComponent::HideHighlight(const Command& command) {
   render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
-
-  // Empty response.
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
 void DOMComponent::RenderHighlight(

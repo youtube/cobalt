@@ -96,34 +96,33 @@ JavaScriptDebuggerComponent::JavaScriptDebuggerComponent(
 
 JavaScriptDebuggerComponent::~JavaScriptDebuggerComponent() {}
 
-JSONObject JavaScriptDebuggerComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::Enable(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
   dispatcher_->script_debugger()->Attach();
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::Disable(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
   dispatcher_->script_debugger()->Detach();
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::GetScriptSource(
-    const JSONObject& params) {
+void JavaScriptDebuggerComponent::GetScriptSource(const Command& command) {
+  JSONObject params = JSONParse(command.GetParams());
   // Get the scriptId from the parameters.
   std::string script_id;
   bool got_script_id = params->GetString(kScriptId, &script_id);
   if (!got_script_id) {
-    return dispatcher_->ErrorResponse("No scriptId specified in parameters.");
+    command.SendErrorResponse("No scriptId specified in parameters.");
+    return;
   }
 
   // Find the source provider with a matching scriptId.
   SourceProviderMap::iterator it = source_providers_.find(script_id);
   if (it == source_providers_.end()) {
-    return dispatcher_->ErrorResponse(
-        "No script found with specified scriptId.");
+    command.SendErrorResponse("No script found with specified scriptId.");
+    return;
   }
   script::SourceProvider* source_provider = it->second;
   DCHECK(source_provider);
@@ -131,33 +130,31 @@ JSONObject JavaScriptDebuggerComponent::GetScriptSource(
   // Build and return the result.
   JSONObject result(new base::DictionaryValue());
   result->SetString(kScriptSource, source_provider->GetScriptSource());
-  return result.Pass();
+  command.SendResponse(result);
 }
 
-JSONObject JavaScriptDebuggerComponent::Pause(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::Pause(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
   dispatcher_->script_debugger()->Pause();
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::Resume(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::Resume(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
-
   dispatcher_->script_debugger()->Resume();
   dispatcher_->SetPaused(false);
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::SetBreakpointByUrl(
-    const JSONObject& params) {
+void JavaScriptDebuggerComponent::SetBreakpointByUrl(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
+  JSONObject params = JSONParse(command.GetParams());
 
   std::string url;
   bool got_url = params->GetString(kUrl, &url);
   if (!got_url) {
-    return dispatcher_->ErrorResponse("Breakpoint URL must be specified.");
+    command.SendErrorResponse("Breakpoint URL must be specified.");
+    return;
   }
 
   // TODO: Should also handle setting of breakpoint by urlRegex
@@ -165,7 +162,8 @@ JSONObject JavaScriptDebuggerComponent::SetBreakpointByUrl(
   int line_number;
   bool got_line_number = params->GetInteger(kLineNumber, &line_number);
   if (!got_line_number) {
-    return dispatcher_->ErrorResponse("Line number must be specified.");
+    command.SendErrorResponse("Line number must be specified.");
+    return;
   }
   // If no column number is specified, just default to 0.
   int column_number = 0;
@@ -198,12 +196,12 @@ JSONObject JavaScriptDebuggerComponent::SetBreakpointByUrl(
     location_objects->Append(location.release());
   }
   result->Set(kLocations, location_objects.release());
-  return result.Pass();
+  command.SendResponse(result);
 }
 
-JSONObject JavaScriptDebuggerComponent::SetPauseOnExceptions(
-    const JSONObject& params) {
+void JavaScriptDebuggerComponent::SetPauseOnExceptions(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
+  JSONObject params = JSONParse(command.GetParams());
 
   std::string state;
   DCHECK(params->GetString(kState, &state));
@@ -219,31 +217,28 @@ JSONObject JavaScriptDebuggerComponent::SetPauseOnExceptions(
   } else {
     NOTREACHED();
   }
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::StepInto(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::StepInto(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
   dispatcher_->script_debugger()->StepInto();
   dispatcher_->SetPaused(false);
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::StepOut(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::StepOut(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
   dispatcher_->script_debugger()->StepOut();
   dispatcher_->SetPaused(false);
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject JavaScriptDebuggerComponent::StepOver(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void JavaScriptDebuggerComponent::StepOver(const Command& command) {
   DCHECK(dispatcher_->script_debugger());
   dispatcher_->script_debugger()->StepOver();
   dispatcher_->SetPaused(false);
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
 void JavaScriptDebuggerComponent::OnScriptDebuggerDetach(

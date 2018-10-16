@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/command.h"
 #include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
@@ -37,10 +38,10 @@ class PageComponent {
                 render_tree::ResourceProvider* resource_provider);
 
  private:
-  JSONObject Enable(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
-  JSONObject GetResourceTree(const JSONObject& params);
-  JSONObject SetOverlayMessage(const JSONObject& params);
+  void Enable(const Command& command);
+  void Disable(const Command& command);
+  void GetResourceTree(const Command& command);
+  void SetOverlayMessage(const Command& command);
 
   dom::Window* window_;
   scoped_ptr<RenderLayer> render_layer_;
