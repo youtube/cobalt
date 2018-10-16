@@ -57,14 +57,12 @@ ConsoleComponent::ConsoleComponent(DebugDispatcher* dispatcher,
   dispatcher_->AddDomain("Console", commands_.Bind());
 }
 
-JSONObject ConsoleComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void ConsoleComponent::Disable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject ConsoleComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void ConsoleComponent::Enable(const Command& command) {
+  command.SendResponse();
 }
 
 void ConsoleComponent::OnMessageAdded(const std::string& text,

@@ -18,6 +18,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "cobalt/debug/command.h"
 #include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
@@ -33,14 +34,14 @@ class DOMComponent {
                scoped_ptr<RenderLayer> render_layer);
 
  private:
-  JSONObject Enable(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
+  void Enable(const Command& command);
+  void Disable(const Command& command);
 
   // Highlights a specified node according to highlight parameters.
-  JSONObject HighlightNode(const JSONObject& params);
+  void HighlightNode(const Command& command);
 
   // Hides the node highlighting.
-  JSONObject HideHighlight(const JSONObject& params);
+  void HideHighlight(const Command& command);
 
   // Renders a highlight to the overlay.
   void RenderHighlight(const scoped_refptr<dom::DOMRect>& bounding_rect,

@@ -65,18 +65,15 @@ PageComponent::PageComponent(DebugDispatcher* dispatcher, dom::Window* window,
   dispatcher->AddDomain("Page", commands_.Bind());
 }
 
-JSONObject PageComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void PageComponent::Disable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject PageComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void PageComponent::Enable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject PageComponent::GetResourceTree(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void PageComponent::GetResourceTree(const Command& command) {
   JSONObject response(new base::DictionaryValue());
   response->SetString(kFrameId, kFrameIdValue);
   response->SetString(kLoaderId, kLoaderIdValue);
@@ -84,11 +81,12 @@ JSONObject PageComponent::GetResourceTree(const JSONObject& params) {
   response->SetString(kSecurityOrigin, window_->document()->url());
   response->SetString(kUrl, window_->document()->url());
   response->Set(kResources, new base::ListValue());
-  return response.Pass();
+  command.SendResponse(response);
 }
 
-JSONObject PageComponent::SetOverlayMessage(const JSONObject& params) {
+void PageComponent::SetOverlayMessage(const Command& command) {
   std::string message;
+  JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;
   if (params) {
     got_message = params->GetString("message", &message);
@@ -129,7 +127,7 @@ JSONObject PageComponent::SetOverlayMessage(const JSONObject& params) {
     render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
   }
 
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
 }  // namespace debug
