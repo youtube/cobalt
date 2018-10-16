@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "cobalt/debug/command.h"
 #include "cobalt/debug/command_map.h"
 #include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
@@ -40,8 +41,8 @@ class ConsoleComponent {
     ConsoleComponent* console_component_;
   };
 
-  JSONObject Enable(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
+  void Enable(const Command& command);
+  void Disable(const Command& command);
 
   // Called by |console_listener_| when a new message is output.
   void OnMessageAdded(const std::string& text, dom::Console::Level level);
