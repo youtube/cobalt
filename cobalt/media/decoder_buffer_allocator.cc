@@ -126,7 +126,7 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
     if (!kEnableMultiblockAllocate || kEnableAllocationLog) {
       void* p = reuse_allocator_->Allocate(size, alignment);
       LOG_IF(INFO, kEnableAllocationLog)
-          << "======== Media Allocation Log " << p << " " << size << " "
+          << "Media Allocation Log " << p << " " << size << " "
           << alignment << " " << context;
       if (!UpdateAllocationRecord()) {
         // UpdateAllocationRecord may fail with non-NULL p when capacity is
@@ -201,7 +201,7 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 
     if (kEnableAllocationLog) {
       DCHECK_EQ(allocations.number_of_buffers(), 1);
-      LOG(INFO) << "======== Media Allocation Log " << allocations.buffers()[0];
+      LOG(INFO) << "Media Allocation Log " << allocations.buffers()[0];
     }
     for (int i = 0; i < allocations.number_of_buffers(); ++i) {
       reuse_allocator_->Free(allocations.buffers()[i]);
@@ -324,8 +324,8 @@ bool DecoderBufferAllocator::UpdateAllocationRecord(
     new_max_reached = true;
   }
   if (new_max_reached) {
-    SB_LOG(ERROR) << "======== New Media Buffer Allocation Record ========\n"
-                  << "\tMax Allocated: " << max_allocated
+    SB_LOG(ERROR) << "New Media Buffer Allocation Record: "
+                  << "Max Allocated: " << max_allocated
                   << "  Max Capacity: " << max_capacity
                   << "  Max Blocks: " << max_blocks;
     // TODO: Enable the following line once PrintAllocations() accepts max line
