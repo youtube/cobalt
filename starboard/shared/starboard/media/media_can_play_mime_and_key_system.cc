@@ -34,74 +34,143 @@ namespace {
 const int64_t kDefaultBitRate = 0;
 const int64_t kDefaultAudioChannels = 2;
 
-// A progressive video contains both audio and video data.  The JS app uses
-// canPlayType() like "canPlayType(video/mp4; codecs="avc1.42001E, mp4a.40.2",)"
-// to query for support on both the audio and video codecs, which is being
-// forwarded to here.
-//
-// Note that canPlayType() doesn't support extra parameters like width, height
-// and channels.
-SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type,
-                                           bool decode_to_texture_required) {
+bool IsSupportedAudioCodec(const MimeType& mime_type,
+                           const std::string& codec,
+                           const char* key_system) {
+  SbMediaAudioCodec audio_codec = GetAudioCodecFromString(codec.c_str());
+  if (audio_codec == kSbMediaAudioCodecNone) {
+    return false;
+  }
+  if (SbStringGetLength(key_system) != 0) {
+    if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec, key_system)) {
+      return false;
+    }
+  }
+
+  int channels = mime_type.GetParamIntValue("channels", kDefaultAudioChannels);
+  if (!IsAudioOutputSupported(kSbMediaAudioCodingTypePcm, channels)) {
+    return false;
+  }
+
+  int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
+
+  if (!SbMediaIsAudioSupported(audio_codec, bitrate)) {
+    return false;
+  }
+
+  switch (audio_codec) {
+    case kSbMediaAudioCodecNone:
+      SB_NOTREACHED();
+      return false;
+    case kSbMediaAudioCodecAac:
+      return mime_type.subtype() == "mp4";
+#if SB_HAS(AC3_AUDIO)
+    case kSbMediaAudioCodecAc3:
+      return mime_type.subtype() == "mp4";
+#endif  // SB_HAS(AC3_AUDIO)
+    case kSbMediaAudioCodecOpus:
+    case kSbMediaAudioCodecVorbis:
+      return mime_type.subtype() == "webm";
+  }
+
+  SB_NOTREACHED();
+  return false;
+}
+
+bool IsSupportedVideoCodec(const MimeType& mime_type,
+                           const std::string& codec,
+                           const char* key_system,
+                           bool decode_to_texture_required) {
 #if SB_API_VERSION < 10
   SB_UNREFERENCED_PARAMETER(decode_to_texture_required);
 #endif  // SB_API_VERSION < 10
 
-  const std::vector<std::string>& codecs = mime_type.GetCodecs();
+  SbMediaVideoCodec video_codec = GetVideoCodecFromString(codec.c_str());
+  if (video_codec == kSbMediaVideoCodecNone) {
+    return false;
+  }
 
-  SB_DCHECK(codecs.size() == 2) << codecs.size();
-
-  bool has_audio_codec = false;
-  bool has_video_codec = false;
-  for (size_t i = 0; i < codecs.size(); ++i) {
-    SbMediaAudioCodec audio_codec = GetAudioCodecFromString(codecs[i].c_str());
-    if (audio_codec != kSbMediaAudioCodecNone) {
-      if (!SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
-        return kSbMediaSupportTypeNotSupported;
-      }
-      has_audio_codec = true;
-      continue;
+  if (SbStringGetLength(key_system) != 0) {
+    if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone, key_system)) {
+      return false;
     }
-    SbMediaVideoCodec video_codec = GetVideoCodecFromString(codecs[i].c_str());
-    if (video_codec == kSbMediaVideoCodecNone) {
-      return kSbMediaSupportTypeNotSupported;
+  }
+
+  std::string eotf = mime_type.GetParamStringValue("eotf", "");
+  SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
+  if (!eotf.empty()) {
+    transfer_id = GetTransferIdFromString(eotf);
+    // If the eotf is not known, reject immediately - without checking with
+    // the platform.
+    if (transfer_id == kSbMediaTransferIdUnknown) {
+      return false;
     }
+  }
 
-    has_video_codec = true;
-
-    int width = 0;
-    int height = 0;
-    int fps = 0;
-
-    if (video_codec == kSbMediaVideoCodecH264) {
-      if (!ParseH264Info(codecs[i].c_str(), &width, &height, &fps)) {
-        return kSbMediaSupportTypeNotSupported;
-      }
+  std::string cryptoblockformat =
+      mime_type.GetParamStringValue("cryptoblockformat", "");
+  if (!cryptoblockformat.empty()) {
+    if (mime_type.subtype() != "webm" || cryptoblockformat != "subsample") {
+      return false;
     }
-    if (!SbMediaIsVideoSupported(video_codec, width, height, kDefaultBitRate,
-                                 fps
+  }
+
+  int width = 0;
+  int height = 0;
+  int fps = 0;
+
+  if (video_codec == kSbMediaVideoCodecH264) {
+    if (!ParseH264Info(codec.c_str(), &width, &height, &fps)) {
+      return false;
+    }
+  }
+
+  width = mime_type.GetParamIntValue("width", width);
+  height = mime_type.GetParamIntValue("height", height);
+  fps = mime_type.GetParamIntValue("framerate", fps);
+
+  int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
+
+  if (!SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
 #if SB_API_VERSION >= 10
-                                 ,
-                                 decode_to_texture_required
+                               ,
+                               decode_to_texture_required
 #endif  // SB_API_VERSION >= 10
 #if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                                 ,
-                                 kSbMediaTransferIdUnspecified
+                               ,
+                               transfer_id
 #endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                                 )) {
-      return kSbMediaSupportTypeNotSupported;
-    }
+                               )) {
+    return false;
   }
 
-  if (has_audio_codec && has_video_codec) {
-    return kSbMediaSupportTypeProbably;
+  switch (video_codec) {
+    case kSbMediaVideoCodecNone:
+      SB_NOTREACHED();
+      return false;
+    case kSbMediaVideoCodecH264:
+    case kSbMediaVideoCodecH265:
+      return mime_type.subtype() == "mp4";
+    case kSbMediaVideoCodecMpeg2:
+    case kSbMediaVideoCodecTheora:
+      return false;  // No associated container in YT.
+    case kSbMediaVideoCodecVc1:
+    case kSbMediaVideoCodecVp10:
+      return mime_type.subtype() == "mp4";
+    case kSbMediaVideoCodecVp8:
+    case kSbMediaVideoCodecVp9:
+      return mime_type.subtype() == "webm";
   }
 
-  return kSbMediaSupportTypeNotSupported;
+  SB_NOTREACHED();
+  return false;
 }
 
-// Calls to isTypeSupported() are redirected to this function.  Following are
-// some example inputs:
+// Calls to canPlayType() and isTypeSupported() are redirected to this function.
+// Following are some example inputs:
+//   canPlayType(video/mp4)
+//   canPlayType(video/mp4; codecs="avc1.42001E, mp4a.40.2")
+//   canPlayType(video/webm)
 //   isTypeSupported(video/webm; codecs="vp9")
 //   isTypeSupported(video/mp4; codecs="avc1.4d401e"; width=640)
 //   isTypeSupported(video/mp4; codecs="avc1.4d401e"; width=99999)
@@ -124,6 +193,10 @@ SbMediaSupportType CanPlayProgressiveVideo(const MimeType& mime_type,
 SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
                                            const char* key_system) {
   SB_DCHECK(mime_type.is_valid());
+
+  if (mime_type.type() != "audio" && mime_type.type() != "video") {
+    return kSbMediaSupportTypeNotSupported;
+  }
 
   const std::vector<std::string>& codecs = mime_type.GetCodecs();
 
@@ -149,114 +222,48 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
 #endif  // SB_API_VERSION >= 10
 
   if (codecs.size() == 0) {
-    // When there is no codecs listed, returns |kSbMediaSupportTypeMaybe| and
-    // reject unsupported formats when query again with valid "codecs".
-    return kSbMediaSupportTypeMaybe;
+    // This is a progressive query.  We only support "video/mp4" in this case.
+    if (mime_type.type() == "video" && mime_type.subtype() == "mp4") {
+      return kSbMediaSupportTypeMaybe;
+    }
+    return kSbMediaSupportTypeNotSupported;
   }
 
   if (codecs.size() > 2) {
     return kSbMediaSupportTypeNotSupported;
   }
 
-  if (codecs.size() == 2) {
-    SB_DCHECK(SbStringGetLength(key_system) == 0);
-    return CanPlayProgressiveVideo(mime_type, decode_to_texture_required);
-  }
-
-  SB_DCHECK(codecs.size() == 1);
-
-  if (mime_type.type() == "audio") {
-    SbMediaAudioCodec audio_codec = GetAudioCodecFromString(codecs[0].c_str());
-    if (audio_codec == kSbMediaAudioCodecNone) {
-      return kSbMediaSupportTypeNotSupported;
-    }
-
-    if (SbStringGetLength(key_system) != 0) {
-      if (!SbMediaIsSupported(kSbMediaVideoCodecNone, audio_codec,
-                              key_system)) {
+  bool has_audio_codec = false;
+  bool has_video_codec = false;
+  for (const auto& codec : codecs) {
+    if (IsSupportedAudioCodec(mime_type, codec, key_system)) {
+      if (has_audio_codec) {
+        // We don't support two audio codecs in one stream.
         return kSbMediaSupportTypeNotSupported;
       }
+      has_audio_codec = true;
+      continue;
     }
-
-    int channels =
-        mime_type.GetParamIntValue("channels", kDefaultAudioChannels);
-    if (!IsAudioOutputSupported(kSbMediaAudioCodingTypePcm, channels)) {
-      return kSbMediaSupportTypeNotSupported;
+    if (IsSupportedVideoCodec(mime_type, codec, key_system,
+                              decode_to_texture_required)) {
+      if (mime_type.type() != "video") {
+        // Video can only be contained in "video/*", while audio can be
+        // contained in both "audio/*" and "video/*".
+        return kSbMediaSupportTypeNotSupported;
+      }
+      if (has_video_codec) {
+        // We don't support two video codecs in one stream.
+        return kSbMediaSupportTypeNotSupported;
+      }
+      has_video_codec = true;
+      continue;
     }
-
-    int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
-
-    if (SbMediaIsAudioSupported(audio_codec, bitrate)) {
-      return kSbMediaSupportTypeProbably;
-    }
-
     return kSbMediaSupportTypeNotSupported;
   }
 
-  if (mime_type.type() == "video") {
-    SbMediaVideoCodec video_codec = GetVideoCodecFromString(codecs[0].c_str());
-    if (video_codec == kSbMediaVideoCodecNone) {
-      return kSbMediaSupportTypeNotSupported;
-    }
-
-    if (SbStringGetLength(key_system) != 0) {
-      if (!SbMediaIsSupported(video_codec, kSbMediaAudioCodecNone,
-                              key_system)) {
-        return kSbMediaSupportTypeNotSupported;
-      }
-    }
-
-    std::string eotf = mime_type.GetParamStringValue("eotf", "");
-    SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified;
-    if (!eotf.empty()) {
-      transfer_id = GetTransferIdFromString(eotf);
-      // If the eotf is not known, reject immediately - without checking with
-      // the platform.
-      if (transfer_id == kSbMediaTransferIdUnknown) {
-        return kSbMediaSupportTypeNotSupported;
-      }
-    }
-
-    std::string cryptoblockformat =
-        mime_type.GetParamStringValue("cryptoblockformat", "");
-    if (!cryptoblockformat.empty()) {
-      if (mime_type.subtype() != "webm" || cryptoblockformat != "subsample") {
-        return kSbMediaSupportTypeNotSupported;
-      }
-    }
-
-    int width = 0;
-    int height = 0;
-    int fps = 0;
-
-    if (video_codec == kSbMediaVideoCodecH264) {
-      if (!ParseH264Info(codecs[0].c_str(), &width, &height, &fps)) {
-        return kSbMediaSupportTypeNotSupported;
-      }
-    }
-
-    width = mime_type.GetParamIntValue("width", width);
-    height = mime_type.GetParamIntValue("height", height);
-    fps = mime_type.GetParamIntValue("framerate", fps);
-
-    int bitrate = mime_type.GetParamIntValue("bitrate", kDefaultBitRate);
-
-    if (SbMediaIsVideoSupported(video_codec, width, height, bitrate, fps
-#if SB_API_VERSION >= 10
-                                ,
-                                decode_to_texture_required
-#endif  // SB_API_VERSION >= 10
-#if SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                                ,
-                                transfer_id
-#endif  // SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
-                                )) {
-      return kSbMediaSupportTypeProbably;
-    }
-
-    return kSbMediaSupportTypeNotSupported;
+  if (has_audio_codec || has_video_codec) {
+    return kSbMediaSupportTypeProbably;
   }
-
   return kSbMediaSupportTypeNotSupported;
 }
 
