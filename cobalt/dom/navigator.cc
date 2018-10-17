@@ -80,6 +80,7 @@ const std::string Navigator::licenses() const {
   bool success = SbFileGetInfo(file, &info);
   if (!success) {
     SB_DLOG(WARNING) << "Cannot get information for licenses file.";
+    SbFileClose(file);
     return std::string();
   }
   // SbFileReadAll expects an int for the size argument. Assume that the file
@@ -89,6 +90,7 @@ const std::string Navigator::licenses() const {
   std::unique_ptr<char[]> buffer(new char[file_size]);
   SbFileReadAll(file, buffer.get(), file_size);
   const std::string file_contents = std::string(buffer.get(), file_size);
+  SbFileClose(file);
 
   return file_contents;
 }
