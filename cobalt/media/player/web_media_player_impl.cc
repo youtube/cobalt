@@ -546,7 +546,8 @@ bool WebMediaPlayerImpl::GetDebugReportDataAddress(void** out_address,
   return true;
 }
 
-void WebMediaPlayerImpl::SetDrmSystem(DrmSystem* drm_system) {
+void WebMediaPlayerImpl::SetDrmSystem(
+    const scoped_refptr<media::DrmSystem>& drm_system) {
   DCHECK_EQ(static_cast<DrmSystem*>(NULL), drm_system_);
   DCHECK_NE(static_cast<DrmSystem*>(NULL), drm_system);
 

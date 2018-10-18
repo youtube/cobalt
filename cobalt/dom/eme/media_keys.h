@@ -42,7 +42,7 @@ class MediaKeys : public script::Wrappable,
   MediaKeys(const std::string& key_system,
             script::ScriptValueFactory* script_value_factory);
 
-  media::DrmSystem* drm_system() const { return drm_system_.get(); }
+  scoped_refptr<media::DrmSystem> drm_system() const { return drm_system_; }
 
   // Web API: MediaKeys.
 

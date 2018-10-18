@@ -182,7 +182,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   bool GetDebugReportDataAddress(void** out_address, size_t* out_size) OVERRIDE;
 
-  void SetDrmSystem(DrmSystem* drm_system) OVERRIDE;
+  void SetDrmSystem(const scoped_refptr<media::DrmSystem>& drm_system) OVERRIDE;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
   void SetEMEInitDataReadyCB(const EMEInitDataReadyCB& eme_init_data_ready_cb);
@@ -318,7 +318,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   EMEInitDataReadyCB eme_init_data_ready_cb_;
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
-  DrmSystem* drm_system_;
+  scoped_refptr<DrmSystem> drm_system_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
