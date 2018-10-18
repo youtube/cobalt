@@ -187,7 +187,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   bool GetDebugReportDataAddress(void** out_address, size_t* out_size) override;
 
-  void SetDrmSystem(DrmSystem* drm_system) override;
+  void SetDrmSystem(const scoped_refptr<media::DrmSystem>& drm_system) override;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
 
   void OnPipelineSeek(PipelineStatus status);
@@ -326,7 +326,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       media_time_and_seeking_state_cb_;
 
   DrmSystemReadyCB drm_system_ready_cb_;
-  DrmSystem* drm_system_;
+  scoped_refptr<DrmSystem> drm_system_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };
