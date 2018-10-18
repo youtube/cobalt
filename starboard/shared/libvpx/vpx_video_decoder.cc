@@ -104,6 +104,9 @@ void VideoDecoder::Reset() {
   stream_ended_ = false;
 
   TeardownCodec();
+
+  ScopedLock lock(decode_target_mutex_);
+  frames_ = {};
 }
 
 // static
@@ -134,21 +137,17 @@ void VideoDecoder::DecoderThreadFunc() {
   }
 }
 
-bool VideoDecoder::UpdateDecodeTarget(
+void VideoDecoder::UpdateDecodeTarget_Locked(
     const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
 
   // Lock only after the post to the renderer thread, to prevent deadlock.
-  ScopedLock lock(decode_target_mutex_);
   decode_target_ = decode_target;
 
   if (!SbDecodeTargetIsValid(decode_target)) {
     SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
-    return false;
   }
-
-  return true;
 }
 
 void VideoDecoder::ReportError(const std::string& error_message) {
@@ -268,7 +267,8 @@ void VideoDecoder::DecodeOneBuffer(
       vpx_image->stride[VPX_PLANE_Y], timestamp, vpx_image->planes[VPX_PLANE_Y],
       vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    UpdateDecodeTarget(frame);
+    ScopedLock lock(decode_target_mutex_);
+    frames_.push(frame);
   }
 
   decoder_status_cb_(kNeedMoreInput, frame);
@@ -281,6 +281,12 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   // We must take a lock here since this function can be called from a
   // separate thread.
   ScopedLock lock(decode_target_mutex_);
+  while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
+    frames_.pop();
+  }
+  if (!frames_.empty()) {
+    UpdateDecodeTarget_Locked(frames_.front());
+  }
   if (SbDecodeTargetIsValid(decode_target_)) {
     // Make a disposable copy, since the state is internally reused by this
     // class (to avoid recreating GL objects).
