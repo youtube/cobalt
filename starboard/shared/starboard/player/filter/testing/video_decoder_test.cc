@@ -124,8 +124,10 @@ class VideoDecoderTest : public ::testing::TestWithParam<TestParam> {
                                       &video_renderer_sink_);
     ASSERT_TRUE(video_decoder_);
 
-    video_renderer_sink_->SetRenderCB(
-        std::bind(&VideoDecoderTest::Render, this, _1));
+    if (video_renderer_sink_) {
+      video_renderer_sink_->SetRenderCB(
+          std::bind(&VideoDecoderTest::Render, this, _1));
+    }
 
     video_decoder_->Initialize(
         std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
@@ -441,8 +443,10 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
               &video_renderer_sinks[i]);
           ASSERT_TRUE(video_decoders[i]);
 
-          video_renderer_sinks[i]->SetRenderCB(
-              std::bind(&VideoDecoderTest::Render, this, _1));
+          if (video_renderer_sinks[i]) {
+            video_renderer_sinks[i]->SetRenderCB(
+                std::bind(&VideoDecoderTest::Render, this, _1));
+          }
 
           video_decoders[i]->Initialize(
               std::bind(&VideoDecoderTest::OnDecoderStatusUpdate, this, _1, _2),
