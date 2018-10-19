@@ -80,8 +80,6 @@ extern const char kTimedTrace[];
 extern const char kTimedTraceHelp[];
 extern const char kUseTTS[];
 extern const char kUseTTSHelp[];
-extern const char kVideoContainerSizeOverride[];
-extern const char kVideoContainerSizeOverrideHelp[];
 extern const char kVideoDecoderStub[];
 extern const char kVideoDecoderStubHelp[];
 extern const char kWebDriverListenIp[];
