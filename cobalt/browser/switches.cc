@@ -169,11 +169,6 @@ const char kUseTTSHelp[] =
     "speech synthesis API. If the platform doesn't have speech synthesis, "
     "TTSLogger will be used instead.";
 
-extern const char kVideoContainerSizeOverride[] =
-    "video_container_size_override";
-extern const char kVideoContainerSizeOverrideHelp[] =
-    "Set the video container size override";
-
 extern const char kVideoDecoderStub[] = "video_decoder_stub";
 extern const char kVideoDecoderStubHelp[] =
     "Decode video data using ShellRawVideoDecoderStub.";
@@ -387,7 +382,6 @@ std::string HelpMessage() {
         {kStubImageDecoder, kStubImageDecoderHelp},
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
         {kUseTTS, kUseTTSHelp},
-        {kVideoContainerSizeOverride, kVideoContainerSizeOverrideHelp},
         {kVideoDecoderStub, kVideoDecoderStubHelp},
         {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},
