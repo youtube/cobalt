@@ -18,25 +18,19 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 
-#include <string>
-
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/storage.h"
 #include "starboard/string.h"
 #include "starboard/user.h"
 
-// Empirically found that the length of file name (not the name of entry) on
-// Nintendo Switch is limited by 72 symbols. The name of storage is made shorter
-// by replacing "/.starboard" with SB_COOKIE_PREFIX_WORKAROUND, the
-// SB_COOKIE_PREFIX_WORKAROUND is defined as "/.sb" in
-// src/starboard/nxswitch/gyp_configuration.gypi. So it is used on NXSwitch
-// platform only, for the rest of platforms nothing is changed, we use
-// "/.starboard".
-#ifndef SB_COOKIE_PREFIX_WORKAROUND
-#define SB_COOKIE_PREFIX "/.starboard"
-#else
-#define SB_COOKIE_PREFIX SB_COOKIE_PREFIX_WORKAROUND
+#if SB_HAS_QUIRK(HASH_FILE_NAME)
+#include <ios>
+#include <sstream>
+#include <string>
+#include "starboard/common/murmurhash2.h"
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/memory.h"
 #endif
 
 struct SbStorageRecordPrivate {
@@ -61,10 +55,22 @@ static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
     return false;
   }
 
-  SbStringConcat(out_path, SB_COOKIE_PREFIX, path_size);
-  if (name && SbStringGetLength(name) > 0) {
+  const size_t n = name ? SbStringGetLength(name) : 0;
+  SbStringConcat(out_path, "/.starboard", path_size);
+  if (n > 0) {
     SbStringConcat(out_path, ".", path_size);
+#if SB_HAS_QUIRK(HASH_FILE_NAME)
+    size_t n = SbStringGetLength(name);
+    // Two 32 bit hashes will create a 64 bit hash with extremely low
+    // probability of collisions. The seed term was chosen arbitrary.
+    uint32_t hash1 = MurmurHash2_32(name, n, 0x8df88a67);
+    uint32_t hash2 = MurmurHash2_32(name, n, 0x5bdac960);
+    std::stringstream name_stringstream;
+    name_stringstream << std::hex << hash1 << hash2;
+    SbStringConcat(out_path, name_stringstream.str().c_str(), path_size);
+#else
     SbStringConcat(out_path, name, path_size);
+#endif
   }
   SbStringConcat(out_path, ".storage", path_size);
   return true;
