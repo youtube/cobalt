@@ -117,6 +117,7 @@
         'file_truncate_test.cc',
         'file_write_test.cc',
         'flat_map_test.cc',
+        'murmurhash2_test.cc',
         'include_all.c',
         'include_all_too.c',
         'key_test.cc',
