@@ -157,7 +157,6 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   // Media module
   render_tree::ResourceProviderStub resource_provider;
   media::MediaModule::Options options;
-  options.output_resolution_override = kDefaultViewportSize;
   scoped_ptr<media::MediaModule> media_module(
       media::MediaModule::Create(NULL, &resource_provider, options));
   scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler(
