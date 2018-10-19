@@ -28,6 +28,7 @@
         'flat_map.h',
         'memory.cc',
         'move.h',
+        'murmurhash2.h',
         'new.cc',
         'optional.cc',
         'recursive_mutex.h',
