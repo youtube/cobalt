@@ -42,17 +42,6 @@ void RunClosureOnMessageLoopAndWait(
 
 }  // namespace
 
-// static
-math::Size MediaModule::CalculateOutputResolution(
-    system_window::SystemWindow* system_window,
-    const base::optional<math::Size>& output_size_override) {
-  if (output_size_override) {
-    return *output_size_override;
-  }
-
-  return system_window->GetVideoOutputResolution();
-}
-
 void MediaModule::Suspend() {
   RunClosureOnMessageLoopAndWait(
       message_loop_,

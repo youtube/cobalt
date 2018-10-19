@@ -228,32 +228,6 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-base::optional<math::Size> GetVideoOutputResolutionOverride(
-    CommandLine* command_line) {
-  DCHECK(command_line);
-  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
-    std::string size_override = command_line->GetSwitchValueASCII(
-        browser::switches::kVideoContainerSizeOverride);
-    DLOG(INFO) << "Set video container size override from command line to "
-               << size_override;
-    // Override string should be something like "1920x1080".
-    int32 width, height;
-    std::vector<std::string> tokens;
-    base::SplitString(size_override, 'x', &tokens);
-    if (tokens.size() == 2 && base::StringToInt32(tokens[0], &width) &&
-        base::StringToInt32(tokens[1], &height)) {
-      return math::Size(width, height);
-    }
-
-    DLOG(WARNING) << "Invalid size specified for video container: "
-                  << size_override;
-  }
-
-  return base::nullopt;
-}
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
 // Represents a parsed int.
 struct ParsedIntValue {
  public:
@@ -607,8 +581,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
   }
-  options.media_module_options.output_resolution_override =
-      GetVideoOutputResolutionOverride(command_line);
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
