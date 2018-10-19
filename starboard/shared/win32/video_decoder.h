@@ -27,7 +27,6 @@
 #include "starboard/decode_target.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/thread.h"
@@ -39,11 +38,6 @@ namespace win32 {
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder {
  public:
-  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
-      VideoRendererSink;
-
-  class Sink;
-
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
@@ -54,8 +48,6 @@ class VideoDecoder
   // the result for the first call.  Note that the first call to this function
   // isn't thread safe and is supposed to be called on startup.
   static bool IsHardwareVp9DecoderSupported();
-
-  scoped_refptr<VideoRendererSink> GetSink();
 
   // Implement VideoDecoder interface.
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -160,8 +152,6 @@ class VideoDecoder
   Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_;
   std::list<SbDecodeTarget> prev_decode_targets_;
-
-  scoped_refptr<Sink> sink_;
 };
 
 }  // namespace win32

@@ -134,41 +134,6 @@ class VideoFrameImpl : public VideoFrame {
 
 }  // namespace
 
-class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
- public:
-  void Render() {
-    SB_DCHECK(render_cb_);
-
-    render_cb_(std::bind(&Sink::DrawFrame, this, _1, _2));
-  }
-
- private:
-  void SetRenderCB(RenderCB render_cb) override {
-    SB_DCHECK(!render_cb_);
-    SB_DCHECK(render_cb);
-
-    render_cb_ = render_cb;
-  }
-
-  void SetBounds(int z_index, int x, int y, int width, int height) override {
-    SB_UNREFERENCED_PARAMETER(z_index);
-    SB_UNREFERENCED_PARAMETER(x);
-    SB_UNREFERENCED_PARAMETER(y);
-    SB_UNREFERENCED_PARAMETER(width);
-    SB_UNREFERENCED_PARAMETER(height);
-  }
-
-  DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
-                            int64_t release_time_in_nanoseconds) {
-    SB_UNREFERENCED_PARAMETER(frame);
-    SB_DCHECK(release_time_in_nanoseconds == 0);
-
-    return kNotReleased;
-  }
-
-  RenderCB render_cb_;
-};
-
 VideoDecoder::VideoDecoder(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
@@ -233,13 +198,6 @@ bool VideoDecoder::IsHardwareVp9DecoderSupported() {
   return s_supported_;
 }
 
-scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
-  if (sink_ == NULL) {
-    sink_ = new Sink;
-  }
-  return sink_;
-}
-
 size_t VideoDecoder::GetPrerollFrameCount() const {
   return kMaxOutputSamples;
 }
@@ -299,10 +257,6 @@ void VideoDecoder::Reset() {
 }
 
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(sink_);
-
-  sink_->Render();
-
   // Ensure the decode target is created on the render thread.
   CreateDecodeTargetContext decode_target_context = { this };
   graphics_context_provider_->gles_context_runner(graphics_context_provider_,
