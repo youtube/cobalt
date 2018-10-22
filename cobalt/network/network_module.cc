@@ -92,8 +92,17 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
       options_.preferred_language, "utf-8", user_agent_string));
 
-#if defined(ENABLE_NETWORK_LOGGING)
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
+
+  if (command_line->HasSwitch(switches::kUserAgent)) {
+    std::string custom_user_agent =
+        command_line->GetSwitchValueASCII(switches::kUserAgent);
+    http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
+        options_.preferred_language, "utf-8", custom_user_agent));
+  }
+
+#if defined(ENABLE_NETWORK_LOGGING)
   if (command_line->HasSwitch(switches::kNetLog)) {
     // If this is not a valid path, net logs will be sent to VLOG(1).
     FilePath net_log_path = command_line->GetSwitchValuePath(switches::kNetLog);
@@ -111,8 +120,9 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
     DLOG(INFO) << net_log_level;
     net_log_.reset(new CobaltNetLog(net_log_path, net_log_level));
   }
-
 #endif
+
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   // Launch the IO thread.
   base::Thread::Options thread_options;
