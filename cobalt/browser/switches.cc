@@ -163,6 +163,15 @@ const char kTimedTraceHelp[] =
     "for before ending and saving the results to disk.  Results will be saved"
     " to the file timed_trace.json in the log output directory.";
 
+const char kUserAgent[] = "user_agent";
+const char kUserAgentHelp[] =
+    "Specifies a custom user agent for device simulations. The expected "
+    "format is \"Mozilla/5.0 ('os_name_and_version') Cobalt/'cobalt_version'."
+    "'cobalt_build_version_number'-'build_configuration' (unlike Gecko) "
+    "'javascript_engine_version' 'rasterizer_type' 'starboard_version', "
+    "'network_operator'_'device_type'_'chipset_model_number'_'model_year'/"
+    "'firmware_version' ('brand', 'model', 'connection_type') 'aux_field'\".";
+
 const char kUseTTS[] = "use_tts";
 const char kUseTTSHelp[] =
     "Enable text-to-speech functionality, for platforms that implement the "
@@ -381,6 +390,7 @@ std::string HelpMessage() {
         {kShutdownAfter, kShutdownAfterHelp},
         {kStubImageDecoder, kStubImageDecoderHelp},
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
+        {kUserAgent, kUserAgentHelp},
         {kUseTTS, kUseTTSHelp},
         {kVideoDecoderStub, kVideoDecoderStubHelp},
         {kWebDriverListenIp, kWebDriverListenIpHelp},

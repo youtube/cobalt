@@ -22,6 +22,7 @@ namespace switches {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 extern const char kNetLog[];
 extern const char kNetLogLevel[];
+extern const char kUserAgent[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 }  // namespace switches
