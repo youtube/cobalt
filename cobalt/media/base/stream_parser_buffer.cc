@@ -94,13 +94,15 @@ void StreamParserBuffer::SetConfigId(int config_id) {
 }
 
 int StreamParserBuffer::GetSpliceBufferConfigId(size_t index) const {
-  return index < splice_buffers().size() ? splice_buffers_[index]->GetConfigId()
-                                         : GetConfigId();
+  if (!splice_buffers_ || index >= splice_buffers().size()) {
+    return GetConfigId();
+  }
+  return (*splice_buffers_)[index]->GetConfigId();
 }
 
 void StreamParserBuffer::ConvertToSpliceBuffer(
     const BufferQueue& pre_splice_buffers) {
-  DCHECK(splice_buffers_.empty());
+  DCHECK(!splice_buffers_);
   DCHECK(duration() > base::TimeDelta())
       << "Only buffers with a valid duration can convert to a splice buffer."
       << " pts " << timestamp().InSecondsF() << " dts "
@@ -151,6 +153,7 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
                    pre_splice_buffers.back()->duration()) -
       first_splice_buffer->timestamp());
 
+  splice_buffers_.reset(new BufferQueue);
   // Copy all pre splice buffers into our wrapper buffer.
   for (BufferQueue::const_iterator it = pre_splice_buffers.begin();
        it != pre_splice_buffers.end(); ++it) {
@@ -159,11 +162,11 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
     DCHECK(!buffer->preroll_buffer().get());
     DCHECK(buffer->splice_buffers().empty());
     DCHECK(!buffer->is_duration_estimated());
-    splice_buffers_.push_back(buffer->Clone());
-    splice_buffers_.back()->set_splice_timestamp(splice_timestamp());
+    splice_buffers_->push_back(buffer->Clone());
+    splice_buffers_->back()->set_splice_timestamp(splice_timestamp());
   }
 
-  splice_buffers_.push_back(overlapping_buffer);
+  splice_buffers_->push_back(overlapping_buffer);
 }
 
 void StreamParserBuffer::SetPrerollBuffer(
