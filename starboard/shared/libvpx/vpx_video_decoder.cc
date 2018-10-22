@@ -105,9 +105,8 @@ void VideoDecoder::Reset() {
 
   TeardownCodec();
 
-  decltype(frames_) frames;
   ScopedLock lock(decode_target_mutex_);
-  frames_.swap(frames);
+  frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
 // static
