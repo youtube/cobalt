@@ -108,7 +108,7 @@ class BoxGenerator : public dom::NodeVisitor {
 
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>
       parent_css_computed_style_declaration_;
-  const scoped_refptr<const web_animations::AnimationSet>& parent_animations_;
+  const scoped_refptr<const web_animations::AnimationSet> parent_animations_;
   scoped_refptr<Paragraph>* paragraph_;
   // The current element depth.
   const int dom_element_depth_;
