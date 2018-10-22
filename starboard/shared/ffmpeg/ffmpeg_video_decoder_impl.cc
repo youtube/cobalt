@@ -189,8 +189,9 @@ void VideoDecoderImpl<FFMPEG>::Reset() {
     InitializeCodec();
   }
 
+  decltype(frames_) frames;
   ScopedLock lock(decode_target_mutex_);
-  frames_ = {};
+  frames_.swap(frames);
 }
 
 bool VideoDecoderImpl<FFMPEG>::is_valid() const {
