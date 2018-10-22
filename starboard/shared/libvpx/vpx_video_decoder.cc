@@ -105,8 +105,9 @@ void VideoDecoder::Reset() {
 
   TeardownCodec();
 
+  decltype(frames_) frames;
   ScopedLock lock(decode_target_mutex_);
-  frames_ = {};
+  frames_.swap(frames);
 }
 
 // static
