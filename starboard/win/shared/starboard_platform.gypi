@@ -149,6 +149,7 @@
       '<(DEPTH)/starboard/common/thread.h',
       '<(DEPTH)/starboard/shared/starboard/net_log.cc',
       '<(DEPTH)/starboard/shared/starboard/net_log.h',
+      '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
     ],
 
     'starboard_platform_dependent_files': [
