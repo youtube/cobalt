@@ -19,9 +19,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
 TEST(SbWindowGetDiagonialSizeInInches, RainyDay) {
   ASSERT_EQ(0.f, SbWindowGetDiagonialSizeInInches(kSbWindowInvalid));
 }
+#endif
 
 }  // namespace
 }  // namespace nplb

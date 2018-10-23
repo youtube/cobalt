@@ -268,6 +268,7 @@
         'user_get_signed_in_test.cc',
         'window_create_test.cc',
         'window_destroy_test.cc',
+        'window_get_diagonal_size_in_inches_test.cc',
         'window_get_platform_handle_test.cc',
         'window_get_size_test.cc',
         # Include private c headers, if present.
