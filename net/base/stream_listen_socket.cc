@@ -132,10 +132,16 @@ SocketDescriptor StreamListenSocket::AcceptSocket() {
 #else
   SocketDescriptor conn = HANDLE_EINTR(accept(socket_, NULL, NULL));
 #endif
-  if (conn == kInvalidSocket)
+  if (conn == kInvalidSocket) {
     LOG(ERROR) << "Error accepting connection.";
-  else
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
+    DCHECK(wait_state_ != NOT_WAITING);
+    wait_state_ = NOT_WAITING;
+#endif
+    UnwatchSocket();
+  } else {
     SetNonBlocking(conn);
+  }
   return conn;
 }
 
