@@ -82,7 +82,7 @@
                 'gdi32.lib',
                 'dbghelp.lib',
                 'user32.lib',
-                'shlwapi.lib'
+                'shlwapi.lib',
               ],
             }
           },
@@ -188,6 +188,13 @@
              'LinkIncremental': '1',  # INCREMENTAL:NO
            },
          },
+         'target_conditions': [
+           ['_toolset=="host"', {
+             'cflags_host': [
+               '/MDd', # Use debug multithreaded library.
+             ],
+           }],
+         ],
        },
        'msvs_devel': {
          'inherit_from': ['devel_base', 'msvs_base'],
@@ -204,6 +211,13 @@
              'LinkIncremental': '1',  # INCREMENTAL:NO
            },
          },
+         'target_conditions': [
+           ['_toolset=="host"', {
+             'cflags_host': [
+               '/MDd', # Use debug multithreaded library.
+             ],
+           }],
+         ],
        },
        'msvs_qa': {
          'inherit_from': ['qa_base', 'msvs_base'],
@@ -229,6 +243,13 @@
            # Often variables are only referenced in DCHECKs.
            4189,
          ],
+         'target_conditions': [
+           ['_toolset=="host"', {
+             'cflags_host': [
+               '/MD', # Use release multithreaded library.
+             ],
+           }],
+         ],
        },
        'msvs_gold': {
          'inherit_from': ['gold_base', 'msvs_base'],
@@ -252,6 +273,13 @@
            # Unreferenced variable.
            # Often variables are only referenced in DCHECKs.
            4189,
+         ],
+         'target_conditions': [
+           ['_toolset=="host"', {
+             'cflags_host': [
+               '/MD', # Use release multithreaded library.
+             ],
+           }],
          ],
        },
     },
