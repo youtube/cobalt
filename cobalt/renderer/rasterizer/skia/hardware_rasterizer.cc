@@ -35,12 +35,12 @@
 #include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 #include "third_party/skia/include/gpu/GrRenderTarget.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
 
 namespace {
@@ -82,6 +82,7 @@ class HardwareRasterizer::Impl {
   GrContext* GetGrContext();
 
   void MakeCurrent();
+  void ReleaseContext();
 
  private:
   typedef base::linked_hash_map<int32_t, sk_sp<SkSurface>> SkSurfaceMap;
@@ -733,6 +734,10 @@ void HardwareRasterizer::Impl::MakeCurrent() {
   graphics_context_->MakeCurrent();
 }
 
+void HardwareRasterizer::Impl::ReleaseContext() {
+  graphics_context_->ReleaseCurrentContext();
+}
+
 sk_sp<SkSurface> HardwareRasterizer::Impl::CreateSkSurface(
     const math::Size& size) {
   TRACE_EVENT2("cobalt::renderer", "HardwareRasterizer::CreateSkSurface()",
@@ -874,6 +879,8 @@ GrContext* HardwareRasterizer::GetGrContext() {
 }
 
 void HardwareRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
+
+void HardwareRasterizer::ReleaseContext() { return impl_->ReleaseContext(); }
 
 }  // namespace skia
 }  // namespace rasterizer

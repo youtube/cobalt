@@ -47,6 +47,7 @@ class SoftwareRasterizer : public Rasterizer {
   render_tree::ResourceProvider* GetResourceProvider() override;
 
   void MakeCurrent() override {}
+  void ReleaseContext() override {}
 
  private:
   backend::GraphicsContextBlitter* context_;
