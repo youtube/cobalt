@@ -24,7 +24,7 @@ namespace debug {
 
 namespace {
 // Command, parameter and event names as specified by the protocol:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/debugger
+// https://chromedevtools.github.io/devtools-protocol/1-3/Debugger
 
 // Parameter names.
 const char kCallFrameId[] = "callFrameId";

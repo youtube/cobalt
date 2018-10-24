@@ -33,7 +33,7 @@ devtoolsBackend.createRemoteObjectCallback = function(object, params) {
 }
 
 // JavaScript functions used by the Chrome debugging protocol Runtime domain:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime
 
 devtoolsBackend.runtime = {};
 
@@ -60,7 +60,7 @@ devtoolsBackend.runtime.executionContextCreatedEvent = function() {
 // and returns a new RemoteObject. Used extensively by devtools for
 // auto-completion. The new RemoteObject uses the same |objectGroup| as the
 // original object.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#command-callFunctionOn
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#method-callFunctionOn
 devtoolsBackend.runtime.callFunctionOn = function(params) {
   var result = {};
   var value = null;
@@ -143,7 +143,7 @@ devtoolsBackend.runtime.globalLexicalScopeNames = function(params) {
 // The parameters specifify several options:
 // * ownProperties - only include immediate properties, not the prototype chain.
 // * accessorPropertiesOnly - only include accessor properties.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#runtime.getproperties
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#method-getProperties
 devtoolsBackend.runtime.getProperties = function(params) {
   var result = {};
   var properties = [];
@@ -170,13 +170,13 @@ devtoolsBackend.runtime.getProperties = function(params) {
 }
 
 // Releases our reference to a previously accessed object.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#command-releaseObject
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#method-releaseObject
 devtoolsBackend.runtime.releaseObject = function(params) {
   delete this._objectStore[params.objectId];
 }
 
 // Releases our references to a group of previously accessed objects.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#command-releaseObjectGroup
+// https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#method-releaseObjectGroup
 devtoolsBackend.runtime.releaseObjectGroup = function(params) {
   for (var objectId in this._objectStore) {
     var objectEntry = this._objectStore[objectId];

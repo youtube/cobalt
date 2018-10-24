@@ -23,9 +23,13 @@
 namespace cobalt {
 namespace debug {
 
-// Holds a command being processed for a particular client. Includes a reference
-// to the client's callback and the message loop from which it was sent so the
-// command handler can send back its response through this class.
+// Holds a protocol command being processed for a particular client. The command
+// method and params are defined here:
+// https://chromedevtools.github.io/devtools-protocol/1-3
+//
+// A reference is kept to the client's callback and the message loop from which
+// it was sent so the command handler can send back its response through this
+// class.
 class Command {
  public:
   explicit Command(const std::string& method, const std::string& json_params,
