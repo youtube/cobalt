@@ -25,6 +25,7 @@
 #include "starboard/mutex.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
 
 // TODO: Move this to starboard/socket.h.
@@ -83,8 +84,8 @@ class SocketTracker {
   State GetState(SbSocket socket);
 
   void LogTrackedSockets();
-  std::multimap<SbTimeMonotonic, SbSocket> ComputeIdleTimePerSocketForWaiter(
-      SbSocketWaiter waiter);
+  std::multimap<SbTimeMonotonic, SbSocket> ComputeIdleTimePerSocketForThreadId(
+      SbThreadId thread_id);
 
  private:
   struct SocketRecord {
@@ -94,6 +95,7 @@ class SocketTracker {
     optional<SbSocketAddress> remote_address;
     SbTime last_activity;
     SbSocketWaiter waiter = kSbSocketWaiterInvalid;
+    SbThreadId thread_id;
     State state;
   };
 

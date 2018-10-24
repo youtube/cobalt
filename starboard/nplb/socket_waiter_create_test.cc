@@ -35,7 +35,7 @@ TEST(SbSocketWaiterCreateTest, ATon) {
 }
 
 TEST(SbSocketWaiterCreateTest, ManyAtOnce) {
-  const int kMany = 10;
+  const int kMany = 16;
   SbSocketWaiter waiters[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
     waiters[i] = SbSocketWaiterCreate();
