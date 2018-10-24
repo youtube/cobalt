@@ -16,8 +16,10 @@
 
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "cobalt/browser/switches.h"
 #if defined(COBALT_ENABLE_LIB)
 #include "cobalt/browser/lib/exported/user_agent.h"
 #endif
@@ -322,9 +324,19 @@ std::string CreateUserAgentString(const UserAgentPlatformInfo& platform_info) {
   //   Starboard/APIVersion,
   //   Device/FirmwareVersion (Brand, Model, ConnectionType)
 
+  std::string os_name_and_version = platform_info.os_name_and_version;
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kUserAgentOsNameVersion)) {
+    os_name_and_version =
+        command_line->GetSwitchValueASCII(switches::kUserAgentOsNameVersion);
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
   //   Mozilla/5.0 (ChromiumStylePlatform)
   std::string user_agent = base::StringPrintf(
-      "Mozilla/5.0 (%s)", platform_info.os_name_and_version.c_str());
+      "Mozilla/5.0 (%s)", os_name_and_version.c_str());
 
   //   Cobalt/Version.BuildNumber-BuildConfiguration (unlike Gecko)
   base::StringAppendF(&user_agent, " Cobalt/%s.%s-%s (unlike Gecko)",
