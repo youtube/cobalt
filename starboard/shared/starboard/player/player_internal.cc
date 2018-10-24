@@ -50,20 +50,38 @@ SbPlayerPrivate::SbPlayerPrivate(
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
-      media_time_updated_at_(SbTimeGetMonotonicNow()),
-      worker_(new PlayerWorker(
-          audio_codec,
-          video_codec,
-          player_worker_handler.Pass(),
-          std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
-          decoder_status_func,
-          player_status_func,
+      media_time_updated_at_(SbTimeGetMonotonicNow()) {
+  worker_ = starboard::make_scoped_ptr(PlayerWorker::CreateInstance(
+      audio_codec, video_codec, player_worker_handler.Pass(),
+      std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
+      decoder_status_func, player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-          player_error_func,
+      player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-          this,
-          context)) {
+      this, context));
+
   ++number_of_players_;
+}
+
+SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
+    SbMediaAudioCodec audio_codec,
+    SbMediaVideoCodec video_codec,
+    SbPlayerDeallocateSampleFunc sample_deallocate_func,
+    SbPlayerDecoderStatusFunc decoder_status_func,
+    SbPlayerStatusFunc player_status_func,
+    SbPlayerErrorFunc player_error_func,
+    void* context,
+    starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler) {
+  SbPlayerPrivate* ret = new SbPlayerPrivate(
+      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
+      player_status_func, player_error_func, context,
+      player_worker_handler.Pass());
+
+  if (ret && ret->worker_) {
+    return ret;
+  }
+  delete ret;
+  return nullptr;
 }
 
 void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
