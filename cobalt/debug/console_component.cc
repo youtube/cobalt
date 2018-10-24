@@ -22,7 +22,7 @@ namespace debug {
 
 namespace {
 // Definitions from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/console
+// https://chromedevtools.github.io/devtools-protocol/tot/Console
 
 // Parameter fields:
 const char kMessageText[] = "message.text";
