@@ -14,6 +14,7 @@
 
 #include "cobalt/debug/debug_client.h"
 
+#include "cobalt/debug/command.h"
 #include "cobalt/debug/debug_dispatcher.h"
 
 namespace cobalt {
@@ -60,7 +61,7 @@ void DebugClient::SendCommand(const std::string& method,
     DLOG(WARNING) << "Debug client is not attached to dispatcher.";
     return;
   }
-  dispatcher_->SendCommand(method, json_params, callback);
+  dispatcher_->SendCommand(Command(method, json_params, callback));
 }
 
 }  // namespace debug

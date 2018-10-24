@@ -29,15 +29,15 @@ class DebugDispatcher;
 
 // An object that can connect to a debug dispatcher. A debug dispatcher can
 // accept connections from multiple debug clients, for example to support
-// simultaneous connections from the local debug console and a remote devtools
-// session.
+// simultaneous connections from the local debug console overlay and a remote
+// devtools session.
 //
 // A DebugClient object can send a command to the attached DebugDispatcher using
 // the |SendCommand| method.
 //
-// Debugging events are handled by creating a subclass of the
-// DebugClient::Delegate class, an instance of which must be specified when
-// creating a DebugClient.
+// Debugging events are handled by forwarding them to a subclass of the
+// |DebugClient::Delegate| interface, which must be specified when creating a
+// DebugClient.
 //
 // A DebugDispatcher is owned by the WebModule it attaches to, and may be
 // destroyed at any time. When this happens, the DebugDispatcher will notify all
@@ -52,7 +52,9 @@ class DebugClient {
  public:
   class Delegate {
    public:
-    // Event handlers called by the debug dispatcher from its thread.
+    // Event handlers called by the debug dispatcher from its thread. The
+    // implementation is responsible for posting the event to its own message
+    // loop if necessary.
     virtual void OnDebugClientEvent(
         const std::string& method,
         const base::optional<std::string>& json_params) = 0;
