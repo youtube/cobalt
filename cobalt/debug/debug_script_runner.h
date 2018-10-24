@@ -40,7 +40,7 @@ class DebugScriptRunner : public script::Wrappable {
   // Event callback. A callback of this type is specified in the constructor,
   // and used to send asynchronous debugging events that are not a direct
   // response to a command.
-  // See: https://developer.chrome.com/devtools/docs/protocol/1.1/index
+  // See: https://chromedevtools.github.io/devtools-protocol/
   typedef base::Callback<void(const std::string& method,
                               const base::optional<std::string>& params)>
       OnEventCallback;
@@ -59,7 +59,7 @@ class DebugScriptRunner : public script::Wrappable {
 
   // Creates a Runtime.RemoteObject corresponding to an opaque JS object, by
   // calling the |create_remote_object_callback_| script function.
-  // https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#type-RemoteObject
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
   base::optional<std::string> CreateRemoteObject(
       const script::ValueHandleHolder* object, const std::string& params);
 
