@@ -43,7 +43,8 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
       //   video/webm; codecs="vp9"
       // We do a rough pre-filter to ensure that only video/mp4 is supported as
       // progressive.
-      if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0) {
+      if (SbStringFindString(mime_type.c_str(), "video/mp4") == 0 &&
+          SbStringFindString(mime_type.c_str(), "application/x-mpegURL") == 0) {
         return "";
       }
     }
