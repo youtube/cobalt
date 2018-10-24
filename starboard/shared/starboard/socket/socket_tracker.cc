@@ -34,6 +34,7 @@ void SocketTracker::OnCreate(SbSocket socket,
                              SbSocketAddressType address_type,
                              SbSocketProtocol protocol) {
   SocketRecord record;
+  record.thread_id = SbThreadGetId();
   record.address_type = address_type;
   record.protocol = protocol;
   record.last_activity = SbTimeGetMonotonicNow();
@@ -79,6 +80,7 @@ void SocketTracker::OnAccept(SbSocket listening_socket,
   iter->second.last_activity = SbTimeGetMonotonicNow();
 
   SocketRecord record;
+  record.thread_id = SbThreadGetId();
   record.address_type = iter->second.address_type;
   record.protocol = iter->second.protocol;
   record.last_activity = iter->second.last_activity;
@@ -197,12 +199,10 @@ std::string SocketTracker::ConvertToString_Locked(
 }
 
 std::multimap<SbTimeMonotonic, SbSocket>
-SocketTracker::ComputeIdleTimePerSocketForWaiter(SbSocketWaiter waiter) {
+SocketTracker::ComputeIdleTimePerSocketForThreadId(SbThreadId thread_id) {
   std::multimap<SbTimeMonotonic, SbSocket> idle_times_to_sockets;
   for (auto it = sockets_.begin(); it != sockets_.end(); ++it) {
-    if ((SbSocketWaiterIsValid(it->second.waiter) &&
-         it->second.waiter != waiter) ||
-        it->second.state == kListened) {
+    if (it->second.thread_id != thread_id || it->second.state == kListened) {
       continue;
     }
     SbTimeMonotonic time_idle = ComputeTimeIdle(it->second);
