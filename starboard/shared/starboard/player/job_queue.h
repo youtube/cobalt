@@ -67,7 +67,11 @@ class JobQueue {
       SB_DCHECK(job_queue);
     }
     JobOwner(const JobOwner&) = delete;
-    ~JobOwner() { CancelPendingJobs(); }
+    ~JobOwner() {
+      if (job_queue_) {
+        CancelPendingJobs();
+      }
+    }
 
     bool BelongsToCurrentThread() const {
       return job_queue_->BelongsToCurrentThread();
