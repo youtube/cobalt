@@ -45,6 +45,8 @@
       'target_name': 'web_media_player_sandbox',
       'type': '<(final_executable_type)',
       'sources': [
+        'format_guesstimator.cc',
+        'format_guesstimator.h',
         'media_sandbox.cc',
         'media_sandbox.h',
         'web_media_player_helper.cc',
