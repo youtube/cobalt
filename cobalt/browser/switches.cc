@@ -172,6 +172,11 @@ const char kUserAgentHelp[] =
     "'network_operator'_'device_type'_'chipset_model_number'_'model_year'/"
     "'firmware_version' ('brand', 'model', 'connection_type') 'aux_field'\".";
 
+const char kUserAgentOsNameVersion[] = "user_agent_os_name_version";
+const char kUserAgentOsNameVersionHelp[] =
+    "Specifies a custom 'os_name_and_version' user agent field with otherwise "
+    "default user agent fields. Example: \"X11; Linux x86_64\".";
+
 const char kUseTTS[] = "use_tts";
 const char kUseTTSHelp[] =
     "Enable text-to-speech functionality, for platforms that implement the "
@@ -391,6 +396,7 @@ std::string HelpMessage() {
         {kStubImageDecoder, kStubImageDecoderHelp},
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
         {kUserAgent, kUserAgentHelp},
+        {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
         {kUseTTS, kUseTTSHelp},
         {kVideoDecoderStub, kVideoDecoderStubHelp},
         {kWebDriverListenIp, kWebDriverListenIpHelp},
