@@ -67,7 +67,7 @@ TEST_P(SbSocketCreateTest, ATonOfTcp) {
 }
 
 TEST_P(SbSocketCreateTest, ManyTcpAtOnce) {
-  const int kMany = 32;
+  const int kMany = 128;
   SbSocket sockets[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
     sockets[i] = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
