@@ -71,6 +71,7 @@ class MockRasterizer : public Rasterizer {
   }
 
   void MakeCurrent() override {}
+  void ReleaseContext() override {}
 
  private:
   int* submission_count_;
