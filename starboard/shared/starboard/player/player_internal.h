@@ -28,7 +28,7 @@ struct SbPlayerPrivate {
  public:
   typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
 
-  SbPlayerPrivate(
+  static SbPlayerPrivate* CreateInstance(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -67,6 +67,18 @@ struct SbPlayerPrivate {
   static int number_of_players() { return number_of_players_; }
 
  private:
+  SbPlayerPrivate(
+      SbMediaAudioCodec audio_codec,
+      SbMediaVideoCodec video_codec,
+      SbPlayerDeallocateSampleFunc sample_deallocate_func,
+      SbPlayerDecoderStatusFunc decoder_status_func,
+      SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+      SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+      void* context,
+      starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
+
   void UpdateMediaInfo(SbTime media_time,
                        int dropped_video_frames,
                        int ticket,

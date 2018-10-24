@@ -99,17 +99,19 @@ class PlayerWorker {
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
   };
 
-  PlayerWorker(SbMediaAudioCodec audio_codec,
-               SbMediaVideoCodec video_codec,
-               scoped_ptr<Handler> handler,
-               UpdateMediaInfoCB update_media_info_cb,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
+  static PlayerWorker* CreateInstance(
+      SbMediaAudioCodec audio_codec,
+      SbMediaVideoCodec video_codec,
+      scoped_ptr<Handler> handler,
+      UpdateMediaInfoCB update_media_info_cb,
+      SbPlayerDecoderStatusFunc decoder_status_func,
+      SbPlayerStatusFunc player_status_func,
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
-               SbPlayerErrorFunc player_error_func,
+      SbPlayerErrorFunc player_error_func,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
-               SbPlayer player,
-               void* context);
+      SbPlayer player,
+      void* context);
+
   ~PlayerWorker();
 
   void Seek(SbTime seek_to_time, int ticket) {
@@ -161,6 +163,18 @@ class PlayerWorker {
   }
 
  private:
+  PlayerWorker(SbMediaAudioCodec audio_codec,
+               SbMediaVideoCodec video_codec,
+               scoped_ptr<Handler> handler,
+               UpdateMediaInfoCB update_media_info_cb,
+               SbPlayerDecoderStatusFunc decoder_status_func,
+               SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+               SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+               SbPlayer player,
+               void* context);
+
   void UpdateMediaInfo(SbTime time, int dropped_video_frames, bool underflow);
 
   SbPlayerState player_state() const { return player_state_; }
