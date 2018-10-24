@@ -192,6 +192,7 @@ class ExternalRasterizer::Impl {
   render_tree::ResourceProvider* GetResourceProvider();
 
   void MakeCurrent() { hardware_rasterizer_.MakeCurrent(); }
+  void ReleaseContext() { hardware_rasterizer_.ReleaseCurrentContext(); }
 
   intptr_t GetMainTextureHandle();
 
@@ -669,6 +670,8 @@ render_tree::ResourceProvider* ExternalRasterizer::GetResourceProvider() {
 }
 
 void ExternalRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
+
+void ExternalRasterizer::ReleaseContext() { return impl_->ReleaseContext(); }
 
 }  // namespace lib
 }  // namespace rasterizer

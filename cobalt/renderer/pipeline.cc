@@ -479,6 +479,8 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
 
   last_render_time_ = submission.time_offset;
 
+  rasterizer_->ReleaseContext();
+
   return true;
 }
 

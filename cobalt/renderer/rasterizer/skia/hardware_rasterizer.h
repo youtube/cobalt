@@ -78,6 +78,7 @@ class HardwareRasterizer : public Rasterizer {
   GrContext* GetGrContext();
 
   void MakeCurrent() override;
+  void ReleaseContext() override;
 
  private:
   class Impl;
