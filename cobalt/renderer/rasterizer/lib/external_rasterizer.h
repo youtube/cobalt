@@ -53,6 +53,7 @@ class ExternalRasterizer : public Rasterizer {
   render_tree::ResourceProvider* GetResourceProvider() override;
 
   void MakeCurrent() override;
+  void ReleaseContext() override;
 
   class Impl;
 
