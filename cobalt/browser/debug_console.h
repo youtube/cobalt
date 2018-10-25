@@ -24,7 +24,7 @@
 #include "cobalt/base/token.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/web_module.h"
-#include "cobalt/debug/debug_hub.h"
+#include "cobalt/debug/console/debug_hub.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/pointer_event_init.h"

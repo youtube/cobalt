@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_DEBUGGER_EVENT_TARGET_H_
-#define COBALT_DEBUG_DEBUGGER_EVENT_TARGET_H_
+#ifndef COBALT_DEBUG_CONSOLE_DEBUGGER_EVENT_TARGET_H_
+#define COBALT_DEBUG_CONSOLE_DEBUGGER_EVENT_TARGET_H_
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
@@ -30,6 +30,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace console {
 
 // This class implements the onEvent attribute of the Chrome Debugger protocol:
 // https://developer.chrome.com/extensions/debugger#event-onEvent
@@ -84,8 +85,9 @@ class DebuggerEventTarget : public script::Wrappable {
   base::Lock lock_;
 };
 
+}  // namespace console
 }  // namespace debug
 }  // namespace cobalt
 
 #endif  // ENABLE_DEBUG_CONSOLE
-#endif  // COBALT_DEBUG_DEBUGGER_EVENT_TARGET_H_
+#endif  // COBALT_DEBUG_CONSOLE_DEBUGGER_EVENT_TARGET_H_

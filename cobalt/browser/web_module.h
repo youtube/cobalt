@@ -34,8 +34,8 @@
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/debug/debug_dispatcher.h"
-#include "cobalt/debug/render_overlay.h"
+#include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/render_overlay.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -319,7 +319,7 @@ class WebModule : public LifecycleObserver {
   // Gets a reference to the debug dispatcher that interacts with this web
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
-  debug::DebugDispatcher* GetDebugDispatcher();
+  debug::backend::DebugDispatcher* GetDebugDispatcher();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Sets the size and pixel ratio of this web module, possibly causing relayout

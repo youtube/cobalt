@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/debug/debug_web_server.h"
+#include "cobalt/debug/remote/debug_web_server.h"
 
 #include <string>
 #include <vector>
@@ -34,6 +34,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace remote {
 
 namespace {
 
@@ -345,5 +346,6 @@ void DebugWebServer::StopServer() {
   server_ = NULL;
 }
 
+}  // namespace remote
 }  // namespace debug
 }  // namespace cobalt

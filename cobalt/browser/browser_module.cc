@@ -629,8 +629,8 @@ void BrowserModule::RequestScreenshotToFile(
     return;
   }
 
-  screen_shot_writer_->RequestScreenshotToFile(
-      image_format, path, render_tree, done_callback);
+  screen_shot_writer_->RequestScreenshotToFile(image_format, path, render_tree,
+                                               done_callback);
 }
 
 void BrowserModule::RequestScreenshotToBuffer(
@@ -645,8 +645,8 @@ void BrowserModule::RequestScreenshotToBuffer(
     return;
   }
 
-  screen_shot_writer_->RequestScreenshotToMemory(
-      image_format, render_tree, screenshot_ready);
+  screen_shot_writer_->RequestScreenshotToMemory(image_format, render_tree,
+                                                 screenshot_ready);
 }
 
 scoped_refptr<render_tree::Node> BrowserModule::GetLastSubmissionAnimated() {
@@ -782,11 +782,11 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   render_tree_combiner_.SetTimelineLayer(splash_screen_layer_.get());
   splash_screen_layer_->Submit(renderer_submission);
 
-// TODO: write screen shot using render_tree_combiner_ (to combine
-// splash screen and main web_module). Consider when the splash
-// screen is overlaid on top of the main web module render tree, and
-// a screenshot is taken : there will be a race condition on which
-// web module update their render tree last.
+  // TODO: write screen shot using render_tree_combiner_ (to combine
+  // splash screen and main web_module). Consider when the splash
+  // screen is overlaid on top of the main web module render tree, and
+  // a screenshot is taken : there will be a race condition on which
+  // web module update their render tree last.
 
   SubmitCurrentRenderTreeToRenderer();
 }
@@ -975,7 +975,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     return;
   }
 
-  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+  if (debug_console_->GetMode() == debug::console::DebugHub::kDebugConsoleOff) {
     // If the layer already has no render tree then simply return. In that case
     // nothing is changing.
     if (!debug_console_layer_->HasRenderTree()) {
@@ -1008,7 +1008,7 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // input events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->InjectOnScreenKeyboardInputEvent(type, event)) {
       return;
     }
@@ -1050,7 +1050,7 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // pointer events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterPointerEvent(type, event)) {
       return;
     }
@@ -1076,7 +1076,7 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // wheel events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterWheelEvent(type, event)) {
       return;
     }
@@ -1194,7 +1194,7 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterKeyEvent(type, event)) {
       return false;
     }
@@ -1311,7 +1311,7 @@ void BrowserModule::CreateWindowDriverInternal(
 scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
     debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  debug::DebugDispatcher* debug_dispatcher = NULL;
+  debug::backend::DebugDispatcher* debug_dispatcher = NULL;
   self_message_loop_->PostBlockingTask(
       FROM_HERE,
       base::Bind(&BrowserModule::GetDebugDispatcherInternal,
@@ -1322,7 +1322,7 @@ scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
 }
 
 void BrowserModule::GetDebugDispatcherInternal(
-    debug::DebugDispatcher** out_debug_dispatcher) {
+    debug::backend::DebugDispatcher** out_debug_dispatcher) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   *out_debug_dispatcher = web_module_->GetDebugDispatcher();

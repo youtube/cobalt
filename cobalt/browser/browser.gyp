@@ -262,16 +262,5 @@
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
-    {
-      'target_name': 'browser_copy_debug_console',
-      'type': 'none',
-      'variables': {
-        'content_web_input_files': [
-          '<(DEPTH)/cobalt/browser/debug_console/',
-        ],
-        'content_web_output_subdir': 'cobalt/browser/debug_console/',
-      },
-      'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
-    },
   ],
 }

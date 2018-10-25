@@ -14,12 +14,13 @@
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
-#include "cobalt/debug/debugger_event_target.h"
+#include "cobalt/debug/console/debugger_event_target.h"
 
 #include "cobalt/base/source_location.h"
 
 namespace cobalt {
 namespace debug {
+namespace console {
 
 DebuggerEventTarget::DebuggerEventTarget() {}
 
@@ -58,6 +59,7 @@ void DebuggerEventTarget::NotifyListener(
   listener->callback.value().Run(method, json_params);
 }
 
+}  // namespace console
 }  // namespace debug
 }  // namespace cobalt
 

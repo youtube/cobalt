@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_RENDER_LAYER_H_
-#define COBALT_DEBUG_RENDER_LAYER_H_
+#ifndef COBALT_DEBUG_BACKEND_RENDER_LAYER_H_
+#define COBALT_DEBUG_BACKEND_RENDER_LAYER_H_
 
 #include <string>
 
@@ -24,6 +24,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace backend {
 
 // Combines two render trees (layers) and passes the result on to a
 // callback function when either tree changes.
@@ -52,7 +53,8 @@ class RenderLayer : public base::SupportsWeakPtr<RenderLayer> {
   scoped_refptr<render_tree::Node> front_layer_;
 };
 
+}  // namespace backend
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // COBALT_DEBUG_RENDER_LAYER_H_
+#endif  // COBALT_DEBUG_BACKEND_RENDER_LAYER_H_
