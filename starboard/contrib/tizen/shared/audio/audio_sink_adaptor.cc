@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "starboard/audio_sink.h"
-#include "starboard/log.h"
 #include "starboard/contrib/tizen/shared/audio/audio_sink_private.h"
+#include "starboard/log.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
   if (audio_sink == kSbAudioSinkInvalid) {
@@ -91,8 +91,9 @@ SbAudioSink SbAudioSinkCreate(
 void SbAudioSinkDestroy(SbAudioSink audio_sink) {
   if (audio_sink) {
     delete audio_sink;
+  } else {
+    SB_LOG(WARNING) << "Invalid audio sink.";
   }
-  SB_LOG(WARNING) << "Invalid audio sink.";
 }
 
 int SbAudioSinkGetMaxChannels() {
