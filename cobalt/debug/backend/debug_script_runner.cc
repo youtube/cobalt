@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/debug/debug_script_runner.h"
+#include "cobalt/debug/backend/debug_script_runner.h"
 
 #include "base/bind.h"
 #include "base/file_path.h"
@@ -24,6 +24,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace backend {
 
 namespace {
 const char kContentDir[] = "cobalt/debug/backend";
@@ -149,5 +150,6 @@ void DebugScriptRunner::set_create_remote_object_callback(
   create_remote_object_callback_.emplace(this, callback);
 }
 
+}  // namespace backend
 }  // namespace debug
 }  // namespace cobalt

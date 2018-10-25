@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/debug/render_overlay.h"
+#include "cobalt/debug/backend/render_overlay.h"
 
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/render_tree/composition_node.h"
 
 namespace cobalt {
 namespace debug {
+namespace backend {
 
 RenderOverlay::RenderOverlay(
     const OnRenderTreeProducedCallback& render_tree_produced_callback)
@@ -68,5 +69,6 @@ void RenderOverlay::Process() {
   }
 }
 
+}  // namespace backend
 }  // namespace debug
 }  // namespace cobalt

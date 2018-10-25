@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_DEBUG_SCRIPT_RUNNER_H_
-#define COBALT_DEBUG_DEBUG_SCRIPT_RUNNER_H_
+#ifndef COBALT_DEBUG_BACKEND_DEBUG_SCRIPT_RUNNER_H_
+#define COBALT_DEBUG_BACKEND_DEBUG_SCRIPT_RUNNER_H_
 
 #include <string>
 
@@ -28,6 +28,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace backend {
 
 // Used by the various debug dispatcher components to run JavaScript and persist
 // state. An object of this class creates a persistent JavaScript object bound
@@ -108,7 +109,8 @@ class DebugScriptRunner : public script::Wrappable {
       create_remote_object_callback_;
 };
 
+}  // namespace backend
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // COBALT_DEBUG_DEBUG_SCRIPT_RUNNER_H_
+#endif  // COBALT_DEBUG_BACKEND_DEBUG_SCRIPT_RUNNER_H_

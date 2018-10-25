@@ -14,7 +14,7 @@
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
-#include "cobalt/debug/debug_hub.h"
+#include "cobalt/debug/console/debug_hub.h"
 
 #include <set>
 
@@ -23,6 +23,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace console {
 
 namespace {
 class ScopedSetter {
@@ -139,6 +140,7 @@ int DebugHub::GetDebugConsoleMode() const {
   return get_hud_mode_callback_.Run();
 }
 
+}  // namespace console
 }  // namespace debug
 }  // namespace cobalt
 

@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/debug/render_layer.h"
+#include "cobalt/debug/backend/render_layer.h"
 
 #include "cobalt/render_tree/composition_node.h"
 
 namespace cobalt {
 namespace debug {
+namespace backend {
 
 RenderLayer::RenderLayer(const OnChangedCallback& on_changed_callback)
     : on_changed_callback_(on_changed_callback),
@@ -47,5 +48,6 @@ void RenderLayer::Combine() {
   on_changed_callback_.Run(output);
 }
 
+}  // namespace backend
 }  // namespace debug
 }  // namespace cobalt

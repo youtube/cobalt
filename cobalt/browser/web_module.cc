@@ -37,7 +37,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/debug/debug_module.h"
+#include "cobalt/debug/backend/debug_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
@@ -109,7 +109,7 @@ class WebModule::Impl {
   ~Impl();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugDispatcher* debug_dispatcher() const {
+  debug::backend::DebugDispatcher* debug_dispatcher() const {
     return debug_module_->debug_dispatcher();
   }
 #endif  // ENABLE_DEBUG_CONSOLE
@@ -393,11 +393,11 @@ class WebModule::Impl {
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
-  scoped_ptr<debug::RenderOverlay> debug_overlay_;
+  scoped_ptr<debug::backend::RenderOverlay> debug_overlay_;
 
   // The core of the debugging system.
   // Created lazily when accessed via |GetDebugDispatcher|.
-  scoped_ptr<debug::DebugModule> debug_module_;
+  scoped_ptr<debug::backend::DebugModule> debug_module_;
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // DocumentObserver that observes the loading document.
@@ -664,7 +664,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset(
-      new debug::RenderOverlay(data.render_tree_produced_callback));
+      new debug::backend::RenderOverlay(data.render_tree_produced_callback));
 #endif  // ENABLE_DEBUG_CONSOLE
 
 #if !defined(COBALT_FORCE_CSP)
@@ -979,7 +979,7 @@ void WebModule::Impl::CreateDebugDispatcherIfNull() {
     return;
   }
 
-  debug_module_.reset(new debug::DebugModule(
+  debug_module_.reset(new debug::backend::DebugModule(
       window_->console(), global_environment_, debug_overlay_.get(),
       resource_provider_, window_));
 }
@@ -1497,7 +1497,7 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 // May be called from any thread.
-debug::DebugDispatcher* WebModule::GetDebugDispatcher() {
+debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
   DCHECK(message_loop());
   DCHECK(impl_);
 

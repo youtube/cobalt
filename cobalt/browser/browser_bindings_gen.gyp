@@ -52,10 +52,10 @@
         '../cssom/style_sheet.idl',
         '../cssom/style_sheet_list.idl',
 
-        '../debug/debug_hub.idl',
-        '../debug/debugger.idl',
-        '../debug/debugger_event_target.idl',
-        '../debug/debug_script_runner.idl',
+        '../debug/backend/debug_script_runner.idl',
+        '../debug/console/debug_hub.idl',
+        '../debug/console/debugger.idl',
+        '../debug/console/debugger_event_target.idl',
 
         '../dom/animation_event.idl',
         '../dom/attr.idl',
@@ -226,7 +226,7 @@
     'generated_header_idl_files': [
         '../audio/audio_node_channel_count_mode.idl',
         '../audio/audio_node_channel_interpretation.idl',
-        '../debug/console_command.idl',
+        '../debug/console/console_command.idl',
         '../dom/blob_property_bag.idl',
         '../dom/captions/caption_character_edge_style.idl',
         '../dom/captions/caption_color.idl',
