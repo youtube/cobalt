@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_RENDER_OVERLAY_H_
-#define COBALT_DEBUG_RENDER_OVERLAY_H_
+#ifndef COBALT_DEBUG_BACKEND_RENDER_OVERLAY_H_
+#define COBALT_DEBUG_BACKEND_RENDER_OVERLAY_H_
 
 #include <string>
 
@@ -24,6 +24,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace backend {
 
 // Inserted into the render callback pipeline to add additional nodes to the
 // render tree.
@@ -56,7 +57,8 @@ class RenderOverlay {
   base::optional<base::TimeTicks> input_receipt_time_;
 };
 
+}  // namespace backend
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // COBALT_DEBUG_RENDER_OVERLAY_H_
+#endif  // COBALT_DEBUG_BACKEND_RENDER_OVERLAY_H_
