@@ -175,7 +175,7 @@ void* SbAudioSinkPrivate::AudioSinkThreadProc() {
       consumed_frames = bytes_written / bytes_per_frame;
 
       // notify to cobalt
-      consume_frames_func_(consumed_frames, context_);
+      consume_frames_func_(consumed_frames, SbTimeGetMonotonicNow(), context_);
 
       // waits properly
       WaitPlay(consumed_frames);
