@@ -94,13 +94,13 @@ class MemoryTrackerImpl::ThreadLocalBool_NoReport {
   // Create a concurrent map that supports fast deletion of elements
   // (no memory release).
   //
+  using PairType = std::vector<std::pair<SbThreadId, bool>>::value_type;
   // This vector bypasses reporting allocators.
-  using VectorPair = std::vector<std::pair<SbThreadId, bool>,
-                                 RawAllocator<std::pair<SbThreadId, int>>>;
+  using VectorPair = std::vector<PairType, RawAllocator<PairType>>;
   // The InnerMap is backed by the vector. The FlatMap transforms the vector
   // into a map interface.
   using InnerMap = starboard::FlatMap<SbThreadId, bool,
-                                      std::less<SbThreadId>,             
+                                      std::less<SbThreadId>,
                                       VectorPair>;
   // Concurrent map uses distributed locking to achieve a highly concurrent
   // unsorted map.
