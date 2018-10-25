@@ -685,7 +685,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
   int remote_debugging_port = GetRemoteDebuggingPort();
-  debug_web_server_.reset(new debug::DebugWebServer(
+  debug_web_server_.reset(new debug::remote::DebugWebServer(
       remote_debugging_port,
       base::Bind(&BrowserModule::CreateDebugClient,
                  base::Unretained(browser_module_.get()))));

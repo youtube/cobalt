@@ -31,7 +31,7 @@
 #endif
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
-#include "cobalt/debug/debug_web_server.h"
+#include "cobalt/debug/remote/debug_web_server.h"
 #endif
 
 namespace cobalt {
@@ -124,7 +124,7 @@ class Application {
 #if defined(ENABLE_REMOTE_DEBUGGING)
   // Web server to serve devtools front end. Debugging messages are sent and
   // received via a WebSocket and communicated to an embedded DebugDispatcher.
-  scoped_ptr<debug::DebugWebServer> debug_web_server_;
+  scoped_ptr<debug::remote::DebugWebServer> debug_web_server_;
 #endif
 
  private:

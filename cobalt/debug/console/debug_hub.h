@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_DEBUG_HUB_H_
-#define COBALT_DEBUG_DEBUG_HUB_H_
+#ifndef COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_
+#define COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 
@@ -23,13 +23,14 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "cobalt/base/log_message_handler.h"
-#include "cobalt/debug/debugger.h"
+#include "cobalt/debug/console/debugger.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace debug {
+namespace console {
 
 // This class implements an interface to JavaScript for debugging.
 // The public methods of this class are expected to be exposed in DebugHub.idl.
@@ -136,8 +137,9 @@ class DebugHub : public script::Wrappable {
   scoped_ptr<LogMessageCallbackArg::Reference> log_message_callback_;
 };
 
+}  // namespace console
 }  // namespace debug
 }  // namespace cobalt
 
 #endif  // ENABLE_DEBUG_CONSOLE
-#endif  // COBALT_DEBUG_DEBUG_HUB_H_
+#endif  // COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_

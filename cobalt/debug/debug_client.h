@@ -24,8 +24,10 @@
 namespace cobalt {
 namespace debug {
 
+namespace backend {
 // Forward declaration of the dispatcher class that DebugClient can connect to.
 class DebugDispatcher;
+}
 
 // An object that can connect to a debug dispatcher. A debug dispatcher can
 // accept connections from multiple debug clients, for example to support
@@ -69,7 +71,7 @@ class DebugClient {
   typedef base::Callback<void(const base::optional<std::string>& response)>
       ResponseCallback;
 
-  DebugClient(DebugDispatcher* dispatcher, Delegate* delegate);
+  DebugClient(backend::DebugDispatcher* dispatcher, Delegate* delegate);
   ~DebugClient();
 
   // Whether this client is currently attached to a dispatcher.
@@ -81,7 +83,7 @@ class DebugClient {
                    const ResponseCallback& callback);
 
  private:
-  friend class DebugDispatcher;
+  friend class backend::DebugDispatcher;
 
   // Called by the dispatcher when it is destroyed.
   void OnDetach(const std::string& reason);
@@ -91,7 +93,7 @@ class DebugClient {
                const base::optional<std::string>& json_params);
 
   // No ownership. Access must be protected by |dispatcher_lock_|.
-  DebugDispatcher* dispatcher_;
+  backend::DebugDispatcher* dispatcher_;
 
   // No ownership.
   Delegate* delegate_;

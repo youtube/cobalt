@@ -14,15 +14,16 @@
 
 #include "cobalt/debug/debug_client.h"
 
+#include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"
-#include "cobalt/debug/debug_dispatcher.h"
 
 namespace cobalt {
 namespace debug {
 
 DebugClient::Delegate::~Delegate() {}
 
-DebugClient::DebugClient(DebugDispatcher* dispatcher, Delegate* delegate)
+DebugClient::DebugClient(backend::DebugDispatcher* dispatcher,
+                         Delegate* delegate)
     : dispatcher_(dispatcher), delegate_(delegate) {
   DCHECK(dispatcher_);
   dispatcher_->AddClient(this);

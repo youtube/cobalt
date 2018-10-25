@@ -32,25 +32,25 @@ namespace browser {
 namespace {
 // Files for the debug console web page are bundled with the executable.
 const char kInitialDebugConsoleUrl[] =
-    "file:///cobalt/browser/debug_console/debug_console.html";
+    "file:///cobalt/debug/console/debug_console.html";
 
 const char kDebugConsoleOffString[] = "off";
 const char kDebugConsoleOnString[] = "on";
 const char kDebugConsoleHudString[] = "hud";
 
 // Convert from a debug console visibility setting string to an integer
-// value specified by a constant defined in debug::DebugHub.
+// value specified by a constant defined in debug::console::DebugHub.
 base::optional<int> DebugConsoleModeStringToInt(
     const std::string& mode_string) {
   // Static casting is necessary in order to get around what appears to be a
   // compiler error on Linux when implicitly constructing a base::optional<int>
   // from a static const int.
   if (mode_string == kDebugConsoleOffString) {
-    return static_cast<int>(debug::DebugHub::kDebugConsoleOff);
+    return static_cast<int>(debug::console::DebugHub::kDebugConsoleOff);
   } else if (mode_string == kDebugConsoleHudString) {
-    return static_cast<int>(debug::DebugHub::kDebugConsoleHud);
+    return static_cast<int>(debug::console::DebugHub::kDebugConsoleHud);
   } else if (mode_string == kDebugConsoleOnString) {
-    return static_cast<int>(debug::DebugHub::kDebugConsoleOn);
+    return static_cast<int>(debug::console::DebugHub::kDebugConsoleOn);
   } else {
     DLOG(WARNING) << "Debug console mode \"" << mode_string
                   << "\" not recognized.";
@@ -61,11 +61,11 @@ base::optional<int> DebugConsoleModeStringToInt(
 // Convert from mode to string.
 std::string DebugConsoleModeIntToString(int mode) {
   switch (mode) {
-    case debug::DebugHub::kDebugConsoleHud:
+    case debug::console::DebugHub::kDebugConsoleHud:
       return kDebugConsoleHudString;
-    case debug::DebugHub::kDebugConsoleOn:
+    case debug::console::DebugHub::kDebugConsoleOn:
       return kDebugConsoleOnString;
-    case debug::DebugHub::kDebugConsoleOff:
+    case debug::console::DebugHub::kDebugConsoleOff:
       return kDebugConsoleOffString;
     default:
       NOTREACHED();
@@ -107,8 +107,8 @@ void SaveModeToPreferences(int mode) {
   std::string mode_string = DebugConsoleModeIntToString(mode);
   FilePath preferences_file;
   if (GetDebugConsoleModeStoragePath(&preferences_file)) {
-      file_util::WriteFile(preferences_file, mode_string.c_str(),
-                           static_cast<int>(mode_string.size()));
+    file_util::WriteFile(preferences_file, mode_string.c_str(),
+                         static_cast<int>(mode_string.size()));
   }
 }
 
@@ -142,12 +142,12 @@ int GetInitialMode() {
   }
 
   // If all else fails, default the debug console to off.
-  return debug::DebugHub::kDebugConsoleOff;
+  return debug::console::DebugHub::kDebugConsoleOff;
 }
 
 // A function to create a DebugHub object, to be injected into WebModule.
 scoped_refptr<script::Wrappable> CreateDebugHub(
-    const debug::DebugHub::GetHudModeCallback& get_hud_mode_function,
+    const debug::console::DebugHub::GetHudModeCallback& get_hud_mode_function,
     const debug::CreateDebugClientCallback& create_debug_client_callback,
     const scoped_refptr<dom::Window>& window,
     dom::MutationObserverTaskManager* mutation_observer_task_manager,
@@ -155,8 +155,8 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
   UNREFERENCED_PARAMETER(window);
   UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   UNREFERENCED_PARAMETER(global_environment);
-  return new debug::DebugHub(get_hud_mode_function,
-                             create_debug_client_callback);
+  return new debug::console::DebugHub(get_hud_mode_function,
+                                      create_debug_client_callback);
 }
 
 }  // namespace
@@ -252,7 +252,7 @@ void DebugConsole::CycleMode() {
   int mode_to_save;
   {
     base::AutoLock lock(mode_mutex_);
-    mode_ = (mode_ + 1) % debug::DebugHub::kDebugConsoleNumModes;
+    mode_ = (mode_ + 1) % debug::console::DebugHub::kDebugConsoleNumModes;
     mode_to_save = mode_;
   }
   SaveModeToPreferences(mode_to_save);
