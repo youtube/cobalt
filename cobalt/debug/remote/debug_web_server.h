@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_DEBUG_WEB_SERVER_H_
-#define COBALT_DEBUG_DEBUG_WEB_SERVER_H_
+#ifndef COBALT_DEBUG_REMOTE_DEBUG_WEB_SERVER_H_
+#define COBALT_DEBUG_REMOTE_DEBUG_WEB_SERVER_H_
 
 #include <string>
 
@@ -29,6 +29,7 @@
 
 namespace cobalt {
 namespace debug {
+namespace remote {
 
 // This class implements the net::HttpServer::Delegate interface, and
 // is registered with a net::HttpServer instance that this class owns.
@@ -90,7 +91,8 @@ class DebugWebServer : public net::HttpServer::Delegate,
   FilePath content_root_dir_;
 };
 
+}  // namespace remote
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // COBALT_DEBUG_DEBUG_WEB_SERVER_H_
+#endif  // COBALT_DEBUG_REMOTE_DEBUG_WEB_SERVER_H_

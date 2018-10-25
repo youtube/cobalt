@@ -67,7 +67,7 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/trace_manager.h"
-#include "cobalt/debug/debug_dispatcher.h"
+#include "cobalt/debug/backend/debug_dispatcher.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "starboard/configuration.h"
 #include "starboard/window.h"
@@ -154,7 +154,7 @@ class BrowserModule {
   scoped_ptr<debug::DebugClient> CreateDebugClient(
       debug::DebugClient::Delegate* delegate);
   void GetDebugDispatcherInternal(
-      debug::DebugDispatcher** out_debug_dispatcher);
+      debug::backend::DebugDispatcher** out_debug_dispatcher);
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Change the network proxy settings while the application is running.
