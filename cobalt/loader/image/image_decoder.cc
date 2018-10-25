@@ -107,10 +107,9 @@ LoadResponseType ImageDecoder::OnResponseStarted(
 
   if (headers->response_code() == net::HTTP_NO_CONTENT) {
     // The server successfully processed the request, but is not returning any
-    // content. This is a success state that is expected behavior when the
-    // image was a ping-back.
-    state_ = kFinishedWithoutContent;
-    return kLoadResponseContinue;
+    // content.
+    state_ = kNotApplicable;
+    CacheMessage(&error_message_, "No content returned.");
   }
 
   bool success = headers->GetMimeType(&mime_type_);
@@ -197,10 +196,6 @@ void ImageDecoder::Finish() {
       // no image is available.
       error_callback_.Run(error_message_);
       break;
-    case kFinishedWithoutContent:
-      // no image is available, not an error.
-      success_callback_.Run(NULL);
-      break;
   }
 }
 
@@ -258,7 +253,6 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
       decoder_->DecodeChunk(input_bytes, size);
     } break;
     case kNotApplicable:
-    case kFinishedWithoutContent:
     case kUnsupportedImageFormat:
     case kSuspended: {
       // Do not attempt to continue processing data.
