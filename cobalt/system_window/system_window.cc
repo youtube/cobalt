@@ -79,7 +79,7 @@ float SystemWindow::GetDiagonalSizeInches() const {
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
   return SbWindowGetDiagonialSizeInInches(window_);
 #else
-  return = 0.f;
+  return 0.f;
 #endif
 }
 
