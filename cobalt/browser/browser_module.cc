@@ -84,8 +84,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
 base::LazyInstance<NonTrivialGlobalVariables> non_trivial_global_variables =
     LAZY_INSTANCE_INITIALIZER;
 }  // namespace
-}  // namespace cobalt
-#endif
+#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
 
 namespace browser {
 namespace {
@@ -786,11 +785,11 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   render_tree_combiner_.SetTimelineLayer(splash_screen_layer_.get());
   splash_screen_layer_->Submit(renderer_submission);
 
-  // TODO: write screen shot using render_tree_combiner_ (to combine
-  // splash screen and main web_module). Consider when the splash
-  // screen is overlaid on top of the main web module render tree, and
-  // a screenshot is taken : there will be a race condition on which
-  // web module update their render tree last.
+// TODO: write screen shot using render_tree_combiner_ (to combine
+// splash screen and main web_module). Consider when the splash
+// screen is overlaid on top of the main web module render tree, and
+// a screenshot is taken : there will be a race condition on which
+// web module update their render tree last.
 
   SubmitCurrentRenderTreeToRenderer();
 }
