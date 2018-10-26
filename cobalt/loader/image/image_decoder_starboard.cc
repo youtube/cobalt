@@ -52,7 +52,7 @@ size_t ImageDecoderStarboard::DecodeChunkInternal(const uint8* data,
   return input_byte;
 }
 
-void ImageDecoderStarboard::FinishInternal() {
+scoped_refptr<Image> ImageDecoderStarboard::FinishInternal() {
   TRACE_EVENT0("cobalt::loader::image",
                "ImageDecoderStarboard::FinishInternal()");
   DCHECK(!buffer_.empty());
@@ -62,9 +62,11 @@ void ImageDecoderStarboard::FinishInternal() {
                     mime_type_, format_);
   if (SbDecodeTargetIsValid(target_)) {
     set_state(kDone);
-  } else {
-    set_state(kError);
+    return new StaticImage(
+        resource_provider()->CreateImageFromSbDecodeTarget(target_));
   }
+  set_state(kError);
+  return NULL;
 }
 
 }  // namespace image

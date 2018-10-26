@@ -20,6 +20,7 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "starboard/decode_target.h"
 
@@ -39,12 +40,10 @@ class ImageDecoderStarboard : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "ImageDecoderStarboard"; }
 
-  SbDecodeTarget RetrieveSbDecodeTarget() override { return target_; }
-
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t size) override;
-  void FinishInternal() override;
+  scoped_refptr<Image> FinishInternal() override;
 
   const char* mime_type_;
   SbDecodeTargetFormat format_;

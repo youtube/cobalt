@@ -20,6 +20,7 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 
 // Inhibit C++ name-mangling for libjpeg functions.
@@ -42,6 +43,7 @@ class JPEGImageDecoder : public ImageDataDecoder {
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t size) override;
+  scoped_refptr<Image> FinishInternal() override;
 
   bool ReadHeader();
   bool StartDecompress();
@@ -51,6 +53,8 @@ class JPEGImageDecoder : public ImageDataDecoder {
   jpeg_decompress_struct info_;
   jpeg_source_mgr source_manager_;
   jpeg_error_mgr error_manager_;
+
+  scoped_ptr<render_tree::ImageData> decoded_image_data_;
 };
 
 }  // namespace image
