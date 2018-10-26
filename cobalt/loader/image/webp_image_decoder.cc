@@ -26,9 +26,7 @@ namespace image {
 
 WEBPImageDecoder::WEBPImageDecoder(
     render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider),
-      internal_decoder_(NULL),
-      has_animation_(false) {
+    : ImageDataDecoder(resource_provider), internal_decoder_(NULL) {
   TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "WEBPImageDecoder::WEBPImageDecoder()");
   // Initialize the configuration as empty.
@@ -62,16 +60,16 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
     }
 
     if (!config_.input.has_animation) {
-      if (!AllocateImageData(
-              math::Size(config_.input.width, config_.input.height),
-              !!config_.input.has_alpha)) {
+      decoded_image_data_ = AllocateImageData(
+          math::Size(config_.input.width, config_.input.height),
+          !!config_.input.has_alpha);
+      if (decoded_image_data_ == NULL) {
         return 0;
       }
       if (!CreateInternalDecoder(!!config_.input.has_alpha)) {
         return 0;
       }
     } else {
-      has_animation_ = true;
       animated_webp_image_ = new AnimatedWebPImage(
           math::Size(config_.input.width, config_.input.height),
           !!config_.input.has_alpha, resource_provider());
@@ -86,20 +84,21 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       // more data is expected. Returns error in other cases.
       VP8StatusCode status = WebPIAppend(internal_decoder_, data, input_byte);
       if (status == VP8_STATUS_OK) {
-        DCHECK(image_data());
+        DCHECK(decoded_image_data_);
         DCHECK(config_.output.u.RGBA.rgba);
 
         // Copy the image data over line by line.  We copy line by line instead
         // of all at once so that we can adjust for differences in pitch between
         // source and destination buffers.
         uint8* cur_src = config_.output.u.RGBA.rgba;
-        uint8* cur_dest = image_data()->GetMemory();
-        int height = image_data()->GetDescriptor().size.height();
-        int num_pixel_bytes = image_data()->GetDescriptor().size.width() * 4;
+        uint8* cur_dest = decoded_image_data_->GetMemory();
+        int height = decoded_image_data_->GetDescriptor().size.height();
+        int num_pixel_bytes =
+            decoded_image_data_->GetDescriptor().size.width() * 4;
         for (int i = 0; i < height; ++i) {
           SbMemoryCopy(cur_dest, cur_src, num_pixel_bytes);
           cur_src += config_.output.u.RGBA.stride;
-          cur_dest += image_data()->GetDescriptor().pitch_in_bytes;
+          cur_dest += decoded_image_data_->GetDescriptor().pitch_in_bytes;
         }
 
         set_state(kDone);
@@ -117,10 +116,17 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
   return input_byte;
 }
 
-void WEBPImageDecoder::FinishInternal() {
+scoped_refptr<Image> WEBPImageDecoder::FinishInternal() {
   if (config_.input.has_animation) {
     set_state(kDone);
+    return animated_webp_image_;
   }
+  if (state() != kDone) {
+    decoded_image_data_.reset();
+    return NULL;
+  }
+  SB_DCHECK(decoded_image_data_);
+  return CreateStaticImage(decoded_image_data_.Pass());
 }
 
 bool WEBPImageDecoder::ReadHeader(const uint8* data, size_t size) {
