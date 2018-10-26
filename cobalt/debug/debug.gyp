@@ -79,20 +79,46 @@
         }],
         ['cobalt_copy_debug_console==1', {
           'dependencies': [
-            'debug_copy_web_files',
+            'copy_backend_web_files',
+            'copy_console_web_files',
+            'copy_remote_web_files',
           ],
         }],
       ],
     },
 
     {
-      'target_name': 'debug_copy_web_files',
+      'target_name': 'copy_backend_web_files',
       'type': 'none',
       'variables': {
         'content_web_input_files': [
-          '<(DEPTH)/cobalt/debug/content/',
+          '<(DEPTH)/cobalt/debug/backend/content/',
         ],
-        'content_web_output_subdir': 'cobalt/debug',
+        'content_web_output_subdir': 'cobalt/debug/backend',
+      },
+      'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
+    },
+
+    {
+      'target_name': 'copy_console_web_files',
+      'type': 'none',
+      'variables': {
+        'content_web_input_files': [
+          '<(DEPTH)/cobalt/debug/console/content/',
+        ],
+        'content_web_output_subdir': 'cobalt/debug/console',
+      },
+      'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
+    },
+
+    {
+      'target_name': 'copy_remote_web_files',
+      'type': 'none',
+      'variables': {
+        'content_web_input_files': [
+          '<(DEPTH)/cobalt/debug/remote/content/',
+        ],
+        'content_web_output_subdir': 'cobalt/debug/remote',
       },
       'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
     },
