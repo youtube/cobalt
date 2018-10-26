@@ -112,6 +112,15 @@ MSVC_POP_WARNING();
   return size;
 }
 
+scoped_refptr<Image> PNGImageDecoder::FinishInternal() {
+  if (state() != kDone) {
+    decoded_image_data_.reset();
+    return NULL;
+  }
+  SB_DCHECK(decoded_image_data_);
+  return CreateStaticImage(decoded_image_data_.Pass());
+}
+
 PNGImageDecoder::~PNGImageDecoder() {
   TRACE_EVENT0("cobalt::loader::image", "PNGImageDecoder::~PNGImageDecoder()");
   // Both are created at the same time. So they should be both zero
@@ -250,9 +259,10 @@ void PNGImageDecoder::HeaderAvailableCallback() {
     }
   }
 
-  if (!AllocateImageData(
-          math::Size(static_cast<int>(width), static_cast<int>(height)),
-          has_alpha_)) {
+  decoded_image_data_ = AllocateImageData(
+      math::Size(static_cast<int>(width), static_cast<int>(height)),
+      has_alpha_);
+  if (!decoded_image_data_) {
     set_state(kError);
     longjmp(png_->jmpbuf, 1);
     return;
@@ -297,7 +307,7 @@ void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
   int color_channels = has_alpha_ ? 4 : 3;
   png_bytep row = row_buffer;
 
-  int width = image_data()->GetDescriptor().size.width();
+  int width = decoded_image_data_->GetDescriptor().size.width();
   // For non-NUll rows of interlaced images during progressive read,
   // png_progressive_combine_row() shall combine the data for the current row
   // with the previously processed row data.
@@ -307,8 +317,9 @@ void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
   }
 
   // Write the decoded row pixels to image data.
-  uint8* pixel_data = image_data()->GetMemory() +
-                      image_data()->GetDescriptor().pitch_in_bytes * row_index;
+  uint8* pixel_data =
+      decoded_image_data_->GetMemory() +
+      decoded_image_data_->GetDescriptor().pitch_in_bytes * row_index;
 
   png_bytep pixel = row_buffer;
 

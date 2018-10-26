@@ -178,6 +178,15 @@ MSVC_POP_WARNING();
   return input_byte;
 }
 
+scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
+  if (state() != kDone) {
+    decoded_image_data_.reset();
+    return NULL;
+  }
+  SB_DCHECK(decoded_image_data_);
+  return CreateStaticImage(decoded_image_data_.Pass());
+}
+
 bool JPEGImageDecoder::ReadHeader() {
   TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadHeader()");
@@ -188,13 +197,11 @@ bool JPEGImageDecoder::ReadHeader() {
     return false;
   }
 
-  if (!AllocateImageData(math::Size(static_cast<int>(info_.image_width),
-                                    static_cast<int>(info_.image_height)),
-                         false)) {
-    return false;
-  }
-
-  return true;
+  decoded_image_data_ =
+      AllocateImageData(math::Size(static_cast<int>(info_.image_width),
+                                   static_cast<int>(info_.image_height)),
+                        false);
+  return decoded_image_data_ != NULL;
 }
 
 bool JPEGImageDecoder::StartDecompress() {
@@ -334,8 +341,8 @@ bool JPEGImageDecoder::ReadLines() {
 
     // Write the decoded row pixels to image data.
     uint8* pixel_data =
-        image_data()->GetMemory() +
-        image_data()->GetDescriptor().pitch_in_bytes * row_index;
+        decoded_image_data_->GetMemory() +
+        decoded_image_data_->GetDescriptor().pitch_in_bytes * row_index;
 
     JSAMPLE* sample_buffer = *buffer;
     switch (pixel_format()) {

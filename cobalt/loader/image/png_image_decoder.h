@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "third_party/libpng/png.h"
 
@@ -37,6 +38,7 @@ class PNGImageDecoder : public ImageDataDecoder {
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override;
+  scoped_refptr<Image> FinishInternal() override;
 
   // Callbacks which feed libpng.
   static void HeaderAvailable(png_structp png, png_infop info);
@@ -53,6 +55,8 @@ class PNGImageDecoder : public ImageDataDecoder {
   png_infop info_;
   bool has_alpha_;
   png_bytep interlace_buffer_;
+
+  scoped_ptr<render_tree::ImageData> decoded_image_data_;
 };
 
 }  // namespace image
