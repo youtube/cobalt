@@ -23,103 +23,39 @@ namespace {
 // File to load JavaScript runtime implementation from.
 const char kScriptFile[] = "runtime.js";
 
-// Definitions from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/runtime
-
-// Command "methods" (names):
-const char kCallFunctionOn[] = "Runtime.callFunctionOn";
-const char kCompileScript[] = "Runtime.compileScript";
-const char kDisable[] = "Runtime.disable";
-const char kEnable[] = "Runtime.enable";
-const char kEvaluate[] = "Runtime.evaluate";
-const char kGetProperties[] = "Runtime.getProperties";
-const char kGlobalLexicalScopeNames[] = "Runtime.globalLexicalScopeNames";
-const char kReleaseObject[] = "Runtime.releaseObject";
-const char kReleaseObjectGroup[] = "Runtime.releaseObjectGroup";
-
 // Event "methods" (names):
 const char kExecutionContextCreated[] = "Runtime.executionContextCreated";
 }  // namespace
 
-RuntimeComponent::RuntimeComponent(ComponentConnector* connector)
-    : connector_(connector) {
-  DCHECK(connector_);
-  if (!connector_->RunScriptFile(kScriptFile)) {
+RuntimeComponent::RuntimeComponent(DebugDispatcher* dispatcher)
+    : dispatcher_(dispatcher), ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+  DCHECK(dispatcher_);
+  if (!dispatcher_->RunScriptFile(kScriptFile)) {
     DLOG(WARNING) << "Cannot execute Runtime initialization script.";
   }
 
-  connector_->AddCommand(
-      kCallFunctionOn,
-      base::Bind(&RuntimeComponent::CallFunctionOn, base::Unretained(this)));
-  connector_->AddCommand(
-      kCompileScript,
-      base::Bind(&RuntimeComponent::CompileScript, base::Unretained(this)));
-  connector_->AddCommand(
-      kDisable, base::Bind(&RuntimeComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
-      kEnable, base::Bind(&RuntimeComponent::Enable, base::Unretained(this)));
-  connector_->AddCommand(kEvaluate, base::Bind(&RuntimeComponent::Evaluate,
-                                               base::Unretained(this)));
-  connector_->AddCommand(
-    kGlobalLexicalScopeNames,
-    base::Bind(&RuntimeComponent::GlobalLexicalScopeNames,
-               base::Unretained(this)));
-  connector_->AddCommand(
-      kGetProperties,
-      base::Bind(&RuntimeComponent::GetProperties, base::Unretained(this)));
-  connector_->AddCommand(
-      kReleaseObject,
-      base::Bind(&RuntimeComponent::ReleaseObject, base::Unretained(this)));
-  connector_->AddCommand(kReleaseObjectGroup,
-                         base::Bind(&RuntimeComponent::ReleaseObjectGroup,
-                                    base::Unretained(this)));
+  commands_["Runtime.enable"] = &RuntimeComponent::Enable;
+  commands_["Runtime.disable"] = &RuntimeComponent::Disable;
+  commands_["Runtime.compileScript"] = &RuntimeComponent::CompileScript;
+
+  dispatcher_->AddDomain("Runtime", commands_.Bind());
 }
 
-JSONObject RuntimeComponent::CompileScript(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void RuntimeComponent::CompileScript(const Command& command) {
   // TODO: Parse the JS without eval-ing it... This is to support:
   // a) Multi-line input from the devtools console
   // b) https://developers.google.com/web/tools/chrome-devtools/snippets
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject RuntimeComponent::CallFunctionOn(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.callFunctionOn", params);
+void RuntimeComponent::Disable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject RuntimeComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
-}
-
-JSONObject RuntimeComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  JSONObject event_params;
-  connector_->SendScriptEvent(kExecutionContextCreated,
-                              "runtime.executionContextCreatedEvent",
-                              event_params);
-  return JSONObject(new base::DictionaryValue());
-}
-
-JSONObject RuntimeComponent::Evaluate(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.evaluate", params);
-}
-
-JSONObject RuntimeComponent::GlobalLexicalScopeNames(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.globalLexicalScopeNames",
-                                      params);
-}
-
-JSONObject RuntimeComponent::GetProperties(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.getProperties", params);
-}
-
-JSONObject RuntimeComponent::ReleaseObjectGroup(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.releaseObjectGroup", params);
-}
-
-JSONObject RuntimeComponent::ReleaseObject(const JSONObject& params) {
-  return connector_->RunScriptCommand("runtime.releaseObject", params);
+void RuntimeComponent::Enable(const Command& command) {
+  dispatcher_->SendScriptEvent(kExecutionContextCreated,
+                               "runtime.executionContextCreatedEvent");
+  command.SendResponse();
 }
 
 }  // namespace debug

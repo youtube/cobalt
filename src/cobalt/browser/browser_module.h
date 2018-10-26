@@ -67,7 +67,7 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/trace_manager.h"
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "starboard/configuration.h"
 #include "starboard/window.h"
@@ -101,6 +101,7 @@ class BrowserModule {
     base::optional<GURL> fallback_splash_screen_url;
     base::optional<math::Size> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
+    bool enable_on_screen_keyboard = true;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -150,8 +151,10 @@ class BrowserModule {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugServer* GetDebugServer();
-  void GetDebugServerInternal(debug::DebugServer** out_debug_server);
+  scoped_ptr<debug::DebugClient> CreateDebugClient(
+      debug::DebugClient::Delegate* delegate);
+  void GetDebugDispatcherInternal(
+      debug::DebugDispatcher** out_debug_dispatcher);
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Change the network proxy settings while the application is running.

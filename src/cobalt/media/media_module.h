@@ -63,15 +63,10 @@ class MediaModule : public WebMediaPlayerFactory,
     bool use_video_decoder_stub = false;
     bool disable_webm_vp9 = false;
     bool allow_resume_after_suspend = true;
-    base::optional<math::Size> output_resolution_override;
   };
 
   typedef render_tree::Image Image;
 
-  // Calculates the output resolution based on the window size and override.
-  static math::Size CalculateOutputResolution(
-      system_window::SystemWindow* system_window,
-      const base::optional<math::Size>& output_resolution_override);
   // MediaModule implementation should implement this function to allow creation
   // of CanPlayTypeHandler.
   static scoped_ptr<CanPlayTypeHandler> CreateCanPlayTypeHandler();

@@ -239,8 +239,11 @@ BrowserModule::BrowserModule(const GURL& url,
           options_.network_module_options),
       splash_screen_cache_(new SplashScreenCache()),
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
-          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
+      on_screen_keyboard_bridge_(
+          options.enable_on_screen_keyboard
+              ? new OnScreenKeyboardStarboardBridge(base::Bind(
+                    &BrowserModule::GetSbWindow, base::Unretained(this)))
+              : NULL),
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
@@ -377,7 +380,7 @@ BrowserModule::BrowserModule(const GURL& url,
                  base::Unretained(this)),
       &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this))));
+      base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -1305,22 +1308,24 @@ void BrowserModule::CreateWindowDriverInternal(
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-debug::DebugServer* BrowserModule::GetDebugServer() {
+scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
+    debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  debug::DebugServer* debug_server = NULL;
+  debug::DebugDispatcher* debug_dispatcher = NULL;
   self_message_loop_->PostBlockingTask(
       FROM_HERE,
-      base::Bind(&BrowserModule::GetDebugServerInternal, base::Unretained(this),
-                 base::Unretained(&debug_server)));
-  DCHECK(debug_server);
-  return debug_server;
+      base::Bind(&BrowserModule::GetDebugDispatcherInternal,
+                 base::Unretained(this), base::Unretained(&debug_dispatcher)));
+  DCHECK(debug_dispatcher);
+  return scoped_ptr<debug::DebugClient>(
+      new debug::DebugClient(debug_dispatcher, delegate));
 }
 
-void BrowserModule::GetDebugServerInternal(
-    debug::DebugServer** out_debug_server) {
+void BrowserModule::GetDebugDispatcherInternal(
+    debug::DebugDispatcher** out_debug_dispatcher) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
-  *out_debug_server = web_module_->GetDebugServer();
+  *out_debug_dispatcher = web_module_->GetDebugDispatcher();
 }
 #endif  // ENABLE_DEBUG_CONSOLE
 

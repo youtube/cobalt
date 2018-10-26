@@ -163,16 +163,25 @@ const char kTimedTraceHelp[] =
     "for before ending and saving the results to disk.  Results will be saved"
     " to the file timed_trace.json in the log output directory.";
 
+const char kUserAgent[] = "user_agent";
+const char kUserAgentHelp[] =
+    "Specifies a custom user agent for device simulations. The expected "
+    "format is \"Mozilla/5.0 ('os_name_and_version') Cobalt/'cobalt_version'."
+    "'cobalt_build_version_number'-'build_configuration' (unlike Gecko) "
+    "'javascript_engine_version' 'rasterizer_type' 'starboard_version', "
+    "'network_operator'_'device_type'_'chipset_model_number'_'model_year'/"
+    "'firmware_version' ('brand', 'model', 'connection_type') 'aux_field'\".";
+
+const char kUserAgentOsNameVersion[] = "user_agent_os_name_version";
+const char kUserAgentOsNameVersionHelp[] =
+    "Specifies a custom 'os_name_and_version' user agent field with otherwise "
+    "default user agent fields. Example: \"X11; Linux x86_64\".";
+
 const char kUseTTS[] = "use_tts";
 const char kUseTTSHelp[] =
     "Enable text-to-speech functionality, for platforms that implement the "
     "speech synthesis API. If the platform doesn't have speech synthesis, "
     "TTSLogger will be used instead.";
-
-extern const char kVideoContainerSizeOverride[] =
-    "video_container_size_override";
-extern const char kVideoContainerSizeOverrideHelp[] =
-    "Set the video container size override";
 
 extern const char kVideoDecoderStub[] = "video_decoder_stub";
 extern const char kVideoDecoderStubHelp[] =
@@ -186,6 +195,12 @@ const char kWebDriverListenIpHelp[] =
 const char kWebDriverPort[] = "webdriver_port";
 const char kWebDriverPortHelp[] =
     "Port that the WebDriver server should be listening on.";
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+const char kDisableOnScreenKeyboard[] = "disable_on_screen_keyboard";
+const char kDisableOnScreenKeyboardHelp[] =
+    "Disable the on screen keyboard for testing.";
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -380,8 +395,9 @@ std::string HelpMessage() {
         {kShutdownAfter, kShutdownAfterHelp},
         {kStubImageDecoder, kStubImageDecoderHelp},
         {kSuspendFuzzer, kSuspendFuzzerHelp}, {kTimedTrace, kTimedTraceHelp},
+        {kUserAgent, kUserAgentHelp},
+        {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
         {kUseTTS, kUseTTSHelp},
-        {kVideoContainerSizeOverride, kVideoContainerSizeOverrideHelp},
         {kVideoDecoderStub, kVideoDecoderStubHelp},
         {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},

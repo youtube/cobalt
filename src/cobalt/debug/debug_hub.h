@@ -44,9 +44,9 @@ namespace debug {
 // values.
 //
 // There is a debugger client available via the |debugger_| member that can
-// connect to the debug server attached to the main web module. The debug
+// connect to the debug dispatcher attached to the main web module. The debug
 // console uses this to send debugging commands and receive debugging events.
-// The debug server is accessed using the |get_debug_server_callback|
+// The debug dispatcher is accessed using the |get_debug_dispatcher_callback|
 // parameter specified in the constructor.
 //
 // The JavaScript client can send arbitrary messages to an object of this class
@@ -80,7 +80,7 @@ class DebugHub : public script::Wrappable {
   static const int kLogFatal = logging::LOG_FATAL;
 
   DebugHub(const GetHudModeCallback& get_hud_mode_callback,
-           const Debugger::GetDebugServerCallback& get_debug_server_callback);
+           const CreateDebugClientCallback& create_debug_client_callback);
   ~DebugHub();
 
   // Gets the JavaScript debugger client interface.

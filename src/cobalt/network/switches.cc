@@ -28,6 +28,8 @@ const char kNetLog[] = "net_log";
 // Corresponds to the levels described in the NetLog::LogLevel enum defined in
 // net/base/net_log.h
 const char kNetLogLevel[] = "net_log_level";
+
+const char kUserAgent[] = "user_agent";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 }  // namespace switches

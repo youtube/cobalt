@@ -126,7 +126,7 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
     if (!kEnableMultiblockAllocate || kEnableAllocationLog) {
       void* p = reuse_allocator_->Allocate(size, alignment);
       LOG_IF(INFO, kEnableAllocationLog)
-          << "======== Media Allocation Log " << p << " " << size << " "
+          << "Media Allocation Log " << p << " " << size << " "
           << alignment << " " << context;
       if (!UpdateAllocationRecord()) {
         // UpdateAllocationRecord may fail with non-NULL p when capacity is
@@ -201,7 +201,7 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 
     if (kEnableAllocationLog) {
       DCHECK_EQ(allocations.number_of_buffers(), 1);
-      LOG(INFO) << "======== Media Allocation Log " << allocations.buffers()[0];
+      LOG(INFO) << "Media Allocation Log " << allocations.buffers()[0];
     }
     for (int i = 0; i < allocations.number_of_buffers(); ++i) {
       reuse_allocator_->Free(allocations.buffers()[i]);
@@ -226,19 +226,21 @@ void DecoderBufferAllocator::UpdateVideoConfig(
     const VideoDecoderConfig& config) {
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL || SB_API_VERSION >= 10
   if (using_memory_pool_) {
-    if (!reuse_allocator_) {
-      return;
-    }
-    VideoResolution resolution =
-        GetVideoResolution(config.visible_rect().size());
 #if SB_API_VERSION >= 10
     video_codec_ = MediaVideoCodecToSbMediaVideoCodec(config.codec());
     resolution_width_ = config.visible_rect().size().width();
     resolution_height_ = config.visible_rect().size().height();
     bits_per_pixel_ = config.webm_color_metadata().BitsPerChannel;
+#endif  // SB_API_VERSION >= 10
+    if (!reuse_allocator_) {
+      return;
+    }
+#if SB_API_VERSION >= 10
     reuse_allocator_->set_max_capacity(SbMediaGetMaxBufferCapacity(
         video_codec_, resolution_width_, resolution_height_, bits_per_pixel_));
 #else   // SB_API_VERSION >= 10
+    VideoResolution resolution =
+        GetVideoResolution(config.visible_rect().size());
     if (reuse_allocator_->max_capacity() &&
         resolution > kVideoResolution1080p) {
       reuse_allocator_->set_max_capacity(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
@@ -322,8 +324,8 @@ bool DecoderBufferAllocator::UpdateAllocationRecord(
     new_max_reached = true;
   }
   if (new_max_reached) {
-    SB_LOG(ERROR) << "======== New Media Buffer Allocation Record ========\n"
-                  << "\tMax Allocated: " << max_allocated
+    SB_LOG(ERROR) << "New Media Buffer Allocation Record: "
+                  << "Max Allocated: " << max_allocated
                   << "  Max Capacity: " << max_capacity
                   << "  Max Blocks: " << max_blocks;
     // TODO: Enable the following line once PrintAllocations() accepts max line

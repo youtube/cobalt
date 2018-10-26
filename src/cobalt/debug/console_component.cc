@@ -22,11 +22,7 @@ namespace debug {
 
 namespace {
 // Definitions from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/console
-
-// Command "methods" (names):
-const char kDisable[] = "Console.disable";
-const char kEnable[] = "Console.enable";
+// https://chromedevtools.github.io/devtools-protocol/tot/Console
 
 // Parameter fields:
 const char kMessageText[] = "message.text";
@@ -49,25 +45,24 @@ void ConsoleComponent::Listener::OnMessage(const std::string& message,
   console_component_->OnMessageAdded(message, level);
 }
 
-ConsoleComponent::ConsoleComponent(ComponentConnector* connector,
+ConsoleComponent::ConsoleComponent(DebugDispatcher* dispatcher,
                                    dom::Console* console)
-    : connector_(connector),
-      ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)) {
-  DCHECK(connector_);
-  connector_->AddCommand(
-      kDisable, base::Bind(&ConsoleComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
-      kEnable, base::Bind(&ConsoleComponent::Enable, base::Unretained(this)));
+    : dispatcher_(dispatcher),
+      ALLOW_THIS_IN_INITIALIZER_LIST(console_listener_(console, this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+  DCHECK(dispatcher_);
+  commands_["Console.disable"] = &ConsoleComponent::Disable;
+  commands_["Console.enable"] = &ConsoleComponent::Enable;
+
+  dispatcher_->AddDomain("Console", commands_.Bind());
 }
 
-JSONObject ConsoleComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void ConsoleComponent::Disable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject ConsoleComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void ConsoleComponent::Enable(const Command& command) {
+  command.SendResponse();
 }
 
 void ConsoleComponent::OnMessageAdded(const std::string& text,
@@ -76,7 +71,7 @@ void ConsoleComponent::OnMessageAdded(const std::string& text,
   params->SetString(kMessageText, text);
   params->SetString(kMessageLevel, dom::Console::GetLevelAsString(level));
   params->SetString(kMessageSource, kMessageSourceValue);
-  connector_->SendEvent(kMessageAdded, params);
+  dispatcher_->SendEvent(kMessageAdded, params);
 }
 
 }  // namespace debug

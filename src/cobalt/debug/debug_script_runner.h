@@ -29,7 +29,7 @@
 namespace cobalt {
 namespace debug {
 
-// Used by the various debug server components to run JavaScript and persist
+// Used by the various debug dispatcher components to run JavaScript and persist
 // state. An object of this class creates a persistent JavaScript object bound
 // to the global object, and executes methods on this object, passing in the
 // JSON parameters as a parameter object, and returning the result as a
@@ -40,7 +40,7 @@ class DebugScriptRunner : public script::Wrappable {
   // Event callback. A callback of this type is specified in the constructor,
   // and used to send asynchronous debugging events that are not a direct
   // response to a command.
-  // See: https://developer.chrome.com/devtools/docs/protocol/1.1/index
+  // See: https://chromedevtools.github.io/devtools-protocol/
   typedef base::Callback<void(const std::string& method,
                               const base::optional<std::string>& params)>
       OnEventCallback;
@@ -59,14 +59,14 @@ class DebugScriptRunner : public script::Wrappable {
 
   // Creates a Runtime.RemoteObject corresponding to an opaque JS object, by
   // calling the |create_remote_object_callback_| script function.
-  // https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#type-RemoteObject
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Runtime#type-RemoteObject
   base::optional<std::string> CreateRemoteObject(
       const script::ValueHandleHolder* object, const std::string& params);
 
-  // Runs |command| on the JavaScript |runtimeInspector| object, passing in
+  // Runs |method| on the JavaScript |runtimeInspector| object, passing in
   // |json_params| and putting the result in |json_result|.
   // Returns |true| if execution was successful, |false| otherwise.
-  bool RunCommand(const std::string& command, const std::string& json_params,
+  bool RunCommand(const std::string& method, const std::string& json_params,
                   std::string* json_result);
 
   // Loads JavaScript from file and executes the contents. Used to add

@@ -13,13 +13,16 @@
 // limitations under the License.
 
 // JavaScript functions used by the Chrome debugging protocol DOM domain:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom
+// https://chromedevtools.github.io/devtools-protocol/1-3/DOM
 
 devtoolsBackend.dom = {};
 
+// Alias to match the uppercase domain of the devtools protocol.
+devtoolsBackend.DOM = devtoolsBackend.dom;
+
 // Creates and returns a new Node object corresponding to the document node,
 // including its children up to a default depth.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom#command-getDocument
+// https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-getDocument
 devtoolsBackend.dom.getDocument = function(params) {
   var result = {};
   result.root = this.getNodeWithChildren(document, 2);
@@ -31,7 +34,7 @@ devtoolsBackend.dom.getDocument = function(params) {
 // specified node, and returns them via an event. A depth may be specified,
 // where a negative depth means to return all descendants. If no depth is
 // specified, the default is 1, a single level.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom#command-requestChildNodes
+// https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-requestChildNodes
 devtoolsBackend.dom.requestChildNodes = function(params) {
   var node = this.findNode(params);
   var depth = params.depth || 1;
@@ -47,7 +50,7 @@ devtoolsBackend.dom.requestChildNodes = function(params) {
 // Finds the node corresponding to a remote objectId. Also sends all nodes on
 // the path from the requested one to the root as a series of setChildNodes
 // events.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom#command-requestNode
+// https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-requestNode
 devtoolsBackend.dom.requestNode = function(params) {
   var node = this.findNode(params);
   var nodeInfo = new this.Node(node);
@@ -71,7 +74,7 @@ devtoolsBackend.dom.requestNode = function(params) {
 }
 
 // Returns a Runtime.RemoteObject corresponding to a node.
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom#command-resolveNode
+// https://chromedevtools.github.io/devtools-protocol/1-3/DOM#method-resolveNode
 devtoolsBackend.dom.resolveNode = function(params) {
   var node = this.findNode(params);
   var returnByValue = true;

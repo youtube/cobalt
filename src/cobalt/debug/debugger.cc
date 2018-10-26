@@ -21,26 +21,26 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "cobalt/base/console_commands.h"
+#include "cobalt/debug/json_object.h"
 
 namespace cobalt {
 namespace debug {
 
-Debugger::Debugger(const GetDebugServerCallback& get_debug_server_callback)
-    : get_debug_server_callback_(get_debug_server_callback),
+Debugger::Debugger(
+    const CreateDebugClientCallback& create_debug_client_callback)
+    : create_debug_client_callback_(create_debug_client_callback),
       on_event_(new DebuggerEventTarget()) {}
 
 Debugger::~Debugger() {}
 
 void Debugger::Attach(const AttachCallbackArg& callback) {
   last_error_ = base::nullopt;
-  DebugServer* debug_server = get_debug_server_callback_.Run();
+  debug_client_ = create_debug_client_callback_.Run(this);
 
-  // |debug_server| may be NULL if the WebModule is not available at this time.
-  if (debug_server) {
-    debug_client_.reset(new DebugClient(debug_server, this));
-  } else {
-    DLOG(WARNING) << "Debug server unavailable.";
-    last_error_ = "Debug server unavailable.";
+  // |debug_client_| may be NULL if the WebModule is not available at this time.
+  if (!debug_client_) {
+    DLOG(WARNING) << "Debug dispatcher unavailable.";
+    last_error_ = "Debug dispatcher unavailable.";
   }
 
   AttachCallbackArg::Reference callback_reference(this, callback);
@@ -56,7 +56,7 @@ void Debugger::Detach(const AttachCallbackArg& callback) {
 
 void Debugger::SendCommand(const std::string& method,
                            const std::string& json_params,
-                           const CommandCallbackArg& callback) {
+                           const ResponseCallbackArg& callback) {
   last_error_ = base::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
     scoped_ptr<base::DictionaryValue> response(new base::DictionaryValue);
@@ -64,13 +64,13 @@ void Debugger::SendCommand(const std::string& method,
                         "Debugger is not connected - call attach first.");
     std::string json_response;
     base::JSONWriter::Write(response.get(), &json_response);
-    CommandCallbackArg::Reference callback_ref(this, callback);
+    ResponseCallbackArg::Reference callback_ref(this, callback);
     callback_ref.value().Run(json_response);
     return;
   }
 
-  scoped_refptr<CommandCallbackInfo> callback_info(
-      new CommandCallbackInfo(this, callback));
+  scoped_refptr<ResponseCallbackInfo> callback_info(
+      new ResponseCallbackInfo(this, callback));
   debug_client_->SendCommand(
       method, json_params,
       base::Bind(&Debugger::OnCommandResponse, this, callback_info));
@@ -108,12 +108,12 @@ void Debugger::TraceMembers(script::Tracer* tracer) {
 }
 
 void Debugger::OnCommandResponse(
-    const scoped_refptr<CommandCallbackInfo>& callback_info,
+    const scoped_refptr<ResponseCallbackInfo>& callback_info,
     const base::optional<std::string>& response) const {
   // Run the script callback on the message loop the command was sent from.
   callback_info->message_loop_proxy->PostTask(
-      FROM_HERE,
-      base::Bind(&Debugger::RunCommandCallback, this, callback_info, response));
+      FROM_HERE, base::Bind(&Debugger::RunResponseCallback, this, callback_info,
+                            response));
 }
 
 void Debugger::OnDebugClientEvent(const std::string& method,
@@ -131,8 +131,8 @@ void Debugger::OnDebugClientDetach(const std::string& reason) {
   on_event_->DispatchEvent(method, JSONStringify(params));
 }
 
-void Debugger::RunCommandCallback(
-    const scoped_refptr<CommandCallbackInfo>& callback_info,
+void Debugger::RunResponseCallback(
+    const scoped_refptr<ResponseCallbackInfo>& callback_info,
     base::optional<std::string> response) const {
   DCHECK_EQ(base::MessageLoopProxy::current(),
             callback_info->message_loop_proxy);

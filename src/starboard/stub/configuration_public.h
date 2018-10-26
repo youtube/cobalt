@@ -272,10 +272,20 @@
 // The string form of SB_PATH_SEP_CHAR.
 #define SB_PATH_SEP_STRING ":"
 
+// Some operating systems constantly return zero values for creation, access
+// and modification time for files and directories. When this quirk is defined,
+// we need to ignore corresponded time values in applications as well as take
+// this fact into account in unit tests.
+#undef SB_HAS_QUIRK_FILESYSTEM_ZERO_FILEINFO_TIME
+
 // On some platforms the file system stores access times at a coarser
 // granularity than other times. When this quirk is defined, we assume the
 // access time is of 1 day precision.
 #undef SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME
+
+// On some platforms the file system cannot access extremely long file names.
+// We do not need this feature on stub.
+#undef SB_HAS_QUIRK_HASH_FILE_NAME
 
 // --- Graphics Configuration ------------------------------------------------
 

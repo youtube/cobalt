@@ -30,15 +30,6 @@ namespace cobalt {
 namespace debug {
 
 namespace {
-// Definitions from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/page
-
-// Command "methods" (names):
-const char kDisable[] = "Page.disable";
-const char kEnable[] = "Page.enable";
-const char kGetResourceTree[] = "Page.getResourceTree";
-const char kSetOverlayMessage[] = "Page.setOverlayMessage";
-
 // Parameter field names:
 const char kFrameId[] = "result.frameTree.frame.id";
 const char kLoaderId[] = "result.frameTree.frame.loaderId";
@@ -53,43 +44,36 @@ const char kLoaderIdValue[] = "Cobalt";
 const char kMimeTypeValue[] = "text/html";
 }  // namespace
 
-PageComponent::PageComponent(ComponentConnector* connector, dom::Window* window,
+PageComponent::PageComponent(DebugDispatcher* dispatcher, dom::Window* window,
                              scoped_ptr<RenderLayer> render_layer,
                              render_tree::ResourceProvider* resource_provider)
-    : connector_(connector),
-      window_(window),
+    : window_(window),
       render_layer_(render_layer.Pass()),
-      resource_provider_(resource_provider) {
-  DCHECK(connector_);
+      resource_provider_(resource_provider),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+  DCHECK(dispatcher);
   DCHECK(window_);
   DCHECK(window_->document());
   DCHECK(render_layer_);
   DCHECK(resource_provider_);
 
-  connector_->AddCommand(
-      kDisable, base::Bind(&PageComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
-      kEnable, base::Bind(&PageComponent::Enable, base::Unretained(this)));
-  connector_->AddCommand(
-      kGetResourceTree,
-      base::Bind(&PageComponent::GetResourceTree, base::Unretained(this)));
-  connector_->AddCommand(
-      kSetOverlayMessage,
-      base::Bind(&PageComponent::SetOverlayMessage, base::Unretained(this)));
+  commands_["Page.disable"] = &PageComponent::Disable;
+  commands_["Page.enable"] = &PageComponent::Enable;
+  commands_["Page.getResourceTree"] = &PageComponent::GetResourceTree;
+  commands_["Page.setOverlayMessage"] = &PageComponent::SetOverlayMessage;
+
+  dispatcher->AddDomain("Page", commands_.Bind());
 }
 
-JSONObject PageComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void PageComponent::Disable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject PageComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
+void PageComponent::Enable(const Command& command) {
+  command.SendResponse();
 }
 
-JSONObject PageComponent::GetResourceTree(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void PageComponent::GetResourceTree(const Command& command) {
   JSONObject response(new base::DictionaryValue());
   response->SetString(kFrameId, kFrameIdValue);
   response->SetString(kLoaderId, kLoaderIdValue);
@@ -97,11 +81,12 @@ JSONObject PageComponent::GetResourceTree(const JSONObject& params) {
   response->SetString(kSecurityOrigin, window_->document()->url());
   response->SetString(kUrl, window_->document()->url());
   response->Set(kResources, new base::ListValue());
-  return response.Pass();
+  command.SendResponse(response);
 }
 
-JSONObject PageComponent::SetOverlayMessage(const JSONObject& params) {
+void PageComponent::SetOverlayMessage(const Command& command) {
   std::string message;
+  JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;
   if (params) {
     got_message = params->GetString("message", &message);
@@ -142,7 +127,7 @@ JSONObject PageComponent::SetOverlayMessage(const JSONObject& params) {
     render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
   }
 
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
 }  // namespace debug

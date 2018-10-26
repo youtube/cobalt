@@ -108,9 +108,13 @@ class TestMemReporter {
   // Total number allocations outstanding.
   int number_allocs() const { return number_allocs_; }
 
+  // Total number memory map outstanding.
+  int number_map_mem() const { return number_map_mem_; }
+
   void Clear() {
     starboard::ScopedLock lock(mutex_);
     number_allocs_ = 0;
+    number_map_mem_ = 0;
     last_allocation_ = NULL;
     last_deallocation_ = NULL;
     last_mem_map_ = NULL;
@@ -174,7 +178,7 @@ class TestMemReporter {
     }
     starboard::ScopedLock lock(mutex_);
     last_mem_map_ = memory;
-    number_allocs_++;
+    number_map_mem_++;
   }
 
   void ReportDealloc(const void* memory) {
@@ -192,7 +196,7 @@ class TestMemReporter {
     }
     starboard::ScopedLock lock(mutex_);
     last_mem_unmap_ = memory;
-    number_allocs_--;
+    number_map_mem_--;
   }
 
   void Construct() {
@@ -207,6 +211,7 @@ class TestMemReporter {
   const void* last_mem_map_;
   const void* last_mem_unmap_;
   int number_allocs_;
+  int number_map_mem_;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -249,7 +254,8 @@ class MemoryReportingTest : public ::testing::Test {
   // Per test teardown.
   virtual void TearDown() {
     SetMemoryTrackingEnabled_ThreadLocal(false);
-    if (mem_reporter()->number_allocs() != 0) {
+    if ((mem_reporter()->number_allocs() != 0) ||
+        (mem_reporter()->number_map_mem() != 0)) {
       ADD_FAILURE_AT(__FILE__, __LINE__) << "Memory Leak detected.";
     }
     mem_reporter()->Clear();
@@ -330,15 +336,15 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
   }
   const int64_t kMemSize = 4096;
   const int kFlags = kSbMemoryMapProtectReadWrite;
-  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_map_mem());
   void* mem_chunk = SbMemoryMap(kMemSize, kFlags, "TestMemMap");
-  EXPECT_EQ_NO_TRACKING(1, mem_reporter()->number_allocs());
+  EXPECT_EQ_NO_TRACKING(1, mem_reporter()->number_map_mem());
 
   // Now unmap the memory and confirm that this memory was reported as free.
   EXPECT_EQ_NO_TRACKING(mem_chunk, mem_reporter()->last_mem_map());
   SbMemoryUnmap(mem_chunk, kMemSize);
   EXPECT_EQ_NO_TRACKING(mem_chunk, mem_reporter()->last_mem_unmap());
-  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_map_mem());
 }
 #endif  // SB_HAS(MMAP)
 
@@ -413,13 +419,13 @@ TEST_F(MemoryReportingTest, NoCapturesMemMapUnmap) {
 
 TEST_F(MemoryReportingTest, NoCapturesOperatorNewDelete) {
   EXPECT_FALSE_NO_TRACKING(MemoryReportingEnabled());
-  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_map_mem());
   int* my_int = new int();
-  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_map_mem());
   EXPECT_EQ_NO_TRACKING(NULL, mem_reporter()->last_allocation());
 
   delete my_int;
-  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_map_mem());
   EXPECT_EQ_NO_TRACKING(NULL, mem_reporter()->last_deallocation());
 }
 

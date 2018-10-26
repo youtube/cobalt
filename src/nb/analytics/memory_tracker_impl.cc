@@ -16,17 +16,101 @@
 
 #include "nb/analytics/memory_tracker_impl.h"
 
+#include <algorithm>
 #include <cstring>
+#include <functional>
 #include <iomanip>
 #include <iterator>
 #include <sstream>
 
+#include "nb/concurrent_map.h"
 #include "starboard/atomic.h"
+#include "starboard/common/flat_map.h"
 #include "starboard/log.h"
 #include "starboard/time.h"
 
 namespace nb {
 namespace analytics {
+namespace {
+
+// This class allows std containers to bypass memory reporting.
+template <typename T>
+class RawAllocator : public std::allocator<T> {
+public:
+  typedef typename std::allocator<T>::pointer pointer;
+  typedef typename std::allocator<T>::const_pointer const_pointer;
+  typedef typename std::allocator<T>::reference reference;
+  typedef typename std::allocator<T>::const_reference const_reference;
+  typedef typename std::allocator<T>::size_type size_type;
+  typedef typename std::allocator<T>::value_type value_type;
+  typedef typename std::allocator<T>::difference_type difference_type;
+
+  RawAllocator() {}
+
+  // Constructor used for rebinding
+  template <typename U>
+  RawAllocator(const RawAllocator<U>& x) {}
+
+  pointer allocate(size_type n,
+    std::allocator<void>::const_pointer hint = NULL) {
+    void* ptr = SbMemoryAllocateNoReport(n * sizeof(value_type));
+    return static_cast<pointer>(ptr);
+  }
+
+  void deallocate(pointer p, size_type n) { SbMemoryDeallocateNoReport(p); }
+  template <typename U>
+  struct rebind {
+    typedef RawAllocator<U> other;
+  };
+};
+}  // namespace.
+
+// ThreadLocalBool_NoReport class guarantees that any memory allocated will NOT
+// go through any memory reporting mechanism. Otherwise certain platforms will
+// encounter a stack overflow condition as execution re-enters the allocation
+// function.
+class MemoryTrackerImpl::ThreadLocalBool_NoReport {
+ public:
+  void Set(bool val) {
+    if (val) {
+      thread_map_.Set(SbThreadGetId(), val);
+    } else {
+      // Rather than set to false, remove the element.
+      thread_map_.Remove(SbThreadGetId());
+    }
+  }
+
+  bool Get() {
+    ThreadMap::EntryHandle entry;
+    bool has_key = thread_map_.Get(SbThreadGetId(), &entry);
+    if (!has_key) {
+      return false;
+    }
+    return entry.Value();
+
+  }
+
+ private:
+  // Create a concurrent map that supports fast deletion of elements
+  // (no memory release).
+  //
+  using PairType = std::vector<std::pair<SbThreadId, bool>>::value_type;
+  // This vector bypasses reporting allocators.
+  using VectorPair = std::vector<PairType, RawAllocator<PairType>>;
+  // The InnerMap is backed by the vector. The FlatMap transforms the vector
+  // into a map interface.
+  using InnerMap = starboard::FlatMap<SbThreadId, bool,
+                                      std::less<SbThreadId>,
+                                      VectorPair>;
+  // Concurrent map uses distributed locking to achieve a highly concurrent
+  // unsorted map.
+  using ThreadMap = ConcurrentMap<SbThreadId,
+                                  bool,
+                                  std::hash<SbThreadId>,
+                                  InnerMap>;
+
+  ThreadMap thread_map_;
+};
 
 SbMemoryReporter* MemoryTrackerImpl::GetMemoryReporter() {
   return &sb_memory_tracker_;
@@ -242,6 +326,8 @@ MemoryTrackerImpl::DisableDeletionInScope::~DisableDeletionInScope() {
 
 MemoryTrackerImpl::MemoryTrackerImpl()
     : thread_filter_id_(kSbThreadInvalidId), debug_callback_(nullptr) {
+  memory_deletion_enabled_tls_.reset(new ThreadLocalBool_NoReport);
+  memory_tracking_disabled_tls_.reset(new ThreadLocalBool_NoReport);
   total_bytes_allocated_.store(0);
   global_hooks_installed_ = false;
   Initialize(&sb_memory_tracker_, &nb_memory_scope_reporter_);
@@ -387,11 +473,11 @@ bool MemoryTrackerImpl::GetMemoryTracking(const void* memory,
 }
 
 void MemoryTrackerImpl::SetMemoryTrackingEnabled(bool on) {
-  memory_tracking_disabled_tls_.Set(!on);
+  memory_tracking_disabled_tls_->Set(!on);
 }
 
 bool MemoryTrackerImpl::IsMemoryTrackingEnabled() const {
-  const bool enabled = !memory_tracking_disabled_tls_.Get();
+  const bool enabled = !memory_tracking_disabled_tls_->Get();
   return enabled;
 }
 
@@ -400,11 +486,11 @@ void MemoryTrackerImpl::AddAllocationBytes(int64_t val) {
 }
 
 bool MemoryTrackerImpl::MemoryDeletionEnabled() const {
-  return !memory_deletion_enabled_tls_.Get();
+  return !memory_deletion_enabled_tls_->Get();
 }
 
 void MemoryTrackerImpl::SetMemoryDeletionEnabled(bool on) {
-  memory_deletion_enabled_tls_.Set(!on);
+  memory_deletion_enabled_tls_->Set(!on);
 }
 
 MemoryTrackerImpl::DisableMemoryTrackingInScope::DisableMemoryTrackingInScope(

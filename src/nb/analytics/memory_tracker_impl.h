@@ -23,6 +23,7 @@
 #include "nb/memory_scope.h"
 #include "nb/scoped_ptr.h"
 #include "nb/thread_local_object.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/memory_reporter.h"
@@ -132,6 +133,7 @@ class MemoryTrackerImpl : public MemoryTracker {
   void SetMemoryTrackerDebugCallback(MemoryTrackerDebugCallback* cb) override;
 
  private:
+  class ThreadLocalBool_NoReport;
   struct DisableMemoryTrackingInScope {
     DisableMemoryTrackingInScope(MemoryTrackerImpl* t);
     ~DisableMemoryTrackingInScope();
@@ -175,10 +177,11 @@ class MemoryTrackerImpl : public MemoryTracker {
   ConcurrentPtr<MemoryTrackerDebugCallback> debug_callback_;
 
   // THREAD LOCAL SECTION.
-  ThreadLocalBoolean memory_deletion_enabled_tls_;
-  ThreadLocalBoolean memory_tracking_disabled_tls_;
   ThreadLocalObject<AllocationGroupStack> allocation_group_stack_tls_;
   ThreadLocalObject<CallStack> callstack_tls_;
+  starboard::scoped_ptr<ThreadLocalBool_NoReport> memory_deletion_enabled_tls_;
+  starboard::scoped_ptr<ThreadLocalBool_NoReport> memory_tracking_disabled_tls_;
+
   bool global_hooks_installed_;
 };
 

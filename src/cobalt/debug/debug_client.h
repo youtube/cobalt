@@ -17,38 +17,44 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "cobalt/debug/debug_server.h"
 
 namespace cobalt {
 namespace debug {
 
-// An object that can connect to a debug server. A debug server can accept
-// connections from multiple debug clients, for example to support simultaneous
-// connections from the local debug console and a remote devtools session.
+// Forward declaration of the dispatcher class that DebugClient can connect to.
+class DebugDispatcher;
+
+// An object that can connect to a debug dispatcher. A debug dispatcher can
+// accept connections from multiple debug clients, for example to support
+// simultaneous connections from the local debug console overlay and a remote
+// devtools session.
 //
-// A DebugClient object can send a command to the attached DebugServer using the
-// |SendCommand| method.
+// A DebugClient object can send a command to the attached DebugDispatcher using
+// the |SendCommand| method.
 //
-// Debugging events are handled by creating a subclass of the
-// DebugClient::Delegate class, an instance of which must be specified when
-// creating a DebugClient.
+// Debugging events are handled by forwarding them to a subclass of the
+// |DebugClient::Delegate| interface, which must be specified when creating a
+// DebugClient.
 //
-// A DebugServer is owned to the WebModule it attaches to, and may be destroyed
-// at any time. When this happens, the DebugServer will notify all
+// A DebugDispatcher is owned by the WebModule it attaches to, and may be
+// destroyed at any time. When this happens, the DebugDispatcher will notify all
 // DebugClient objects via a call to OnDetach. This will nullify the internal
-// reference to the DebugServer and notify the DebugClient::Delegate object.
-// The DebugClient and DebugServer objects can be running on different threads,
-// which makes the use of weak pointers here problematic, so instead the
-// |server_lock_| is used before every access to the server to ensure it is
-// still connected.
+// reference to the DebugDispatcher and notify the DebugClient::Delegate object.
+// The DebugClient and DebugDispatcher objects can be running on different
+// threads, which makes the use of weak pointers here problematic, so instead
+// the |dispatcher_lock_| is used before every access to the dispatcher to
+// ensure it is still connected.
 
 class DebugClient {
  public:
   class Delegate {
    public:
-    // Event handlers called by the debug server from its thread.
+    // Event handlers called by the debug dispatcher from its thread. The
+    // implementation is responsible for posting the event to its own message
+    // loop if necessary.
     virtual void OnDebugClientEvent(
         const std::string& method,
         const base::optional<std::string>& json_params) = 0;
@@ -59,36 +65,46 @@ class DebugClient {
     virtual ~Delegate();
   };
 
-  DebugClient(DebugServer* server, Delegate* delegate);
+  // Callback to receive a command response from the dispatcher.
+  typedef base::Callback<void(const base::optional<std::string>& response)>
+      ResponseCallback;
+
+  DebugClient(DebugDispatcher* dispatcher, Delegate* delegate);
   ~DebugClient();
 
-  // Whether this client is currently attached to a server.
+  // Whether this client is currently attached to a dispatcher.
   bool IsAttached();
 
-  // Sends a command to the attached server, with a callback for the response.
+  // Sends a command to the attached dispatcher, with a callback for the
+  // response.
   void SendCommand(const std::string& method, const std::string& json_params,
-                   const DebugServer::CommandCallback& callback);
+                   const ResponseCallback& callback);
 
  private:
-  friend class DebugServer;
+  friend class DebugDispatcher;
 
-  // Called by the server when it is destroyed.
+  // Called by the dispatcher when it is destroyed.
   void OnDetach(const std::string& reason);
 
-  // Called by the server when a debugging event occurs.
+  // Called by the dispatcher when a debugging event occurs.
   void OnEvent(const std::string& method,
                const base::optional<std::string>& json_params);
 
-  // No ownership. Access must be protected by |server_lock_|.
-  DebugServer* server_;
+  // No ownership. Access must be protected by |dispatcher_lock_|.
+  DebugDispatcher* dispatcher_;
 
   // No ownership.
   Delegate* delegate_;
 
-  // Used to protect access to the |server_| member, which may be destroyed
+  // Used to protect access to the |dispatcher_| member, which may be destroyed
   // from a different thread.
-  base::Lock server_lock_;
+  base::Lock dispatcher_lock_;
 };
+
+// Callback to create a DebugClient that's already attached to the main web
+// module DebugDispatcher, and sends events to the specified Delegate.
+typedef base::Callback<scoped_ptr<DebugClient>(DebugClient::Delegate*)>
+    CreateDebugClientCallback;
 
 }  // namespace debug
 }  // namespace cobalt

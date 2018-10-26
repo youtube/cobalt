@@ -148,14 +148,15 @@ int GetInitialMode() {
 // A function to create a DebugHub object, to be injected into WebModule.
 scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::DebugHub::GetHudModeCallback& get_hud_mode_function,
-    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
+    const debug::CreateDebugClientCallback& create_debug_client_callback,
     const scoped_refptr<dom::Window>& window,
     dom::MutationObserverTaskManager* mutation_observer_task_manager,
     script::GlobalEnvironment* global_environment) {
   UNREFERENCED_PARAMETER(window);
   UNREFERENCED_PARAMETER(mutation_observer_task_manager);
   UNREFERENCED_PARAMETER(global_environment);
-  return new debug::DebugHub(get_hud_mode_function, get_debug_server_callback);
+  return new debug::DebugHub(get_hud_mode_function,
+                             create_debug_client_callback);
 }
 
 }  // namespace
@@ -166,7 +167,7 @@ DebugConsole::DebugConsole(
         render_tree_produced_callback,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const debug::Debugger::GetDebugServerCallback& get_debug_server_callback) {
+    const debug::CreateDebugClientCallback& create_debug_client_callback) {
   mode_ = GetInitialMode();
 
   WebModule::Options web_module_options;
@@ -189,7 +190,7 @@ DebugConsole::DebugConsole(
   web_module_options.injected_window_attributes["debugHub"] =
       base::Bind(&CreateDebugHub,
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
-                 get_debug_server_callback);
+                 create_debug_client_callback);
   web_module_.reset(new WebModule(
       GURL(kInitialDebugConsoleUrl), initial_application_state,
       render_tree_produced_callback,

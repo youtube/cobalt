@@ -23,9 +23,14 @@
 #include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
+#include "starboard/file.h"
 #include "starboard/media.h"
 
 using cobalt::media_session::MediaSession;
+
+namespace {
+  const char kLicensesRelativePath[] = "/licenses/licenses_cobalt.txt";
+}  // namespace
 
 namespace cobalt {
 namespace dom {
@@ -44,6 +49,51 @@ Navigator::Navigator(const std::string& user_agent, const std::string& language,
       script_value_factory_(script_value_factory) {}
 
 const std::string& Navigator::language() const { return language_; }
+
+base::optional<std::string> GetFilenameForLicenses() {
+  char buffer[SB_FILE_MAX_PATH + 1] = {0};
+  bool got_path =
+      SbSystemGetPath(kSbSystemPathContentDirectory, buffer,
+                      SB_ARRAY_SIZE_INT(buffer));
+  if (!got_path) {
+    SB_DLOG(ERROR) << "Cannot get content path for licenses files.";
+    return base::optional<std::string>();
+  }
+
+  return std::string(buffer).append(kLicensesRelativePath);
+}
+
+const std::string Navigator::licenses() const {
+  base::optional<std::string> filename = GetFilenameForLicenses();
+  if (!filename) {
+    return std::string();
+  }
+
+  SbFile file = SbFileOpen(filename->c_str(), kSbFileOpenOnly | kSbFileRead,
+    nullptr, nullptr);
+  if (file == kSbFileInvalid) {
+    SB_DLOG(WARNING) << "Cannot open licenses file: " << *filename;
+    return std::string();
+  }
+
+  SbFileInfo info;
+  bool success = SbFileGetInfo(file, &info);
+  if (!success) {
+    SB_DLOG(WARNING) << "Cannot get information for licenses file.";
+    SbFileClose(file);
+    return std::string();
+  }
+  // SbFileReadAll expects an int for the size argument. Assume that the file
+  // is smaller than 2^32.
+  int file_size = static_cast<int>(info.size);
+
+  std::unique_ptr<char[]> buffer(new char[file_size]);
+  SbFileReadAll(file, buffer.get(), file_size);
+  const std::string file_contents = std::string(buffer.get(), file_size);
+  SbFileClose(file);
+
+  return file_contents;
+}
 
 const std::string& Navigator::user_agent() const { return user_agent_; }
 

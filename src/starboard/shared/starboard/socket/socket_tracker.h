@@ -24,11 +24,9 @@
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
 #include "starboard/socket.h"
+#include "starboard/socket_waiter.h"
+#include "starboard/thread.h"
 #include "starboard/time.h"
-
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-#define SB_ENABLE_SOCKET_TRACKER 1
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 // TODO: Move this to starboard/socket.h.
 inline bool operator<(const SbSocketAddress& left,
@@ -57,8 +55,6 @@ namespace shared {
 namespace starboard {
 namespace socket {
 
-#if SB_ENABLE_SOCKET_TRACKER
-
 class SocketTracker {
  public:
   static SocketTracker* GetInstance();
@@ -73,8 +69,23 @@ class SocketTracker {
   void OnReceiveFrom(SbSocket socket, const SbSocketAddress* source);
   void OnSendTo(SbSocket socket, const SbSocketAddress* destination);
   void OnResolve(const char* hostname, const SbSocketResolution& resolution);
+  bool IsSocketTracked(SbSocket socket);
+  const optional<SbSocketAddress>& GetLocalAddress(SbSocket socket) const;
+  void OnListen(SbSocket socket);
+  void OnAddWaiter(SbSocket socket, SbSocketWaiter waiter);
+  void OnRemoveWaiter(SbSocket socket, SbSocketWaiter waiter);
+
+  enum State {
+    kCreated,
+    kConnected,
+    kListened,
+  };
+
+  State GetState(SbSocket socket);
 
   void LogTrackedSockets();
+  std::multimap<SbTimeMonotonic, SbSocket> ComputeIdleTimePerSocketForThreadId(
+      SbThreadId thread_id);
 
  private:
   struct SocketRecord {
@@ -82,62 +93,20 @@ class SocketTracker {
     SbSocketProtocol protocol;
     optional<SbSocketAddress> local_address;
     optional<SbSocketAddress> remote_address;
-    SbTime last_activity_;
+    SbTime last_activity;
+    SbSocketWaiter waiter = kSbSocketWaiterInvalid;
+    SbThreadId thread_id;
+    State state;
   };
 
   std::string ConvertToString_Locked(SbSocketAddress address) const;
   std::string ConvertToString_Locked(const SocketRecord& record) const;
+  static SbTimeMonotonic ComputeTimeIdle(const SocketRecord& record);
 
   Mutex mutex_;
   std::map<SbSocket, SocketRecord> sockets_;
   std::map<SbSocketAddress, std::string> socket_resolutions_;
 };
-
-#else  // SB_ENABLE_SOCKET_TRACKER
-
-class SocketTracker {
- public:
-  static SocketTracker* GetInstance() {
-    static SocketTracker s_socket_tracker;
-    return &s_socket_tracker;
-  }
-  void OnCreate(SbSocket socket,
-                SbSocketAddressType address_type,
-                SbSocketProtocol protocol) {
-    SB_UNREFERENCED_PARAMETER(socket);
-    SB_UNREFERENCED_PARAMETER(address_type);
-    SB_UNREFERENCED_PARAMETER(protocol);
-  }
-  void OnDestroy(SbSocket socket) { SB_UNREFERENCED_PARAMETER(socket); }
-  void OnConnect(SbSocket socket, const SbSocketAddress& remote_address) {
-    SB_UNREFERENCED_PARAMETER(socket);
-    SB_UNREFERENCED_PARAMETER(remote_address);
-  }
-  void OnBind(SbSocket socket, const SbSocketAddress& local_address) {
-    SB_UNREFERENCED_PARAMETER(socket);
-    SB_UNREFERENCED_PARAMETER(local_address);
-  }
-  void OnAccept(SbSocket listening_socket, SbSocket accepted_socket) {
-    SB_UNREFERENCED_PARAMETER(listening_socket);
-    SB_UNREFERENCED_PARAMETER(accepted_socket);
-  }
-  void OnReceiveFrom(SbSocket socket, const SbSocketAddress* source) {
-    SB_UNREFERENCED_PARAMETER(socket);
-    SB_UNREFERENCED_PARAMETER(source);
-  }
-  void OnSendTo(SbSocket socket, const SbSocketAddress* destination) {
-    SB_UNREFERENCED_PARAMETER(socket);
-    SB_UNREFERENCED_PARAMETER(destination);
-  }
-  void OnResolve(const char* hostname, const SbSocketResolution& resolution) {
-    SB_UNREFERENCED_PARAMETER(hostname);
-    SB_UNREFERENCED_PARAMETER(resolution);
-  }
-
-  void LogTrackedSockets() {}
-};
-
-#endif  // SB_ENABLE_SOCKET_TRACKER
 
 }  // namespace socket
 }  // namespace starboard

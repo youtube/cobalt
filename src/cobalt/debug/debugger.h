@@ -26,7 +26,6 @@
 #include "base/optional.h"
 #include "cobalt/debug/console_command.h"
 #include "cobalt/debug/debug_client.h"
-#include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/debugger_event_target.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
@@ -46,30 +45,27 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   typedef script::CallbackFunction<void()> AttachCallback;
   typedef script::ScriptValue<AttachCallback> AttachCallbackArg;
 
-  // JavaScript callback to be run when a debug command has been executed.
+  // JavaScript callback to receive the response after executing a command.
   typedef script::CallbackFunction<void(base::optional<std::string>)>
-      CommandCallback;
-  typedef script::ScriptValue<CommandCallback> CommandCallbackArg;
-
-  // Callback to be run to get the debug server. The debug server is owned by
-  // the web module to which it connects, and this callback allows this object
-  // to get a reference to it.
-  typedef base::Callback<DebugServer*()> GetDebugServerCallback;
+      ResponseCallback;
+  typedef script::ScriptValue<ResponseCallback> ResponseCallbackArg;
 
   // Thread-safe ref-counted struct used to pass asynchronously executed
-  // command callbacks around. Stores the message loop the callback must be
+  // response callbacks around. Stores the message loop the callback must be
   // executed on as well as the callback itself.
-  struct CommandCallbackInfo
-      : public base::RefCountedThreadSafe<CommandCallbackInfo> {
-    CommandCallbackInfo(Debugger* const debugger, const CommandCallbackArg& cb)
+  struct ResponseCallbackInfo
+      : public base::RefCountedThreadSafe<ResponseCallbackInfo> {
+    ResponseCallbackInfo(Debugger* const debugger,
+                         const ResponseCallbackArg& cb)
         : callback(debugger, cb),
           message_loop_proxy(base::MessageLoopProxy::current()) {}
-    CommandCallbackArg::Reference callback;
+    ResponseCallbackArg::Reference callback;
     scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
-    friend class base::RefCountedThreadSafe<CommandCallbackInfo>;
+    friend class base::RefCountedThreadSafe<ResponseCallbackInfo>;
   };
 
-  explicit Debugger(const GetDebugServerCallback& get_debug_server_callback);
+  explicit Debugger(
+      const CreateDebugClientCallback& create_debug_client_callback);
   ~Debugger();
 
   void Attach(const AttachCallbackArg& callback);
@@ -78,7 +74,7 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   // Sends a devtools protocol command to be executed in the context of the main
   // WebModule that is being debugged.
   void SendCommand(const std::string& method, const std::string& json_params,
-                   const CommandCallbackArg& callback);
+                   const ResponseCallbackArg& callback);
 
   const base::optional<std::string>& last_error() const { return last_error_; }
   const scoped_refptr<DebuggerEventTarget>& on_event() const {
@@ -97,11 +93,11 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   void TraceMembers(script::Tracer* tracer) override;
 
  protected:
-  // Called by the debug server with the response of a command on the message
-  // loop the command was sent from (the message loop of this object).
+  // Called by the debug dispatcher with the response of a command on the
+  // message loop the command was sent from (the message loop of this object).
   // Passes the response to the JavaScript callback registered with the command.
   void OnCommandResponse(
-      const scoped_refptr<CommandCallbackInfo>& callback_info,
+      const scoped_refptr<ResponseCallbackInfo>& callback_info,
       const base::optional<std::string>& response) const;
 
   // DebugClient::Delegate implementation.
@@ -111,17 +107,17 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   void OnDebugClientDetach(const std::string& reason) override;
 
  private:
-  // Runs a script command callback with the specified response.
+  // Runs a script response callback with the specified response.
   // Should be called from the same message loop as the script command that it
   // is a response for.
-  void RunCommandCallback(
-      const scoped_refptr<CommandCallbackInfo>& callback_info,
+  void RunResponseCallback(
+      const scoped_refptr<ResponseCallbackInfo>& callback_info,
       base::optional<std::string> response) const;
 
-  // Callback to be run to get a reference to the debug server.
-  GetDebugServerCallback get_debug_server_callback_;
+  // Callback to be run to create a debug client.
+  CreateDebugClientCallback create_debug_client_callback_;
 
-  // Debug client that connects to the server.
+  // Debug client that connects to the dispatcher.
   scoped_ptr<DebugClient> debug_client_;
 
   // This will be defined if there was an error since the last operation.

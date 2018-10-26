@@ -34,10 +34,10 @@
 #include "cobalt/base/type_id.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/stack_size_constants.h"
-#include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/debug/debug_server_module.h"
+#include "cobalt/debug/debug_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
@@ -109,8 +109,8 @@ class WebModule::Impl {
   ~Impl();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugServer* debug_server() const {
-    return debug_server_module_->debug_server();
+  debug::DebugDispatcher* debug_dispatcher() const {
+    return debug_module_->debug_dispatcher();
   }
 #endif  // ENABLE_DEBUG_CONSOLE
 
@@ -186,7 +186,7 @@ class WebModule::Impl {
 #endif
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  void CreateDebugServerIfNull();
+  void CreateDebugDispatcherIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   void SetSize(math::Size window_dimensions, float video_pixel_ratio);
@@ -396,8 +396,8 @@ class WebModule::Impl {
   scoped_ptr<debug::RenderOverlay> debug_overlay_;
 
   // The core of the debugging system.
-  // Created lazily when accessed via |GetDebugServer|.
-  scoped_ptr<debug::DebugServerModule> debug_server_module_;
+  // Created lazily when accessed via |GetDebugDispatcher|.
+  scoped_ptr<debug::DebugModule> debug_module_;
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // DocumentObserver that observes the loading document.
@@ -710,7 +710,7 @@ WebModule::Impl::~Impl() {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset();
-  debug_server_module_.reset();
+  debug_module_.reset();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Disable callbacks for the resource caches. Otherwise, it is possible for a
@@ -968,18 +968,18 @@ void WebModule::Impl::CreateWindowDriver(
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-void WebModule::Impl::CreateDebugServerIfNull() {
+void WebModule::Impl::CreateDebugDispatcherIfNull() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(global_environment_);
   DCHECK(resource_provider_);
 
-  if (debug_server_module_) {
+  if (debug_module_) {
     return;
   }
 
-  debug_server_module_.reset(new debug::DebugServerModule(
+  debug_module_.reset(new debug::DebugModule(
       window_->console(), global_environment_, debug_overlay_.get(),
       resource_provider_, window_));
 }
@@ -1009,8 +1009,13 @@ void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
 
 void WebModule::Impl::SetSize(math::Size window_dimensions,
                               float video_pixel_ratio) {
+  // A value of 0.0 for the video pixel ratio means that the ratio could not be
+  // determined. In that case it should be assumed to be the same as the
+  // graphics resolution, which corresponds to a device pixel ratio of 1.0.
+  float device_pixel_ratio =
+      video_pixel_ratio == 0.0f ? 1.0f : video_pixel_ratio;
   window_->SetSize(window_dimensions.width(), window_dimensions.height(),
-                   video_pixel_ratio);
+                   device_pixel_ratio);
 }
 
 void WebModule::Impl::SetCamera3D(
@@ -1492,15 +1497,15 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 // May be called from any thread.
-debug::DebugServer* WebModule::GetDebugServer() {
+debug::DebugDispatcher* WebModule::GetDebugDispatcher() {
   DCHECK(message_loop());
   DCHECK(impl_);
 
   message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugServerIfNull,
+      FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugDispatcherIfNull,
                             base::Unretained(impl_.get())));
 
-  return impl_->debug_server();
+  return impl_->debug_dispatcher();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 

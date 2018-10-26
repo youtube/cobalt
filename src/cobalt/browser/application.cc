@@ -228,32 +228,6 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-base::optional<math::Size> GetVideoOutputResolutionOverride(
-    CommandLine* command_line) {
-  DCHECK(command_line);
-  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
-    std::string size_override = command_line->GetSwitchValueASCII(
-        browser::switches::kVideoContainerSizeOverride);
-    DLOG(INFO) << "Set video container size override from command line to "
-               << size_override;
-    // Override string should be something like "1920x1080".
-    int32 width, height;
-    std::vector<std::string> tokens;
-    base::SplitString(size_override, 'x', &tokens);
-    if (tokens.size() == 2 && base::StringToInt32(tokens[0], &width) &&
-        base::StringToInt32(tokens[1], &height)) {
-      return math::Size(width, height);
-    }
-
-    DLOG(WARNING) << "Invalid size specified for video container: "
-                  << size_override;
-  }
-
-  return base::nullopt;
-}
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
-
 // Represents a parsed int.
 struct ParsedIntValue {
  public:
@@ -499,6 +473,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     options.storage_manager_options.savegame_options.factory =
         &storage::SavegameFake::Create;
   }
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  if (command_line->HasSwitch(browser::switches::kDisableOnScreenKeyboard)) {
+    options.enable_on_screen_keyboard = false;
+  }
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
 #if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
@@ -526,7 +506,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     partition_key = base::GetApplicationKey(initial_url);
   }
   options.storage_manager_options.savegame_options.id = partition_key;
-
 
   base::optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
@@ -602,8 +581,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
   }
-  options.media_module_options.output_resolution_override =
-      GetVideoOutputResolutionOverride(command_line);
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
@@ -710,7 +687,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   int remote_debugging_port = GetRemoteDebuggingPort();
   debug_web_server_.reset(new debug::DebugWebServer(
       remote_debugging_port,
-      base::Bind(&BrowserModule::GetDebugServer,
+      base::Bind(&BrowserModule::CreateDebugClient,
                  base::Unretained(browser_module_.get()))));
 #endif  // ENABLE_REMOTE_DEBUGGING
 

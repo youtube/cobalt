@@ -50,6 +50,7 @@
         'media_query_list_test.cc',
         'mutation_observer_test.cc',
         'named_node_map_test.cc',
+        'navigator_licenses_test.cc',
         'node_dispatch_event_test.cc',
         'node_list_live_test.cc',
         'node_list_test.cc',

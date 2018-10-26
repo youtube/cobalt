@@ -17,7 +17,9 @@
 
 #include <string>
 
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/command.h"
+#include "cobalt/debug/command_map.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/console.h"
 
@@ -26,7 +28,7 @@ namespace debug {
 
 class ConsoleComponent {
  public:
-  ConsoleComponent(ComponentConnector* connector, dom::Console* console);
+  ConsoleComponent(DebugDispatcher* dispatcher, dom::Console* console);
 
  private:
   class Listener : public dom::Console::Listener {
@@ -39,14 +41,17 @@ class ConsoleComponent {
     ConsoleComponent* console_component_;
   };
 
-  JSONObject Enable(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
+  void Enable(const Command& command);
+  void Disable(const Command& command);
 
   // Called by |console_listener_| when a new message is output.
   void OnMessageAdded(const std::string& text, dom::Console::Level level);
 
-  ComponentConnector* connector_;
+  DebugDispatcher* dispatcher_;
   Listener console_listener_;
+
+  // Map of member functions implementing commands.
+  CommandMap<ConsoleComponent> commands_;
 };
 
 }  // namespace debug

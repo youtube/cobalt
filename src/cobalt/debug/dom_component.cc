@@ -30,17 +30,6 @@ namespace {
 // File to load JavaScript DOM debugging domain implementation from.
 const char kScriptFile[] = "dom.js";
 
-// Command "methods" (names) from the set specified here:
-// https://developer.chrome.com/devtools/docs/protocol/1.1/dom
-const char kDisable[] = "DOM.disable";
-const char kEnable[] = "DOM.enable";
-const char kGetDocument[] = "DOM.getDocument";
-const char kRequestChildNodes[] = "DOM.requestChildNodes";
-const char kRequestNode[] = "DOM.requestNode";
-const char kResolveNode[] = "DOM.resolveNode";
-const char kHideHighlight[] = "DOM.hideHighlight";
-const char kHighlightNode[] = "DOM.highlightNode";
-
 // Parameter names:
 const char kA[] = "a";
 const char kB[] = "b";
@@ -50,71 +39,41 @@ const char kHighlightConfig[] = "highlightConfig";
 const char kR[] = "r";
 }  // namespace
 
-DOMComponent::DOMComponent(ComponentConnector* connector,
+DOMComponent::DOMComponent(DebugDispatcher* dispatcher,
                            scoped_ptr<RenderLayer> render_layer)
-    : connector_(connector), render_layer_(render_layer.Pass()) {
-  DCHECK(connector_);
-  connector_->AddCommand(
-      kDisable, base::Bind(&DOMComponent::Disable, base::Unretained(this)));
-  connector_->AddCommand(
-      kEnable, base::Bind(&DOMComponent::Enable, base::Unretained(this)));
-  connector_->AddCommand(kGetDocument, base::Bind(&DOMComponent::GetDocument,
-                                                  base::Unretained(this)));
-  connector_->AddCommand(
-      kRequestChildNodes,
-      base::Bind(&DOMComponent::RequestChildNodes, base::Unretained(this)));
-  connector_->AddCommand(kRequestNode, base::Bind(&DOMComponent::RequestNode,
-                                                  base::Unretained(this)));
-  connector_->AddCommand(kResolveNode, base::Bind(&DOMComponent::ResolveNode,
-                                                  base::Unretained(this)));
-  connector_->AddCommand(
-      kHighlightNode,
-      base::Bind(&DOMComponent::HighlightNode, base::Unretained(this)));
-  connector_->AddCommand(
-      kHideHighlight,
-      base::Bind(&DOMComponent::HideHighlight, base::Unretained(this)));
+    : dispatcher_(dispatcher),
+      render_layer_(render_layer.Pass()),
+      ALLOW_THIS_IN_INITIALIZER_LIST(commands_(this)) {
+  DCHECK(dispatcher_);
+
+  commands_["DOM.disable"] = &DOMComponent::Disable;
+  commands_["DOM.enable"] = &DOMComponent::Enable;
+  commands_["DOM.highlightNode"] = &DOMComponent::HighlightNode;
+  commands_["DOM.hideHighlight"] = &DOMComponent::HideHighlight;
+
+  dispatcher_->AddDomain("DOM", commands_.Bind());
 }
 
-JSONObject DOMComponent::Enable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  bool initialized = connector_->RunScriptFile(kScriptFile);
+void DOMComponent::Enable(const Command& command) {
+  bool initialized = dispatcher_->RunScriptFile(kScriptFile);
   if (initialized) {
-    return JSONObject(new base::DictionaryValue());
+    command.SendResponse();
   } else {
-    return connector_->ErrorResponse("Cannot create DOM inspector.");
+    command.SendErrorResponse("Cannot create DOM inspector.");
   }
 }
 
-JSONObject DOMComponent::Disable(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
-  return JSONObject(new base::DictionaryValue());
-}
-
-JSONObject DOMComponent::GetDocument(const JSONObject& params) {
-  return connector_->RunScriptCommand("dom.getDocument", params);
-}
-
-JSONObject DOMComponent::RequestChildNodes(const JSONObject& params) {
-  return connector_->RunScriptCommand("dom.requestChildNodes", params);
-}
-
-JSONObject DOMComponent::RequestNode(const JSONObject& params) {
-  return connector_->RunScriptCommand("dom.requestNode", params);
-}
-
-JSONObject DOMComponent::ResolveNode(const JSONObject& params) {
-  return connector_->RunScriptCommand("dom.resolveNode", params);
-}
+void DOMComponent::Disable(const Command& command) { command.SendResponse(); }
 
 // Unlike most other DOM command handlers, this one is not fully implemented
 // in JavaScript. Instead, the JS object is used to look up the node from the
 // parameters and return its bounding client rect, then the highlight itself
 // is rendered by calling the C++ function |RenderHighlight| to set the render
 // overlay.
-JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
+void DOMComponent::HighlightNode(const Command& command) {
   // Get the bounding rectangle of the specified node.
-  JSONObject json_dom_rect =
-      connector_->RunScriptCommand("dom.getBoundingClientRect", params);
+  JSONObject json_dom_rect = dispatcher_->RunScriptCommand(
+      "dom.getBoundingClientRect", command.GetParams());
   double x = 0.0;
   double y = 0.0;
   double width = 0.0;
@@ -129,6 +88,7 @@ JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
                        static_cast<float>(width), static_cast<float>(height)));
 
   // |highlight_config_value| still owned by |params|.
+  JSONObject params = JSONParse(command.GetParams());
   base::DictionaryValue* highlight_config_value = NULL;
   bool got_highlight_config =
       params->GetDictionary(kHighlightConfig, &highlight_config_value);
@@ -137,16 +97,12 @@ JSONObject DOMComponent::HighlightNode(const JSONObject& params) {
 
   RenderHighlight(dom_rect, highlight_config_value);
 
-  // Empty response.
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
-JSONObject DOMComponent::HideHighlight(const JSONObject& params) {
-  UNREFERENCED_PARAMETER(params);
+void DOMComponent::HideHighlight(const Command& command) {
   render_layer_->SetFrontLayer(scoped_refptr<render_tree::Node>());
-
-  // Empty response.
-  return JSONObject(new base::DictionaryValue());
+  command.SendResponse();
 }
 
 void DOMComponent::RenderHighlight(

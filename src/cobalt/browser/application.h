@@ -123,7 +123,7 @@ class Application {
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
   // Web server to serve devtools front end. Debugging messages are sent and
-  // received via a WebSocket and communicated to an embedded DebugServer.
+  // received via a WebSocket and communicated to an embedded DebugDispatcher.
   scoped_ptr<debug::DebugWebServer> debug_web_server_;
 #endif
 

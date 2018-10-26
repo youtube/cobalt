@@ -8,6 +8,7 @@
 #include <deque>
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_export.h"
@@ -143,7 +144,10 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   // See the Audio Splice Frame Algorithm in the MSE specification for details.
   typedef StreamParser::BufferQueue BufferQueue;
   void ConvertToSpliceBuffer(const BufferQueue& pre_splice_buffers);
-  const BufferQueue& splice_buffers() const { return splice_buffers_; }
+  const BufferQueue& splice_buffers() const {
+    static BufferQueue empty;
+    return splice_buffers_ ? *splice_buffers_ : empty;
+  }
 
   // Specifies a buffer which must be decoded prior to this one to ensure this
   // buffer can be accurately decoded.  The given buffer must be of the same
@@ -182,7 +186,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   DecodeTimestamp decode_timestamp_;
   int config_id_;
   TrackId track_id_;
-  BufferQueue splice_buffers_;
+  scoped_ptr<BufferQueue> splice_buffers_;
   scoped_refptr<StreamParserBuffer> preroll_buffer_;
   bool is_duration_estimated_;
 

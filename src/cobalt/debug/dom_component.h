@@ -18,7 +18,9 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/command.h"
+#include "cobalt/debug/command_map.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/debug/render_layer.h"
 #include "cobalt/dom/dom_rect.h"
@@ -28,45 +30,31 @@ namespace debug {
 
 class DOMComponent {
  public:
-  DOMComponent(ComponentConnector* connector,
+  DOMComponent(DebugDispatcher* dispatcher,
                scoped_ptr<RenderLayer> render_layer);
 
  private:
-  JSONObject Enable(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
-
-  // Gets a JSON representation of the document object, including its children
-  // to a few levels deep (subsequent levels will be returned via an event
-  // when the client calls |RequestChildNodes|).
-  JSONObject GetDocument(const JSONObject& params);
-
-  // Requests that the children of a specified node should be returned via
-  // an event.
-  JSONObject RequestChildNodes(const JSONObject& params);
-
-  // Gets the nodeId corresponding to a remote objectId. Also sends all nodes
-  // on the path between the requested node object and the root (document) as
-  // a series of DOM.setChildNodes events.
-  JSONObject RequestNode(const JSONObject& params);
-
-  // Creates a Runtime.RemoteObject corresponding to a node.
-  JSONObject ResolveNode(const JSONObject& params);
+  void Enable(const Command& command);
+  void Disable(const Command& command);
 
   // Highlights a specified node according to highlight parameters.
-  JSONObject HighlightNode(const JSONObject& params);
+  void HighlightNode(const Command& command);
 
   // Hides the node highlighting.
-  JSONObject HideHighlight(const JSONObject& params);
+  void HideHighlight(const Command& command);
 
   // Renders a highlight to the overlay.
   void RenderHighlight(const scoped_refptr<dom::DOMRect>& bounding_rect,
                        const base::DictionaryValue* highlight_config_value);
 
-  // Helper object to connect to the debug server, etc.
-  ComponentConnector* connector_;
+  // Helper object to connect to the debug dispatcher, etc.
+  DebugDispatcher* dispatcher_;
 
   // Render layer owned by this object.
   scoped_ptr<RenderLayer> render_layer_;
+
+  // Map of member functions implementing commands.
+  CommandMap<DOMComponent> commands_;
 };
 
 }  // namespace debug

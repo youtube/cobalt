@@ -14,29 +14,30 @@
 
 #include "cobalt/debug/debug_client.h"
 
-#include "cobalt/debug/debug_server.h"
+#include "cobalt/debug/command.h"
+#include "cobalt/debug/debug_dispatcher.h"
 
 namespace cobalt {
 namespace debug {
 
 DebugClient::Delegate::~Delegate() {}
 
-DebugClient::DebugClient(DebugServer* server, Delegate* delegate)
-    : server_(server), delegate_(delegate) {
-  DCHECK(server_);
-  server_->AddClient(this);
+DebugClient::DebugClient(DebugDispatcher* dispatcher, Delegate* delegate)
+    : dispatcher_(dispatcher), delegate_(delegate) {
+  DCHECK(dispatcher_);
+  dispatcher_->AddClient(this);
 }
 
 DebugClient::~DebugClient() {
-  base::AutoLock auto_lock(server_lock_);
-  if (server_) {
-    server_->RemoveClient(this);
+  base::AutoLock auto_lock(dispatcher_lock_);
+  if (dispatcher_) {
+    dispatcher_->RemoveClient(this);
   }
 }
 
 bool DebugClient::IsAttached() {
-  base::AutoLock auto_lock(server_lock_);
-  return server_ != NULL;
+  base::AutoLock auto_lock(dispatcher_lock_);
+  return dispatcher_ != NULL;
 }
 
 void DebugClient::OnEvent(const std::string& method,
@@ -47,20 +48,20 @@ void DebugClient::OnEvent(const std::string& method,
 
 void DebugClient::OnDetach(const std::string& reason) {
   DCHECK(delegate_);
-  base::AutoLock auto_lock(server_lock_);
+  base::AutoLock auto_lock(dispatcher_lock_);
   delegate_->OnDebugClientDetach(reason);
-  server_ = NULL;
+  dispatcher_ = NULL;
 }
 
 void DebugClient::SendCommand(const std::string& method,
                               const std::string& json_params,
-                              const DebugServer::CommandCallback& callback) {
-  base::AutoLock auto_lock(server_lock_);
-  if (!server_) {
-    DLOG(WARNING) << "Debug client is not attached to server.";
+                              const DebugClient::ResponseCallback& callback) {
+  base::AutoLock auto_lock(dispatcher_lock_);
+  if (!dispatcher_) {
+    DLOG(WARNING) << "Debug client is not attached to dispatcher.";
     return;
   }
-  server_->SendCommand(method, json_params, callback);
+  dispatcher_->SendCommand(Command(method, json_params, callback));
 }
 
 }  // namespace debug

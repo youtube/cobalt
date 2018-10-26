@@ -15,6 +15,9 @@
 #include "cobalt/audio/audio_buffer_source_node.h"
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/typed_arrays.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: Consolidate ShellAudioBus creation code
@@ -86,6 +89,28 @@ void FillAudioBusFromOneSource(
 }
 
 class AudioNodeInputOutputTest : public ::testing::Test {
+ public:
+  AudioNodeInputOutputTest()
+      : engine_(script::JavaScriptEngine::CreateEngine()),
+        global_environment_(engine_->CreateGlobalEnvironment()) {
+    global_environment_->CreateGlobalObject();
+  }
+
+  ~AudioNodeInputOutputTest() {
+    global_environment_->SetReportEvalCallback(base::Closure());
+    global_environment_->SetReportErrorCallback(
+        script::GlobalEnvironment::ReportErrorCallback());
+    global_environment_ = nullptr;
+  }
+
+  script::GlobalEnvironment* global_environment() const {
+    return global_environment_.get();
+  }
+
+ private:
+  scoped_ptr<script::JavaScriptEngine> engine_;
+  scoped_refptr<script::GlobalEnvironment> global_environment_;
+
  protected:
   MessageLoop message_loop_;
 };
@@ -116,16 +141,16 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 20);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 20);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 40);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 40);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -158,16 +183,16 @@ TEST_F(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 20);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 20);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 40);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 40);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -197,12 +222,12 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 50);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 50);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -232,12 +257,12 @@ TEST_F(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames && c == 0) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 50);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames && channel == 0) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 50);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -270,16 +295,16 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 20);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 20);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 30);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 30);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -312,16 +337,16 @@ TEST_F(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 10);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 10);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 20);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 20);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -354,16 +379,16 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        if (c == 0) {
-          EXPECT_FLOAT_EQ(audio_bus->GetFloat32Sample(c, i), 66.568f);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        if (channel == 0) {
+          EXPECT_FLOAT_EQ(audio_bus->GetFloat32Sample(channel, frame), 66.568f);
         } else {
-          EXPECT_FLOAT_EQ(audio_bus->GetFloat32Sample(c, i), 83.639f);
+          EXPECT_FLOAT_EQ(audio_bus->GetFloat32Sample(channel, frame), 83.639f);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -396,16 +421,16 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 10);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 10);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 20);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 20);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -438,12 +463,12 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 30);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 30);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -476,12 +501,12 @@ TEST_F(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 20);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 20);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -514,12 +539,12 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 25);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 25);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -552,12 +577,12 @@ TEST_F(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 10);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 10);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -590,12 +615,12 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_FLOAT_EQ(audio_bus->GetFloat32Sample(c, i), 106.213f);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_FLOAT_EQ(audio_bus->GetFloat32Sample(channel, frame), 106.213f);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -628,12 +653,12 @@ TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
                             &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames) {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 10);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames) {
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 10);
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
       }
     }
   }
@@ -697,22 +722,192 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   destination->FillAudioBus(true, audio_bus.get(), &silence);
   EXPECT_FALSE(silence);
 
-  for (size_t c = 0; c < kNumOfDestChannels; ++c) {
-    for (size_t i = 0; i < kRenderBufferSizeFrames; ++i) {
-      if (i < kNumOfFrames_1) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 60);
+  for (size_t channel = 0; channel < kNumOfDestChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames_1) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 60);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 120);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 120);
         }
-      } else if (i < kNumOfFrames_2) {
-        if (c == 0) {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 40);
+      } else if (frame < kNumOfFrames_2) {
+        if (channel == 0) {
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 40);
         } else {
-          EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 80);
+          EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 80);
         }
       } else {
-        EXPECT_EQ(audio_bus->GetFloat32Sample(c, i), 0);
+        EXPECT_EQ(audio_bus->GetFloat32Sample(channel, frame), 0);
+      }
+    }
+  }
+}
+
+TEST_F(AudioNodeInputOutputTest, CreateBufferTest) {
+  const size_t kNumOfChannels = 2;
+  const size_t kNumOfFrames = 25;
+  const size_t kSampleRate = 44100;
+
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+  scoped_refptr<AudioBuffer> buffer(
+      audio_context->CreateBuffer(kNumOfChannels, kNumOfFrames, kSampleRate));
+
+  EXPECT_EQ(buffer->number_of_channels(), kNumOfChannels);
+  EXPECT_EQ(buffer->length(), kNumOfFrames);
+  EXPECT_EQ(buffer->sample_rate(), kSampleRate);
+}
+
+TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarFloat32Test) {
+  const size_t kNumOfChannels = 2;
+  const size_t kNumOfFrames = 25;
+  const size_t kOffset = 8;
+
+  float src_arr[kNumOfChannels][kNumOfFrames];
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kNumOfFrames; ++frame) {
+      src_arr[channel][frame] = channel * kNumOfFrames + frame;
+    }
+  }
+
+  script::Handle<script::Float32Array> channel0_arr =
+      script::Float32Array::New(global_environment(), src_arr[0], kNumOfFrames);
+  script::Handle<script::Float32Array> channel1_arr =
+      script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
+
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+  scoped_ptr<ShellAudioBus> audio_bus(
+      new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
+                        ShellAudioBus::kFloat32, ShellAudioBus::kPlanar));
+  audio_bus->ZeroAllFrames();
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
+  buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
+
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames + kOffset && frame >= kOffset) {
+        EXPECT_EQ(buffer->audio_bus()->GetFloat32Sample(channel, frame),
+                  (channel * kNumOfFrames + (frame - kOffset)));
+      } else {
+        EXPECT_EQ(buffer->audio_bus()->GetFloat32Sample(channel, frame), 0);
+      }
+    }
+  }
+}
+
+TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedFloat32Test) {
+  const size_t kNumOfChannels = 2;
+  const size_t kNumOfFrames = 25;
+  const size_t kOffset = 8;
+
+  float src_arr[kNumOfChannels][kNumOfFrames];
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kNumOfFrames; ++frame) {
+      src_arr[channel][frame] = channel * kNumOfFrames + frame;
+    }
+  }
+
+  script::Handle<script::Float32Array> channel0_arr =
+      script::Float32Array::New(global_environment(), src_arr[0], kNumOfFrames);
+  script::Handle<script::Float32Array> channel1_arr =
+      script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
+
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+  scoped_ptr<ShellAudioBus> audio_bus(
+      new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
+                        ShellAudioBus::kFloat32, ShellAudioBus::kInterleaved));
+  audio_bus->ZeroAllFrames();
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
+  buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
+
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames + kOffset && frame >= kOffset) {
+        EXPECT_EQ(buffer->audio_bus()->GetFloat32Sample(channel, frame),
+                  (channel * kNumOfFrames + (frame - kOffset)));
+      } else {
+        EXPECT_EQ(buffer->audio_bus()->GetFloat32Sample(channel, frame), 0);
+      }
+    }
+  }
+}
+
+TEST_F(AudioNodeInputOutputTest, CopyToChannelPlanarInt16Test) {
+  const size_t kNumOfChannels = 2;
+  const size_t kNumOfFrames = 25;
+  const size_t kOffset = 8;
+
+  float src_arr[kNumOfChannels][kNumOfFrames];
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kNumOfFrames; ++frame) {
+      src_arr[channel][frame] = 0.001f * (channel * kNumOfFrames + frame);
+    }
+  }
+
+  script::Handle<script::Float32Array> channel0_arr =
+      script::Float32Array::New(global_environment(), src_arr[0], kNumOfFrames);
+  script::Handle<script::Float32Array> channel1_arr =
+      script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
+
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+  scoped_ptr<ShellAudioBus> audio_bus(
+      new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
+                        ShellAudioBus::kInt16, ShellAudioBus::kPlanar));
+  audio_bus->ZeroAllFrames();
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
+  buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
+
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames + kOffset && frame >= kOffset) {
+        int16 expected_val = ConvertSample<float, int16>
+            (0.001f * (channel * kNumOfFrames + (frame - kOffset)));
+        EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame),
+                  expected_val);
+      } else {
+        EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame), 0);
+      }
+    }
+  }
+}
+
+TEST_F(AudioNodeInputOutputTest, CopyToChannelInterleavedInt16Test) {
+  const size_t kNumOfChannels = 2;
+  const size_t kNumOfFrames = 25;
+  const size_t kOffset = 8;
+
+  float src_arr[kNumOfChannels][kNumOfFrames];
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kNumOfFrames; ++frame) {
+      src_arr[channel][frame] = 0.001f * (channel * kNumOfFrames + frame);
+    }
+  }
+
+  script::Handle<script::Float32Array> channel0_arr =
+      script::Float32Array::New(global_environment(), src_arr[0], kNumOfFrames);
+  script::Handle<script::Float32Array> channel1_arr =
+      script::Float32Array::New(global_environment(), src_arr[1], kNumOfFrames);
+
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+  scoped_ptr<ShellAudioBus> audio_bus(
+      new ShellAudioBus(kNumOfChannels, kRenderBufferSizeFrames,
+                        ShellAudioBus::kInt16, ShellAudioBus::kInterleaved));
+  audio_bus->ZeroAllFrames();
+  scoped_refptr<AudioBuffer> buffer(new AudioBuffer(44100, audio_bus.Pass()));
+  buffer->CopyToChannel(channel0_arr, 0, kOffset, NULL);
+  buffer->CopyToChannel(channel1_arr, 1, kOffset, NULL);
+
+  for (size_t channel = 0; channel < kNumOfChannels; ++channel) {
+    for (size_t frame = 0; frame < kRenderBufferSizeFrames; ++frame) {
+      if (frame < kNumOfFrames + kOffset && frame >= kOffset) {
+        int16 expected_val = ConvertSample<float, int16>
+            (0.001f * (channel * kNumOfFrames + (frame - kOffset)));
+        EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame),
+                  expected_val);
+      } else {
+        EXPECT_EQ(buffer->audio_bus()->GetInt16Sample(channel, frame), 0);
       }
     }
   }

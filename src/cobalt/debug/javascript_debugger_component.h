@@ -21,7 +21,9 @@
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stl_util.h"
-#include "cobalt/debug/component_connector.h"
+#include "cobalt/debug/command.h"
+#include "cobalt/debug/command_map.h"
+#include "cobalt/debug/debug_dispatcher.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/script/call_frame.h"
 #include "cobalt/script/scope.h"
@@ -31,19 +33,19 @@
 namespace cobalt {
 namespace debug {
 
-class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
+class JavaScriptDebuggerComponent {
  public:
-  explicit JavaScriptDebuggerComponent(ComponentConnector* connector);
+  explicit JavaScriptDebuggerComponent(DebugDispatcher* dispatcher);
 
   virtual ~JavaScriptDebuggerComponent();
 
-  // ScriptDebugger::Delegate implementation.
-  void OnScriptDebuggerDetach(const std::string& reason) override;
-  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame) override;
+  // Formerly ScriptDebugger::Delegate implementation.
+  void OnScriptDebuggerDetach(const std::string& reason);
+  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame);
   void OnScriptFailedToParse(
-      scoped_ptr<script::SourceProvider> source_provider) override;
+      scoped_ptr<script::SourceProvider> source_provider);
   void OnScriptParsed(
-      scoped_ptr<script::SourceProvider> source_provider) override;
+      scoped_ptr<script::SourceProvider> source_provider);
 
  private:
   // Map of SourceProvider pointers, keyed by string ID.
@@ -78,20 +80,20 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   // Map of logical breakpoints, keyed by a string ID.
   typedef std::map<std::string, Breakpoint> BreakpointMap;
 
-  JSONObject Enable(const JSONObject& params);
-  JSONObject Disable(const JSONObject& params);
+  void Enable(const Command& command);
+  void Disable(const Command& command);
 
   // Gets the source of a specified script.
-  JSONObject GetScriptSource(const JSONObject& params);
+  void GetScriptSource(const Command& command);
 
   // Code execution control commands.
-  JSONObject Pause(const JSONObject& params);
-  JSONObject Resume(const JSONObject& params);
-  JSONObject SetBreakpointByUrl(const JSONObject& params);
-  JSONObject SetPauseOnExceptions(const JSONObject& params);
-  JSONObject StepInto(const JSONObject& params);
-  JSONObject StepOut(const JSONObject& params);
-  JSONObject StepOver(const JSONObject& params);
+  void Pause(const Command& command);
+  void Resume(const Command& command);
+  void SetBreakpointByUrl(const Command& command);
+  void SetPauseOnExceptions(const Command& command);
+  void StepInto(const Command& command);
+  void StepOut(const Command& command);
+  void StepOver(const Command& command);
 
   // Creates a JSON object describing a single call frame.
   JSONObject CreateCallFrameData(
@@ -125,8 +127,8 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
   // Sends a Debugger.resumed event to the clients with no parameters.
   void SendResumedEvent();
 
-  // Helper object to connect to the debug server, etc.
-  ComponentConnector* connector_;
+  // Helper object to connect to the debug dispatcher, etc.
+  DebugDispatcher* dispatcher_;
 
   // Map of source providers with scoped deleter to clean up on destruction.
   SourceProviderMap source_providers_;
@@ -134,6 +136,9 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
 
   // Map of logical breakpoints.
   BreakpointMap breakpoints_;
+
+  // Map of member functions implementing commands.
+  CommandMap<JavaScriptDebuggerComponent> commands_;
 };
 
 }  // namespace debug

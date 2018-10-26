@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 
+#include <queue>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -114,7 +116,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   void TeardownCodec();
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
-  bool UpdateDecodeTarget(const scoped_refptr<CpuVideoFrame>& frame);
+  void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
   FFMPEGDispatch* ffmpeg_;
 
@@ -158,6 +160,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
 
   // int frame_last_rendered_pts_;
   // scoped_refptr<VideoFrame> frame_;
+  std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
 }  // namespace ffmpeg
