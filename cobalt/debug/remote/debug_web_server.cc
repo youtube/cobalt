@@ -108,7 +108,7 @@ base::optional<std::string> GetLocalIpAddress() {
   return ip_addr.ToStringWithoutPort();
 }
 
-const char kContentDir[] = "cobalt/debug";
+const char kContentDir[] = "cobalt/debug/remote";
 const char kDetached[] = "Inspector.detached";
 const char kDetachReasonField[] = "params.reason";
 const char kErrorField[] = "error.message";
