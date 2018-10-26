@@ -338,6 +338,14 @@ void ApplyCommandLineSettingsToRendererOptions(
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 }
 
+float GetDiagonal(SbWindow window) {
+#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
+  return SbWindowGetDiagonialSizeInInches(window);
+#else
+  return 0.0f;  // Special value meaning diagonal size is not known.
+#endif
+}
+
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() : system_language(base::GetSystemLanguage()) {}
 
@@ -938,6 +946,7 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
   }
 }
 
+
 #if SB_API_VERSION >= 8
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
@@ -945,8 +954,7 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
 
   const auto& size = window_size_change_event->size();
-  float diagonal =
-      SbWindowGetDiagonialSizeInInches(window_size_change_event->window());
+  float diagonal = GetDiagonal(window_size_change_event->window());
   cssom::ViewportSize viewport_size(size.width, size.height, diagonal);
   browser_module_->OnWindowSizeChanged(viewport_size, size.video_pixel_ratio);
 }
