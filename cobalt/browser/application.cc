@@ -342,6 +342,7 @@ float GetDiagonal(SbWindow window) {
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
   return SbWindowGetDiagonialSizeInInches(window);
 #else
+  SB_UNREFERENCED_PARAMETER(window);
   return 0.0f;  // Special value meaning diagonal size is not known.
 #endif
 }
