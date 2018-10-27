@@ -92,7 +92,17 @@ def main(argv):
     logging.info('%s => %s', dst_path, rel_path)
 
     if not os.path.exists(dst_dir):
-      os.makedirs(dst_dir)
+      try:
+        os.makedirs(dst_dir)
+      except Exception as err:
+        msg = 'Error: ' + str(err)
+        if os.path.isdir(dst_dir):
+          msg += ' path is a directory'
+        elif os.path.isfile(dst_dir):
+          msg += ' path is a file'
+        else:
+          msg += ' path points to an unknown type'
+        logging.error(msg)
 
     if _USE_WINDOWS_SYMLINK:
       win_symlink.CreateReparsePoint(src_path, dst_path)
