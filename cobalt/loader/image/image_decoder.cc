@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/image_decoder_starboard.h"
@@ -23,8 +24,10 @@
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
+#include "cobalt/loader/switches.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_status_code.h"
+#include "starboard/configuration.h"
 #include "starboard/image.h"
 
 namespace cobalt {
@@ -313,8 +316,17 @@ scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     return make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeJPEG) {
-    return make_scoped_ptr<ImageDataDecoder>(
-        new JPEGImageDecoder(resource_provider));
+    bool force_image_decoding_to_single_plane =
+        CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kForceImageDecodingToSinglePlane);
+#if SB_HAS(BLITTER)
+    // Force decoding to single plane because blitter platforms usually don't
+    // have the ability to perform hardware accelerated YUV-formatted image
+    // blitting.
+    force_image_decoding_to_single_plane = true;
+#endif  // SB_HAS(BLITTER)
+    return make_scoped_ptr<ImageDataDecoder>(new JPEGImageDecoder(
+        resource_provider, force_image_decoding_to_single_plane));
   } else if (image_type == ImageDecoder::kImageTypePNG) {
     return make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));

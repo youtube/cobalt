@@ -20,6 +20,7 @@
 #include "base/memory/aligned_memory.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace renderer {
@@ -42,12 +43,32 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
     DCHECK(bgra_supported);
   }
 
-  DCHECK_EQ(size.width() * BytesPerPixelForGLFormat(format), pitch_in_bytes);
+  scoped_ptr_malloc<uint8_t, base::ScopedPtrAlignedFree>
+      buffer_for_pitch_adjustment;
+  auto width_in_bytes = size.width() * BytesPerPixelForGLFormat(format);
+  if (width_in_bytes != pitch_in_bytes) {
+    // In case the source image data is not packed tightly, we must reformat it
+    // such that the pitch matches the width before passing it to glTexImage2D.
+    buffer_for_pitch_adjustment.reset(static_cast<uint8_t*>(
+        base::AlignedAlloc(width_in_bytes * size.height(), 8)));
+    for (int i = 0; i < size.height(); ++i) {
+      SbMemoryCopy(buffer_for_pitch_adjustment.get() + i * width_in_bytes,
+                   data + i * pitch_in_bytes, width_in_bytes);
+    }
+    data = reinterpret_cast<uint8_t*>(buffer_for_pitch_adjustment.get());
+  }
+
+  GLint original_texture_alignment;
+  glGetIntegerv(GL_UNPACK_ALIGNMENT, &original_texture_alignment);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
   glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0, format,
                GL_UNSIGNED_BYTE, data);
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, original_texture_alignment);
+
   if (glGetError() != GL_NO_ERROR) {
     LOG(ERROR) << "Error calling glTexImage2D(size = (" << size.width() << ", "
                << size.height() << "))";

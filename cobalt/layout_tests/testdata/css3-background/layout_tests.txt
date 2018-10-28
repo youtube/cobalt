@@ -28,6 +28,7 @@
 14-2-1-background-with-image-repeat-position
 14-2-1-background-with-image-repeat-position-color
 14-2-1-background-with-opaque-image-color
+14-2-1-background-with-opaque-image-transform
 14-2-1-background-with-position-color
 14-2-1-background-with-position-color-image
 14-2-1-background-with-position-color-image-repeat

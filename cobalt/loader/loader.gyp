@@ -85,6 +85,8 @@
         'net_fetcher.cc',
         'net_fetcher.h',
         'resource_cache.h',
+        'switches.cc',
+        'switches.h',
         'sync_loader.cc',
         'sync_loader.h',
         'text_decoder.h',

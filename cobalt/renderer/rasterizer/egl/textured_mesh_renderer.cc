@@ -79,9 +79,14 @@ const float kIdentityColorMatrix[16] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
                                         0.0f, 0.0f, 0.0f, 1.0f};
 
 // Used for YUV images.
+const float kBT601FullRangeColorMatrix[16] = {
+    1.0f, 0.0f,   1.402f, -0.701,  1.0f, -0.34414f, -0.71414f, 0.529f,
+    1.0f, 1.772f, 0.0f,   -0.886f, 0.0f, 0.0f,      0.0f,      1.f};
+
+// Used for YUV images.
 const float kBT709ColorMatrix[16] = {
     1.164f, 0.0f,   1.793f, -0.96925f, 1.164f, -0.213f, -0.533f, 0.30025f,
-    1.164f, 2.112f, 0.0f,   -1.12875f, 0.0f,   0.0f,    0.0f,    1.0};
+    1.164f, 2.112f, 0.0f,   -1.12875f, 0.0f,   0.0f,    0.0f,    1.0f};
 
 // Used for 10bit unnormalized YUV images.
 const float k10BitBT2020ColorMatrix[16] = {64 * 1.163746465f,
@@ -106,6 +111,9 @@ const float* GetColorMatrixForImageType(
   switch (type) {
     case TexturedMeshRenderer::Image::RGBA: {
       return kIdentityColorMatrix;
+    } break;
+    case TexturedMeshRenderer::Image::YUV_3PLANE_BT601_FULL_RANGE: {
+      return kBT601FullRangeColorMatrix;
     } break;
     case TexturedMeshRenderer::Image::YUV_2PLANE_BT709:
     case TexturedMeshRenderer::Image::YUV_3PLANE_BT709:
@@ -543,8 +551,9 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
             color_matrix, texture_infos,
             CreateFragmentShader(texture_target, texture_infos));
       } break;
-      case Image::YUV_3PLANE_10BIT_BT2020:
-      case Image::YUV_3PLANE_BT709: {
+      case Image::YUV_3PLANE_BT601_FULL_RANGE:
+      case Image::YUV_3PLANE_BT709:
+      case Image::YUV_3PLANE_10BIT_BT2020: {
         std::vector<TextureInfo> texture_infos;
 #if SB_API_VERSION >= 7 && defined(GL_RED_EXT)
         if (image.textures[0].texture->GetFormat() == GL_RED_EXT) {
