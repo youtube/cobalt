@@ -47,7 +47,7 @@ namespace skia {
 
 HardwareResourceProvider::HardwareResourceProvider(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    SubmitOffscreenCallback submit_offscreen_callback,
+    const SubmitOffscreenCallback& submit_offscreen_callback,
     bool purge_skia_font_caches_on_destruction)
     : cobalt_context_(cobalt_context),
       gr_context_(gr_context),
@@ -424,6 +424,9 @@ HardwareResourceProvider::CreateMultiPlaneImageFromRawMemory(
               descriptor.image_format() &&
           2 == descriptor.num_planes()) ||
          (render_tree::kMultiPlaneImageFormatYUV3PlaneBT709 ==
+              descriptor.image_format() &&
+          3 == descriptor.num_planes()) ||
+         (render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange ==
               descriptor.image_format() &&
           3 == descriptor.num_planes()))
       << "Currently we only support 2-plane or 3-plane YUV multi plane images.";
