@@ -34,13 +34,25 @@ namespace image {
 
 class JPEGImageDecoder : public ImageDataDecoder {
  public:
-  explicit JPEGImageDecoder(render_tree::ResourceProvider* resource_provider);
+  // Pass true to |force_image_decoding_to_single_plane| on platform that cannot
+  // render multi plane images efficiently, so the decoded output will always be
+  // in RGBA or BGRA.  Otherwise the decoder will try to produce output in J420
+  // whenever possible, which saves both decoding time and memory footprint.
+  JPEGImageDecoder(render_tree::ResourceProvider* resource_provider,
+                   bool force_image_decoding_to_single_plane);
   ~JPEGImageDecoder() override;
 
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "JPEGImageDecoder"; }
 
  private:
+  enum OutputFormat {
+    kOutputFormatInvalid,
+    kOutputFormatJ420,
+    kOutputFormatRGBA,
+    kOutputFormatBGRA,
+  };
+
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t size) override;
   scoped_refptr<Image> FinishInternal() override;
@@ -48,13 +60,29 @@ class JPEGImageDecoder : public ImageDataDecoder {
   bool ReadHeader();
   bool StartDecompress();
   bool DecodeProgressiveJPEG();
+  bool ReadJ420Lines();
+  bool ReadRgbaOrGbraLines();
   bool ReadLines();
+
+  const bool force_image_decoding_to_single_plane_;
 
   jpeg_decompress_struct info_;
   jpeg_source_mgr source_manager_;
   jpeg_error_mgr error_manager_;
 
+  OutputFormat output_format_ = kOutputFormatInvalid;
+
+  // This is only used when |output_format_| is kOutputFormatRGBA or
+  // kOutputFormatBGRA.
   scoped_ptr<render_tree::ImageData> decoded_image_data_;
+
+  // All the following variables are only valid when |output_format_| is
+  // kOutputFormatJ420.
+  scoped_ptr<render_tree::RawImageMemory> raw_image_memory_;
+
+  // Width/height of y plane, aligned to |kDctScaleSize| * |sample factor|.
+  JDIMENSION y_plane_width_ = 0;
+  JDIMENSION y_plane_height_ = 0;
 };
 
 }  // namespace image

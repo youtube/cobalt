@@ -27,7 +27,41 @@ namespace image {
 
 namespace {
 
-JDIMENSION kInvalidHeight = 0xFFFFFF;
+const JDIMENSION kInvalidHeight = 0xFFFFFF;
+const JDIMENSION kDctScaleSize = 8;
+
+JDIMENSION AlignUp(JDIMENSION value, JDIMENSION alignment) {
+  return (value + alignment - 1) / alignment * alignment;
+}
+
+bool CanDecodeIntoJ420(const jpeg_decompress_struct& decompress_info) {
+  auto comp_infos = decompress_info.cur_comp_info;
+  // Only images encoded to YCbCr in three planes are supported.
+  if (decompress_info.jpeg_color_space != JCS_YCbCr ||
+      decompress_info.comps_in_scan != 3) {
+    return false;
+  }
+  // Our renderer may shift the U/V pixels for images in odd dimensions.
+  if (decompress_info.image_width % 2 != 0 ||
+      decompress_info.image_height % 2 != 0) {
+    return false;
+  }
+  // Ensure that it is YUV 420.
+  if (comp_infos[0]->h_samp_factor != 2 || comp_infos[0]->v_samp_factor != 2 ||
+      comp_infos[1]->h_samp_factor != 1 || comp_infos[1]->v_samp_factor != 1 ||
+      comp_infos[2]->h_samp_factor != 1 || comp_infos[2]->v_samp_factor != 1 ||
+      decompress_info.max_h_samp_factor != 2 ||
+      decompress_info.max_v_samp_factor != 2) {
+    return false;
+  }
+  // Ensure that the DCT block size is expected.
+  if (comp_infos[0]->DCT_scaled_size != kDctScaleSize ||
+      comp_infos[1]->DCT_scaled_size != kDctScaleSize ||
+      comp_infos[2]->DCT_scaled_size != kDctScaleSize) {
+    return false;
+  }
+  return true;
+}
 
 void ErrorManagerExit(j_common_ptr common_ptr) {
   // Returns the control to the setjmp point. The buffer which is filled by a
@@ -81,8 +115,11 @@ void SourceManagerSkipInputData(j_decompress_ptr decompress_ptr,
 }  // namespace
 
 JPEGImageDecoder::JPEGImageDecoder(
-    render_tree::ResourceProvider* resource_provider)
-    : ImageDataDecoder(resource_provider) {
+    render_tree::ResourceProvider* resource_provider,
+    bool force_image_decoding_to_single_plane)
+    : ImageDataDecoder(resource_provider),
+      force_image_decoding_to_single_plane_(
+          force_image_decoding_to_single_plane) {
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::JPEGImageDecoder()");
   TRACK_MEMORY_SCOPE("Rendering");
   memset(&info_, 0, sizeof(info_));
@@ -128,7 +165,7 @@ size_t JPEGImageDecoder::DecodeChunkInternal(const uint8* data,
   // from setjmp indicates whether control reached that point normally or from a
   // call to longjmp. If the return is from a direct invocation, setjmp returns
   // 0. If the return is from a call to longjmp, setjmp returns a nonzero value.
-MSVC_PUSH_DISABLE_WARNING(4611);
+  MSVC_PUSH_DISABLE_WARNING(4611);
   // warning C4611: interaction between '_setjmp' and C++ object destruction is
   // non-portable.
   if (setjmp(jump_buffer)) {
@@ -137,7 +174,7 @@ MSVC_PUSH_DISABLE_WARNING(4611);
     set_state(kError);
     return 0;
   }
-MSVC_POP_WARNING();
+  MSVC_POP_WARNING();
 
   // Next byte to read from buffer.
   info_.src->next_input_byte = reinterpret_cast<const JOCTET*>(data);
@@ -181,10 +218,50 @@ MSVC_POP_WARNING();
 scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
   if (state() != kDone) {
     decoded_image_data_.reset();
+    raw_image_memory_.reset();
     return NULL;
   }
-  SB_DCHECK(decoded_image_data_);
-  return CreateStaticImage(decoded_image_data_.Pass());
+
+  SB_DCHECK(output_format_ != kOutputFormatInvalid);
+
+  if (output_format_ == kOutputFormatRGBA ||
+      output_format_ == kOutputFormatBGRA) {
+    SB_DCHECK(decoded_image_data_);
+    return CreateStaticImage(decoded_image_data_.Pass());
+  }
+
+  SB_DCHECK(output_format_ == kOutputFormatJ420);
+  SB_DCHECK(raw_image_memory_);
+
+  render_tree::MultiPlaneImageDataDescriptor descriptor(
+      render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange);
+
+  auto uv_plane_width = y_plane_width_ / 2;
+  auto uv_plane_height = y_plane_height_ / 2;
+  auto y_plane_size = y_plane_width_ * y_plane_height_;
+  auto uv_plane_size = uv_plane_width * uv_plane_height;
+
+  math::Size plane_size(info_.image_width, info_.image_height);
+  descriptor.AddPlane(
+      0, render_tree::ImageDataDescriptor(
+             plane_size, render_tree::kPixelFormatY8,
+             render_tree::kAlphaFormatPremultiplied, y_plane_width_));
+
+  plane_size.SetSize(plane_size.width() / 2, plane_size.height() / 2);
+  descriptor.AddPlane(y_plane_size, render_tree::ImageDataDescriptor(
+                                        plane_size, render_tree::kPixelFormatU8,
+                                        render_tree::kAlphaFormatPremultiplied,
+                                        uv_plane_width));
+  descriptor.AddPlane(
+      y_plane_size + uv_plane_size,
+      render_tree::ImageDataDescriptor(plane_size, render_tree::kPixelFormatV8,
+                                       render_tree::kAlphaFormatPremultiplied,
+                                       uv_plane_width));
+
+  auto image = resource_provider()->CreateMultiPlaneImageFromRawMemory(
+      raw_image_memory_.Pass(), descriptor);
+  SB_DCHECK(image);
+  return new StaticImage(image);
 }
 
 bool JPEGImageDecoder::ReadHeader() {
@@ -196,6 +273,38 @@ bool JPEGImageDecoder::ReadHeader() {
     info_.global_state = DSTATE_START;
     return false;
   }
+
+  if (!force_image_decoding_to_single_plane_ && CanDecodeIntoJ420(info_)) {
+    output_format_ = kOutputFormatJ420;
+  } else if (pixel_format() == render_tree::kPixelFormatRGBA8) {
+    output_format_ = kOutputFormatRGBA;
+  } else if (pixel_format() == render_tree::kPixelFormatBGRA8) {
+    output_format_ = kOutputFormatBGRA;
+  } else {
+    NOTREACHED() << "Unsupported pixel format: " << pixel_format();
+  }
+  if (output_format_ == kOutputFormatJ420) {
+    info_.out_color_space = JCS_YCbCr;
+    // Enable raw data output to avoid any copying.
+    info_.raw_data_out = TRUE;
+
+    auto y_info = info_.cur_comp_info[0];
+    y_plane_width_ = AlignUp(y_info->width_in_blocks,
+                             static_cast<JDIMENSION>(y_info->h_samp_factor)) *
+                     kDctScaleSize;
+    y_plane_height_ = AlignUp(y_info->height_in_blocks,
+                              static_cast<JDIMENSION>(y_info->v_samp_factor)) *
+                      kDctScaleSize;
+
+    // Raw read mode requires that the output data is aligned to dct block size.
+    auto aligned_size = math::Size(static_cast<int>(y_plane_width_),
+                                   static_cast<int>(y_plane_height_));
+    raw_image_memory_ = resource_provider()->AllocateRawImageMemory(
+        aligned_size.width() * aligned_size.height() * 3 / 2, sizeof(void*));
+    return raw_image_memory_ != NULL;
+  }
+  // TODO: switch libjpeg version to support JCS_RGBA_8888 output.
+  info_.out_color_space = JCS_RGB;
 
   decoded_image_data_ =
       AllocateImageData(math::Size(static_cast<int>(info_.image_width),
@@ -210,9 +319,6 @@ bool JPEGImageDecoder::StartDecompress() {
   // jpeg_has_multiple_scans() returns TRUE if the incoming image file has more
   // than one scan.
   info_.buffered_image = jpeg_has_multiple_scans(&info_);
-
-  // TODO: switch libjpeg version to support JCS_RGBA_8888 output.
-  info_.out_color_space = JCS_RGB;
 
   // Compute output image dimensions
   jpeg_calc_output_dimensions(&info_);
@@ -230,8 +336,8 @@ bool JPEGImageDecoder::StartDecompress() {
 // Progressive JPEG divides the file into a series of scans. It is starting with
 // a very low quality image, and then following scans gradually improve the
 // quality.
-// TODO: support displaying the low resolution image while decoding
-// the progressive JPEG.
+// TODO: support displaying the low resolution image while decoding the
+// progressive JPEG.
 bool JPEGImageDecoder::DecodeProgressiveJPEG() {
   TRACK_MEMORY_SCOPE("Rendering");
   TRACE_EVENT0("cobalt::loader::image",
@@ -270,7 +376,7 @@ bool JPEGImageDecoder::DecodeProgressiveJPEG() {
       return false;
     }
 
-    if (info_.output_scanline == info_.output_height) {
+    if (info_.output_scanline >= info_.output_height) {
       // Finish up after an output pass in buffered-image mode.
       if (!jpeg_finish_output(&info_)) {
         // Decompression is suspended due to
@@ -311,10 +417,46 @@ void FillRow(int width, uint8* dest, JSAMPLE* source) {
   }
 }
 
-bool JPEGImageDecoder::ReadLines() {
+bool JPEGImageDecoder::ReadJ420Lines() {
+  DCHECK(output_format_ == kOutputFormatJ420);
   TRACK_MEMORY_SCOPE("Rendering");
+  TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadJ420Lines()");
 
-  TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadLines()");
+  while (info_.output_scanline < info_.output_height) {
+    JSAMPROW y[kDctScaleSize * 2], u[kDctScaleSize], v[kDctScaleSize];
+    JSAMPARRAY planes[3] = {y, u, v};
+
+    auto offset = info_.output_scanline * y_plane_width_;
+    auto y_plane_size = y_plane_width_ * y_plane_height_;
+
+    uint8* y_plane_addr = raw_image_memory_->GetMemory() + offset;
+    uint8* u_plane_addr =
+        raw_image_memory_->GetMemory() + y_plane_size + offset / 4;
+    uint8* v_plane_addr = raw_image_memory_->GetMemory() + y_plane_size +
+                          y_plane_size / 4 + offset / 4;
+    for (JDIMENSION i = 0; i < kDctScaleSize * 2; ++i) {
+      y[i] = y_plane_addr + y_plane_width_ * i;
+    }
+    for (JDIMENSION i = 0; i < kDctScaleSize; ++i) {
+      u[i] = u_plane_addr + y_plane_width_ / 2 * i;
+      v[i] = v_plane_addr + y_plane_width_ / 2 * i;
+    }
+    auto size = jpeg_read_raw_data(&info_, planes, kDctScaleSize * 2);
+    if (size != kDctScaleSize * 2) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool JPEGImageDecoder::ReadRgbaOrGbraLines() {
+  DCHECK(output_format_ == kOutputFormatRGBA ||
+         output_format_ == kOutputFormatBGRA);
+
+  TRACK_MEMORY_SCOPE("Rendering");
+  TRACE_EVENT0("cobalt::loader::image",
+               "JPEGImageDecoder::ReadRgbaOrGbraLines()");
 
   // Creation of 2-D sample arrays which is for one row.
   // See the comments in jmemmgr.c.
@@ -345,27 +487,28 @@ bool JPEGImageDecoder::ReadLines() {
         decoded_image_data_->GetDescriptor().pitch_in_bytes * row_index;
 
     JSAMPLE* sample_buffer = *buffer;
-    switch (pixel_format()) {
-      case render_tree::kPixelFormatRGBA8: {
-        FillRow<0, 1, 2, 3>(static_cast<int>(info_.output_width),
-                            pixel_data, sample_buffer);
+    switch (output_format_) {
+      case kOutputFormatRGBA: {
+        FillRow<0, 1, 2, 3>(static_cast<int>(info_.output_width), pixel_data,
+                            sample_buffer);
       } break;
-      case render_tree::kPixelFormatBGRA8: {
-        FillRow<2, 1, 0, 3>(static_cast<int>(info_.output_width),
-                            pixel_data, sample_buffer);
+      case kOutputFormatBGRA: {
+        FillRow<2, 1, 0, 3>(static_cast<int>(info_.output_width), pixel_data,
+                            sample_buffer);
       } break;
-      case render_tree::kPixelFormatUYVY:
-      case render_tree::kPixelFormatY8:
-      case render_tree::kPixelFormatU8:
-      case render_tree::kPixelFormatV8:
-      case render_tree::kPixelFormatUV8:
-      case render_tree::kPixelFormatInvalid: {
+      case kOutputFormatInvalid:
+      case kOutputFormatJ420: {
         NOTREACHED();
       } break;
     }
   }
 
   return true;
+}
+
+bool JPEGImageDecoder::ReadLines() {
+  return output_format_ == kOutputFormatJ420 ? ReadJ420Lines()
+                                             : ReadRgbaOrGbraLines();
 }
 
 }  // namespace image

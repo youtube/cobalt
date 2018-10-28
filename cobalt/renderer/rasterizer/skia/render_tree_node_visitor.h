@@ -21,6 +21,7 @@
 #include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
@@ -28,6 +29,7 @@
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
+#include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor_draw_state.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 
@@ -67,6 +69,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                               RenderTreeNodeVisitorDrawState* draw_state)>
       RenderImageWithMeshFallbackFunction;
 
+  typedef base::Callback<scoped_refptr<render_tree::Image>(
+      const scoped_refptr<render_tree::Node>& root)>
+      ConvertRenderTreeToImageCallback;
+
   enum Type {
     kType_Normal,
     kType_SubVisitor,
@@ -89,6 +95,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       const base::Closure& reset_skia_context_function,
       const RenderImageFallbackFunction& render_image_fallback_function,
       const RenderImageWithMeshFallbackFunction& render_image_with_mesh,
+      const ConvertRenderTreeToImageCallback&
+          convert_render_tree_to_image_function,
       Type visitor_type = kType_Normal);
 
   void Visit(render_tree::animations::AnimateNode* animate_node) override {
@@ -121,6 +129,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   RenderImageFallbackFunction render_image_fallback_function_;
   RenderImageWithMeshFallbackFunction render_image_with_mesh_function_;
+  ConvertRenderTreeToImageCallback convert_render_tree_to_image_function_;
 
   DISALLOW_COPY_AND_ASSIGN(RenderTreeNodeVisitor);
 };
