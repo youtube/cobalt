@@ -86,13 +86,17 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     const base::Closure& reset_skia_context_function,
     const RenderImageFallbackFunction& render_image_fallback_function,
     const RenderImageWithMeshFallbackFunction& render_image_with_mesh_function,
+    const ConvertRenderTreeToImageCallback&
+        convert_render_tree_to_image_function,
     Type visitor_type)
     : draw_state_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
       visitor_type_(visitor_type),
       reset_skia_context_function_(reset_skia_context_function),
       render_image_fallback_function_(render_image_fallback_function),
-      render_image_with_mesh_function_(render_image_with_mesh_function) {}
+      render_image_with_mesh_function_(render_image_with_mesh_function),
+      convert_render_tree_to_image_function_(
+          convert_render_tree_to_image_function) {}
 
 namespace {
 // Returns whether the specified node is within the canvas' bounds or not.
@@ -298,7 +302,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
     RenderTreeNodeVisitor sub_visitor(
         canvas, create_scratch_surface_function_, reset_skia_context_function_,
         render_image_fallback_function_, render_image_with_mesh_function_,
-        kType_SubVisitor);
+        convert_render_tree_to_image_function_, kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -664,23 +668,36 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
-  if (!image->CanRenderInSkia()) {
-    render_image_fallback_function_.Run(image_node, &draw_state_);
-  } else {
+  auto& local_transform = image_node->data().local_transform;
+
+  scoped_refptr<render_tree::Image> fallback_image;
+  if (!image->CanRenderInSkia() &&
+      !math::IsOnlyScaleAndTranslate(local_transform)) {
+    // For anything beyond simply scale and translate.  Convert the image to
+    // single plane image and use the skia pipeline.
+    fallback_image = convert_render_tree_to_image_function_.Run(
+        new render_tree::ImageNode(image));
+    image = base::polymorphic_downcast<skia::Image*>(fallback_image.get());
+    DCHECK(image->CanRenderInSkia());
+  }
+
+  if (image->CanRenderInSkia()) {
     if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
       SinglePlaneImage* single_plane_image =
           base::polymorphic_downcast<SinglePlaneImage*>(image);
 
       RenderSinglePlaneImage(single_plane_image, &draw_state_,
                              image_node->data().destination_rect,
-                             &(image_node->data().local_transform));
+                             &local_transform);
     } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
       RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
                             &draw_state_, image_node->data().destination_rect,
-                            &(image_node->data().local_transform));
+                            &local_transform);
     } else {
       NOTREACHED();
     }
+  } else {
+    render_image_fallback_function_.Run(image_node, &draw_state_);
   }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
