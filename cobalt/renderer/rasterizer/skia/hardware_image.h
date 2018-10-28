@@ -21,6 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
@@ -203,6 +204,11 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
       const std::vector<scoped_refptr<HardwareFrontendImage> >& planes);
 
   const math::Size& GetSize() const override { return size_; }
+
+  uint32 GetEstimatedSizeInBytes() const override {
+    return estimated_size_in_bytes_;
+  }
+
   render_tree::MultiPlaneImageFormat GetFormat() const override {
     return format_;
   }
@@ -233,6 +239,7 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
   ~HardwareMultiPlaneImage() override;
 
   const math::Size size_;
+  uint32 estimated_size_in_bytes_;
 
   render_tree::MultiPlaneImageFormat format_;
 

@@ -95,7 +95,8 @@ void SoftwareRasterizer::Impl::Submit(
     RenderTreeNodeVisitor visitor(
         render_target, &create_scratch_surface_function, base::Closure(),
         RenderTreeNodeVisitor::RenderImageFallbackFunction(),
-        RenderTreeNodeVisitor::RenderImageWithMeshFallbackFunction());
+        RenderTreeNodeVisitor::RenderImageWithMeshFallbackFunction(),
+        RenderTreeNodeVisitor::ConvertRenderTreeToImageCallback());
 
     // Finally, rasterize the render tree to the output canvas using the
     // rasterizer we just created.

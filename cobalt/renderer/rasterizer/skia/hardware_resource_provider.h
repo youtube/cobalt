@@ -37,10 +37,10 @@ namespace skia {
 // on the thread that will be visiting submitted render trees.
 class HardwareResourceProvider : public render_tree::ResourceProvider {
  public:
-  HardwareResourceProvider(backend::GraphicsContextEGL* cobalt_context,
-                           GrContext* gr_context,
-                           SubmitOffscreenCallback submit_offscreen_callback,
-                           bool purge_skia_font_caches_on_destruction);
+  HardwareResourceProvider(
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+      const SubmitOffscreenCallback& submit_offscreen_callback,
+      bool purge_skia_font_caches_on_destruction);
   ~HardwareResourceProvider() override;
 
   base::TypeId GetTypeId() const override {

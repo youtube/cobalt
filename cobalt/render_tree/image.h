@@ -121,10 +121,17 @@ class RawImageMemory {
 // decoders.
 enum MultiPlaneImageFormat {
   // A YUV image where each channel, Y, U and V, is stored as a separate
-  // single-channel image plane.
+  // single-channel image plane.  Its pixels are mapped to RGB using BT. 601
+  // standard.  Each of the channel is represented by a value between [0, 255].
+  kMultiPlaneImageFormatYUV3PlaneBT601FullRange,
+  // A YUV image where each channel, Y, U and V, is stored as a separate
+  // single-channel image plane.  Its pixels are mapped to RGB using BT. 709
+  // standard.  Each of the channel is represented by a value between [16, 235].
   kMultiPlaneImageFormatYUV3PlaneBT709,
   // A YUV image where the Y channel is stored as a single-channel image plane
-  // and the U and V channels are interleaved in a second image plane.
+  // and the U and V channels are interleaved in a second image plane.  Its
+  // pixels are mapped to RGB using BT. 709 standard.  Each of the channel is
+  // represented by a value between [16, 235].
   kMultiPlaneImageFormatYUV2PlaneBT709,
   // A YUV image where each channel, Y, U and V, is stored as a separate
   // single-channel 10bit unnormalized image plane.
