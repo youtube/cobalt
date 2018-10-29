@@ -70,7 +70,7 @@
             'remote/debug_web_server.h',
           ],
           'dependencies': [
-            'devtools/devtools.gyp:devtools',
+            'remote/devtools/devtools.gyp:devtools',
           ],
           'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
           'all_dependent_settings': {
