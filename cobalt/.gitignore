@@ -4,4 +4,4 @@
 *.tmp
 .DS_Store
 gomacc.lock
-/debug/devtools
+/debug/remote/devtools
