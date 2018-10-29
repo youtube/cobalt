@@ -190,7 +190,8 @@ void VideoDecoderImpl<FFMPEG>::Reset() {
   }
 
   decltype(frames_) frames;
-  frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
+  ScopedLock lock(decode_target_mutex_);
+  frames_.swap(frames);
 }
 
 bool VideoDecoderImpl<FFMPEG>::is_valid() const {
