@@ -1224,7 +1224,7 @@
       'target_name': 'frontend_protocol_sources',
       'type': 'none',
       'dependencies': [
-        '<(DEPTH)/cobalt/debug/inspector_protocol/inspector_protocol.gyp:inspector_protocol'
+        '../inspector_protocol/inspector_protocol.gyp:inspector_protocol'
       ],
       'actions': [{
         'action_name': 'code_generator_frontend',

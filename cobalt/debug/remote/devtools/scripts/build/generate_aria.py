@@ -8,7 +8,8 @@ import os.path
 import sys
 
 PYJSON5_DIR = os.path.join(os.path.dirname(__file__),
-                           '..', '..', '..', '..', '..', 'third_party', 'pyjson5')
+                           '..', '..', '..', '..', '..', '..',
+                           'third_party', 'pyjson5')
 sys.path.append(PYJSON5_DIR)
 
 import json5  # pylint: disable=import-error
