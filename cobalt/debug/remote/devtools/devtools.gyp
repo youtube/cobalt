@@ -1185,7 +1185,7 @@
         'action_name': 'generate_supported_css',
         'variables': {
           'script_path': 'scripts/build/generate_supported_css.py',
-          'input_files': [ '../inspector_protocol/CSSProperties.json5' ],
+          'input_files': [ 'inspector_protocol/CSSProperties.json5' ],
           'output_file': '<(resources_out_dir)/SupportedCSSProperties.js',
         },
         'inputs': [ '<(script_path)', '<@(input_files)' ],
@@ -1206,7 +1206,7 @@
         'action_name': 'generate_aria',
         'variables': {
           'script_path': 'scripts/build/generate_aria.py',
-          'input_files': [ '../inspector_protocol/aria_properties.json5' ],
+          'input_files': [ 'inspector_protocol/aria_properties.json5' ],
           'output_file': '<(resources_out_dir)/accessibility/ARIAProperties.js',
         },
         'inputs': [ '<(script_path)', '<@(input_files)' ],
@@ -1224,13 +1224,13 @@
       'target_name': 'frontend_protocol_sources',
       'type': 'none',
       'dependencies': [
-        '../inspector_protocol/inspector_protocol.gyp:inspector_protocol'
+        'inspector_protocol/inspector_protocol.gyp:inspector_protocol'
       ],
       'actions': [{
         'action_name': 'code_generator_frontend',
         'variables': {
           'script_path': 'scripts/build/code_generator_frontend.py',
-          'input_files': [ '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/inspector_protocol.json' ],
+          'input_files': [ '<(SHARED_INTERMEDIATE_DIR)/cobalt/debug/remote/inspector_protocol/inspector_protocol.json' ],
           'output_file': '<(resources_out_dir)/InspectorBackendCommands.js',
         },
         'inputs': [ '<(script_path)', '<@(input_files)' ],
