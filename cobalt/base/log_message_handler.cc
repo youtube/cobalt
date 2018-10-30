@@ -15,6 +15,7 @@
 #include "cobalt/base/log_message_handler.h"
 
 #include "base/threading/thread_restrictions.h"
+#include "starboard/thread.h"
 
 namespace base {
 
@@ -67,8 +68,15 @@ bool LogMessageHandler::OnLogMessage(int severity, const char* file, int line,
     return false;
   }
 
+  // Ignore recursive calls.
+  static SbThreadId logging_thread = kSbThreadInvalidId;
+  if (logging_thread == SbThreadGetId()) {
+    return false;
+  }
+
   LogMessageHandler* instance = GetInstance();
   AutoLock auto_lock(instance->lock_);
+  logging_thread = SbThreadGetId();
 
   bool suppress = instance->suppress_log_output_;
   for (CallbackMap::const_iterator it = instance->callbacks_.begin();
@@ -78,6 +86,7 @@ bool LogMessageHandler::OnLogMessage(int severity, const char* file, int line,
     }
   }
 
+  logging_thread = kSbThreadInvalidId;
   return suppress;
 }
 
