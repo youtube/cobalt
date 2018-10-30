@@ -108,6 +108,8 @@ void DebugModule::BuildInternal(const ConstructionData& data,
         new ConsoleComponent(debug_dispatcher_.get(), data.console));
   }
 
+  log_component_.reset(new LogComponent(debug_dispatcher_.get()));
+
   dom_component_.reset(
       new DOMComponent(debug_dispatcher_.get(), dom_render_layer.Pass()));
 
