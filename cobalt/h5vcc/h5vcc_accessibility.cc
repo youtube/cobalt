@@ -62,10 +62,11 @@ H5vccAccessibility::H5vccAccessibility(
     dom::MutationObserverTaskManager* mutation_observer_task_manager)
     : event_dispatcher_(event_dispatcher) {
   message_loop_proxy_ = base::MessageLoopProxy::current();
+  on_application_event_callback_ = base::Bind(
+      &H5vccAccessibility::OnApplicationEvent, base::Unretained(this));
   event_dispatcher_->AddEventCallback(
       base::AccessibilitySettingsChangedEvent::TypeId(),
-      base::Bind(&H5vccAccessibility::OnApplicationEvent,
-                 base::Unretained(this)));
+      on_application_event_callback_);
   if (ShouldForceTextToSpeech()) {
 #if SB_HAS(SPEECH_SYNTHESIS)
     // Create a StarboardTTSEngine if the platform has speech synthesis.
@@ -86,6 +87,12 @@ H5vccAccessibility::H5vccAccessibility(
     screen_reader_.reset(new accessibility::ScreenReader(
         window->document(), tts_engine_.get(), mutation_observer_task_manager));
   }
+}
+
+H5vccAccessibility::~H5vccAccessibility() {
+  event_dispatcher_->RemoveEventCallback(
+      base::AccessibilitySettingsChangedEvent::TypeId(),
+      on_application_event_callback_);
 }
 
 bool H5vccAccessibility::built_in_screen_reader() const {
