@@ -119,18 +119,22 @@ DebuggerClient.prototype.evaluateCallback = function(result) {
 DebuggerClient.prototype.sendCommand = function(method, commandParams,
                                                 callback) {
   var jsonParams = JSON.stringify(commandParams);
-  var responseCallback = this.responseCallback.bind(this, callback);
+  var responseCallback = this.responseCallback.bind(this, method, callback);
   debugHub.debugger.sendCommand(method, jsonParams, responseCallback);
 }
 
 // All command responses are routed through this method. Parses the JSON
 // response from the debug dispatcher, checks for errors and passes on to the
 // command-specific callback to handle the result.
-DebuggerClient.prototype.responseCallback = function(callback, responseString) {
+DebuggerClient.prototype.responseCallback = function(method, callback,
+                                                     responseString) {
   var response = JSON.parse(responseString);
 
   if (response && response.error) {
-    printToMessageLog(messageLog.ERROR, 'Error: ' + response.error.message);
+    printToMessageLog(
+        messageLog.ERROR,
+        '[ERROR(' + response.error.code + '):' + method + '] ' +
+            response.error.message);
   } else if (callback) {
     if (response) {
       callback(response.result);
