@@ -149,6 +149,7 @@
       '<(DEPTH)/starboard/shared/posix/socket_set_tcp_keep_alive.cc',
       '<(DEPTH)/starboard/shared/posix/socket_set_tcp_no_delay.cc',
       '<(DEPTH)/starboard/shared/posix/socket_set_tcp_window_scaling.cc',
+      '<(DEPTH)/starboard/shared/posix/storage_write_record.cc',
       '<(DEPTH)/starboard/shared/posix/string_compare_no_case.cc',
       '<(DEPTH)/starboard/shared/posix/string_compare_no_case_n.cc',
       '<(DEPTH)/starboard/shared/posix/string_compare_wide.cc',
@@ -213,7 +214,6 @@
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_get_record_size.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_open_record.cc',
       '<(DEPTH)/starboard/shared/starboard/file_storage/storage_read_record.cc',
-      '<(DEPTH)/starboard/shared/starboard/file_storage/storage_write_record.cc',
       '<(DEPTH)/starboard/shared/starboard/log_message.cc',
       '<(DEPTH)/starboard/shared/starboard/log_raw_dump_stack.cc',
       '<(DEPTH)/starboard/shared/starboard/log_raw_format.cc',
@@ -314,6 +314,7 @@
       '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
       '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
+      '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
     ],
     'starboard_platform_dependencies': [
       '<(DEPTH)/starboard/common/common.gyp:common',
