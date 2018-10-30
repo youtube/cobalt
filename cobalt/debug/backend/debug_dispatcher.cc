@@ -116,7 +116,8 @@ void DebugDispatcher::DispatchCommand(Command command) {
     command.SendResponse(response);
   } else {
     DLOG(WARNING) << "Command not implemented: " << command.GetMethod();
-    command.SendErrorResponse("Command not implemented");
+    command.SendErrorResponse(Command::kMethodNotFound,
+                              "Command not implemented");
   }
 }
 
