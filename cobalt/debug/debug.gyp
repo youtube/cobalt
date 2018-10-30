@@ -34,6 +34,8 @@
         'backend/dom_component.h',
         'backend/javascript_debugger_component.cc',
         'backend/javascript_debugger_component.h',
+        'backend/log_component.cc',
+        'backend/log_component.h',
         'backend/page_component.cc',
         'backend/page_component.h',
         'backend/render_layer.cc',

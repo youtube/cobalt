@@ -291,17 +291,6 @@ function onKeypress(event) {
   }
 }
 
-function onLogMessage(severity, file, line, messageStart, str) {
-  printToMessageLog(severity, str);
-}
-
-function addLogMessageCallback() {
-  var debugHub = window.debugHub;
-  if (debugHub) {
-    debugHub.setLogMessageCallback(onLogMessage);
-  }
-}
-
 function onInput(event) {
   console.log('In DebugConsole onInput, event.data ' + event.data);
   var mode = window.debugHub.getDebugConsoleMode();
@@ -320,7 +309,6 @@ function start() {
   showConsole(false);
   createConsoleValues();
   initDebugCommands();
-  addLogMessageCallback();
   document.addEventListener('wheel', onWheel);
   document.addEventListener('keypress', onKeypress);
   document.addEventListener('keydown', onKeydown);
