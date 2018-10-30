@@ -28,20 +28,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Helper class to implement the SbSpeechSynthesis* Starboard API for Audio accessiblity.
+ * Helper class to implement the SbSpeechSynthesis* Starboard API for Audio accessibility.
  *
  * <p>This class is intended to be a singleton in the system. It creates a single static Handler
  * thread in lieu of other synchronization options.
  */
-class CobaltTextToSpeechHelper implements
-    TextToSpeech.OnInitListener,
-    AccessibilityManager.AccessibilityStateChangeListener,
-    AccessibilityManager.TouchExplorationStateChangeListener {
+class CobaltTextToSpeechHelper
+    implements TextToSpeech.OnInitListener,
+        AccessibilityManager.AccessibilityStateChangeListener,
+        AccessibilityManager.TouchExplorationStateChangeListener {
   private final Context context;
   private final Runnable stopRequester;
   private final HandlerThread thread;
   private final Handler handler;
-  private final TextToSpeech ttsEngine;
+
+  // The TTS engine should be used only on the background thread.
+  private TextToSpeech ttsEngine;
 
   private boolean wasScreenReaderEnabled;
 
@@ -63,7 +65,6 @@ class CobaltTextToSpeechHelper implements
     thread = new HandlerThread("CobaltTextToSpeechHelper");
     thread.start();
     handler = new Handler(thread.getLooper());
-    ttsEngine = new TextToSpeech(context, this);
 
     AccessibilityManager accessibilityManager =
         (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
@@ -73,8 +74,17 @@ class CobaltTextToSpeechHelper implements
   }
 
   public void shutdown() {
-    ttsEngine.shutdown();
-    thread.quit();
+
+    handler.post(
+        new Runnable() {
+          @Override
+          public void run() {
+            if (ttsEngine != null) {
+              ttsEngine.shutdown();
+            }
+          }
+        });
+    thread.quitSafely();
 
     AccessibilityManager accessibilityManager =
         (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
@@ -115,16 +125,22 @@ class CobaltTextToSpeechHelper implements
   }
 
   /**
-   * Speaks the given text, enqueuing it if something is already speaking.
-   * Java-layer implementation of Starboard's SbSpeechSynthesisSpeak.
+   * Speaks the given text, enqueuing it if something is already speaking. Java-layer implementation
+   * of Starboard's SbSpeechSynthesisSpeak.
    */
   @SuppressWarnings("unused")
   @UsedByNative
   void speak(final String text) {
+
     handler.post(
         new Runnable() {
           @Override
           public void run() {
+
+            if (ttsEngine == null) {
+              ttsEngine = new TextToSpeech(context, CobaltTextToSpeechHelper.this);
+            }
+
             switch (state) {
               case PENDING:
                 pendingUtterances.add(text);
@@ -146,10 +162,7 @@ class CobaltTextToSpeechHelper implements
         });
   }
 
-  /**
-   * Cancels all speaking.
-   * Java-layer implementation of Starboard's SbSpeechSynthesisCancel.
-   */
+  /** Cancels all speaking. Java-layer implementation of Starboard's SbSpeechSynthesisCancel. */
   @SuppressWarnings("unused")
   @UsedByNative
   void cancel() {
@@ -157,7 +170,9 @@ class CobaltTextToSpeechHelper implements
         new Runnable() {
           @Override
           public void run() {
-            ttsEngine.stop();
+            if (ttsEngine != null) {
+              ttsEngine.stop();
+            }
             pendingUtterances.clear();
           }
         });
