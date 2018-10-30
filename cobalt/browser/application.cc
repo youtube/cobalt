@@ -644,10 +644,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
+  on_caption_settings_changed_event_callback_ = base::Bind(
+      &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
-      base::Bind(&Application::OnCaptionSettingsChangedEvent,
-                 base::Unretained(this)));
+      on_caption_settings_changed_event_callback_);
 #endif  // SB_HAS(CAPTIONS)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -709,6 +710,26 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardShownEvent::TypeId(),
+      on_screen_keyboard_shown_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardHiddenEvent::TypeId(),
+      on_screen_keyboard_hidden_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardFocusedEvent::TypeId(),
+      on_screen_keyboard_focused_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardBlurredEvent::TypeId(),
+      on_screen_keyboard_blurred_event_callback_);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_HAS(CAPTIONS)
+  event_dispatcher_.RemoveEventCallback(
+      base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
+      on_caption_settings_changed_event_callback_);
+#endif  // SB_HAS(CAPTIONS)
+
   app_status_ = kShutDownAppStatus;
 }
 
@@ -937,7 +958,6 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
     browser_module_->Navigate(GURL(deep_link_event->link()));
   }
 }
-
 
 #if SB_API_VERSION >= 8
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
