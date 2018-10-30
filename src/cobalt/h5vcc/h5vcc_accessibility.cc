@@ -88,6 +88,13 @@ H5vccAccessibility::H5vccAccessibility(
   }
 }
 
+H5vccAccessibility::~H5vccAccessibility() {
+  event_dispatcher_->RemoveEventCallback(
+      base::AccessibilitySettingsChangedEvent::TypeId(),
+      base::Bind(&H5vccAccessibility::OnApplicationEvent,
+                 base::Unretained(this)));
+}
+
 bool H5vccAccessibility::built_in_screen_reader() const {
   return screen_reader_ && screen_reader_->enabled();
 }

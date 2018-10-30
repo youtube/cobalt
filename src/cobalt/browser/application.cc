@@ -723,6 +723,26 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  event_dispatcher_.RemoveEventCallback(base::OnScreenKeyboardShownEvent::TypeId(),
+                                     on_screen_keyboard_shown_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardHiddenEvent::TypeId(),
+      on_screen_keyboard_hidden_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardFocusedEvent::TypeId(),
+      on_screen_keyboard_focused_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardBlurredEvent::TypeId(),
+      on_screen_keyboard_blurred_event_callback_);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_HAS(CAPTIONS)
+  event_dispatcher_.RemoveEventCallback(
+      base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
+      base::Bind(&Application::OnCaptionSettingsChangedEvent,
+                 base::Unretained(this)));
+#endif  // SB_HAS(CAPTIONS)
+
   app_status_ = kShutDownAppStatus;
 }
 

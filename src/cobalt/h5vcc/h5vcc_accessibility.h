@@ -37,6 +37,7 @@ class H5vccAccessibility : public script::Wrappable {
       base::EventDispatcher* event_dispatcher,
       const scoped_refptr<dom::Window>& window,
       dom::MutationObserverTaskManager* mutation_observer_task_manager);
+  ~H5vccAccessibility();
 
   bool high_contrast_text() const;
   void AddHighContrastTextListener(
