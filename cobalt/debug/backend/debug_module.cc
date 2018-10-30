@@ -40,7 +40,11 @@ DebugModule::DebugModule(dom::Console* console,
   Build(data);
 }
 
-DebugModule::~DebugModule() {}
+DebugModule::~DebugModule() {
+  if (script_debugger_) {
+    script_debugger_->Detach();
+  }
+}
 
 void DebugModule::Build(const ConstructionData& data) {
   DCHECK(data.message_loop);
@@ -110,6 +114,8 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   page_component_.reset(new PageComponent(debug_dispatcher_.get(), data.window,
                                           page_render_layer.Pass(),
                                           data.resource_provider));
+
+  script_debugger_->Attach();
 
   if (created) {
     created->Signal();
