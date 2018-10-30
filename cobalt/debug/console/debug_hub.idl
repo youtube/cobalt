@@ -18,25 +18,14 @@
 [
   Conditional=ENABLE_DEBUG_CONSOLE
 ] interface DebugHub {
-  const long LOG_INFO = 0;
-  const long LOG_WARNING = 1;
-  const long LOG_ERROR = 2;
-  const long LOG_ERROR_REPORT = 3;
-  const long LOG_FATAL = 4;
-
   const long DEBUG_CONSOLE_OFF = 0;
   const long DEBUG_CONSOLE_HUD = 1;
   const long DEBUG_CONSOLE_ON = 2;
 
   readonly attribute Debugger debugger;
 
-  void setLogMessageCallback(LogMessageCallback cb);
-
   DOMString getConsoleValueNames();
   DOMString getConsoleValue(DOMString name);
 
   long getDebugConsoleMode();
 };
-
-callback LogMessageCallback = void(long severity, DOMString file, long line,
-                                   long messageStart, DOMString message);

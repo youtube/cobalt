@@ -25,36 +25,11 @@ namespace cobalt {
 namespace debug {
 namespace console {
 
-namespace {
-class ScopedSetter {
- public:
-  explicit ScopedSetter(bool* to_set) : to_set_(to_set) {
-    DCHECK(to_set_);
-    *to_set_ = true;
-  }
-  ~ScopedSetter() { *to_set_ = false; }
-
- private:
-  bool* to_set_;
-};
-}  // namespace
-
 DebugHub::DebugHub(
     const GetHudModeCallback& get_hud_mode_callback,
     const CreateDebugClientCallback& create_debug_client_callback)
-    : message_loop_(MessageLoop::current()),
-      get_hud_mode_callback_(get_hud_mode_callback),
-      debugger_(new Debugger(create_debug_client_callback)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
-      weak_ptr_(weak_ptr_factory_.GetWeakPtr()),
-      is_logging_(false) {
-  // Get log output while still making it available elsewhere.
-  const base::LogMessageHandler::OnLogMessageCallback on_log_message_callback =
-      base::Bind(&DebugHub::OnLogMessage, base::Unretained(this));
-  log_message_handler_callback_id_ =
-      base::LogMessageHandler::GetInstance()->AddCallback(
-          on_log_message_callback);
-}
+    : get_hud_mode_callback_(get_hud_mode_callback),
+      debugger_(new Debugger(create_debug_client_callback)) {}
 
 DebugHub::~DebugHub() {
   base::LogMessageHandler::GetInstance()->RemoveCallback(
@@ -63,40 +38,6 @@ DebugHub::~DebugHub() {
 
 void DebugHub::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(debugger_);
-}
-
-bool DebugHub::OnLogMessage(int severity, const char* file, int line,
-                            size_t message_start, const std::string& str) {
-  // Don't run recursively.
-  if (MessageLoop::current() == message_loop_ && is_logging_) {
-    return false;
-  }
-
-  message_loop_->PostTask(FROM_HERE,
-                          base::Bind(&DebugHub::OnLogMessageInternal, weak_ptr_,
-                                     severity, file, line, message_start, str));
-
-  // Don't suppress the log message.
-  return false;
-}
-
-void DebugHub::OnLogMessageInternal(int severity, const char* file, int line,
-                                    size_t message_start,
-                                    const std::string& str) {
-  DCHECK(this);
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  if (log_message_callback_) {
-    ScopedSetter scoped_setter(&is_logging_);
-    log_message_callback_->value().Run(severity, file, line, message_start,
-                                       str);
-  }
-}
-
-void DebugHub::SetLogMessageCallback(const LogMessageCallbackArg& callback) {
-  DCHECK(MessageLoop::current() == message_loop_);
-  log_message_callback_.reset(
-      new LogMessageCallbackArg::Reference(this, callback));
 }
 
 // TODO: This function should be modified to return an array of strings instead
