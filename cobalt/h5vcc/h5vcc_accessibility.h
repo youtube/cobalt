@@ -37,6 +37,7 @@ class H5vccAccessibility : public script::Wrappable {
       base::EventDispatcher* event_dispatcher,
       const scoped_refptr<dom::Window>& window,
       dom::MutationObserverTaskManager* mutation_observer_task_manager);
+  ~H5vccAccessibility();
 
   bool high_contrast_text() const;
   void AddHighContrastTextListener(
@@ -58,6 +59,7 @@ class H5vccAccessibility : public script::Wrappable {
 
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
 
+  base::EventCallback on_application_event_callback_;
   base::EventDispatcher* event_dispatcher_;
   scoped_ptr<H5vccAccessibilityCallbackReference> high_contrast_text_listener_;
   scoped_ptr<accessibility::TTSEngine> tts_engine_;
