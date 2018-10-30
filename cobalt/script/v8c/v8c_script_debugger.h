@@ -34,8 +34,8 @@ class V8cScriptDebugger : public ScriptDebugger,
   ~V8cScriptDebugger() override;
 
   // ScriptDebugger implementation.
-  void Attach() override {};
-  void Detach() override {};
+  void Attach() override { attached_ = true; }
+  void Detach() override { attached_ = false; }
 
   bool CanDispatchProtocolMethod(const std::string& method) override;
   void DispatchProtocolMessage(const std::string& message) override;
@@ -73,6 +73,7 @@ class V8cScriptDebugger : public ScriptDebugger,
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   std::unique_ptr<v8_inspector::V8InspectorSession> inspector_session_;
   PauseOnExceptionsState pause_on_exception_state_;
+  bool attached_ = false;
 };
 
 }  // namespace v8c

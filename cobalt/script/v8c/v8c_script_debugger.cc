@@ -82,12 +82,16 @@ void V8cScriptDebugger::DispatchProtocolMessage(const std::string& message) {
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::runMessageLoopOnPause(int contextGroupId) {
   DCHECK(contextGroupId == kContextGroupId);
-  delegate_->OnScriptDebuggerPause();
+  if (attached_) {
+    delegate_->OnScriptDebuggerPause();
+  }
 }
 
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::quitMessageLoopOnPause() {
-  delegate_->OnScriptDebuggerResume();
+  if (attached_) {
+    delegate_->OnScriptDebuggerResume();
+  }
 }
 
 // v8_inspector::V8InspectorClient implementation.
@@ -105,15 +109,19 @@ v8::Local<v8::Context> V8cScriptDebugger::ensureDefaultContextInGroup(
 // v8_inspector::V8Inspector::Channel implementation.
 void V8cScriptDebugger::sendResponse(
     int callId, std::unique_ptr<v8_inspector::StringBuffer> message) {
-  std::string response = FromStringView(message->string());
-  delegate_->OnScriptDebuggerResponse(response);
+  if (attached_) {
+    std::string response = FromStringView(message->string());
+    delegate_->OnScriptDebuggerResponse(response);
+  }
 }
 
 // v8_inspector::V8Inspector::Channel implementation.
 void V8cScriptDebugger::sendNotification(
     std::unique_ptr<v8_inspector::StringBuffer> message) {
-  std::string event = FromStringView(message->string());
-  delegate_->OnScriptDebuggerEvent(event);
+  if (attached_) {
+    std::string event = FromStringView(message->string());
+    delegate_->OnScriptDebuggerEvent(event);
+  }
 }
 
 // Inspired by |CopyCharsUnsigned| in v8/src/utils.h
