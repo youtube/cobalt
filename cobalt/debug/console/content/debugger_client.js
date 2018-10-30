@@ -34,6 +34,7 @@ DebuggerClient.prototype.attach = function() {
     debugHub.debugger.onEvent.addListener(this.onEventCallback);
     debugHub.debugger.attach(this.onAttachCallback);
     this.sendCommand('Console.enable');
+    this.sendCommand('Log.enable');
     this.sendCommand('Runtime.enable');
   } else if (this.attachState == this.DEBUGGER_ATTACHING) {
     printToMessageLog(messageLog.INTERACTIVE,
@@ -165,6 +166,8 @@ DebuggerClient.prototype.onEvent = function(method, paramString) {
     this.onScriptParsed(params);
   } else if (method == 'Inspector.detached') {
     this.onDetached(params);
+  } else if (method == 'Log.browserEntryAdded' || method == 'Log.entryAdded') {
+    this.onLogEntryAdded(params);
   } else if (method == 'Runtime.executionContextCreated') {
     this.onExecutionContextCreated(params);
   }
@@ -179,6 +182,10 @@ DebuggerClient.prototype.onExecutionContextCreated = function(params) {
   this.executionContext = params.context.id;
   printToMessageLog(messageLog.INFO,
                     'Execution context created: ' + this.executionContext);
+}
+
+DebuggerClient.prototype.onLogEntryAdded = function(params) {
+  printToMessageLog(params.entry.level, params.entry.text);
 }
 
 DebuggerClient.prototype.onScriptParsed = function(params) {

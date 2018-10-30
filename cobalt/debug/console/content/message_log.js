@@ -77,12 +77,14 @@ MessageBuffer.prototype.get = function(index) {
 
 // Constructor for the message log object itself.
 function MessageLog(messageContainer) {
-  this.INFO = window.debugHub.LOG_INFO;
-  this.WARNING = window.debugHub.LOG_WARNING;
-  this.ERROR = window.debugHub.LOG_ERROR;
-  this.ERROR_REPORT = window.debugHub.LOG_ERROR_REPORT;
-  this.FATAL = window.debugHub.LOG_FATAL;
-  this.INTERACTIVE = window.debugHub.LOG_FATAL + 1;
+  // Log levels defined by the 'level' property of LogEntry
+  // https://chromedevtools.github.io/devtools-protocol/1-3/Log#type-LogEntry
+  this.VERBOSE = "verbose";
+  this.INFO = "info";
+  this.WARNING = "warning";
+  this.ERROR = "error";
+  // Custom level used internally by the console.
+  this.INTERACTIVE = "interactive";
   // Number of items to display on a single page.
   this.PAGE_SIZE = 50;
   // Number of items to scroll when the user pages up or down.
@@ -127,13 +129,13 @@ MessageLog.prototype.createMessageElement = function(severity, message) {
   elem.style.whiteSpace = 'pre';
   var text = document.createTextNode(message);
 
-  if (severity == this.INFO) {
+  if (severity == this.VERBOSE) {
+    elem.style.color = '#A0A0A0';
+  } else if (severity == this.INFO) {
     elem.style.color = '#A0FFA0';
   } else if (severity == this.WARNING) {
     elem.style.color = '#FFFF80';
-  } else if (severity == this.ERROR ||
-             severity == this.ERROR_REPORT ||
-             severity == this.FATAL) {
+  } else if (severity == this.ERROR) {
     elem.style.color = '#FF9080';
   } else {
     elem.style.color = '#FFFFFF';

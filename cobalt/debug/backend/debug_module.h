@@ -22,6 +22,7 @@
 #include "cobalt/debug/backend/console_component.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/dom_component.h"
+#include "cobalt/debug/backend/log_component.h"
 #include "cobalt/debug/backend/page_component.h"
 #include "cobalt/debug/backend/render_overlay.h"
 #include "cobalt/debug/backend/runtime_component.h"
@@ -107,6 +108,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
 
   // Debug components implement the debugging protocol.
   scoped_ptr<ConsoleComponent> console_component_;
+  scoped_ptr<LogComponent> log_component_;
   scoped_ptr<DOMComponent> dom_component_;
   scoped_ptr<PageComponent> page_component_;
   scoped_ptr<RuntimeComponent> runtime_component_;
