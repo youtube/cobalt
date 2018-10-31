@@ -14,6 +14,8 @@
 
 #include "starboard/image.h"
 
+#include "starboard/shared/libjpeg/jpeg_image_decoder.h"
+
 SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              void* data,
                              int data_size,
@@ -23,6 +25,6 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
     return kSbDecodeTargetInvalid;
   }
 
-  SbDecodeTarget target = kSbDecodeTargetInvalid;
-  return target;
+  return starboard::shared::libjpeg::Decode(
+      provider, format, static_cast<const uint8_t*>(data), data_size);
 }
