@@ -38,14 +38,23 @@ namespace {
 
 using starboard::player::filter::CpuVideoFrame;
 
-struct CreateParams {
+struct CreateParamsForVideoFrame {
   SbDecodeTarget decode_target_out;
   scoped_refptr<CpuVideoFrame> frame;
 };
 
+struct CreateParamsForImage {
+  SbDecodeTarget decode_target_out;
+  const uint8_t* image_data;
+  int width;
+  int height;
+  SbDecodeTargetFormat format;
+};
+
 #if SB_HAS(GLES2)
-void CreateWithContextRunner(void* context) {
-  CreateParams* params = static_cast<CreateParams*>(context);
+void CreateTargetFromVideoFrameWithContextRunner(void* context) {
+  CreateParamsForVideoFrame* params =
+      static_cast<CreateParamsForVideoFrame*>(context);
 
   SB_DCHECK(params->frame);
   SB_DCHECK(params->frame->format() == CpuVideoFrame::kYV12);
@@ -120,6 +129,52 @@ void CreateWithContextRunner(void* context) {
   target_info.width = params->frame->width();
   target_info.height = params->frame->height();
 }
+
+void CreateTargetFromImageWithContextRunner(void* context) {
+  CreateParamsForImage* params = static_cast<CreateParamsForImage*>(context);
+
+  SB_DCHECK(params->image_data);
+
+  // Create the texture
+  GLuint texture;
+  GL_CALL(glGenTextures(1, &texture));
+
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, texture));
+
+  // As part of texture initialization, explicitly specify all parameters.
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+  GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, params->width, params->height,
+                       0, GL_RGBA, GL_UNSIGNED_BYTE, params->image_data));
+
+  GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+  // Create the decode target
+  params->decode_target_out = new SbDecodeTargetPrivate;
+  params->decode_target_out->data = new SbDecodeTargetPrivate::Data;
+
+  SbDecodeTargetInfo& target_info = params->decode_target_out->data->info;
+  target_info.format = params->format;
+  target_info.is_opaque = true;
+
+  SbDecodeTargetInfoPlane& plane = target_info.planes[0];
+  plane.texture = texture;
+  plane.gl_texture_target = GL_TEXTURE_2D;
+
+  plane.content_region.left = 0.0f;
+  plane.content_region.top = 0.0f;
+  plane.content_region.right = static_cast<float>(params->width);
+  plane.content_region.bottom = static_cast<float>(params->height);
+
+  plane.width = params->width;
+  plane.height = params->height;
+
+  target_info.width = params->width;
+  target_info.height = params->height;
+}
 #endif
 
 }  // namespace
@@ -128,7 +183,7 @@ SbDecodeTarget DecodeTargetCreate(
     SbDecodeTargetGraphicsContextProvider* provider,
     scoped_refptr<CpuVideoFrame> frame,
     SbDecodeTarget decode_target) {
-  CreateParams params;
+  CreateParamsForVideoFrame params;
   params.decode_target_out = decode_target;
   params.frame = frame;
 
@@ -141,8 +196,32 @@ SbDecodeTarget DecodeTargetCreate(
     }
     params.decode_target_out = kSbDecodeTargetInvalid;
   } else {
-    SbDecodeTargetRunInGlesContext(provider, &CreateWithContextRunner, &params);
+    SbDecodeTargetRunInGlesContext(
+        provider, &CreateTargetFromVideoFrameWithContextRunner, &params);
   }
+#endif
+
+  return params.decode_target_out;
+}
+
+SbDecodeTarget DecodeTargetCreate(
+    SbDecodeTargetGraphicsContextProvider* provider,
+    const uint8_t* image_data,
+    int width,
+    int height,
+    SbDecodeTargetFormat format) {
+  SB_DCHECK(image_data);
+
+  CreateParamsForImage params;
+  params.decode_target_out = kSbDecodeTargetInvalid;
+  params.image_data = image_data;
+  params.width = width;
+  params.height = height;
+  params.format = format;
+
+#if SB_HAS(GLES2)
+  SbDecodeTargetRunInGlesContext(
+      provider, &CreateTargetFromImageWithContextRunner, &params);
 #endif
 
   return params.decode_target_out;
