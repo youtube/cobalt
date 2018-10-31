@@ -14,13 +14,16 @@
 
 #include "starboard/image.h"
 
+#include "starboard/decode_target.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/string.h"
 
 bool SbImageIsDecodeSupported(const char* mime_type,
                               SbDecodeTargetFormat format) {
-  auto value = Application::Get()->GetCommandLine()->GetSwitch(
-      "enable_sb_image_decoder_on_jpeg");
+  using starboard::shared::starboard::Application;
+
+  auto command_line = Application::Get()->GetCommandLine();
+  auto value = command_line->GetSwitchValue("enable_sb_image_decoder");
   if (value == "false") {
     return false;
   }
