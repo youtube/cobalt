@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5b0af70f_2ff7b04b",
+        "filename": "src/cobalt/browser/application.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 743,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-10-31T01:10:36Z",
+      "side": 1,
+      "message": "This will need to be made in to a non-temporary variable, like the other calls above, or else it will fail to match it properly with the added callback.",
+      "range": {
+        "startLine": 742,
+        "startChar": 6,
+        "endLine": 743,
+        "endChar": 39
+      },
+      "revId": "c83a146c06c7d4d06c01f78f701827085c7fb555",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "997d4516_d1bd9711",
+        "filename": "src/cobalt/h5vcc/h5vcc_accessibility.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 95,
+      "author": {
+        "id": 5081
+      },
+      "writtenOn": "2018-10-31T01:10:36Z",
+      "side": 1,
+      "message": "Like in the other file, this can\u0027t be a temporary variable.",
+      "range": {
+        "startLine": 94,
+        "startChar": 5,
+        "endLine": 95,
+        "endChar": 40
+      },
+      "revId": "c83a146c06c7d4d06c01f78f701827085c7fb555",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
