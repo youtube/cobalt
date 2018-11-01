@@ -35,8 +35,8 @@ def _SigIntOrSigTermHandler(signum, frame):
   Args:
     signum: Signal number that triggered this callback.  Passed in when the
       signal handler is called by python runtime.
-    frame: Current stack frame.  Passed in when the signal handler is called
-      by python runtime.
+    frame: Current stack frame.  Passed in when the signal handler is called by
+      python runtime.
   """
   sys.exit(signum)
 
@@ -48,6 +48,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   _RASPI_USERNAME = 'pi'
   _RASPI_PASSWORD = 'raspberry'
+  _SSH_LOGIN_SIGNAL = 'cobalt-launcher-login-success'
 
   # pexpect times out each second to allow Kill to quickly stop a test run
   _PEXPECT_TIMEOUT = 1
@@ -140,17 +141,25 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.pexpect_process = pexpect.spawn(
         command, timeout=Launcher._PEXPECT_TIMEOUT)
     retry_count = 0
+    expected_prompts = [
+        r'.*Are\syou\ssure.*',  # Fingerprint verification
+        r'\S+ password:',  # Password prompt
+        '.*[a-zA-Z]+.*',  # Any other text input
+    ]
     while True:
-      expected_prompts = [
-          r'.*Are\syou\ssure.*',  # Fingerprint verification
-          r'\S+ password:',  # Password prompt
-      ]
       try:
         i = self.pexpect_process.expect(expected_prompts)
         if i == 0:
           self.pexpect_process.sendline('yes')
-        else:
+        elif i == 1:
           self.pexpect_process.sendline(Launcher._RASPI_PASSWORD)
+          break
+        else:
+          # If any other input comes in, maybe we've logged in with rsa key or
+          # raspi does not have password. Check if we've logged in by echoing
+          # a special sentence and expect it back.
+          self.pexpect_process.sendline('echo ' + Launcher._SSH_LOGIN_SIGNAL)
+          i = self.pexpect_process.expect([Launcher._SSH_LOGIN_SIGNAL])
           break
       except pexpect.TIMEOUT:
         if self.shutdown_initiated.is_set():
