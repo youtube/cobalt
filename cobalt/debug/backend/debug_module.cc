@@ -103,10 +103,8 @@ void DebugModule::BuildInternal(const ConstructionData& data,
     runtime_component_.reset(new RuntimeComponent(debug_dispatcher_.get()));
   }
 
-  if (!script_debugger_component_->IsSupportedDomain("Console")) {
-    console_component_.reset(
-        new ConsoleComponent(debug_dispatcher_.get(), data.console));
-  }
+  console_component_.reset(
+      new ConsoleComponent(debug_dispatcher_.get(), data.console));
 
   log_component_.reset(new LogComponent(debug_dispatcher_.get()));
 

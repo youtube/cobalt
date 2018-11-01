@@ -34,6 +34,9 @@ namespace dom {
 // Although this feature is non-standard and is not on a standards track,
 // WHATWG made an attempt to assess the level of support across browsers at
 // https://github.com/DeveloperToolsWG/console-object.
+//
+// When using V8, its builtin implementation obscures this implementation, but
+// this is still here to support the console when mozjs is the JS engine.
 class Console : public script::Wrappable {
  public:
   enum Level { kDebug, kError, kInfo, kLog, kWarning };

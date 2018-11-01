@@ -85,6 +85,8 @@ function MessageLog(messageContainer) {
   this.ERROR = "error";
   // Custom level used internally by the console.
   this.INTERACTIVE = "interactive";
+  // Prefix on severity for messages from the JS console.
+  this.CONSOLE = '*';
   // Number of items to display on a single page.
   this.PAGE_SIZE = 50;
   // Number of items to scroll when the user pages up or down.
@@ -126,20 +128,16 @@ MessageLog.prototype.createMessageElement = function(severity, message) {
 
   // Create the new text element with the message.
   var elem = document.createElement('div');
-  elem.style.whiteSpace = 'pre';
+  elem.className = 'message';
   var text = document.createTextNode(message);
 
-  if (severity == this.VERBOSE) {
-    elem.style.color = '#A0A0A0';
-  } else if (severity == this.INFO) {
-    elem.style.color = '#A0FFA0';
-  } else if (severity == this.WARNING) {
-    elem.style.color = '#FFFF80';
-  } else if (severity == this.ERROR) {
-    elem.style.color = '#FF9080';
-  } else {
-    elem.style.color = '#FFFFFF';
+  if (severity.startsWith(this.CONSOLE)) {
+    severity = severity.substr(this.CONSOLE.length);
+    elem.classList.add('console');
   }
+
+  elem.classList.add(severity);
+
   elem.appendChild(text);
 
   return elem;

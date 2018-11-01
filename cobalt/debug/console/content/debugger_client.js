@@ -162,12 +162,16 @@ DebuggerClient.prototype.onAttach = function() {
 // the method name.
 DebuggerClient.prototype.onEvent = function(method, paramString) {
   var params = JSON.parse(paramString);
-  if (method == 'Debugger.scriptParsed') {
+  if (method == 'Console.messageAdded') {
+    this.onConsoleMessageAdded(params)
+  } else if (method == 'Debugger.scriptParsed') {
     this.onScriptParsed(params);
   } else if (method == 'Inspector.detached') {
     this.onDetached(params);
   } else if (method == 'Log.browserEntryAdded' || method == 'Log.entryAdded') {
     this.onLogEntryAdded(params);
+  } else if (method == 'Runtime.consoleAPICalled') {
+    this.onConsoleApiCalled(params);
   } else if (method == 'Runtime.executionContextCreated') {
     this.onExecutionContextCreated(params);
   }
@@ -186,6 +190,39 @@ DebuggerClient.prototype.onExecutionContextCreated = function(params) {
 
 DebuggerClient.prototype.onLogEntryAdded = function(params) {
   printToMessageLog(params.entry.level, params.entry.text);
+}
+
+
+DebuggerClient.prototype.onConsoleMessageAdded = function(params) {
+  // Translate Console.messageAdded params to Runtime.consoleAPICalled params.
+  var consoleApiParams = {
+    type: params.message.level,
+    args: [ { type: 'string', value: params.message.text } ]
+  };
+  this.onConsoleApiCalled(consoleApiParams);
+}
+
+DebuggerClient.prototype.onConsoleApiCalled = function(params) {
+  var severity = params.type;
+  if (severity === "assert") {
+    severity = messageLog.ERROR;
+  } else if (severity === "log") {
+    severity = messageLog.INFO;
+  }
+
+  var message = '';
+  if (params.args.length) {
+    var arg = params.args[0];
+    if (arg.unserializableValue) {
+      message = arg.unserializableValue;
+    } else if (typeof arg.value !== 'object' || arg.value === null) {
+      message = arg.value + '';
+    } else if (arg.description) {
+      message = arg.description;
+    }
+  }
+
+  printToMessageLog(messageLog.CONSOLE + severity, message);
 }
 
 DebuggerClient.prototype.onScriptParsed = function(params) {

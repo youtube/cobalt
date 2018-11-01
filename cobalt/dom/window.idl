@@ -42,7 +42,7 @@
   [RaisesException] ByteString atob(DOMString encodedString);
 
   // Custom, not in any spec.
-  //
+  // Note: Our console is obscured by V8's builtin console implementation.
   readonly attribute Console console;
   readonly attribute Camera3D camera3D;
   [Conditional=ENABLE_TEST_RUNNER] readonly attribute TestRunner testRunner;
