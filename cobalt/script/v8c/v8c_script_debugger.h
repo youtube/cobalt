@@ -57,6 +57,12 @@ class V8cScriptDebugger : public ScriptDebugger,
   void quitMessageLoopOnPause() override;
   v8::Local<v8::Context> ensureDefaultContextInGroup(
       int contextGroupId) override;
+  void consoleAPIMessage(int contextGroupId,
+                         v8::Isolate::MessageErrorLevel level,
+                         const v8_inspector::StringView& message,
+                         const v8_inspector::StringView& url,
+                         unsigned lineNumber, unsigned columnNumber,
+                         v8_inspector::V8StackTrace*) override;
 
   // v8_inspector::V8Inspector::Channel implementation.
   void sendResponse(
