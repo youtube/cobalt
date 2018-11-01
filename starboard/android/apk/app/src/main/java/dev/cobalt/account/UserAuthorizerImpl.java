@@ -33,6 +33,7 @@ import android.text.TextUtils;
 import android.widget.Toast;
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
+import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.common.AccountPicker;
 import dev.cobalt.coat.R;
 import dev.cobalt.util.Holder;
@@ -422,6 +423,17 @@ public class UserAuthorizerImpl implements OnAccountsUpdateListener, UserAuthori
     String joinedScopes = "oauth2:" + TextUtils.join(" ", OAUTH_SCOPES);
     try {
       return GoogleAuthUtil.getToken(appContext, account, joinedScopes);
+    } catch (UserRecoverableAuthException e) {
+        Log.w(TAG, "Recoverable error getting OAuth token", e);
+        Intent intent = e.getIntent();
+        Activity activity = activityHolder.get();
+        if (intent != null && activity != null) {
+          activity.startActivity(intent);
+        } else {
+          Log.e(TAG, "Failed to recover OAuth token", e);
+        }
+        return null;
+
     } catch (IOException | GoogleAuthException e) {
       Log.e(TAG, "Error getting auth token", e);
       return null;
