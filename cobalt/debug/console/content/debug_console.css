@@ -57,7 +57,46 @@ body {
 #messageContainer {
   position: absolute;
   bottom: 0.625em;
+  width: 100%;
   font-family: monospace;
+}
+
+.message {
+  white-space: pre-wrap;
+  margin-right: 1em;
+  color: rgb(255, 255, 255);
+}
+
+.message.verbose {
+  color: rgb(160, 160, 160);
+}
+
+.message.verbose.console {
+  background: rgba(80, 80, 80, 0.6);
+}
+
+.message.info {
+  color: rgb(160, 255, 160);
+}
+
+.message.info.console {
+  background: rgba(80, 128, 80, 0.6);
+}
+
+.message.warning {
+  color: rgb(255, 255, 128);
+}
+
+.message.warning.console {
+  background: rgba(128, 128, 64, 0.6);
+}
+
+.message.error {
+  color: rgb(255, 144, 128);
+}
+
+.message.error.console {
+  background: rgba(128, 72, 64, 0.6);
 }
 
 #in {
