@@ -31,8 +31,8 @@ DebuggerClient.prototype.attach = function() {
     printToMessageLog(messageLog.INTERACTIVE,
                       'Attempting to attach to debugger...');
     this.scripts = [];
-    debugHub.debugger.onEvent.addListener(this.onEventCallback);
-    debugHub.debugger.attach(this.onAttachCallback);
+    debugHub.onEvent.addListener(this.onEventCallback);
+    debugHub.attach(this.onAttachCallback);
     this.sendCommand('Console.enable');
     this.sendCommand('Log.enable');
     this.sendCommand('Runtime.enable');
@@ -121,7 +121,7 @@ DebuggerClient.prototype.sendCommand = function(method, commandParams,
                                                 callback) {
   var jsonParams = JSON.stringify(commandParams);
   var responseCallback = this.responseCallback.bind(this, method, callback);
-  debugHub.debugger.sendCommand(method, jsonParams, responseCallback);
+  debugHub.sendCommand(method, jsonParams, responseCallback);
 }
 
 // All command responses are routed through this method. Parses the JSON
@@ -148,7 +148,7 @@ DebuggerClient.prototype.responseCallback = function(method, callback,
 //-- Events.
 
 DebuggerClient.prototype.onAttach = function() {
-  if (debugHub.debugger.lastError) {
+  if (debugHub.lastError) {
     printToMessageLog(messageLog.WARNING, 'Could not attach to debugger.');
     this.attachState = this.DEBUGGER_DETACHED;
   } else {
