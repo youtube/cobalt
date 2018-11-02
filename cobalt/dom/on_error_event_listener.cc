@@ -21,7 +21,6 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/error_event.h"
 #include "cobalt/dom/event_target.h"
-#include "cobalt/dom/script_event_log.h"
 
 namespace cobalt {
 namespace dom {
