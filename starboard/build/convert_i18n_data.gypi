@@ -16,42 +16,47 @@
 # into files of a simpler format (e.g. CSV) in the product directory, e.g.
 # e.g. out/ps4_debug/content/data/i18n.
 #
-# To use this, create a gyp target with the following form:
-# {
-#   'target_name': 'convert_i18n_data',
-#   'type': 'none',
-#   'actions': [
-#     {
-#       'action_name': 'convert_i18n_data',
-#       'variables': {
-#         'input_files':
-#           '<!(find <(DEPTH)/cobalt/content/i18n/platform/linux/*.xlb)',
-#       },
-#       'includes': [ '../build/convert_i18n_data.gypi' ],
-#     },
-#   ],
-# },
+# To use this, define the variable xlb_files and include this file.
+#  'variables': {
+#    'xlb_files':
+#      '<!(find <(DEPTH)/cobalt/content/i18n/platform/linux/*.xlb)',
+#  },
 #
 # Meaning of the variables:
-#   input_files: list of paths to XLB files; directories are not expanded.
+#   xlb_files: list of paths to XLB files; directories are not expanded.
 
 {
   'variables': {
     'output_dir': '<(sb_static_contents_output_base_dir)/data/i18n'
   },
-
-  'inputs': [
-    '<!@pymod_do_main(starboard.build.convert_i18n_data -o <@(output_dir) --inputs <@(input_files))',
-  ],
-
-  'outputs': [
-    '<!@pymod_do_main(starboard.build.convert_i18n_data -o <@(output_dir) --outputs <@(input_files))',
-  ],
-
-  'action': [
-    'python',
-    '<(DEPTH)/starboard/build/convert_i18n_data.py',
-    '-o', '<@(output_dir)',
-    '<@(input_files)',
+  'targets': [
+    {
+      'target_name': 'convert_i18n_data',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'convert_i18n_data',
+          'inputs': [
+            '<!@pymod_do_main(starboard.build.convert_i18n_data -o <@(output_dir) --inputs <@(xlb_files))',
+          ],
+          'outputs': [
+            '<!@pymod_do_main(starboard.build.convert_i18n_data -o <@(output_dir) --outputs <@(xlb_files))',
+          ],
+          'action': [
+            'python',
+            '<(DEPTH)/starboard/build/convert_i18n_data.py',
+            '-o', '<@(output_dir)',
+            '<@(xlb_files)',
+          ],
+        },
+      ],
+      # Makes collect_deploy_content aware of the directory so that all binaries
+      # dependening on this target will then transitively include i18n.
+      'all_dependent_settings': {
+        'variables': {
+          'content_deploy_subdirs': [ 'i18n' ]
+        }
+      }
+    },
   ],
 }
