@@ -56,7 +56,7 @@ class RecursiveMutex {
 ////////////////////////// Implementation /////////////////////////////////////
 
 inline RecursiveMutex::RecursiveMutex()
-    : recurse_count_(0), owner_id_(kSbThreadInvalidId) {}
+    : owner_id_(kSbThreadInvalidId), recurse_count_(0) {}
 
 inline RecursiveMutex::~RecursiveMutex() {}
 
