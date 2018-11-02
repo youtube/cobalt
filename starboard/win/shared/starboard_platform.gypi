@@ -13,6 +13,7 @@
 # limitations under the License.
 {
   'includes': [
+    '<(DEPTH)/starboard/build/convert_i18n_data.gypi',
     '<(DEPTH)/starboard/shared/starboard/player/filter/player_filter.gypi',
   ],
   'variables': {
@@ -157,7 +158,10 @@
       '<@(win32_media_player_files)',
       '<@(win32_shared_drm_files)',
       '<@(win32_shared_media_player_files)',
-    ]
+    ],
+
+    'xlb_files':
+      '<!(find <(DEPTH)/cobalt/content/i18n/platform/xb1/*.xlb)',
   },
   'targets': [
     {
@@ -435,19 +439,5 @@
         'convert_i18n_data',
       ],
     },
-    {
-      'target_name': 'convert_i18n_data',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'convert_i18n_data',
-          'variables': {
-            'input_files':
-              '<!(find <(DEPTH)/cobalt/content/i18n/platform/xb1/*.xlb)',
-          },
-          'includes': [ '../../build/convert_i18n_data.gypi' ],
-        },
-      ],
-    }
   ],
 }
