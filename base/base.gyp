@@ -168,6 +168,7 @@
         'at_exit_unittest.cc',
         'atomicops_unittest.cc',
         'base64_unittest.cc',
+        'base64url_unittest.cc',
         'bind_helpers_unittest.cc',
         'bind_unittest.cc',
         'bind_unittest.nc',
