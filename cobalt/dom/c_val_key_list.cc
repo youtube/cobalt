@@ -12,25 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/h5vcc/h5vcc_c_val_key_list.h"
+#include "cobalt/dom/c_val_key_list.h"
+
+#include <algorithm>
+#include <iterator>
 
 namespace cobalt {
-namespace h5vcc {
+namespace dom {
 
-H5vccCValKeyList::H5vccCValKeyList() {}
+CValKeyList::CValKeyList() {}
 
-base::optional<std::string> H5vccCValKeyList::Item(uint32 item) {
+base::optional<std::string> CValKeyList::Item(uint32 item) {
   if (item < keys_.size()) {
     return keys_[item];
   }
   return base::nullopt;
 }
 
-uint32 H5vccCValKeyList::length() { return static_cast<uint32>(keys_.size()); }
+uint32 CValKeyList::length() { return static_cast<uint32>(keys_.size()); }
 
-void H5vccCValKeyList::AppendKey(const std::string& key) {
-  keys_.push_back(key);
+int32 CValKeyList::IndexOf(const std::string& key) {
+  auto iter = std::find(keys_.begin(), keys_.end(), key);
+  return iter == keys_.end()
+             ? -1
+             : static_cast<int32>(std::distance(keys_.begin(), iter));
 }
 
-}  // namespace h5vcc
+void CValKeyList::AppendKey(const std::string& key) { keys_.push_back(key); }
+
+}  // namespace dom
 }  // namespace cobalt
