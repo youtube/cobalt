@@ -125,6 +125,9 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
 
     if (!kEnableMultiblockAllocate || kEnableAllocationLog) {
       void* p = reuse_allocator_->Allocate(size, alignment);
+      if (!p) {
+        return Allocations();
+      }
       LOG_IF(INFO, kEnableAllocationLog)
           << "======== Media Allocation Log " << p << " " << size << " "
           << alignment << " " << context;
@@ -141,6 +144,9 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
     void* p = reuse_allocator_->AllocateBestBlock(alignment, context,
                                                   &allocated_size);
     DCHECK_LE(allocated_size, size);
+    if (!p) {
+      return Allocations();
+    }
     if (allocated_size == size) {
       if (!UpdateAllocationRecord()) {
         // UpdateAllocationRecord may fail with non-NULL p when capacity is
@@ -160,6 +166,9 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
       allocated_size = size;
       void* p = reuse_allocator_->AllocateBestBlock(alignment, context,
                                                     &allocated_size);
+      if (!p) {
+        return Allocations();
+      }
       if (!UpdateAllocationRecord()) {
         update_allocation_record_failed = true;
         reuse_allocator_->Free(p);
