@@ -240,8 +240,6 @@
         'screenshot.h',
         'screenshot_manager.cc',
         'screenshot_manager.h',
-        'script_event_log.cc',
-        'script_event_log.h',
         'security_policy_violation_event.cc',
         'security_policy_violation_event.h',
         'serializer.cc',
