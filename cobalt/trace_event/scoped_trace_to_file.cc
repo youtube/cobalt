@@ -47,6 +47,7 @@ ScopedTraceToFile::~ScopedTraceToFile() {
     // will call OutputTraceData(), possibly multiple times.
     trace_log->Flush(base::Bind(&JSONFileOutputter::OutputTraceData,
                                 base::Unretained(&outputter)));
+    LOG(INFO) << "Trace output written to " << absolute_output_path_.value();
   } else {
     DLOG(WARNING) << "Error opening JSON tracing output file for writing: "
                   << absolute_output_path_.value();
