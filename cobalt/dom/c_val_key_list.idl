@@ -13,7 +13,8 @@
 // limitations under the License.
 
 [ArrayClass]
-interface H5vccCValKeyList {
+interface CValKeyList {
   getter DOMString? item(unsigned long index);
   readonly attribute unsigned long length;
+  long indexOf(DOMString key);
 };

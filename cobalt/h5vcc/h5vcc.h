@@ -18,12 +18,12 @@
 #include <string>
 
 #include "cobalt/base/event_dispatcher.h"
+#include "cobalt/dom/c_val_view.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/h5vcc/h5vcc_accessibility.h"
 #include "cobalt/h5vcc/h5vcc_account_info.h"
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
-#include "cobalt/h5vcc/h5vcc_c_val.h"
 #include "cobalt/h5vcc/h5vcc_crash_log.h"
 #include "cobalt/h5vcc/h5vcc_runtime.h"
 #include "cobalt/h5vcc/h5vcc_settings.h"
@@ -62,7 +62,7 @@ class H5vcc : public script::Wrappable {
   const scoped_refptr<H5vccAudioConfigArray>& audio_config() {
     return audio_config_array_;
   }
-  const scoped_refptr<H5vccCVal>& c_val() const { return c_val_; }
+  const scoped_refptr<dom::CValView>& c_val() const { return c_val_; }
   const scoped_refptr<H5vccCrashLog>& crash_log() const { return crash_log_; }
   const scoped_refptr<H5vccRuntime>& runtime() const { return runtime_; }
   const scoped_refptr<H5vccSettings>& settings() const { return settings_; }
@@ -82,7 +82,7 @@ class H5vcc : public script::Wrappable {
   scoped_refptr<H5vccAccessibility> accessibility_;
   scoped_refptr<H5vccAccountInfo> account_info_;
   scoped_refptr<H5vccAudioConfigArray> audio_config_array_;
-  scoped_refptr<H5vccCVal> c_val_;
+  scoped_refptr<dom::CValView> c_val_;
   scoped_refptr<H5vccCrashLog> crash_log_;
   scoped_refptr<H5vccRuntime> runtime_;
   scoped_refptr<H5vccSettings> settings_;
