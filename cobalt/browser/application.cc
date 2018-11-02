@@ -15,9 +15,12 @@
 #include "cobalt/browser/application.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 
+#include "base/base64.h"
+#include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
@@ -60,7 +63,9 @@
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
+#include "crypto/hmac.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/escape.h"
 #include "starboard/configuration.h"
 
 using cobalt::cssom::ViewportSize;
@@ -145,20 +150,122 @@ std::string GetWebDriverListenIp() {
 }
 #endif  // ENABLE_WEBDRIVER
 
+std::string NumberToFourByteString(size_t n) {
+  std::string str;
+  str += ((n & 0xff000000) >> 24);
+  str += ((n & 0x00ff0000) >> 16);
+  str += ((n & 0x0000ff00) >> 8);
+  str += (n & 0x000000ff);
+  return str;
+}
+
+std::string BuildMessageFragment(const std::string& key,
+                                 const std::string& value) {
+  std::string msg_fragment = NumberToFourByteString(key.length()) + key +
+                             NumberToFourByteString(value.length()) + value;
+  return msg_fragment;
+}
+
+std::string ComputeSignature(const std::string& cert_scope,
+                             const std::string& start_time,
+                             const std::string& base_64_secret) {
+  const size_t kSHA256DigestSize = 32;
+
+  // Build signed_msg from cert_scope and start_time.
+  std::string signed_msg = BuildMessageFragment("cert_scope", cert_scope);
+  signed_msg += BuildMessageFragment("start_time", start_time);
+
+  // Decode secret from base_64_secret.
+  std::string secret;
+  base::Base64Decode(base_64_secret, &secret);
+
+  // Generate signature from signed_msg using HMAC-SHA256.
+  unsigned char signature_hash[kSHA256DigestSize] = {0};
+  crypto::HMAC hmac(crypto::HMAC::SHA256);
+  if (!hmac.Init(secret)) {
+    DLOG(ERROR) << "Unable to initialize HMAC-SHA256.";
+  }
+  if (!hmac.Sign(signed_msg, signature_hash, kSHA256DigestSize)) {
+    DLOG(ERROR) << "Unable to sign HMAC-SHA256.";
+  }
+  std::string signature(signature_hash, signature_hash + kSHA256DigestSize);
+
+  // Encode base_64_url_signature from signature.
+  std::string base_64_url_signature;
+  base::Base64UrlEncode(signature, base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &base_64_url_signature);
+
+  return base_64_url_signature;
+}
+
 GURL GetInitialURL() {
+  GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
     GURL url = GURL(command_line->GetSwitchValueASCII(switches::kInitialURL));
     if (url.is_valid()) {
-      return url;
+      initial_url = url;
     } else {
       DLOG(ERROR) << "URL from parameter " << command_line
                   << " is not valid, using default URL.";
     }
   }
 
-  return GURL(kDefaultURL);
+#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+  // Get cert_scope and base_64_secret
+  const size_t kCertificationScopeLength = 1024;
+  char cert_scope_property[kCertificationScopeLength] = {0};
+  bool result =
+      SbSystemGetProperty(kSbSystemPropertyCertificationScope,
+                          cert_scope_property, kCertificationScopeLength - 1);
+  if (!result) {
+    DLOG(ERROR) << "Unable to get kSbSystemPropertyCertificationScope";
+    return initial_url;
+  }
+  std::string cert_scope(cert_scope_property);
+
+  const size_t kSecretLength = 1024;
+  char base_64_secret_property[kSecretLength] = {0};
+  result = SbSystemGetProperty(kSbSystemPropertySecret, base_64_secret_property,
+                               kSecretLength - 1);
+  if (!result) {
+    DLOG(ERROR) << "Unable to get kSbSystemPropertySecret";
+    return initial_url;
+  }
+  std::string base_64_secret(base_64_secret_property);
+
+  // Get current unix time in seconds.
+  std::string start_time =
+      std::to_string(static_cast<int64>(base::Time::Now().ToDoubleT()));
+
+  // Add signed_query to the initial_url.
+  std::map<std::string, std::string> signed_query;
+  signed_query["cert_scope"] = cert_scope;
+  signed_query["start_time"] = start_time;
+  signed_query["sig"] =
+      ComputeSignature(cert_scope, start_time, base_64_secret);
+
+  std::string query = initial_url.query();
+  std::map<std::string, std::string>::iterator it = signed_query.begin();
+  while (it != signed_query.end()) {
+    std::string key = it->first;
+    std::string value = it->second;
+
+    if (!query.empty()) query += "&";
+    query += net::EscapeQueryParamValue(key, true);
+    if (!value.empty()) {
+      query += "=" + net::EscapeQueryParamValue(value, true);
+    }
+    it++;
+  }
+
+  GURL::Replacements replacements;
+  replacements.SetQueryStr(query);
+  initial_url = initial_url.ReplaceComponents(replacements);
+#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+
+  return initial_url;
 }
 
 base::optional<GURL> GetFallbackSplashScreenURL() {
