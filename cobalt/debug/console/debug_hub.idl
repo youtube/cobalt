@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Custom interface to access debugging functionalities.
-// TODO: provide link to design doc.
+// Custom interface to communicate with the debugger, modeled after
+// chrome.debugger extension API.
+// https://developer.chrome.com/extensions/debugger
 
 [
   Conditional=ENABLE_DEBUG_CONSOLE
@@ -22,10 +23,23 @@
   const long DEBUG_CONSOLE_HUD = 1;
   const long DEBUG_CONSOLE_ON = 2;
 
-  readonly attribute Debugger debugger;
-
+  // Provides list of custom commands for the debug console.
   DOMString getConsoleValueNames();
   DOMString getConsoleValue(DOMString name);
 
   long getDebugConsoleMode();
+
+  void attach(AttachCallback cb);
+  void detach(AttachCallback cb);
+
+  void sendCommand(DOMString method, DOMString jsonParams, ResponseCallback cb);
+
+  readonly attribute DOMString? lastError;
+  readonly attribute DebuggerEventTarget onEvent;
+
+  readonly attribute sequence<ConsoleCommand> consoleCommands;
+  void sendConsoleCommand(DOMString command, DOMString message);
 };
+
+callback AttachCallback = void();
+callback ResponseCallback = void(DOMString? response);
