@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-interface H5vccCVal {
-  [NewObject] H5vccCValKeyList keys();
+// This is a non-standard API, used to access Cobalt's CVal system.
+interface CValView {
+  [NewObject] CValKeyList keys();
   DOMString? getValue(DOMString name);
+  DOMString getPrettyValue(DOMString name);
 };

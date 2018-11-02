@@ -12,36 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_H5VCC_H5VCC_C_VAL_KEY_LIST_H_
-#define COBALT_H5VCC_H5VCC_C_VAL_KEY_LIST_H_
+#ifndef COBALT_DOM_C_VAL_VIEW_H_
+#define COBALT_DOM_C_VAL_VIEW_H_
 
 #include <string>
-#include <vector>
 
+#include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/dom/c_val_key_list.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
-namespace h5vcc {
+namespace dom {
 
-class H5vccCValKeyList : public script::Wrappable {
+class CValView : public script::Wrappable {
  public:
-  H5vccCValKeyList();
+  CValView();
 
-  base::optional<std::string> Item(uint32 item);
-  uint32 length();
+  scoped_refptr<CValKeyList> Keys();
+  base::optional<std::string> GetValue(const std::string& name);
+  std::string GetPrettyValue(const std::string& name);
 
-  void AppendKey(const std::string& key);
-
-  DEFINE_WRAPPABLE_TYPE(H5vccCValKeyList);
+  DEFINE_WRAPPABLE_TYPE(CValView);
 
  private:
-  std::vector<std::string> keys_;
-
-  DISALLOW_COPY_AND_ASSIGN(H5vccCValKeyList);
+  DISALLOW_COPY_AND_ASSIGN(CValView);
 };
 
-}  // namespace h5vcc
+}  // namespace dom
 }  // namespace cobalt
 
-#endif  // COBALT_H5VCC_H5VCC_C_VAL_KEY_LIST_H_
+#endif  // COBALT_DOM_C_VAL_VIEW_H_

@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/h5vcc/h5vcc_c_val.h"
+#include "cobalt/dom/c_val_view.h"
 
 #include <set>
 
 #include "cobalt/base/c_val.h"
 
 namespace cobalt {
-namespace h5vcc {
+namespace dom {
 
-H5vccCVal::H5vccCVal() {}
+CValView::CValView() {}
 
-scoped_refptr<H5vccCValKeyList> H5vccCVal::Keys() {
-  scoped_refptr<H5vccCValKeyList> key_list(new H5vccCValKeyList);
+scoped_refptr<CValKeyList> CValView::Keys() {
+  scoped_refptr<CValKeyList> key_list(new CValKeyList);
   typedef std::set<std::string> CValKeySet;
   CValKeySet key_set = base::CValManager::GetInstance()->GetOrderedCValNames();
   for (CValKeySet::iterator key_iter = key_set.begin();
@@ -34,9 +34,15 @@ scoped_refptr<H5vccCValKeyList> H5vccCVal::Keys() {
   return key_list;
 }
 
-base::optional<std::string> H5vccCVal::GetValue(const std::string& name) {
+base::optional<std::string> CValView::GetValue(const std::string& name) {
   return base::CValManager::GetInstance()->GetValueAsString(name);
 }
 
-}  // namespace h5vcc
+std::string CValView::GetPrettyValue(const std::string& name) {
+  base::optional<std::string> result =
+      base::CValManager::GetInstance()->GetValueAsPrettyString(name);
+  return result ? *result : "<undefined>";
+}
+
+}  // namespace dom
 }  // namespace cobalt
