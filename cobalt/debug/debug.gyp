@@ -49,8 +49,6 @@
         'command.h',
         'console/debug_hub.cc',
         'console/debug_hub.h',
-        'console/debugger.cc',
-        'console/debugger.h',
         'console/debugger_event_target.cc',
         'console/debugger_event_target.h',
         'debug_client.cc',

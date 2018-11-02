@@ -149,7 +149,7 @@ function dir(objectName) {
 }
 
 function addConsoleCommands() {
-  var consoleCommands = window.debugHub.debugger.consoleCommands;
+  var consoleCommands = window.debugHub.consoleCommands;
   for (var i = 0; i < consoleCommands.length; i++) {
     var c = consoleCommands[i];
     addOneConsoleCommand(c.command, c.shortHelp, c.longHelp);
@@ -158,7 +158,7 @@ function addConsoleCommands() {
 
 function addOneConsoleCommand(command, shortHelp, longHelp) {
   debug[command] = function(message) {
-    window.debugHub.debugger.sendConsoleCommand(command, message);
+    window.debugHub.sendConsoleCommand(command, message);
   }
   debug[command].shortHelp = shortHelp;
   debug[command].longHelp = longHelp;
