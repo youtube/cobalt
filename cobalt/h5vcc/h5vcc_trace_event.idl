@@ -13,7 +13,11 @@
 // limitations under the License.
 
 interface H5vccTraceEvent {
-  void start();
+  // If an output filename is provided, the tracing output will be sent to
+  // that file (relative to a platform-specific directory).  If no output
+  // filename is provided, a default filename of "h5vcc_trace_event.json"
+  // will be used.
+  void start(optional DOMString output_filename = "");
   void stop();
 
   void traceBegin(DOMString category, DOMString name);
