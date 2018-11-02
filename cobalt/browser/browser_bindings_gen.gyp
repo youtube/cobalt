@@ -54,7 +54,6 @@
 
         '../debug/backend/debug_script_runner.idl',
         '../debug/console/debug_hub.idl',
-        '../debug/console/debugger.idl',
         '../debug/console/debugger_event_target.idl',
 
         '../dom/animation_event.idl',
