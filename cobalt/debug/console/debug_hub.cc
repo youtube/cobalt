@@ -31,48 +31,12 @@ namespace console {
 DebugHub::DebugHub(
     const GetHudModeCallback& get_hud_mode_callback,
     const CreateDebugClientCallback& create_debug_client_callback)
-    : get_hud_mode_callback_(get_hud_mode_callback),
+    : c_val_(new dom::CValView()),
+      get_hud_mode_callback_(get_hud_mode_callback),
       create_debug_client_callback_(create_debug_client_callback),
       on_event_(new DebuggerEventTarget()) {}
 
 DebugHub::~DebugHub() {}
-
-// TODO: This function should be modified to return an array of strings instead
-// of a single space-separated string, once the bindings support return of a
-// string array.
-std::string DebugHub::GetConsoleValueNames() const {
-  std::string ret = "";
-  base::CValManager* cvm = base::CValManager::GetInstance();
-  DCHECK(cvm);
-
-  if (cvm) {
-    std::set<std::string> names = cvm->GetOrderedCValNames();
-    for (std::set<std::string>::const_iterator it = names.begin();
-         it != names.end(); ++it) {
-      ret += (*it);
-      std::set<std::string>::const_iterator next = it;
-      ++next;
-      if (next != names.end()) {
-        ret += " ";
-      }
-    }
-  }
-  return ret;
-}
-
-std::string DebugHub::GetConsoleValue(const std::string& name) const {
-  std::string ret = "<undefined>";
-  base::CValManager* cvm = base::CValManager::GetInstance();
-  DCHECK(cvm);
-
-  if (cvm) {
-    base::optional<std::string> result = cvm->GetValueAsPrettyString(name);
-    if (result) {
-      return *result;
-    }
-  }
-  return ret;
-}
 
 int DebugHub::GetDebugConsoleMode() const {
   return get_hud_mode_callback_.Run();

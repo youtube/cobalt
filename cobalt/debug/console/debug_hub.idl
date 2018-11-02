@@ -23,9 +23,7 @@
   const long DEBUG_CONSOLE_HUD = 1;
   const long DEBUG_CONSOLE_ON = 2;
 
-  // Provides list of custom commands for the debug console.
-  DOMString getConsoleValueNames();
-  DOMString getConsoleValue(DOMString name);
+  readonly attribute CValView cVal;
 
   long getDebugConsoleMode();
 
@@ -37,6 +35,7 @@
   readonly attribute DOMString? lastError;
   readonly attribute DebuggerEventTarget onEvent;
 
+  // Provides list of custom commands for the debug console.
   readonly attribute sequence<ConsoleCommand> consoleCommands;
   void sendConsoleCommand(DOMString command, DOMString message);
 };

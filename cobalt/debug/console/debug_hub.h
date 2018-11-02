@@ -27,6 +27,7 @@
 #include "cobalt/debug/console/console_command.h"
 #include "cobalt/debug/console/debugger_event_target.h"
 #include "cobalt/debug/debug_client.h"
+#include "cobalt/dom/c_val_view.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
@@ -80,12 +81,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
            const CreateDebugClientCallback& create_debug_client_callback);
   ~DebugHub();
 
-  // Gets the collection of available CVal names as an alphabetically ordered,
-  // space-separated list.
-  std::string GetConsoleValueNames() const;
-
-  // Gets the value of a named CVal as a pretty string.
-  std::string GetConsoleValue(const std::string& name) const;
+  const scoped_refptr<dom::CValView>& c_val() const { return c_val_; }
 
   int GetDebugConsoleMode() const;
 
@@ -134,6 +130,9 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   void RunResponseCallback(
       const scoped_refptr<ResponseCallbackInfo>& callback_info,
       base::optional<std::string> response) const;
+
+  // A view onto Cobalt's CVals
+  scoped_refptr<dom::CValView> c_val_;
 
   // A function to query the Hud visibility mode.
   const GetHudModeCallback get_hud_mode_callback_;

@@ -29,8 +29,7 @@ function ConsoleValues() {
       'Event.Duration.MainWebModule.DOM.VideoStartDelay ' +
       'Event.Duration.MainWebModule.KeyDown'
 
-  var names = window.debugHub.getConsoleValueNames();
-  this.allCVals = names.split(' ');
+  this.allCVals = window.debugHub.cVal.keys();
   // If true, we will always pull our list of CVals from
   // this.DEFAULT_ACTIVE_SET.
   this.useDefaultActiveSet = true;
@@ -76,7 +75,7 @@ ConsoleValues.prototype.addToTree = function(cval, tree, prefix) {
   if (components.length == 1) {
     var node = this.findOrCreateNode(cval, tree);
     var fullName = prefix.length > 0 ? prefix + '.' + cval : cval;
-    node.value = window.debugHub.getConsoleValue(fullName);
+    node.value = window.debugHub.cVal.getPrettyValue(fullName);
   } else {
     var newPrefix = components[0];
     var suffix = cval.substring(newPrefix.length + 1);
@@ -167,8 +166,7 @@ ConsoleValues.prototype.updateRegistered = function() {
     this.setActiveSetToDefault();
   }
 
-  var names = window.debugHub.getConsoleValueNames();
-  this.allCVals = names.split(' ');
+  this.allCVals = window.debugHub.cVal.keys();
   for (var i = 0; i < this.activeCVals.length; i++) {
     if (this.allCVals.indexOf(this.activeCVals[i]) < 0) {
       this.activeCVals.splice(i, 1);
