@@ -30,12 +30,12 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-// Used by the various debug dispatcher components to run JavaScript and persist
-// state. An object of this class creates a persistent JavaScript object bound
-// to the global object, and executes methods on this object, passing in the
-// JSON parameters as a parameter object, and returning the result as a
-// serialized JSON object. Other classes may run scripts that attach additional
-// data to the JavaScript object created by this class.
+// Used by the various debugger agents to run JavaScript and persist state. An
+// object of this class creates a persistent JavaScript object bound to the
+// global object, and executes methods on this object, passing in the JSON
+// parameters as a parameter object, and returning the result as a serialized
+// JSON object. Other classes may run scripts that attach additional data to the
+// JavaScript object created by this class.
 class DebugScriptRunner : public script::Wrappable {
  public:
   // Event callback. A callback of this type is specified in the constructor,
