@@ -73,7 +73,7 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   DCHECK(data.window);
 
   // Create the script debugger. This is owned by this object, and is
-  // accessible to all the debugger components.
+  // accessible to all the debugger agents.
   script_debugger_ =
       script::ScriptDebugger::CreateDebugger(data.global_environment, this);
 
@@ -82,8 +82,8 @@ void DebugModule::BuildInternal(const ConstructionData& data,
       data.global_environment, data.window->document()->csp_delegate(),
       script_debugger_.get()));
 
-  // Create render layers for the components that need them and chain them
-  // together. Ownership will be passed to the component that uses each layer.
+  // Create render layers for the agents that need them and chain them
+  // together. Ownership will be passed to the agent that uses each layer.
   // The layers will be painted in the reverse order they are listed here.
   scoped_ptr<RenderLayer> page_render_layer(new RenderLayer(base::Bind(
       &RenderOverlay::SetOverlay, base::Unretained(data.render_overlay))));
@@ -91,29 +91,28 @@ void DebugModule::BuildInternal(const ConstructionData& data,
   scoped_ptr<RenderLayer> dom_render_layer(new RenderLayer(
       base::Bind(&RenderLayer::SetBackLayer, page_render_layer->AsWeakPtr())));
 
-  // Create the various components that implement the functionality of the
+  // Create the various agents that implement the functionality of the
   // debugger by handling commands and sending event notifications. The script
-  // debugger component is an adapter to the engine-specific script debugger,
+  // debugger agent is an adapter to the engine-specific script debugger,
   // which may directly handle one or more protocol domains, so we won't
-  // instantiate our own component(s) to handle the same domain(s).
-  script_debugger_component_.reset(new ScriptDebuggerComponent(
-      debug_dispatcher_.get(), script_debugger_.get()));
+  // instantiate our own agent(s) to handle the same domain(s).
+  script_debugger_agent_.reset(
+      new ScriptDebuggerAgent(debug_dispatcher_.get(), script_debugger_.get()));
 
-  if (!script_debugger_component_->IsSupportedDomain("Runtime")) {
-    runtime_component_.reset(new RuntimeComponent(debug_dispatcher_.get()));
+  if (!script_debugger_agent_->IsSupportedDomain("Runtime")) {
+    runtime_agent_.reset(new RuntimeAgent(debug_dispatcher_.get()));
   }
 
-  console_component_.reset(
-      new ConsoleComponent(debug_dispatcher_.get(), data.console));
+  console_agent_.reset(new ConsoleAgent(debug_dispatcher_.get(), data.console));
 
-  log_component_.reset(new LogComponent(debug_dispatcher_.get()));
+  log_agent_.reset(new LogAgent(debug_dispatcher_.get()));
 
-  dom_component_.reset(
-      new DOMComponent(debug_dispatcher_.get(), dom_render_layer.Pass()));
+  dom_agent_.reset(
+      new DOMAgent(debug_dispatcher_.get(), dom_render_layer.Pass()));
 
-  page_component_.reset(new PageComponent(debug_dispatcher_.get(), data.window,
-                                          page_render_layer.Pass(),
-                                          data.resource_provider));
+  page_agent_.reset(new PageAgent(debug_dispatcher_.get(), data.window,
+                                  page_render_layer.Pass(),
+                                  data.resource_provider));
 
   script_debugger_->Attach();
 
@@ -133,13 +132,13 @@ void DebugModule::OnScriptDebuggerResume() {
 }
 
 void DebugModule::OnScriptDebuggerResponse(const std::string& response) {
-  DCHECK(script_debugger_component_);
-  script_debugger_component_->SendCommandResponse(response);
+  DCHECK(script_debugger_agent_);
+  script_debugger_agent_->SendCommandResponse(response);
 }
 
 void DebugModule::OnScriptDebuggerEvent(const std::string& event) {
-  DCHECK(script_debugger_component_);
-  script_debugger_component_->SendEvent(event);
+  DCHECK(script_debugger_agent_);
+  script_debugger_agent_->SendEvent(event);
 }
 
 }  // namespace backend
