@@ -39,7 +39,7 @@ DebugScriptRunner::DebugScriptRunner(
       csp_delegate_(csp_delegate),
       on_event_callback_(on_event_callback) {
   // Bind this object to the global object so it can persist state and be
-  // accessed from any of the debug components.
+  // accessed from any of the debug agents.
   global_environment_->Bind(kObjectIdentifier, make_scoped_refptr(this));
 }
 
