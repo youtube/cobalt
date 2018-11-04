@@ -103,12 +103,12 @@ void DebugDispatcher::DispatchCommand(Command command) {
 
   DomainRegistry::iterator iter = domain_registry_.find(command.GetDomain());
   if (iter != domain_registry_.end() && iter->second.Run(command)) {
-    // The component command implementation ran and sends its own response.
+    // The agent command implementation ran and sends its own response.
     return;
   }
 
-  // The component didn't have a native implementation. Try to run a
-  // JavaScript implementation (which the component would have loaded at the
+  // The agent didn't have a native implementation. Try to run a
+  // JavaScript implementation (which the agent would have loaded at the
   // same time as it registered its domain command handler).
   JSONObject response =
       RunScriptCommand(command.GetMethod(), command.GetParams());

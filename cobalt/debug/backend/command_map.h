@@ -27,16 +27,16 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-// Type of a component member function that implements a protocol command.
+// Type of an agent member function that implements a protocol command.
 template <class T>
 using CommandFn = void (T::*)(const Command& command);
 
-// A map of method names to component command functions. Provides a standard
+// A map of method names to agent command functions. Provides a standard
 // implementation of the top-level domain command handler.
 template <class T>
 class CommandMap : public std::map<std::string, CommandFn<T>> {
  public:
-  explicit CommandMap(T* component) : component_(component) {}
+  explicit CommandMap(T* agent) : agent_(agent) {}
 
   // Calls the mapped method implementation.
   // Returns a true iff the command method is mapped and has been run.
@@ -44,7 +44,7 @@ class CommandMap : public std::map<std::string, CommandFn<T>> {
     auto iter = this->find(command.GetMethod());
     if (iter == this->end()) return false;
     auto command_fn = iter->second;
-    (component_->*command_fn)(command);
+    (agent_->*command_fn)(command);
     return true;
   }
 
@@ -54,7 +54,7 @@ class CommandMap : public std::map<std::string, CommandFn<T>> {
   }
 
  private:
-  T* component_;
+  T* agent_;
 };
 
 }  // namespace backend
