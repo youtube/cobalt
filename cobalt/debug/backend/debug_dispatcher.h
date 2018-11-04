@@ -42,7 +42,7 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-// Dispatches debug commands to the component that implements the particular
+// Dispatches debug commands to the agent that implements the particular
 // command. This is the core of the debugging system. The overall architecture
 // of the debugging system is documented here:
 // https://docs.google.com/document/d/1_PV0auxlFBHJbPdMpCnyUvC8IslEyzuTar79qmniO7w/
@@ -66,7 +66,7 @@ namespace backend {
 //
 // This class is not intended to implement any debugging commands directly -
 // it is expected that the functionality of the various debugging command
-// domains will be provided by component objects that register the domains they
+// domains will be provided by agent objects that register the domains they
 // implement with this object using the |AddDomain| and |RemoveDomain| methods.
 //
 // The DebugDispatcher must be created on the same message loop as the WebModule
@@ -95,18 +95,18 @@ class DebugDispatcher {
   // Removes a client from this object.
   void RemoveClient(DebugClient* client);
 
-  // Adds a domain to the domain registry. This will be called by components
+  // Adds a domain to the domain registry. This will be called by agents
   // providing the protocol command implementations.
   void AddDomain(const std::string& domain, const CommandHandler& handler);
 
   // Removes a domain from the domain registry. This will be called by
-  // components providing the protocol command implementations.
+  // agents providing the protocol command implementations.
   void RemoveDomain(const std::string& domain);
 
   // Creates a Runtime.RemoteObject from an engine object.
   JSONObject CreateRemoteObject(const script::ValueHandleHolder* object);
 
-  // Called by the debug components when an event occurs.
+  // Called by the debug agents when an event occurs.
   // Serializes the method and params object to a JSON string and
   // calls |SendEventInternal|.
   void SendEvent(const std::string& method, const JSONObject& params);
@@ -139,7 +139,7 @@ class DebugDispatcher {
 
  private:
   // A registry of commands, mapping method names from the protocol
-  // to command handlers implemented by the debug components.
+  // to command handlers implemented by the debug agents.
   typedef std::map<std::string, CommandHandler> DomainRegistry;
 
   // Queue of command/response closures. Used to process debugger commands
