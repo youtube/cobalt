@@ -97,6 +97,11 @@ public class StarboardBridge {
       FeedbackService feedbackService,
       String[] args,
       String startDeepLink) {
+
+    // Make sure the JNI stack is properly initialized first as there is
+    // race condition as soon as any of the following objects creates a new thread.
+    nativeInitialize();
+
     this.appContext = appContext;
     this.activityHolder = activityHolder;
     this.args = args;
@@ -110,7 +115,6 @@ public class StarboardBridge {
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.voiceRecognizer =
         new VoiceRecognizer(appContext, activityHolder, audioPermissionRequester);
-    nativeInitialize();
   }
 
   private native boolean nativeInitialize();
