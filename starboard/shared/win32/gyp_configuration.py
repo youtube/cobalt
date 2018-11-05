@@ -47,13 +47,51 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     super(Win32SharedConfiguration, self).__init__(platform)
     self.sdk = win_sdk_configuration.SdkConfiguration()
 
+  def AdditionalPlatformCompilerOptions(self):
+    sdk = self.sdk
+    ver = sdk.required_sdk_version
+    root_path = sdk.windows_sdk_path + '/References/' + sdk.required_sdk_version
+    force_include_files = [
+      sdk.vs_install_dir_with_version + '/lib/x86/store/references'
+                                        '/platform.winmd',
+      root_path + '/Windows.Foundation.FoundationContract/3.0.0.0'
+                  '/Windows.Foundation.FoundationContract.winmd',
+      root_path + '/Windows.Foundation.UniversalApiContract/6.0.0.0'
+                  '/Windows.Foundation.UniversalApiContract.winmd',
+    ]
+    if 'xb1' in self.GetName():
+      # Additional files for xb1/uwp platforms.
+      # Xbox One Platform Extension SDK 17095.1000.
+      force_include_files = force_include_files + [
+        root_path + '/Windows.Xbox.ApplicationResourcesContract/1.0.0.0'
+                    '/Windows.Xbox.ApplicationResourcesContract.winmd',
+        root_path + '/Windows.UI.ViewManagement'
+                    '.ViewManagementViewScalingContract/1.0.0.0'
+                    '/Windows.UI.ViewManagement'
+                    '.ViewManagementViewScalingContract.winmd',
+      ]
+    force_include_files = [f.replace('/', '\\') for f in force_include_files]
+    missing_files = []
+    for f in force_include_files:
+      if not os.path.exists(f):
+        missing_files.append(f)
+    if missing_files:
+      logging.critical('\n***** Missing files *****: \n' + \
+                       '\n'.join(missing_files) + \
+                       '\nCompiling may have problems.\n')
+    # /FU"path" will force include that path for every file compiled.
+    compiler_options = ['/FU' + _QuotePath(f) for f in force_include_files]
+    return compiler_options
+
   def GetVariables(self, configuration):
     sdk = self.sdk
     variables = super(Win32SharedConfiguration, self).GetVariables(configuration)
+    compiler_options = ' '.join(self.AdditionalPlatformCompilerOptions())
     variables.update({
         'visual_studio_install_path': sdk.vs_install_dir_with_version,
         'windows_sdk_path': sdk.windows_sdk_path,
         'windows_sdk_version': sdk.required_sdk_version,
+        'additional_platform_compiler_options': compiler_options,
     })
     return variables
 
