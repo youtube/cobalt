@@ -77,7 +77,7 @@ math::Size SystemWindow::GetWindowSize() const {
 
 float SystemWindow::GetDiagonalSizeInches() const {
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
-  return SbWindowGetDiagonialSizeInInches(window_);
+  return SbWindowGetDiagonalSizeInInches(window_);
 #else
   return 0.f;
 #endif
