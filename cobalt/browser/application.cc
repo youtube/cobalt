@@ -966,7 +966,7 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   const auto& size = window_size_change_event->size();
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
-  float diagonal = SbWindowGetDiagonialSizeInInches(
+  float diagonal = SbWindowGetDiagonalSizeInInches(
       window_size_change_event->window());
 #else
   float diagonal = 0.0f;  // Special value meaning diagonal size is not known.
