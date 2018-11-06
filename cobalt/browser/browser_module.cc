@@ -143,10 +143,7 @@ const char kSetMediaConfigCommandLongHelp[] =
     "MediaModule::SetConfiguration() on individual platform for settings "
     "supported on the particular platform.";
 
-// Command to take a screenshot.
 const char kScreenshotCommand[] = "screenshot";
-
-// Help strings for the navigate command.
 const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
 const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
