@@ -35,16 +35,13 @@ class WEBPImageDecoder : public ImageDataDecoder {
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "WEBPImageDecoder"; }
 
-  // Returns a pointer to the original decoded image memory.
-  uint8_t* GetOriginalMemory();
-
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override;
   scoped_refptr<Image> FinishInternal() override;
 
   bool ReadHeader(const uint8* data, size_t size);
-  bool CreateInternalDecoder(bool has_alpha);
+  bool CreateInternalDecoder();
   void DeleteInternalDecoder();
 
   WebPIDecoder* internal_decoder_;
