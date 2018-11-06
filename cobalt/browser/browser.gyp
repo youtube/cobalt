@@ -32,6 +32,8 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'lifecycle_console_commands.cc',
+        'lifecycle_console_commands.h',
         'lifecycle_observer.h',
         'memory_settings/auto_mem.cc',
         'memory_settings/auto_mem.h',

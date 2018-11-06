@@ -33,6 +33,7 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
+#include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -542,6 +543,10 @@ class BrowserModule {
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
 
   base::optional<SuspendFuzzer> suspend_fuzzer_;
+
+  // An object that registers and owns console commands for controlling
+  // Cobalt's lifecycle.
+  LifecycleConsoleCommands lifecycle_console_commands_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.
