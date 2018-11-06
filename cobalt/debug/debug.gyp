@@ -70,6 +70,7 @@
             'remote/debug_web_server.h',
           ],
           'dependencies': [
+            'copy_remote_web_files',
             'remote/devtools/devtools.gyp:devtools',
           ],
           'defines': [ 'ENABLE_REMOTE_DEBUGGING', ],
@@ -81,7 +82,6 @@
           'dependencies': [
             'copy_backend_web_files',
             'copy_console_web_files',
-            'copy_remote_web_files',
           ],
         }],
       ],
