@@ -103,6 +103,9 @@
 // the case should define the following quirk.
 #undef SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED
 
+// Some platforms the mapped GL buffer memory is slow to read from.  Platforms
+// where this is the case should define the following quirk.
+#undef SB_HAS_QUIRK_GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
