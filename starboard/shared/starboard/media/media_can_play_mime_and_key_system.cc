@@ -105,6 +105,11 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     if (transfer_id == kSbMediaTransferIdUnknown) {
       return false;
     }
+#if !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
+    if (!SbMediaIsTransferCharacteristicsSupported(transfer_id)) {
+      return false;
+    }
+#endif  // !SB_HAS(MEDIA_EOTF_CHECK_SUPPORT)
   }
 
   std::string cryptoblockformat =
