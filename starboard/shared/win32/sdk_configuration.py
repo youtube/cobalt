@@ -83,6 +83,10 @@ class SdkConfiguration:
         + '\\VC\\Tools\\MSVC' + '\\' + _MSVC_TOOLS_VERSION)
     self.vs_host_tools_path = (self.vs_install_dir_with_version
         + '\\bin\\HostX64\\x64')
+    self.ucrtbased_dll_path = \
+        'C:\\Program Files (x86)\\Microsoft SDKs\\Windows Kits\\10\\' + \
+        'ExtensionSDKs\\Microsoft.UniversalCRT.Debug\\' + _WIN_SDK_VERSION + \
+        '\\Redist\\Debug\\x64\\ucrtbased.dll'
 
     logging.critical('Windows SDK Path:              ' + os.path.abspath(self.windows_sdk_host_tools))
     logging.critical('Visual Studio Path:            ' + os.path.abspath(self.vs_install_dir_with_version))

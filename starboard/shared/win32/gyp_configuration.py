@@ -51,6 +51,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
     sdk = self.sdk
     ver = sdk.required_sdk_version
     root_path = sdk.windows_sdk_path + '/References/' + sdk.required_sdk_version
+
     force_include_files = [
       sdk.vs_install_dir_with_version + '/lib/x86/store/references'
                                         '/platform.winmd',
@@ -92,6 +93,7 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
         'windows_sdk_path': sdk.windows_sdk_path,
         'windows_sdk_version': sdk.required_sdk_version,
         'additional_platform_compiler_options': compiler_options,
+        'ucrtbased_dll_path': sdk.ucrtbased_dll_path,
     })
     return variables
 
