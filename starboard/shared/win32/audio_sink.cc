@@ -367,8 +367,12 @@ SbAudioSink XAudioAudioSinkType::Create(
   wfx.cbSize = 0;
 
   IXAudio2SourceVoice* source_voice;
-  CHECK_HRESULT_OK(x_audio2_->CreateSourceVoice(&source_voice, &wfx,
-                                                XAUDIO2_VOICE_NOPITCH, 1.f));
+  HRESULT hr = x_audio2_->CreateSourceVoice(&source_voice, &wfx,
+                                                XAUDIO2_VOICE_NOPITCH, 1.f);
+  if (FAILED(hr)) {
+    SB_DLOG(WARNING) << "Could not create source voice, error code: " << hr;
+    return nullptr;
+  }
 
   XAudioAudioSink* audio_sink = new XAudioAudioSink(
       this, source_voice, wfx, frame_buffers, frame_buffers_size_in_frames,
