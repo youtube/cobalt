@@ -20,8 +20,8 @@ import starboard.shared.win32.sdk.installer as sdk_installer
 
 
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
-_DEFAULT_MSVC_TOOLS_VERSION = '14.14.26428'
-_DEFAULT_WIN_SDK_VERSION = '10.0.17134.0'
+_DEFAULT_MSVC_TOOLS_VERSION = '14.15.26726'
+_DEFAULT_WIN_SDK_VERSION = '10.0.17763.0'
 
 
 # Platform specific api versions should be added here.
