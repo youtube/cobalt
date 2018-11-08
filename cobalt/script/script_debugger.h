@@ -40,7 +40,8 @@ class ScriptDebugger {
     // Called when the script debugger wants to pause script execution.
     virtual void OnScriptDebuggerPause() = 0;
 
-    // Called when the script debugger wants to resume script execution.
+    // Called when the script debugger wants to resume script execution, both
+    // after a pause and to start running after the devtools frontend connects.
     virtual void OnScriptDebuggerResume() = 0;
 
     // Called with the response to a previously dispatched protocol message.

@@ -21,8 +21,8 @@
 
 namespace {
 constexpr const char* kInspectorDomains[] = {
-    "Runtime",
-    // TODO: "Debugger", "Profiler", "HeapProfiler", "Schema",
+    "Runtime", "Debugger",
+    // TODO: "Profiler", "HeapProfiler", "Schema",
 };
 constexpr int kInspectorDomainsCount =
     sizeof(kInspectorDomains) / sizeof(kInspectorDomains[0]);

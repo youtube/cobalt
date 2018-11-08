@@ -96,6 +96,13 @@ void V8cScriptDebugger::quitMessageLoopOnPause() {
 }
 
 // v8_inspector::V8InspectorClient implementation.
+void V8cScriptDebugger::runIfWaitingForDebugger(int contextGroupId) {
+  if (attached_) {
+    delegate_->OnScriptDebuggerResume();
+  }
+}
+
+// v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::consoleAPIMessage(
     int contextGroupId, v8::Isolate::MessageErrorLevel level,
     const v8_inspector::StringView& message,

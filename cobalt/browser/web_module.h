@@ -243,6 +243,11 @@ class WebModule : public LifecycleObserver {
     // Whether layout is optimized to re-use boxes for still-valid elements.
     bool enable_partial_layout = true;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+    // Whether the debugger should block until remote devtools connects.
+    bool wait_for_web_debugger = false;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
