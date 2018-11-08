@@ -101,7 +101,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          audio_header, output_mode, provider));
-  SbPlayer player = new SbPlayerPrivate(
+  SbPlayer player = SbPlayerPrivate::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, handler.Pass());
 
