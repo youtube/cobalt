@@ -27,6 +27,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
@@ -111,7 +112,9 @@ class WebModule::Impl {
   ~Impl();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::backend::DebugDispatcher* debug_dispatcher() const {
+  debug::backend::DebugDispatcher* debug_dispatcher() {
+    // Proceed if |CreateDebugModuleIfNull| already ran, otherwise wait for it.
+    debug_module_created_.Wait();
     return debug_module_->debug_dispatcher();
   }
 #endif  // ENABLE_DEBUG_CONSOLE
@@ -185,11 +188,18 @@ class WebModule::Impl {
   void CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id,
       scoped_ptr<webdriver::WindowDriver>* window_driver_out);
-#endif
+#endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  void CreateDebugDispatcherIfNull();
-#endif  // ENABLE_DEBUG_CONSOLE
+  void CreateDebugModuleIfNull();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  void WaitForWebDebugger();
+  bool IsFinishedWaitingForWebDebugger() {
+    return wait_for_web_debugger_finished_.IsSignaled();
+  }
+#endif  // defined(ENABLE_REMOTE_DEBUGGING)
 
   void SetSize(cssom::ViewportSize window_dimensions, float video_pixel_ratio);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
@@ -400,7 +410,19 @@ class WebModule::Impl {
   // The core of the debugging system.
   // Created lazily when accessed via |GetDebugDispatcher|.
   scoped_ptr<debug::backend::DebugModule> debug_module_;
+
+  // Blocks threads getting the |DebugDispatcher| until it's ready after the
+  // |CreateDebugModuleIfNull| task has run.
+  base::WaitableEvent debug_module_created_ = {true /* manual_reset */,
+                                               false /* initially_signaled */};
 #endif  // ENABLE_DEBUG_CONSOLE
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
+  // web debugger to connect.
+  base::WaitableEvent wait_for_web_debugger_finished_ = {
+      true /* manual_reset */, false /* initially_signaled */};
+#endif  // ENABLE_REMOTE_DEBUGGING
 
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;
@@ -421,7 +443,7 @@ class WebModule::Impl {
   // correctly execute, even if there are multiple synchronous loads in queue
   // before the suspend (or other) event handlers.
   base::WaitableEvent synchronous_loader_interrupt_ = {
-      true /* manually reset */, false /* initially signaled */};
+      true /* manual_reset */, false /* initially_signaled */};
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -571,8 +593,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_session_client_ = media_session::MediaSessionClient::Create();
 
-  system_caption_settings_ =
-      new cobalt::dom::captions::SystemCaptionSettings();
+  system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings();
 
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
@@ -581,6 +602,25 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // accessible from |Window|, so we must explicitly add them as roots.
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  if (data.options.wait_for_web_debugger) {
+    // Create the |DebugModule| early since we expect a web debugger to connect
+    // and we can't let |GetDebugDispatcher| get blocked when it does. This has
+    // to be done before we block the message loop in |WaitForWebDebugger|.
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
+                              base::Unretained(this)));
+    // Post a task that blocks the message loop and waits for the web debugger.
+    // This must be posted before the the window's task to load the document.
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::Impl::WaitForWebDebugger,
+                              base::Unretained(this)));
+  } else {
+    // We're not going to wait for the web debugger, so consider it finished.
+    wait_for_web_debugger_finished_.Signal();
+  }
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   bool log_tts = false;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -711,8 +751,8 @@ WebModule::Impl::~Impl() {
   media_session_client_.reset();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug_overlay_.reset();
   debug_module_.reset();
+  debug_overlay_.reset();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Disable callbacks for the resource caches. Otherwise, it is possible for a
@@ -895,7 +935,7 @@ void WebModule::Impl::OnRenderTreeProduced(
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
-#else  // ENABLE_DEBUG_CONSOLE
+#else   // ENABLE_DEBUG_CONSOLE
   render_tree_produced_callback_.Run(layout_results_with_callback);
 #endif  // ENABLE_DEBUG_CONSOLE
 }
@@ -970,7 +1010,7 @@ void WebModule::Impl::CreateWindowDriver(
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-void WebModule::Impl::CreateDebugDispatcherIfNull() {
+void WebModule::Impl::CreateDebugModuleIfNull() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
@@ -984,8 +1024,22 @@ void WebModule::Impl::CreateDebugDispatcherIfNull() {
   debug_module_.reset(new debug::backend::DebugModule(
       window_->console(), global_environment_, debug_overlay_.get(),
       resource_provider_, window_));
+  debug_module_created_.Signal();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+void WebModule::Impl::WaitForWebDebugger() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(debug_module_);
+  LOG(WARNING) << "\n-------------------------------------"
+                  "\n Waiting for web debugger to connect "
+                  "\n-------------------------------------";
+  // This blocks until the web debugger connects.
+  debug_module_->debug_dispatcher()->SetPaused(true);
+  wait_for_web_debugger_finished_.Signal();
+}
+#endif  // defined(ENABLE_REMOTE_DEBUGGING)
 
 void WebModule::Impl::InjectCustomWindowAttributes(
     const Options::InjectedWindowAttributes& attributes) {
@@ -1503,10 +1557,13 @@ debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
   DCHECK(message_loop());
   DCHECK(impl_);
 
-  message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugDispatcherIfNull,
-                            base::Unretained(impl_.get())));
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
+                                      base::Unretained(impl_.get())));
 
+  // This blocks until |CreateDebugModuleIfNull| has run, either waiting for
+  // the one we just posted to run or returning immediately if it previously
+  // ran (making the one we just posted a no-op).
   return impl_->debug_dispatcher();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -1579,11 +1636,25 @@ void WebModule::Pause() {
 
   impl_->CancelSynchronousLoads();
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
-  message_loop()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get())));
+  auto impl_pause =
+      base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get()));
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  // We normally need to block here so that the call doesn't return until the
+  // web application has had a chance to process the whole event. However, our
+  // message loop is blocked while waiting for the web debugger to connect, so
+  // we would deadlock here if the user switches to Chrome to run devtools on
+  // the same machine where Cobalt is running. Therefore, while we're still
+  // waiting for the debugger we post the pause task without blocking on it,
+  // letting it eventually run when the debugger connects and the message loop
+  // is unblocked again.
+  if (!impl_->IsFinishedWaitingForWebDebugger()) {
+    message_loop()->PostTask(FROM_HERE, impl_pause);
+    return;
+  }
+#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+
+  message_loop()->PostBlockingTask(FROM_HERE, impl_pause);
 }
 
 void WebModule::Unpause() {

@@ -31,6 +31,16 @@ const char kDebugConsoleMode[] = "debug_console";
 const char kDebugConsoleModeHelp[] =
     "Switches different debug console modes: on | hud | off";
 
+#if defined(ENABLE_REMOTE_DEBUGGING)
+const char kWaitForWebDebugger[] = "wait_for_web_debugger";
+const char kWaitForWebDebuggerHelp[] =
+    "Waits for remote web debugger to connect before loading the page.  A "
+    "number may optionally be specified to indicate which in a sequence of "
+    "page loads should wait.  For example, if the startup URL is a loader and "
+    "that loader changes window.location to the URL of the actual app, then "
+    "specify 1 to debug the loader or 2 to debug the app.";
+#endif  // ENABLE_REMOTE_DEBUGGING
+
 const char kDisableImageAnimations[] = "disable_image_animations";
 const char kDisableImageAnimationsHelp[] =
     "Enables/disables animations on animated images (e.g. animated WebP).";
@@ -375,6 +385,9 @@ std::string HelpMessage() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
     {kAudioDecoderStub, kAudioDecoderStubHelp},
         {kDebugConsoleMode, kDebugConsoleModeHelp},
+#if defined(ENABLE_REMOTE_DEBUGGING)
+        {kWaitForWebDebugger, kWaitForWebDebuggerHelp},
+#endif  // ENABLE_REMOTE_DEBUGGING
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
         {kForceDeterministicRendering, kForceDeterministicRenderingHelp},
         {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
@@ -403,6 +416,9 @@ std::string HelpMessage() {
         {kVideoDecoderStub, kVideoDecoderStubHelp},
         {kWebDriverListenIp, kWebDriverListenIpHelp},
         {kWebDriverPort, kWebDriverPortHelp},
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+        {kDisableOnScreenKeyboard, kDisableOnScreenKeyboardHelp},
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
         {kDisableJavaScriptJit, kDisableJavaScriptJitHelp},
