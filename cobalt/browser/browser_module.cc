@@ -51,6 +51,7 @@
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
 #include "starboard/configuration.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 
@@ -247,7 +248,6 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
-      navigate_count_(0),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
@@ -485,14 +485,14 @@ void BrowserModule::Navigate(const GURL& url) {
 
   // Wait until after the old WebModule is destroyed before setting the navigate
   // time so that it won't be included in the time taken to load the URL.
-  ++navigate_count_;
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
 
   // Show a splash screen while we're waiting for the web page to load.
   const ViewportSize viewport_size = GetViewportSize();
 
   DestroySplashScreen(base::TimeDelta());
-  if (options_.enable_splash_screen_on_reloads || navigate_count_ == 1) {
+  if (options_.enable_splash_screen_on_reloads ||
+      main_web_module_generation_ == 1) {
     base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
     if (fallback_splash_screen_url_ ||
         (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
@@ -547,6 +547,19 @@ void BrowserModule::Navigate(const GURL& url) {
   options.provide_screenshot_function =
       base::Bind(&ScreenShotWriter::RequestScreenshotToMemoryUnencoded,
                  base::Unretained(screen_shot_writer_.get()));
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kWaitForWebDebugger)) {
+    int wait_for_generation =
+        SbStringAToI(CommandLine::ForCurrentProcess()
+                         ->GetSwitchValueASCII(switches::kWaitForWebDebugger)
+                         .c_str());
+    if (wait_for_generation < 1) wait_for_generation = 1;
+    options.wait_for_web_debugger =
+        (wait_for_generation == main_web_module_generation_);
+  }
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   web_module_.reset(new WebModule(
       url, application_state_,
@@ -782,11 +795,11 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   render_tree_combiner_.SetTimelineLayer(splash_screen_layer_.get());
   splash_screen_layer_->Submit(renderer_submission);
 
-// TODO: write screen shot using render_tree_combiner_ (to combine
-// splash screen and main web_module). Consider when the splash
-// screen is overlaid on top of the main web module render tree, and
-// a screenshot is taken : there will be a race condition on which
-// web module update their render tree last.
+  // TODO: write screen shot using render_tree_combiner_ (to combine
+  // splash screen and main web_module). Consider when the splash
+  // screen is overlaid on top of the main web module render tree, and
+  // a screenshot is taken : there will be a race condition on which
+  // web module update their render tree last.
 
   SubmitCurrentRenderTreeToRenderer();
 }
