@@ -27,7 +27,7 @@
 #include "libANGLE/renderer/d3d/VertexDataManager.h"
 
 #if defined(ANGLE_STD_ASYNC_WORKERS) && defined(_MSC_VER)
-#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED) && (_MSC_VER > 1915)
+#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED) && (_MSC_VER >= 1915)
 // Starting with MSVC++ 14.15 std::future::wait() will throw an exception
 // with the message "Illegal to wait on a task in a Windows Runtime STA"
 // whenever it is invoked from the UI thread. This define signals a
