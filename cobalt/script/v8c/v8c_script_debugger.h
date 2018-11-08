@@ -55,6 +55,7 @@ class V8cScriptDebugger : public ScriptDebugger,
   // v8_inspector::V8InspectorClient implementation.
   void runMessageLoopOnPause(int contextGroupId) override;
   void quitMessageLoopOnPause() override;
+  void runIfWaitingForDebugger(int contextGroupId) override;
   v8::Local<v8::Context> ensureDefaultContextInGroup(
       int contextGroupId) override;
   void consoleAPIMessage(int contextGroupId,

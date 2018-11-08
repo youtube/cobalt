@@ -141,6 +141,7 @@ void DebugDispatcher::HandlePause() {
   // Must be called on the thread of the debug target (WebModule).
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  LOG(INFO) << "JavaScript execution paused.";
   while (is_paused_) {
     command_added_while_paused_.Wait();
 
@@ -157,6 +158,7 @@ void DebugDispatcher::HandlePause() {
       task.Run();
     }
   }
+  LOG(INFO) << "JavaScript execution resumed.";
 }
 
 void DebugDispatcher::SendEvent(const std::string& method,

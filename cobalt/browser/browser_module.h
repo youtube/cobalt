@@ -507,9 +507,6 @@ class BrowserModule {
   // which could occur on navigation.
   base::Closure web_module_recreated_callback_;
 
-  // The total number of navigations that have occurred.
-  int navigate_count_;
-
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.
   base::CVal<int64, base::CValPublic> navigate_time_;
@@ -616,9 +613,10 @@ class BrowserModule {
   // screen will be displayed.
   base::optional<GURL> fallback_splash_screen_url_;
 
-  // Number of main web modules that have take place so far, helpful for
-  // ditinguishing lingering events produced by older web modules as we switch
-  // from one to another.  This is incremented with each navigation.
+  // Number of main web modules that have taken place so far, indicating how
+  // many navigations have occurred. This is helpful for distinguishing
+  // lingering events produced by older web modules as we switch from one to
+  // another. This is incremented with each navigation.
   int main_web_module_generation_;
 
   // Keeps track of a unique next ID to be assigned to new splash screen or
