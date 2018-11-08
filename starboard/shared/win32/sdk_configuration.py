@@ -20,7 +20,7 @@ import starboard.shared.win32.sdk.installer as sdk_installer
 
 
 _DEFAULT_SDK_BIN_DIR = 'C:\\Program Files (x86)\\Windows Kits\\10\\bin'
-_MSVC_TOOLS_VERSION = '14.14.26428'
+_DEFAULT_MSVC_TOOLS_VERSION = '14.14.26428'
 _DEFAULT_WIN_SDK_VERSION = '10.0.17134.0'
 
 
@@ -30,7 +30,7 @@ def _GetWinSdkVersionForPlatform(platform_name):
 
 
 def _GetMsvcToolVersionForPlatform(platform_name):
-  return _MSVC_TOOLS_VERSION
+  return _DEFAULT_MSVC_TOOLS_VERSION
 
 
 def _SelectBestPath(os_var_name, path):
@@ -63,7 +63,6 @@ def _GetVersionedWinmdIncludes(win32_sdk_path, sdk_version,
                                vs_install_dir_with_version,
                                platform_name):
   root_path = win32_sdk_path + '/References/' + sdk_version
-  #vs_host_tools_path = vs_install_dir + '\\bin\\HostX64\\x64'
   winmd_files_dict = {
     '10.0.17134.0': {
       'FoundationContract': \
@@ -72,6 +71,8 @@ def _GetVersionedWinmdIncludes(win32_sdk_path, sdk_version,
       'UniversalApiContract': \
           '/Windows.Foundation.UniversalApiContract/6.0.0.0'
           '/Windows.Foundation.UniversalApiContract.winmd',
+      # Additional files for xb1/uwp platforms.
+      # Xbox One Platform Extension SDK 17095.1000.
       'ApplicationResourceContract': \
           '/Windows.Xbox.ApplicationResourcesContract/1.0.0.0'
           '/Windows.Xbox.ApplicationResourcesContract.winmd',
@@ -150,7 +151,9 @@ class SdkConfiguration:
         + '\\bin\\HostX64\\x64')
 
     self.ucrtbased_dll_path = \
-       self.windows_sdk_host_tools + '\\ucrt\\ucrtbased.dll'
+        'C:\\Program Files (x86)\\Microsoft SDKs\\Windows Kits\\10\\' + \
+        'ExtensionSDKs\\Microsoft.UniversalCRT.Debug\\' + self.required_sdk_version + \
+        '\\Redist\\Debug\\x64\\ucrtbased.dll'
 
     self.versioned_winmd_files = \
         _GetVersionedWinmdIncludes(self.windows_sdk_path,
@@ -163,7 +166,7 @@ class SdkConfiguration:
     logging.critical('Visual Studio Host Tools Path: ' + os.path.abspath(self.vs_host_tools_path))
 
     if not os.path.isdir(self.vs_host_tools_path):
-      sdk_installer.InstallSdkIfNecessary('msvc', _MSVC_TOOLS_VERSION)
+      sdk_installer.InstallSdkIfNecessary('msvc', self.msvc_tool_version)
 
     if not os.path.exists(self.vs_host_tools_path):
       logging.critical('Expected Visual Studio path \"%s\" not found.',
