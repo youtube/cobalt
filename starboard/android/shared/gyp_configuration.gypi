@@ -23,6 +23,9 @@
 
     'gl_type': 'system_gles2',
 
+    # Create v8 snapshot and embed into executable at build-time.
+    'cobalt_v8_buildtime_snapshot': 'true',
+
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
     'compiler_flags_host': [
@@ -133,31 +136,33 @@
   },
 
   'target_defaults': {
-    'defines': [
-      # Cobalt on Linux flag
-      'COBALT_LINUX',
-      '__STDC_FORMAT_MACROS', # so that we get PRI*
-      # Enable GNU extensions to get prototypes like ffsl.
-      '_GNU_SOURCE=1',
-      # Enable compile-time decisions based on the ABI
-      'ANDROID_ABI=<(ANDROID_ABI)',
-      # Note -DANDROID is an argument to some ifdefs in the NDK's eglplatform.h
-      'ANDROID',
-      # Undefining __linux__ causes the system headers to make wrong
-      # assumptions about which C-library is used on the platform.
-      '__BIONIC__',
-      # Undefining __linux__ leaves libc++ without a threads implementation.
-      # TODO: See if there's a way to make libcpp threading use Starboard.
-      '_LIBCPP_HAS_THREAD_API_PTHREAD',
-    ],
-    'cflags': [
-      # libwebp uses the cpufeatures library to detect ARM NEON support
-      '-I<(NDK_HOME)/sources/android/cpufeatures',
-    ],
     'cflags_cc': [
       '-std=c++11',
     ],
     'target_conditions': [
+      ['_toolset=="target"', {
+        'defines': [
+          # Cobalt on Linux flag
+          'COBALT_LINUX',
+          '__STDC_FORMAT_MACROS', # so that we get PRI*
+          # Enable GNU extensions to get prototypes like ffsl.
+          '_GNU_SOURCE=1',
+          # Enable compile-time decisions based on the ABI
+          'ANDROID_ABI=<(ANDROID_ABI)',
+          # Note -DANDROID is an argument to some ifdefs in the NDK's eglplatform.h
+          'ANDROID',
+          # Undefining __linux__ causes the system headers to make wrong
+          # assumptions about which C-library is used on the platform.
+          '__BIONIC__',
+          # Undefining __linux__ leaves libc++ without a threads implementation.
+          # TODO: See if there's a way to make libcpp threading use Starboard.
+          '_LIBCPP_HAS_THREAD_API_PTHREAD',
+        ],
+        'cflags': [
+          # libwebp uses the cpufeatures library to detect ARM NEON support
+          '-I<(NDK_HOME)/sources/android/cpufeatures',
+        ],
+      }],
       ['sb_pedantic_warnings==1', {
         'cflags': [
           '-Wall',
