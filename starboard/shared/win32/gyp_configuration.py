@@ -45,33 +45,10 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
 
   def __init__(self, platform):
     super(Win32SharedConfiguration, self).__init__(platform)
-    self.sdk = win_sdk_configuration.SdkConfiguration()
+    self.sdk = win_sdk_configuration.SdkConfiguration(self.GetName())
 
   def AdditionalPlatformCompilerOptions(self):
-    sdk = self.sdk
-    ver = sdk.required_sdk_version
-    root_path = sdk.windows_sdk_path + '/References/' + sdk.required_sdk_version
-
-    force_include_files = [
-      sdk.vs_install_dir_with_version + '/lib/x86/store/references'
-                                        '/platform.winmd',
-      root_path + '/Windows.Foundation.FoundationContract/3.0.0.0'
-                  '/Windows.Foundation.FoundationContract.winmd',
-      root_path + '/Windows.Foundation.UniversalApiContract/6.0.0.0'
-                  '/Windows.Foundation.UniversalApiContract.winmd',
-    ]
-    if 'xb1' in self.GetName():
-      # Additional files for xb1/uwp platforms.
-      # Xbox One Platform Extension SDK 17095.1000.
-      force_include_files = force_include_files + [
-        root_path + '/Windows.Xbox.ApplicationResourcesContract/1.0.0.0'
-                    '/Windows.Xbox.ApplicationResourcesContract.winmd',
-        root_path + '/Windows.UI.ViewManagement'
-                    '.ViewManagementViewScalingContract/1.0.0.0'
-                    '/Windows.UI.ViewManagement'
-                    '.ViewManagementViewScalingContract.winmd',
-      ]
-    force_include_files = [f.replace('/', '\\') for f in force_include_files]
+    force_include_files = self.sdk.versioned_winmd_files
     missing_files = []
     for f in force_include_files:
       if not os.path.exists(f):
