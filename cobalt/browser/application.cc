@@ -153,10 +153,10 @@ std::string GetWebDriverListenIp() {
 #if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 std::string NumberToFourByteString(size_t n) {
   std::string str;
-  str += ((n & 0xff000000) >> 24);
-  str += ((n & 0x00ff0000) >> 16);
-  str += ((n & 0x0000ff00) >> 8);
-  str += (n & 0x000000ff);
+  str += static_cast<char>(((n & 0xff000000) >> 24));
+  str += static_cast<char>(((n & 0x00ff0000) >> 16));
+  str += static_cast<char>(((n & 0x0000ff00) >> 8));
+  str += static_cast<char>((n & 0x000000ff));
   return str;
 }
 
