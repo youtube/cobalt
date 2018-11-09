@@ -14,13 +14,14 @@
 
 #include "starboard/system.h"
 
-#include <netdb.h>
 #include <linux/if.h>  // NOLINT(build/include_alpha)
+#include <netdb.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
 #include "starboard/log.h"
 #include "starboard/string.h"
+#include "starboard/system_properties.h"
 
 namespace {
 
@@ -111,6 +112,20 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyPlatformUuid:
       return GetPlatformUuid(out_value, value_length);
 #endif  // SB_API_VERSION < 10
+
+#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+    case kSbSystemPropertyCertificationScope:
+      if (kCertificationScope[0] == '\0')
+        return false;
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        kCertificationScope);
+
+    case kSbSystemPropertyCertificationSecret:
+      if (kCertificationSecret[0] == '\0')
+        return false;
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        kCertificationSecret);
+#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__
