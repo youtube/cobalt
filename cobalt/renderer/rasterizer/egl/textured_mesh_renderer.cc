@@ -35,7 +35,8 @@ TexturedMeshRenderer::TexturedMeshRenderer(
     : graphics_context_(graphics_context) {}
 
 TexturedMeshRenderer::~TexturedMeshRenderer() {
-  graphics_context_->MakeCurrent();
+  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+      graphics_context_);
   if (quad_vbo_) {
     GL_CALL(glDeleteBuffers(1, &quad_vbo_.value()));
   }
