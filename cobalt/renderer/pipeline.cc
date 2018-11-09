@@ -436,7 +436,8 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
   // Some animations require a GL graphics context to be current.  Specifically,
   // a call to SbPlayerGetCurrentFrame() may be made to get the current video
   // frame to drive a video-as-an-animated-image.
-  rasterizer_->MakeCurrent();
+  rasterizer::Rasterizer::ScopedMakeCurrent scoped_make_current(
+      rasterizer_.get());
 
   render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
@@ -478,8 +479,6 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
   }
 
   last_render_time_ = submission.time_offset;
-
-  rasterizer_->ReleaseContext();
 
   return true;
 }
