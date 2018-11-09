@@ -80,6 +80,20 @@ class Rasterizer {
   // subsequently submitted to this pipeline.  This call must be thread-safe.
   virtual render_tree::ResourceProvider* GetResourceProvider() = 0;
 
+  // Helper class to allow one to create a RAII object that will acquire the
+  // current context upon construction and release it upon destruction.
+  class ScopedMakeCurrent {
+   public:
+    explicit ScopedMakeCurrent(Rasterizer* rasterizer)
+        : rasterizer_(rasterizer) {
+      rasterizer_->MakeCurrent();
+    }
+    ~ScopedMakeCurrent() { rasterizer_->ReleaseContext(); }
+
+   private:
+    Rasterizer* rasterizer_;
+  };
+
   // For GL-based rasterizers, some animation updates can require that the
   // rasterizer's GL context be current when they are executed.  This method
   // is essentially a hack to allow GL-based rasterizers a chance to set their
