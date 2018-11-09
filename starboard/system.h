@@ -77,6 +77,10 @@ typedef enum SbSystemPropertyId {
 #if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
   // The certification scope that identifies a group of devices.
   kSbSystemPropertyCertificationScope,
+
+  // The HMAC-SHA256 symmetric key used to sign a subset of the query
+  // parameters from the application startup URL.
+  kSbSystemPropertyCertificationSecret,
 #endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 
   // The full model number of the main platform chipset, including any
@@ -116,12 +120,6 @@ typedef enum SbSystemPropertyId {
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
 #endif  // SB_API_VERSION < 10
-
-#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
-  // The HMAC-SHA256 symmetric key used to sign a subset of the query
-  // parameters from the application startup URL.
-  kSbSystemPropertySecret,
-#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API
