@@ -150,6 +150,7 @@ std::string GetWebDriverListenIp() {
 }
 #endif  // ENABLE_WEBDRIVER
 
+#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 std::string NumberToFourByteString(size_t n) {
   std::string str;
   str += ((n & 0xff000000) >> 24);
@@ -197,6 +198,7 @@ std::string ComputeSignature(const std::string& cert_scope,
 
   return base_64_url_signature;
 }
+#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 
 GURL GetInitialURL() {
   GURL initial_url = GURL(kDefaultURL);
