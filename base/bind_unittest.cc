@@ -16,7 +16,6 @@ using ::testing::Return;
 using ::testing::StrictMock;
 
 namespace base {
-namespace {
 
 class IncompleteType;
 
@@ -810,5 +809,4 @@ TEST(BindDeathTest, NullCallback) {
 #endif  // (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) &&
         //     GTEST_HAS_DEATH_TEST
 
-}  // namespace
 }  // namespace base
