@@ -62,44 +62,27 @@ namespace shared {
 namespace starboard {
 namespace {
 
-using JoinFunction = std::function<void()>;
-using RunFunction = std::function<void(Semaphore*, atomic_bool*)>;
-using std::placeholders::_1;
-using std::placeholders::_2;
+using RunFunction = std::function<void(Semaphore*)>;
 
 class FunctionThread : public Thread {
  public:
   static scoped_ptr<Thread> Create(
       const std::string& thread_name,
-      RunFunction run_function,
-      JoinFunction on_join_called = JoinFunction()) {
-    scoped_ptr<Thread> out(
-        new FunctionThread(thread_name, run_function, on_join_called));
+      RunFunction run_function) {
+    scoped_ptr<Thread> out(new FunctionThread(thread_name, run_function));
     return out.Pass();
   }
 
-  FunctionThread(const std::string& name,
-                 RunFunction run_function,
-                 JoinFunction join_function)
-      : Thread(name),
-        run_function_(run_function),
-        join_function_(join_function) {
+  FunctionThread(const std::string& name, RunFunction run_function)
+      : Thread(name), run_function_(run_function) {
   }
 
   void Run() override {
-    run_function_(join_sema(), joined_bool());
-  }
-
-  void Join() override {
-    if (join_function_) {
-      join_function_();
-    }
-    Thread::Join();
+    run_function_(join_sema());
   }
 
  private:
   RunFunction run_function_;
-  JoinFunction join_function_;
 };
 
 std::string ToString(SbSocketError error) {
@@ -289,9 +272,8 @@ class SocketListener {
   SocketListener(Socket* listen_socket, Callback cb)
       : listen_socket_(listen_socket),
         callback_(cb) {
-    RunFunction run_cb = std::bind(&SocketListener::Run, this, _1, _2);
-    thread_ = FunctionThread::Create("NetLogSocketListener",
-                                     run_cb);
+    auto run_cb = [this](Semaphore* sema) { this->Run(sema); };
+    thread_ = FunctionThread::Create("NetLogSocketListener", run_cb);
     thread_->Start();
   }
 
@@ -300,7 +282,7 @@ class SocketListener {
   }
 
  private:
-  void Run(Semaphore* joined_sema, atomic_bool*) {
+  void Run(Semaphore* joined_sema) {
     while (!joined_sema->TakeWait(100 * kSbTimeMillisecond)) {
       scoped_ptr<Socket> client_connection(listen_socket_->Accept());
 
@@ -326,9 +308,8 @@ class NetLogServer {
     ListenForClient();
 
     writer_thread_ = FunctionThread::Create(
-        "NetLogSocketWriter",
-        std::bind(&NetLogServer::WriterTask, this, _1, _2),
-        std::bind(&NetLogServer::OnWriterTaskJoined, this));
+      "NetLogSocketWriter",
+      [this](Semaphore* sema) { this->WriterTask(sema); });
     writer_thread_->Start();
   }
 
@@ -366,6 +347,8 @@ class NetLogServer {
   void Close() {
     socket_listener_.reset();
     if (writer_thread_) {
+      is_joined_.store(true);
+      writer_thread_sema_.Put();
       writer_thread_->Join();
       writer_thread_.reset(nullptr);
       Flush();  // One last flush to the socket.
@@ -389,11 +372,7 @@ class NetLogServer {
   }
 
  private:
-  void OnWriterTaskJoined() {
-    writer_thread_sema_.Put();
-  }
-
-  void WriterTask(Semaphore* /*joined_sema*/, atomic_bool* is_joined) {
+  void WriterTask(Semaphore* /*joined_sema*/) {
     while (true) {
       writer_thread_sema_.Take();
 
@@ -402,7 +381,7 @@ class NetLogServer {
           break;  // Connection dropped.
         }
       }
-      if (is_joined->load()) {
+      if (is_joined_.load()) {
         break;
       }
     }
@@ -415,6 +394,7 @@ class NetLogServer {
   scoped_ptr<SocketListener> socket_listener_;
   scoped_ptr<Thread> writer_thread_;
   Semaphore writer_thread_sema_;
+  atomic_bool is_joined_;
 
   BufferedSocketWriter buffered_socket_writer_;
 };
