@@ -211,13 +211,26 @@ SbDecodeTarget VideoRenderer::GetCurrentDecodeTarget() {
   // NULL inside the dtor.
   SB_DCHECK(decoder_);
 
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  auto start = SbTimeGetMonotonicNow();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
   // TODO: Ensure that |sink_| is NULL when decode target is used across all
   // platforms.
   if (!sink_) {
     Render(VideoRendererSink::DrawFrameCB());
   }
 
-  return decoder_->GetCurrentDecodeTarget();
+  auto decode_target = decoder_->GetCurrentDecodeTarget();
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  auto end = SbTimeGetMonotonicNow();
+  if (end - start > kMaxGetCurrentDecodeTargetDuration) {
+    SB_LOG(WARNING) << "VideoRenderer::GetCurrentDecodeTarget() takes "
+                    << end - start << " microseconds.";
+  }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  return decode_target;
 }
 
 void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
@@ -280,6 +293,16 @@ void VideoRenderer::OnDecoderStatus(VideoDecoder::Status status,
 }
 
 void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  auto now = SbTimeGetMonotonicNow();
+  if (time_of_last_render_call_ != -1) {
+    auto time_since_last_call = now - time_of_last_render_call_;
+    if (time_since_last_call > kMaxRenderIntervalBeforeWarning) {
+      SB_LOG(WARNING) << "Render() hasn't been called for "
+                      << time_since_last_call << " microseconds.";
+    }
+  }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   {
     ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
     sink_frames_mutex_.Acquire();
@@ -297,6 +320,12 @@ void VideoRenderer::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     Schedule(ended_cb_);
   }
   sink_frames_mutex_.Release();
+
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  // Update this at last to ensure that the delay of Render() call isn't caused
+  // by the slowness of Render() itself.
+  time_of_last_render_call_ = SbTimeGetMonotonicNow();
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
 void VideoRenderer::OnSeekTimeout() {

@@ -20,6 +20,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
@@ -41,6 +42,11 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   int GetDroppedFrames() override { return dropped_frames_; }
 
  private:
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  SbTime media_time_of_last_render_call_;
+  SbTime system_time_of_last_render_call_;
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
   SbTime last_frame_timestamp_;
   int dropped_frames_;
 };
