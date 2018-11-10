@@ -126,6 +126,11 @@ class VideoRenderer : JobQueue::JobOwner {
   static const SbTimeMonotonic kDelayBeforeWarning = 2 * kSbTimeSecond;
   static const SbTimeMonotonic kMinLagWarningInterval = 10 * kSbTimeSecond;
 
+  static const SbTimeMonotonic kMaxRenderIntervalBeforeWarning =
+      66 * kSbTimeMillisecond;
+  static const SbTimeMonotonic kMaxGetCurrentDecodeTargetDuration =
+      16 * kSbTimeMillisecond;
+
   void CheckBufferingState();
   void CheckForFrameLag(SbTime last_decoded_frame_timestamp);
 
@@ -136,6 +141,8 @@ class VideoRenderer : JobQueue::JobOwner {
   atomic_bool end_of_stream_decoded_;
 
   SbTimeMonotonic time_of_last_lag_warning_;
+
+  SbTimeMonotonic time_of_last_render_call_ = -1;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
