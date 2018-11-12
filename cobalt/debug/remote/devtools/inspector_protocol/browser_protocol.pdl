@@ -3343,6 +3343,12 @@ domain Log
       # The entry.
       LogEntry entry
 
+  # [Cobalt custom] Issued when new browser internal message was logged.
+  event browserEntryAdded
+    parameters
+      # The entry.
+      LogEntry entry
+
 experimental domain Memory
 
   # Memory pressure level.
