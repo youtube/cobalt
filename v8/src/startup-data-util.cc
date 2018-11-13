@@ -83,6 +83,8 @@ void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
 
 
 void InitializeExternalStartupData(const char* directory_path) {
+#if !defined(COBALT)
+  // Cobalt does not use this function yet, skip it to avoid compiling errors.
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   char* natives;
   char* snapshot;
@@ -92,6 +94,7 @@ void InitializeExternalStartupData(const char* directory_path) {
   free(natives);
   free(snapshot);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
+#endif  // !defined(COBALT)
 }
 
 
