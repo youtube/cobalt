@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/linux/x64x11/system_properties.h"
+#ifndef STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
+#define STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
 
 #if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
-const char kCertificationScope[] = "";
-const char kCertificationSecret[] = "";
+extern const char kCertificationScope[];
+extern const char kCertificationSecret[];
 #endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+
+#endif  // STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
