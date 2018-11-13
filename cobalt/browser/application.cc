@@ -229,8 +229,8 @@ GURL GetInitialURL() {
 
   const size_t kSecretLength = 1024;
   char base_64_secret_property[kSecretLength] = {0};
-  result = SbSystemGetProperty(kSbSystemPropertySecret, base_64_secret_property,
-                               kSecretLength - 1);
+  result = SbSystemGetProperty(kSbSystemPropertyCertificationSecret,
+                               base_64_secret_property, kSecretLength - 1);
   if (!result) {
     DLOG(ERROR) << "Unable to get kSbSystemPropertySecret";
     return initial_url;
