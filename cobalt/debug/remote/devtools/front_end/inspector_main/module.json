@@ -99,34 +99,34 @@
             "settingType": "boolean",
             "defaultValue": false
         },
-        {
-            "type": "view",
-            "location": "drawer-view",
-            "id": "rendering",
-            "title": "Rendering",
-            "persistence": "closeable",
-            "order": 50,
-            "className": "InspectorMain.RenderingOptionsView"
-        },
-        {
-            "type": "action",
-            "category": "Mobile",
-            "actionId": "components.request-app-banner",
-            "className": "InspectorMain.RequestAppBannerActionDelegate",
-            "title": "Add to homescreen"
-        }
+        // {
+        //     "type": "view",
+        //     "location": "drawer-view",
+        //     "id": "rendering",
+        //     "title": "Rendering",
+        //     "persistence": "closeable",
+        //     "order": 50,
+        //     "className": "InspectorMain.RenderingOptionsView"
+        // },
+        // {
+        //     "type": "action",
+        //     "category": "Mobile",
+        //     "actionId": "components.request-app-banner",
+        //     "className": "InspectorMain.RequestAppBannerActionDelegate",
+        //     "title": "Add to homescreen"
+        // }
     ],
     "dependencies": [
         "components",
         "mobile_throttling"
     ],
     "scripts": [
-        "RenderingOptions.js",
+        // "RenderingOptions.js",
         "RequestAppBannerActionDelegate.js",
         "InspectorMain.js"
     ],
     "resources": [
         "nodeIcon.css",
-        "renderingOptions.css"
+        // "renderingOptions.css"
     ]
 }
