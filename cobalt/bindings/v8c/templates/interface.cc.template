@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/helpers.h"
+#include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_typed_arrays.h"
@@ -896,6 +897,7 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_, nullptr, global_object_template);
   context_.Reset(isolate_, context);
+  IsolateFellowship::GetInstance()->ReleaseSnapshotData();
   v8::Context::Scope context_scope(context);
 
   global_wrappable_ = global_interface;

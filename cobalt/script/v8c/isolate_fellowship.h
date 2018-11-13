@@ -15,11 +15,16 @@
 #ifndef COBALT_SCRIPT_V8C_ISOLATE_FELLOWSHIP_H_
 #define COBALT_SCRIPT_V8C_ISOLATE_FELLOWSHIP_H_
 
+#include <vector>
+
 #include "base/memory/singleton.h"
+#include "base/synchronization/lock.h"
+#include "base/threading/thread.h"
+#include "base/timer.h"
 #include "cobalt/script/v8c/cobalt_platform.h"
 #include "v8/include/libplatform/libplatform.h"
-#include "v8/include/v8.h"
 #include "v8/include/v8-platform.h"
+#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
@@ -30,7 +35,7 @@ namespace v8c {
 // also handled here, most notably, the possible reading/writing of
 // |startup_data| from/to a cache file if snapshot has not been generated at
 // build time.
-struct IsolateFellowship {
+class IsolateFellowship {
  public:
   static IsolateFellowship* GetInstance() {
     return Singleton<IsolateFellowship,
@@ -39,23 +44,40 @@ struct IsolateFellowship {
 
   scoped_refptr<CobaltPlatform> platform = nullptr;
   v8::ArrayBuffer::Allocator* array_buffer_allocator = nullptr;
-#if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
-  v8::StartupData startup_data = {nullptr, 0};
-#endif  // !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
+  // Obtain the snapshot data for the use of v8 initialization.
+  v8::StartupData* GetSnapshotData();
+  // Signal IsolateFellowship that current v8 JavaScript engine is done with
+  // the snapshot data and IsolateFellowship can delete the snapshot data any
+  // time later.
+  void ReleaseSnapshotData();
 
   friend struct StaticMemorySingletonTraits<IsolateFellowship>;
 
  private:
+  // A helper class to manage the lifetime of v8's snapshot and natives blob
+  // data.
+  class StartupDataManager;
+
+  void DeleteSnapshotDataCallback();
   IsolateFellowship();
   ~IsolateFellowship();
+#if defined(COBALT_V8_BUILDTIME_SNAPSHOT)
+  void LoadNativesBlob();
+#endif
 
-#if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
-  // Initialize |startup_data| by either reading it from a cache file or
-  // creating it.  If creating it for the first time, then when appropriate
-  // (i.e. the platform has a suitable directory) attempt to write it to a cache
-  // file.
-  void InitializeStartupData();
-#endif  // !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
+#if defined(COBALT_V8_BUILDTIME_SNAPSHOT)
+  // natives_data_ include some JavaScript libraries compiled into c code.
+  // This is only required by build-time generated startup data. V8 will point
+  // directly into this data for library references so we can't delete it
+  // while v8 is running. Without build-time snapshot, the same c codes are
+  // compiled into v8.
+  v8::StartupData natives_data_ = {nullptr, 0};
+#endif
+  scoped_ptr<StartupDataManager> startup_data_manager_;
+  // The number of engines that have been created but its v8 context has not.
+  int startup_data_refcount_ = 0;
+  base::Lock mutex_;
+  base::TimeTicks startup_data_last_acquired_time_;
 };
 
 }  // namespace v8c
