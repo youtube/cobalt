@@ -14,14 +14,14 @@
 
 #include "starboard/system.h"
 
-#include <linux/if.h>  // NOLINT(build/include_alpha)
 #include <netdb.h>
+#include <linux/if.h>  // NOLINT(build/include_alpha)
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include "starboard/linux/x64x11/system_properties.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
-#include "starboard/system_properties.h"
 
 namespace {
 
