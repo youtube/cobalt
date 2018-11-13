@@ -10,12 +10,17 @@ Utilities for the modular DevTools build.
 import collections
 from os import path
 import os
+import sys
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
-
+# try:
+#     import simplejson as json
+# except ImportError:
+#     import json
+PYJSON5_DIR = os.path.join(os.path.dirname(__file__),
+                           '..', '..', '..', '..', '..', '..',
+                           'third_party', 'pyjson5')
+sys.path.append(PYJSON5_DIR)
+import json5 as json # pylint: disable=import-error
 
 def read_file(filename):
     with open(path.normpath(filename), 'rt') as input:

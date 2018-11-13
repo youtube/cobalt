@@ -539,15 +539,15 @@
                 }
             ]
         },
-        {
-            "type": "view",
-            "location": "drawer-view",
-            "id": "sources.quick",
-            "title": "Quick source",
-            "persistence": "closeable",
-            "order": 1000,
-            "className": "Sources.SourcesPanel.WrapperView"
-        },
+        // {
+        //     "type": "view",
+        //     "location": "drawer-view",
+        //     "id": "sources.quick",
+        //     "title": "Quick source",
+        //     "persistence": "closeable",
+        //     "order": 1000,
+        //     "className": "Sources.SourcesPanel.WrapperView"
+        // },
         {
             "type": "action",
             "category": "Sources",
