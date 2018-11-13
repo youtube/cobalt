@@ -164,7 +164,6 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   scoped_refptr<Wrappable> global_wrappable_;
   DestructionHelper destruction_helper_;
   v8::Global<v8::Context> context_;
-  v8::Global<v8::Object> global_object_;
 
   scoped_ptr<WrapperFactory> wrapper_factory_;
   scoped_ptr<V8cScriptValueFactory> script_value_factory_;
