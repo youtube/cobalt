@@ -89,6 +89,10 @@
         # must be unique with respect to binary, which is why we build it out
         # of platform name and configuration.
         'V8C_INTERNAL_STARTUP_DATA_CACHE_FILE_NAME="<(starboard_platform_name)_<(cobalt_config)_v8_startup_snapshot.bin"',
+        # The file name for snapshot blob in v8/ of content directory.
+        'V8C_INTERNAL_SNAPSHOT_DATA_CONTENT_FILE_NAME="snapshot_blob.bin"',
+        # The file name for natives blob in v8/ of content directory.
+        'V8C_INTERNAL_NATIVES_DATA_CONTENT_FILE_NAME="natives_blob.bin"',
       ],
       'all_dependent_settings': {
         'defines': [
