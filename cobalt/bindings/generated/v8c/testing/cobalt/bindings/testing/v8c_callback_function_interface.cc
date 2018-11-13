@@ -38,6 +38,7 @@
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/helpers.h"
+#include "cobalt/script/v8c/isolate_fellowship.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_typed_arrays.h"
