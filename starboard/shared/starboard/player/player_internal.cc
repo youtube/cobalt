@@ -70,13 +70,18 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
     SbPlayerErrorFunc player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void* context,
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler) {
-  SbPlayerPrivate* ret = new SbPlayerPrivate(
-      audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context,
-      player_worker_handler.Pass());
+  SbPlayerPrivate* ret =
+      new SbPlayerPrivate(audio_codec, video_codec, sample_deallocate_func,
+                          decoder_status_func, player_status_func,
+#if SB_HAS(PLAYER_ERROR_MESSAGE)
+                          player_error_func,
+#endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
+                          context, player_worker_handler.Pass());
 
   if (ret && ret->worker_) {
     return ret;
