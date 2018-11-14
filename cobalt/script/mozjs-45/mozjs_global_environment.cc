@@ -529,7 +529,7 @@ void MozjsGlobalEnvironment::DoSweep() {
 void MozjsGlobalEnvironment::BeginGarbageCollection() {
   TRACK_MEMORY_SCOPE("Javascript");
   // It's possible that a GC could be triggered from within the
-  // BeginGarbageCollection callback. Only verify that |visisted_wrappables_|
+  // BeginGarbageCollection callback. Only verify that |visited_wrappables_|
   // is empty the first time we enter.
   garbage_collection_count_++;
 
@@ -539,7 +539,7 @@ void MozjsGlobalEnvironment::BeginGarbageCollection() {
 }
 
 void MozjsGlobalEnvironment::EndGarbageCollection() {
-  // Reset |visisted_wrappables_|.
+  // Reset |visited_wrappables_|.
   garbage_collection_count_--;
   DCHECK_GE(garbage_collection_count_, 0);
   if (garbage_collection_count_ == 0) {

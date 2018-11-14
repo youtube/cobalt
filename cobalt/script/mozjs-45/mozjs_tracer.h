@@ -52,7 +52,7 @@ class MozjsTracer : public ::cobalt::script::Tracer {
   // |Trace|.
   void DrainFrontier();
 
-  // This is primarly exposed for |MozjsUserObjectHolder|'s implementation of
+  // This is primarily exposed for |MozjsUserObjectHolder|'s implementation of
   // |TraceMembers|.
   JSTracer* js_tracer() const { return js_tracer_; }
 
