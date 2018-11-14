@@ -64,7 +64,7 @@ IsolateFellowship::IsolateFellowship() {
   v8::V8::Initialize();
   array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
-  // If a new snapshot data is needed, a temporary v8 isoalte will be created
+  // If a new snapshot data is needed, a temporary v8 isolate will be created
   // to write the snapshot data. We need to make sure all global command line
   // flags are set before that.
   V8FlagsInit();

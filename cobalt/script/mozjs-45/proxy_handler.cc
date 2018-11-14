@@ -258,7 +258,7 @@ bool ProxyHandler::IsArrayIndexPropertyName(JSContext* context,
 bool ProxyHandler::IsNamedPropertyVisible(
     JSContext* context, JS::HandleObject object,
     const std::string& property_name) const {
-  // Named property visiblity algorithm.
+  // Named property visibility algorithm.
   // https://www.w3.org/TR/WebIDL/#dfn-named-property-visibility
 
   // 1. If P is an unforgeable property name on O, then return false.
@@ -276,7 +276,7 @@ bool ProxyHandler::IsNamedPropertyVisible(
   // TODO: Implement OverrideBuiltins extended attribute
 
   // 5. If O has an own property named P, then return false.
-  // 6~7. ( Walk the prototype chain and if the prootype has P, return false)
+  // 6~7. ( Walk the prototype chain and if the protoype has P, return false)
 
   bool found_property;
   if (!JS_HasProperty(context, object, property_name.c_str(),
