@@ -44,7 +44,7 @@ class StandaloneJavascriptRunner {
   }
 
   // Executes input from stdin and echoes the result to stdout. Loops until EOF
-  // is encounterd (CTRL-D).
+  // is encountered (CTRL-D).
   void RunInteractive();
 
   // Read the file from disk and execute the script. Echos the result to stdout.
