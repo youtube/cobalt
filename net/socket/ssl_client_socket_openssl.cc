@@ -12,6 +12,7 @@
 #include <openssl/opensslv.h>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/histogram.h"
 #include "base/synchronization/lock.h"
@@ -769,6 +770,7 @@ void SSLClientSocketOpenSSL::Disconnect() {
 }
 
 int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoHandshakeLoop");
   int rv = last_io_result;
   do {
     // Default to STATE_NONE for next state.
@@ -808,6 +810,7 @@ int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
 }
 
 int SSLClientSocketOpenSSL::DoHandshake() {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoHandshake");
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
   int net_error = net::OK;
   int rv = SSL_do_handshake(ssl_);
@@ -983,6 +986,7 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
 }
 
 bool SSLClientSocketOpenSSL::DoTransportIO() {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoTransportIO");
   bool network_moved = false;
   int rv;
   // Read and write as much data as possible. The loop is necessary because
@@ -998,6 +1002,7 @@ bool SSLClientSocketOpenSSL::DoTransportIO() {
 }
 
 int SSLClientSocketOpenSSL::BufferSend(void) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::BufferSend");
   if (transport_send_busy_)
     return ERR_IO_PENDING;
 
@@ -1026,12 +1031,14 @@ int SSLClientSocketOpenSSL::BufferSend(void) {
 }
 
 void SSLClientSocketOpenSSL::BufferSendComplete(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::BufferSendComplete");
   transport_send_busy_ = false;
   TransportWriteComplete(result);
   OnSendComplete(result);
 }
 
 void SSLClientSocketOpenSSL::TransportWriteComplete(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::TransportWriteComplete");
   DCHECK(ERR_IO_PENDING != result);
   if (result < 0) {
     // Got a socket write error; close the BIO to indicate this upward.
@@ -1049,6 +1056,7 @@ void SSLClientSocketOpenSSL::TransportWriteComplete(int result) {
 }
 
 int SSLClientSocketOpenSSL::BufferRecv(void) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::BufferRecv");
   if (transport_recv_busy_)
     return ERR_IO_PENDING;
 
@@ -1073,11 +1081,13 @@ int SSLClientSocketOpenSSL::BufferRecv(void) {
 }
 
 void SSLClientSocketOpenSSL::BufferRecvComplete(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::BufferRecvComplete");
   TransportReadComplete(result);
   OnRecvComplete(result);
 }
 
 void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::TransportReadComplete");
   DCHECK(ERR_IO_PENDING != result);
   if (result <= 0) {
     DVLOG(1) << "TransportReadComplete result " << result;
@@ -1099,6 +1109,7 @@ void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::DoConnectCallback(int rv) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoConnectCallback");
   if (!user_connect_callback_.is_null()) {
     CompletionCallback c = user_connect_callback_;
     user_connect_callback_.Reset();
@@ -1115,6 +1126,7 @@ void SSLClientSocketOpenSSL::OnHandshakeIOComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::OnSendComplete(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::OnSendComplete");
   if (next_handshake_state_ == STATE_HANDSHAKE) {
     // In handshake phase.
     OnHandshakeIOComplete(result);
@@ -1243,6 +1255,7 @@ base::TimeDelta SSLClientSocketOpenSSL::GetConnectTimeMicros() const {
 int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
                                  int buf_len,
                                  const CompletionCallback& callback) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::Read");
   user_read_buf_ = buf;
   user_read_buf_len_ = buf_len;
 
@@ -1259,6 +1272,7 @@ int SSLClientSocketOpenSSL::Read(IOBuffer* buf,
 }
 
 int SSLClientSocketOpenSSL::DoReadLoop(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoReadLoop");
   if (result < 0)
     return result;
 
@@ -1275,6 +1289,7 @@ int SSLClientSocketOpenSSL::DoReadLoop(int result) {
 int SSLClientSocketOpenSSL::Write(IOBuffer* buf,
                                   int buf_len,
                                   const CompletionCallback& callback) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::Write");
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
 
@@ -1291,6 +1306,7 @@ int SSLClientSocketOpenSSL::Write(IOBuffer* buf,
 }
 
 int SSLClientSocketOpenSSL::DoWriteLoop(int result) {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoWriteLoop");
   if (result < 0)
     return result;
 
@@ -1313,8 +1329,13 @@ bool SSLClientSocketOpenSSL::SetSendBufferSize(int32 size) {
 }
 
 int SSLClientSocketOpenSSL::DoPayloadRead() {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoPayloadRead");
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+
+  TRACE_EVENT_BEGIN0("net", "SSL_read");
   int rv = SSL_read(ssl_, user_read_buf_->data(), user_read_buf_len_);
+  TRACE_EVENT_END0("net", "SSL_read");
+
   // We don't need to invalidate the non-client-authenticated SSL session
   // because the server will renegotiate anyway.
   if (client_auth_cert_needed_)
@@ -1331,8 +1352,12 @@ int SSLClientSocketOpenSSL::DoPayloadRead() {
 }
 
 int SSLClientSocketOpenSSL::DoPayloadWrite() {
+  TRACE_EVENT0("net", "SSLClientSocketOpenSSL::DoPayloadWrite");
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+
+  TRACE_EVENT_BEGIN0("net", "SSL_write");
   int rv = SSL_write(ssl_, user_write_buf_->data(), user_write_buf_len_);
+  TRACE_EVENT_END0("net", "SSL_write");
 
   if (rv >= 0) {
     net_log_.AddByteTransferEvent(NetLog::TYPE_SSL_SOCKET_BYTES_SENT, rv,
