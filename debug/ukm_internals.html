@@ -1,0 +1,24 @@
+<!-- Copyright 2018 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.-->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<script src="chrome://resources/js/cr.js"></script>
+<script src="chrome://resources/js/promise_resolver.js"></script>
+<script src="chrome://resources/js/util.js"></script>
+<if expr="is_ios">
+    <!-- TODO(crbug.com/487000): Remove this once injected by web. -->
+    <script src="chrome://resources/js/ios/web_ui.js"></script>
+</if>
+<title>UKM Debug page</title>
+<h1>UKM Debug page</h1>
+<div>
+  <p>Is Enabled:<span id="state"></span></p>
+  <p>Client Id:<span id="clientid"></span></p>
+  <p>Session Id:<span id="sessionid"></span></p>
+  <h2>Sources</h2>
+  <div id="sources"></div>
+</div>
+<script src="ukm_internals.js"></script>
+</html>
