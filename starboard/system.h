@@ -78,9 +78,9 @@ typedef enum SbSystemPropertyId {
   // The certification scope that identifies a group of devices.
   kSbSystemPropertyCertificationScope,
 
-  // The HMAC-SHA256 symmetric key used to sign a subset of the query
-  // parameters from the application startup URL.
-  kSbSystemPropertyCertificationSecret,
+  // The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
+  // query parameters from the application startup URL.
+  kSbSystemPropertyBase64EncodedCertificationSecret,
 #endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 
   // The full model number of the main platform chipset, including any

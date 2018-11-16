@@ -16,5 +16,5 @@
 
 #if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 const char kCertificationScope[] = "";
-const char kCertificationSecret[] = "";
+const char kBase64EncodedCertificationSecret[] = "";
 #endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
