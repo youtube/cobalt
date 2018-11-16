@@ -12,13 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_LINUX_X64X11_SYSTEM_GET_PROPERTY_IMPL_H_
+#define STARBOARD_LINUX_X64X11_SYSTEM_GET_PROPERTY_IMPL_H_
+
 #include "starboard/system.h"
 
-#include "starboard/linux/x64x11/system_get_property_impl.h"
+// Omit namespace linux due to symbol name conflict.
+namespace starboard {
+namespace x64x11 {
 
-bool SbSystemGetProperty(SbSystemPropertyId property_id,
-                         char* out_value,
-                         int value_length) {
-  return starboard::x64x11::GetSystemProperty(property_id, out_value,
-                                              value_length);
-}
+bool CopyStringAndTestIfSuccess(char* out_value,
+                                int value_length,
+                                const char* from_value);
+
+bool GetSystemProperty(SbSystemPropertyId property_id,
+                       char* out_value,
+                       int value_length);
+
+}  // namespace x64x11
+}  // namespace starboard
+
+#endif  // STARBOARD_LINUX_X64X11_SYSTEM_GET_PROPERTY_IMPL_H_
