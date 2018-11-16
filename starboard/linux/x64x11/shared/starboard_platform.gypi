@@ -19,6 +19,7 @@
       '<(DEPTH)/starboard/linux/x64x11/main.cc',
       '<(DEPTH)/starboard/linux/x64x11/sanitizer_options.cc',
       '<(DEPTH)/starboard/linux/x64x11/system_get_property.cc',
+      '<(DEPTH)/starboard/linux/x64x11/system_get_property_impl.cc',
       '<(DEPTH)/starboard/shared/libjpeg/image_decode.cc',
       '<(DEPTH)/starboard/shared/libjpeg/image_is_decode_supported.cc',
       '<(DEPTH)/starboard/shared/libjpeg/jpeg_image_decoder.cc',

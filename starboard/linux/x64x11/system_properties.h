@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 extern const char kCertificationScope[];
-extern const char kCertificationSecret[];
+extern const char kBase64EncodedCertificationSecret[];
 #endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
 
 #endif  // STARBOARD_LINUX_X64X11_SYSTEM_PROPERTIES_H_
