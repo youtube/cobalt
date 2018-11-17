@@ -216,23 +216,26 @@ GURL GetInitialURL() {
 
 #if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
   // Get cert_scope and base_64_secret
-  const size_t kCertificationScopeLength = 1024;
-  char cert_scope_property[kCertificationScopeLength] = {0};
+  const size_t kCertificationScopeLength = 1023;
+  char cert_scope_property[kCertificationScopeLength + 1] = {0};
   bool result =
       SbSystemGetProperty(kSbSystemPropertyCertificationScope,
-                          cert_scope_property, kCertificationScopeLength - 1);
+                          cert_scope_property, kCertificationScopeLength);
   if (!result) {
     DLOG(ERROR) << "Unable to get kSbSystemPropertyCertificationScope";
     return initial_url;
   }
   std::string cert_scope(cert_scope_property);
 
-  const size_t kSecretLength = 1024;
-  char base_64_secret_property[kSecretLength] = {0};
-  result = SbSystemGetProperty(kSbSystemPropertyCertificationSecret,
-                               base_64_secret_property, kSecretLength - 1);
+  const size_t kBase64EncodedCertificationSecretLength = 1023;
+  char base_64_secret_property[kBase64EncodedCertificationSecretLength + 1] = {
+      0};
+  result = SbSystemGetProperty(
+      kSbSystemPropertyBase64EncodedCertificationSecret,
+      base_64_secret_property, kBase64EncodedCertificationSecretLength);
   if (!result) {
-    DLOG(ERROR) << "Unable to get kSbSystemPropertySecret";
+    DLOG(ERROR)
+        << "Unable to get kSbSystemPropertyBase64EncodedCertificationSecret";
     return initial_url;
   }
   std::string base_64_secret(base_64_secret_property);
