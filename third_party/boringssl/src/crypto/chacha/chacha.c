@@ -14,11 +14,13 @@
 
 // Adapted from the public domain, estream code by D. Bernstein.
 
-#include <openssl/chacha.h>
-
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <string.h>
-
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/mem.h>
+#include <openssl/chacha.h>
 #include <openssl/cpu.h>
 
 #include "../internal.h"
