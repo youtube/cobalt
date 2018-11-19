@@ -49,7 +49,13 @@
 #ifndef OPENSSL_HEADER_MODES_INTERNAL_H
 #define OPENSSL_HEADER_MODES_INTERNAL_H
 
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
+#include <string.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 #include <openssl/base.h>
+#include <openssl/aes.h>
+#include <openssl/mem.h>
 
 #include <string.h>
 

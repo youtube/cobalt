@@ -1,3 +1,4 @@
+/* crypto/bio/bss_file.c */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -52,195 +53,464 @@
  * The licence and distribution terms for any publically available version or
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
- * [including the GNU Public Licence.] */
+ * [including the GNU Public Licence.]
+ */
+
+/*-
+ * 03-Dec-1997  rdenny@dc3.com  Fix bug preventing use of stdin/stdout
+ *              with binary data (e.g. asn1parse -inform DER < xxx) under
+ *              Windows
+ */
+
+#ifndef HEADER_BSS_FILE_C
+#define HEADER_BSS_FILE_C
 
 #if defined(__linux) || defined(__sun) || defined(__hpux)
-// Following definition aliases fopen to fopen64 on above mentioned
-// platforms. This makes it possible to open and sequentially access
-// files larger than 2GB from 32-bit application. It does not allow to
-// traverse them beyond 2GB with fseek/ftell, but on the other hand *no*
-// 32-bit platform permits that, not with fseek/ftell. Not to mention
-// that breaking 2GB limit for seeking would require surgery to *our*
-// API. But sequential access suffices for practical cases when you
-// can run into large files, such as fingerprinting, so we can let API
-// alone. For reference, the list of 32-bit platforms which allow for
-// sequential access of large files without extra "magic" comprise *BSD,
-// Darwin, IRIX...
+/*
+ * Following definition aliases fopen to fopen64 on above mentioned
+ * platforms. This makes it possible to open and sequentially access files
+ * larger than 2GB from 32-bit application. It does not allow to traverse
+ * them beyond 2GB with fseek/ftell, but on the other hand *no* 32-bit
+ * platform permits that, not with fseek/ftell. Not to mention that breaking
+ * 2GB limit for seeking would require surgery to *our* API. But sequential
+ * access suffices for practical cases when you can run into large files,
+ * such as fingerprinting, so we can let API alone. For reference, the list
+ * of 32-bit platforms which allow for sequential access of large files
+ * without extra "magic" comprise *BSD, Darwin, IRIX...
+ */
 #ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
 #endif
 #endif
 
-#include <openssl/bio.h>
+#if !defined(MS_CALLBACK)
+#define MS_CALLBACK
+#endif
 
-#if !defined(OPENSSL_TRUSTY)
+#if !defined(BIO_FLAGS_UPLINK)
+#define BIO_FLAGS_UPLINK 0
+#endif
 
+
+
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <errno.h>
 #include <stdio.h>
-#include <string.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/base.h>
 
-#include <openssl/buf.h>
+#include <openssl/bio.h>
 #include <openssl/err.h>
-#include <openssl/mem.h>
 
-#include "../internal.h"
-
+#if defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
+#include <nwfileio.h>
+#endif
 
 #define BIO_FP_READ 0x02
 #define BIO_FP_WRITE 0x04
 #define BIO_FP_APPEND 0x08
 
-BIO *BIO_new_file(const char *filename, const char *mode) {
-  BIO *ret;
-  FILE *file;
+#if !defined(OPENSSL_NO_STDIO)
 
+static int MS_CALLBACK file_write(BIO *h, const char *buf, int num);
+static int MS_CALLBACK file_read(BIO *h, char *buf, int size);
+static int MS_CALLBACK file_puts(BIO *h, const char *str);
+static int MS_CALLBACK file_gets(BIO *h, char *str, int size);
+static long MS_CALLBACK file_ctrl(BIO *h, int cmd, long arg1, void *arg2);
+static int MS_CALLBACK file_new(BIO *h);
+static int MS_CALLBACK file_free(BIO *data);
+static BIO_METHOD methods_filep = {
+    BIO_TYPE_FILE,
+    "FILE pointer",
+    file_write,
+    file_read,
+    file_puts,
+    file_gets,
+    file_ctrl,
+    file_new,
+    file_free,
+    NULL,
+};
+
+#if !defined(OPENSSL_SYS_STARBOARD)
+static FILE *file_fopen(const char *filename, const char *mode) {
+  FILE *file = NULL;
+
+#if defined(_WIN32) && defined(CP_UTF8)
+  int sz, len_0 = (int)OPENSSL_port_strlen(filename) + 1;
+  DWORD flags;
+
+  /*
+   * Basically there are three cases to cover: a) filename is
+   * pure ASCII string; b) actual UTF-8 encoded string and
+   * c) locale-ized string, i.e. one containing 8-bit
+   * characters that are meaningful in current system locale.
+   * If filename is pure ASCII or real UTF-8 encoded string,
+   * MultiByteToWideChar succeeds and _wfopen works. If
+   * filename is locale-ized string, chances are that
+   * MultiByteToWideChar fails reporting
+   * ERROR_NO_UNICODE_TRANSLATION, in which case we fall
+   * back to fopen...
+   */
+  if ((sz = MultiByteToWideChar(CP_UTF8, (flags = MB_ERR_INVALID_CHARS),
+                                filename, len_0, NULL, 0)) > 0 ||
+      (GetLastError() == ERROR_INVALID_FLAGS &&
+       (sz = MultiByteToWideChar(CP_UTF8, (flags = 0), filename, len_0, NULL,
+                                 0)) > 0)) {
+    WCHAR wmode[8];
+    WCHAR *wfilename = _alloca(sz * sizeof(WCHAR));
+
+    if (MultiByteToWideChar(CP_UTF8, flags, filename, len_0, wfilename, sz) &&
+        MultiByteToWideChar(CP_UTF8, 0, mode, OPENSSL_port_strlen(mode) + 1,
+                            wmode, sizeof(wmode) / sizeof(wmode[0])) &&
+        (file = _wfopen(wfilename, wmode)) == NULL &&
+        (OPENSSL_errno == ENOENT || OPENSSL_errno == EBADF)) {
+      /*
+       * UTF-8 decode succeeded, but no file, filename
+       * could still have been locale-ized...
+       */
+      file = fopen(filename, mode);
+    }
+  } else if (GetLastError() == ERROR_NO_UNICODE_TRANSLATION) {
+    file = fopen(filename, mode);
+  }
+#else
   file = fopen(filename, mode);
-  if (file == NULL) {
-    OPENSSL_PUT_SYSTEM_ERROR();
+#endif
+  return (file);
+}
 
-    ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");
-    if (errno == ENOENT) {
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+
+BIO *BIO_new_file(const char *filename, const char *mode) {
+  BIO *ret = NULL;
+#if defined(OPENSSL_SYS_STARBOARD)
+  SbFile sb_file = kSbFileInvalid;
+  SbFileError error = kSbFileOk;
+  sb_file = SbFileOpen(filename, SbFileModeStringToFlags(mode), NULL, &error);
+  if (!SbFileIsValid(sb_file)) {
+    OPENSSL_PUT_SYSTEM_ERROR();
+    ERR_add_error_data(5, "SbFileOpen('", filename, "','", mode, "')");
+    if (error == kSbFileErrorNotFound) {
       OPENSSL_PUT_ERROR(BIO, BIO_R_NO_SUCH_FILE);
     } else {
       OPENSSL_PUT_ERROR(BIO, BIO_R_SYS_LIB);
     }
-    return NULL;
-  }
 
+    return (NULL);
+  }
   ret = BIO_new(BIO_s_file());
   if (ret == NULL) {
+    SbFileClose(sb_file);
+    return (NULL);
+  }
+
+  BIO_clear_flags(ret, BIO_FLAGS_UPLINK);
+  BIO_set_fp(ret, sb_file, BIO_CLOSE);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+  FILE *file = file_fopen(filename, mode);
+
+  if (file == NULL) {
+    SYSerr(SYS_F_FOPEN, get_last_sys_error());
+    ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");
+    if (OPENSSL_errno == ENOENT)
+      BIOerr(BIO_F_BIO_NEW_FILE, BIO_R_NO_SUCH_FILE);
+    else
+      BIOerr(BIO_F_BIO_NEW_FILE, ERR_R_SYS_LIB);
+    return (NULL);
+  }
+  if ((ret = BIO_new(BIO_s_file())) == NULL) {
     fclose(file);
-    return NULL;
+    return (NULL);
   }
 
+  BIO_clear_flags(ret, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
+                                           * UPLINK */
   BIO_set_fp(ret, file, BIO_CLOSE);
-  return ret;
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+  return (ret);
 }
 
+#if !defined(OPENSSL_NO_FP_API)
 BIO *BIO_new_fp(FILE *stream, int close_flag) {
-  BIO *ret = BIO_new(BIO_s_file());
+  BIO *ret;
 
-  if (ret == NULL) {
-    return NULL;
-  }
+  if ((ret = BIO_new(BIO_s_file())) == NULL)
+    return (NULL);
 
+  BIO_set_flags(ret, BIO_FLAGS_UPLINK); /* redundant, left for
+                                         * documentation puposes */
   BIO_set_fp(ret, stream, close_flag);
-  return ret;
+  return (ret);
+}
+#endif  // !defined(OPENSSL_NO_FP_API)
+
+const BIO_METHOD *BIO_s_file(void) { return (&methods_filep); }
+
+static int MS_CALLBACK file_new(BIO *bi) {
+  bi->init = 0;
+  bi->num = 0;
+  bi->ptr = NULL;
+  bi->flags = BIO_FLAGS_UPLINK; /* default to UPLINK */
+  return (1);
 }
 
-static int file_new(BIO *bio) { return 1; }
-
-static int file_free(BIO *bio) {
-  if (bio == NULL) {
-    return 0;
+static int MS_CALLBACK file_free(BIO *a) {
+  if (a == NULL)
+    return (0);
+  if (a->shutdown) {
+    if ((a->init) && (a->ptr != NULL)) {
+#if defined(OPENSSL_SYS_STARBOARD)
+      SbFileClose((SbFile)a->ptr);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+      if (a->flags & BIO_FLAGS_UPLINK)
+        UP_fclose(a->ptr);
+      else
+        fclose(a->ptr);
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+      a->ptr = NULL;
+      a->flags = BIO_FLAGS_UPLINK;
+    }
+    a->init = 0;
   }
-
-  if (!bio->shutdown) {
-    return 1;
-  }
-
-  if (bio->init && bio->ptr != NULL) {
-    fclose(bio->ptr);
-    bio->ptr = NULL;
-  }
-  bio->init = 0;
-
-  return 1;
+  return (1);
 }
 
-static int file_read(BIO *b, char *out, int outl) {
-  if (!b->init) {
-    return 0;
-  }
-
-  size_t ret = fread(out, 1, outl, (FILE *)b->ptr);
-  if (ret == 0 && ferror((FILE *)b->ptr)) {
-    OPENSSL_PUT_SYSTEM_ERROR();
-    OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
-    return -1;
-  }
-
-  // fread reads at most |outl| bytes, so |ret| fits in an int.
-  return (int)ret;
-}
-
-static int file_write(BIO *b, const char *in, int inl) {
+static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
   int ret = 0;
 
-  if (!b->init) {
-    return 0;
-  }
+  if (b->init && (out != NULL)) {
+#if defined(OPENSSL_SYS_STARBOARD)
+    ret = SbFileRead((SbFile)b->ptr, out, outl);
+    if (ret < 0) {
+      OPENSSL_PUT_SYSTEM_ERROR();
 
-  ret = fwrite(in, inl, 1, (FILE *)b->ptr);
-  if (ret > 0) {
-    ret = inl;
+      OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
+    }
+#else   // defined(OPENSSL_SYS_STARBOARD)
+    if (b->flags & BIO_FLAGS_UPLINK)
+      ret = UP_fread(out, 1, (int)outl, b->ptr);
+    else
+      ret = fread(out, 1, (int)outl, (FILE *)b->ptr);
+    if (ret == 0 && (b->flags & BIO_FLAGS_UPLINK) ? UP_ferror((FILE *)b->ptr)
+                                                  : ferror((FILE *)b->ptr)) {
+      SYSerr(SYS_F_FREAD, get_last_sys_error());
+      BIOerr(BIO_F_FILE_READ, ERR_R_SYS_LIB);
+      ret = -1;
+    }
+#endif  // defined(OPENSSL_SYS_STARBOARD)
   }
-  return ret;
+  return (ret);
 }
 
-static long file_ctrl(BIO *b, int cmd, long num, void *ptr) {
+static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
+  int ret = 0;
+
+  if (b->init && (in != NULL)) {
+#if defined(OPENSSL_SYS_STARBOARD)
+    ret = SbFileWrite((SbFile)b->ptr, in, inl);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+    if (b->flags & BIO_FLAGS_UPLINK)
+      ret = UP_fwrite(in, (int)inl, 1, b->ptr);
+    else
+      ret = fwrite(in, (int)inl, 1, (FILE *)b->ptr);
+    if (ret)
+      ret = inl;
+      /* ret=fwrite(in,1,(int)inl,(FILE *)b->ptr); */
+      /*
+       * according to Tim Hudson <tjh@cryptsoft.com>, the commented out
+       * version above can cause 'inl' write calls under some stupid stdio
+       * implementations (VMS)
+       */
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+  }
+  return (ret);
+}
+
+static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
   long ret = 1;
+#if defined(OPENSSL_SYS_STARBOARD)
+  SbFile fp = (SbFile)b->ptr;
+  SbFile *fpp;
+#else   // defined(OPENSSL_SYS_STARBOARD)
   FILE *fp = (FILE *)b->ptr;
   FILE **fpp;
+#endif  // defined(OPENSSL_SYS_STARBOARD)
   char p[4];
 
   switch (cmd) {
-    case BIO_CTRL_RESET:
-      num = 0;
-      OPENSSL_FALLTHROUGH;
     case BIO_C_FILE_SEEK:
-      ret = (long)fseek(fp, num, 0);
+    case BIO_CTRL_RESET:
+#if defined(OPENSSL_SYS_STARBOARD)
+      ret = (long)SbFileSeek((SbFile)b->ptr, num, kSbFileFromBegin);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+      if (b->flags & BIO_FLAGS_UPLINK)
+        ret = (long)UP_fseek(b->ptr, num, 0);
+      else
+        ret = (long)fseek(fp, num, 0);
+#endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_CTRL_EOF:
-      ret = (long)feof(fp);
+#if defined(OPENSSL_SYS_STARBOARD)
+      ret = (SbFileSeek((SbFile)b->ptr, 0, kSbFileFromCurrent) >=
+                     SbFileSeek((SbFile)b->ptr, 0, kSbFileFromEnd)
+                 ? 1
+                 : 0);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+      if (b->flags & BIO_FLAGS_UPLINK)
+        ret = (long)UP_feof(fp);
+      else
+        ret = (long)feof(fp);
+#endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_C_FILE_TELL:
     case BIO_CTRL_INFO:
-      ret = ftell(fp);
+#if defined(OPENSSL_SYS_STARBOARD)
+      ret = SbFileSeek((SbFile)b->ptr, 0, kSbFileFromCurrent);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+      if (b->flags & BIO_FLAGS_UPLINK)
+        ret = UP_ftell(b->ptr);
+      else
+        ret = ftell(fp);
+#endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_C_SET_FILE_PTR:
       file_free(b);
       b->shutdown = (int)num & BIO_CLOSE;
       b->ptr = ptr;
       b->init = 1;
+#if BIO_FLAGS_UPLINK != 0
+#if defined(__MINGW32__) && defined(__MSVCRT__) && !defined(_IOB_ENTRIES)
+#define _IOB_ENTRIES 20
+#endif
+#if defined(_IOB_ENTRIES)
+      /* Safety net to catch purely internal BIO_set_fp calls */
+      if ((size_t)ptr >= (size_t)stdin &&
+          (size_t)ptr < (size_t)(stdin + _IOB_ENTRIES))
+        BIO_clear_flags(b, BIO_FLAGS_UPLINK);
+#endif
+#endif
+#ifdef UP_fsetmod
+      if (b->flags & BIO_FLAGS_UPLINK)
+        UP_fsetmod(b->ptr, (char)((num & BIO_FP_TEXT) ? 't' : 'b'));
+      else
+#endif
+      {
+#if defined(OPENSSL_SYS_WINDOWS)
+        int fd = _fileno((FILE *)ptr);
+        if (num & BIO_FP_TEXT)
+          _setmode(fd, _O_TEXT);
+        else
+          _setmode(fd, _O_BINARY);
+#elif defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
+        int fd = fileno((FILE *)ptr);
+        /* Under CLib there are differences in file modes */
+        if (num & BIO_FP_TEXT)
+          setmode(fd, O_TEXT);
+        else
+          setmode(fd, O_BINARY);
+#elif defined(OPENSSL_SYS_MSDOS)
+        int fd = fileno((FILE *)ptr);
+        /* Set correct text/binary mode */
+        if (num & BIO_FP_TEXT)
+          _setmode(fd, _O_TEXT);
+        /* Dangerous to set stdin/stdout to raw (unless redirected) */
+        else {
+          if (fd == STDIN_FILENO || fd == STDOUT_FILENO) {
+            if (isatty(fd) <= 0)
+              _setmode(fd, _O_BINARY);
+          } else
+            _setmode(fd, _O_BINARY);
+        }
+#elif defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_WIN32_CYGWIN)
+        int fd = fileno((FILE *)ptr);
+        if (num & BIO_FP_TEXT)
+          setmode(fd, O_TEXT);
+        else
+          setmode(fd, O_BINARY);
+#elif defined(OPENSSL_SYS_STARBOARD)
+        /* Do nothing. */
+#endif
+      }
       break;
     case BIO_C_SET_FILENAME:
       file_free(b);
       b->shutdown = (int)num & BIO_CLOSE;
       if (num & BIO_FP_APPEND) {
-        if (num & BIO_FP_READ) {
-          BUF_strlcpy(p, "a+", sizeof(p));
-        } else {
-          BUF_strlcpy(p, "a", sizeof(p));
-        }
-      } else if ((num & BIO_FP_READ) && (num & BIO_FP_WRITE)) {
-        BUF_strlcpy(p, "r+", sizeof(p));
-      } else if (num & BIO_FP_WRITE) {
-        BUF_strlcpy(p, "w", sizeof(p));
-      } else if (num & BIO_FP_READ) {
-        BUF_strlcpy(p, "r", sizeof(p));
-      } else {
+        if (num & BIO_FP_READ)
+          BUF_strlcpy(p, "a+", sizeof p);
+        else
+          BUF_strlcpy(p, "a", sizeof p);
+      } else if ((num & BIO_FP_READ) && (num & BIO_FP_WRITE))
+        BUF_strlcpy(p, "r+", sizeof p);
+      else if (num & BIO_FP_WRITE)
+        BUF_strlcpy(p, "w", sizeof p);
+      else if (num & BIO_FP_READ)
+        BUF_strlcpy(p, "r", sizeof p);
+      else {
         OPENSSL_PUT_ERROR(BIO, BIO_R_BAD_FOPEN_MODE);
         ret = 0;
         break;
       }
+#if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WINDOWS) || \
+    defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_WIN32_CYGWIN)
+      if (!(num & BIO_FP_TEXT))
+        OPENSSL_port_strcat(p, "b");
+      else
+        OPENSSL_port_strcat(p, "t");
+#endif
+#if defined(OPENSSL_SYS_NETWARE)
+      if (!(num & BIO_FP_TEXT))
+        OPENSSL_port_strcat(p, "b");
+      else
+        OPENSSL_port_strcat(p, "t");
+#endif
+#if defined(OPENSSL_SYS_STARBOARD)
+      {
+        SbFileError error = kSbFileOk;
+        fp = SbFileOpen((const char *)ptr, SbFileModeStringToFlags(p), NULL,
+                        &error);
+        if (!SbFileIsValid(fp)) {
+          OPENSSL_PUT_SYSTEM_ERROR();
+          ERR_add_error_data(5, "SbFileOpen('", ptr, "','", p, "')");
+          OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
+          ret = 0;
+          break;
+        }
+        b->ptr = fp;
+        b->init = 1;
+        BIO_clear_flags(b, BIO_FLAGS_UPLINK); /* disengage UPLINK */
+      }
+#else   // defined(OPENSSL_SYS_STARBOARD)
       fp = fopen(ptr, p);
       if (fp == NULL) {
-        OPENSSL_PUT_SYSTEM_ERROR();
+        SYSerr(SYS_F_FOPEN, get_last_sys_error());
         ERR_add_error_data(5, "fopen('", ptr, "','", p, "')");
-        OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
+        BIOerr(BIO_F_FILE_CTRL, ERR_R_SYS_LIB);
         ret = 0;
         break;
       }
       b->ptr = fp;
       b->init = 1;
+      BIO_clear_flags(b, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
+                                             * UPLINK */
+#endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_C_GET_FILE_PTR:
-      // the ptr parameter is actually a FILE ** in this case.
+#if defined(OPENSSL_SYS_STARBOARD)
+      /* the ptr parameter is actually a SbFile * in this case. */
+      if (ptr != NULL) {
+        fpp = (SbFile *)ptr;
+        *fpp = (SbFile)b->ptr;
+      }
+#else   // defined(OPENSSL_SYS_STARBOARD)
+      /* the ptr parameter is actually a FILE ** in this case. */
       if (ptr != NULL) {
         fpp = (FILE **)ptr;
         *fpp = (FILE *)b->ptr;
       }
+#endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
     case BIO_CTRL_GET_CLOSE:
       ret = (long)b->shutdown;
@@ -249,71 +519,83 @@ static long file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       b->shutdown = (int)num;
       break;
     case BIO_CTRL_FLUSH:
-      ret = 0 == fflush((FILE *)b->ptr);
+#if defined(OPENSSL_SYS_STARBOARD)
+      SbFileFlush((SbFile)b->ptr);
+#else   // defined(OPENSSL_SYS_STARBOARD)
+      if (b->flags & BIO_FLAGS_UPLINK)
+        UP_fflush(b->ptr);
+      else
+        fflush((FILE *)b->ptr);
+#endif  // defined(OPENSSL_SYS_STARBOARD)
       break;
+    case BIO_CTRL_DUP:
+      ret = 1;
+      break;
+
     case BIO_CTRL_WPENDING:
     case BIO_CTRL_PENDING:
+    case BIO_CTRL_PUSH:
+    case BIO_CTRL_POP:
     default:
       ret = 0;
       break;
   }
-  return ret;
+  return (ret);
 }
 
-static int file_gets(BIO *bp, char *buf, int size) {
+static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
   int ret = 0;
 
-  if (size == 0) {
-    return 0;
+  buf[0] = '\0';
+#if defined(OPENSSL_SYS_STARBOARD)
+  ret = -1;
+  SbFileInfo info;
+  SbFileGetInfo((SbFile)bp->ptr, &info);
+  int64_t current = SbFileSeek((SbFile)bp->ptr, kSbFileFromCurrent, 0);
+  int64_t remaining = info.size - current;
+  int64_t max = (size > remaining ? remaining : size - 1);
+  int index = 0;
+  for (; index < max; ++index) {
+    int count = 0;
+    for (;;) {
+      count = SbFileRead((SbFile)bp->ptr, buf + index, 1);
+      if (count == 0) {
+        continue;
+      }
+      break;
+    }
+    if (count < 0) {
+      return (ret);
+    }
+    if (buf[index] == '\n') {
+      break;
+    }
   }
-
-  if (!fgets(buf, size, (FILE *)bp->ptr)) {
-    buf[0] = 0;
-    goto err;
+  buf[index] = '\0';
+  ret = 0;
+#else   // defined(OPENSSL_SYS_STARBOARD)
+  if (bp->flags & BIO_FLAGS_UPLINK) {
+    if (!UP_fgets(buf, size, bp->ptr))
+      goto err;
+  } else {
+    if (!fgets(buf, size, (FILE *)bp->ptr))
+      goto err;
   }
-  ret = strlen(buf);
-
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+  if (buf[0] != '\0')
+    ret = OPENSSL_port_strlen(buf);
 err:
-  return ret;
+  return (ret);
 }
 
-static const BIO_METHOD methods_filep = {
-    BIO_TYPE_FILE,   "FILE pointer",
-    file_write,      file_read,
-    NULL /* puts */, file_gets,
-    file_ctrl,       file_new,
-    file_free,       NULL /* callback_ctrl */,
-};
+static int MS_CALLBACK file_puts(BIO *bp, const char *str) {
+  int n, ret;
 
-const BIO_METHOD *BIO_s_file(void) { return &methods_filep; }
-
-
-int BIO_get_fp(BIO *bio, FILE **out_file) {
-  return BIO_ctrl(bio, BIO_C_GET_FILE_PTR, 0, (char*) out_file);
+  n = OPENSSL_port_strlen(str);
+  ret = file_write(bp, str, n);
+  return (ret);
 }
 
-int BIO_set_fp(BIO *bio, FILE *file, int close_flag) {
-  return BIO_ctrl(bio, BIO_C_SET_FILE_PTR, close_flag, (char *) file);
-}
+#endif /* OPENSSL_NO_STDIO */
 
-int BIO_read_filename(BIO *bio, const char *filename) {
-  return BIO_ctrl(bio, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_READ,
-                  (char *)filename);
-}
-
-int BIO_write_filename(BIO *bio, const char *filename) {
-  return BIO_ctrl(bio, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_WRITE,
-                  (char *)filename);
-}
-
-int BIO_append_filename(BIO *bio, const char *filename) {
-  return BIO_ctrl(bio, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_APPEND,
-                  (char *)filename);
-}
-
-int BIO_rw_filename(BIO *bio, const char *filename) {
-  return BIO_ctrl(bio, BIO_C_SET_FILENAME,
-                  BIO_CLOSE | BIO_FP_READ | BIO_FP_WRITE, (char *)filename);
-}
-
-#endif  // OPENSSL_TRUSTY
+#endif /* HEADER_BSS_FILE_C */

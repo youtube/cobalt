@@ -15,14 +15,20 @@
 #undef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200112L
 
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
+#include <assert.h>
+
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <fcntl.h>
+#include <openssl/mem.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
 #if !defined(OPENSSL_TRUSTY)
-
-#include <fcntl.h>
-#include <string.h>
-#include <sys/types.h>
 
 #if !defined(OPENSSL_WINDOWS)
 #include <netdb.h>
