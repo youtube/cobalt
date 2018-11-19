@@ -138,11 +138,14 @@
  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
  * OTHERWISE. */
 
-#include <openssl/ssl.h>
-
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <string.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/base.h>
 
+#include <openssl/ssl.h>
 #include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>

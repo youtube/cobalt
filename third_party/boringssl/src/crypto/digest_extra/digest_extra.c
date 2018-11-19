@@ -54,10 +54,12 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <openssl/digest.h>
-
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/mem.h>
+#include <openssl/digest.h>
 #include <openssl/asn1.h>
 #include <openssl/bytestring.h>
 #include <openssl/nid.h>
