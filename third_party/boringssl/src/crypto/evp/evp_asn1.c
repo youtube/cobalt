@@ -53,11 +53,12 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
-
-#include <openssl/evp.h>
-
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#include <openssl/mem.h>
+#include <openssl/evp.h>
 #include <openssl/bytestring.h>
 #include <openssl/dsa.h>
 #include <openssl/ec_key.h>
