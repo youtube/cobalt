@@ -55,9 +55,20 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
+
+#include <openssl/opensslconf.h>
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#include <sys/stat.h>
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
+
+#include "e_os.h"
+
+#ifndef NO_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+#ifndef OPENSSL_NO_POSIX_IO
+#include <sys/stat.h>
+#endif
 
 #include <openssl/buf.h>
 #include <openssl/err.h>
@@ -125,6 +136,10 @@ static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
     switch (cmd) {
     case X509_L_ADD_DIR:
         if (argl == X509_FILETYPE_DEFAULT) {
+#if defined(COBALT)
+            // We don't expect to use the default certs dir.
+            OPENSSL_PUT_ERROR(X509, X509_R_LOADING_CERT_DIR);
+#else
             dir = (char *)getenv(X509_get_default_cert_dir_env());
             if (dir)
                 ret = add_cert_dir(ld, dir, X509_FILETYPE_PEM);
@@ -134,6 +149,7 @@ static int dir_ctrl(X509_LOOKUP *ctx, int cmd, const char *argp, long argl,
             if (!ret) {
                 OPENSSL_PUT_ERROR(X509, X509_R_LOADING_CERT_DIR);
             }
+#endif
         } else
             ret = add_cert_dir(ld, argp, (int)argl);
         break;
@@ -204,7 +220,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
     s = dir;
     p = s;
     do {
-        if ((*p == ':') || (*p == '\0')) {
+      if ((*p == LIST_SEPARATOR_CHAR) || (*p == '\0')) {
             BY_DIR_ENTRY *ent;
             ss = s;
             s = p + 1;
@@ -213,8 +229,8 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
                 continue;
             for (j = 0; j < sk_BY_DIR_ENTRY_num(ctx->dirs); j++) {
                 ent = sk_BY_DIR_ENTRY_value(ctx->dirs, j);
-                if (strlen(ent->dir) == len &&
-                    strncmp(ent->dir, ss, len) == 0)
+                if (OPENSSL_port_strlen(ent->dir) == len &&
+                    OPENSSL_port_strncmp(ent->dir, ss, len) == 0)
                     break;
             }
             if (j < sk_BY_DIR_ENTRY_num(ctx->dirs))
@@ -312,7 +328,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
             size_t idx;
             BY_DIR_HASH htmp, *hent;
             ent = sk_BY_DIR_ENTRY_value(ctx->dirs, i);
-            j = strlen(ent->dir) + 1 + 8 + 6 + 1 + 1;
+            j = OPENSSL_port_strlen(ent->dir) + 1 + 8 + 6 + 1 + 1;
             if (!BUF_MEM_grow(b, j)) {
                 OPENSSL_PUT_ERROR(X509, ERR_R_MALLOC_FAILURE);
                 goto finish;
@@ -335,7 +351,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
             for (;;) {
                 char c = '/';
 #ifdef OPENSSL_SYS_VMS
-                c = ent->dir[strlen(ent->dir) - 1];
+                c = ent->dir[OPENSSL_port_strlen(ent->dir) - 1];
                 if (c != ':' && c != '>' && c != ']') {
                     /*
                      * If no separator is present, we assume the directory
@@ -362,13 +378,13 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
                                  postfix, k);
                 }
 #ifndef OPENSSL_NO_POSIX_IO
-# if defined(_WIN32) && !defined(stat)
-#  define stat _stat
-# endif
+#if defined(_WIN32) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+#define stat _stat
+#endif
                 {
                     struct stat st;
                     if (stat(b->data, &st) < 0)
-                        break;
+                      break;
                 }
 #endif
                 /* found one. */

@@ -12,6 +12,8 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
+#include <openssl/opensslconf.h>
+#include <openssl/mem.h>
 #include <openssl/cpu.h>
 
 #if defined(OPENSSL_ARM) && !defined(OPENSSL_STATIC_ARMCAP)

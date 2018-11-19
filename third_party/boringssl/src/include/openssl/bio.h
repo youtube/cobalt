@@ -473,15 +473,28 @@ OPENSSL_EXPORT BIO *BIO_new_fp(FILE *stream, int close_flag);
 // on success and zero otherwise.
 OPENSSL_EXPORT int BIO_get_fp(BIO *bio, FILE **out_file);
 
+#if !defined(OPENSSL_SYS_STARBOARD)
+
 // BIO_set_fp sets the |FILE| for |bio|. If |close_flag| is |BIO_CLOSE| then
 // |fclose| will be called on |file| when |bio| is closed. It returns one on
 // success and zero otherwise.
 OPENSSL_EXPORT int BIO_set_fp(BIO *bio, FILE *file, int close_flag);
-
 // BIO_read_filename opens |filename| for reading and sets the result as the
 // |FILE| for |bio|. It returns one on success and zero otherwise. The |FILE|
 // will be closed when |bio| is freed.
 OPENSSL_EXPORT int BIO_read_filename(BIO *bio, const char *filename);
+
+#else  // defined(OPENSSL_SYS_STARBOARD)
+
+#define BIO_FP_READ 0x02
+#define BIO_FP_WRITE 0x04
+#define BIO_FP_APPEND 0x08
+
+#define BIO_set_fp(b, fp, c) BIO_ctrl(b, BIO_C_SET_FILE_PTR, c, (char *)fp)
+#define BIO_read_filename(b, name) \
+  BIO_ctrl(b, BIO_C_SET_FILENAME, BIO_CLOSE | BIO_FP_READ, (char *)name)
+
+#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 // BIO_write_filename opens |filename| for writing and sets the result as the
 // |FILE| for |bio|. It returns one on success and zero otherwise. The |FILE|
