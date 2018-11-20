@@ -99,6 +99,19 @@ inline bool RecursiveMutex::AcquireTry() {
   return true;
 }
 
+class ScopedRecursiveLock {
+ public:
+  explicit ScopedRecursiveLock(RecursiveMutex& mutex) : mutex_(mutex) {
+    mutex_.Acquire();
+  }
+
+  ~ScopedRecursiveLock() { mutex_.Release(); }
+
+ private:
+  RecursiveMutex& mutex_;
+  SB_DISALLOW_COPY_AND_ASSIGN(ScopedRecursiveLock);
+};
+
 }  // namespace starboard.
 
 #endif  // STARBOARD_COMMON_RECURSIVE_MUTEX_H_
