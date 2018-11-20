@@ -95,7 +95,8 @@ void VideoRenderAlgorithmImpl::Render(
                     << " last Render() call are "
                     << media_time - media_time_of_last_render_call_ << "/"
                     << now - system_time_of_last_render_call_
-                    << " microseconds.";
+                    << " microseconds, with " << frames->size()
+                    << " frames in the backlog.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       ++dropped_frames_;
     }
