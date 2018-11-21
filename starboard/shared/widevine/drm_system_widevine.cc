@@ -370,7 +370,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
         }
         SB_DLOG(ERROR) << "Decrypt status " << status;
         SB_DLOG(ERROR) << "Key ID "
-                       << wvcdm::a2bs_hex(
+                       << wvcdm::b2a_hex(
                               std::string(reinterpret_cast<const char*>(
                                               &drm_info->identifier[0]),
                                           drm_info->identifier_size));
@@ -396,7 +396,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
         }
         SB_DLOG(ERROR) << "Decrypt status " << status;
         SB_DLOG(ERROR) << "Key ID "
-                       << wvcdm::a2bs_hex(
+                       << wvcdm::b2a_hex(
                               std::string(reinterpret_cast<const char*>(
                                               &drm_info->identifier[0]),
                                           drm_info->identifier_size));
