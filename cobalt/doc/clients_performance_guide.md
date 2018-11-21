@@ -115,3 +115,30 @@ different scenarios, such as using rounded corners on elements with either
 background-color or background-image.  Particularly expensive however would
 be to apply rounded corners on a parent node which has `overflow: hidden` set
 (as mentioned above), since this requires the creation of an offscreen surface.
+
+## Avoid large (e.g. fullscreen) divs
+
+The more screen area that is covered by DOM elements, the more work the GPU has
+to do, and so the lower the framerate will be.  For example, if a background
+is desired, instead of creating a new fullscreen `<div>`, set the
+desired background color or image on the `<body>` element which will cover the
+display anyway.  Otherwise, the `<body>` element will render its background, and
+then the `<div>` element will render over top of it (Cobalt is not smart enough
+to know if an element completely coveres another element), resulting in more
+pixels being touched than is necessary.
+
+This type of optimization is related to the concept of "overdraw" from computer
+graphics.  A good definition for overdraw can be found at
+[https://developer.android.com/topic/performance/rendering/overdraw](https://developer.android.com/topic/performance/rendering/overdraw):
+
+> "Overdraw refers to the system's drawing a pixel on the screen multiple times
+>  in a single frame of rendering. For example, if we have a bunch of stacked
+>  UI cards, each card hides a portion of the one below it... It manifests
+>  itself as a performance problem by wasting GPU time to render pixels that
+>  don't contribute to what the user sees on the screen."
+
+The `<body>` element will always result in the display being filled with a
+color, which is `rgba(0, 0, 0, 0)` by default.  Since `<body>` already
+guarantees a full screen draw, the most optimal way of specifying a
+background is to modify `<body>`'s background properties instead of adding
+a layer on top of it.
