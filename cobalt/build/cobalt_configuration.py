@@ -44,13 +44,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
         # Cobalt uses OpenSSL on all platforms.
         'use_openssl': 1,
-
-        # Set environmental variable to enable_vr: 'USE_VR'
-        # Terminal: `export {varname}={value}`
-        # Note: must also edit gyp_configuration.gypi per internal instructions.
-
-        # Whether to enable VR.
-        'enable_vr': int(os.environ.get('USE_VR', 0)),
     }
     logging.info('Build Number: {}'.format(variables['cobalt_version']))
     return variables
