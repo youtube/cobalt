@@ -54,6 +54,8 @@ class EmbeddedFetcher : public Fetcher {
                        int64 bytes_to_read);
   bool IsAllowedByCsp();
 
+  void LocalizeFileData(std::string* output_file);
+
   GURL url_;
   csp::SecurityCallback security_callback_;
   base::WeakPtrFactory<EmbeddedFetcher> weak_ptr_factory_;
