@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-  // Enable the spinner after 3 seconds have passed.
-  window.setTimeout(function() {
-    var spinner = document.getElementById('spinner');
-    spinner.style.display = 'block';
-  }, 3000);
+function onResize() {
+  var defaultHeight = 720;
+  var percent = document.body.offsetHeight / defaultHeight;
+  document.body.style.fontSize = 25 * percent + 'px';
+}
+
+function onLoad() {
+  onResize();
+}
+
+window.addEventListener('resize', onResize);
+document.addEventListener('DOMContentLoaded', onLoad);
