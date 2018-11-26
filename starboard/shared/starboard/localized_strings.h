@@ -46,10 +46,6 @@ class LocalizedStrings {
   // Returns true if successful, false otherwise.
   bool LoadStrings(const std::string& language);
 
-  // Loads the strings from a specified file.
-  // Returns true if successful, false otherwise.
-  bool LoadStrings(SbFile file);
-
   // Loads a single string.
   // Returns true if successful, false otherwise.
   bool LoadSingleString(const std::string& message);
