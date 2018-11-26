@@ -197,8 +197,12 @@
         '<(input_directory)/black_splash_screen.html',
         '<(input_directory)/cobalt_splash_screen.css',
         '<(input_directory)/cobalt_splash_screen.html',
+        '<(input_directory)/dialog.css',
+        '<(input_directory)/dialog.js',
         '<(input_directory)/equirectangular_40_40.msh',
         '<(input_directory)/splash_screen.js',
+        '<(input_directory)/unable_message.html.template',
+        '<(input_directory)/update_message.html.template',
         '<!@(["python", "<(DEPTH)/starboard/tools/find_private_files.py", "<(DEPTH)", "*.html", "cobalt/loader/embedded_resources"])',
       ],
       'actions': [
