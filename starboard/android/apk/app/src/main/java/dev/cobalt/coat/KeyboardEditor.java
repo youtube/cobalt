@@ -15,8 +15,12 @@
 package dev.cobalt.coat;
 
 import android.content.Context;
+import android.text.Editable;
+import android.text.Selection;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
 
 /**
  * The custom editor that receives text and displays it for the on-screen keyboard. It interacts
@@ -25,6 +29,8 @@ import android.view.View;
  */
 public class KeyboardEditor extends View {
   private final Context context;
+  private Editable editable;
+  private KeyboardInputConnection inputConnection;
 
   public KeyboardEditor(Context context) {
     this(context, null);
@@ -34,6 +40,22 @@ public class KeyboardEditor extends View {
     super(context, attrs);
     this.context = context;
     setFocusable(true);
+  }
+
+  /**
+   * Create a new InputConnection for the on-screen keyboard InputMethod to interact with the view.
+   */
+  @Override
+  public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+    outAttrs.inputType = EditorInfo.TYPE_CLASS_TEXT;
+    outAttrs.inputType |= EditorInfo.TYPE_TEXT_FLAG_AUTO_COMPLETE;
+    outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN;
+    outAttrs.imeOptions |= EditorInfo.IME_ACTION_SEARCH;
+    outAttrs.initialSelStart = Selection.getSelectionStart(editable);
+    outAttrs.initialSelEnd = Selection.getSelectionEnd(editable);
+
+    this.inputConnection = new KeyboardInputConnection(context, this, outAttrs);
+    return inputConnection;
   }
 
   /** Show the on-screen keyboard. */
