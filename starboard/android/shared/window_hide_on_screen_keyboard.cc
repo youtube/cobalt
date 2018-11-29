@@ -14,9 +14,12 @@
 
 #include "starboard/window.h"
 
+#include "starboard/android/shared/application_android.h"
+
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket) {
-  // Stub.
+  starboard::android::shared::ApplicationAndroid::Get()
+      ->SbWindowHideOnScreenKeyboard(window, ticket);
   return;
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

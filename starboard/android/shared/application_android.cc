@@ -106,6 +106,11 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   keyboard_inject_writefd_ = pipefd[1];
   ALooper_addFd(looper_, keyboard_inject_readfd_, kLooperIdKeyboardInject,
                 ALOOPER_EVENT_INPUT, NULL, NULL);
+
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  j_keyboard_editor_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
@@ -387,6 +392,21 @@ Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
                                                            jobject unused_clazz,
                                                            jint key) {
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
+}
+
+void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
+                                                      const char* input_text,
+                                                      int ticket) {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallVoidMethodOrAbort(j_keyboard_editor_, "showKeyboard", "()V");
+  return;
+}
+
+void ApplicationAndroid::SbWindowHideOnScreenKeyboard(SbWindow window,
+                                                      int ticket) {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallVoidMethodOrAbort(j_keyboard_editor_, "hideKeyboard", "()V");
+  return;
 }
 
 bool ApplicationAndroid::OnSearchRequested() {
