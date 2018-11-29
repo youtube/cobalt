@@ -69,6 +69,7 @@ public class StarboardBridge {
   private CobaltMediaSession cobaltMediaSession;
   private VoiceRecognizer voiceRecognizer;
   private AudioPermissionRequester audioPermissionRequester;
+  private KeyboardEditor keyboardEditor;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -119,8 +120,9 @@ public class StarboardBridge {
 
   private native boolean nativeInitialize();
 
-  protected void onActivityStart(Activity activity) {
+  protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
+    this.keyboardEditor = keyboardEditor;
   }
 
   protected void onActivityStop(Activity activity) {
@@ -479,6 +481,13 @@ public class StarboardBridge {
   @UsedByNative
   AudioOutputManager getAudioOutputManager() {
     return audioOutputManager;
+  }
+
+  /** Returns Java layer implementation for KeyboardEditor */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  KeyboardEditor getKeyboardEditor() {
+    return keyboardEditor;
   }
 
   /** Returns Java layer implementation for AndroidVoiceRecognizer */
