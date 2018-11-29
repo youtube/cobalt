@@ -116,10 +116,10 @@ void SourceManagerSkipInputData(j_decompress_ptr decompress_ptr,
 
 JPEGImageDecoder::JPEGImageDecoder(
     render_tree::ResourceProvider* resource_provider,
-    bool force_image_decoding_to_single_plane)
+    bool allow_image_decoding_to_multi_plane)
     : ImageDataDecoder(resource_provider),
-      force_image_decoding_to_single_plane_(
-          force_image_decoding_to_single_plane) {
+      allow_image_decoding_to_multi_plane_(
+          allow_image_decoding_to_multi_plane) {
   TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::JPEGImageDecoder()");
   TRACK_MEMORY_SCOPE("Rendering");
   memset(&info_, 0, sizeof(info_));
@@ -274,7 +274,7 @@ bool JPEGImageDecoder::ReadHeader() {
     return false;
   }
 
-  if (!force_image_decoding_to_single_plane_ && CanDecodeIntoJ420(info_)) {
+  if (allow_image_decoding_to_multi_plane_ && CanDecodeIntoJ420(info_)) {
     output_format_ = kOutputFormatJ420;
   } else if (pixel_format() == render_tree::kPixelFormatRGBA8) {
     output_format_ = kOutputFormatRGBA;

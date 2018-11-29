@@ -18,17 +18,15 @@ namespace cobalt {
 namespace loader {
 namespace switches {
 
-// By default the image decoders produce output in whichever format that is
-// considered to be efficient.  In most cases this means the output will be
-// multi plane images, like kMultiPlaneImageFormatYUV3PlaneBT601FullRange.
-// Pass the following command line argument to ensure that the decoding output
-// is in single plane formats, like RGBA or BGRA.  This usually happens when
-// there is no native multi plane image support on the platform, or when the
-// multi plane image support is not efficient enough.
-// Note that currently the decoding to single plane image is automatically
-// enforced on blitter platforms.
-const char kForceImageDecodingToSinglePlane[] =
-    "force_image_decoding_to_single_plane";
+// Set this argument to "true" will allow image decoders produce output in multi
+// plane images when decoding to multi plane image is more efficient.  Set it to
+// "false" and the image decoders will always produce output in single plane
+// RGBA format.
+// It is default to "false" when the command line argument is not specified,
+// because currently the renderer cannot render multi plane images as efficient
+// as rendering single plane RGBA images.  This behavior may change in future.
+const char kAllowImageDecodingToMultiPlane[] =
+    "allow_image_decoding_to_multi_plane";
 
 }  // namespace switches
 }  // namespace loader
