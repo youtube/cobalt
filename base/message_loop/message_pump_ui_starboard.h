@@ -18,7 +18,6 @@
 #include <set>
 
 #include "base/base_export.h"
-#include "base/message_loop/message_loop.h"
 #include "base/message_loop/message_pump.h"
 #include "base/run_loop.h"
 #include "base/synchronization/lock.h"
@@ -41,6 +40,7 @@ namespace base {
 class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
  public:
   MessagePumpUIStarboard();
+  virtual ~MessagePumpUIStarboard() {}
 
   // Runs one iteration of the run loop, and reschedules another call, if
   // necessary.
@@ -53,9 +53,6 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
   virtual void ScheduleWork() override;
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) override;
   virtual void Start(Delegate* delegate);
-
- protected:
-  virtual ~MessagePumpUIStarboard() {}
 
  private:
   // Cancels all outstanding scheduled callback events, if any.

@@ -55,13 +55,13 @@ std::string GenerateGUID() {
   // where y is one of [8, 9, A, B].
 
   // Clear the version bits and set the version to 4:
-  sixteen_bytes[0] &= 0xffffffff'ffff0fffULL;
-  sixteen_bytes[0] |= 0x00000000'00004000ULL;
+  sixteen_bytes[0] &= 0xffffffffffff0fffULL;
+  sixteen_bytes[0] |= 0x0000000000004000ULL;
 
   // Set the two most significant bits (bits 6 and 7) of the
   // clock_seq_hi_and_reserved to zero and one, respectively:
-  sixteen_bytes[1] &= 0x3fffffff'ffffffffULL;
-  sixteen_bytes[1] |= 0x80000000'00000000ULL;
+  sixteen_bytes[1] &= 0x3fffffffffffffffULL;
+  sixteen_bytes[1] |= 0x8000000000000000ULL;
 
   return RandomDataToGUIDString(sixteen_bytes);
 }
@@ -84,7 +84,7 @@ std::string RandomDataToGUIDString(const uint64_t bytes[2]) {
                       static_cast<unsigned int>((bytes[0] >> 16) & 0x0000ffff),
                       static_cast<unsigned int>(bytes[0] & 0x0000ffff),
                       static_cast<unsigned int>(bytes[1] >> 48),
-                      bytes[1] & 0x0000ffff'ffffffffULL);
+                      bytes[1] & 0x0000ffffffffffffULL);
 }
 
 }  // namespace base

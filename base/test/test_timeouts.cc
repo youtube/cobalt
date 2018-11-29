@@ -97,7 +97,7 @@ void TestTimeouts::Initialize() {
   if (base::debug::BeingDebugged() ||
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kTestLauncherInteractive)) {
-    constexpr int kVeryLargeTimeoutMs = 100'000'000;
+    constexpr int kVeryLargeTimeoutMs = 100000000;
     min_ui_test_action_timeout = kVeryLargeTimeoutMs;
   }
 

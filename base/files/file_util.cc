@@ -148,8 +148,7 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
   size_t size = 0;
   bool read_status = true;
 
-  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) >
-         0) {
+  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
     if (contents) {
       contents->append(buf, std::min(len, max_size - size));
     }
@@ -170,16 +169,6 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     return false;
   }
 
-<<<<<<< HEAD
-=======
-  const size_t kBufferSize = 1 << 16;
-
-  std::unique_ptr<char[]> buf(new char[kBufferSize]);
-  size_t len;
-  size_t size = 0;
-  bool read_status = true;
-
->>>>>>> Initial pass at starboardization of base.
   // Many files supplied in |path| have incorrect size (proc files etc).
   // Hence, the file is read sequentially as opposed to a one-shot read, using
   // file size as a hint for chunk size if available.

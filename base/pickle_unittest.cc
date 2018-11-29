@@ -22,12 +22,12 @@ namespace {
 
 const bool testbool1 = false;
 const bool testbool2 = true;
-const int testint = 2'093'847'192;
-const long testlong = 1'093'847'192;
+const int testint = 2093847192;
+const long testlong = 1093847192;
 const uint16_t testuint16 = 32123;
 const uint32_t testuint32 = 1593847192;
-const int64_t testint64 = -0x7E8CA925'3104BDFCLL;
-const uint64_t testuint64 = 0xCE8CA925'3104BDF7ULL;
+const int64_t testint64 = -0x7E8CA9253104BDFCLL;
+const uint64_t testuint64 = 0xCE8CA9253104BDF7ULL;
 const float testfloat = 3.1415926935f;
 const double testdouble = 2.71828182845904523;
 const std::string teststring("Hello world");  // note non-aligned string length

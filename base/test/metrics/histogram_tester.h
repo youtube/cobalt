@@ -176,12 +176,4 @@ void PrintTo(const Bucket& value, std::ostream* os);
 
 }  // namespace base
 
-<<<<<<< HEAD:test/metrics/histogram_tester.h
-<<<<<<< HEAD:test/metrics/histogram_tester.h
 #endif  // BASE_TEST_METRICS_HISTOGRAM_TESTER_H_
-=======
-#endif  // !defined(STARBOARD)
-=======
->>>>>>> Enable more widely-used functionality.:test/histogram_tester.h
-#endif  // BASE_TEST_HISTOGRAM_TESTER_H_
->>>>>>> Initial pass at starboardization of base.:test/histogram_tester.h

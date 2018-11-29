@@ -43,27 +43,19 @@ struct ScopedFILECloser {
 
 #if defined(STARBOARD)
 struct BASE_EXPORT ScopedSbFileCloseTraits {
-  static SbFile InvalidValue() {
-    return kSbFileInvalid;
-  }
-  static void Free(SbFile file) {
-    SbFileClose(file);
-  }
+  static SbFile InvalidValue() { return kSbFileInvalid; }
+  static void Free(SbFile file) { SbFileClose(file); }
 };
 #endif
 }  // namespace internal
 
 // -----------------------------------------------------------------------------
 
-<<<<<<< HEAD
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
 #if defined(STARBOARD)
 using ScopedFD = ScopedGeneric<SbFile, internal::ScopedSbFileCloseTraits>;
 #endif
 
-#if defined(OS_POSIX)
->>>>>>> Initial pass at starboardization of base.
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // A low-level Posix file descriptor closer class. Use this when writing
 // platform-specific code, especially that does non-file-like things with the
 // FD (like sockets).

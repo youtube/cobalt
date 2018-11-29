@@ -5,6 +5,9 @@
 #ifndef BASE_MEMORY_READ_ONLY_SHARED_MEMORY_REGION_H_
 #define BASE_MEMORY_READ_ONLY_SHARED_MEMORY_REGION_H_
 
+// Cobalt does not support multiple process and shared memory.
+#if !defined(STARBOARD)
+
 #include <utility>
 
 #include "base/macros.h"
@@ -15,6 +18,8 @@ namespace base {
 
 struct MappedReadOnlyRegion;
 
+// Starboard doesn't curretly support multiple processes or shared memory.
+#if !defined(STARBOARD)
 // Scoped move-only handle to a region of platform shared memory. The instance
 // owns the platform handle it wraps. Mappings created by this region are
 // read-only. These mappings remain valid even after the region handle is moved
@@ -109,6 +114,7 @@ class BASE_EXPORT ReadOnlySharedMemoryRegion {
 
   DISALLOW_COPY_AND_ASSIGN(ReadOnlySharedMemoryRegion);
 };
+#endif
 
 // Helper struct for return value of ReadOnlySharedMemoryRegion::Create().
 struct MappedReadOnlyRegion {
@@ -125,4 +131,5 @@ struct MappedReadOnlyRegion {
 
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_MEMORY_READ_ONLY_SHARED_MEMORY_REGION_H_

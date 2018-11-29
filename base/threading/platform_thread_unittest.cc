@@ -218,6 +218,7 @@ TEST(PlatformThreadTest, FunctionTimesTen) {
   EXPECT_EQ(main_thread_id, PlatformThread::CurrentId());
 }
 
+#if !defined(STARBOARD)
 namespace {
 
 class ThreadPriorityTestThread : public FunctionTestThread {
@@ -248,7 +249,6 @@ class ThreadPriorityTestThread : public FunctionTestThread {
   DISALLOW_COPY_AND_ASSIGN(ThreadPriorityTestThread);
 };
 
-<<<<<<< HEAD
 void TestSetCurrentThreadPriority() {
   constexpr ThreadPriority kAllThreadPriorities[] = {
       ThreadPriority::REALTIME_AUDIO, ThreadPriority::DISPLAY,
@@ -270,32 +270,6 @@ void TestSetCurrentThreadPriority() {
         PlatformThread::Join(handle);
         ASSERT_FALSE(thread.IsRunning());
       }
-=======
-}  // namespace
-
-#if !defined(STARBOARD)
-// Test changing a created thread's priority (which has different semantics on
-// some platforms).
-TEST(PlatformThreadTest, ThreadPriorityCurrentThread) {
-  const bool increase_priority_allowed =
-      PlatformThread::CanIncreaseCurrentThreadPriority();
-
-// Bump the priority in order to verify that new threads are started with normal
-// priority. Skip this on Mac since this platform doesn't allow changing the
-// priority of the main thread. Also skip this on platforms that don't allow
-// increasing the priority of a thread.
-#if !defined(OS_MACOSX)
-  if (increase_priority_allowed)
-    PlatformThread::SetCurrentThreadPriority(ThreadPriority::DISPLAY);
-#endif
-
-  // Toggle each supported priority on the thread and confirm it affects it.
-  for (size_t i = 0; i < arraysize(kThreadPriorityTestValues); ++i) {
-    if (!increase_priority_allowed &&
-        kThreadPriorityTestValues[i] >
-            PlatformThread::GetCurrentThreadPriority()) {
-      continue;
->>>>>>> Initial pass at starboardization of base.
     }
   }
 }
@@ -322,11 +296,8 @@ TEST(PlatformThreadTest, SetCurrentThreadPriorityWithThreadModeBackground) {
       features::kWindowsThreadModeBackground);
   TestSetCurrentThreadPriority();
 }
-<<<<<<< HEAD
 #endif  // defined(OS_WIN)
-=======
 #endif  // !defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
 
 // This tests internal PlatformThread APIs used under some POSIX platforms,
 // with the exception of Mac OS X, iOS and Fuchsia.

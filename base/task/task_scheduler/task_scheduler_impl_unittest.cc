@@ -77,18 +77,9 @@ bool GetIOAllowed() {
 // to run a Task with |traits|.
 // Note: ExecutionMode is verified inside TestTaskFactory.
 void VerifyTaskEnvironment(const TaskTraits& traits) {
-<<<<<<< HEAD:task/task_scheduler/task_scheduler_impl_unittest.cc
+#if !defined(STARBOARD)
   EXPECT_EQ(CanUseBackgroundPriorityForSchedulerWorker() &&
                     traits.priority() == TaskPriority::BEST_EFFORT
-=======
-#if !defined(STARBOARD)
-  const bool supports_background_priority =
-      Lock::HandlesMultipleThreadPriorities() &&
-      PlatformThread::CanIncreaseCurrentThreadPriority();
-
-  EXPECT_EQ(supports_background_priority &&
-                    traits.priority() == TaskPriority::BACKGROUND
->>>>>>> Initial pass at starboardization of base.:task_scheduler/task_scheduler_impl_unittest.cc
                 ? ThreadPriority::BACKGROUND
                 : ThreadPriority::NORMAL,
             PlatformThread::GetCurrentThreadPriority());
@@ -219,11 +210,14 @@ std::vector<TraitsExecutionModePair> GetTraitsExecutionModePairs() {
 class TaskSchedulerImplTest
     : public testing::TestWithParam<TraitsExecutionModePair> {
  protected:
-  TaskSchedulerImplTest() : scheduler_("Test")
+  TaskSchedulerImplTest()
+      : scheduler_("Test")
 #if !defined(STARBOARD)
-      , field_trial_list_(nullptr)
+        ,
+        field_trial_list_(nullptr)
 #endif
-  {}
+  {
+  }
 
   void EnableAllTasksUserBlocking() {
     constexpr char kFieldTrialName[] = "BrowserScheduler";
@@ -272,12 +266,9 @@ class TaskSchedulerImplTest
  private:
 #if !defined(STARBOARD)
   base::FieldTrialList field_trial_list_;
-<<<<<<< HEAD:task/task_scheduler/task_scheduler_impl_unittest.cc
+#endif
   SchedulerWorkerObserver* scheduler_worker_observer_ = nullptr;
   bool did_tear_down_ = false;
-=======
-#endif
->>>>>>> Initial pass at starboardization of base.:task_scheduler/task_scheduler_impl_unittest.cc
 
   DISALLOW_COPY_AND_ASSIGN(TaskSchedulerImplTest);
 };

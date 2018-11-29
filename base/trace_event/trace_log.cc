@@ -414,11 +414,8 @@ TraceLog::TraceLog()
 #if !defined(STARBOARD)
   MemoryDumpManager::GetInstance()->RegisterDumpProvider(this, "TraceLog",
                                                          nullptr);
-<<<<<<< HEAD
   g_trace_log_for_testing = this;
-=======
 #endif
->>>>>>> Initial pass at starboardization of base.
 }
 
 TraceLog::~TraceLog() = default;
@@ -1625,7 +1622,6 @@ void TraceLog::AddMetadataEventsWhileLocked() {
                                 process_name_);
   }
 
-<<<<<<< HEAD
   TimeDelta process_uptime = TRACE_TIME_NOW() - process_creation_time_;
   AddMetadataEventWhileLocked(current_thread_id, "process_uptime_seconds",
                               "uptime", process_uptime.InSeconds());
@@ -1640,20 +1636,6 @@ void TraceLog::AddMetadataEventsWhileLocked() {
     AddMetadataEventWhileLocked(current_thread_id, "chrome_library_module",
                                 "id", buildid.value());
   }
-=======
-// See https://crbug.com/726484 for Fuchsia.
-#if !defined(STARBOARD)
-#if !defined(OS_NACL) && !defined(OS_IOS) && !defined(OS_FUCHSIA)
-  Time process_creation_time = CurrentProcessInfo::CreationTime();
-  if (!process_creation_time.is_null()) {
-    TimeDelta process_uptime = Time::Now() - process_creation_time;
-    InitializeMetadataEvent(
-        AddEventToThreadSharedChunkWhileLocked(nullptr, false),
-        current_thread_id, "process_uptime_seconds", "uptime",
-        process_uptime.InSeconds());
-  }
-#endif  // !defined(OS_NACL) && !defined(OS_IOS) && !defined(OS_FUCHSIA)
->>>>>>> Initial pass at starboardization of base.
 #endif
 
   if (!process_labels_.empty()) {

@@ -11,11 +11,8 @@
 #include <utility>
 
 #include "base/callback_internal.h"
-<<<<<<< HEAD
 #include "base/compiler_specific.h"
-=======
 #include "base/cpp14oncpp11.h"
->>>>>>> Initial pass at starboardization of base.
 #include "base/memory/raw_scoped_refptr_mismatch_checker.h"
 #include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
@@ -181,10 +178,13 @@ template <typename T>
 using Unwrapper = BindUnwrapTraits<std::decay_t<T>>;
 
 template <typename T>
+#if __cplusplus < 201402L
+auto Unwrap(T&& o) -> decltype(Unwrapper<T>::Unwrap(std::forward<T>(o))) {
+#else
 decltype(auto) Unwrap(T&& o) {
+#endif
   return Unwrapper<T>::Unwrap(std::forward<T>(o));
 }
-
 // IsWeakMethod is a helper that determine if we are binding a WeakPtr<> to a
 // method.  It is used internally by Bind() to select the correct
 // InvokeHelper that will no-op itself in the event the WeakPtr<> for

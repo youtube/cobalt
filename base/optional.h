@@ -578,96 +578,57 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
     return *this;
   }
 
-<<<<<<< HEAD
-  constexpr const T* operator->() const {
-    DCHECK(storage_.is_populated_);
-    return &storage_.value_;
-  }
-
-  constexpr T* operator->() {
-    DCHECK(storage_.is_populated_);
-    return &storage_.value_;
-=======
   CONSTEXPR const T* operator->() const {
-    DCHECK(!storage_.is_null_);
-    return &value();
+    DCHECK(storage_.is_populated_);
+    return &storage_.value_;
   }
 
   CONSTEXPR T* operator->() {
-    DCHECK(!storage_.is_null_);
-    return &value();
->>>>>>> Initial pass at starboardization of base.
+    DCHECK(storage_.is_populated_);
+    return &storage_.value_;
   }
 
-  constexpr const T& operator*() const & {
+  CONSTEXPR const T& operator*() const & {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
-<<<<<<< HEAD
-  constexpr T& operator*() & {
+  CONSTEXPR T& operator*() & {
     DCHECK(storage_.is_populated_);
     return storage_.value_;
   }
-=======
-  CONSTEXPR T& operator*() & { return value(); }
->>>>>>> Initial pass at starboardization of base.
 
-  constexpr const T&& operator*() const && {
+  CONSTEXPR const T&& operator*() const && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
-<<<<<<< HEAD
-  constexpr T&& operator*() && {
+  CONSTEXPR T&& operator*() && {
     DCHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
-=======
-  CONSTEXPR T&& operator*() && { return std::move(value()); }
->>>>>>> Initial pass at starboardization of base.
 
   constexpr explicit operator bool() const { return storage_.is_populated_; }
 
   constexpr bool has_value() const { return storage_.is_populated_; }
 
-<<<<<<< HEAD
-  constexpr T& value() & {
-    CHECK(storage_.is_populated_);
-    return storage_.value_;
-  }
-
-  constexpr const T& value() const & {
-    CHECK(storage_.is_populated_);
-    return storage_.value_;
-  }
-
-  constexpr T&& value() && {
-    CHECK(storage_.is_populated_);
-    return std::move(storage_.value_);
-  }
-
-  constexpr const T&& value() const && {
-    CHECK(storage_.is_populated_);
-=======
   CONSTEXPR T& value() & {
-    DCHECK(!storage_.is_null_);
+    CHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
   CONSTEXPR const T& value() const & {
-    DCHECK(!storage_.is_null_);
+    CHECK(storage_.is_populated_);
     return storage_.value_;
   }
 
   CONSTEXPR T&& value() && {
-    DCHECK(!storage_.is_null_);
+    CHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
   CONSTEXPR const T&& value() const && {
-    DCHECK(!storage_.is_null_);
->>>>>>> Initial pass at starboardization of base.
+    CHECK(storage_.is_populated_);
     return std::move(storage_.value_);
   }
 
@@ -684,7 +645,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
   }
 
   template <class U>
-  constexpr T value_or(U&& default_value) && {
+  CONSTEXPR T value_or(U&& default_value) && {
     // TODO(mlamouri): add the following assert when possible:
     // static_assert(std::is_move_constructible<T>::value,
     //               "T must be move constructible");
@@ -749,7 +710,7 @@ class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
 // while bool() casting is replaced by has_value() to meet the chromium
 // style guide.
 template <class T, class U>
-constexpr bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
+CONSTEXPR bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (lhs.has_value() != rhs.has_value())
     return false;
   if (!lhs.has_value())
@@ -758,7 +719,7 @@ constexpr bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-constexpr bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
+CONSTEXPR bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (lhs.has_value() != rhs.has_value())
     return true;
   if (!lhs.has_value())
@@ -767,7 +728,7 @@ constexpr bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-constexpr bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
+CONSTEXPR bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!rhs.has_value())
     return false;
   if (!lhs.has_value())
@@ -776,7 +737,7 @@ constexpr bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-constexpr bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
+CONSTEXPR bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!lhs.has_value())
     return true;
   if (!rhs.has_value())
@@ -785,7 +746,7 @@ constexpr bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-constexpr bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
+CONSTEXPR bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!lhs.has_value())
     return false;
   if (!rhs.has_value())
@@ -794,7 +755,7 @@ constexpr bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
 }
 
 template <class T, class U>
-constexpr bool operator>=(const Optional<T>& lhs, const Optional<U>& rhs) {
+CONSTEXPR bool operator>=(const Optional<T>& lhs, const Optional<U>& rhs) {
   if (!rhs.has_value())
     return true;
   if (!lhs.has_value())

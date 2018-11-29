@@ -5,6 +5,8 @@
 #ifndef BASE_MEMORY_SHARED_MEMORY_MAPPING_H_
 #define BASE_MEMORY_SHARED_MEMORY_MAPPING_H_
 
+#if !defined(STARBOARD)
+
 #include <cstddef>
 
 #include "base/containers/span.h"
@@ -215,4 +217,5 @@ class BASE_EXPORT WritableSharedMemoryMapping : public SharedMemoryMapping {
 
 }  // namespace base
 
+#endif  // !defined(STARBOARD)
 #endif  // BASE_MEMORY_SHARED_MEMORY_MAPPING_H_

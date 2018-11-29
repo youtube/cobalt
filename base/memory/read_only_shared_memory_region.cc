@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Cobalt does not support multiple process and shared memory.
+#if !defined(STARBOARD)
+
 #include "base/memory/read_only_shared_memory_region.h"
 
 #include <utility>
@@ -95,3 +98,5 @@ ReadOnlySharedMemoryRegion::ReadOnlySharedMemoryRegion(
 }
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
