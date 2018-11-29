@@ -62,6 +62,8 @@ bool ProcessMemoryDump::is_black_hole_non_fatal_for_testing_ = false;
 #if defined(COUNT_RESIDENT_BYTES_SUPPORTED)
 // static
 size_t ProcessMemoryDump::GetSystemPageSize() {
+// Cobalt does not support base::GetPageSize() yet.
+#if !defined(STARBOARD)
 #if defined(OS_IOS)
   // On iOS, getpagesize() returns the user page sizes, but for allocating
   // arrays for mincore(), kernel page sizes is needed. Use vm_kernel_page_size
@@ -71,6 +73,10 @@ size_t ProcessMemoryDump::GetSystemPageSize() {
 #else
   return base::GetPageSize();
 #endif  // defined(OS_IOS)
+#else
+  NOTIMPLEMENTED();
+  return 0;
+#endif  // !defined(STARBOARD)
 }
 
 // static
@@ -316,21 +322,9 @@ void ProcessMemoryDump::DumpHeapUsage(
         metrics_by_context,
     base::trace_event::TraceEventMemoryOverhead& overhead,
     const char* allocator_name) {
-<<<<<<< HEAD
-=======
 #if defined(STARBOARD)
   NOTIMPLEMENTED();
 #else
-  // The heap profiler serialization state can be null here if heap profiler was
-  // enabled when a process dump is in progress.
-  if (heap_profiler_serialization_state() && !metrics_by_context.empty()) {
-    DCHECK_EQ(0ul, heap_dumps_.count(allocator_name));
-    std::unique_ptr<TracedValue> heap_dump = ExportHeapDump(
-        metrics_by_context, *heap_profiler_serialization_state());
-    heap_dumps_[allocator_name] = std::move(heap_dump);
-  }
-
->>>>>>> Enable more widely-used functionality.
   std::string base_name = base::StringPrintf("tracing/heap_profiler_%s",
                                              allocator_name);
   overhead.DumpInto(base_name.c_str(), this);

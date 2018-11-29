@@ -119,7 +119,7 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
     // Windows uses UTF-16 encoding for filenames.
     U16_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
              code_point);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
     // Mac and Chrome OS use UTF-8 encoding for filenames.
     // Linux doesn't actually define file system encoding. Try to parse as
     // UTF-8.

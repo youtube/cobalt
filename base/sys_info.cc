@@ -52,12 +52,17 @@ int64_t SysInfo::AmountOfAvailablePhysicalMemory() {
 }
 
 bool SysInfo::IsLowEndDevice() {
+#if defined(STARBOARD)
+  NOTREACHED();
+  return true;
+#else
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableLowEndDeviceMode)) {
     return true;
   }
 
   return IsLowEndDeviceImpl();
+#endif
 }
 
 #if !defined(OS_ANDROID)
@@ -78,25 +83,8 @@ static LazyInstance<
   g_lazy_low_end_device = LAZY_INSTANCE_INITIALIZER;
 
 // static
-<<<<<<< HEAD
 bool SysInfo::IsLowEndDeviceImpl() {
-=======
-bool SysInfo::IsLowEndDevice() {
-#if defined(STARBOARD)
-  NOTREACHED();
-  return true;
-#else
-  const std::string group_name =
-      base::FieldTrialList::FindFullName("MemoryReduction");
-
-  // Low End Device Mode will be enabled if this client is assigned to
-  // one of those EnabledXXX groups.
-  if (StartsWith(group_name, "Enabled", CompareCase::SENSITIVE))
-    return true;
-
->>>>>>> Initial pass at starboardization of base.
   return g_lazy_low_end_device.Get().value();
-#endif
 }
 #endif
 

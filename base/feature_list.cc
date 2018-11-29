@@ -197,25 +197,10 @@ void FeatureList::GetFeatureOverrides(std::string* enable_overrides,
   GetFeatureOverridesImpl(enable_overrides, disable_overrides, false);
 }
 
-<<<<<<< HEAD
 void FeatureList::GetCommandLineFeatureOverrides(
     std::string* enable_overrides,
     std::string* disable_overrides) {
   GetFeatureOverridesImpl(enable_overrides, disable_overrides, true);
-=======
-    if (!target_list->empty())
-      target_list->push_back(',');
-    if (entry.second.overridden_state == OVERRIDE_USE_DEFAULT)
-      target_list->push_back('*');
-    target_list->append(entry.first);
-#if !defined(STARBOARD)
-    if (entry.second.field_trial) {
-      target_list->push_back('<');
-      target_list->append(entry.second.field_trial->trial_name());
-    }
-#endif
-  }
->>>>>>> Enable more widely-used functionality.
 }
 
 // static
@@ -403,10 +388,10 @@ void FeatureList::RegisterOverride(StringPiece feature_name,
   // Note: The semantics of insert() is that it does not overwrite the entry if
   // one already exists for the key. Thus, only the first override for a given
   // feature name takes effect.
-  overrides_.insert(std::make_pair(
-      feature_name.as_string(), OverrideEntry(overridden_state)));
+  overrides_.insert(std::make_pair(feature_name.as_string(),
+                                   OverrideEntry(overridden_state)));
 }
-#else  // defined(STARBOARD)
+#else   // defined(STARBOARD)
 void FeatureList::RegisterOverride(StringPiece feature_name,
                                    OverrideState overridden_state,
                                    FieldTrial* field_trial) {
@@ -441,8 +426,12 @@ void FeatureList::GetFeatureOverridesImpl(std::string* enable_overrides,
   // tests to assume the order.
   for (const auto& entry : overrides_) {
     if (command_line_only &&
+#if defined(STARBOARD)
+        (
+#else
         (entry.second.field_trial != nullptr ||
-         entry.second.overridden_state == OVERRIDE_USE_DEFAULT)) {
+#endif
+            entry.second.overridden_state == OVERRIDE_USE_DEFAULT)) {
       continue;
     }
 
@@ -462,10 +451,12 @@ void FeatureList::GetFeatureOverridesImpl(std::string* enable_overrides,
     if (entry.second.overridden_state == OVERRIDE_USE_DEFAULT)
       target_list->push_back('*');
     target_list->append(entry.first);
+#if !defined(STARBOARD)
     if (entry.second.field_trial) {
       target_list->push_back('<');
       target_list->append(entry.second.field_trial->trial_name());
     }
+#endif
   }
 }
 

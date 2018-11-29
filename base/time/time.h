@@ -59,6 +59,7 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/numerics/safe_math.h"
 #include "build/build_config.h"
@@ -162,7 +163,7 @@ class BASE_EXPORT TimeDelta {
   constexpr int64_t ToInternalValue() const { return delta_; }
 
   // Returns the magnitude (absolute value) of this TimeDelta.
-  constexpr TimeDelta magnitude() const {
+  CONSTEXPR TimeDelta magnitude() const {
     // Some toolchains provide an incomplete C++11 implementation and lack an
     // int64_t overload for std::abs().  The following is a simple branchless
     // implementation:
@@ -181,15 +182,11 @@ class BASE_EXPORT TimeDelta {
     return delta_ == std::numeric_limits<int64_t>::min();
   }
 
-<<<<<<< HEAD
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
 #if defined(OS_STARBOARD)
   SbTime ToSbTime() const;
 #endif
 
-#if defined(OS_POSIX)
->>>>>>> Initial pass at starboardization of base.
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
   struct timespec ToTimeSpec() const;
 #endif
 
@@ -209,7 +206,7 @@ class BASE_EXPORT TimeDelta {
   int64_t InMillisecondsRoundedUp() const;
   constexpr int64_t InMicroseconds() const;
   constexpr double InMicrosecondsF() const;
-  constexpr int64_t InNanoseconds() const;
+  CONSTEXPR int64_t InNanoseconds() const;
 
   // Computations with other deltas. Can easily be made constexpr with C++17 but
   // hard to do until then per limitations around
@@ -245,7 +242,7 @@ class BASE_EXPORT TimeDelta {
     return TimeDelta(std::numeric_limits<int64_t>::max());
   }
   template <typename T>
-  constexpr TimeDelta operator/(T a) const {
+  CONSTEXPR TimeDelta operator/(T a) const {
     CheckedNumeric<int64_t> rv(delta_);
     rv /= a;
     if (rv.IsValid())
@@ -261,7 +258,7 @@ class BASE_EXPORT TimeDelta {
     return *this = (*this * a);
   }
   template <typename T>
-  constexpr TimeDelta& operator/=(T a) {
+  CONSTEXPR TimeDelta& operator/=(T a) {
     return *this = (*this / a);
   }
 
@@ -851,7 +848,7 @@ constexpr double TimeDelta::InMicrosecondsF() const {
   return DivideOrMax<double>(1);
 }
 
-constexpr int64_t TimeDelta::InNanoseconds() const {
+CONSTEXPR int64_t TimeDelta::InNanoseconds() const {
   if (is_max()) {
     // Preserve max to prevent overflow.
     return std::numeric_limits<int64_t>::max();
@@ -873,14 +870,10 @@ constexpr TimeDelta TimeDelta::FromDouble(double value) {
 // static
 constexpr TimeDelta TimeDelta::FromProduct(int64_t value,
                                            int64_t positive_value) {
-<<<<<<< HEAD
-  DCHECK(positive_value > 0);  // NOLINT, DCHECK_GT isn't constexpr.
-=======
 #if !defined(STARBOARD)
   // C++11 doesn't like DCHECKs inside of constexpr.
-  DCHECK(positive_value > 0);
-#endif  // !defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+  DCHECK(positive_value > 0);  // NOLINT, DCHECK_GT isn't constexpr.
+#endif                         // !defined(STARBOARD)
   return value > std::numeric_limits<int64_t>::max() / positive_value
              ? Max()
              : value < std::numeric_limits<int64_t>::min() / positive_value

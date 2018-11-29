@@ -37,13 +37,12 @@
 #include "base/mac/foundation_util.h"
 #endif
 
-<<<<<<< HEAD
 #if defined(OS_FUCHSIA)
 #include "base/base_paths_fuchsia.h"
-=======
+#endif
+
 #if defined(STARBOARD)
 #include "starboard/client_porting/icu_init/icu_init.h"
->>>>>>> Initial pass at starboardization of base.
 #endif
 
 namespace base {

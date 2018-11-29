@@ -22,17 +22,20 @@ struct CharTraits {
   // Performs a lexographical comparison of the first N characters of |s1| and
   // |s2|. Returns 0 if equal, -1 if |s1| is less than |s2|, and 1 if |s1| is
   // greater than |s2|.
-  static constexpr int compare(const T* s1, const T* s2, size_t n) noexcept;
-
+  static CONSTEXPR int compare(const T* s1, const T* s2, size_t n) noexcept;
   // Returns the length of |s|, assuming null termination (and not including the
   // terminating null).
-  static constexpr size_t length(const T* s) noexcept;
+  static CONSTEXPR size_t length(const T* s) noexcept;
 };
 
 template <typename T>
+#if defined(STARBOARD)
+int CharTraits<T>::compare(const T* s1,
+#else
 constexpr int CharTraits<T>::compare(const T* s1,
-                                     const T* s2,
-                                     size_t n) noexcept {
+#endif
+                           const T* s2,
+                           size_t n) noexcept {
   for (; n; --n, ++s1, ++s2) {
     if (*s1 < *s2)
       return -1;
@@ -43,7 +46,7 @@ constexpr int CharTraits<T>::compare(const T* s1,
 }
 
 template <typename T>
-constexpr size_t CharTraits<T>::length(const T* s) noexcept {
+CONSTEXPR size_t CharTraits<T>::length(const T* s) noexcept {
   size_t i = 0;
   for (; *s; ++s)
     ++i;

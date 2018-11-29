@@ -9,13 +9,9 @@
 #include <stddef.h>
 
 #include "base/atomicops.h"
-<<<<<<< HEAD
-#include "base/cfi_buildflags.h"
-=======
 #if !defined(STARBOARD)
-#include "base/cfi_flags.h"
+#include "base/cfi_buildflags.h"
 #endif
->>>>>>> Initial pass at starboardization of base.
 #include "base/debug/asan_invalid_access.h"
 #include "base/debug/profiler.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
@@ -217,11 +213,8 @@ TEST(ToolsSanityTest, DISABLED_AddressSanitizerGlobalOOBCrashTest) {
   *access = 43;
 }
 
-<<<<<<< HEAD
 #ifndef HARMFUL_ACCESS_IS_NOOP
-=======
 #if !defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
 TEST(ToolsSanityTest, AsanHeapOverflow) {
   HARMFUL_ACCESS(debug::AsanHeapOverflow() ,"to the right");
 }
@@ -246,13 +239,9 @@ TEST(ToolsSanityTest, DISABLED_AsanCorruptHeap) {
   // particular string to look for in the stack trace.
   EXPECT_DEATH(debug::AsanCorruptHeap(), "");
 }
-<<<<<<< HEAD
 #endif  // OS_WIN
-#endif  // !HARMFUL_ACCESS_IS_NOOP
-=======
-#endif  // SYZYASAN
 #endif  // !defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+#endif  // !HARMFUL_ACCESS_IS_NOOP
 
 #endif  // ADDRESS_SANITIZER
 

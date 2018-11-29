@@ -29,35 +29,46 @@ class BASE_EXPORT ServiceThread : public Thread {
   // in addition to latency metrics through |task_tracker| if non-null. In that
   // case, this ServiceThread will assume a registered TaskScheduler instance
   // and that |task_tracker| will outlive this ServiceThread.
-  explicit ServiceThread(const TaskTracker* task_tracker,
-                         RepeatingClosure report_heartbeat_metrics_callback);
+  explicit ServiceThread(const TaskTracker* task_tracker
+// Cobalt does not support heartbeat latency histogram yet.
+#if defined(STARBOARD)
+                        );
+#else
+                         ,RepeatingClosure report_heartbeat_metrics_callback);
+#endif
 
   ~ServiceThread() override;
 
+#if !defined(STARBOARD)
   // Overrides the default interval at which |heartbeat_latency_timer_| fires.
   // Call this with a |heartbeat| of zero to undo the override.
   // Must not be called while the ServiceThread is running.
   static void SetHeartbeatIntervalForTesting(TimeDelta heartbeat);
+#endif
 
  private:
   // Thread:
   void Init() override;
   void Run(RunLoop* run_loop) override;
 
+#if !defined(STARBOARD)
   void ReportHeartbeatMetrics() const;
 
   // Kicks off a single async task which will record a histogram on the latency
   // of a randomly chosen set of TaskTraits.
   void PerformHeartbeatLatencyReport() const;
+#endif
 
   const TaskTracker* const task_tracker_;
 
+#if !defined(STARBOARD)
   // Fires a recurring heartbeat task to record metrics which are independent
   // from any execution sequence. This is done on the service thread to avoid
   // all external dependencies (even main thread).
   base::RepeatingTimer heartbeat_metrics_timer_;
 
   RepeatingClosure report_heartbeat_metrics_callback_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(ServiceThread);
 };

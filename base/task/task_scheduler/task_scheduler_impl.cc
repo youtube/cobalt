@@ -11,6 +11,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
+#include "base/cpp14oncpp11.h"
 #include "base/message_loop/message_loop.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/stl_util.h"
@@ -37,9 +38,13 @@ TaskSchedulerImpl::TaskSchedulerImpl(
     std::unique_ptr<TaskTrackerImpl> task_tracker)
     : task_tracker_(std::move(task_tracker)),
       service_thread_(std::make_unique<ServiceThread>(
+#if defined(STARBOARD)
+          task_tracker_.get())),
+#else
           task_tracker_.get(),
           BindRepeating(&TaskSchedulerImpl::ReportHeartbeatMetrics,
                         Unretained(this)))),
+#endif
       single_thread_task_runner_manager_(task_tracker_->GetTrackedRef(),
                                          &delayed_task_manager_) {
   DCHECK(!histogram_label.empty());
@@ -92,12 +97,14 @@ TaskSchedulerImpl::~TaskSchedulerImpl() {
 void TaskSchedulerImpl::Start(
     const TaskScheduler::InitParams& init_params,
     SchedulerWorkerObserver* scheduler_worker_observer) {
+#if !defined(STARBOARD)
   // This is set in Start() and not in the constructor because variation params
   // are usually not ready when TaskSchedulerImpl is instantiated in a process.
   if (base::GetFieldTrialParamValue("BrowserScheduler",
                                     "AllTasksUserBlocking") == "true") {
     all_tasks_user_blocking_.Set();
   }
+#endif
 
   // Start the service thread. On platforms that support it (POSIX except NaCL
   // SFI), the service thread runs a MessageLoopForIO which is used to support
@@ -222,6 +229,7 @@ TaskSchedulerImpl::CreateCOMSTATaskRunnerWithTraits(
 }
 #endif  // defined(OS_WIN)
 
+#if !defined(STARBOARD)
 std::vector<const HistogramBase*> TaskSchedulerImpl::GetHistograms() const {
   std::vector<const HistogramBase*> histograms;
   for (const auto& worker_pool : worker_pools_)
@@ -229,6 +237,7 @@ std::vector<const HistogramBase*> TaskSchedulerImpl::GetHistograms() const {
 
   return histograms;
 }
+#endif  // !defined(STARBOARD)
 
 int TaskSchedulerImpl::GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated(
     const TaskTraits& traits) const {

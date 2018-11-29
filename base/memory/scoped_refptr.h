@@ -172,7 +172,7 @@ class scoped_refptr {
   constexpr scoped_refptr() = default;
 
   // Constructs from raw pointer. constexpr if |p| is null.
-  constexpr scoped_refptr(T* p) : ptr_(p) {
+  CONSTEXPR scoped_refptr(T* p) : ptr_(p) {
     if (ptr_)
       AddRef(ptr_);
   }

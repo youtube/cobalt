@@ -23,30 +23,6 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 
-#if defined(STARBOARD)
-#include "base/message_loop/message_pump_io_starboard.h"
-#include "base/message_loop/message_pump_ui_starboard.h"
-#else
-#if defined(OS_MACOSX)
-#include "base/message_loop/message_pump_mac.h"
-#endif
-<<<<<<< HEAD
-=======
-#if defined(OS_POSIX) && !defined(OS_IOS) && !defined(OS_FUCHSIA)
-#include "base/message_loop/message_pump_libevent.h"
-#endif
-#if defined(OS_FUCHSIA)
-#include "base/message_loop/message_pump_fuchsia.h"
-#endif
-#if defined(OS_ANDROID)
-#include "base/message_loop/message_pump_android.h"
-#endif
-#if defined(USE_GLIB)
-#include "base/message_loop/message_pump_glib.h"
-#endif
-#endif
->>>>>>> Initial pass at starboardization of base.
-
 namespace base {
 
 namespace {
@@ -658,26 +634,22 @@ bool MessageLoopForUI::IsAborted() {
   return static_cast<MessagePumpForUI*>(pump_.get())->IsAborted();
 }
 
-<<<<<<< HEAD
 void MessageLoopForUI::QuitWhenIdle(base::OnceClosure callback) {
   static_cast<MessagePumpForUI*>(pump_.get())
       ->QuitWhenIdle(std::move(callback));
 }
 #endif  // defined(OS_ANDROID)
-=======
+
 #if defined(STARBOARD)
 bool MessageLoopForIO::Watch(SbSocket socket,
                              bool persistent,
                              int mode,
                              SocketWatcher* controller,
                              Watcher* delegate) {
-  return ToPumpIO(pump_.get())->Watch(
-      socket, persistent, mode, controller, delegate);
+  return static_cast<MessagePumpIOStarboard*>(pump_.get())
+      ->Watch(socket, persistent, mode, controller, delegate);
 }
-
-#else
-#if !defined(OS_NACL_SFI)
->>>>>>> Enable more widely-used functionality.
+#endif
 
 #if defined(OS_WIN)
 void MessageLoopForUI::EnableWmQuit() {
@@ -699,10 +671,5 @@ MessageLoopCurrentForIO MessageLoopForIO::current() {
 bool MessageLoopForIO::IsCurrent() {
   return MessageLoopCurrentForIO::IsSet();
 }
-<<<<<<< HEAD
-=======
-#endif
-#endif  // defined(STARBOARD)
->>>>>>> Enable more widely-used functionality.
 
 }  // namespace base

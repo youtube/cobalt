@@ -64,7 +64,9 @@ class BASE_EXPORT TaskSchedulerImpl : public TaskScheduler {
   // TaskScheduler:
   void Start(const TaskScheduler::InitParams& init_params,
              SchedulerWorkerObserver* scheduler_worker_observer) override;
+#if !defined(STARBOARD)
   std::vector<const HistogramBase*> GetHistograms() const override;
+#endif
   int GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated(
       const TaskTraits& traits) const override;
   void Shutdown() override;
@@ -90,17 +92,6 @@ class BASE_EXPORT TaskSchedulerImpl : public TaskScheduler {
       const TaskTraits& traits,
       SingleThreadTaskRunnerThreadMode thread_mode) override;
 #endif  // defined(OS_WIN)
-<<<<<<< HEAD:task/task_scheduler/task_scheduler_impl.h
-=======
-#if !defined(STARBOARD)
-  std::vector<const HistogramBase*> GetHistograms() const override;
-#endif  // !defined(STARBOARD)
-  int GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated(
-      const TaskTraits& traits) const override;
-  void Shutdown() override;
-  void FlushForTesting() override;
-  void JoinForTesting() override;
->>>>>>> Initial pass at starboardization of base.:task_scheduler/task_scheduler_impl.h
 
  private:
   // Returns the worker pool that runs Tasks with |traits|.

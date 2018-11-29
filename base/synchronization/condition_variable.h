@@ -103,7 +103,6 @@ class BASE_EXPORT ConditionVariable {
   void Signal();
 
  private:
-
 #if defined(STARBOARD)
   SbConditionVariable condition_;
   SbMutex* user_mutex_;
@@ -117,12 +116,7 @@ class BASE_EXPORT ConditionVariable {
 #endif
 #endif
 
-<<<<<<< HEAD
 #if DCHECK_IS_ON()
-=======
-#if DCHECK_IS_ON() && \
-    (defined(OS_WIN) || defined(OS_POSIX) || defined(STARBOARD))
->>>>>>> Initial pass at starboardization of base.
   base::Lock* const user_lock_;  // Needed to adjust shadow lock state on wait.
 #endif
 
