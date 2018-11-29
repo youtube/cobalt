@@ -316,17 +316,29 @@ scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     return make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeJPEG) {
-    bool force_image_decoding_to_single_plane =
-        CommandLine::ForCurrentProcess()->HasSwitch(
-            switches::kForceImageDecodingToSinglePlane);
 #if SB_HAS(BLITTER)
-    // Force decoding to single plane because blitter platforms usually don't
-    // have the ability to perform hardware accelerated YUV-formatted image
-    // blitting.
-    force_image_decoding_to_single_plane = true;
+    // Decoding to single plane by default because blitter platforms usually
+    // don't have the ability to perform hardware accelerated YUV-formatted
+    // image blitting.
+    bool allow_image_decoding_to_multi_plane = false;
+#else   // SB_HAS(BLITTER)
+    // TODO: Set this to true when multi plane image rendering is optimized on
+    // egl platforms.
+    bool allow_image_decoding_to_multi_plane = false;
 #endif  // SB_HAS(BLITTER)
+    auto command_line = CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kAllowImageDecodingToMultiPlane)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kAllowImageDecodingToMultiPlane);
+      if (value == "true") {
+        allow_image_decoding_to_multi_plane = true;
+      } else {
+        DCHECK_EQ(value, "false");
+        allow_image_decoding_to_multi_plane = false;
+      }
+    }
     return make_scoped_ptr<ImageDataDecoder>(new JPEGImageDecoder(
-        resource_provider, force_image_decoding_to_single_plane));
+        resource_provider, allow_image_decoding_to_multi_plane));
   } else if (image_type == ImageDecoder::kImageTypePNG) {
     return make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));

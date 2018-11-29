@@ -19,7 +19,7 @@ namespace cobalt {
 namespace loader {
 namespace switches {
 
-extern const char kForceImageDecodingToSinglePlane[];
+extern const char kAllowImageDecodingToMultiPlane[];
 
 }  // namespace switches
 }  // namespace loader
