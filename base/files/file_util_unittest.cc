@@ -1926,11 +1926,7 @@ TEST_F(FileUtilTest, CopyDirectoryWithTrailingSeparators) {
 #if defined(OS_WIN)
   FilePath from_path =
       temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Copy_From_Subdir\\\\\\"));
-<<<<<<< HEAD
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
-#elif defined(OS_POSIX) || defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   FilePath from_path =
       temp_dir_.GetPath().Append(FILE_PATH_LITERAL("Copy_From_Subdir///"));
 #endif
@@ -1994,7 +1990,6 @@ TEST_F(FileUtilTest, CopyDirectoryWithNonRegularFiles) {
   EXPECT_FALSE(PathExists(symlink_name_to));
   EXPECT_FALSE(PathExists(fifo_name_to));
 }
-<<<<<<< HEAD
 
 TEST_F(FileUtilTest, CopyDirectoryExclFileOverSymlink) {
   // Create a directory.
@@ -2159,10 +2154,7 @@ TEST_F(FileUtilTest, CopyDirectoryExclFileOverFifo) {
   EXPECT_FALSE(CopyDirectoryExcl(dir_name_from, dir_name_to, false));
 }
 #endif  // defined(OS_POSIX)
-=======
-#endif  // !defined(OS_FUCHSIA) && defined(OS_POSIX)
 #endif  // !defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
 
 TEST_F(FileUtilTest, CopyFile) {
   // Create a directory
@@ -2513,11 +2505,7 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 #if defined(OS_WIN)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir\\tree\\likely\\doesnt\\exist\\"));
-<<<<<<< HEAD
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
-#elif defined(OS_POSIX) || defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir/tree/likely/doesnt/exist/"));
 #endif

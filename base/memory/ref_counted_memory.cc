@@ -83,6 +83,8 @@ size_t RefCountedString::size() const {
   return data_.size();
 }
 
+// Cobalt does not support multiple process and shared memory.
+#if !defined(STARBOARD)
 RefCountedSharedMemory::RefCountedSharedMemory(
     std::unique_ptr<SharedMemory> shm,
     size_t size)
@@ -128,5 +130,6 @@ RefCountedSharedMemoryMapping::CreateFromWholeRegion(
     return nullptr;
   return MakeRefCounted<RefCountedSharedMemoryMapping>(std::move(mapping));
 }
+#endif  // !defined(STARBOARD)
 
 }  //  namespace base

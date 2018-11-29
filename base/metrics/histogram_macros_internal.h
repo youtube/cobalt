@@ -40,9 +40,9 @@ template <typename Enum>
 struct EnumSizeTraits<
     Enum,
     std::enable_if_t<std::is_enum<decltype(Enum::kMaxValue)>::value>> {
+  using underlying_type = typename std::underlying_type<Enum>::type;
   static constexpr Enum Count() {
-    return static_cast<Enum>(
-        static_cast<std::underlying_type_t<Enum>>(Enum::kMaxValue) + 1);
+    return static_cast<Enum>(static_cast<underlying_type>(Enum::kMaxValue) + 1);
   }
 };
 

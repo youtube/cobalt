@@ -13,13 +13,10 @@
 #include <type_traits>
 #include <utility>
 
-<<<<<<< HEAD
 #include "base/containers/checked_iterators.h"
+#include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
-=======
-#include "base/cpp14oncpp11.h"
->>>>>>> Initial pass at starboardization of base.
 
 namespace base {
 
@@ -237,14 +234,14 @@ class span : public internal::ExtentStorage<Extent> {
     static_assert(Extent == dynamic_extent || Extent == 0, "Invalid Extent");
   }
 
-  constexpr span(T* data, size_t size) noexcept
+  CONSTEXPR span(T* data, size_t size) noexcept
       : ExtentStorage(size), data_(data) {
     CHECK(Extent == dynamic_extent || Extent == size);
   }
 
   // Artificially templatized to break ambiguity for span(ptr, 0).
   template <typename = void>
-  constexpr span(T* begin, T* end) noexcept : span(begin, end - begin) {
+  CONSTEXPR span(T* begin, T* end) noexcept : span(begin, end - begin) {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
     CHECK(begin <= end);
   }
@@ -317,12 +314,12 @@ class span : public internal::ExtentStorage<Extent> {
   constexpr span(const span<U, OtherExtent>& other)
       : span(other.data(), other.size()) {}
 
-  constexpr span& operator=(const span& other) noexcept = default;
+  CONSTEXPR span& operator=(const span& other) noexcept = default;
   ~span() noexcept = default;
 
   // [span.sub], span subviews
   template <size_t Count>
-  constexpr span<T, Count> first() const noexcept {
+  CONSTEXPR span<T, Count> first() const noexcept {
     static_assert(Extent == dynamic_extent || Count <= Extent,
                   "Count must not exceed Extent");
     CHECK(Extent != dynamic_extent || Count <= size());
@@ -330,7 +327,7 @@ class span : public internal::ExtentStorage<Extent> {
   }
 
   template <size_t Count>
-  constexpr span<T, Count> last() const noexcept {
+  CONSTEXPR span<T, Count> last() const noexcept {
     static_assert(Extent == dynamic_extent || Count <= Extent,
                   "Count must not exceed Extent");
     CHECK(Extent != dynamic_extent || Count <= size());
@@ -338,11 +335,11 @@ class span : public internal::ExtentStorage<Extent> {
   }
 
   template <size_t Offset, size_t Count = dynamic_extent>
-  constexpr span<T,
+  CONSTEXPR span<T,
                  (Count != dynamic_extent
-                     ? Count
-                     : (Extent != dynamic_extent ? Extent - Offset
-                                                 : dynamic_extent))>
+                      ? Count
+                      : (Extent != dynamic_extent ? Extent - Offset
+                                                  : dynamic_extent))>
   subspan() const noexcept {
     static_assert(Extent == dynamic_extent || Offset <= Extent,
                   "Offset must not exceed Extent");
@@ -355,19 +352,19 @@ class span : public internal::ExtentStorage<Extent> {
     return {data() + Offset, Count != dynamic_extent ? Count : size() - Offset};
   }
 
-  constexpr span<T, dynamic_extent> first(size_t count) const noexcept {
+  CONSTEXPR span<T, dynamic_extent> first(size_t count) const noexcept {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
     CHECK(count <= size());
     return {data(), count};
   }
 
-  constexpr span<T, dynamic_extent> last(size_t count) const noexcept {
+  CONSTEXPR span<T, dynamic_extent> last(size_t count) const noexcept {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
     CHECK(count <= size());
     return {data() + (size() - count), count};
   }
 
-  constexpr span<T, dynamic_extent> subspan(size_t offset,
+  CONSTEXPR span<T, dynamic_extent> subspan(size_t offset,
                                             size_t count = dynamic_extent) const
       noexcept {
     // Note: CHECK_LE is not constexpr, hence regular CHECK must be used.
@@ -382,13 +379,13 @@ class span : public internal::ExtentStorage<Extent> {
   constexpr bool empty() const noexcept { return size() == 0; }
 
   // [span.elem], span element access
-  constexpr T& operator[](size_t idx) const noexcept {
+  CONSTEXPR T& operator[](size_t idx) const noexcept {
     // Note: CHECK_LT is not constexpr, hence regular CHECK must be used.
     CHECK(idx < size());
     return *(data() + idx);
   }
 
-  constexpr T& operator()(size_t idx) const noexcept {
+  CONSTEXPR T& operator()(size_t idx) const noexcept {
     // Note: CHECK_LT is not constexpr, hence regular CHECK must be used.
     CHECK(idx < size());
     return *(data() + idx);
@@ -430,12 +427,8 @@ constexpr size_t span<T, Extent>::extent;
 
 // [span.comparison], span comparison operators
 // Relational operators. Equality is a element-wise comparison.
-<<<<<<< HEAD
 template <typename T, size_t X, typename U, size_t Y>
-constexpr bool operator==(span<T, X> lhs, span<U, Y> rhs) noexcept {
-=======
-template <typename T>
-CONSTEXPR bool operator==(const span<T>& lhs, const span<T>& rhs) noexcept {
+CONSTEXPR bool operator==(span<T, X> lhs, span<U, Y> rhs) noexcept {
 #if __cplusplus < 201402L
   // With GNU at least, there exists an implementation of std::equal that is
   // replaced in C++14.
@@ -452,7 +445,6 @@ CONSTEXPR bool operator==(const span<T>& lhs, const span<T>& rhs) noexcept {
     return a == lhs.cend() && b == rhs.cend();
   }
 #else
->>>>>>> Initial pass at starboardization of base.
   return std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend());
 #endif
 }

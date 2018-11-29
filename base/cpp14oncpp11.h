@@ -17,8 +17,10 @@
 // Starboard is currently targetting C++11, not C++14, so unfortunately we
 // do away with constexpr usage.
 #define CONSTEXPR
+#define STATIC_ASSERT(value, message) EXPECT_TRUE(value)
 #else
 #define CONSTEXPR constexpr
+#define STATIC_ASSERT(value, message) static_assert(value, message)
 #endif
 
 #if __cplusplus < 201402L

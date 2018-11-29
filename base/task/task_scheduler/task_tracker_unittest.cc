@@ -1369,8 +1369,7 @@ TEST_F(TaskSchedulerTaskTrackerTest,
   // Simulate scheduling sequences. TaskTracker should prevent this.
   std::vector<scoped_refptr<Sequence>> preempted_sequences;
   for (int i = 0; i < 3; ++i) {
-    Task task(FROM_HERE, DoNothing(),
-              TimeDelta());
+    Task task(FROM_HERE, DoNothing(), TimeDelta());
     EXPECT_TRUE(
         tracker.WillPostTask(&task, TaskShutdownBehavior::BLOCK_SHUTDOWN));
     scoped_refptr<Sequence> sequence = test::CreateSequenceWithTask(
@@ -1473,6 +1472,7 @@ TEST(TaskSchedulerTaskTrackerWaitAllowedTest, WaitAllowed) {
   wait_allowed_test_thread.Join();
 }
 
+#if !defined(STARBOARD)
 // Verify that TaskScheduler.TaskLatency.* histograms are correctly recorded
 // when a task runs.
 TEST(TaskSchedulerTaskTrackerHistogramTest, TaskLatency) {
@@ -1527,6 +1527,7 @@ TEST(TaskSchedulerTaskTrackerHistogramTest, TaskLatency) {
     tester.ExpectTotalCount(test.expected_histogram, 1);
   }
 }
+#endif
 
 }  // namespace internal
 }  // namespace base

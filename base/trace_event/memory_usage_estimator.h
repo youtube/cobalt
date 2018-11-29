@@ -28,6 +28,7 @@
 #include "base/containers/linked_list.h"
 #include "base/containers/mru_cache.h"
 #include "base/containers/queue.h"
+#include "base/cpp14oncpp11.h"
 #include "base/stl_util.h"
 #include "base/strings/string16.h"
 #include "base/template_util.h"
@@ -250,7 +251,7 @@ struct IsComplexIteratorForContainer<
 };
 
 template <class I, template <class...> class... Containers>
-constexpr bool OneOfContainersComplexIterators() {
+CONSTEXPR bool OneOfContainersComplexIterators() {
   // We are forced to create a temporary variable to workaround a compilation
   // error in msvs.
   const bool all_tests[] = {
@@ -276,6 +277,15 @@ constexpr bool IsStandardContainerComplexIterator() {
       /*std::forward_list,*/ std::list, std::set, std::multiset>();
 }
 
+#if __cplusplus < 201402L
+template <class T>
+struct EMUCaller<
+    T,
+    typename std::enable_if<!HasEMU<T>::value &&
+                            std::is_trivially_destructible<T>::value>::type> {
+  static size_t Call(const T& value) { return 0; }
+};
+#else
 // Work around MSVS bug. For some reason constexpr function doesn't work.
 // However variable template does.
 template <typename T>
@@ -289,6 +299,7 @@ struct EMUCaller<
     std::enable_if_t<!HasEMU<T>::value && IsKnownNonAllocatingType_v<T>>> {
   static size_t Call(const T& value) { return 0; }
 };
+#endif
 
 }  // namespace internal
 

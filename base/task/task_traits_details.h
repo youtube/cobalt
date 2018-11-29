@@ -10,12 +10,14 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/cpp14oncpp11.h"
+
 namespace base {
 namespace trait_helpers {
 
 // Checks if any of the elements in |ilist| is true.
 // Similar to std::any_of for the case of constexpr initializer_list.
-inline constexpr bool any_of(std::initializer_list<bool> ilist) {
+inline CONSTEXPR bool any_of(std::initializer_list<bool> ilist) {
   for (auto c : ilist) {
     if (c)
       return true;
@@ -25,7 +27,7 @@ inline constexpr bool any_of(std::initializer_list<bool> ilist) {
 
 // Checks if all of the elements in |ilist| are true.
 // Similar to std::any_of for the case of constexpr initializer_list.
-inline constexpr bool all_of(std::initializer_list<bool> ilist) {
+inline CONSTEXPR bool all_of(std::initializer_list<bool> ilist) {
   for (auto c : ilist) {
     if (!c)
       return false;
@@ -36,7 +38,7 @@ inline constexpr bool all_of(std::initializer_list<bool> ilist) {
 // Counts the elements in |ilist| that are equal to |value|.
 // Similar to std::count for the case of constexpr initializer_list.
 template <class T>
-inline constexpr size_t count(std::initializer_list<T> ilist, T value) {
+inline CONSTEXPR size_t count(std::initializer_list<T> ilist, T value) {
   size_t c = 0;
   for (const auto& v : ilist) {
     c += (v == value);
@@ -110,13 +112,15 @@ constexpr TraitFilterType GetTraitFromArgListImpl(CallSecondTag,
 // value using conversion to |TraitFilterType::ValueType|. If there are more
 // than one compatible argument in |args|, generates a compile-time error.
 template <class TraitFilterType, class... ArgTypes>
-constexpr typename TraitFilterType::ValueType GetTraitFromArgList(
+CONSTEXPR typename TraitFilterType::ValueType GetTraitFromArgList(
     ArgTypes... args) {
+#if __cplusplus >= 201402L
   static_assert(
       count({std::is_constructible<TraitFilterType, ArgTypes>::value...},
             true) <= 1,
       "Multiple arguments of the same type were provided to the "
       "constructor of TaskTraits.");
+#endif
   return GetTraitFromArgListImpl<TraitFilterType>(CallFirstTag(), args...);
 }
 
@@ -139,23 +143,35 @@ struct BasicTraitFilter {
 
 template <typename ArgType>
 struct BooleanTraitFilter : public BasicTraitFilter<bool> {
-  constexpr BooleanTraitFilter() { this->value = false; }
-  constexpr BooleanTraitFilter(ArgType) { this->value = true; }
+  CONSTEXPR BooleanTraitFilter() { this->value = false; }
+  CONSTEXPR BooleanTraitFilter(ArgType) { this->value = true; }
 };
 
 template <typename ArgType, ArgType DefaultValue>
 struct EnumTraitFilter : public BasicTraitFilter<ArgType> {
-  constexpr EnumTraitFilter() { this->value = DefaultValue; }
-  constexpr EnumTraitFilter(ArgType arg) { this->value = arg; }
+  CONSTEXPR EnumTraitFilter() { this->value = DefaultValue; }
+  CONSTEXPR EnumTraitFilter(ArgType arg) { this->value = arg; }
 };
 
 // Tests whether multiple given argtument types are all valid traits according
 // to the provided ValidTraits. To use, define a ValidTraits
 template <typename ArgType>
 struct RequiredEnumTraitFilter : public BasicTraitFilter<ArgType> {
-  constexpr RequiredEnumTraitFilter(ArgType arg) { this->value = arg; }
+  CONSTEXPR RequiredEnumTraitFilter(ArgType arg) { this->value = arg; }
 };
 
+#if __cplusplus < 201402L
+// Allows instantiation of multiple types in one statement. Used to prevent
+// instantiation of the constructor of TaskTraits with inappropriate argument
+// types.
+template <class...>
+struct InitTypes {};
+
+// template <class ValidTraits, class... ArgTypes>
+// bool AreValidTraits(){
+//   return all_of({std::is_convertible<ArgTypes, ValidTraits>::value...});
+// }
+#else
 // Tests whether a given trait type is valid or invalid by testing whether it is
 // convertible to the provided ValidTraits type. To use, define a ValidTraits
 // type like this:
@@ -169,6 +185,7 @@ struct AreValidTraits
     : std::integral_constant<
           bool,
           all_of({std::is_convertible<ArgTypes, ValidTraits>::value...})> {};
+#endif
 
 }  // namespace trait_helpers
 }  // namespace base

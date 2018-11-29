@@ -4,6 +4,7 @@
 
 #include "base/strings/pattern.h"
 
+#include "base/cpp14oncpp11.h"
 #include "base/third_party/icu/icu_utf.h"
 
 namespace base {
@@ -19,7 +20,7 @@ constexpr bool IsWildcard(base_icu::UChar32 character) {
 // the first wildcard character (or the end of the string). If the value of
 // |maximum_distance| is negative, the maximum distance is considered infinite.
 template <typename CHAR, typename NEXT>
-constexpr bool SearchForChars(const CHAR** pattern,
+CONSTEXPR bool SearchForChars(const CHAR** pattern,
                               const CHAR* pattern_end,
                               const CHAR** string,
                               const CHAR* string_end,
@@ -87,7 +88,7 @@ constexpr bool SearchForChars(const CHAR** pattern,
 // match an arbitrary number of characters (which is the case if it contains at
 // least one *).
 template <typename CHAR, typename NEXT>
-constexpr int EatWildcards(const CHAR** pattern, const CHAR* end, NEXT next) {
+CONSTEXPR int EatWildcards(const CHAR** pattern, const CHAR* end, NEXT next) {
   int num_question_marks = 0;
   bool has_asterisk = false;
   while (*pattern != end) {
@@ -105,7 +106,7 @@ constexpr int EatWildcards(const CHAR** pattern, const CHAR* end, NEXT next) {
 }
 
 template <typename CHAR, typename NEXT>
-constexpr bool MatchPatternT(const CHAR* eval,
+CONSTEXPR bool MatchPatternT(const CHAR* eval,
                              const CHAR* eval_end,
                              const CHAR* pattern,
                              const CHAR* pattern_end,

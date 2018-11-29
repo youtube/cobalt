@@ -185,7 +185,7 @@ TlsVectorEntry* ConstructTlsVector() {
       // first.
       PlatformThreadLocalStorage::FreeTLS(key);
       key = reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
-                base::subtle::NoBarrier_Load(&g_native_tls_key));
+          base::subtle::NoBarrier_Load(&g_native_tls_key));
     }
   }
   CHECK_EQ(PlatformThreadLocalStorage::GetTLSValue(key), kUninitialized);
@@ -216,7 +216,8 @@ void OnThreadExitInternal(TlsVectorEntry* tls_data) {
   // kDestroyed to kUninitialized.
   if (tls_data == kDestroyed) {
     PlatformThreadLocalStorage::TLSKey key =
-        base::subtle::NoBarrier_Load(&g_native_tls_key);
+      reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
+          base::subtle::NoBarrier_Load(&g_native_tls_key));
     PlatformThreadLocalStorage::SetTLSValue(key, kUninitialized);
     return;
   }
@@ -322,7 +323,8 @@ void PlatformThreadLocalStorage::OnThreadExit(void* value) {
 
 bool ThreadLocalStorage::HasBeenDestroyed() {
   PlatformThreadLocalStorage::TLSKey key =
-      base::subtle::NoBarrier_Load(&g_native_tls_key);
+      reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
+      base::subtle::NoBarrier_Load(&g_native_tls_key));
   if (key == PlatformThreadLocalStorage::TLS_KEY_OUT_OF_INDEXES)
     return false;
   return PlatformThreadLocalStorage::GetTLSValue(key) == kDestroyed;
@@ -378,13 +380,9 @@ void ThreadLocalStorage::Slot::Free() {
 void* ThreadLocalStorage::Slot::Get() const {
   TlsVectorEntry* tls_data = static_cast<TlsVectorEntry*>(
       PlatformThreadLocalStorage::GetTLSValue(
-<<<<<<< HEAD
-          base::subtle::NoBarrier_Load(&g_native_tls_key)));
+        reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
+          base::subtle::NoBarrier_Load(&g_native_tls_key))));
   DCHECK_NE(tls_data, kDestroyed);
-=======
-          reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
-              base::subtle::NoBarrier_Load(&g_native_tls_key))));
->>>>>>> Initial pass at starboardization of base.
   if (!tls_data)
     return nullptr;
   DCHECK_NE(slot_, kInvalidSlotValue);
@@ -398,13 +396,9 @@ void* ThreadLocalStorage::Slot::Get() const {
 void ThreadLocalStorage::Slot::Set(void* value) {
   TlsVectorEntry* tls_data = static_cast<TlsVectorEntry*>(
       PlatformThreadLocalStorage::GetTLSValue(
-<<<<<<< HEAD
-          base::subtle::NoBarrier_Load(&g_native_tls_key)));
+        reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
+          base::subtle::NoBarrier_Load(&g_native_tls_key))));
   DCHECK_NE(tls_data, kDestroyed);
-=======
-          reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
-              base::subtle::NoBarrier_Load(&g_native_tls_key))));
->>>>>>> Initial pass at starboardization of base.
   if (!tls_data)
     tls_data = ConstructTlsVector();
   DCHECK_NE(slot_, kInvalidSlotValue);

@@ -85,24 +85,17 @@ void OverrideFeatures(const std::string& features,
 ScopedFeatureList::ScopedFeatureList() = default;
 
 ScopedFeatureList::~ScopedFeatureList() {
-<<<<<<< HEAD
   // If one of the Init() functions was never called, don't reset anything.
   if (!init_called_)
     return;
 
+#if !defined(STARBOARD)
   if (field_trial_override_) {
     base::FieldTrialParamAssociator::GetInstance()->ClearParamsForTesting(
         field_trial_override_->trial_name(),
         field_trial_override_->group_name());
   }
-=======
-#if !defined(STARBOARD)
-  if (field_trial_override_)
-    base::FieldTrialParamAssociator::GetInstance()->ClearParamsForTesting(
-        field_trial_override_->trial_name(),
-        field_trial_override_->group_name());
 #endif
->>>>>>> Enable more widely-used functionality.
 
   FeatureList::ClearInstanceForTesting();
   if (original_feature_list_)

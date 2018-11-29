@@ -3,15 +3,13 @@
 // found in the LICENSE file.
 
 #include "base/i18n/encoding_detection.h"
-
-<<<<<<< HEAD
 #include "build/build_config.h"
-=======
+
 #if defined(STARBOARD)
 #include "base/strings/string_util.h"
 #include "unicode/ucsdet.h"
 #else
->>>>>>> Initial pass at starboardization of base.
+
 #include "third_party/ced/src/compact_enc_det/compact_enc_det.h"
 #endif
 

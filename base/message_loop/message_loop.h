@@ -27,22 +27,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-<<<<<<< HEAD
-=======
-// TODO(sky): these includes should not be necessary. Nuke them.
-#if defined(OS_WIN)
-#include "base/message_loop/message_pump_win.h"
-#elif defined(OS_FUCHSIA)
-#include "base/message_loop/message_pump_fuchsia.h"
-#elif defined(OS_IOS)
-#include "base/message_loop/message_pump_io_ios.h"
-#elif defined(OS_POSIX)
-#include "base/message_loop/message_pump_libevent.h"
-#elif defined(STARBOARD)
-#include "base/message_loop/message_pump_io_starboard.h"
-#endif
-
->>>>>>> Enable more widely-used functionality.
 namespace base {
 
 class SequencedTaskSource;
@@ -435,105 +419,40 @@ static_assert(sizeof(MessageLoop) == sizeof(MessageLoopForUI),
 //
 class BASE_EXPORT MessageLoopForIO : public MessageLoop {
  public:
-<<<<<<< HEAD
   MessageLoopForIO() : MessageLoop(TYPE_IO) {}
 
-  // TODO(gab): Mass migrate callers to MessageLoopCurrentForIO::Get()/IsSet().
   static MessageLoopCurrentForIO current();
   static bool IsCurrent();
-=======
-  MessageLoopForIO() : MessageLoop(TYPE_IO) {
-  }
-
-  // Returns the MessageLoopForIO of the current thread.
-  static MessageLoopForIO* current() {
-    MessageLoop* loop = MessageLoop::current();
-    DCHECK(loop);
-    DCHECK_EQ(MessageLoop::TYPE_IO, loop->type());
-    return static_cast<MessageLoopForIO*>(loop);
-  }
-
-  static bool IsCurrent() {
-    MessageLoop* loop = MessageLoop::current();
-    return loop && loop->type() == MessageLoop::TYPE_IO;
-  }
-
 #if defined(STARBOARD)
+  // Returns the MessageLoopForIO of the current thread.
+  // static MessageLoopCurrentForIO* current() {
+  //   MessageLoop* loop = MessageLoop::current();
+  //   DCHECK(loop);
+  //   DCHECK_EQ(MessageLoop::TYPE_IO, loop->type());
+  //   return static_cast<MessageLoopCurrentForIO*>(loop);
+  // }
+
+  // static bool IsCurrent() {
+  //   MessageLoop* loop = MessageLoop::current();
+  //   return loop && loop->type() == MessageLoop::TYPE_IO;
+  // }
+
   typedef base::MessagePumpIOStarboard::Watcher Watcher;
   typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
   typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
 
-  enum Mode{WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
-            WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
-            WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE};
+  enum Mode {
+    WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
+    WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
+    WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE
+  };
 
   bool Watch(SbSocket socket,
              bool persistent,
              int mode,
              SocketWatcher* controller,
              Watcher* delegate);
-#else
-#if !defined(OS_NACL_SFI)
-
-#if defined(OS_WIN)
-  typedef MessagePumpForIO::IOHandler IOHandler;
-  typedef MessagePumpForIO::IOContext IOContext;
-#elif defined(OS_FUCHSIA)
-  typedef MessagePumpFuchsia::FdWatcher Watcher;
-  typedef MessagePumpFuchsia::FdWatchController FileDescriptorWatcher;
-
-  enum Mode{WATCH_READ = MessagePumpFuchsia::WATCH_READ,
-            WATCH_WRITE = MessagePumpFuchsia::WATCH_WRITE,
-            WATCH_READ_WRITE = MessagePumpFuchsia::WATCH_READ_WRITE};
-
-  typedef MessagePumpFuchsia::ZxHandleWatchController ZxHandleWatchController;
-  typedef MessagePumpFuchsia::ZxHandleWatcher ZxHandleWatcher;
-#elif defined(OS_IOS)
-  typedef MessagePumpIOSForIO::Watcher Watcher;
-  typedef MessagePumpIOSForIO::FileDescriptorWatcher
-      FileDescriptorWatcher;
-
-  enum Mode {
-    WATCH_READ = MessagePumpIOSForIO::WATCH_READ,
-    WATCH_WRITE = MessagePumpIOSForIO::WATCH_WRITE,
-    WATCH_READ_WRITE = MessagePumpIOSForIO::WATCH_READ_WRITE
-  };
-#elif defined(OS_POSIX)
-  using Watcher = MessagePumpLibevent::Watcher;
-  using FileDescriptorWatcher = MessagePumpLibevent::FileDescriptorWatcher;
-
-  enum Mode {
-    WATCH_READ = MessagePumpLibevent::WATCH_READ,
-    WATCH_WRITE = MessagePumpLibevent::WATCH_WRITE,
-    WATCH_READ_WRITE = MessagePumpLibevent::WATCH_READ_WRITE
-  };
-#endif
-
-#if defined(OS_WIN)
-  // Please see MessagePumpWin for definitions of these methods.
-  void RegisterIOHandler(HANDLE file, IOHandler* handler);
-  bool RegisterJobObject(HANDLE job, IOHandler* handler);
-  bool WaitForIOCompletion(DWORD timeout, IOHandler* filter);
-#elif defined(OS_POSIX)
-  // Please see MessagePumpIOSForIO/MessagePumpLibevent for definition.
-  bool WatchFileDescriptor(int fd,
-                           bool persistent,
-                           Mode mode,
-                           FileDescriptorWatcher* controller,
-                           Watcher* delegate);
-#endif  // defined(OS_IOS) || defined(OS_POSIX)
-#endif  // !defined(OS_NACL_SFI)
-
-#if defined(OS_FUCHSIA)
-  // Additional watch API for native platform resources.
-  bool WatchZxHandle(zx_handle_t handle,
-                     bool persistent,
-                     zx_signals_t signals,
-                     ZxHandleWatchController* controller,
-                     ZxHandleWatcher* delegate);
-#endif
-#endif  // defined(STARBOARD)
->>>>>>> Enable more widely-used functionality.
+#endif  // !defined(STARBOARD)
 };
 
 // Do not add any member variables to MessageLoopForIO!  This is important b/c
