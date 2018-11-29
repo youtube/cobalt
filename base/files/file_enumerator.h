@@ -168,11 +168,7 @@ class BASE_EXPORT FileEnumerator {
   bool has_find_data_ = false;
   WIN32_FIND_DATA find_data_;
   HANDLE find_handle_ = INVALID_HANDLE_VALUE;
-<<<<<<< HEAD
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
-#elif defined(OS_POSIX) || defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
   // The files in the current directory
   std::vector<FileInfo> directory_entries_;
 

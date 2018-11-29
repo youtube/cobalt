@@ -38,12 +38,8 @@ TEST(HistogramFunctionsTest, ExactLinear) {
   tester.ExpectTotalCount(histogram, 5);
 }
 
-<<<<<<< HEAD
-TEST(HistogramFunctionsTest, Enumeration) {
-=======
 #if !defined(STARBOARD)
-TEST(HistogramFunctionsTest, HistogramEnumeration) {
->>>>>>> Enable more widely-used functionality.
+TEST(HistogramFunctionsTest, Enumeration) {
   std::string histogram("Testing.UMA.HistogramEnumeration");
   HistogramTester tester;
   UmaHistogramEnumeration(histogram, UMA_HISTOGRAM_TESTING_ENUM_FIRST,

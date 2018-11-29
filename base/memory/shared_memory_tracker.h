@@ -15,6 +15,7 @@
 
 namespace base {
 
+#if !defined(STARBOARD)
 namespace trace_event {
 class MemoryAllocatorDump;
 class MemoryAllocatorDumpGuid;
@@ -85,6 +86,7 @@ class BASE_EXPORT SharedMemoryTracker : public trace_event::MemoryDumpProvider {
   DISALLOW_COPY_AND_ASSIGN(SharedMemoryTracker);
 };
 
+#endif
 }  // namespace base
 
 #endif  // BASE_MEMORY_SHARED_MEMORY_TRACKER_H_

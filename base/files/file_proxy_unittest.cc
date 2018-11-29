@@ -314,11 +314,7 @@ TEST_F(FileProxyTest, WriteAndFlush) {
   }
 }
 
-<<<<<<< HEAD
-#if defined(OS_ANDROID) || defined(OS_FUCHSIA)
-=======
-#if defined(OS_ANDROID) || defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+#if defined(OS_ANDROID) || defined(OS_FUCHSIA) || defined(STARBOARD)
 // Flaky on Android, see http://crbug.com/489602
 // TODO(crbug.com/851734): Implementation depends on stat, which is not
 // implemented on Fuchsia

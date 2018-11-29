@@ -66,14 +66,8 @@ class PlatformThreadRef {
 #else  //  OS_POSIX
   typedef pthread_t RefType;
 #endif
-<<<<<<< HEAD
-  constexpr PlatformThreadRef() : id_(0) {}
-=======
 #endif
-  PlatformThreadRef()
-      : id_(0) {
-  }
->>>>>>> Initial pass at starboardization of base.
+  constexpr PlatformThreadRef() : id_(0) {}
 
   explicit constexpr PlatformThreadRef(RefType id) : id_(id) {}
 

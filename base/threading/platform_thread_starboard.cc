@@ -107,7 +107,7 @@ void PlatformThread::Sleep(TimeDelta duration) {
 
 // static
 void PlatformThread::SetName(const std::string& name) {
-  ThreadIdNameManager::GetInstance()->SetName(CurrentId(), name);
+  ThreadIdNameManager::GetInstance()->SetName(name);
   SbThreadSetName(name.c_str());
 }
 
@@ -117,7 +117,8 @@ const char* PlatformThread::GetName() {
 }
 
 // static
-bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
+bool PlatformThread::CreateWithPriority(size_t stack_size,
+                                        Delegate* delegate,
                                         PlatformThreadHandle* thread_handle,
                                         ThreadPriority priority) {
   return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
@@ -126,8 +127,9 @@ bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
 }
 
 // static
-bool PlatformThread::CreateNonJoinableWithPriority(
-    size_t stack_size, Delegate* delegate, ThreadPriority priority) {
+bool PlatformThread::CreateNonJoinableWithPriority(size_t stack_size,
+                                                   Delegate* delegate,
+                                                   ThreadPriority priority) {
   return CreateThread(stack_size, toSbPriority(priority), kSbThreadNoAffinity,
                       false /* joinable thread */, NULL, delegate, NULL);
 }
@@ -143,10 +145,6 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
 
 void PlatformThread::Detach(PlatformThreadHandle thread_handle) {
   SbThreadDetach(thread_handle.platform_handle());
-}
-
-bool PlatformThread::CanIncreaseCurrentThreadPriority() {
-  return false;
 }
 
 void PlatformThread::SetCurrentThreadPriority(ThreadPriority priority) {

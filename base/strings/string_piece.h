@@ -224,7 +224,7 @@ template <typename STRING_TYPE> class BasicStringPiece {
     length_ = str ? STRING_TYPE::traits_type::length(str) : 0;
   }
 
-  constexpr value_type operator[](size_type i) const {
+  CONSTEXPR value_type operator[](size_type i) const {
     CHECK(i < length_);
     return ptr_[i];
   }
@@ -239,26 +239,18 @@ template <typename STRING_TYPE> class BasicStringPiece {
     return ptr_[length_ - 1];
   }
 
-<<<<<<< HEAD
-  constexpr void remove_prefix(size_type n) {
-    CHECK(n <= length_);
-=======
   CONSTEXPR void remove_prefix(size_type n) {
->>>>>>> Initial pass at starboardization of base.
+    CHECK(n <= length_);
     ptr_ += n;
     length_ -= n;
   }
 
-<<<<<<< HEAD
-  constexpr void remove_suffix(size_type n) {
+  CONSTEXPR void remove_suffix(size_type n) {
     CHECK(n <= length_);
     length_ -= n;
   }
-=======
-  CONSTEXPR void remove_suffix(size_type n) { length_ -= n; }
->>>>>>> Initial pass at starboardization of base.
 
-  constexpr int compare(BasicStringPiece x) const noexcept {
+  CONSTEXPR int compare(BasicStringPiece x) const noexcept {
     int r = CharTraits<value_type>::compare(
         ptr_, x.ptr_, (length_ < x.length_ ? length_ : x.length_));
     if (r == 0) {

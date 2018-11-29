@@ -29,9 +29,10 @@ namespace base {
 // Class to monitor sockets and issue callbacks when sockets are ready for I/O.
 class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
  public:
-  class IOObserver {
+  class IOObserver : public CheckedObserver {
    public:
     IOObserver() {}
+    virtual ~IOObserver() {}
 
     // An IOObserver is an object that receives IO notifications from the
     // MessagePump.
@@ -40,9 +41,6 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     // quickly!
     virtual void WillProcessIOEvent() = 0;
     virtual void DidProcessIOEvent() = 0;
-
-   protected:
-    virtual ~IOObserver() {}
   };
 
   // Used with WatchFileDescriptor to asynchronously monitor the I/O readiness

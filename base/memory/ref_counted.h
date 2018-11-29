@@ -154,7 +154,7 @@ class BASE_EXPORT RefCountedThreadSafeBase {
 
  protected:
   explicit constexpr RefCountedThreadSafeBase(StartRefCountFromZeroTag) {}
-  explicit constexpr RefCountedThreadSafeBase(StartRefCountFromOneTag)
+  explicit CONSTEXPR RefCountedThreadSafeBase(StartRefCountFromOneTag)
       : ref_count_(1) {
 #if DCHECK_IS_ON()
     needs_adopt_ref_ = true;

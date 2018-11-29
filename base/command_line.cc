@@ -95,11 +95,7 @@ void AppendSwitchesAndArguments(CommandLine* command_line,
 #if defined(OS_WIN)
       command_line->AppendSwitchNative(UTF16ToASCII(switch_string),
                                        switch_value);
-<<<<<<< HEAD
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
-#elif defined(OS_POSIX) || defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
       command_line->AppendSwitchNative(switch_string, switch_value);
 #else
 #error Unsupported platform
@@ -223,7 +219,7 @@ bool CommandLine::Init(int argc, const char* const* argv) {
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
 #if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
   current_process_commandline_->InitFromArgv(argc, argv);
 #else
 #error Unsupported platform
@@ -282,7 +278,7 @@ FilePath CommandLine::GetProgram() const {
 void CommandLine::SetProgram(const FilePath& program) {
 #if defined(OS_WIN)
   TrimWhitespace(program.value(), TRIM_ALL, &argv_[0]);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
   TrimWhitespaceASCII(program.value(), TRIM_ALL, &argv_[0]);
 #else
 #error Unsupported platform
@@ -307,7 +303,7 @@ std::string CommandLine::GetSwitchValueASCII(
   }
 #if defined(OS_WIN)
   return UTF16ToASCII(value);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
   return value;
 #endif
 }

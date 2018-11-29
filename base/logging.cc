@@ -147,7 +147,7 @@ const int kAlwaysPrintErrorLevel = LOG_ERROR;
 // first needed.
 #if defined(OS_WIN)
 typedef std::wstring PathString;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
 typedef std::string PathString;
 #endif
 PathString* g_log_file_name = nullptr;
@@ -267,7 +267,7 @@ PathString GetDefaultLogFile() {
 
 // We don't need locks on Windows for atomically appending to files. The OS
 // provides this functionality.
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 // This class acts as a wrapper for locking the logging files.
 // LoggingLock::Init() should be called from the main thread before any logging
 // is done. Then whenever logging, be sure to have a local LoggingLock
@@ -298,17 +298,11 @@ class LoggingLock {
  private:
   static void LockLogging() {
     if (lock_log_file == LOCK_LOG_FILE) {
-<<<<<<< HEAD
-      pthread_mutex_lock(&log_mutex);
-=======
 #if defined(STARBOARD)
       SbMutexAcquire(&log_mutex);
 #else
-#if defined(OS_POSIX)
       pthread_mutex_lock(&log_mutex);
 #endif
-#endif
->>>>>>> Initial pass at starboardization of base.
     } else {
       // use the lock
       log_lock->Lock();
@@ -317,17 +311,11 @@ class LoggingLock {
 
   static void UnlockLogging() {
     if (lock_log_file == LOCK_LOG_FILE) {
-<<<<<<< HEAD
-      pthread_mutex_unlock(&log_mutex);
-=======
 #if defined(STARBOARD)
       SbMutexRelease(&log_mutex);
 #else
-#if defined(OS_POSIX)
       pthread_mutex_unlock(&log_mutex);
 #endif
-#endif
->>>>>>> Initial pass at starboardization of base.
     } else {
       log_lock->Unlock();
     }
@@ -340,17 +328,11 @@ class LoggingLock {
 
   // When we don't use a lock, we are using a global mutex. We need to do this
   // because LockFileEx is not thread safe.
-<<<<<<< HEAD
-  static pthread_mutex_t log_mutex;
-=======
 #if defined(STARBOARD)
   static SbMutex log_mutex;
 #else
-#if defined(OS_POSIX)
   static pthread_mutex_t log_mutex;
 #endif
-#endif
->>>>>>> Initial pass at starboardization of base.
 
   static bool initialized;
   static LogLockingState lock_log_file;
@@ -363,17 +345,11 @@ base::internal::LockImpl* LoggingLock::log_lock = nullptr;
 // static
 LogLockingState LoggingLock::lock_log_file = LOCK_LOG_FILE;
 
-<<<<<<< HEAD
-pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
-=======
 #if defined(STARBOARD)
 SbMutex LoggingLock::log_mutex = SB_MUTEX_INITIALIZER;
 #else
-#if defined(OS_POSIX)
 pthread_mutex_t LoggingLock::log_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
-#endif
->>>>>>> Initial pass at starboardization of base.
 
 #endif  // OS_POSIX || OS_FUCHSIA
 
@@ -401,7 +377,7 @@ bool InitializeLogFileHandle() {
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
 #if defined(STARBOARD)
     g_log_file = SbFileOpen(g_log_file_name->c_str(),
-                          kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
+                            kSbFileOpenAlways | kSbFileWrite, NULL, NULL);
     if (!SbFileIsValid(g_log_file))
       return false;
 
@@ -1017,23 +993,6 @@ void LogMessage::Init(const char* file, int line) {
   if (g_log_thread_id)
     stream_ << base::PlatformThread::CurrentId() << ':';
   if (g_log_timestamp) {
-<<<<<<< HEAD
-#if defined(OS_WIN)
-    SYSTEMTIME local_time;
-    GetLocalTime(&local_time);
-    stream_ << std::setfill('0')
-            << std::setw(2) << local_time.wMonth
-            << std::setw(2) << local_time.wDay
-            << '/'
-            << std::setw(2) << local_time.wHour
-            << std::setw(2) << local_time.wMinute
-            << std::setw(2) << local_time.wSecond
-            << '.'
-            << std::setw(3)
-            << local_time.wMilliseconds
-            << ':';
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
 #if defined(STARBOARD)
     EzTimeT t = EzTimeTGetNow(NULL);
     struct EzTimeExploded local_time = {0};
@@ -1048,24 +1007,26 @@ void LogMessage::Init(const char* file, int line) {
             << std::setw(2) << tm_time->tm_sec
             << ':';
 #else
-#if defined(OS_POSIX)
->>>>>>> Initial pass at starboardization of base.
+#if defined(OS_WIN)
+    SYSTEMTIME local_time;
+    GetLocalTime(&local_time);
+    stream_ << std::setfill('0') << std::setw(2) << local_time.wMonth
+            << std::setw(2) << local_time.wDay << '/' << std::setw(2)
+            << local_time.wHour << std::setw(2) << local_time.wMinute
+            << std::setw(2) << local_time.wSecond << '.' << std::setw(3)
+            << local_time.wMilliseconds << ':';
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
     timeval tv;
     gettimeofday(&tv, nullptr);
     time_t t = tv.tv_sec;
     struct tm local_time;
     localtime_r(&t, &local_time);
     struct tm* tm_time = &local_time;
-    stream_ << std::setfill('0')
-            << std::setw(2) << 1 + tm_time->tm_mon
-            << std::setw(2) << tm_time->tm_mday
-            << '/'
-            << std::setw(2) << tm_time->tm_hour
-            << std::setw(2) << tm_time->tm_min
-            << std::setw(2) << tm_time->tm_sec
-            << '.'
-            << std::setw(6) << tv.tv_usec
-            << ':';
+    stream_ << std::setfill('0') << std::setw(2) << 1 + tm_time->tm_mon
+            << std::setw(2) << tm_time->tm_mday << '/' << std::setw(2)
+            << tm_time->tm_hour << std::setw(2) << tm_time->tm_min
+            << std::setw(2) << tm_time->tm_sec << '.' << std::setw(6)
+            << tv.tv_usec << ':';
 #else
 #error Unsupported platform
 #endif
@@ -1102,13 +1063,11 @@ SystemErrorCode GetLastSystemErrorCode() {
 #endif
 }
 
-<<<<<<< HEAD
-=======
 #if defined(STARBOARD)
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
   const int kErrorMessageBufferSize = 256;
   char msgbuf[kErrorMessageBufferSize];
-  
+
   if (SbSystemGetErrorString(error_code, msgbuf, kErrorMessageBufferSize) > 0) {
     // Messages returned by system end with line breaks.
     return base::CollapseWhitespaceASCII(msgbuf, true) +
@@ -1119,8 +1078,6 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
   }
 }
 #else
-#if defined(OS_WIN)
->>>>>>> Initial pass at starboardization of base.
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #if defined(OS_WIN)
   const int kErrorMessageBufferSize = 256;
@@ -1139,11 +1096,8 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
   return base::safe_strerror(error_code) +
          base::StringPrintf(" (%d)", error_code);
 #endif  // defined(OS_WIN)
-<<<<<<< HEAD
 }
-=======
 #endif  // defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
 
 #if defined(STARBOARD)
 StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,

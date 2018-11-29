@@ -594,7 +594,6 @@ bool FilePath::ReferencesParent() const {
   return false;
 }
 
-<<<<<<< HEAD
 #if defined(OS_WIN)
 
 string16 FilePath::LossyDisplayName() const {
@@ -625,11 +624,7 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
   return FilePath(utf16);
 }
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-
-=======
-#if defined(OS_POSIX) || defined(STARBOARD)
->>>>>>> Initial pass at starboardization of base.
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 // See file_path.h for a discussion of the encoding of paths on POSIX
 // platforms.  These encoding conversion functions are not quite correct.
 
@@ -682,7 +677,7 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
 void FilePath::WriteToPickle(Pickle* pickle) const {
 #if defined(OS_WIN)
   pickle->WriteString16(path_);
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
   pickle->WriteString(path_);
 #else
 #error Unsupported platform
@@ -693,7 +688,7 @@ bool FilePath::ReadFromPickle(PickleIterator* iter) {
 #if defined(OS_WIN)
   if (!iter->ReadString16(&path_))
     return false;
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
   if (!iter->ReadString(&path_))
     return false;
 #else

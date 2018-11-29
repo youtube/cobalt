@@ -26,34 +26,23 @@
 
 #include "build/build_config.h"
 
-<<<<<<< HEAD
-#if (defined(OS_POSIX) || defined(OS_FUCHSIA)) && \
-    (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
-=======
 #if defined(STARBOARD)
 #include "starboard/types.h"
 #endif
 
-#if (defined(OS_POSIX) || defined(STARBOARD)) && \
-    (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && \
-    !defined(PRId64)
->>>>>>> Initial pass at starboardization of base.
+#if (defined(OS_POSIX) || defined(OS_FUCHSIA)) && \
+    (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
 #error "inttypes.h has already been included before this header file, but "
 #error "without __STDC_FORMAT_MACROS defined."
 #endif
 
-<<<<<<< HEAD
-#if (defined(OS_POSIX) || defined(OS_FUCHSIA)) && !defined(__STDC_FORMAT_MACROS)
-=======
-#if (defined(OS_POSIX) || defined(STARBOARD)) && \
+#if (defined(OS_POSIX) || defined(STARBOARD) || defined(OS_FUCHSIA)) && \
     !defined(__STDC_FORMAT_MACROS)
->>>>>>> Initial pass at starboardization of base.
 #define __STDC_FORMAT_MACROS
 #endif
 
 #include <inttypes.h>
 
-<<<<<<< HEAD
 #if defined(OS_WIN)
 
 #if !defined(PRId64) || !defined(PRIu64) || !defined(PRIx64)
@@ -68,10 +57,7 @@
 #define PRIuS "Iu"
 #endif
 
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
-=======
-#if (defined(OS_POSIX) || defined(STARBOARD))
->>>>>>> Initial pass at starboardization of base.
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
 
 // GCC will concatenate wide and narrow strings correctly, so nothing needs to
 // be done here.
