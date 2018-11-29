@@ -34,12 +34,13 @@ namespace image {
 
 class JPEGImageDecoder : public ImageDataDecoder {
  public:
-  // Pass true to |force_image_decoding_to_single_plane| on platform that cannot
-  // render multi plane images efficiently, so the decoded output will always be
-  // in RGBA or BGRA.  Otherwise the decoder will try to produce output in J420
-  // whenever possible, which saves both decoding time and memory footprint.
+  // Pass true to |allow_image_decoding_to_multi_plane| to allow the decoder to
+  // produce output in J420  whenever possible, which saves both decoding time
+  // and memory footprint.  Pass false to it on platforms that cannot render
+  // multi plane images efficiently, and the output will always be produced in
+  // single plane RGBA or BGRA.
   JPEGImageDecoder(render_tree::ResourceProvider* resource_provider,
-                   bool force_image_decoding_to_single_plane);
+                   bool allow_image_decoding_to_multi_plane);
   ~JPEGImageDecoder() override;
 
   // From ImageDataDecoder
@@ -64,7 +65,7 @@ class JPEGImageDecoder : public ImageDataDecoder {
   bool ReadRgbaOrGbraLines();
   bool ReadLines();
 
-  const bool force_image_decoding_to_single_plane_;
+  const bool allow_image_decoding_to_multi_plane_;
 
   jpeg_decompress_struct info_;
   jpeg_source_mgr source_manager_;
