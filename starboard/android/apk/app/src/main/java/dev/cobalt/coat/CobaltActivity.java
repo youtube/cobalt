@@ -56,6 +56,7 @@ public abstract class CobaltActivity extends NativeActivity {
   private CobaltA11yHelper a11yHelper;
 
   private VideoSurfaceView videoSurfaceView;
+  private KeyboardEditor keyboardEditor;
 
   private ViewTreeObserver.OnGlobalLayoutListener videoSurfaceLayoutListener;
 
@@ -95,6 +96,10 @@ public abstract class CobaltActivity extends NativeActivity {
         };
     ViewTreeObserver observer = getWindow().getDecorView().getViewTreeObserver();
     observer.addOnGlobalLayoutListener(videoSurfaceLayoutListener);
+
+    keyboardEditor = new KeyboardEditor(this);
+    addContentView(
+        keyboardEditor, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
 
   /**
@@ -110,7 +115,7 @@ public abstract class CobaltActivity extends NativeActivity {
 
   @Override
   protected void onStart() {
-    getStarboardBridge().onActivityStart(this);
+    getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
   }
 

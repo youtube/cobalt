@@ -19,6 +19,7 @@
 #include <android/native_window.h>
 
 #include "starboard/android/shared/input_events_generator.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
@@ -73,6 +74,11 @@ class ApplicationAndroid
   }
   void SendKeyboardInject(SbKey key);
 
+  void SbWindowShowOnScreenKeyboard(SbWindow window,
+                                    const char* input_text,
+                                    int ticket);
+  void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket);
+
  protected:
   // --- Application overrides ---
   void Initialize() override;
@@ -110,6 +116,8 @@ class ApplicationAndroid
   scoped_ptr<InputEventsGenerator> input_events_generator_;
 
   bool last_is_accessibility_high_contrast_text_enabled_;
+
+  jobject j_keyboard_editor_;
 
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
