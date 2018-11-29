@@ -188,7 +188,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 #elif V8_OS_STARBOARD
 
-Semaphore::Semaphore(int count) {
+Semaphore::Semaphore(int count) : native_handle_(count) {
   DCHECK_GE(count, 0);
 }
 
