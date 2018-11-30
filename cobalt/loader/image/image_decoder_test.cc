@@ -597,10 +597,6 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
       base::polymorphic_downcast<render_tree::ImageStub*>(
           static_image->image().get());
 
-#if !SB_HAS(BLITTER)
-  ASSERT_TRUE(data->is_multi_plane_image());
-#endif  // !SB_HAS(BLITTER)
-
   // All pixels in the JPEG image should have RGBA values of (64, 32, 17, 255),
   // or YUV values of (44, 115, 145).
   uint8 r = 64, g = 32, b = 17, a = 255;
@@ -630,10 +626,6 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
       base::polymorphic_downcast<render_tree::ImageStub*>(
           static_image->image().get());
 
-#if !SB_HAS(BLITTER)
-  ASSERT_TRUE(data->is_multi_plane_image());
-#endif  // !SB_HAS(BLITTER)
-
   // All pixels in the JPEG image should have RGBA values of (64, 32, 17, 255),
   // or YUV values of (44, 115, 145).
   uint8 r = 64, g = 32, b = 17, a = 255;
@@ -646,9 +638,9 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
 // output to be single plane.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
   render_tree::ResourceProviderStub resource_provider;
-  const bool kForceImageDecodingToSinglePlane = true;
+  const bool kAllowImageDecodingToMultiPlane = false;
   JPEGImageDecoder jpeg_image_decoder(&resource_provider,
-                                      kForceImageDecodingToSinglePlane);
+                                      kAllowImageDecodingToMultiPlane);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("progressive_jpeg.jpg"));
@@ -678,9 +670,9 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
 TEST(ImageDecoderTest,
      DecodeProgressiveJPEGImageWithMultipleChunksToSinglePlane) {
   render_tree::ResourceProviderStub resource_provider;
-  const bool kForceImageDecodingToSinglePlane = true;
+  const bool kAllowImageDecodingToMultiPlane = false;
   JPEGImageDecoder jpeg_image_decoder(&resource_provider,
-                                      kForceImageDecodingToSinglePlane);
+                                      kAllowImageDecodingToMultiPlane);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("progressive_jpeg.jpg"));
