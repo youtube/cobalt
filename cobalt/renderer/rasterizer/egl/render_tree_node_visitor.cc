@@ -48,8 +48,32 @@ namespace egl {
 
 namespace {
 
+typedef float ColorTransformMatrix[16];
+
+using render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange;
+using render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
+
 const render_tree::ColorRGBA kOpaqueWhite(1.0f, 1.0f, 1.0f, 1.0f);
 const render_tree::ColorRGBA kTransparentBlack(0.0f, 0.0f, 0.0f, 0.0f);
+
+const ColorTransformMatrix kBT601FullRangeColorTransformMatrixInColumnMajor = {
+    1.0f,   1.0f,      1.0f, 0.0f, 0.0f,   -0.34414f, 1.772f,  0.0f,
+    1.402f, -0.71414f, 0.0f, 0.0f, -0.701, 0.529f,    -0.886f, 1.f,
+};
+
+const ColorTransformMatrix kBT709ColorTransformMatrixInColumnMajor = {
+    1.164f, 1.164f,  1.164f, 0.0f, 0.0f,      -0.213f,  2.112f,    0.0f,
+    1.793f, -0.533f, 0.0f,   0.0f, -0.96925f, 0.30025f, -1.12875f, 1.0f};
+
+const ColorTransformMatrix& GetColorTransformMatrixInColumnMajor(
+    render_tree::MultiPlaneImageFormat format) {
+  const float* transform;
+  if (format == kMultiPlaneImageFormatYUV3PlaneBT601FullRange) {
+    return kBT601FullRangeColorTransformMatrixInColumnMajor;
+  }
+  DCHECK_EQ(format, kMultiPlaneImageFormatYUV3PlaneBT709);
+  return kBT709ColorTransformMatrixInColumnMajor;
+}
 
 bool IsOpaque(float opacity) {
   return opacity >= 0.999f;
@@ -87,9 +111,20 @@ math::Matrix3F GetTexcoordTransform(
 bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
   skia::Image* skia_image = base::polymorphic_downcast<skia::Image*>(
       image_node->data().source.get());
+  if (skia_image->GetTypeId() == base::GetTypeId<skia::MultiPlaneImage>()) {
+    skia::HardwareMultiPlaneImage* hardware_image =
+        base::polymorphic_downcast<skia::HardwareMultiPlaneImage*>(skia_image);
+    // TODO: Also enable rendering of three plane BT.709 images here.
+    return hardware_image->GetFormat() ==
+           kMultiPlaneImageFormatYUV3PlaneBT601FullRange;
+  }
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>() &&
       skia_image->CanRenderInSkia()) {
-    return true;
+    skia::HardwareFrontendImage* hardware_image =
+        base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
+    // We don't yet handle alternative formats that piggyback on a GL_RGBA
+    // texture.  This comes up, for example, with UYVY (YUV 422) textures.
+    return !hardware_image->alternate_rgba_format();
   }
   return false;
 }
@@ -476,9 +511,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     return;
   }
 
+  bool clamp_texcoords = false;
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
-  bool clamp_texcoords = false;
   bool is_opaque = skia_image->IsOpaque() && IsOpaque(draw_state_.opacity);
 
   // Ensure any required backend processing is done to create the necessary
@@ -514,13 +549,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
-    if (hardware_image->alternate_rgba_format()) {
-      // We don't yet handle alternative formats that piggyback on a GL_RGBA
-      // texture.  This comes up, for example, with UYVY (YUV 422) textures.
-      FallbackRasterize(image_node);
-      return;
-    }
-
     if (!hardware_image->GetTextureEGL()) {
       return;
     }
@@ -544,8 +572,40 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
-    FallbackRasterize(image_node);
-    return;
+    skia::HardwareMultiPlaneImage* hardware_image =
+        base::polymorphic_downcast<skia::HardwareMultiPlaneImage*>(skia_image);
+    auto image_format = hardware_image->GetFormat();
+    auto y_texture_egl = hardware_image->GetTextureEGL(0);
+    auto u_texture_egl = hardware_image->GetTextureEGL(1);
+    auto v_texture_egl = hardware_image->GetTextureEGL(2);
+
+    if (!y_texture_egl || !u_texture_egl || !v_texture_egl) {
+      return;
+    }
+
+    const ColorTransformMatrix& color_transform_in_column_major =
+        GetColorTransformMatrixInColumnMajor(image_format);
+
+    if (draw_state_.rounded_scissor_corners) {
+      // Transparency is used to anti-alias the rounded rect.
+      is_opaque = false;
+      draw.reset(new DrawRRectColorTexture(
+          graphics_state_, draw_state_, data.destination_rect, kOpaqueWhite,
+          y_texture_egl, u_texture_egl, v_texture_egl,
+          color_transform_in_column_major, texcoord_transform,
+          clamp_texcoords));
+    } else if (clamp_texcoords || !is_opaque) {
+      draw.reset(new DrawRectColorTexture(
+          graphics_state_, draw_state_, data.destination_rect, kOpaqueWhite,
+          y_texture_egl, u_texture_egl, v_texture_egl,
+          color_transform_in_column_major, texcoord_transform,
+          clamp_texcoords));
+    } else {
+      draw.reset(new DrawRectTexture(
+          graphics_state_, draw_state_, data.destination_rect, y_texture_egl,
+          u_texture_egl, v_texture_egl, color_transform_in_column_major,
+          texcoord_transform));
+    }
   } else {
     NOTREACHED();
     return;
