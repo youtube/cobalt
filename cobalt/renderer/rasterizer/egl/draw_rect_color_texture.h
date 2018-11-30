@@ -18,8 +18,10 @@
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/image.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
+#include "egl/generated_shader_impl.h"
 
 namespace cobalt {
 namespace renderer {
@@ -36,6 +38,15 @@ class DrawRectColorTexture : public DrawObject {
                        const backend::TextureEGL* texture,
                        const math::Matrix3F& texcoord_transform,
                        bool clamp_texcoords);
+  DrawRectColorTexture(GraphicsState* graphics_state,
+                       const BaseState& base_state, const math::RectF& rect,
+                       const render_tree::ColorRGBA& color,
+                       const backend::TextureEGL* y_texture,
+                       const backend::TextureEGL* u_texture,
+                       const backend::TextureEGL* v_texture,
+                       const float (&color_transform_in_column_major)[16],
+                       const math::Matrix3F& texcoord_transform,
+                       bool clamp_texcoords);
 
   void ExecuteUpdateVertexBuffer(
       GraphicsState* graphics_state,
@@ -45,14 +56,25 @@ class DrawRectColorTexture : public DrawObject {
   base::TypeId GetTypeId() const override;
 
  private:
-  math::Matrix3F texcoord_transform_;
-  math::RectF rect_;
-  uint32_t color_;
-  const backend::TextureEGL* texture_;
+  static const int kMaxNumOfTextures =
+      render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes;
+
+  void SetupVertexShader(GraphicsState* graphics_state,
+                         const ShaderVertexColorTexcoord& vertex_shader);
+  template <typename FragmentShader>
+  void SetupFragmentShaderAndDraw(GraphicsState* graphics_state,
+                                  const FragmentShader& fragment_shader);
+
+  const math::Matrix3F texcoord_transform_;
+  float color_transform_[16];
+  const math::RectF rect_;
+  const uint32_t color_;
+  const backend::TextureEGL* textures_[kMaxNumOfTextures];
 
   uint8_t* vertex_buffer_;
-  float texcoord_clamp_[4];   // texcoord clamping (min u, min v, max u, max v)
-  bool clamp_texcoords_;
+  // texcoord clamping (min u, min v, max u, max v)
+  float texcoord_clamps_[kMaxNumOfTextures][4];
+  const bool clamp_texcoords_;
   bool tile_texture_;
 };
 

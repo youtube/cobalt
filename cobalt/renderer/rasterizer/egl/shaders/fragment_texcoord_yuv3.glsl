@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,11 +13,19 @@
 // limitations under the License.
 
 precision mediump float;
-uniform sampler2D u_texture_rgba;
+uniform sampler2D u_texture_y;
+uniform sampler2D u_texture_u;
+uniform sampler2D u_texture_v;
+uniform mat4 u_color_transform_matrix;
 varying vec2 v_texcoord;
 
-#pragma array u_texture(u_texture_rgba);
+#pragma array u_texture(u_texture_y, u_texture_u, u_texture_v);
 
 void main() {
-  gl_FragColor = texture2D(u_texture_rgba, v_texcoord);
+  float y = texture2D(u_texture_y, v_texcoord).a;
+  float u = texture2D(u_texture_u, v_texcoord).a;
+  float v = texture2D(u_texture_v, v_texcoord).a;
+  vec4 rgba = u_color_transform_matrix * vec4(y, u, v, 1);
+
+  gl_FragColor = clamp(rgba, vec4(0, 0, 0, 0), vec4(1, 1, 1, 1));
 }

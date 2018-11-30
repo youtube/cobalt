@@ -18,7 +18,6 @@
 
 #include "base/basictypes.h"
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -34,16 +33,41 @@ struct VertexAttributes {
 }  // namespace
 
 DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
-    const BaseState& base_state,
-    const math::RectF& rect,
-    const backend::TextureEGL* texture,
+                                 const BaseState& base_state,
+                                 const math::RectF& rect,
+                                 const backend::TextureEGL* texture,
+                                 const math::Matrix3F& texcoord_transform)
+    : DrawObject(base_state),
+      texcoord_transform_(texcoord_transform),
+      rect_(rect),
+      textures_{texture, NULL, NULL},
+      vertex_buffer_(NULL),
+      tile_texture_(false) {
+  DCHECK(textures_[0]);
+  graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
+}
+
+DrawRectTexture::DrawRectTexture(
+    GraphicsState* graphics_state, const BaseState& base_state,
+    const math::RectF& rect, const backend::TextureEGL* y_texture,
+    const backend::TextureEGL* u_texture, const backend::TextureEGL* v_texture,
+    const float (&color_transform_in_column_major)[16],
     const math::Matrix3F& texcoord_transform)
     : DrawObject(base_state),
       texcoord_transform_(texcoord_transform),
       rect_(rect),
-      texture_(texture),
+      textures_{y_texture, u_texture, v_texture},
       vertex_buffer_(NULL),
       tile_texture_(false) {
+  DCHECK(textures_[0]);
+  DCHECK(textures_[1]);
+  DCHECK(textures_[2]);
+  static_assert(
+      sizeof(color_transform_) == sizeof(color_transform_in_column_major),
+      "color_transform_ and color_transform_in_column_major size mismatch");
+
+  SbMemoryCopy(color_transform_, color_transform_in_column_major,
+               sizeof(color_transform_));
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
@@ -78,49 +102,86 @@ void DrawRectTexture::ExecuteUpdateVertexBuffer(
   }
 }
 
-void DrawRectTexture::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  ShaderProgram<ShaderVertexTexcoord,
-                ShaderFragmentTexcoord>* program;
-  program_manager->GetProgram(&program);
-  graphics_state->UseProgram(program->GetHandle());
-  graphics_state->UpdateClipAdjustment(
-      program->GetVertexShader().u_clip_adjustment());
-  graphics_state->UpdateTransformMatrix(
-      program->GetVertexShader().u_view_matrix(),
-      base_state_.transform);
+void DrawRectTexture::SetupVertexShader(
+    GraphicsState* graphics_state, const ShaderVertexTexcoord& vertex_shader) {
+  graphics_state->UpdateClipAdjustment(vertex_shader.u_clip_adjustment());
+  graphics_state->UpdateTransformMatrix(vertex_shader.u_view_matrix(),
+                                        base_state_.transform);
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
       base_state_.scissor.width(), base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, position));
+      vertex_shader.a_position(), 2, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_texcoord(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, texcoord));
+      vertex_shader.a_texcoord(), 2, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes),
+      vertex_buffer_ + offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
+}
 
-  if (tile_texture_) {
+template <typename FragmentShader>
+void DrawRectTexture::SetupFragmentShaderAndDraw(
+    GraphicsState* graphics_state, const FragmentShader& fragment_shader) {
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(textures_); ++i) {
+    if (textures_[i] == NULL) {
+      break;
+    }
+
+    if (tile_texture_) {
+      graphics_state->ActiveBindTexture(fragment_shader.u_texture_texunit(i),
+                                        textures_[i]->GetTarget(),
+                                        textures_[i]->gl_handle(), GL_REPEAT);
+    } else {
+      graphics_state->ActiveBindTexture(fragment_shader.u_texture_texunit(i),
+                                        textures_[i]->GetTarget(),
+                                        textures_[i]->gl_handle());
+    }
+  }
+
+  GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+
+  if (!tile_texture_) {
+    return;
+  }
+
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(textures_); ++i) {
+    if (textures_[i] == NULL) {
+      break;
+    }
+
     graphics_state->ActiveBindTexture(
-        program->GetFragmentShader().u_texture_texunit(),
-        texture_->GetTarget(), texture_->gl_handle(), GL_REPEAT);
-    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
-    graphics_state->ActiveBindTexture(
-        program->GetFragmentShader().u_texture_texunit(),
-        texture_->GetTarget(), texture_->gl_handle(), GL_CLAMP_TO_EDGE);
+        fragment_shader.u_texture_texunit(i), textures_[i]->GetTarget(),
+        textures_[i]->gl_handle(), GL_CLAMP_TO_EDGE);
+  }
+}
+
+void DrawRectTexture::ExecuteRasterize(GraphicsState* graphics_state,
+                                       ShaderProgramManager* program_manager) {
+  if (textures_[1] == NULL) {
+    ShaderProgram<ShaderVertexTexcoord, ShaderFragmentTexcoord>* program;
+    program_manager->GetProgram(&program);
+    graphics_state->UseProgram(program->GetHandle());
+    SetupVertexShader(graphics_state, program->GetVertexShader());
+    SetupFragmentShaderAndDraw(graphics_state, program->GetFragmentShader());
   } else {
-    graphics_state->ActiveBindTexture(
-        program->GetFragmentShader().u_texture_texunit(),
-        texture_->GetTarget(), texture_->gl_handle());
-    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
+    ShaderProgram<ShaderVertexTexcoord, ShaderFragmentTexcoordYuv3>* program;
+    program_manager->GetProgram(&program);
+    graphics_state->UseProgram(program->GetHandle());
+    SetupVertexShader(graphics_state, program->GetVertexShader());
+    GL_CALL(glUniformMatrix4fv(
+        program->GetFragmentShader().u_color_transform_matrix(), 1, GL_FALSE,
+        color_transform_));
+    SetupFragmentShaderAndDraw(graphics_state, program->GetFragmentShader());
   }
 }
 
 base::TypeId DrawRectTexture::GetTypeId() const {
-  return ShaderProgram<ShaderVertexTexcoord,
-                       ShaderFragmentTexcoord>::GetTypeId();
+  return textures_[1] == NULL
+             ? ShaderProgram<ShaderVertexTexcoord,
+                             ShaderFragmentTexcoord>::GetTypeId()
+             : ShaderProgram<ShaderVertexTexcoord,
+                             ShaderFragmentTexcoordYuv3>::GetTypeId();
 }
 
 }  // namespace egl
