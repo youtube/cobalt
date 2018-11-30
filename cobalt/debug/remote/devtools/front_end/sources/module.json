@@ -295,15 +295,15 @@
             "type": "@Sources.SourcesView.EditorAction",
             "className": "Sources.ScriptFormatterEditorAction"
         },
-        {
-            "type": "view",
-            "location": "navigator-view",
-            "id": "navigator-files",
-            "title": "Filesystem",
-            "order": 3,
-            "persistence": "permanent",
-            "className": "Sources.FilesNavigatorView"
-        },
+        // {
+        //     "type": "view",
+        //     "location": "navigator-view",
+        //     "id": "navigator-files",
+        //     "title": "Filesystem",
+        //     "order": 3,
+        //     "persistence": "permanent",
+        //     "className": "Sources.FilesNavigatorView"
+        // },
         {
             "type": "view",
             "location": "navigator-view",
@@ -327,11 +327,11 @@
             "viewId": "navigator-network",
             "className": "Sources.NetworkNavigatorView"
         },
-        {
-            "type": "@Sources.NavigatorView",
-            "viewId": "navigator-files",
-            "className": "Sources.FilesNavigatorView"
-        },
+        // {
+        //     "type": "@Sources.NavigatorView",
+        //     "viewId": "navigator-files",
+        //     "className": "Sources.FilesNavigatorView"
+        // },
         {
             "type": "@Sources.NavigatorView",
             "viewId": "navigator-snippets",
