@@ -66,7 +66,7 @@ Timeline.TimelinePanel = class extends UI.Panel {
     this._captureLayersAndPicturesSetting = Common.settings.createSetting('timelineCaptureLayersAndPictures', false);
     this._captureLayersAndPicturesSetting.setTitle(Common.UIString('Enable advanced paint instrumentation (slow)'));
 
-    this._showScreenshotsSetting = Common.settings.createSetting('timelineShowScreenshots', true);
+    this._showScreenshotsSetting = Common.settings.createSetting('timelineShowScreenshots', false);
     this._showScreenshotsSetting.setTitle(Common.UIString('Screenshots'));
     this._showScreenshotsSetting.addChangeListener(this._updateOverviewControls, this);
 
@@ -217,21 +217,21 @@ Timeline.TimelinePanel = class extends UI.Panel {
     this._panelToolbar.appendSeparator();
 
     // View
-    this._panelToolbar.appendSeparator();
-    this._showScreenshotsToolbarCheckbox =
-        this._createSettingCheckbox(this._showScreenshotsSetting, Common.UIString('Capture screenshots'));
-    this._panelToolbar.appendToolbarItem(this._showScreenshotsToolbarCheckbox);
+    // this._panelToolbar.appendSeparator();
+    // this._showScreenshotsToolbarCheckbox =
+    //     this._createSettingCheckbox(this._showScreenshotsSetting, Common.UIString('Capture screenshots'));
+    // this._panelToolbar.appendToolbarItem(this._showScreenshotsToolbarCheckbox);
 
-    this._showMemoryToolbarCheckbox =
-        this._createSettingCheckbox(this._showMemorySetting, Common.UIString('Show memory timeline'));
-    this._panelToolbar.appendToolbarItem(this._showMemoryToolbarCheckbox);
+    // this._showMemoryToolbarCheckbox =
+    //     this._createSettingCheckbox(this._showMemorySetting, Common.UIString('Show memory timeline'));
+    // this._panelToolbar.appendToolbarItem(this._showMemoryToolbarCheckbox);
 
     // GC
-    this._panelToolbar.appendToolbarItem(UI.Toolbar.createActionButtonForId('components.collect-garbage'));
+    // this._panelToolbar.appendToolbarItem(UI.Toolbar.createActionButtonForId('components.collect-garbage'));
 
     // Settings
-    this._panelRightToolbar.appendSeparator();
-    this._panelRightToolbar.appendToolbarItem(this._showSettingsPaneButton);
+    // this._panelRightToolbar.appendSeparator();
+    // this._panelRightToolbar.appendToolbarItem(this._showSettingsPaneButton);
   }
 
   _createSettingsPane() {
