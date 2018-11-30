@@ -91,6 +91,9 @@
         'sync_loader.h',
         'text_decoder.h',
       ],
+      'includes': [
+        '<(DEPTH)/cobalt/renderer/renderer_parameters_setup.gypi',
+      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/csp/csp.gyp:csp',

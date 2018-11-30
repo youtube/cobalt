@@ -15,16 +15,20 @@
 precision mediump float;
 
 uniform vec4 u_color;
-uniform vec4 u_texcoord_clamp;
-uniform sampler2D u_texture;
+uniform vec4 u_texcoord_clamp_rgba;
+uniform sampler2D u_texture_rgba;
 
 varying vec4 v_rcorner;
 varying vec2 v_texcoord;
+
+#pragma array u_texcoord_clamp(u_texcoord_clamp_rgba);
+#pragma array u_texture(u_texture_rgba);
+
 
 #include "function_is_outside_rcorner.inc"
 
 void main() {
   float scale = IsOutsideRCorner(v_rcorner);
-  gl_FragColor = u_color * (1.0 - scale) * texture2D(u_texture,
-      clamp(v_texcoord, u_texcoord_clamp.xy, u_texcoord_clamp.zw));
+  gl_FragColor = u_color * (1.0 - scale) * texture2D(u_texture_rgba,
+      clamp(v_texcoord, u_texcoord_clamp_rgba.xy, u_texcoord_clamp_rgba.zw));
 }
