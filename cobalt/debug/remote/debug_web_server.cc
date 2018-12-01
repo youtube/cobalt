@@ -38,6 +38,8 @@ namespace remote {
 
 namespace {
 
+constexpr char kLogBrowserEntryAdded[] = "Log.browserEntryAdded";
+
 std::string GetMimeType(const FilePath& path) {
   if (path.MatchesExtension(".html")) {
     return "text/html";
@@ -273,6 +275,11 @@ void DebugWebServer::OnDebuggerResponse(
 
 void DebugWebServer::OnDebugClientEvent(
     const std::string& method, const base::optional<std::string>& json_params) {
+  // Squelch the Cobalt-specific log message meant only for the overlay console.
+  if (method == kLogBrowserEntryAdded) {
+    return;
+  }
+
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
   if (MessageLoop::current() != http_server_thread_.message_loop()) {
