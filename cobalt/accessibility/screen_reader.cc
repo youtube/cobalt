@@ -36,10 +36,10 @@ ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                            dom::MutationObserverTaskManager* task_manager)
     : enabled_(true), document_(document), tts_engine_(tts_engine),
       focus_changed_(false) {
+  DCHECK(document_ && tts_engine_);
   document_->AddObserver(this);
   live_region_observer_ = new dom::MutationObserver(
-      base::Bind(&ScreenReader::MutationObserverCallback,
-                 base::Unretained(this)),
+      base::Bind(&ScreenReader::MutationObserverCallback, AsWeakPtr()),
       task_manager);
 }
 
@@ -70,8 +70,7 @@ void ScreenReader::OnFocusChanged() {
   }
   focus_changed_ = true;
   MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&ScreenReader::FocusChangedCallback, base::Unretained(this)));
+      FROM_HERE, base::Bind(&ScreenReader::FocusChangedCallback, AsWeakPtr()));
 }
 
 void ScreenReader::FocusChangedCallback() {

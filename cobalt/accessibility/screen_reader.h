@@ -17,6 +17,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/mutation_observer.h"
@@ -29,7 +30,8 @@ namespace accessibility {
 // focused element changes, usually in response to user input, or if there is
 // an asynchronous change to "live region" that should be communicated to the
 // user.
-class ScreenReader : public dom::DocumentObserver {
+class ScreenReader : public base::SupportsWeakPtr<ScreenReader>,
+                     public dom::DocumentObserver {
  public:
   ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                dom::MutationObserverTaskManager* task_manager);
