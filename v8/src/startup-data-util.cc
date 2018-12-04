@@ -44,6 +44,8 @@ void FreeStartupData() {
 
 void Load(const char* blob_file, v8::StartupData* startup_data,
           void (*setter_fn)(v8::StartupData*)) {
+#if !defined(COBALT)
+  // Cobalt does not use this function yet, skip it to avoid compiling errors.
   ClearStartupData(startup_data);
 
   CHECK(blob_file);
@@ -68,14 +70,18 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
   } else {
     PrintF(stderr, "Corrupted startup resource '%s'.\n", blob_file);
   }
+#endif  // !defined(COBALT)
 }
 
 
 void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
+#if !defined(COBALT)
+  // Cobalt does not use this function yet, skip it to avoid compiling errors.
   Load(natives_blob, &g_natives, v8::V8::SetNativesDataBlob);
   Load(snapshot_blob, &g_snapshot, v8::V8::SetSnapshotDataBlob);
 
   atexit(&FreeStartupData);
+#endif  // !defined(COBALT)
 }
 
 }  // namespace
