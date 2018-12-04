@@ -36,16 +36,17 @@ ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                            dom::MutationObserverTaskManager* task_manager)
     : enabled_(true), document_(document), tts_engine_(tts_engine),
       focus_changed_(false) {
-  document_->AddObserver(this);
+  if (document_)
+    document_->AddObserver(this);
   live_region_observer_ = new dom::MutationObserver(
-      base::Bind(&ScreenReader::MutationObserverCallback,
-                 base::Unretained(this)),
+      base::Bind(&ScreenReader::MutationObserverCallback, AsWeakPtr()),
       task_manager);
 }
 
 ScreenReader::~ScreenReader() {
   live_region_observer_->Disconnect();
-  document_->RemoveObserver(this);
+  if (document_)
+    document_->RemoveObserver(this);
 }
 
 void ScreenReader::set_enabled(bool value) {
@@ -59,7 +60,7 @@ void ScreenReader::OnLoad() {
   init.set_character_data(true);
   init.set_child_list(true);
 
-  if (document_->body()) {
+  if (document_ && document_->body()) {
     live_region_observer_->Observe(document_->body(), init);
   }
 }
@@ -70,13 +71,12 @@ void ScreenReader::OnFocusChanged() {
   }
   focus_changed_ = true;
   MessageLoop::current()->PostTask(
-      FROM_HERE,
-      base::Bind(&ScreenReader::FocusChangedCallback, base::Unretained(this)));
+      FROM_HERE, base::Bind(&ScreenReader::FocusChangedCallback, AsWeakPtr()));
 }
 
 void ScreenReader::FocusChangedCallback() {
   focus_changed_ = false;
-  if (!enabled_) {
+  if (!enabled_ || !document_ || !tts_engine_) {
     return;
   }
   scoped_refptr<dom::Element> element = document_->active_element();
@@ -92,7 +92,7 @@ void ScreenReader::MutationObserverCallback(
     const MutationRecordSequence& sequence,
     const scoped_refptr<dom::MutationObserver>& observer) {
   // TODO: Only check live regions if text-to-speech is enabled.
-  if (!enabled_) {
+  if (!enabled_ || !tts_engine_) {
     return;
   }
   DCHECK_EQ(observer, live_region_observer_);
