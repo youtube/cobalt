@@ -214,6 +214,7 @@ SkBitmap DiffBitmaps(const SkBitmap& bitmap_a, const SkBitmap& bitmap_b,
 // Helper function to simplify the process of encoding a Skia RGBA8 SkBitmap
 // object to a PNG file.
 void EncodeSkBitmapToPNG(const FilePath& output_file, const SkBitmap& bitmap) {
+  DLOG(INFO) << "Writing " << output_file.value();
   if (bitmap.info().alphaType() == kUnpremul_SkAlphaType &&
       bitmap.info().colorType() == kRGBA_8888_SkColorType) {
     // No conversion needed here, simply write out the pixels as is.
