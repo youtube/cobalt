@@ -35,11 +35,6 @@ Time Time::Now() {
   return Time(SbTimeGetNow());
 }
 
-// static
-Time Time::NowFromSystemTime() {
-  return Now();
-}
-
 void Time::Explode(bool is_local, Exploded *exploded) const {
   EzTimeValue value = EzTimeValueFromSbTime(ToSbTime());
   EzTimeExploded ez_exploded;
@@ -108,15 +103,6 @@ TimeTicks TimeTicks::Now() {
 // static
 bool TimeTicks::IsHighResolution() {
   return true;
-}
-
-// static
-ThreadTicks ThreadTicks::Now() {
-#if SB_HAS(TIME_THREAD_NOW)
-  return ThreadTicks(SbTimeGetMonotonicThreadNow());
-#else
-  return ThreadTicks(TimeTicks::Now().us_);
-#endif
 }
 
 }  // namespace base

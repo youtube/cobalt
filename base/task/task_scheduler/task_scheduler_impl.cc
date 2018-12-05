@@ -38,13 +38,9 @@ TaskSchedulerImpl::TaskSchedulerImpl(
     std::unique_ptr<TaskTrackerImpl> task_tracker)
     : task_tracker_(std::move(task_tracker)),
       service_thread_(std::make_unique<ServiceThread>(
-#if defined(STARBOARD)
-          task_tracker_.get())),
-#else
           task_tracker_.get(),
           BindRepeating(&TaskSchedulerImpl::ReportHeartbeatMetrics,
                         Unretained(this)))),
-#endif
       single_thread_task_runner_manager_(task_tracker_->GetTrackedRef(),
                                          &delayed_task_manager_) {
   DCHECK(!histogram_label.empty());

@@ -780,29 +780,9 @@ TEST_F(TaskSchedulerWorkerPoolHistogramTest, NumTasksBeforeCleanup) {
   EXPECT_EQ(0, histogram->SnapshotSamples()->GetCount(6));
   EXPECT_EQ(0, histogram->SnapshotSamples()->GetCount(10));
 }
-
-<<<<<<< HEAD:task/task_scheduler/scheduler_worker_pool_impl_unittest.cc
-namespace {
-=======
 #endif  // !defined(STARBOARD)
 
-TEST(TaskSchedulerWorkerPoolStandbyPolicyTest, InitOne) {
-  TaskTracker task_tracker;
-  DelayedTaskManager delayed_task_manager;
-  scoped_refptr<TaskRunner> service_thread_task_runner =
-      MakeRefCounted<TestSimpleTaskRunner>();
-  delayed_task_manager.Start(service_thread_task_runner);
-  auto worker_pool = std::make_unique<SchedulerWorkerPoolImpl>(
-      "OnePolicyWorkerPool", ThreadPriority::NORMAL, &task_tracker,
-      &delayed_task_manager);
-  worker_pool->Start(SchedulerWorkerPoolParams(8U, TimeDelta::Max()),
-                     service_thread_task_runner,
-                     SchedulerWorkerPoolImpl::WorkerEnvironment::NONE);
-  ASSERT_TRUE(worker_pool);
-  EXPECT_EQ(1U, worker_pool->NumberOfWorkersForTesting());
-  worker_pool->JoinForTesting();
-}
->>>>>>> Initial pass at starboardization of base.:task_scheduler/scheduler_worker_pool_impl_unittest.cc
+namespace {
 
 class TaskSchedulerWorkerPoolStandbyPolicyTest
     : public TaskSchedulerWorkerPoolImplTestBase,

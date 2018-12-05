@@ -37,6 +37,15 @@ ThreadTicksNowFunction g_thread_ticks_now_function =
 
 // TimeDelta ------------------------------------------------------------------
 
+
+CONSTEXPR int64_t TimeDelta::InNanoseconds() const {
+  if (is_max()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
+  return delta_ * Time::kNanosecondsPerMicrosecond;
+}
+
 int TimeDelta::InDaysFloored() const {
   if (is_max()) {
     // Preserve max to prevent overflow.
@@ -95,10 +104,12 @@ std::ostream& operator<<(std::ostream& os, TimeDelta time_delta) {
 
 // Time -----------------------------------------------------------------------
 
+#if !defined(STARBOARD)
 // static
 Time Time::Now() {
   return internal::g_time_now_function();
 }
+#endif
 
 // static
 Time Time::NowFromSystemTime() {
@@ -272,10 +283,12 @@ std::ostream& operator<<(std::ostream& os, Time time) {
 
 // TimeTicks ------------------------------------------------------------------
 
+#if !defined(STARBOARD)
 // static
 TimeTicks TimeTicks::Now() {
   return internal::g_time_ticks_now_function();
 }
+#endif
 
 // static
 TimeTicks TimeTicks::UnixEpoch() {

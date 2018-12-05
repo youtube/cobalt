@@ -78,7 +78,6 @@ constexpr char kRunFunctionName[] = "TaskScheduler RunTask";
 constexpr char kTaskSchedulerFlowTracingCategory[] =
     TRACE_DISABLED_BY_DEFAULT("task_scheduler.flow");
 
-#if !defined(STARBOARD)
 // Constructs a histogram to track latency which is logging to
 // "TaskScheduler.{histogram_name}.{histogram_label}.{task_type_suffix}".
 HistogramBase* GetLatencyHistogram(StringPiece histogram_name,
@@ -100,7 +99,6 @@ HistogramBase* GetLatencyHistogram(StringPiece histogram_name,
       TimeDelta::FromMilliseconds(20), 50,
       HistogramBase::kUmaTargetedHistogramFlag);
 }
-#endif  // !defined(STARBOARD)
 
 // Constructs a histogram to track task count which is logging to
 // "TaskScheduler.{histogram_name}.{histogram_label}.{task_type_suffix}".
@@ -304,7 +302,6 @@ TaskTracker::TaskTracker(StringPiece histogram_label,
     : state_(new State),
       flush_cv_(flush_lock_.CreateConditionVariable()),
       shutdown_lock_(&flush_lock_),
-#if !defined(STARBOARD)
       task_latency_histograms_{
           {GetLatencyHistogram("TaskLatencyMicroseconds",
                                histogram_label,
@@ -362,14 +359,11 @@ TaskTracker::TaskTracker(StringPiece histogram_label,
            GetCountHistogram("NumTasksRunWhileQueuing",
                              histogram_label,
                              "UserBlockingTaskPriority_MayBlock")}},
-#endif
       tracked_ref_factory_(this) {
-#if !defined(STARBOARD)
   // Confirm that all |task_latency_histograms_| have been initialized above.
   DCHECK(*(&task_latency_histograms_[static_cast<int>(TaskPriority::HIGHEST) +
                                      1][0] -
            1));
-#endif
   preemption_state_[static_cast<int>(TaskPriority::BEST_EFFORT)]
       .max_scheduled_sequences = max_num_scheduled_best_effort_sequences;
   DETACH_FROM_SEQUENCE(sequence_checker_);
@@ -419,9 +413,11 @@ void TaskTracker::Shutdown() {
   // when shutdown completes.
   {
     AutoSchedulerLock auto_lock(flush_lock_);
+
     flush_cv_->Signal();
   }
   CallFlushCallbackForTesting();
+
 }
 
 void TaskTracker::FlushForTesting() {
@@ -553,7 +549,6 @@ void TaskTracker::SetHasShutdownStartedForTesting() {
   state_->StartShutdown();
 }
 
-#if !defined(STARBOARD)
 void TaskTracker::RecordLatencyHistogram(
     LatencyHistogramType latency_histogram_type,
     TaskTraits task_traits,
@@ -569,9 +564,7 @@ void TaskTracker::RecordLatencyHistogram(
   GetHistogramForTaskTraits(task_traits, histograms)
       ->AddTimeMicrosecondsGranularity(task_latency);
 }
-#endif
 
-#if !defined(STARBOARD)
 void TaskTracker::RecordHeartbeatLatencyAndTasksRunWhileQueuingHistograms(
     TaskPriority task_priority,
     bool may_block,
@@ -586,7 +579,6 @@ void TaskTracker::RecordHeartbeatLatencyAndTasksRunWhileQueuingHistograms(
                             num_tasks_run_while_queuing_histograms_)
       ->Add(GetNumTasksRun() - num_tasks_run_when_posted);
 }
-#endif
 
 int TaskTracker::GetNumTasksRun() const {
   return num_tasks_run_.load(std::memory_order_relaxed);
@@ -600,10 +592,8 @@ void TaskTracker::RunOrSkipTask(Task task,
                                 Sequence* sequence,
                                 bool can_run_task) {
   DCHECK(sequence);
-#if !defined(STARBOARD)
   RecordLatencyHistogram(LatencyHistogramType::TASK_LATENCY, sequence->traits(),
                          task.sequenced_time);
-#endif
 
   const bool previous_singleton_allowed =
       ThreadRestrictions::SetSingletonAllowed(
@@ -681,9 +671,7 @@ void TaskTracker::PerformShutdown() {
 
     // This method can only be called once.
     DCHECK(!shutdown_event_);
-#if !defined(STARBOARD)
     DCHECK(!num_block_shutdown_tasks_posted_during_shutdown_);
-#endif
     DCHECK(!state_->HasShutdownStarted());
 
     shutdown_event_ = std::make_unique<WaitableEvent>();
@@ -725,7 +713,6 @@ void TaskTracker::PerformShutdown() {
   {
     AutoSchedulerLock auto_lock(shutdown_lock_);
 
-#if !defined(STARBOARD)
     // Record TaskScheduler.BlockShutdownTasksPostedDuringShutdown if less than
     // |kMaxBlockShutdownTasksPostedDuringShutdown| BLOCK_SHUTDOWN tasks were
     // posted during shutdown. Otherwise, the histogram has already been
@@ -735,7 +722,6 @@ void TaskTracker::PerformShutdown() {
       RecordNumBlockShutdownTasksPostedDuringShutdown(
           num_block_shutdown_tasks_posted_during_shutdown_);
     }
-#endif  // !defined(STARBOARD)
   }
 }
 
@@ -834,7 +820,6 @@ bool TaskTracker::BeforePostTask(
         return false;
       }
 
-#if !defined(STARBOARD)
       ++num_block_shutdown_tasks_posted_during_shutdown_;
 
       if (num_block_shutdown_tasks_posted_during_shutdown_ ==
@@ -846,7 +831,6 @@ bool TaskTracker::BeforePostTask(
         RecordNumBlockShutdownTasksPostedDuringShutdown(
             num_block_shutdown_tasks_posted_during_shutdown_);
       }
-#endif  // !defined(STARBOARD)
     }
 
     return true;

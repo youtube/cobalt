@@ -23,35 +23,25 @@ TimeDelta g_heartbeat_for_testing = TimeDelta();
 
 }  // namespace
 
-#if !defined(STARBOARD)
 ServiceThread::ServiceThread(const TaskTracker* task_tracker,
                              RepeatingClosure report_heartbeat_metrics_callback)
-#else
-ServiceThread::ServiceThread(const TaskTracker* task_tracker)
-#endif
     : Thread("TaskSchedulerServiceThread"),
-      task_tracker_(task_tracker)
-#if !defined(STARBOARD)
-      , report_heartbeat_metrics_callback_(
-          std::move(report_heartbeat_metrics_callback))
-#endif
-      {}
+      task_tracker_(task_tracker),
+      report_heartbeat_metrics_callback_(
+          std::move(report_heartbeat_metrics_callback)) {}
 
 ServiceThread::~ServiceThread() = default;
 
-#if !defined(STARBOARD)
 // static
 void ServiceThread::SetHeartbeatIntervalForTesting(TimeDelta heartbeat) {
   g_heartbeat_for_testing = heartbeat;
 }
-#endif
 
 void ServiceThread::Init() {
   // In unit tests we sometimes do not have a fully functional TaskScheduler
   // environment, do not perform the heartbeat report in that case since it
   // relies on such an environment.
   if (TaskScheduler::GetInstance()) {
-#if !defined(STARBOARD)
     // Compute the histogram every hour (with a slight offset to drift if that
     // hour tick happens to line up with specific events). Once per hour per
     // user was deemed sufficient to gather a reliable metric.
@@ -63,7 +53,6 @@ void ServiceThread::Init() {
                                           : g_heartbeat_for_testing,
         BindRepeating(&ServiceThread::ReportHeartbeatMetrics,
                       Unretained(this)));
-#endif
   }
 }
 
@@ -73,7 +62,6 @@ NOINLINE void ServiceThread::Run(RunLoop* run_loop) {
   base::debug::Alias(&line_number);
 }
 
-#if !defined(STARBOARD)
 void ServiceThread::ReportHeartbeatMetrics() const {
   report_heartbeat_metrics_callback_.Run();
   PerformHeartbeatLatencyReport();
@@ -83,7 +71,7 @@ void ServiceThread::PerformHeartbeatLatencyReport() const {
   if (!task_tracker_)
     return;
 
-  static TaskTraits kReportedTraits[] = {
+  static CONSTEXPR TaskTraits kReportedTraits[] = {
       {TaskPriority::BEST_EFFORT},   {TaskPriority::BEST_EFFORT, MayBlock()},
       {TaskPriority::USER_VISIBLE},  {TaskPriority::USER_VISIBLE, MayBlock()},
       {TaskPriority::USER_BLOCKING}, {TaskPriority::USER_BLOCKING, MayBlock()}};
@@ -115,7 +103,6 @@ void ServiceThread::PerformHeartbeatLatencyReport() const {
           Unretained(task_tracker_), task_priority, may_block, TimeTicks::Now(),
           task_tracker_->GetNumTasksRun()));
 }
-#endif
 
 }  // namespace internal
 }  // namespace base

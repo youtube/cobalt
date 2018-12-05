@@ -3,13 +3,14 @@
 // found in the LICENSE file.
 
 #include "base/task/task_traits.h"
+#include "base/cpp14oncpp11.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
 TEST(TaskTraitsTest, Default) {
-  constexpr TaskTraits traits = {};
+  CONSTEXPR TaskTraits traits = {};
   EXPECT_FALSE(traits.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::USER_VISIBLE, traits.priority());
   EXPECT_EQ(TaskShutdownBehavior::SKIP_ON_SHUTDOWN, traits.shutdown_behavior());
@@ -18,7 +19,7 @@ TEST(TaskTraitsTest, Default) {
 }
 
 TEST(TaskTraitsTest, TaskPriority) {
-  constexpr TaskTraits traits = {TaskPriority::BEST_EFFORT};
+  CONSTEXPR TaskTraits traits = {TaskPriority::BEST_EFFORT};
   EXPECT_TRUE(traits.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::BEST_EFFORT, traits.priority());
   EXPECT_EQ(TaskShutdownBehavior::SKIP_ON_SHUTDOWN, traits.shutdown_behavior());
@@ -27,7 +28,7 @@ TEST(TaskTraitsTest, TaskPriority) {
 }
 
 TEST(TaskTraitsTest, TaskShutdownBehavior) {
-  constexpr TaskTraits traits = {TaskShutdownBehavior::BLOCK_SHUTDOWN};
+  CONSTEXPR TaskTraits traits = {TaskShutdownBehavior::BLOCK_SHUTDOWN};
   EXPECT_FALSE(traits.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::USER_VISIBLE, traits.priority());
   EXPECT_EQ(TaskShutdownBehavior::BLOCK_SHUTDOWN, traits.shutdown_behavior());
@@ -36,7 +37,7 @@ TEST(TaskTraitsTest, TaskShutdownBehavior) {
 }
 
 TEST(TaskTraitsTest, MayBlock) {
-  constexpr TaskTraits traits = {MayBlock()};
+  CONSTEXPR TaskTraits traits = {MayBlock()};
   EXPECT_FALSE(traits.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::USER_VISIBLE, traits.priority());
   EXPECT_EQ(TaskShutdownBehavior::SKIP_ON_SHUTDOWN, traits.shutdown_behavior());
@@ -45,7 +46,7 @@ TEST(TaskTraitsTest, MayBlock) {
 }
 
 TEST(TaskTraitsTest, WithBaseSyncPrimitives) {
-  constexpr TaskTraits traits = {WithBaseSyncPrimitives()};
+  CONSTEXPR TaskTraits traits = {WithBaseSyncPrimitives()};
   EXPECT_FALSE(traits.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::USER_VISIBLE, traits.priority());
   EXPECT_EQ(TaskShutdownBehavior::SKIP_ON_SHUTDOWN, traits.shutdown_behavior());
@@ -54,7 +55,7 @@ TEST(TaskTraitsTest, WithBaseSyncPrimitives) {
 }
 
 TEST(TaskTraitsTest, MultipleTraits) {
-  constexpr TaskTraits traits = {TaskPriority::BEST_EFFORT,
+  CONSTEXPR TaskTraits traits = {TaskPriority::BEST_EFFORT,
                                  TaskShutdownBehavior::BLOCK_SHUTDOWN,
                                  MayBlock(), WithBaseSyncPrimitives()};
   EXPECT_TRUE(traits.priority_set_explicitly());
@@ -65,10 +66,10 @@ TEST(TaskTraitsTest, MultipleTraits) {
 }
 
 TEST(TaskTraitsTest, Copy) {
-  constexpr TaskTraits traits = {TaskPriority::BEST_EFFORT,
+  CONSTEXPR TaskTraits traits = {TaskPriority::BEST_EFFORT,
                                  TaskShutdownBehavior::BLOCK_SHUTDOWN,
                                  MayBlock(), WithBaseSyncPrimitives()};
-  constexpr TaskTraits traits_copy(traits);
+  CONSTEXPR TaskTraits traits_copy(traits);
   EXPECT_EQ(traits.priority_set_explicitly(),
             traits_copy.priority_set_explicitly());
   EXPECT_EQ(traits.priority(), traits_copy.priority());
@@ -79,9 +80,9 @@ TEST(TaskTraitsTest, Copy) {
 }
 
 TEST(TaskTraitsTest, OverridePriority) {
-  constexpr TaskTraits left = {TaskPriority::BEST_EFFORT};
-  constexpr TaskTraits right = {TaskPriority::USER_BLOCKING};
-  constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+  CONSTEXPR TaskTraits left = {TaskPriority::BEST_EFFORT};
+  CONSTEXPR TaskTraits right = {TaskPriority::USER_BLOCKING};
+  CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
   EXPECT_TRUE(overridden.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::USER_BLOCKING, overridden.priority());
   EXPECT_FALSE(overridden.shutdown_behavior_set_explicitly());
@@ -92,9 +93,9 @@ TEST(TaskTraitsTest, OverridePriority) {
 }
 
 TEST(TaskTraitsTest, OverrideShutdownBehavior) {
-  constexpr TaskTraits left = {TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
-  constexpr TaskTraits right = {TaskShutdownBehavior::BLOCK_SHUTDOWN};
-  constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+  CONSTEXPR TaskTraits left = {TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
+  CONSTEXPR TaskTraits right = {TaskShutdownBehavior::BLOCK_SHUTDOWN};
+  CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
   EXPECT_FALSE(overridden.priority_set_explicitly());
   EXPECT_EQ(TaskPriority::USER_VISIBLE, overridden.priority());
   EXPECT_TRUE(overridden.shutdown_behavior_set_explicitly());
@@ -106,9 +107,9 @@ TEST(TaskTraitsTest, OverrideShutdownBehavior) {
 
 TEST(TaskTraitsTest, OverrideMayBlock) {
   {
-    constexpr TaskTraits left = {MayBlock()};
-    constexpr TaskTraits right = {};
-    constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+    CONSTEXPR TaskTraits left = {MayBlock()};
+    CONSTEXPR TaskTraits right = {};
+    CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
     EXPECT_FALSE(overridden.priority_set_explicitly());
     EXPECT_EQ(TaskPriority::USER_VISIBLE, overridden.priority());
     EXPECT_FALSE(overridden.shutdown_behavior_set_explicitly());
@@ -118,9 +119,9 @@ TEST(TaskTraitsTest, OverrideMayBlock) {
     EXPECT_FALSE(overridden.with_base_sync_primitives());
   }
   {
-    constexpr TaskTraits left = {};
-    constexpr TaskTraits right = {MayBlock()};
-    constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+    CONSTEXPR TaskTraits left = {};
+    CONSTEXPR TaskTraits right = {MayBlock()};
+    CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
     EXPECT_FALSE(overridden.priority_set_explicitly());
     EXPECT_EQ(TaskPriority::USER_VISIBLE, overridden.priority());
     EXPECT_FALSE(overridden.shutdown_behavior_set_explicitly());
@@ -133,9 +134,9 @@ TEST(TaskTraitsTest, OverrideMayBlock) {
 
 TEST(TaskTraitsTest, OverrideWithBaseSyncPrimitives) {
   {
-    constexpr TaskTraits left = {WithBaseSyncPrimitives()};
-    constexpr TaskTraits right = {};
-    constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+    CONSTEXPR TaskTraits left = {WithBaseSyncPrimitives()};
+    CONSTEXPR TaskTraits right = {};
+    CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
     EXPECT_FALSE(overridden.priority_set_explicitly());
     EXPECT_EQ(TaskPriority::USER_VISIBLE, overridden.priority());
     EXPECT_FALSE(overridden.shutdown_behavior_set_explicitly());
@@ -145,9 +146,9 @@ TEST(TaskTraitsTest, OverrideWithBaseSyncPrimitives) {
     EXPECT_TRUE(overridden.with_base_sync_primitives());
   }
   {
-    constexpr TaskTraits left = {};
-    constexpr TaskTraits right = {WithBaseSyncPrimitives()};
-    constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+    CONSTEXPR TaskTraits left = {};
+    CONSTEXPR TaskTraits right = {WithBaseSyncPrimitives()};
+    CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
     EXPECT_FALSE(overridden.priority_set_explicitly());
     EXPECT_EQ(TaskPriority::USER_VISIBLE, overridden.priority());
     EXPECT_FALSE(overridden.shutdown_behavior_set_explicitly());
@@ -159,11 +160,11 @@ TEST(TaskTraitsTest, OverrideWithBaseSyncPrimitives) {
 }
 
 TEST(TaskTraitsTest, OverrideMultipleTraits) {
-  constexpr TaskTraits left = {MayBlock(), TaskPriority::BEST_EFFORT,
+  CONSTEXPR TaskTraits left = {MayBlock(), TaskPriority::BEST_EFFORT,
                                TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN};
-  constexpr TaskTraits right = {WithBaseSyncPrimitives(),
+  CONSTEXPR TaskTraits right = {WithBaseSyncPrimitives(),
                                 TaskPriority::USER_BLOCKING};
-  constexpr TaskTraits overridden = TaskTraits::Override(left, right);
+  CONSTEXPR TaskTraits overridden = TaskTraits::Override(left, right);
   EXPECT_TRUE(overridden.priority_set_explicitly());
   EXPECT_EQ(right.priority(), overridden.priority());
   EXPECT_TRUE(overridden.shutdown_behavior_set_explicitly());
