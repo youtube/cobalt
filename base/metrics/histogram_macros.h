@@ -45,6 +45,9 @@
 #define UMA_HISTOGRAM_COUNTS(name, sample)
 #define UMA_HISTOGRAM_MEMORY_MB(name, sample)
 #define UMA_HISTOGRAM_CUSTOM_ENUMERATION(name, sample, custom_ranges)
+#define UMA_HISTOGRAM_SCALED_EXACT_LINEAR(name, sample, count, value_max,     \
+                                          scale)
+#define UMA_HISTOGRAM_SCALED_ENUMERATION(name, sample, count, scale)
 
 #else  // defined(STARBOARD)
 // Macros for efficient use of histograms.

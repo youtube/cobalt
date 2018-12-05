@@ -118,6 +118,8 @@ TEST_F(PostTaskTestWithExecutor, PostTaskToTaskScheduler) {
 #endif  // defined(OS_WIN)
 }
 
+#if !defined(STARBOARD)
+// Cobalt does not support tasks with extension yet.
 TEST_F(PostTaskTestWithExecutor, PostTaskToTaskExecutor) {
   // Tasks with extension should go to the executor.
   {
@@ -186,6 +188,7 @@ TEST_F(PostTaskTestWithExecutor, PostTaskToTaskExecutor) {
 #endif  // defined(OS_WIN)
   }
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(PostTaskTestWithExecutor, RegisterExecutorTwice) {
   testing::FLAGS_gtest_death_test_style = "threadsafe";

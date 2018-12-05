@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/cpp14oncpp11.h"
 #include "base/memory/ptr_util.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/lock.h"
@@ -224,10 +225,10 @@ TEST_F(TaskSchedulerSingleThreadTaskRunnerManagerTest,
 
   // Post a BLOCK_SHUTDOWN task to a shared SingleThreadTaskRunner.
   single_thread_task_runner_manager_
-      ->CreateSingleThreadTaskRunnerWithTraits(
-          {TaskShutdownBehavior::BLOCK_SHUTDOWN},
-          SingleThreadTaskRunnerThreadMode::SHARED)
-      ->PostTask(FROM_HERE, DoNothing());
+     ->CreateSingleThreadTaskRunnerWithTraits(
+         {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+         SingleThreadTaskRunnerThreadMode::SHARED)
+     ->PostTask(FROM_HERE, DoNothing());
 
   // Shutdown should not hang even though the first task hasn't finished.
   task_tracker_.Shutdown();
@@ -296,7 +297,7 @@ TEST_P(TaskSchedulerSingleThreadTaskRunnerManagerCommonTest,
 }
 
 TEST_P(TaskSchedulerSingleThreadTaskRunnerManagerCommonTest, ThreadNamesSet) {
-  constexpr TaskTraits foo_traits = {TaskPriority::BEST_EFFORT,
+  CONSTEXPR TaskTraits foo_traits = {TaskPriority::BEST_EFFORT,
                                      TaskShutdownBehavior::BLOCK_SHUTDOWN};
   scoped_refptr<SingleThreadTaskRunner> foo_task_runner =
       single_thread_task_runner_manager_
@@ -305,7 +306,7 @@ TEST_P(TaskSchedulerSingleThreadTaskRunnerManagerCommonTest, ThreadNamesSet) {
   foo_task_runner->PostTask(FROM_HERE,
                             BindOnce(&CaptureThreadName, &foo_captured_name));
 
-  constexpr TaskTraits user_blocking_traits = {
+  CONSTEXPR TaskTraits user_blocking_traits = {
       TaskPriority::USER_BLOCKING, MayBlock(),
       TaskShutdownBehavior::BLOCK_SHUTDOWN};
   scoped_refptr<SingleThreadTaskRunner> user_blocking_task_runner =

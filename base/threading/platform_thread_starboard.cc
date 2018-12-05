@@ -156,4 +156,9 @@ ThreadPriority PlatformThread::GetCurrentThreadPriority() {
   return ThreadPriority::NORMAL;
 }
 
+// static
+bool PlatformThread::CanIncreaseThreadPriority(ThreadPriority priority) {
+  return false;
+}
+
 }  // namespace base

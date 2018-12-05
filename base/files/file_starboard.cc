@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
 #include "starboard/file.h"
+#include "starboard/log.h"
 
 namespace base {
 
@@ -244,6 +245,11 @@ bool File::GetInfo(Info* info) {
   info->last_accessed = base::Time::FromSbTime(file_info.last_accessed);
   info->creation_time = base::Time::FromSbTime(file_info.creation_time);
   return true;
+}
+
+File::Error File::GetLastFileError() {
+  SB_NOTIMPLEMENTED();
+  return File::FILE_ERROR_MAX;
 }
 
 // Static.

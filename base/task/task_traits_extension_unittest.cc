@@ -4,20 +4,23 @@
 
 #include "base/task/task_traits.h"
 
+#include "base/cpp14oncpp11.h"
 #include "base/task/test_task_traits_extension.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
 TEST(TaskTraitsExtensionTest, NoExtension) {
-  constexpr TaskTraits traits = {};
+  CONSTEXPR TaskTraits traits = {};
 
   EXPECT_EQ(traits.extension_id(),
             TaskTraitsExtensionStorage::kInvalidExtensionId);
 }
 
+#if !defined(STARBOARD)
+// Cobalt does not support task traits with extension yet.
 TEST(TaskTraitsExtensionTest, CreateWithOneExtensionTrait) {
-  constexpr TaskTraits traits = {TestExtensionEnumTrait::kB};
+  CONSTEXPR TaskTraits traits = {TestExtensionEnumTrait::kB};
 
   EXPECT_EQ(traits.GetExtension<TestTaskTraitsExtension>().enum_trait(),
             TestExtensionEnumTrait::kB);
@@ -25,7 +28,7 @@ TEST(TaskTraitsExtensionTest, CreateWithOneExtensionTrait) {
 }
 
 TEST(TaskTraitsExtensionTest, CreateWithMultipleExtensionTraits) {
-  constexpr TaskTraits traits = {TestExtensionEnumTrait::kB,
+  CONSTEXPR TaskTraits traits = {TestExtensionEnumTrait::kB,
                                  TestExtensionBoolTrait()};
 
   EXPECT_EQ(traits.GetExtension<TestTaskTraitsExtension>().enum_trait(),
@@ -34,7 +37,7 @@ TEST(TaskTraitsExtensionTest, CreateWithMultipleExtensionTraits) {
 }
 
 TEST(TaskTraitsExtensionTest, CreateWithBaseAndExtensionTraits) {
-  constexpr TaskTraits traits = {TaskPriority::USER_BLOCKING,
+  CONSTEXPR TaskTraits traits = {TaskPriority::USER_BLOCKING,
                                  TestExtensionEnumTrait::kC,
                                  TestExtensionBoolTrait()};
 
@@ -43,5 +46,6 @@ TEST(TaskTraitsExtensionTest, CreateWithBaseAndExtensionTraits) {
             TestExtensionEnumTrait::kC);
   EXPECT_TRUE(traits.GetExtension<TestTaskTraitsExtension>().bool_trait());
 }
+#endif  // !defined(STARBOARD)
 
 }  // namespace base

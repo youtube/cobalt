@@ -1472,7 +1472,6 @@ TEST(TaskSchedulerTaskTrackerWaitAllowedTest, WaitAllowed) {
   wait_allowed_test_thread.Join();
 }
 
-#if !defined(STARBOARD)
 // Verify that TaskScheduler.TaskLatency.* histograms are correctly recorded
 // when a task runs.
 TEST(TaskSchedulerTaskTrackerHistogramTest, TaskLatency) {
@@ -1484,7 +1483,7 @@ TEST(TaskSchedulerTaskTrackerHistogramTest, TaskLatency) {
   struct {
     const TaskTraits traits;
     const char* const expected_histogram;
-  } static constexpr kTests[] = {
+  } static CONSTEXPR kTests[] = {
       {{TaskPriority::BEST_EFFORT},
        "TaskScheduler.TaskLatencyMicroseconds.Test."
        "BackgroundTaskPriority"},
@@ -1527,7 +1526,6 @@ TEST(TaskSchedulerTaskTrackerHistogramTest, TaskLatency) {
     tester.ExpectTotalCount(test.expected_histogram, 1);
   }
 }
-#endif
 
 }  // namespace internal
 }  // namespace base
