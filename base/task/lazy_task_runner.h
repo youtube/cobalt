@@ -10,6 +10,7 @@
 #include "base/atomicops.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/cpp14oncpp11.h"
 #include "base/lazy_instance_helpers.h"
 #include "base/sequenced_task_runner.h"
 #include "base/single_thread_task_runner.h"
@@ -95,7 +96,7 @@ using LazyCOMSTATaskRunner =
 // |traits| are TaskTraits used when creating the SequencedTaskRunner.
 #define LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER(traits)                 \
   base::LazySequencedTaskRunner::CreateInternal(traits);               \
-  ALLOW_UNUSED_TYPE constexpr base::TaskTraits                         \
+  ALLOW_UNUSED_TYPE CONSTEXPR base::TaskTraits                         \
       LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(kVerifyTraitsAreConstexpr, \
                                             __LINE__) = traits
 
@@ -104,10 +105,10 @@ using LazyCOMSTATaskRunner =
 // thread with other SingleThreadTaskRunners.
 #define LAZY_SINGLE_THREAD_TASK_RUNNER_INITIALIZER(traits, thread_mode)   \
   base::LazySingleThreadTaskRunner::CreateInternal(traits, thread_mode);  \
-  ALLOW_UNUSED_TYPE constexpr base::TaskTraits                            \
+  ALLOW_UNUSED_TYPE CONSTEXPR base::TaskTraits                            \
       LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(kVerifyTraitsAreConstexpr,    \
                                             __LINE__) = traits;           \
-  ALLOW_UNUSED_TYPE constexpr base::SingleThreadTaskRunnerThreadMode      \
+  ALLOW_UNUSED_TYPE CONSTEXPR base::SingleThreadTaskRunnerThreadMode      \
       LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(kVerifyThreadModeIsConstexpr, \
                                             __LINE__) = thread_mode
 

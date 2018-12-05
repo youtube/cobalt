@@ -185,7 +185,7 @@ TlsVectorEntry* ConstructTlsVector() {
       // first.
       PlatformThreadLocalStorage::FreeTLS(key);
       key = reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(
-          base::subtle::NoBarrier_Load(&g_native_tls_key));
+                base::subtle::NoBarrier_Load(&g_native_tls_key));
     }
   }
   CHECK_EQ(PlatformThreadLocalStorage::GetTLSValue(key), kUninitialized);

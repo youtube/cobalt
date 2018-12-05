@@ -34,8 +34,8 @@ class TestTaskTraitsExtension {
       trait_helpers::BooleanTraitFilter<TestExtensionBoolTrait>;
 
   template <class... ArgTypes,
-            class CheckArgumentsAreValid = std::enable_if_t<
-                trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>::value>>
+            class CheckArgumentsAreValid = trait_helpers::InitTypes<
+                    decltype(ValidTrait(std::declval<ArgTypes>()))...>>
   constexpr TestTaskTraitsExtension(ArgTypes... args)
       : enum_trait_(trait_helpers::GetTraitFromArgList<TestExtensionEnumFilter>(
             args...)),
@@ -67,9 +67,8 @@ class TestTaskTraitsExtension {
 };
 
 template <class... ArgTypes,
-          class = std::enable_if_t<
-              trait_helpers::AreValidTraits<TestTaskTraitsExtension::ValidTrait,
-                                            ArgTypes...>::value>>
+            class CheckArgumentsAreValid = trait_helpers::InitTypes<
+                    decltype(ValidTrait(std::declval<ArgTypes>()))...>>
 constexpr TaskTraitsExtensionStorage MakeTaskTraitsExtension(ArgTypes... args) {
   return TestTaskTraitsExtension(std::forward<ArgTypes>(args)...).Serialize();
 }

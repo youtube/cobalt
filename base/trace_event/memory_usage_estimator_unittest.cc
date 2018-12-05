@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include "base/cpp14oncpp11.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string16.h"
 #include "build/build_config.h"
@@ -245,20 +246,20 @@ TEST(EstimateMemoryUsageTest, IsStandardContainerComplexIteratorTest) {
     virtual void method() = 0;
   };
 
-  static_assert(
+  STATIC_ASSERT(
       internal::IsStandardContainerComplexIterator<std::list<int>::iterator>(),
       "");
-  static_assert(internal::IsStandardContainerComplexIterator<
+  STATIC_ASSERT(internal::IsStandardContainerComplexIterator<
                     std::list<int>::const_iterator>(),
                 "");
-  static_assert(internal::IsStandardContainerComplexIterator<
+  STATIC_ASSERT(internal::IsStandardContainerComplexIterator<
                     std::list<int>::reverse_iterator>(),
                 "");
-  static_assert(internal::IsStandardContainerComplexIterator<
+  STATIC_ASSERT(internal::IsStandardContainerComplexIterator<
                     std::list<int>::const_reverse_iterator>(),
                 "");
-  static_assert(!internal::IsStandardContainerComplexIterator<int>(), "");
-  static_assert(!internal::IsStandardContainerComplexIterator<abstract*>(), "");
+  STATIC_ASSERT(!internal::IsStandardContainerComplexIterator<int>(), "");
+  STATIC_ASSERT(!internal::IsStandardContainerComplexIterator<abstract*>(), "");
 }
 
 }  // namespace trace_event

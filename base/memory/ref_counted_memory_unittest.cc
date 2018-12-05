@@ -73,6 +73,7 @@ TEST(RefCountedMemoryUnitTest, RefCountedString) {
   EXPECT_EQ('e', mem->front()[9]);
 }
 
+#if !defined(STARBOARD)
 TEST(RefCountedMemoryUnitTest, RefCountedSharedMemory) {
   static const char kData[] = "shm_dummy_data";
   auto shm = std::make_unique<SharedMemory>();
@@ -119,6 +120,7 @@ TEST(RefCountedMemoryUnitTest, RefCountedSharedMemoryMapping) {
   EXPECT_EQ('r', mem->front()[4]);
   EXPECT_EQ('i', mem->front()[7]);
 }
+#endif
 
 TEST(RefCountedMemoryUnitTest, Equals) {
   std::string s1("same");

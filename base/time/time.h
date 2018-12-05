@@ -848,14 +848,6 @@ constexpr double TimeDelta::InMicrosecondsF() const {
   return DivideOrMax<double>(1);
 }
 
-CONSTEXPR int64_t TimeDelta::InNanoseconds() const {
-  if (is_max()) {
-    // Preserve max to prevent overflow.
-    return std::numeric_limits<int64_t>::max();
-  }
-  return delta_ * Time::kNanosecondsPerMicrosecond;
-}
-
 // static
 constexpr TimeDelta TimeDelta::FromDouble(double value) {
   // TODO(crbug.com/612601): Use saturated_cast<int64_t>(value) once we sort out

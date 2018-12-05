@@ -987,11 +987,15 @@ TEST_F(CheckedObserverListTest, MultiObserver) {
   checked_list.AddObserver(observer.get());
   unsafe_list.AddObserver(observer.get());
 
-  auto iterate_over = [](auto* list) {
+  auto iterate_over = [](ObserverList<TestCheckedObserver>* list) {
     for (auto& observer : *list)
       observer.Observe();
   };
-  iterate_over(&two_list);
+  auto iterate_over2 = [](ObserverList<TestCheckedObserver2>* list) {
+    for (auto& observer : *list)
+      observer.Observe();
+  };
+  iterate_over2(&two_list);
   iterate_over(&checked_list);
   for (auto& observer : unsafe_list)
     observer.Observe(10);

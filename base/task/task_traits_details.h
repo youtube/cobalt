@@ -17,7 +17,8 @@ namespace trait_helpers {
 
 // Checks if any of the elements in |ilist| is true.
 // Similar to std::any_of for the case of constexpr initializer_list.
-inline CONSTEXPR bool any_of(std::initializer_list<bool> ilist) {
+#if __cplusplus >= 201402L
+inline constexpr bool any_of(std::initializer_list<bool> ilist) {
   for (auto c : ilist) {
     if (c)
       return true;
@@ -27,7 +28,7 @@ inline CONSTEXPR bool any_of(std::initializer_list<bool> ilist) {
 
 // Checks if all of the elements in |ilist| are true.
 // Similar to std::any_of for the case of constexpr initializer_list.
-inline CONSTEXPR bool all_of(std::initializer_list<bool> ilist) {
+inline constexpr bool all_of(std::initializer_list<bool> ilist) {
   for (auto c : ilist) {
     if (!c)
       return false;
@@ -38,13 +39,14 @@ inline CONSTEXPR bool all_of(std::initializer_list<bool> ilist) {
 // Counts the elements in |ilist| that are equal to |value|.
 // Similar to std::count for the case of constexpr initializer_list.
 template <class T>
-inline CONSTEXPR size_t count(std::initializer_list<T> ilist, T value) {
+inline constexpr size_t count(std::initializer_list<T> ilist, T value) {
   size_t c = 0;
   for (const auto& v : ilist) {
     c += (v == value);
   }
   return c;
 }
+#endif
 
 // CallFirstTag is an argument tag that helps to avoid ambiguous overloaded
 // functions. When the following call is made:
@@ -88,6 +90,16 @@ constexpr InvalidTrait GetTraitFromArg(CallSecondTag, ArgType arg) {
 // argument in |args...|, or default constructed if none of the arguments are
 // compatible. This is the implementation of GetTraitFromArgList() with a
 // disambiguation tag.
+#if __cplusplus < 201402L
+template <class TraitFilterType,
+          class ArgTypes1,
+          class TestCompatibleArgument = std::enable_if_t<
+              std::is_constructible<TraitFilterType, ArgTypes1>::value>>
+constexpr TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
+                                                  ArgTypes1 arg1) {
+  return TraitFilterType(arg1);
+}
+#else
 template <class TraitFilterType,
           class... ArgTypes,
           class TestCompatibleArgument = std::enable_if_t<any_of(
@@ -97,6 +109,7 @@ constexpr TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
   return std::get<TraitFilterType>(std::make_tuple(
       GetTraitFromArg<TraitFilterType>(CallFirstTag(), args)...));
 }
+#endif
 
 template <class TraitFilterType, class... ArgTypes>
 constexpr TraitFilterType GetTraitFromArgListImpl(CallSecondTag,
@@ -126,10 +139,43 @@ CONSTEXPR typename TraitFilterType::ValueType GetTraitFromArgList(
 
 // Returns true if this trait is explicitly defined in an argument list, i.e.
 // there is an argument compatible with this trait in |args...|.
+#if __cplusplus < 201402L
+template <class TraitFilterType>
+constexpr bool TraitIsDefined() {
+  return false;
+}
+
+template <class TraitFilterType, class ArgType1>
+constexpr bool TraitIsDefined(ArgType1 arg1) {
+  return std::is_constructible<TraitFilterType, ArgType1>::value;
+}
+
+template <class TraitFilterType, class ArgType1, class ArgType2>
+constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2) {
+  return std::is_constructible<TraitFilterType, ArgType1>::value ||
+         std::is_constructible<TraitFilterType, ArgType2>::value;
+}
+
+template <class TraitFilterType, class ArgType1, class ArgType2, class ArgType3>
+constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2, ArgType3 arg3) {
+  return std::is_constructible<TraitFilterType, ArgType1>::value ||
+         std::is_constructible<TraitFilterType, ArgType2>::value ||
+         std::is_constructible<TraitFilterType, ArgType3>::value;
+}
+
+template <class TraitFilterType, class ArgType1, class ArgType2, class ArgType3, class ArgType4>
+constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2, ArgType3 arg3, ArgType4 arg4) {
+  return std::is_constructible<TraitFilterType, ArgType1>::value ||
+         std::is_constructible<TraitFilterType, ArgType2>::value ||
+         std::is_constructible<TraitFilterType, ArgType3>::value ||
+         std::is_constructible<TraitFilterType, ArgType4>::value;
+}
+#else
 template <class TraitFilterType, class... ArgTypes>
 constexpr bool TraitIsDefined(ArgTypes... args) {
   return any_of({std::is_constructible<TraitFilterType, ArgTypes>::value...});
 }
+#endif
 
 // Helper class to implemnent a |TraitFilterType|.
 template <typename T>
