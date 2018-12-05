@@ -127,8 +127,11 @@ void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
 
 void ProcessBacktrace(void* const* trace,
                       int size,
+                      const char* prefix_string,
                       BacktraceOutputHandler* handler) {
   for (int i = 0; i < size; ++i) {
+    if (prefix_string)
+      handler->HandleOutput(prefix_string);
     handler->HandleOutput("\t");
 
     char buf[1024] = {'\0'};
@@ -167,14 +170,17 @@ StackTrace::StackTrace(size_t count) {
   }
 }
 
-void StackTrace::Print() const {
+void StackTrace::PrintWithPrefix(const char* prefix_string) const {
+// NOTE: This code MUST be async-signal safe (it's used by in-process
+// stack dumping signal handler). NO malloc or stdio is allowed here.
   PrintBacktraceOutputHandler handler;
-  ProcessBacktrace(trace_, count_, &handler);
+  ProcessBacktrace(trace_, count_, prefix_string, &handler);
 }
 
-void StackTrace::OutputToStream(std::ostream* out_stream) const {
-  StreamBacktraceOutputHandler handler(out_stream);
-  ProcessBacktrace(trace_, count_, &handler);
+void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
+                                          const char* prefix_string) const {
+  StreamBacktraceOutputHandler handler(os);
+  ProcessBacktrace(trace_, count_, prefix_string, &handler);
 }
 
 bool EnableInProcessStackDumping() {

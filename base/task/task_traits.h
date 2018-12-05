@@ -213,7 +213,7 @@ class BASE_EXPORT TaskTraits {
   // the value from |right|. Note that extension traits are not merged: any
   // extension traits in |left| are discarded if extension traits are present in
   // |right|.
-  static constexpr TaskTraits Override(const TaskTraits& left,
+  static CONSTEXPR TaskTraits Override(const TaskTraits& left,
                                        const TaskTraits& right) {
     return TaskTraits(left, right);
   }
@@ -255,7 +255,7 @@ class BASE_EXPORT TaskTraits {
   }
 
  private:
-  constexpr TaskTraits(const TaskTraits& left, const TaskTraits& right)
+  CONSTEXPR TaskTraits(const TaskTraits& left, const TaskTraits& right)
       : extension_(right.extension_.extension_id !=
                            TaskTraitsExtensionStorage::kInvalidExtensionId
                        ? right.extension_

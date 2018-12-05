@@ -250,6 +250,30 @@ struct IsComplexIteratorForContainer<
   };
 };
 
+#if defined(STARBOARD)
+template <class I>
+struct IsComplexIteratorForContainer<
+    std::multiset,
+    I,
+    std::enable_if_t<!std::is_pointer<I>::value &&
+                     base::internal::is_iterator<I>::value>> {
+  using value_type = typename std::iterator_traits<I>::value_type;
+  using container_type = std::multiset<value_type, std::greater<value_type>>;
+
+  // We use enum instead of static constexpr bool, beause we don't have inline
+  // variables until c++17.
+  //
+  // The downside is - value is not of type bool.
+  enum : bool {
+    value =
+        std::is_same<typename container_type::iterator, I>::value ||
+        std::is_same<typename container_type::const_iterator, I>::value ||
+        std::is_same<typename container_type::reverse_iterator, I>::value ||
+        std::is_same<typename container_type::const_reverse_iterator, I>::value,
+  };
+};
+#endif
+
 template <class I, template <class...> class... Containers>
 CONSTEXPR bool OneOfContainersComplexIterators() {
   // We are forced to create a temporary variable to workaround a compilation

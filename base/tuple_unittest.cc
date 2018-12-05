@@ -96,7 +96,7 @@ TEST(TupleTest, Copying) {
 
   // Creating the tuple should copy the class to store internally in the tuple.
   std::tuple<CopyLogger, CopyLogger*, bool*> tuple(logger, &logger, &res);
-  std::get<CopyLogger*>(tuple) = &std::get<CopyLogger>(tuple);
+  std::get<1>(tuple) = &std::get<0>(tuple);
   EXPECT_EQ(2, CopyLogger::TimesConstructed);
   EXPECT_EQ(1, CopyLogger::TimesCopied);
 

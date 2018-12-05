@@ -185,7 +185,6 @@ class BASE_EXPORT TaskTracker {
   // cannot be called after this.
   void SetHasShutdownStartedForTesting();
 
-#if !defined(STARBOARD)
   // Records two histograms
   // 1. TaskScheduler.[label].HeartbeatLatencyMicroseconds.[suffix]:
   //    Now() - posted_time
@@ -198,7 +197,6 @@ class BASE_EXPORT TaskTracker {
       bool may_block,
       TimeTicks posted_time,
       int num_tasks_run_when_posted) const;
-#endif
 
   // Returns the number of tasks run so far
   int GetNumTasksRun() const;
@@ -337,13 +335,11 @@ class BASE_EXPORT TaskTracker {
   // manner.
   void CallFlushCallbackForTesting();
 
-#if !defined(STARBOARD)
   // Records |Now() - posted_time| to the appropriate |latency_histogram_type|
   // based on |task_traits|.
   void RecordLatencyHistogram(LatencyHistogramType latency_histogram_type,
                               TaskTraits task_traits,
                               TimeTicks posted_time) const;
-#endif
 
   void IncrementNumTasksRun();
 
@@ -395,12 +391,10 @@ class BASE_EXPORT TaskTracker {
   // these.
   static constexpr int kNumTaskPriorities =
       static_cast<int>(TaskPriority::HIGHEST) + 1;
-#if !defined(STARBOARD)
   HistogramBase* const task_latency_histograms_[kNumTaskPriorities][2];
   HistogramBase* const heartbeat_latency_histograms_[kNumTaskPriorities][2];
   HistogramBase* const
       num_tasks_run_while_queuing_histograms_[kNumTaskPriorities][2];
-#endif
 
   PreemptionState preemption_state_[kNumTaskPriorities];
 
