@@ -31,6 +31,7 @@
 #include "cobalt/dom/message_event.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/websocket/web_socket_event_interface.h"
 #include "cobalt/websocket/web_socket_impl.h"
@@ -223,7 +224,8 @@ class WebSocket : public dom::EventTarget, public WebsocketEventInterface {
   dom::DOMSettings* settings_;
   scoped_refptr<WebSocketImpl> impl_;
 
-  bool preventing_gc_;
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_while_listening_;
 
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, BadOrigin);
   FRIEND_TEST_ALL_PREFIXES(WebSocketTest, GoodOrigin);

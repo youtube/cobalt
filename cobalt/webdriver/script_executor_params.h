@@ -52,14 +52,14 @@ class ScriptExecutorParams : public script::Wrappable {
       other.params = nullptr;
     }
     GCPreventedParams& operator=(GCPreventedParams&& other) {
-      global_environment->AllowGarbageCollection(params);
+      params->prevent_gc_until_create_complete_.reset();
       params = other.params;
       other.params = nullptr;
       return *this;
     }
     ~GCPreventedParams() {
       if (params) {
-        global_environment->AllowGarbageCollection(params);
+        params->prevent_gc_until_create_complete_.reset();
       }
     }
 
@@ -89,6 +89,8 @@ class ScriptExecutorParams : public script::Wrappable {
  private:
   std::string function_body_;
   base::optional<script::ValueHandleHolder::Reference> function_object_;
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_create_complete_;
   std::string json_args_;
   base::optional<int32_t> async_timeout_;
 };
