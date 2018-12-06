@@ -25,7 +25,10 @@ ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
     const std::string& function_body, const std::string& json_args,
     base::optional<base::TimeDelta> async_timeout) {
   scoped_refptr<ScriptExecutorParams> params(new ScriptExecutorParams());
-  global_environment->PreventGarbageCollection(params);
+  DCHECK(!params->prevent_gc_until_create_complete_);
+  params->prevent_gc_until_create_complete_.reset(
+      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+          global_environment, params));
   params->json_args_ = json_args;
 
   if (async_timeout) {

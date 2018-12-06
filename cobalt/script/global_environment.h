@@ -80,20 +80,6 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // |GetStackTrace(int)| to make everyone happy.
   std::vector<StackFrame> GetStackTrace() { return GetStackTrace(0); }
 
-  // Prevent this wrappable's associated JavaScript wrapper object from being
-  // garbage collected. |AllowGarbageCollection| must be called some time
-  // afterwards, or else both the JavaScript wrapper object and Wrappable will
-  // leak. Note that multiple calls to |PreventGarbageCollection| *are*
-  // counted, in that calling (e.g.) prevent, prevent, allow on |wrappable|,
-  // implies that |wrappable| is still garbage collection prevented.
-  virtual void PreventGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) = 0;
-
-  // Allow this wrappable's associated JavaScript wrapper object to be garbage
-  // collected.
-  virtual void AllowGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) = 0;
-
   // Register |traceable| as a member of the root set, i.e., an a priori
   // reachable node.  In a manner similar to |PreventGarbageCollection|,
   // multiple calls are supported.
@@ -136,7 +122,38 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // should live longer than any ScriptValueFactory pointer.
   virtual ScriptValueFactory* script_value_factory() = 0;
 
+  class ScopedPreventGarbageCollection {
+   public:
+    ScopedPreventGarbageCollection(GlobalEnvironment* global_environment,
+                                   Wrappable* wrappable)
+        : global_environment(global_environment), wrappable(wrappable) {
+      global_environment->PreventGarbageCollection(
+          make_scoped_refptr(wrappable));
+    }
+
+    ~ScopedPreventGarbageCollection() {
+      global_environment->AllowGarbageCollection(wrappable);
+    }
+
+   private:
+    GlobalEnvironment* global_environment;
+    Wrappable* wrappable;
+  };
+
  protected:
+  // Prevent this wrappable's associated JavaScript wrapper object from being
+  // garbage collected. |AllowGarbageCollection| must be called some time
+  // afterwards, or else both the JavaScript wrapper object and Wrappable will
+  // leak. Note that multiple calls to |PreventGarbageCollection| *are*
+  // counted, in that calling (e.g.) prevent, prevent, allow on |wrappable|,
+  // implies that |wrappable| is still garbage collection prevented.
+  virtual void PreventGarbageCollection(
+      const scoped_refptr<Wrappable>& wrappable) = 0;
+
+  // Allow this wrappable's associated JavaScript wrapper object to be garbage
+  // collected.
+  virtual void AllowGarbageCollection(Wrappable* wrappable) = 0;
+
   virtual ~GlobalEnvironment() {}
   friend class base::RefCounted<GlobalEnvironment>;
 };

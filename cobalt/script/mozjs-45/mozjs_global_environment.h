@@ -80,8 +80,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) override;
 
-  void AllowGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) override;
+  void AllowGarbageCollection(Wrappable* wrappable) override;
 
   void AddRoot(Traceable* traceable) override;
 
@@ -180,6 +179,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
                               const char* filename);
 
   base::ThreadChecker thread_checker_;
+  // Flag indicating when the destructor is called.
+  bool destructing_ = false;
   JSContext* context_;
   int garbage_collection_count_;
   WeakHeapObjectManager weak_object_manager_;

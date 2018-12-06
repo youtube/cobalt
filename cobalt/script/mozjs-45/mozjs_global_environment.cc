@@ -179,6 +179,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
 MozjsGlobalEnvironment::~MozjsGlobalEnvironment() {
   DCHECK(thread_checker_.CalledOnValidThread());
   JS_RemoveExtraGCRootsTracer(JS_GetRuntime(context_), TraceFunction, this);
+  destructing_ = true;
 }
 
 void MozjsGlobalEnvironment::CreateGlobalObject() {
@@ -348,12 +349,14 @@ void MozjsGlobalEnvironment::PreventGarbageCollection(
   }
 }
 
-void MozjsGlobalEnvironment::AllowGarbageCollection(
-    const scoped_refptr<Wrappable>& wrappable) {
+void MozjsGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  auto it = kept_alive_objects_.find(wrappable.get());
+  // AllowGarbageCollection is unnecessary when the environment is destroyed.
+  if (destructing_) return;
+
+  auto it = kept_alive_objects_.find(wrappable);
   DCHECK(it != kept_alive_objects_.end());
   it->second.count--;
   DCHECK_GE(it->second.count, 0);
