@@ -95,6 +95,7 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script",
                "V8cGlobalEnvironment::~V8cGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
+  destructing_ = true;
 }
 
 void V8cGlobalEnvironment::CreateGlobalObject() {
@@ -223,10 +224,12 @@ void V8cGlobalEnvironment::PreventGarbageCollection(
   WrapperPrivate::GetFromWrapperObject(wrapper)->IncrementRefCount();
 }
 
-void V8cGlobalEnvironment::AllowGarbageCollection(
-    const scoped_refptr<Wrappable>& wrappable) {
+void V8cGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // AllowGarbageCollection is unnecessary when the environment is destroyed.
+  if (destructing_) return;
 
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(wrappable);

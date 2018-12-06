@@ -37,8 +37,7 @@ HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
     : HTMLElement(base::polymorphic_downcast<DOMSettings*>(env_settings)
                       ->window()
                       ->document(),
-                  base::Token(kTagName)),
-      prevent_garbage_collection_count_(0) {}
+                  base::Token(kTagName)) {}
 
 void HTMLImageElement::OnSetAttribute(const std::string& name,
                                       const std::string& /* value */) {
@@ -78,7 +77,7 @@ void HTMLImageElement::UpdateImageData() {
   // 3. Forget the img element's current image data, if any.
   if (cached_image_loaded_callback_handler_) {
     cached_image_loaded_callback_handler_.reset();
-    AllowGarbageCollection();
+    prevent_gc_until_load_complete_.reset();
     node_document()->DecreaseLoadingCounter();
   }
 
@@ -140,7 +139,11 @@ void HTMLImageElement::UpdateImageData() {
   // 14. If the download was successful, fire a simple event named load at the
   // img element. Otherwise, queue a task to first fire a simple event named
   // error at the img element.
-  PreventGarbageCollection();
+  DCHECK(!prevent_gc_until_load_complete_);
+  prevent_gc_until_load_complete_.reset(
+      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+          html_element_context()->script_runner()->GetGlobalEnvironment(),
+          this));
   node_document()->IncreaseLoadingCounter();
   cached_image_loaded_callback_handler_.reset(
       new loader::image::CachedImage::OnLoadedCallbackHandler(
@@ -152,7 +155,8 @@ void HTMLImageElement::UpdateImageData() {
 
 void HTMLImageElement::OnLoadingSuccess() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingSuccess()");
-  AllowGarbageCollectionAfterEventIsDispatched(base::Tokens::load());
+  AllowGarbageCollectionAfterEventIsDispatched(
+      base::Tokens::load(), &prevent_gc_until_load_complete_);
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
@@ -161,7 +165,8 @@ void HTMLImageElement::OnLoadingSuccess() {
 
 void HTMLImageElement::OnLoadingError() {
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::OnLoadingError()");
-  AllowGarbageCollectionAfterEventIsDispatched(base::Tokens::error());
+  AllowGarbageCollectionAfterEventIsDispatched(
+      base::Tokens::error(), &prevent_gc_until_load_complete_);
   if (node_document()) {
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
@@ -170,42 +175,29 @@ void HTMLImageElement::OnLoadingError() {
 
 void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
     base::Token event_name) {
-  PreventGarbageCollection();
-  AllowGarbageCollectionAfterEventIsDispatched(event_name);
+  DCHECK(!prevent_gc_until_event_dispatch_);
+  prevent_gc_until_event_dispatch_.reset(
+      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+          html_element_context()->script_runner()->GetGlobalEnvironment(),
+          this));
+  AllowGarbageCollectionAfterEventIsDispatched(
+      event_name, &prevent_gc_until_event_dispatch_);
 }
 
 void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
-    base::Token event_name) {
+    base::Token event_name,
+    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+        scoped_prevent_gc) {
   PostToDispatchEventAndRunCallback(
       FROM_HERE, event_name,
-      base::Bind(&HTMLImageElement::AllowGarbageCollection,
-                 base::AsWeakPtr<HTMLImageElement>(this)));
+      base::Bind(&HTMLImageElement::DestroyScopedPreventGC,
+                 base::AsWeakPtr<HTMLImageElement>(this), scoped_prevent_gc));
 }
 
-void HTMLImageElement::PreventGarbageCollection() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK_GE(prevent_garbage_collection_count_, 0);
-  if (prevent_garbage_collection_count_++ == 0) {
-    DCHECK(html_element_context()->script_runner());
-    DCHECK(html_element_context()->script_runner()->GetGlobalEnvironment());
-    html_element_context()
-        ->script_runner()
-        ->GetGlobalEnvironment()
-        ->PreventGarbageCollection(make_scoped_refptr(this));
-  }
-}
-
-void HTMLImageElement::AllowGarbageCollection() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK_GT(prevent_garbage_collection_count_, 0);
-  if (--prevent_garbage_collection_count_ == 0) {
-    DCHECK(html_element_context()->script_runner());
-    DCHECK(html_element_context()->script_runner()->GetGlobalEnvironment());
-    html_element_context()
-        ->script_runner()
-        ->GetGlobalEnvironment()
-        ->AllowGarbageCollection(make_scoped_refptr(this));
-  }
+void HTMLImageElement::DestroyScopedPreventGC(
+    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+        scoped_prevent_gc) {
+  scoped_prevent_gc->reset();
 }
 
 }  // namespace dom
