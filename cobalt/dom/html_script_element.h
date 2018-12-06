@@ -25,6 +25,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader.h"
+#include "cobalt/script/global_environment.h"
 
 namespace cobalt {
 namespace dom {
@@ -108,9 +109,14 @@ class HTMLScriptElement : public HTMLElement {
                const base::SourceLocation& script_location, bool is_external);
 
   void PreventGarbageCollectionAndPostToDispatchEvent(
-      const tracked_objects::Location& location, const base::Token& token);
-  void PreventGarbageCollection();
-  void AllowGarbageCollection();
+      const tracked_objects::Location& location, const base::Token& token,
+      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+          scoped_prevent_gc);
+  void AllowGCAfterEventDispatch(
+      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+          scoped_prevent_gc);
+  void PreventGCUntilLoadComplete();
+  void AllowGCAfterLoadComplete();
   void ReleaseLoader();
 
   // Whether the script has been started.
@@ -137,8 +143,6 @@ class HTMLScriptElement : public HTMLElement {
   GURL url_;
   // Content of the script. Released after Execute is called.
   scoped_ptr<std::string> content_;
-  // Active requests disabling garbage collection.
-  int prevent_garbage_collection_count_;
 
   // Whether or not the script should execute at all.
   bool should_execute_;
@@ -152,6 +156,18 @@ class HTMLScriptElement : public HTMLElement {
   loader::Origin fetched_last_url_origin_;
 
   base::WaitableEvent* synchronous_loader_interrupt_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_load_event_dispatch_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_ready_event_dispatch_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_error_event_dispatch_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_load_complete_;
 };
 
 }  // namespace dom

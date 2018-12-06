@@ -56,20 +56,20 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
 
   // Keep this instance alive using PreventGarbageCollection
   ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
-  global_environment_->PreventGarbageCollection(
-      make_scoped_refptr<script::Wrappable>(
-          GarbageCollectionTestInterface::instances()[0]));
-  // Remove the only reference to this object from JavaScript.
-  EXPECT_TRUE(EvaluateScript("var obj = undefined;", NULL));
+  {
+    script::GlobalEnvironment::ScopedPreventGarbageCollection
+        scoped_prevent_garbage_collection(
+            global_environment_,
+            GarbageCollectionTestInterface::instances()[0]);
+    // Remove the only reference to this object from JavaScript.
+    EXPECT_TRUE(EvaluateScript("var obj = undefined;", NULL));
 
-  // Ensure that the object is kept alive.
-  CollectGarbage();
-  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+    // Ensure that the object is kept alive.
+    CollectGarbage();
+    ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
 
-  // Allow this object to be garbage collected once more.
-  global_environment_->AllowGarbageCollection(
-      make_scoped_refptr<script::Wrappable>(
-          GarbageCollectionTestInterface::instances()[0]));
+    // Allow this object to be garbage collected once more.
+  }
 
   // Ensure that the object is destroyed by garbage collection.
   CollectGarbage();

@@ -70,7 +70,6 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       load_option_(0),
       inline_script_location_(GetSourceLocationName(), 1, 1),
       is_sync_load_successful_(false),
-      prevent_garbage_collection_count_(0),
       should_execute_(true),
       synchronous_loader_interrupt_(
           document->html_element_context()->synchronous_loader_interrupt()) {
@@ -214,8 +213,9 @@ void HTMLScriptElement::Prepare() {
   if (HasAttribute("src") && src() == "") {
     LOG(WARNING) << "src attribute of script element is empty.";
 
-    PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
-                                                   base::Tokens::error());
+    PreventGarbageCollectionAndPostToDispatchEvent(
+        FROM_HERE, base::Tokens::error(),
+        &prevent_gc_until_error_event_dispatch_);
     return;
   }
 
@@ -227,8 +227,9 @@ void HTMLScriptElement::Prepare() {
   if (!url_.is_valid()) {
     LOG(WARNING) << src() << " cannot be resolved based on " << base_url << ".";
 
-    PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
-                                                   base::Tokens::error());
+    PreventGarbageCollectionAndPostToDispatchEvent(
+        FROM_HERE, base::Tokens::error(),
+        &prevent_gc_until_error_event_dispatch_);
     return;
   }
 
@@ -315,9 +316,11 @@ void HTMLScriptElement::Prepare() {
                      base::Unretained(this)));
 
       if (is_sync_load_successful_) {
-        PreventGarbageCollection();
+        script::GlobalEnvironment::ScopedPreventGarbageCollection
+            scoped_prevent_gc(
+                html_element_context()->script_runner()->GetGlobalEnvironment(),
+                this);
         ExecuteExternal();
-        AllowGarbageCollection();
         // Release the content string now that we're finished with it.
         content_.reset();
       } else {
@@ -329,7 +332,7 @@ void HTMLScriptElement::Prepare() {
     case 4: {
       // This is an asynchronous script. Prevent garbage collection until
       // loading completes and the script potentially executes.
-      PreventGarbageCollection();
+      PreventGCUntilLoadComplete();
 
       // If the element has a src attribute, does not have an async attribute,
       // and does not have the "force-async" flag set.
@@ -363,7 +366,7 @@ void HTMLScriptElement::Prepare() {
     case 5: {
       // This is an asynchronous script. Prevent garbage collection until
       // loading completes and the script potentially executes.
-      PreventGarbageCollection();
+      PreventGCUntilLoadComplete();
 
       // If the element has a src attribute.
 
@@ -405,8 +408,9 @@ void HTMLScriptElement::Prepare() {
         fetched_last_url_origin_ = document_->location()->GetOriginAsObject();
         ExecuteInternal();
       } else {
-        PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
-                                                       base::Tokens::error());
+        PreventGarbageCollectionAndPostToDispatchEvent(
+            FROM_HERE, base::Tokens::error(),
+            &prevent_gc_until_error_event_dispatch_);
       }
     } break;
     default: { NOTREACHED(); }
@@ -435,7 +439,7 @@ void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
   DCHECK(content);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
   if (!document_) {
-    AllowGarbageCollection();
+    AllowGCAfterLoadComplete();
     return;
   }
 
@@ -472,7 +476,7 @@ void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
         // If this script isn't the current object, then allow it to be garbage
         // collected now that it has executed.
         if (script != this) {
-          script->AllowGarbageCollection();
+          script->AllowGCAfterLoadComplete();
         }
         MSVC_POP_WARNING();
 
@@ -497,7 +501,7 @@ void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
       }
       // Allow garbage collection on the current script object now that it has
       // finished executing both itself and other pending scripts.
-      AllowGarbageCollection();
+      AllowGCAfterLoadComplete();
     } break;
     case 5: {
       // If the element has a src attribute.
@@ -510,7 +514,7 @@ void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
 
       // Allow garbage collection on the current object now that it has finished
       // executing.
-      AllowGarbageCollection();
+      AllowGCAfterLoadComplete();
 
       // Fetching an external script must delay the load event of the element's
       // document until the task that is queued by the networking task source
@@ -535,7 +539,7 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");
 
   if (!document_) {
-    AllowGarbageCollection();
+    AllowGCAfterLoadComplete();
     return;
   }
 
@@ -543,9 +547,8 @@ void HTMLScriptElement::OnLoadingError(const std::string& error) {
 
   // Executing the script block must just consist of firing a simple event
   // named error at the element.
-  DCHECK_GT(prevent_garbage_collection_count_, 0);
   DispatchEvent(new Event(base::Tokens::error()));
-  AllowGarbageCollection();
+  AllowGCAfterLoadComplete();
 
   switch (load_option_) {
     case 4: {
@@ -628,14 +631,15 @@ void HTMLScriptElement::Execute(const std::string& content,
   // named load at the script element.
   // TODO: Remove the firing of readystatechange once we support Promise.
   if (is_external) {
-    DCHECK_GT(prevent_garbage_collection_count_, 0);
     DispatchEvent(new Event(base::Tokens::load()));
     DispatchEvent(new Event(base::Tokens::readystatechange()));
   } else {
-    PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
-                                                   base::Tokens::load());
     PreventGarbageCollectionAndPostToDispatchEvent(
-        FROM_HERE, base::Tokens::readystatechange());
+        FROM_HERE, base::Tokens::load(),
+        &prevent_gc_until_load_event_dispatch_);
+    PreventGarbageCollectionAndPostToDispatchEvent(
+        FROM_HERE, base::Tokens::readystatechange(),
+        &prevent_gc_until_ready_event_dispatch_);
   }
 
   // The script is done running. Stop tracking it in the global stats.
@@ -646,39 +650,38 @@ void HTMLScriptElement::Execute(const std::string& content,
 }
 
 void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
-    const tracked_objects::Location& location, const base::Token& token) {
+    const tracked_objects::Location& location, const base::Token& token,
+    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+        scoped_prevent_gc) {
   // Ensure that this HTMLScriptElement is not garbage collected until the event
   // has been processed.
-  PreventGarbageCollection();
+  DCHECK(!(*scoped_prevent_gc));
+  scoped_prevent_gc->reset(
+      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+          html_element_context()->script_runner()->GetGlobalEnvironment(),
+          this));
   PostToDispatchEventAndRunCallback(
       location, token,
-      base::Bind(&HTMLScriptElement::AllowGarbageCollection, this));
+      base::Bind(&HTMLScriptElement::AllowGCAfterEventDispatch, this,
+                 scoped_prevent_gc));
 }
 
-void HTMLScriptElement::PreventGarbageCollection() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK_GE(prevent_garbage_collection_count_, 0);
-  if (prevent_garbage_collection_count_++ == 0) {
-    DCHECK(html_element_context()->script_runner());
-    DCHECK(html_element_context()->script_runner()->GetGlobalEnvironment());
-    html_element_context()
-        ->script_runner()
-        ->GetGlobalEnvironment()
-        ->PreventGarbageCollection(make_scoped_refptr(this));
-  }
+void HTMLScriptElement::AllowGCAfterEventDispatch(
+    scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+        scoped_prevent_gc) {
+  scoped_prevent_gc->reset();
 }
 
-void HTMLScriptElement::AllowGarbageCollection() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK_GT(prevent_garbage_collection_count_, 0);
-  if (--prevent_garbage_collection_count_ == 0) {
-    DCHECK(html_element_context()->script_runner());
-    DCHECK(html_element_context()->script_runner()->GetGlobalEnvironment());
-    html_element_context()
-        ->script_runner()
-        ->GetGlobalEnvironment()
-        ->AllowGarbageCollection(make_scoped_refptr(this));
-  }
+void HTMLScriptElement::PreventGCUntilLoadComplete() {
+  DCHECK(!prevent_gc_until_load_complete_);
+  prevent_gc_until_load_complete_.reset(
+      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+          html_element_context()->script_runner()->GetGlobalEnvironment(),
+          this));
+}
+
+void HTMLScriptElement::AllowGCAfterLoadComplete() {
+  prevent_gc_until_load_complete_.reset();
 }
 
 void HTMLScriptElement::ReleaseLoader() {

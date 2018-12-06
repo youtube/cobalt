@@ -30,6 +30,7 @@
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
 #include "cobalt/script/typed_arrays.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xhr_response_data.h"
@@ -216,17 +217,13 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   void UpdateProgress();
 
-  // Prevent this object from being destroyed while there are active requests
-  // in flight.
-  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
-  void PreventGarbageCollection();
-  void AllowGarbageCollection();
   void StartRequest(const std::string& request_body);
 
   // The following two methods are used to determine if garbage collection is
   // needed. It is legal to reuse XHR and send a new request in last request's
   // onload event listener. We should not allow garbage collection until
   // the last request is fetched.
+  // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#garbage-collection
   void IncrementActiveRequests();
   void DecrementActiveRequests();
 
@@ -298,6 +295,9 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   int xhr_id_;
 
   bool has_xml_decoder_error_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_send_complete_;
 
   // A corspreflight instance for potentially sending preflight
   // request and perfoming cors check for all cross origin requests.
