@@ -117,8 +117,6 @@ class ApplicationAndroid
 
   bool last_is_accessibility_high_contrast_text_enabled_;
 
-  jobject j_keyboard_editor_;
-
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
   void ProcessAndroidInput();
