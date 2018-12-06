@@ -106,11 +106,6 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   keyboard_inject_writefd_ = pipefd[1];
   ALooper_addFd(looper_, keyboard_inject_readfd_, kLooperIdKeyboardInject,
                 ALOOPER_EVENT_INPUT, NULL, NULL);
-
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
-      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
-  j_keyboard_editor_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
@@ -394,20 +389,32 @@ Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+
 void ApplicationAndroid::SbWindowShowOnScreenKeyboard(SbWindow window,
                                                       const char* input_text,
                                                       int ticket) {
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_keyboard_editor_, "showKeyboard", "()V");
+  jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  env->CallVoidMethodOrAbort(j_keyboard_editor, "showKeyboard", "()V");
+  // TODO: Fire kSbEventTypeWindowSizeChange and
+  // kSbEventTypeOnScreenKeyboardShown if necessary.
   return;
 }
 
 void ApplicationAndroid::SbWindowHideOnScreenKeyboard(SbWindow window,
                                                       int ticket) {
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_keyboard_editor_, "hideKeyboard", "()V");
+  jobject j_keyboard_editor = env->CallStarboardObjectMethodOrAbort(
+      "getKeyboardEditor", "()Ldev/cobalt/coat/KeyboardEditor;");
+  env->CallVoidMethodOrAbort(j_keyboard_editor, "hideKeyboard", "()V");
+  // TODO: Fire kSbEventTypeWindowSizeChange and
+  // kSbEventTypeOnScreenKeyboardHidden if necessary.
   return;
 }
+
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 bool ApplicationAndroid::OnSearchRequested() {
   for (int i = 0; i < 2; i++) {
