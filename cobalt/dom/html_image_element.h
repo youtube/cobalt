@@ -21,6 +21,7 @@
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/global_environment.h"
 
 namespace cobalt {
 namespace dom {
@@ -34,8 +35,7 @@ class HTMLImageElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLImageElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)),
-        prevent_garbage_collection_count_(0) {}
+      : HTMLElement(document, base::Token(kTagName)) {}
 
   explicit HTMLImageElement(script::EnvironmentSettings* env_settings);
 
@@ -65,14 +65,22 @@ class HTMLImageElement : public HTMLElement {
   void OnLoadingError();
 
   void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);
-  void AllowGarbageCollectionAfterEventIsDispatched(base::Token event_name);
-  void PreventGarbageCollection();
-  void AllowGarbageCollection();
+  void AllowGarbageCollectionAfterEventIsDispatched(
+      base::Token event_name,
+      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+          scoped_prevent_gc);
+  void DestroyScopedPreventGC(
+      scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
+          scoped_prevent_gc);
 
-  base::ThreadChecker thread_checker_;
   scoped_ptr<loader::image::CachedImage::OnLoadedCallbackHandler>
       cached_image_loaded_callback_handler_;
-  int prevent_garbage_collection_count_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_event_dispatch_;
+
+  scoped_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_load_complete_;
 };
 
 }  // namespace dom
