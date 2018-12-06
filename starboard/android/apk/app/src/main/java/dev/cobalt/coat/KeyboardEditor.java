@@ -14,6 +14,7 @@
 
 package dev.cobalt.coat;
 
+import android.app.Activity;
 import android.content.Context;
 import android.text.Editable;
 import android.text.Selection;
@@ -21,6 +22,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 
 /**
  * The custom editor that receives text and displays it for the on-screen keyboard. It interacts
@@ -60,11 +62,39 @@ public class KeyboardEditor extends View {
 
   /** Show the on-screen keyboard. */
   public void showKeyboard() {
-    // Stub.
+    final Activity activity = (Activity) context;
+    final KeyboardEditor view = this;
+
+    activity.runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            view.setFocusable(true);
+            view.requestFocus();
+
+            InputMethodManager imm =
+                (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.showSoftInput(view, 0);
+          }
+        });
   }
 
   /** Hide the on-screen keyboard. */
   public void hideKeyboard() {
-    // Stub.
+    final Activity activity = (Activity) context;
+    final KeyboardEditor view = this;
+
+    activity.runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            view.setFocusable(true);
+            view.requestFocus();
+
+            InputMethodManager imm =
+                (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+          }
+        });
   }
 }
