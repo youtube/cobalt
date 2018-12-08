@@ -163,8 +163,20 @@ class WinTool(object):
     env = self._GetEnv(arch)
     args = open(rspfile).read()
     dir = dir[0] if dir else None
-    popen = subprocess.Popen(args, shell=True, env=env, cwd=dir)
-    popen.wait()
+
+    popen = subprocess.Popen(args, shell=True, env=env, cwd=dir,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_str, stderr_str = popen.communicate()
+
+    if popen.returncode != 0:
+      msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + str(dir) + '\n' \
+            + 'Error code: ' + str(popen.returncode) + '\n'
+      if stdout_str:
+        msg += 'STDOUT:\n' + str(stdout_str) + '\n'
+      if stderr_str:
+        msg += 'STDERR:\n' + str(stderr_str) + '\n'
+      msg += '\n'
+      sys.stdout.write(msg)
     return popen.returncode
 
 if __name__ == '__main__':
