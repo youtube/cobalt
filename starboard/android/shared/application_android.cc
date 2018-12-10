@@ -414,6 +414,37 @@ void ApplicationAndroid::SbWindowHideOnScreenKeyboard(SbWindow window,
   return;
 }
 
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_KeyboardInputConnection_nativeSendText(
+    JniEnvExt* env,
+    jobject unused_clazz,
+    jstring text) {
+  if (text) {
+    std::string utf_str = env->GetStringStandardUTFOrAbort(text);
+    ApplicationAndroid::Get()->SbWindowSendInputEvent(utf_str.c_str());
+  }
+}
+
+void DeleteSbInputDataWithText(void* ptr) {
+  SbInputData* data = static_cast<SbInputData*>(ptr);
+  const char* input_text = data->input_text;
+  data->input_text = NULL;
+  delete input_text;
+  ApplicationAndroid::DeleteDestructor<SbInputData>(ptr);
+}
+
+void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text) {
+  char* text = SbStringDuplicate(input_text);
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+  data->window = window_;
+  data->type = kSbInputEventTypeInput;
+  data->device_type = kSbInputDeviceTypeOnScreenKeyboard;
+  data->input_text = text;
+  Inject(new Event(kSbEventTypeInput, data, &DeleteSbInputDataWithText));
+  return;
+}
+
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 bool ApplicationAndroid::OnSearchRequested() {
