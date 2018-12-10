@@ -38,10 +38,8 @@
     'v8_os_page_size%': 0,
 
     'v8_use_snapshot': '<(cobalt_v8_buildtime_snapshot)',
-    'v8_content_subdir': 'v8',
-    'startup_data_dir': '<(sb_static_contents_output_data_dir)/<(v8_content_subdir)',
     'v8_optimized_debug': 0,
-    'v8_use_external_startup_data': 1,
+    'v8_use_external_startup_data': 0,
     # TODO: Enable i18n support.
     'v8_enable_i18n_support': 0,
   },
@@ -531,12 +529,12 @@
                       ],
                     }, {
                       'outputs': [
-                        '<(startup_data_dir)/snapshot_blob.bin',
+                        '<(PRODUCT_DIR)/snapshot_blob.bin',
                       ],
                       'action': [
                         '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
-                        '--startup_blob', '<(startup_data_dir)/snapshot_blob.bin',
+                        '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
                         '<(embed_script)',
                         '<(warmup_script)',
                       ],
@@ -544,12 +542,12 @@
                   ],
                 }, {
                   'outputs': [
-                    '<(startup_data_dir)/snapshot_blob.bin',
+                    '<(PRODUCT_DIR)/snapshot_blob.bin',
                   ],
                   'action': [
                     '<(mksnapshot_exec)',
                     '<@(mksnapshot_flags)',
-                    '--startup_blob', '<(startup_data_dir)/snapshot_blob.bin',
+                    '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
                     '<(embed_script)',
                     '<(warmup_script)',
                   ],
@@ -559,11 +557,6 @@
           ],
         }],
       ],
-      'all_dependent_settings': {
-        'variables': {
-          'content_deploy_subdirs': [ '<(v8_content_subdir)' ]
-        }
-      },
     },
     {
       'target_name': 'v8_base',
@@ -2433,19 +2426,19 @@
                     ],
                   }, {
                     'outputs': [
-                      '<(startup_data_dir)/natives_blob.bin',
+                      '<(PRODUCT_DIR)/natives_blob.bin',
                     ],
                     'action': [
-                      'python', '<@(_inputs)', '<(startup_data_dir)/natives_blob.bin'
+                      'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
                     ],
                   }],
                 ],
               }, {
                 'outputs': [
-                  '<(startup_data_dir)/natives_blob.bin',
+                  '<(PRODUCT_DIR)/natives_blob.bin',
                 ],
                 'action': [
-                  'python', '<@(_inputs)', '<(startup_data_dir)/natives_blob.bin'
+                  'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
                 ],
               }],
             ],
