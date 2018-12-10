@@ -97,4 +97,11 @@ public class KeyboardEditor extends View {
           }
         });
   }
+
+  /** Send the current state of the editable to the Input Method Manager. */
+  public void updateSelection(View view, int selStart, int selEnd, int compStart, int compEnd) {
+    InputMethodManager imm =
+        (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+    imm.updateSelection(view, selStart, selEnd, compStart, compEnd);
+  }
 }
