@@ -78,6 +78,7 @@ class ApplicationAndroid
                                     const char* input_text,
                                     int ticket);
   void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket);
+  void SbWindowSendInputEvent(const char* input_text);
 
  protected:
   // --- Application overrides ---
