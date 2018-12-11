@@ -602,6 +602,7 @@ class ResourceCache {
   base::CVal<int, base::CValPublic> count_resources_requested_;
   base::CVal<int, base::CValPublic> count_resources_loading_;
   base::CVal<int, base::CValPublic> count_resources_loaded_;
+  base::CVal<int, base::CValPublic> count_resources_cached_;
   base::CVal<int, base::CValPublic> count_pending_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
@@ -644,6 +645,9 @@ ResourceCache<CacheType>::ResourceCache(
       count_resources_loaded_(
           base::StringPrintf("Count.%s.Resource.Loaded", name_.c_str()), 0,
           "The total number of resources that have been successfully loaded."),
+      count_resources_cached_(
+          base::StringPrintf("Count.%s.Resource.Cached", name_.c_str()), 0,
+          "The number of resources that are currently in the cache."),
       count_pending_callbacks_(
           base::StringPrintf("Count.%s.PendingCallbacks", name_.c_str()), 0,
           "The number of loading completed resources that have pending "
@@ -788,6 +792,7 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
     memory_resources_loaded_in_bytes_ += estimated_size_in_bytes;
 
     ++count_resources_loaded_;
+    ++count_resources_cached_;
   }
 
   // Remove the resource from its loading set. It should exist in exactly one
@@ -912,6 +917,7 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
     unreference_cached_resource_map_.erase(
         unreference_cached_resource_map_.begin());
     memory_size_in_bytes_ -= first_resource_size;
+    --count_resources_cached_;
   }
 
   if (log_warning_if_over) {
