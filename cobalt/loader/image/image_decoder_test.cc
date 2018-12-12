@@ -135,64 +135,81 @@ std::vector<uint8> GetImageData(const FilePath& file_path) {
 }
 
 // Check if pixels are the same as |test_color|.
-bool CheckSameColor(const uint8* pixels, int width, int height,
-                    uint32 test_color) {
+::testing::AssertionResult CheckSameColor(const uint8* pixels, int width,
+                                          int height, uint32 test_color) {
   // Iterate through each pixel testing that the value is the expected value.
   for (int index = 0; index < width * height; ++index) {
     uint32 current_color = static_cast<uint32>(
         (pixels[0] << 24) | (pixels[1] << 16) | (pixels[2] << 8) | pixels[3]);
     pixels += 4;
     if (current_color != test_color) {
-      return false;
+      return ::testing::AssertionFailure()
+             << "'current_color' should be " << test_color << " but is "
+             << current_color;
     }
   }
-  return true;
+  return ::testing::AssertionSuccess();
 }
 
 // Check if color component in the plane are the same as |test_value|.
-bool CheckSameValue(const uint8* pixels, int width, int height,
-                    int pitch_in_bytes, uint8 test_value) {
+::testing::AssertionResult CheckSameValue(const uint8* pixels, int width,
+                                          int height, int pitch_in_bytes,
+                                          uint8 test_value) {
   while (height > 0) {
     for (int i = 0; i < width; ++i) {
       if (pixels[i] != test_value) {
-        return false;
+        return ::testing::AssertionFailure()
+               << "'pixels[" << i << "]' should be "
+               << static_cast<int>(test_value) << " but is "
+               << static_cast<int>(pixels[i]);
       }
     }
     pixels += pitch_in_bytes;
     --height;
   }
-  return true;
+  return ::testing::AssertionSuccess();
 }
 
 // Check if all pixels in an image are the same as |test_color| if it is single
 // plane image, or if it is the same as the y/u/v colors if it is multi plane
 // image.  Note that in the multi plane case, the function only supports
 // kMultiPlaneImageFormatYUV3PlaneBT601FullRange for now..
-bool CheckUniformColoredImage(render_tree::ImageStub* image_data,
-                              uint32 test_color, uint8 y_color, uint8 u_color,
-                              uint8 v_color) {
+::testing::AssertionResult CheckUniformColoredImage(
+    render_tree::ImageStub* image_data, uint32 test_color, uint8 y_color,
+    uint8 u_color, uint8 v_color) {
   if (image_data->is_multi_plane_image()) {
     auto raw_image_memory = image_data->GetRawImageMemory()->GetMemory();
     auto descriptor = image_data->multi_plane_descriptor();
 
     if (descriptor.image_format() !=
         render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange) {
-      return false;
+      return ::testing::AssertionFailure()
+             << "'image_format()' should be "
+             << render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange
+             << " but is " << descriptor.image_format();
     }
     if (descriptor.num_planes() != 3) {
-      return false;
+      return ::testing::AssertionFailure()
+             << "'num_planes()' should be 3 but is "
+             << descriptor.image_format();
     }
-    return CheckSameValue(raw_image_memory + descriptor.GetPlaneOffset(0),
-                          descriptor.GetPlaneDescriptor(0).size.width(),
-                          descriptor.GetPlaneDescriptor(0).size.height(),
-                          descriptor.GetPlaneDescriptor(0).pitch_in_bytes,
-                          y_color) &&
-           CheckSameValue(raw_image_memory + descriptor.GetPlaneOffset(1),
-                          descriptor.GetPlaneDescriptor(1).size.width(),
-                          descriptor.GetPlaneDescriptor(1).size.height(),
-                          descriptor.GetPlaneDescriptor(1).pitch_in_bytes,
-                          u_color) &&
-           CheckSameValue(raw_image_memory + descriptor.GetPlaneOffset(2),
+    auto result = CheckSameValue(
+        raw_image_memory + descriptor.GetPlaneOffset(0),
+        descriptor.GetPlaneDescriptor(0).size.width(),
+        descriptor.GetPlaneDescriptor(0).size.height(),
+        descriptor.GetPlaneDescriptor(0).pitch_in_bytes, y_color);
+    if (!result) {
+      return result;
+    }
+    result = CheckSameValue(raw_image_memory + descriptor.GetPlaneOffset(1),
+                            descriptor.GetPlaneDescriptor(1).size.width(),
+                            descriptor.GetPlaneDescriptor(1).size.height(),
+                            descriptor.GetPlaneDescriptor(1).pitch_in_bytes,
+                            u_color);
+    if (!result) {
+      return result;
+    }
+    return CheckSameValue(raw_image_memory + descriptor.GetPlaneOffset(2),
                           descriptor.GetPlaneDescriptor(2).size.width(),
                           descriptor.GetPlaneDescriptor(2).size.height(),
                           descriptor.GetPlaneDescriptor(2).pitch_in_bytes,
@@ -517,14 +534,6 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
                             image_data.size());
   image_decoder.Finish();
 
-  // All pixels in the JPEG image should have RGBA values of (128, 88, 0, 255).
-  uint8 r = 128;
-  uint8 g = 88;
-  uint8 b = 0;
-  uint8 a = 255;
-  uint32 expected_color =
-      static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
-
   StaticImage* static_image =
       base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
   ASSERT_TRUE(static_image);
@@ -532,13 +541,12 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
       base::polymorphic_downcast<render_tree::ImageStub*>(
           static_image->image().get());
 
-  ASSERT_TRUE(!data->is_multi_plane_image());
-
-  math::Size size = data->GetSize();
-  uint8* pixels = data->GetImageData()->GetMemory();
-
-  EXPECT_TRUE(
-      CheckSameColor(pixels, size.width(), size.height(), expected_color));
+  // All pixels in the JPEG image should have RGBA values of (128, 88, 0, 255),
+  // or YUV values of (90, 77, 155).
+  uint8 r = 128, g = 88, b = 0, a = 255;
+  uint32 expected_color =
+      static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
+  EXPECT_TRUE(CheckUniformColoredImage(data, expected_color, 90, 77, 155));
 }
 
 // Test that we can properly decode the JPEG image with multiple chunks.
@@ -555,14 +563,6 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
                             image_data.size() - 300);
   image_decoder.Finish();
 
-  // All pixels in the JPEG image should have RGBA values of (128, 88, 0, 255).
-  uint8 r = 128;
-  uint8 g = 88;
-  uint8 b = 0;
-  uint8 a = 255;
-  uint32 expected_color =
-      static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
-
   StaticImage* static_image =
       base::polymorphic_downcast<StaticImage*>(image_decoder.image().get());
   ASSERT_TRUE(static_image);
@@ -570,13 +570,12 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
       base::polymorphic_downcast<render_tree::ImageStub*>(
           static_image->image().get());
 
-  ASSERT_TRUE(!data->is_multi_plane_image());
-
-  math::Size size = data->GetSize();
-  uint8* pixels = data->GetImageData()->GetMemory();
-
-  EXPECT_TRUE(
-      CheckSameColor(pixels, size.width(), size.height(), expected_color));
+  // All pixels in the JPEG image should have RGBA values of (128, 88, 0, 255),
+  // or YUV values of (90, 77, 155).
+  uint8 r = 128, g = 88, b = 0, a = 255;
+  uint32 expected_color =
+      static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
+  EXPECT_TRUE(CheckUniformColoredImage(data, expected_color, 90, 77, 155));
 }
 
 // Test that we can properly decode the progressive JPEG image.
@@ -598,11 +597,11 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
           static_image->image().get());
 
   // All pixels in the JPEG image should have RGBA values of (64, 32, 17, 255),
-  // or YUV values of (44, 115, 145).
+  // or YUV values of (40, 115, 145).
   uint8 r = 64, g = 32, b = 17, a = 255;
   uint32 expected_rgba =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
-  CheckUniformColoredImage(data, expected_rgba, 44, 115, 145);
+  EXPECT_TRUE(CheckUniformColoredImage(data, expected_rgba, 40, 115, 145));
 }
 
 // Test that we can properly decode the progressive JPEG with multiple chunks.
@@ -627,11 +626,11 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
           static_image->image().get());
 
   // All pixels in the JPEG image should have RGBA values of (64, 32, 17, 255),
-  // or YUV values of (44, 115, 145).
+  // or YUV values of (40, 115, 145).
   uint8 r = 64, g = 32, b = 17, a = 255;
   uint32 expected_rgba =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
-  CheckUniformColoredImage(data, expected_rgba, 44, 115, 145);
+  EXPECT_TRUE(CheckUniformColoredImage(data, expected_rgba, 40, 115, 145));
 }
 
 // Test that we can properly decode the progressive JPEG image while forcing the
@@ -662,7 +661,7 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImageToSinglePlane) {
   uint8 r = 64, g = 32, b = 17, a = 255;
   uint32 expected_rgba =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
-  CheckUniformColoredImage(data, expected_rgba, 44, 115, 145);
+  EXPECT_TRUE(CheckUniformColoredImage(data, expected_rgba, 44, 115, 145));
 }
 
 // Test that we can properly decode the progressive JPEG with multiple chunks
@@ -698,7 +697,7 @@ TEST(ImageDecoderTest,
   uint8 r = 64, g = 32, b = 17, a = 255;
   uint32 expected_rgba =
       static_cast<uint32>((r << 24) | (g << 16) | (b << 8) | a);
-  CheckUniformColoredImage(data, expected_rgba, 44, 115, 145);
+  EXPECT_TRUE(CheckUniformColoredImage(data, expected_rgba, 44, 115, 145));
 }
 
 // Test that we can properly decode the WEBP image.
