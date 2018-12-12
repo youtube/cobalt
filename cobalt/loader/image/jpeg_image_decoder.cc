@@ -34,33 +34,47 @@ JDIMENSION AlignUp(JDIMENSION value, JDIMENSION alignment) {
   return (value + alignment - 1) / alignment * alignment;
 }
 
-bool CanDecodeIntoJ420(const jpeg_decompress_struct& decompress_info) {
+bool CanDecodeIntoYUV(const jpeg_decompress_struct& decompress_info) {
   auto comp_infos = decompress_info.cur_comp_info;
+
   // Only images encoded to YCbCr in three planes are supported.
   if (decompress_info.jpeg_color_space != JCS_YCbCr ||
       decompress_info.comps_in_scan != 3) {
     return false;
   }
-  // Our renderer may shift the U/V pixels for images in odd dimensions.
-  if (decompress_info.image_width % 2 != 0 ||
-      decompress_info.image_height % 2 != 0) {
+
+  // Ensure that it is either YUV 420 or YUV 444.
+  bool is_yuv_420 =
+      comp_infos[0]->h_samp_factor == 2 && comp_infos[0]->v_samp_factor == 2 &&
+      comp_infos[1]->h_samp_factor == 1 && comp_infos[1]->v_samp_factor == 1 &&
+      comp_infos[2]->h_samp_factor == 1 && comp_infos[2]->v_samp_factor == 1 &&
+      decompress_info.max_h_samp_factor == 2 &&
+      decompress_info.max_v_samp_factor == 2;
+  bool is_yuv_444 =
+      comp_infos[0]->h_samp_factor == 1 && comp_infos[0]->v_samp_factor == 1 &&
+      comp_infos[1]->h_samp_factor == 1 && comp_infos[1]->v_samp_factor == 1 &&
+      comp_infos[2]->h_samp_factor == 1 && comp_infos[2]->v_samp_factor == 1 &&
+      decompress_info.max_h_samp_factor == 1 &&
+      decompress_info.max_v_samp_factor == 1;
+  if (!is_yuv_420 && !is_yuv_444) {
     return false;
   }
-  // Ensure that it is YUV 420.
-  if (comp_infos[0]->h_samp_factor != 2 || comp_infos[0]->v_samp_factor != 2 ||
-      comp_infos[1]->h_samp_factor != 1 || comp_infos[1]->v_samp_factor != 1 ||
-      comp_infos[2]->h_samp_factor != 1 || comp_infos[2]->v_samp_factor != 1 ||
-      decompress_info.max_h_samp_factor != 2 ||
-      decompress_info.max_v_samp_factor != 2) {
+
+  // The dimension of the image may not be a multiple of the sample factors,
+  // this can happen when the sample factors are not 1.  In such case the
+  // mapping of the u/v plane won't be even, because the mapping of the last
+  // vertical line on the u/v plane will be different than the other vertical
+  // lines.  Our renderer cannot handle this properly so we return false in this
+  // case.
+  if (decompress_info.image_width % decompress_info.max_h_samp_factor != 0 ||
+      decompress_info.image_height % decompress_info.max_v_samp_factor != 0) {
     return false;
   }
+
   // Ensure that the DCT block size is expected.
-  if (comp_infos[0]->DCT_scaled_size != kDctScaleSize ||
-      comp_infos[1]->DCT_scaled_size != kDctScaleSize ||
-      comp_infos[2]->DCT_scaled_size != kDctScaleSize) {
-    return false;
-  }
-  return true;
+  return comp_infos[0]->DCT_scaled_size == kDctScaleSize &&
+         comp_infos[1]->DCT_scaled_size == kDctScaleSize &&
+         comp_infos[2]->DCT_scaled_size == kDctScaleSize;
 }
 
 void ErrorManagerExit(j_common_ptr common_ptr) {
@@ -230,14 +244,14 @@ scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
     return CreateStaticImage(decoded_image_data_.Pass());
   }
 
-  SB_DCHECK(output_format_ == kOutputFormatJ420);
+  SB_DCHECK(output_format_ == kOutputFormatYUV);
   SB_DCHECK(raw_image_memory_);
 
   render_tree::MultiPlaneImageDataDescriptor descriptor(
       render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange);
 
-  auto uv_plane_width = y_plane_width_ / 2;
-  auto uv_plane_height = y_plane_height_ / 2;
+  auto uv_plane_width = y_plane_width_ / h_sample_factor_;
+  auto uv_plane_height = y_plane_height_ / v_sample_factor_;
   auto y_plane_size = y_plane_width_ * y_plane_height_;
   auto uv_plane_size = uv_plane_width * uv_plane_height;
 
@@ -247,7 +261,8 @@ scoped_refptr<Image> JPEGImageDecoder::FinishInternal() {
              plane_size, render_tree::kPixelFormatY8,
              render_tree::kAlphaFormatPremultiplied, y_plane_width_));
 
-  plane_size.SetSize(plane_size.width() / 2, plane_size.height() / 2);
+  plane_size.SetSize(plane_size.width() / h_sample_factor_,
+                     plane_size.height() / v_sample_factor_);
   descriptor.AddPlane(y_plane_size, render_tree::ImageDataDescriptor(
                                         plane_size, render_tree::kPixelFormatU8,
                                         render_tree::kAlphaFormatPremultiplied,
@@ -274,8 +289,8 @@ bool JPEGImageDecoder::ReadHeader() {
     return false;
   }
 
-  if (allow_image_decoding_to_multi_plane_ && CanDecodeIntoJ420(info_)) {
-    output_format_ = kOutputFormatJ420;
+  if (allow_image_decoding_to_multi_plane_ && CanDecodeIntoYUV(info_)) {
+    output_format_ = kOutputFormatYUV;
   } else if (pixel_format() == render_tree::kPixelFormatRGBA8) {
     output_format_ = kOutputFormatRGBA;
   } else if (pixel_format() == render_tree::kPixelFormatBGRA8) {
@@ -283,12 +298,14 @@ bool JPEGImageDecoder::ReadHeader() {
   } else {
     NOTREACHED() << "Unsupported pixel format: " << pixel_format();
   }
-  if (output_format_ == kOutputFormatJ420) {
+  if (output_format_ == kOutputFormatYUV) {
     info_.out_color_space = JCS_YCbCr;
     // Enable raw data output to avoid any copying.
     info_.raw_data_out = TRUE;
 
     auto y_info = info_.cur_comp_info[0];
+    h_sample_factor_ = y_info->h_samp_factor;
+    v_sample_factor_ = y_info->v_samp_factor;
     y_plane_width_ = AlignUp(y_info->width_in_blocks,
                              static_cast<JDIMENSION>(y_info->h_samp_factor)) *
                      kDctScaleSize;
@@ -299,8 +316,11 @@ bool JPEGImageDecoder::ReadHeader() {
     // Raw read mode requires that the output data is aligned to dct block size.
     auto aligned_size = math::Size(static_cast<int>(y_plane_width_),
                                    static_cast<int>(y_plane_height_));
+    auto y_plane_size_in_bytes = aligned_size.width() * aligned_size.height();
+    auto uv_plane_size_in_bytes =
+        y_plane_size_in_bytes / h_sample_factor_ / v_sample_factor_;
     raw_image_memory_ = resource_provider()->AllocateRawImageMemory(
-        aligned_size.width() * aligned_size.height() * 3 / 2, sizeof(void*));
+        y_plane_size_in_bytes + uv_plane_size_in_bytes * 2, sizeof(void*));
     return raw_image_memory_ != NULL;
   }
   // TODO: switch libjpeg version to support JCS_RGBA_8888 output.
@@ -417,10 +437,10 @@ void FillRow(int width, uint8* dest, JSAMPLE* source) {
   }
 }
 
-bool JPEGImageDecoder::ReadJ420Lines() {
-  DCHECK(output_format_ == kOutputFormatJ420);
+bool JPEGImageDecoder::ReadYUVLines() {
+  DCHECK(output_format_ == kOutputFormatYUV);
   TRACK_MEMORY_SCOPE("Rendering");
-  TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadJ420Lines()");
+  TRACE_EVENT0("cobalt::loader::image", "JPEGImageDecoder::ReadYUVLines()");
 
   while (info_.output_scanline < info_.output_height) {
     JSAMPROW y[kDctScaleSize * 2], u[kDctScaleSize], v[kDctScaleSize];
@@ -428,21 +448,24 @@ bool JPEGImageDecoder::ReadJ420Lines() {
 
     auto offset = info_.output_scanline * y_plane_width_;
     auto y_plane_size = y_plane_width_ * y_plane_height_;
+    auto uv_plane_size = y_plane_size / (h_sample_factor_ * v_sample_factor_);
 
     uint8* y_plane_addr = raw_image_memory_->GetMemory() + offset;
-    uint8* u_plane_addr =
-        raw_image_memory_->GetMemory() + y_plane_size + offset / 4;
+    uint8* u_plane_addr = raw_image_memory_->GetMemory() + y_plane_size +
+                          offset / (h_sample_factor_ * v_sample_factor_);
     uint8* v_plane_addr = raw_image_memory_->GetMemory() + y_plane_size +
-                          y_plane_size / 4 + offset / 4;
-    for (JDIMENSION i = 0; i < kDctScaleSize * 2; ++i) {
+                          uv_plane_size +
+                          offset / (h_sample_factor_ * v_sample_factor_);
+    for (JDIMENSION i = 0; i < kDctScaleSize * v_sample_factor_; ++i) {
       y[i] = y_plane_addr + y_plane_width_ * i;
     }
     for (JDIMENSION i = 0; i < kDctScaleSize; ++i) {
-      u[i] = u_plane_addr + y_plane_width_ / 2 * i;
-      v[i] = v_plane_addr + y_plane_width_ / 2 * i;
+      u[i] = u_plane_addr + y_plane_width_ / h_sample_factor_ * i;
+      v[i] = v_plane_addr + y_plane_width_ / h_sample_factor_ * i;
     }
-    auto size = jpeg_read_raw_data(&info_, planes, kDctScaleSize * 2);
-    if (size != kDctScaleSize * 2) {
+    auto size =
+        jpeg_read_raw_data(&info_, planes, kDctScaleSize * v_sample_factor_);
+    if (size != kDctScaleSize * v_sample_factor_) {
       return false;
     }
   }
@@ -497,7 +520,7 @@ bool JPEGImageDecoder::ReadRgbaOrGbraLines() {
                             sample_buffer);
       } break;
       case kOutputFormatInvalid:
-      case kOutputFormatJ420: {
+      case kOutputFormatYUV: {
         NOTREACHED();
       } break;
     }
@@ -507,8 +530,8 @@ bool JPEGImageDecoder::ReadRgbaOrGbraLines() {
 }
 
 bool JPEGImageDecoder::ReadLines() {
-  return output_format_ == kOutputFormatJ420 ? ReadJ420Lines()
-                                             : ReadRgbaOrGbraLines();
+  return output_format_ == kOutputFormatYUV ? ReadYUVLines()
+                                            : ReadRgbaOrGbraLines();
 }
 
 }  // namespace image

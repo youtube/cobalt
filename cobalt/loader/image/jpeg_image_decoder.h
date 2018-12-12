@@ -35,7 +35,7 @@ namespace image {
 class JPEGImageDecoder : public ImageDataDecoder {
  public:
   // Pass true to |allow_image_decoding_to_multi_plane| to allow the decoder to
-  // produce output in J420  whenever possible, which saves both decoding time
+  // produce output in YUV  whenever possible, which saves both decoding time
   // and memory footprint.  Pass false to it on platforms that cannot render
   // multi plane images efficiently, and the output will always be produced in
   // single plane RGBA or BGRA.
@@ -49,7 +49,7 @@ class JPEGImageDecoder : public ImageDataDecoder {
  private:
   enum OutputFormat {
     kOutputFormatInvalid,
-    kOutputFormatJ420,
+    kOutputFormatYUV,
     kOutputFormatRGBA,
     kOutputFormatBGRA,
   };
@@ -61,7 +61,7 @@ class JPEGImageDecoder : public ImageDataDecoder {
   bool ReadHeader();
   bool StartDecompress();
   bool DecodeProgressiveJPEG();
-  bool ReadJ420Lines();
+  bool ReadYUVLines();
   bool ReadRgbaOrGbraLines();
   bool ReadLines();
 
@@ -78,10 +78,14 @@ class JPEGImageDecoder : public ImageDataDecoder {
   scoped_ptr<render_tree::ImageData> decoded_image_data_;
 
   // All the following variables are only valid when |output_format_| is
-  // kOutputFormatJ420.
+  // kOutputFormatYUV.
   scoped_ptr<render_tree::RawImageMemory> raw_image_memory_;
 
-  // Width/height of y plane, aligned to |kDctScaleSize| * |sample factor|.
+  // Sample factors of y plane, they are 1 for yuv444 or 2 for yuv420 but may
+  // have other value combinations for other yuv formats.
+  int h_sample_factor_ = 0;
+  int v_sample_factor_ = 0;
+  // Width/height of y plane, aligned to |kDctScaleSize| * |y_sample_factor_|.
   JDIMENSION y_plane_width_ = 0;
   JDIMENSION y_plane_height_ = 0;
 };
