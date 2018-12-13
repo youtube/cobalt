@@ -268,7 +268,7 @@ typedef enum SbEventType {
   // SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
   // ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
-#endif  // SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_HAS(CAPTIONS)
