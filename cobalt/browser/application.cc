@@ -45,6 +45,7 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
+#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
 #if defined(COBALT_ENABLE_VERSION_COMPATIBILITY_VALIDATIONS)
@@ -753,6 +754,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+  on_screen_keyboard_suggestions_updated_event_callback_ =
+      base::Bind(&Application::OnOnScreenKeyboardSuggestionsUpdatedEvent,
+                 base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
+      on_screen_keyboard_suggestions_updated_event_callback_);
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
@@ -835,6 +844,11 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(
       base::OnScreenKeyboardBlurredEvent::TypeId(),
       on_screen_keyboard_blurred_event_callback_);
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardSuggestionsUpdatedEvent::TypeId(),
+      on_screen_keyboard_suggestions_updated_event_callback_);
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if SB_HAS(CAPTIONS)
   event_dispatcher_.RemoveEventCallback(
@@ -919,6 +933,12 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+      DispatchEventInternal(new base::OnScreenKeyboardSuggestionsUpdatedEvent(
+          *static_cast<int*>(starboard_event->data)));
+      break;
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeNetworkConnect:
       DispatchEventInternal(
@@ -1047,6 +1067,9 @@ void Application::OnApplicationEvent(SbEventType event_type) {
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeAccessiblitySettingsChanged:
     case kSbEventTypeInput:
@@ -1121,6 +1144,17 @@ void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
           event));
 }
+
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+void Application::OnOnScreenKeyboardSuggestionsUpdatedEvent(
+    const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardSuggestionsUpdatedEvent()");
+  browser_module_->OnOnScreenKeyboardSuggestionsUpdated(
+      base::polymorphic_downcast<
+          const base::OnScreenKeyboardSuggestionsUpdatedEvent*>(event));
+}
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)

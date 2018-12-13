@@ -139,7 +139,11 @@ class WebModule::Impl {
   // Injects an on screen keyboard blurred event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardBlurredEvent(int ticket);
-
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+  // Injects an on screen keyboard suggestions updated event into the web
+  // module. Event is directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket);
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a keyboard event into the web module. Event is directed at a
@@ -854,6 +858,17 @@ void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
   window_->on_screen_keyboard()->DispatchBlurEvent(ticket);
 }
 
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
+    int ticket) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  DCHECK(window_->on_screen_keyboard());
+
+  window_->on_screen_keyboard()->DispatchSuggestionsUpdatedEvent(ticket);
+}
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
@@ -1448,6 +1463,20 @@ void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
                  base::Unretained(impl_.get()), ticket));
 }
 
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
+  TRACE_EVENT1("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent()",
+               "ticket", ticket);
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(
+          &WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent,
+          base::Unretained(impl_.get()), ticket));
+}
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::InjectKeyboardEvent(base::Token type,
