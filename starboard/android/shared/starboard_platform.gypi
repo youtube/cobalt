@@ -194,8 +194,10 @@
         '<(DEPTH)/starboard/android/shared/window_get_on_screen_keyboard_bounding_rect.cc',
         '<(DEPTH)/starboard/android/shared/window_hide_on_screen_keyboard.cc',
         '<(DEPTH)/starboard/android/shared/window_is_on_screen_keyboard_shown.cc',
+        '<(DEPTH)/starboard/android/shared/window_on_screen_keyboard_suggestions_supported.cc',
         '<(DEPTH)/starboard/android/shared/window_set_on_screen_keyboard_keep_focus.cc',
         '<(DEPTH)/starboard/android/shared/window_show_on_screen_keyboard.cc',
+        '<(DEPTH)/starboard/android/shared/window_update_on_screen_keyboard_suggestions.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_map.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_protect.cc',
         '<(DEPTH)/starboard/shared/dlmalloc/memory_unmap.cc',
@@ -459,8 +461,6 @@
         '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
         '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
         '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
-        '<(DEPTH)/starboard/shared/stub/window_on_screen_keyboard_suggestions_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc',
       ],
       'conditions': [
         ['has_input_events_filter=="True"', {
