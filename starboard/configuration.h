@@ -100,6 +100,10 @@
 // system.h.
 #define SB_HAS_STARTUP_URL_SIGNING_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Replace kSbMediaVideoCodecVp10 by kSbMediaVideoCodecAv1.
+// kSbMediaVideoCodecVp10 in media.h is replaced by kSbMediaVideoCodecAv1.
+#define SB_HAS_AV1_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

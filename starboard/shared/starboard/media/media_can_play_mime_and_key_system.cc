@@ -160,7 +160,11 @@ bool IsSupportedVideoCodec(const MimeType& mime_type,
     case kSbMediaVideoCodecTheora:
       return false;  // No associated container in YT.
     case kSbMediaVideoCodecVc1:
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
     case kSbMediaVideoCodecVp10:
+#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+    case kSbMediaVideoCodecAv1:
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
       return mime_type.subtype() == "mp4";
     case kSbMediaVideoCodecVp8:
     case kSbMediaVideoCodecVp9:
