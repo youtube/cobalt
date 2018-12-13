@@ -20,6 +20,7 @@ import android.text.Editable;
 import android.text.Selection;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
@@ -103,5 +104,12 @@ public class KeyboardEditor extends View {
     InputMethodManager imm =
         (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
     imm.updateSelection(view, selStart, selEnd, compStart, compEnd);
+  }
+
+  /** Update the custom list of completions shown within the on-screen keyboard. */
+  public void updateCustomCompletions(CompletionInfo[] completions) {
+    InputMethodManager imm =
+        (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+    imm.displayCompletions(this, completions);
   }
 }
