@@ -17,6 +17,8 @@
 
 #include <android/looper.h>
 #include <android/native_window.h>
+#include <string>
+#include <vector>
 
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -78,6 +80,10 @@ class ApplicationAndroid
                                     const char* input_text,
                                     int ticket);
   void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket);
+  void SbWindowUpdateOnScreenKeyboardSuggestions(
+      SbWindow window,
+      const std::vector<std::string>& suggestions,
+      int ticket);
   void SbWindowSendInputEvent(const char* input_text);
 
  protected:
