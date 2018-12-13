@@ -32,6 +32,7 @@
 #include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
+#include "cobalt/base/on_screen_keyboard_suggestions_updated_event.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/lifecycle_observer.h"
@@ -193,6 +194,10 @@ class BrowserModule {
       const base::OnScreenKeyboardFocusedEvent* event);
   void OnOnScreenKeyboardBlurred(
       const base::OnScreenKeyboardBlurredEvent* event);
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+  void OnOnScreenKeyboardSuggestionsUpdated(
+      const base::OnScreenKeyboardSuggestionsUpdatedEvent* event);
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
