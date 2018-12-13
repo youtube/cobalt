@@ -385,9 +385,20 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
   SbMediaVideoCodec kVideoCodecs[] = {
-      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
-      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecVp10,  kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+    kSbMediaVideoCodecNone,
+    kSbMediaVideoCodecH264,
+    kSbMediaVideoCodecH265,
+    kSbMediaVideoCodecMpeg2,
+    kSbMediaVideoCodecTheora,
+    kSbMediaVideoCodecVc1,
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
+    kSbMediaVideoCodecVp10,
+#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+    kSbMediaVideoCodecAv1,
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+    kSbMediaVideoCodecVp8,
+    kSbMediaVideoCodecVp9
+  };
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
       VideoDecoder::OutputModeSupported(output_mode, video_codec,
@@ -415,9 +426,20 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
   SbMediaVideoCodec kVideoCodecs[] = {
-      kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
-      kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
-      kSbMediaVideoCodecVp10,  kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+    kSbMediaVideoCodecNone,
+    kSbMediaVideoCodecH264,
+    kSbMediaVideoCodecH265,
+    kSbMediaVideoCodecMpeg2,
+    kSbMediaVideoCodecTheora,
+    kSbMediaVideoCodecVc1,
+#if SB_API_VERSION < SB_HAS_AV1_VERSION
+    kSbMediaVideoCodecVp10,
+#else   // SB_API_VERSION < SB_HAS_AV1_VERSION
+    kSbMediaVideoCodecAv1,
+#endif  // SB_API_VERSION < SB_HAS_AV1_VERSION
+    kSbMediaVideoCodecVp8,
+    kSbMediaVideoCodecVp9
+  };
 
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
