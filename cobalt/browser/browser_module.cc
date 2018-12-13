@@ -912,6 +912,17 @@ void BrowserModule::OnOnScreenKeyboardBlurred(
     web_module_->InjectOnScreenKeyboardBlurredEvent(event->ticket());
   }
 }
+
+#if SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
+void BrowserModule::OnOnScreenKeyboardSuggestionsUpdated(
+    const base::OnScreenKeyboardSuggestionsUpdatedEvent* event) {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  // Only inject updated suggestions events to the main WebModule.
+  if (web_module_) {
+    web_module_->InjectOnScreenKeyboardSuggestionsUpdatedEvent(event->ticket());
+  }
+}
+#endif  // SB_API_VERSION >= SB_ON_SCREEN_KEYBOARD_SUGGESTIONS_VERSION
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
