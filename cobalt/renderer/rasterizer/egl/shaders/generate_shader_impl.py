@@ -188,44 +188,39 @@ def GetShaderInputs(filename):
   samplers = []
   pragma_arrays = {}
 
-  with open(filename, 'r') as f:
-    # Read file as a single string to facilitate comment removal.
-    file_contents = f.read()
+  file_contents = ReadShaderFile(filename)
 
-    # Remove comments.
-    file_contents = re.sub(r'/\*.*?\*/', '', file_contents, flags=re.DOTALL)
-    file_contents = re.sub(r'//.*', '', file_contents)
+  # Remove everything associated with the main program.
+  file_contents = re.sub(
+      r'void main\(\) .*', '', file_contents, flags=re.DOTALL)
 
-    # Remove everything associated with the main program.
-    file_contents = re.sub(
-        r'void main\(\) .*', '', file_contents, flags=re.DOTALL)
+  # Handle #pragma array() directives
+  for line in file_contents.split(';'):
+    line = line.replace('\n', '').strip()
+    matches = re.match(r'\#pragma\s+array\s+([\d\w]+)\((.*)\)', line)
+    if matches and matches.lastindex == 2:
+      array_name = matches.group(1)
+      element_names = re.split(r',\s+', matches.group(2))
+      assert array_name
+      assert element_names
 
-    # Handle #pragma array() directives
-    for line in file_contents.split(';'):
-      line = line.replace('\n', '').strip()
-      matches = re.match(r'\#pragma\s+array\s+([\d\w]+)\((.*)\)', line)
-      if matches and matches.lastindex == 2:
-        array_name = matches.group(1)
-        element_names = re.split(r',\s+', matches.group(2))
-        assert array_name
-        assert element_names
+      pragma_arrays[array_name] = element_names
 
-        pragma_arrays[array_name] = element_names
+  # Remove all directives for further processing
+  file_contents = re.sub(r'\#.*', '', file_contents)
+  statements = re.split(r'{|}|;', file_contents)
 
-    # Remove all directives for further processing
-    file_contents = re.sub(r'\#.*', '', file_contents)
-
-    # Match attributes, uniforms, and samplers (a subset of uniforms).
-    for line in file_contents.split(';'):
-      words = line.strip().split()
-      if len(words) == 3:
-        type_name = words[0].lower()
-        if type_name == 'attribute':
-          attributes.append(words[2])
-        elif type_name == 'uniform':
-          uniforms.append(words[2])
-          if words[1].lower().startswith('sampler'):
-            samplers.append(words[2])
+  # Match attributes, uniforms, and samplers (a subset of uniforms).
+  for statement in statements:
+    words = statement.strip().split()
+    if len(words) == 3:
+      type_name = words[0].lower()
+      if type_name == 'attribute':
+        attributes.append(words[2])
+      elif type_name == 'uniform':
+        uniforms.append(words[2])
+        if words[1].lower().startswith('sampler'):
+          samplers.append(words[2])
 
   return attributes, uniforms, samplers, pragma_arrays
 
