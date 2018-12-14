@@ -15,34 +15,14 @@
 precision mediump float;
 
 uniform vec4 u_color;
-uniform vec4 u_texcoord_clamp_y;
-uniform vec4 u_texcoord_clamp_u;
-uniform vec4 u_texcoord_clamp_v;
-uniform sampler2D u_texture_y;
-uniform sampler2D u_texture_u;
-uniform sampler2D u_texture_v;
-uniform mat4 u_color_transform_matrix;
 
 varying vec4 v_rcorner;
 varying vec2 v_texcoord;
 
-#pragma array u_texcoord_clamp(u_texcoord_clamp_y, u_texcoord_clamp_u, u_texcoord_clamp_v);
-#pragma array u_texture(u_texture_y, u_texture_u, u_texture_v);
-
 #include "function_is_outside_rcorner.inc"
+#include "image_sampler_yuv3_with_clamp.inc"
 
 void main() {
   float scale = IsOutsideRCorner(v_rcorner);
-
-  float y = texture2D(u_texture_y,
-                      clamp(v_texcoord, u_texcoord_clamp_y.xy, u_texcoord_clamp_y.zw)).a;
-  float u = texture2D(u_texture_u,
-                      clamp(v_texcoord, u_texcoord_clamp_u.xy, u_texcoord_clamp_u.zw)).a;
-  float v = texture2D(u_texture_v,
-                      clamp(v_texcoord, u_texcoord_clamp_v.xy, u_texcoord_clamp_v.zw)).a;
-  vec4 rgba = u_color_transform_matrix * vec4(y, u, v, 1);
-
-  rgba = clamp(rgba, vec4(0, 0, 0, 0), vec4(1, 1, 1, 1));
-
-  gl_FragColor = u_color * (1.0 - scale) * rgba;
+  gl_FragColor = u_color * (1.0 - scale) * GetRgba();
 }
