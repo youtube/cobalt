@@ -125,6 +125,7 @@
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
       '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/job_thread.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_create.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_destroy.cc',
       '<(DEPTH)/starboard/shared/starboard/player/player_get_current_frame.cc',

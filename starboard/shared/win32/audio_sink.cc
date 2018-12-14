@@ -18,7 +18,7 @@
 
 #include <algorithm>
 #include <limits>
-#include <vector>
+#include <list>
 
 #include "starboard/atomic.h"
 #include "starboard/condition_variable.h"
@@ -26,6 +26,8 @@
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/player/job_thread.h"
+#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 
@@ -83,7 +85,17 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                   SbAudioSinkConsumeFramesFunc consume_frame_func,
                   void* context);
-  ~XAudioAudioSink() override {}
+  ~XAudioAudioSink() override {};
+
+  void SetSourceVoice(IXAudio2SourceVoice* source_voice) {
+    source_voice_ = source_voice;
+    samples_played_ = 0;
+    submited_frames_ = 0;
+    if (source_voice_) {
+      CHECK_HRESULT_OK(source_voice_->Start(0));
+      SbAtomicRelease_Store(&stop_callbacks_, 0);
+    }
+  }
 
   bool IsType(Type* type) override;
   void SetPlaybackRate(double playback_rate) override {
@@ -110,8 +122,11 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
     process_mutex_.Release();
 
     // This must happen on a non-XAudio callback thread.
-    source_voice_->DestroyVoice();
+    if (source_voice_) {
+      source_voice_->DestroyVoice();
+    }
   }
+  const WAVEFORMATEX& GetWaveFormatEx() const { return wfx_; }
 
  private:
   bool AreCallbacksStopped() const {
@@ -157,6 +172,8 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
  public:
   XAudioAudioSinkType();
 
+  ComPtr<IXAudio2> XAudioCreate();
+
   SbAudioSink Create(
       int channels,
       int sampling_frequency_hz,
@@ -175,22 +192,71 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
   void Destroy(SbAudioSink audio_sink) override;
 
  private:
+  void RestartAudioDevice();
+  void TryAcquireSinkVoices();
   // IXAudio2EngineCallback methods
   // This function will be called periodically with an interval of ~10ms.
   void OnProcessingPassStart() override;
   void OnProcessingPassEnd() override {}
-  void OnCriticalError(HRESULT) override {}
+  void OnCriticalError(HRESULT hr) {
+    SB_LOG(INFO) << "OnCriticalError() called with code " << hr;
+
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    // The thread id of callbacks will be changed after OnCriticalError() call.
+    thread_checker_.Detach();
+
+    if (sink_shutdown_in_progress_) {
+      return;
+    }
+    sink_shutdown_in_progress_ = true;
+
+    x_audio2_->UnregisterForCallbacks(this);
+
+    for (XAudioAudioSink* sink : audio_sinks_on_xaudio_callbacks_) {
+      sink->StopCallbacks();
+    }
+
+    restart_audio_thread_.job_queue()->Schedule(
+        std::bind(&XAudioAudioSinkType::RestartAudioDevice, this));
+  }
+
+  void ProcessSinksToAdd() {
+    if (!audio_sinks_to_add_.empty()) {
+      audio_sinks_on_xaudio_callbacks_.insert(
+          audio_sinks_on_xaudio_callbacks_.end(), audio_sinks_to_add_.begin(),
+          audio_sinks_to_add_.end());
+      audio_sinks_to_add_.clear();
+    }
+  }
+
+  void ProcessSinksToDelete() {
+    if (!audio_sinks_to_delete_.empty()) {
+      for (auto sink : audio_sinks_to_delete_) {
+        audio_sinks_on_xaudio_callbacks_.erase(
+            std::find(audio_sinks_on_xaudio_callbacks_.begin(),
+                      audio_sinks_on_xaudio_callbacks_.end(), sink));
+        delete sink;
+      }
+      audio_sinks_to_delete_.clear();
+    }
+  }
 
   ComPtr<IXAudio2> x_audio2_;
+  Mutex x_audio2_mutex_;
   IXAudio2MasteringVoice* mastering_voice_ = nullptr;
 
   // This mutex protects |audio_sinks_to_add_| and |audio_sinks_to_delete_|.
   Mutex mutex_;
-  std::vector<XAudioAudioSink*> audio_sinks_to_add_;
-  std::vector<SbAudioSink> audio_sinks_to_delete_;
+  std::list<XAudioAudioSink*> audio_sinks_to_add_;
+  std::list<SbAudioSink> audio_sinks_to_delete_;
 
   // This must only be accessed from the OnProcessingPassStart callback
-  std::vector<XAudioAudioSink*> audio_sinks_on_xaudio_callbacks_;
+  std::list<XAudioAudioSink*> audio_sinks_on_xaudio_callbacks_;
+  starboard::ThreadChecker thread_checker_;
+
+  starboard::player::JobThread restart_audio_thread_;
+  std::list<XAudioAudioSink*> audio_sinks_to_restart_;
+  bool sink_shutdown_in_progress_;
 };
 
 XAudioAudioSink::XAudioAudioSink(
@@ -319,8 +385,22 @@ void XAudioAudioSink::SubmitSourceBuffer(int offset_in_frames,
   CHECK_HRESULT_OK(source_voice_->SubmitSourceBuffer(&audio_buffer_info));
 }
 
-XAudioAudioSinkType::XAudioAudioSinkType() {
-  CHECK_HRESULT_OK(XAudio2Create(&x_audio2_, 0, XAUDIO2_DEFAULT_PROCESSOR));
+XAudioAudioSinkType::XAudioAudioSinkType()
+    : restart_audio_thread_("RestartAudioDevice"),
+      sink_shutdown_in_progress_(false),
+      thread_checker_(starboard::ThreadChecker::kSetThreadIdOnFirstCheck) {
+  x_audio2_ = XAudioCreate();
+  HRESULT hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
+  SB_LOG_IF(WARNING, FAILED(hr)) << "Audio failed to CreateMasteringVoice(), "
+                                    "sound will be disabled.";
+}
+
+ComPtr<IXAudio2> XAudioAudioSinkType::XAudioCreate() {
+  ComPtr<IXAudio2> x_audio2;
+  HRESULT hr = XAudio2Create(&x_audio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+  if (FAILED(hr)) {
+    return nullptr;
+  }
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   XAUDIO2_DEBUG_CONFIGURATION debug_config = {};
@@ -331,14 +411,11 @@ XAudioAudioSinkType::XAudioAudioSinkType() {
   debug_config.LogFileline = TRUE;
   debug_config.LogFunctionName = TRUE;
   debug_config.LogTiming = TRUE;
-  x_audio2_->SetDebugConfiguration(&debug_config, NULL);
+  x_audio2->SetDebugConfiguration(&debug_config, NULL);
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-  x_audio2_->RegisterForCallbacks(this);
-  HRESULT hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
-
-  SB_LOG_IF(WARNING, FAILED(hr)) << "Audio failed to CreateMasteringVoice(), "
-                                    "sound will be disabled.";
+  x_audio2->RegisterForCallbacks(this);
+  return x_audio2;
 }
 
 SbAudioSink XAudioAudioSinkType::Create(
@@ -355,7 +432,6 @@ SbAudioSink XAudioAudioSinkType::Create(
             kSbMediaAudioFrameStorageTypeInterleaved);
 
   WAVEFORMATEX wfx;
-
   wfx.wFormatTag = SampleTypeToFormatTag(audio_sample_type);
   wfx.nChannels = static_cast<WORD>(channels);
   wfx.nSamplesPerSec = sampling_frequency_hz;
@@ -366,9 +442,28 @@ SbAudioSink XAudioAudioSinkType::Create(
   wfx.nBlockAlign = static_cast<WORD>((channels * wfx.wBitsPerSample) / 8);
   wfx.cbSize = 0;
 
-  IXAudio2SourceVoice* source_voice;
-  HRESULT hr = x_audio2_->CreateSourceVoice(&source_voice, &wfx,
-                                                XAUDIO2_VOICE_NOPITCH, 1.f);
+  IXAudio2SourceVoice* source_voice = nullptr;
+  HRESULT hr = E_FAIL;
+  {
+    ScopedLock lock(x_audio2_mutex_);
+    if (!x_audio2_) {
+      x_audio2_ = XAudioCreate();
+      if (!x_audio2_) {
+        SB_DLOG(WARNING) << "Audio failed to XAudioCreate(), "
+                            "sound will be disabled.";
+        return nullptr;
+      }
+      hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
+      if (FAILED(hr)) {
+        SB_DLOG(WARNING)
+          << "Audio failed to CreateMasteringVoice(), "
+             "sound will be disabled.";
+        return nullptr;
+      }
+    }
+    hr = x_audio2_->CreateSourceVoice(&source_voice, &wfx,
+                                      XAUDIO2_VOICE_NOPITCH, 1.f);
+  }
   if (FAILED(hr)) {
     SB_DLOG(WARNING) << "Could not create source voice, error code: " << hr;
     return nullptr;
@@ -399,26 +494,94 @@ void XAudioAudioSinkType::Destroy(SbAudioSink audio_sink) {
   static_cast<XAudioAudioSink*>(audio_sink)->StopCallbacks();
 
   ScopedLock lock(mutex_);
-  audio_sinks_to_delete_.push_back(audio_sink);
+  auto it = std::find(audio_sinks_to_restart_.begin(),
+                      audio_sinks_to_restart_.end(), audio_sink);
+  if (it == audio_sinks_to_restart_.end()) {
+    audio_sinks_to_delete_.push_back(audio_sink);
+  } else {
+    audio_sinks_to_restart_.erase(it);
+    delete audio_sink;
+  }
+}
+
+void XAudioAudioSinkType::RestartAudioDevice() {
+  {
+    ScopedLock lock(mutex_);
+    audio_sinks_to_restart_.insert(audio_sinks_to_restart_.end(),
+                                   audio_sinks_on_xaudio_callbacks_.begin(),
+                                   audio_sinks_on_xaudio_callbacks_.end());
+    audio_sinks_on_xaudio_callbacks_.clear();
+    audio_sinks_to_restart_.insert(audio_sinks_to_restart_.end(),
+                                   audio_sinks_to_add_.begin(),
+                                   audio_sinks_to_add_.end());
+    audio_sinks_to_add_.clear();
+
+    ProcessSinksToDelete();
+    for (auto sink : audio_sinks_to_restart_) {
+      sink->SetSourceVoice(nullptr);
+    }
+  }
+  if (mastering_voice_) {
+    mastering_voice_->DestroyVoice();
+    mastering_voice_ = nullptr;
+  }
+  {
+    ScopedLock lock(x_audio2_mutex_);
+    x_audio2_.Reset();
+  }
+  sink_shutdown_in_progress_ = false;
+
+  TryAcquireSinkVoices();
+}
+
+void XAudioAudioSinkType::TryAcquireSinkVoices() {
+  HRESULT hr = E_FAIL;
+  ScopedLock x_audio2_mutex_lock(x_audio2_mutex_);
+  if (!x_audio2_) {
+    hr = XAudio2Create(&x_audio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
+    if (FAILED(hr)) {
+      restart_audio_thread_.job_queue()->Schedule(
+          std::bind(&XAudioAudioSinkType::TryAcquireSinkVoices, this));
+      return;
+    }
+    x_audio2_->RegisterForCallbacks(this);
+  }
+
+  if (!mastering_voice_) {
+    hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
+    if (FAILED(hr)) {
+      restart_audio_thread_.job_queue()->Schedule(
+          std::bind(&XAudioAudioSinkType::TryAcquireSinkVoices, this));
+      return;
+    }
+  }
+
+  std::list<XAudioAudioSink*> audio_sinks_failed;
+  ScopedLock mutex_lock(mutex_);
+  for (auto sink : audio_sinks_to_restart_) {
+    IXAudio2SourceVoice* source_voice = nullptr;
+    hr = x_audio2_->CreateSourceVoice(&source_voice, &sink->GetWaveFormatEx(),
+                                      XAUDIO2_VOICE_NOPITCH, 1.f);
+    if (FAILED(hr)) {
+      audio_sinks_failed.push_back(sink);
+      continue;
+    }
+    sink->SetSourceVoice(source_voice);
+    audio_sinks_to_add_.push_back(sink);
+  }
+  audio_sinks_to_restart_ = audio_sinks_failed;
+  if (audio_sinks_to_restart_.empty()) {
+    return;
+  }
+  restart_audio_thread_.job_queue()->Schedule(
+      std::bind(&XAudioAudioSinkType::TryAcquireSinkVoices, this));
 }
 
 void XAudioAudioSinkType::OnProcessingPassStart() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
   if (mutex_.AcquireTry()) {
-    if (!audio_sinks_to_add_.empty()) {
-      audio_sinks_on_xaudio_callbacks_.insert(
-          audio_sinks_on_xaudio_callbacks_.end(), audio_sinks_to_add_.begin(),
-          audio_sinks_to_add_.end());
-      audio_sinks_to_add_.clear();
-    }
-    if (!audio_sinks_to_delete_.empty()) {
-      for (auto sink : audio_sinks_to_delete_) {
-        audio_sinks_on_xaudio_callbacks_.erase(
-            std::find(audio_sinks_on_xaudio_callbacks_.begin(),
-                      audio_sinks_on_xaudio_callbacks_.end(), sink));
-        delete sink;
-      }
-      audio_sinks_to_delete_.clear();
-    }
+    ProcessSinksToAdd();
+    ProcessSinksToDelete();
     mutex_.Release();
   }
 
