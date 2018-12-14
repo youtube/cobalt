@@ -198,10 +198,18 @@ std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
   std::vector<StackFrame> result;
   for (int i = 0; i < stack_trace->GetFrameCount(); i++) {
     v8::Local<v8::StackFrame> stack_frame = stack_trace->GetFrame(i);
-    result.emplace_back(
-        stack_frame->GetLineNumber(), stack_frame->GetColumn(),
-        *v8::String::Utf8Value(isolate_, stack_frame->GetFunctionName()),
-        *v8::String::Utf8Value(isolate_, stack_frame->GetScriptName()));
+    const char* function_name =
+        *v8::String::Utf8Value(isolate_, stack_frame->GetFunctionName());
+    const char* script_name =
+        *v8::String::Utf8Value(isolate_, stack_frame->GetScriptName());
+    if (!function_name) {
+      function_name = "";
+    }
+    if (!script_name) {
+      script_name = "";
+    }
+    result.emplace_back(stack_frame->GetLineNumber(), stack_frame->GetColumn(),
+                        function_name, script_name);
   }
 
   return result;
