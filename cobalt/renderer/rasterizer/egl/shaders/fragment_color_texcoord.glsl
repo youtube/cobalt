@@ -13,15 +13,11 @@
 // limitations under the License.
 
 precision mediump float;
-uniform vec4 u_texcoord_clamp_rgba;
-uniform sampler2D u_texture_rgba;
 varying vec4 v_color;
 varying vec2 v_texcoord;
 
-#pragma array u_texcoord_clamp(u_texcoord_clamp_rgba);
-#pragma array u_texture(u_texture_rgba);
+#include "image_sampler_rgba_with_clamp.inc"
 
 void main() {
-  gl_FragColor = v_color * texture2D(u_texture_rgba,
-      clamp(v_texcoord, u_texcoord_clamp_rgba.xy, u_texcoord_clamp_rgba.zw));
+  gl_FragColor = v_color * GetRgba();
 }
