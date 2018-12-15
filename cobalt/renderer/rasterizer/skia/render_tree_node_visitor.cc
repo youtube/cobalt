@@ -788,8 +788,8 @@ namespace {
 
 class SkiaBrushVisitor : public render_tree::BrushVisitor {
  public:
-  explicit SkiaBrushVisitor(SkPaint* paint,
-                            const RenderTreeNodeVisitorDrawState& draw_state)
+  SkiaBrushVisitor(SkPaint* paint,
+                   const RenderTreeNodeVisitorDrawState& draw_state)
       : paint_(paint), draw_state_(draw_state) {}
 
   void Visit(

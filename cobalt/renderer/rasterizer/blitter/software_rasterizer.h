@@ -37,8 +37,8 @@ namespace blitter {
 // passed in given render target.
 class SoftwareRasterizer : public Rasterizer {
  public:
-  explicit SoftwareRasterizer(backend::GraphicsContext* context,
-                              bool purge_skia_font_caches_on_destruction);
+  SoftwareRasterizer(backend::GraphicsContext* context,
+                     bool purge_skia_font_caches_on_destruction);
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
