@@ -34,7 +34,7 @@ class VertexBufferObject {
   // Creates a VertexBufferObject for the provided vertex list. The vertex list
   // object is destroyed from main memory, and a buffer will be allocated on
   // the GPU with its data.
-  explicit VertexBufferObject(
+  VertexBufferObject(
       scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
       GLenum draw_mode);
   // Cleans up the GPU memory that holds the vertices.

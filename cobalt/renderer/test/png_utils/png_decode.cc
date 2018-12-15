@@ -30,9 +30,9 @@ namespace {
 
 class PNGFileReadContext {
  public:
-  explicit PNGFileReadContext(const FilePath& file_path,
-                              render_tree::PixelFormat pixel_format,
-                              render_tree::AlphaFormat alpha_format);
+  PNGFileReadContext(const FilePath& file_path,
+                     render_tree::PixelFormat pixel_format,
+                     render_tree::AlphaFormat alpha_format);
   ~PNGFileReadContext();
 
   void DecodeImageTo(const std::vector<png_bytep>& rows);

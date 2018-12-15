@@ -30,7 +30,7 @@ class SmoothedValue {
   // transitions from one value to another.  It must be greater than 0, if
   // provided, and it can result in convergence times larger than
   // |time_to_converge|.
-  explicit SmoothedValue(
+  SmoothedValue(
       base::TimeDelta time_to_converge,
       base::optional<double> max_slope_magnitude = base::optional<double>());
 
