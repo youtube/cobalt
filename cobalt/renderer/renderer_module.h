@@ -107,8 +107,8 @@ class RendererModule {
     void SetPerPlatformDefaultOptions();
   };
 
-  explicit RendererModule(system_window::SystemWindow* system_window,
-                          const Options& options);
+  RendererModule(system_window::SystemWindow* system_window,
+                 const Options& options);
   ~RendererModule();
 
   renderer::Pipeline* pipeline() { return pipeline_.get(); }
