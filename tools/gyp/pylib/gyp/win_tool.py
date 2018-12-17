@@ -167,9 +167,9 @@ class WinTool(object):
     popen = subprocess.Popen(args, shell=True, env=env, cwd=dir,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_str, stderr_str = popen.communicate()
-
     if popen.returncode != 0:
-      msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + str(dir) + '\n' \
+      dir_str = os.path.abspath('.') if dir is None else os.path.abspath(dir)
+      msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + dir_str + '\n' \
             + 'Error code: ' + str(popen.returncode) + '\n'
       if stdout_str:
         msg += 'STDOUT:\n' + str(stdout_str) + '\n'
