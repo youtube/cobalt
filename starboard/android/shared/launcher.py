@@ -36,9 +36,6 @@ _APP_START_INTENT = 'dev.cobalt.coat/dev.cobalt.app.MainActivity'
 # Matches an "adb shell am monitor" error line.
 _RE_ADB_AM_MONITOR_ERROR = re.compile(r'\*\* ERROR')
 
-# Matches the prefix that logcat prepends to starboad log lines.
-_RE_STARBOARD_LOGCAT_PREFIX = re.compile(r'^.* starboard: ')
-
 # String added to queue to indicate process has crashed
 _QUEUE_CODE_CRASHED = 'crashed'
 
@@ -47,6 +44,9 @@ _CROW_COMMANDLINE = ['/***REMOVED***/teams/mobile_eng_prod/crow/crow.par',
                      '--api_level', '24', '--device', 'tv',
                      '--open_gl_driver', 'host',
                      '--noenable_g3_monitor']
+
+# How long to keep logging after a crash in order to emit the stack trace.
+_CRASH_LOG_SECONDS = 1.0
 
 _DEV_NULL = open('/dev/null')
 
@@ -68,7 +68,7 @@ def CleanLine(line):
   return line.replace('\r', '')
 
 
-class Timer(object):
+class StepTimer(object):
   """Class for timing how long install/run steps take."""
 
   def __init__(self, step_name):
@@ -281,7 +281,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('logcat', '-c')
 
     # Install the APK.
-    install_timer = Timer('install')
+    install_timer = StepTimer('install')
     self._CheckCallAdb('install', '-r', self.apk_path)
     install_timer.Stop()
 
@@ -302,11 +302,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     #  Ctrl + C will kill this process
     logcat_process = self._PopenAdb(
-        'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
+        'logcat', '-v', 'raw', '-s', '*:F', 'DEBUG:*', 'System.err:*',
+        'starboard:*', 'starboard_media:*',
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     # Actually running executable
-    run_timer = Timer('running executable')
+    run_timer = StepTimer('running executable')
     try:
       args = ['shell', 'am', 'start']
       command_line_params = [
@@ -320,23 +321,25 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       self._CheckCallAdb(*args)
 
+      app_crashed = False
       while True:
         if not done_queue.empty():
           done_queue_code = done_queue.get_nowait()
-
           if done_queue_code == _QUEUE_CODE_CRASHED:
-            self.output_file.write('***Application Crashed***\n')
-            break
+            app_crashed = True
+            threading.Timer(_CRASH_LOG_SECONDS, logcat_process.kill).start()
 
         # Note we cannot use "for line in logcat_process.stdout" because
         # that uses a large buffer which will cause us to deadlock.
         line = CleanLine(logcat_process.stdout.readline())
-        # Some crashes are not caught by the crash monitor thread, but
-        # They do produce the following string in logcat before they exit.
+
+        # Some crashes are not caught by the am_monitor thread, but they do
+        # produce the following string in logcat before they exit.
         if 'beginning of crash' in line:
-          sys.stderr.write('***Application Crashed***\n')
-          break
-        if not line:  # Logcat exited
+          app_crashed = True
+          threading.Timer(_CRASH_LOG_SECONDS, logcat_process.kill).start()
+
+        if not line:  # Logcat exited, or was killed
           break
         else:
           self._WriteLine(line)
@@ -351,7 +354,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
             break
 
     finally:
-      self._Shutdown()
+      if app_crashed:
+        self._WriteLine('***Application Crashed***\n')
+      else:
+        self._Shutdown()
       if self.local_port is not None:
         self._CallAdb('forward', '--remove', 'tcp:{}'.format(self.local_port))
       am_monitor.Shutdown()
@@ -374,7 +380,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _WriteLine(self, line):
     """Write log output to stdout."""
-    line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
     self.output_file.write(line)
     self.output_file.flush()
 
