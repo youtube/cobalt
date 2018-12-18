@@ -791,7 +791,7 @@ class VerifyCallsToObserverDelegate : public SchedulerWorkerDefaultDelegate {
   }
 
   void OnMainExit(SchedulerWorker* worker) override {
-    EXPECT_CALL(*observer_, OnSchedulerWorkerMainExit());
+    observer_->AllowCallsOnMainExit(1);
   }
 
  private:
