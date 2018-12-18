@@ -6,15 +6,43 @@
 
 #include <utility>
 
+#include "base/bind.h"
+#include "base/synchronization/condition_variable.h"
 #include "base/task/task_scheduler/scheduler_worker_pool.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/threading/thread_restrictions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 namespace internal {
 namespace test {
 
-MockSchedulerWorkerObserver::MockSchedulerWorkerObserver() = default;
-MockSchedulerWorkerObserver::~MockSchedulerWorkerObserver() = default;
+MockSchedulerWorkerObserver::MockSchedulerWorkerObserver()
+    : on_main_exit_cv_(lock_.CreateConditionVariable()) {}
+
+MockSchedulerWorkerObserver::~MockSchedulerWorkerObserver() {
+  WaitCallsOnMainExit();
+}
+
+void MockSchedulerWorkerObserver::AllowCallsOnMainExit(int num_calls) {
+  AutoSchedulerLock auto_lock(lock_);
+  EXPECT_EQ(0, allowed_calls_on_main_exit_);
+  allowed_calls_on_main_exit_ = num_calls;
+}
+
+void MockSchedulerWorkerObserver::WaitCallsOnMainExit() {
+  AutoSchedulerLock auto_lock(lock_);
+  while (allowed_calls_on_main_exit_ != 0)
+    on_main_exit_cv_->Wait();
+}
+
+void MockSchedulerWorkerObserver::OnSchedulerWorkerMainExit() {
+  AutoSchedulerLock auto_lock(lock_);
+  EXPECT_GE(allowed_calls_on_main_exit_, 0);
+  --allowed_calls_on_main_exit_;
+  if (allowed_calls_on_main_exit_ == 0)
+    on_main_exit_cv_->Signal();
+}
 
 scoped_refptr<Sequence> CreateSequenceWithTask(Task task,
                                                const TaskTraits& traits) {
