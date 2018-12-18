@@ -192,6 +192,7 @@
            ['_toolset=="host"', {
              'cflags_host': [
                '/MDd', # Use debug multithreaded library.
+               '/Zm10', # Increase compiler heap limit.
              ],
            }],
          ],
@@ -215,6 +216,7 @@
            ['_toolset=="host"', {
              'cflags_host': [
                '/MDd', # Use debug multithreaded library.
+               '/Zm10', # Increase compiler heap limit.
              ],
            }],
          ],
@@ -247,6 +249,7 @@
            ['_toolset=="host"', {
              'cflags_host': [
                '/MD', # Use release multithreaded library.
+               '/Zm10', # Increase compiler heap limit.
              ],
            }],
          ],
@@ -278,6 +281,7 @@
            ['_toolset=="host"', {
              'cflags_host': [
                '/MD', # Use release multithreaded library.
+               '/Zm10', # Increase compiler heap limit.
              ],
            }],
          ],
