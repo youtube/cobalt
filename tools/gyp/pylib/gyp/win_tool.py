@@ -163,21 +163,35 @@ class WinTool(object):
     env = self._GetEnv(arch)
     args = open(rspfile).read()
     dir = dir[0] if dir else None
-
-    popen = subprocess.Popen(args, shell=True, env=env, cwd=dir,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_str, stderr_str = popen.communicate()
-    if popen.returncode != 0:
+    # Local functions bind to outmost function arguments.
+    def RunCmd():
+      popen = subprocess.Popen(args, shell=True, env=env, cwd=dir,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      stdout_str, stderr_str = popen.communicate()
+      return popen.returncode, stdout_str, stderr_str
+    def BuildErrorMessage(err_code, stdout, stderr):
       dir_str = os.path.abspath('.') if dir is None else os.path.abspath(dir)
-      msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + dir_str + '\n' \
-            + 'Error code: ' + str(popen.returncode) + '\n'
+      msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + dir_str \
+           + '\n' + 'Error code: ' + str(popen.returncode) + '\n'
       if stdout_str:
         msg += 'STDOUT:\n' + str(stdout_str) + '\n'
       if stderr_str:
         msg += 'STDERR:\n' + str(stderr_str) + '\n'
       msg += '\n'
-      sys.stdout.write(msg)
-    return popen.returncode
+      return msg
+    # Note that some commands on windows appears flaky. Therefore commands
+    # will retry once to make the builds more reliable, and if the cmd fails
+    # twice then the error will be written out to the command line.
+    err_code, stdout, stderr = RunCmd()
+    if err_code == 0:
+      return err_code
+    sys.stdout.write(
+        BuildErrorMessage(err_code, stdout, stderr) + ' retrying...\n')
+    err_code, stdout, stderr = RunCmd()
+    if err_code != 0:
+      sys.stdout.write(BuildErrorMessage(err_code, stdout, stderr))
+    return err_code
+
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))
