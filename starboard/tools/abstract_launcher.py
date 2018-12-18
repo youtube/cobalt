@@ -90,28 +90,8 @@ def LauncherFactory(platform_name,
   #  Creates launcher for provided platform if the platform has a valid port
   launcher_module = _GetLauncherForPlatform(platform_name)
 
-  #  TODO: Refactor when all old launchers have been deleted
-  #  If a platform that does not have a new launcher is provided, attempt
-  #  to create an adapter to the old one.
   if not launcher_module:
-    old_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), os.pardir, os.pardir, "tools",
-            "lbshell"))
-    if os.path.exists(os.path.join(old_path, "app_launcher.py")):
-      sys.path.append(old_path)
-      bridge_module = importlib.import_module("app_launcher_bridge")
-      return bridge_module.LauncherAdapter(
-          platform_name,
-          target_name,
-          config,
-          device_id,
-          target_params=target_params,
-          output_file=output_file,
-          out_directory=out_directory,
-          env_variables=env_variables)
-    else:
-      raise RuntimeError("No launcher implemented for the given platform.")
+    raise RuntimeError("No launcher implemented for the given platform.")
   else:
     return launcher_module.Launcher(
         platform_name,
