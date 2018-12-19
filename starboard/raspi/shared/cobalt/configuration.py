@@ -35,8 +35,8 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
       if os.path.basename(include) == 'configuration.gypi':
         return includes
 
-    shared_gypi_path = os.path.join(os.path.dirname(__file__),
-                                    'configuration.gypi')
+    shared_gypi_path = os.path.join(
+        os.path.dirname(__file__), 'configuration.gypi')
     if os.path.isfile(shared_gypi_path):
       includes.append(shared_gypi_path)
     return includes
@@ -47,23 +47,31 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetTestFilters(self):
     filters = super(CobaltRaspiConfiguration, self).GetTestFilters()
     filters.extend([
-        test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
+        test_filter.TestFilter('net_unittests',
+                               'HostResolverImplDnsTest.DnsTaskUnspec'),
 
         # These tests are currently producing slightly different images on the
         # RasPi.
-        test_filter.TestFilter(
-            'renderer_test', 'PixelTest.CircularSubPixelBorder'),
-        test_filter.TestFilter(
-            'renderer_test', 'PixelTest.FilterBlurred100PxText'),
+        test_filter.TestFilter('renderer_test',
+                               'PixelTest.CircularSubPixelBorder'),
+        test_filter.TestFilter('renderer_test',
+                               'PixelTest.FilterBlurred100PxText'),
 
-        test_filter.TestFilter('web_platform_tests', test_filter.FILTER_ALL)
+        # This test currently crashes.
+        test_filter.TestFilter('web_platform_tests',
+                               'csp/WebPlatformTest.Run/63')
     ])
     return filters
 
   def GetTestEnvVariables(self):
     return {
-        'base_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
-        'crypto_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
-        'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
+        'base_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        },
+        'crypto_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        },
+        'net_unittests': {
+            'ASAN_OPTIONS': 'detect_leaks=0'
+        }
     }
