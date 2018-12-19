@@ -271,13 +271,7 @@ TEST_P(WebPlatformTest, Run) {
   if (test_server.empty()) {
     FilePath url_path = GetTestInputRootDirectory()
                         .Append(FILE_PATH_LITERAL("web-platform-tests"));
-#if defined(COBALT_LINUX) || defined(COBALT_WIN)
-    // Get corp configuration.
-    url_path = url_path.Append(FILE_PATH_LITERAL("corp.url"));
-#else
-    // Get lab configuration.
     url_path = url_path.Append(FILE_PATH_LITERAL("lab.url"));
-#endif
     file_util::ReadFileToString(url_path, &test_server);
     TrimWhitespaceASCII(test_server, TRIM_ALL, &test_server);
     ASSERT_FALSE(test_server.empty());
