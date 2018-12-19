@@ -76,7 +76,4 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'StorageUpgradeTest.UpgradeExtraFields',
       ],
       'web_platform_tests': [test_filter.FILTER_ALL],
-      'webdriver_test': [
-          'IsDisplayedTest.*',
-      ],
   }
