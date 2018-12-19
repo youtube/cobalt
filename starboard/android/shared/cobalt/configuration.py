@@ -66,9 +66,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       'browser_test': [
           'StorageUpgradeHandlerTest.UpgradeFullData',
       ],
-      'css_parser_test': [
-          'ScannerTest.ScansUtf8Identifier',
-      ],
       'net_unittests': [
           'DialHttpServerTest.AllOtherRequests',
           'DialHttpServerTest.CallbackExceptionInServiceHandler',
