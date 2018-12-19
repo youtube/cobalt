@@ -172,7 +172,7 @@ class WinTool(object):
     def BuildErrorMessage(err_code, stdout, stderr):
       dir_str = os.path.abspath('.') if dir is None else os.path.abspath(dir)
       msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + dir_str \
-           + '\n' + 'Error code: ' + str(popen.returncode) + '\n'
+           + '\n' + 'Error code: ' + str(err_code) + '\n'
       if stdout_str:
         msg += 'STDOUT:\n' + str(stdout_str) + '\n'
       if stderr_str:
