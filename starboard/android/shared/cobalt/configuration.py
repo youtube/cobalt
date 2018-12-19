@@ -143,9 +143,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'X509CertificateTest.UnescapedSpecialCharacters',
       ],
       'renderer_test': [
-          'PixelTest.BoxShadowWithInset25pxSpreadAndSameRoundedCorners',
-          'PixelTest.BoxShadowWithInset25pxSpreadAndRoundedCorners',
-          'PixelTest.BoxShadowWithInset25pxSpreadAndIsometricRoundedCorners',
           'StressTest.TooManyTextures',
       ],
       'storage_test': [
