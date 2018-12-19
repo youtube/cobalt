@@ -59,10 +59,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
 
   # A map of failing or crashing tests per target.
   _FAILING_TESTS = {
-      'base_unittests': [
-          'JSONReaderTest.ReadFromFile',
-          'PathServiceTest.Get',
-      ],
       'net_unittests': [
           'DialHttpServerTest.AllOtherRequests',
           'DialHttpServerTest.CallbackExceptionInServiceHandler',
