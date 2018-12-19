@@ -150,10 +150,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       ],
       'storage_test': [
           'StorageUpgradeTest.UpgradeMinimalCookie',
-          'StorageUpgradeTest.UpgradeMinimalLocalStorageEntry',
-          'StorageUpgradeTest.UpgradeFullData',
-          'StorageUpgradeTest.UpgradeMissingFields',
-          'StorageUpgradeTest.UpgradeMalformed',
           'StorageUpgradeTest.UpgradeExtraFields',
       ],
       'web_platform_tests': [test_filter.FILTER_ALL],
