@@ -69,15 +69,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       'css_parser_test': [
           'ScannerTest.ScansUtf8Identifier',
       ],
-      'layout_tests': [
-          'ContentSecurityPolicyTests/LayoutTest.LayoutTest/0',
-          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/7',
-          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/9',
-          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/10',
-          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/11',
-          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/12',
-          'CSS3FontsLayoutTests/LayoutTest.LayoutTest/13',
-      ],
       'loader_test': [
           'FileFetcherTest.EmptyFile',
           'FileFetcherTest.ReadWithOffset',
