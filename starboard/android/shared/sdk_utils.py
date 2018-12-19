@@ -41,7 +41,7 @@ _ANDROID_NDK_API_LEVEL = '21'
 # Packages to install in the Android SDK.
 # Get available packages from "sdkmanager --list --verbose"
 _ANDROID_SDK_PACKAGES = [
-    'build-tools;28.0.2',
+    'build-tools;28.0.3',
     'cmake;3.6.4111459',
     'emulator',
     'extras;android;m2repository',

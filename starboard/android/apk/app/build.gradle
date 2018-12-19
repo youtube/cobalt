@@ -33,8 +33,8 @@ ext {
 println "TARGET: ${cobaltTarget}"
 
 android {
-    compileSdkVersion 27
-    buildToolsVersion "28.0.2"
+    compileSdkVersion 28
+    buildToolsVersion "28.0.3"
 
     signingConfigs {
         // A signing config that matches what is implicitly used for the "debug" build type.
@@ -48,7 +48,7 @@ android {
     defaultConfig {
         applicationId "dev.cobalt.coat"
         minSdkVersion 21
-        targetSdkVersion 27
+        targetSdkVersion 28
         versionCode 1
         versionName "${buildId}"
         manifestPlaceholders = [applicationName: "CoAT: ${cobaltTarget}"]
@@ -154,9 +154,9 @@ if (project.hasProperty('cobaltDeployApk')) {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:support-annotations:27.1.1'
-    implementation 'com.android.support:leanback-v17:27.1.1'
-    implementation 'com.android.support:support-v4:27.1.1'
-    implementation 'com.google.android.gms:play-services-auth:15.0.1'
+    implementation 'com.android.support:support-annotations:28.0.0'
+    implementation 'com.android.support:leanback-v17:28.0.0'
+    implementation 'com.android.support:support-v4:28.0.0'
+    implementation 'com.google.android.gms:play-services-auth:16.0.1'
     implementation 'com.google.protobuf:protobuf-lite:3.0.1'
 }
