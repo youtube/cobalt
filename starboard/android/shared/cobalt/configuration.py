@@ -63,9 +63,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'JSONReaderTest.ReadFromFile',
           'PathServiceTest.Get',
       ],
-      'browser_test': [
-          'StorageUpgradeHandlerTest.UpgradeFullData',
-      ],
       'net_unittests': [
           'DialHttpServerTest.AllOtherRequests',
           'DialHttpServerTest.CallbackExceptionInServiceHandler',
