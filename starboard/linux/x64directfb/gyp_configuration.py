@@ -23,19 +23,12 @@ class CobaltLinuxX64DirectFbConfiguration(
   # Unfortunately, some memory leaks outside of our control, and difficult
   # to pattern match with ASAN's suppression list, appear in DirectFB
   # builds, and so ASAN must be disabled.
-  def __init__(self, platform='linux-x64directfb',
+  def __init__(self,
+               platform='linux-x64directfb',
                asan_enabled_by_default=False,
                goma_supported_by_compiler=True):
     super(CobaltLinuxX64DirectFbConfiguration, self).__init__(
         platform, asan_enabled_by_default, goma_supported_by_compiler)
-
-  def GetTestFilters(self):
-    filters = super(CobaltLinuxX64DirectFbConfiguration, self).GetTestFilters()
-    filters.extend([
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL),
-    ])
-    return filters
 
 
 def CreatePlatformConfig():
