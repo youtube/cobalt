@@ -87,5 +87,4 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/0',
           'VideoDecoderTests/VideoDecoderTest.SingleInvalidInput/1',
       ],
-      'starboard_platform_tests': [test_filter.FILTER_ALL],
   }
