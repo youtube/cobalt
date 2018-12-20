@@ -36,7 +36,10 @@ using namespace js;
 static inline void*
 MapMemory(size_t length, bool commit)
 {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && !SB_HAS(MMAP)
+  SB_NOTIMPLEMENTED();
+  return NULL;
+#elif defined(STARBOARD) && SB_HAS(MMAP)
     if (!commit) {
         SB_NOTREACHED();
     }
@@ -57,7 +60,9 @@ MapMemory(size_t length, bool commit)
 static inline void
 UnmapMemory(void* addr, size_t len)
 {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && !SB_HAS(MMAP)
+  SB_NOTIMPLEMENTED();
+#elif defined(STARBOARD) && SB_HAS(MMAP)
     SbMemoryUnmap(addr, len);
 #elif defined(XP_WIN)
     VirtualFree(addr, 0, MEM_RELEASE);
