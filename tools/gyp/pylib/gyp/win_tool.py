@@ -176,10 +176,10 @@ class WinTool(object):
       dir_str = os.path.abspath('.') if dir is None else os.path.abspath(dir)
       msg = 'ERROR while executing\n' + str(args) + '\ncwd=' + dir_str \
            + '\n' + 'Error code: ' + str(err_code) + '\n'
-      if stdout_str:
-        msg += 'STDOUT:\n' + str(stdout_str) + '\n'
-      if stderr_str:
-        msg += 'STDERR:\n' + str(stderr_str) + '\n'
+      if stdout:
+        msg += 'STDOUT:\n' + str(stdout) + '\n'
+      if stderr:
+        msg += 'STDERR:\n' + str(stderr) + '\n'
       msg += '\n'
       return msg
     # Note that some commands on windows appears flaky. Therefore commands
