@@ -30,6 +30,7 @@
 namespace base {
 namespace debug {
 
+#if !defined(STARBOARD)
 namespace {
 
 // The minimum depth a stack should support.
@@ -1303,7 +1304,6 @@ bool GlobalActivityTracker::CreateWithLocalMemory(size_t size,
   return true;
 }
 
-#if !defined(STARBOARD)
 // static
 bool GlobalActivityTracker::CreateWithSharedMemory(
     std::unique_ptr<SharedMemory> shm,
@@ -1333,7 +1333,6 @@ bool GlobalActivityTracker::CreateWithSharedMemoryHandle(
     return false;
   return CreateWithSharedMemory(std::move(shm), id, name, stack_depth);
 }
-#endif  // !defined(STARBOARD)
 
 // static
 void GlobalActivityTracker::SetForTesting(
@@ -1830,5 +1829,6 @@ ScopedProcessWaitActivity::ScopedProcessWaitActivity(
           /*lock_allowed=*/true) {}
 #endif
 
+#endif  // !defined(STARBOARD)
 }  // namespace debug
 }  // namespace base

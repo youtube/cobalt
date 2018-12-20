@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/task/task_scheduler/scheduler_worker.h"
 #include "base/task/task_scheduler/sequence.h"
 #include "base/task/task_scheduler/task_tracker.h"
@@ -43,6 +44,9 @@ class MockSchedulerWorkerDelegate : public SchedulerWorker::Delegate {
 
 class TaskSchedulerWorkerStackTest : public testing::Test {
  protected:
+  TaskSchedulerWorkerStackTest()
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {
+  }
   void SetUp() override {
     worker_a_ = MakeRefCounted<SchedulerWorker>(
         ThreadPriority::NORMAL, WrapUnique(new MockSchedulerWorkerDelegate),
@@ -59,6 +63,7 @@ class TaskSchedulerWorkerStackTest : public testing::Test {
   }
 
  private:
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   TaskTracker task_tracker_ = {"Test"};
 
  protected:

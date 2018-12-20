@@ -17,6 +17,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/message_loop/message_pump_for_io.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/pending_task.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/run_loop.h"
@@ -1442,7 +1443,13 @@ TEST_P(MessageLoopTypedTest, RunLoopQuitOrderAfter) {
 #else
 #define MAYBE_RecursivePosts RecursivePosts
 #endif
+#if defined(STARBOARD)
+// Our compiler can not replace MAYBE_RecursivePosts with RecursivePosts
+// automatically with the #define above. Do it mannually.
+TEST_P(MessageLoopTypedTest, RecursivePosts) {
+#else
 TEST_P(MessageLoopTypedTest, MAYBE_RecursivePosts) {
+#endif
   const int kNumTimes = 1 << 17;
   MessageLoop loop(GetParam());
   loop.task_runner()->PostTask(FROM_HERE,
@@ -1550,11 +1557,19 @@ TEST_P(MessageLoopTypedTest, NestableTasksAllowedManually) {
 #define MAYBE_MetricsOnlyFromUILoops MetricsOnlyFromUILoops
 #endif
 
+#if defined(STARBOARD)
+// Our compiler can not replace MAYBE_RecursivePosts with RecursivePosts
+// automatically with the #define above. Do it mannually.
+TEST_P(MessageLoopTypedTest, MetricsOnlyFromUILoops) {
+#else
 TEST_P(MessageLoopTypedTest, MAYBE_MetricsOnlyFromUILoops) {
+#endif
   MessageLoop loop(GetParam());
 
   const bool histograms_expected = GetParam() == MessageLoop::TYPE_UI;
 
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   HistogramTester histogram_tester;
 
   // A delay which is expected to give enough time for the MessageLoop to go

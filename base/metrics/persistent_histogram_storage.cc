@@ -14,6 +14,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif
+
 namespace {
 
 constexpr size_t kAllocSize = 1 << 20;  // 1 MiB
@@ -94,7 +98,19 @@ PersistentHistogramStorage::~PersistentHistogramStorage() {
 
   StringPiece contents(static_cast<const char*>(allocator->data()),
                        allocator->used());
+#if defined(STARBOARD)
+  // All path should be UTF8 above Starboard.
+  SbFileError error;
+  bool out_created;
+  starboard::ScopedFile sb_file(file_path.AsUTF8Unsafe().c_str(),
+                                kSbFileCreateAlways | kSbFileWrite,
+                                &out_created, &error);
+
+  int bytes_written = sb_file.WriteAll(contents.data(), contents.size());
+  if (bytes_written == contents.size()) {
+#else
   if (!ImportantFileWriter::WriteFileAtomically(file_path, contents)) {
+#endif
     LOG(ERROR) << "Persistent histograms fail to write to file: "
                << file_path.value();
   }

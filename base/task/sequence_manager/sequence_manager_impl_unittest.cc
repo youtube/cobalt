@@ -297,7 +297,7 @@ TEST_P(SequenceManagerTest, SingleQueuePosting) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u));
@@ -317,7 +317,7 @@ TEST_P(SequenceManagerTest, MultiQueuePosting) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u, 5u, 6u));
@@ -333,7 +333,7 @@ TEST_P(SequenceManagerTestWithMessageLoop, NonNestableTaskPosting) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -354,7 +354,7 @@ TEST_P(SequenceManagerTestWithMessageLoop,
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u, 5u));
@@ -386,7 +386,7 @@ TEST_P(SequenceManagerTestWithMessageLoop,
   // Note we expect tasks 3 & 4 to run last because they're non-nestable.
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 5u, 6u, 3u, 4u));
@@ -431,7 +431,7 @@ TEST_P(SequenceManagerTestWithMessageLoop, TaskQueueDisabledFromNestedLoop) {
   // queue.
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(2u, 1u));
@@ -439,7 +439,7 @@ TEST_P(SequenceManagerTestWithMessageLoop, TaskQueueDisabledFromNestedLoop) {
   runners_[0]->RemoveFence();
   RunLoop().RunUntilIdle();
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(2u, 1u, 3u));
@@ -511,7 +511,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting) {
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(1));
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -548,7 +548,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting_MultipleTasks_DecendingOrder) {
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(5));
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(3u));
@@ -557,7 +557,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting_MultipleTasks_DecendingOrder) {
 
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(3));
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(3u, 2u));
@@ -566,7 +566,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting_MultipleTasks_DecendingOrder) {
 
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(2));
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(3u, 2u, 1u));
@@ -591,7 +591,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting_MultipleTasks_AscendingOrder) {
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(1));
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -600,7 +600,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting_MultipleTasks_AscendingOrder) {
 
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(4));
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -609,7 +609,7 @@ TEST_P(SequenceManagerTest, DelayedTaskPosting_MultipleTasks_AscendingOrder) {
 
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(5));
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u));
@@ -676,7 +676,7 @@ TEST_P(SequenceManagerTest, InsertAndRemoveFence) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -727,7 +727,7 @@ TEST_P(SequenceManagerTest, DenyRunning_BeforePosting) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -750,7 +750,7 @@ TEST_P(SequenceManagerTest, DenyRunning_AfterPosting) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -774,7 +774,7 @@ TEST_P(SequenceManagerTest, DenyRunning_AfterRemovingFence) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -801,7 +801,7 @@ TEST_P(SequenceManagerTest, RemovingFenceWithDelayedTask) {
   RunPendingTasks();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -833,7 +833,7 @@ TEST_P(SequenceManagerTest, RemovingFenceWithMultipleDelayedTasks) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -864,7 +864,7 @@ TEST_P(SequenceManagerTest, MultipleFences) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -874,7 +874,7 @@ TEST_P(SequenceManagerTest, MultipleFences) {
   runners_[0]->PostTask(FROM_HERE, BindOnce(&TestTask, 4, &run_order));
   RunLoop().RunUntilIdle();
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u));
@@ -892,7 +892,7 @@ TEST_P(SequenceManagerTest, InsertFenceThenImmediatlyRemoveDoesNotBlock) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -910,7 +910,7 @@ TEST_P(SequenceManagerTest, InsertFencePostThenRemoveDoesNotBlock) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -928,7 +928,7 @@ TEST_P(SequenceManagerTest, MultipleFencesWithInitiallyEmptyQueue) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -1147,7 +1147,7 @@ TEST_P(SequenceManagerTest, ReentrantPosting) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(3u, 2u, 1u));
@@ -1183,7 +1183,7 @@ TEST_P(SequenceManagerTestWithMessageLoop, PostFromThread) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -1225,7 +1225,7 @@ TEST_P(SequenceManagerTestWithMessageLoop, PostFromNestedRunloop) {
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(0u, 2u, 1u));
@@ -1248,7 +1248,7 @@ TEST_P(SequenceManagerTest, WorkBatching) {
   RunPendingTasks();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -1257,7 +1257,7 @@ TEST_P(SequenceManagerTest, WorkBatching) {
   EXPECT_EQ(1u, test_task_runner_->GetPendingTaskCount());
   RunPendingTasks();
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u));
@@ -1548,7 +1548,7 @@ TEST_P(SequenceManagerTest, ImmediateAndDelayedTaskInterleaving) {
                                    17u, 18u, 2u,  3u,  4u, 5u,  6u,  7u,  8u};
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAreArray(expected_run_order));
@@ -1570,7 +1570,7 @@ TEST_P(SequenceManagerTest,
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(2u, 3u, 1u));
@@ -1592,7 +1592,7 @@ TEST_P(SequenceManagerTest,
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(2u, 3u, 1u));
@@ -1614,7 +1614,7 @@ TEST_P(SequenceManagerTest, DelayedTaskDoesNotSkipAHeadOfShorterDelayedTask) {
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(2u, 1u));
@@ -1681,7 +1681,7 @@ TEST_P(SequenceManagerTest, SequenceNumSetWhenTaskIsPosted) {
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(40));
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(4u, 3u, 2u, 1u));
@@ -1713,7 +1713,7 @@ TEST_P(SequenceManagerTest, NewTaskQueues) {
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u));
@@ -1737,7 +1737,7 @@ TEST_P(SequenceManagerTest, ShutdownTaskQueue_TaskRunnersDetaching) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre());
@@ -1763,7 +1763,7 @@ TEST_P(SequenceManagerTest, ShutdownTaskQueue) {
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 3u));
@@ -1787,7 +1787,7 @@ TEST_P(SequenceManagerTest, ShutdownTaskQueue_WithDelayedTasks) {
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(40));
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   ASSERT_THAT(run_order_long, ElementsAre(1u, 3u));
@@ -1812,7 +1812,7 @@ TEST_P(SequenceManagerTest, ShutdownTaskQueue_InTasks) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   ASSERT_THAT(run_order_long, ElementsAre(1u));
@@ -1892,7 +1892,7 @@ TEST_P(SequenceManagerTest, TimeDomainsAreIndependant) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(4u, 5u, 6u));
@@ -1902,7 +1902,7 @@ TEST_P(SequenceManagerTest, TimeDomainsAreIndependant) {
 
   RunLoop().RunUntilIdle();
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(4u, 5u, 6u, 1u, 2u, 3u));
@@ -1938,7 +1938,7 @@ TEST_P(SequenceManagerTest, TimeDomainMigration) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -1953,7 +1953,7 @@ TEST_P(SequenceManagerTest, TimeDomainMigration) {
 
   RunLoop().RunUntilIdle();
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u));
@@ -1983,7 +1983,7 @@ TEST_P(SequenceManagerTest, TimeDomainMigrationWithIncomingImmediateTasks) {
   RunLoop().RunUntilIdle();
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u));
@@ -2026,7 +2026,7 @@ TEST_P(SequenceManagerTest,
   test_task_runner_->FastForwardBy(TimeDelta::FromMilliseconds(40));
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(4u, 3u, 2u, 1u));
@@ -3164,7 +3164,7 @@ TEST_P(SequenceManagerTest, ProcessTasksWithoutTaskTimeObservers) {
   EXPECT_EQ(complete_counter, 3);
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u));
@@ -3179,7 +3179,7 @@ TEST_P(SequenceManagerTest, ProcessTasksWithoutTaskTimeObservers) {
   EXPECT_EQ(start_counter, 3);
   EXPECT_EQ(complete_counter, 3);
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u, 5u, 6u));
@@ -3202,7 +3202,7 @@ TEST_P(SequenceManagerTest, ProcessTasksWithTaskTimeObservers) {
   EXPECT_EQ(complete_counter, 2);
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -3216,7 +3216,7 @@ TEST_P(SequenceManagerTest, ProcessTasksWithTaskTimeObservers) {
   EXPECT_EQ(start_counter, 2);
   EXPECT_EQ(complete_counter, 2);
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u));
@@ -3230,7 +3230,7 @@ TEST_P(SequenceManagerTest, ProcessTasksWithTaskTimeObservers) {
   EXPECT_EQ(complete_counter, 2);
   EXPECT_FALSE(runners_[0]->GetTaskQueueImpl()->RequiresTaskTiming());
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u, 5u, 6u));
@@ -3244,7 +3244,7 @@ TEST_P(SequenceManagerTest, ProcessTasksWithTaskTimeObservers) {
   EXPECT_EQ(complete_counter, 4);
   EXPECT_TRUE(runners_[0]->GetTaskQueueImpl()->RequiresTaskTiming());
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u));
@@ -3414,7 +3414,7 @@ TEST_P(SequenceManagerTest, CanceledTasksInQueueCantMakeOtherTasksSkipAhead) {
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u));
@@ -3653,7 +3653,7 @@ TEST_P(SequenceManagerTestWithCustomInitialization,
 
   std::vector<uint64_t> run_order_long;
   run_order_long.clear();
-  for (auto i: run_order) {
+  for (auto i : run_order) {
     run_order_long.push_back(static_cast<uint64_t>(i));
   }
   EXPECT_THAT(run_order_long, ElementsAre(1u, 2u, 3u));

@@ -417,7 +417,6 @@ void TaskTracker::Shutdown() {
     flush_cv_->Signal();
   }
   CallFlushCallbackForTesting();
-
 }
 
 void TaskTracker::FlushForTesting() {

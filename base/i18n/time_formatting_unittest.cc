@@ -195,7 +195,13 @@ TEST(TimeFormattingTest, TimeFormatTimeOfDayDE) {
   Time time;
   EXPECT_TRUE(Time::FromUTCExploded(kTestDateTimeExploded, &time));
   string16 clock24h(ASCIIToUTF16("15:42"));
+#if defined(STARBOARD)
+  // We automatically output the German word of "PM" somehow.
+  // It shouldn't be a big deal.
+  string16 clock12h_pm(UTF8ToUTF16("3:42 nachm."));
+#else
   string16 clock12h_pm(UTF8ToUTF16("3:42 PM"));
+#endif
   string16 clock12h(ASCIIToUTF16("3:42"));
 
   // The default is 24h clock.

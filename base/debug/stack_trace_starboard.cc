@@ -171,8 +171,8 @@ StackTrace::StackTrace(size_t count) {
 }
 
 void StackTrace::PrintWithPrefix(const char* prefix_string) const {
-// NOTE: This code MUST be async-signal safe (it's used by in-process
-// stack dumping signal handler). NO malloc or stdio is allowed here.
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
   PrintBacktraceOutputHandler handler;
   ProcessBacktrace(trace_, count_, prefix_string, &handler);
 }

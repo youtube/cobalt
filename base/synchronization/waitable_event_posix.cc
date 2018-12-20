@@ -162,13 +162,13 @@ bool WaitableEvent::TimedWait(const TimeDelta& wait_delta) {
 }
 
 bool WaitableEvent::TimedWaitUntil(const TimeTicks& end_time) {
+#if !defined(STARBOARD)
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
       BlockingType::MAY_BLOCK);
 
-#if !defined(STARBOARD)
   // Record the event that this thread is blocking upon (for hang diagnosis).
   base::debug::ScopedEventWaitActivity event_activity(this);
-#endif  // !defined(STARBOARD)
+#endif
 
   const bool finite_time = !end_time.is_max();
 
@@ -241,10 +241,10 @@ cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
 size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
                                size_t count) {
   DCHECK(count) << "Cannot wait on no events";
+#if !defined(STARBOARD)
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
       BlockingType::MAY_BLOCK);
 
-#if !defined(STARBOARD)
   // Record an event (the first) that this thread is blocking upon.
   base::debug::ScopedEventWaitActivity event_activity(raw_waitables[0]);
 #endif  // !defined(STARBOARD)

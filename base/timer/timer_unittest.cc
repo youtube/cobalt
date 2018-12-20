@@ -15,6 +15,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/sequenced_task_runner.h"
 #include "base/synchronization/waitable_event.h"
@@ -782,7 +783,8 @@ namespace {
 class TimerSequenceTest : public testing::Test {
  public:
   TimerSequenceTest()
-      : event_(WaitableEvent::ResetPolicy::AUTOMATIC,
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
+        event_(WaitableEvent::ResetPolicy::AUTOMATIC,
                WaitableEvent::InitialState::NOT_SIGNALED) {}
 
   // Block until Signal() is called on another thread.
@@ -831,6 +833,7 @@ class TimerSequenceTest : public testing::Test {
     Signal();
   }
 
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   base::test::ScopedTaskEnvironment scoped_task_environment_;
   WaitableEvent event_;
   std::unique_ptr<OneShotTimer> timer_;
