@@ -243,12 +243,6 @@ class AndroidConfiguration(PlatformConfiguration):
 
   # A map of failing or crashing tests per target.
   _FILTERED_TESTS = {
-      'base_unittests': [
-          'NumberFormattingTest.FormatDouble',
-          'NumberFormattingTest.FormatNumber',
-          'TimeFormattingTest.TimeFormat*',
-          'TimeTest.ParseTime*',
-      ],
       'nplb': [
           'SbAudioSinkTest.AllFramesConsumed',
           'SbAudioSinkTest.SomeFramesConsumed',
