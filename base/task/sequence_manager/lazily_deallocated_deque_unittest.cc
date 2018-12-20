@@ -4,6 +4,7 @@
 
 #include "base/task/sequence_manager/lazily_deallocated_deque.h"
 
+#include "base/logging.h"
 #include "base/test/scoped_mock_clock_override.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

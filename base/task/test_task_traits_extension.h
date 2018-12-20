@@ -35,7 +35,7 @@ class TestTaskTraitsExtension {
 
   template <class... ArgTypes,
             class CheckArgumentsAreValid = trait_helpers::InitTypes<
-                    decltype(ValidTrait(std::declval<ArgTypes>()))...>>
+                decltype(ValidTrait(std::declval<ArgTypes>()))...>>
   constexpr TestTaskTraitsExtension(ArgTypes... args)
       : enum_trait_(trait_helpers::GetTraitFromArgList<TestExtensionEnumFilter>(
             args...)),
@@ -67,8 +67,8 @@ class TestTaskTraitsExtension {
 };
 
 template <class... ArgTypes,
-            class CheckArgumentsAreValid = trait_helpers::InitTypes<
-                    decltype(ValidTrait(std::declval<ArgTypes>()))...>>
+          class CheckArgumentsAreValid = trait_helpers::InitTypes<
+              decltype(ValidTrait(std::declval<ArgTypes>()))...>>
 constexpr TaskTraitsExtensionStorage MakeTaskTraitsExtension(ArgTypes... args) {
   return TestTaskTraitsExtension(std::forward<ArgTypes>(args)...).Serialize();
 }

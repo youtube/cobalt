@@ -22,8 +22,8 @@
 #include "build/build_config.h"
 
 #include "starboard/client_porting/poem/eztime_poem.h"
-#include "starboard/time.h"
 #include "starboard/log.h"
+#include "starboard/time.h"
 
 namespace base {
 
@@ -31,14 +31,7 @@ namespace base {
 
 namespace subtle {
 Time TimeNowIgnoringOverride() {
-  struct timeval tv;
-  CHECK(gettimeofday(&tv, NULL) == 0);
-  // Combine seconds and microseconds in a 64-bit field containing microseconds
-  // since the epoch.  That's enough for nearly 600 centuries.  Adjust from
-  // Unix (1970) to Windows (1601) epoch.
-  return Time() + TimeDelta::FromMicroseconds(
-                      (tv.tv_sec * Time::kMicrosecondsPerSecond + tv.tv_usec) +
-                      Time::kTimeTToMicrosecondsOffset);
+  return Time() + TimeDelta::FromMicroseconds(SbTimeGetNow());
 }
 
 Time TimeNowFromSystemTimeIgnoringOverride() {
@@ -70,14 +63,8 @@ bool TimeTicks::IsConsistentAcrossProcesses() {
 
 namespace subtle {
 ThreadTicks ThreadTicksNowIgnoringOverride() {
-#if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    defined(OS_ANDROID)
   return ThreadTicks() +
          TimeDelta::FromMicroseconds(SbTimeGetMonotonicThreadNow());
-#else
-  NOTREACHED();
-  return ThreadTicks();
-#endif
 }
 }  // namespace subtle
 

@@ -8,6 +8,7 @@
 #include "base/bind_helpers.h"
 #include "base/cpp14oncpp11.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -41,7 +42,9 @@ namespace {
 class TaskSchedulerSingleThreadTaskRunnerManagerTest : public testing::Test {
  public:
   TaskSchedulerSingleThreadTaskRunnerManagerTest()
-      : service_thread_("TaskSchedulerServiceThread") {}
+      : service_thread_("TaskSchedulerServiceThread"),
+        recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {
+  }
 
   void SetUp() override {
     service_thread_.Start();
@@ -69,6 +72,8 @@ class TaskSchedulerSingleThreadTaskRunnerManagerTest : public testing::Test {
   }
 
   Thread service_thread_;
+
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   TaskTracker task_tracker_ = {"Test"};
   DelayedTaskManager delayed_task_manager_;
   std::unique_ptr<SchedulerSingleThreadTaskRunnerManager>
@@ -225,10 +230,10 @@ TEST_F(TaskSchedulerSingleThreadTaskRunnerManagerTest,
 
   // Post a BLOCK_SHUTDOWN task to a shared SingleThreadTaskRunner.
   single_thread_task_runner_manager_
-     ->CreateSingleThreadTaskRunnerWithTraits(
-         {TaskShutdownBehavior::BLOCK_SHUTDOWN},
-         SingleThreadTaskRunnerThreadMode::SHARED)
-     ->PostTask(FROM_HERE, DoNothing());
+      ->CreateSingleThreadTaskRunnerWithTraits(
+          {TaskShutdownBehavior::BLOCK_SHUTDOWN},
+          SingleThreadTaskRunnerThreadMode::SHARED)
+      ->PostTask(FROM_HERE, DoNothing());
 
   // Shutdown should not hang even though the first task hasn't finished.
   task_tracker_.Shutdown();

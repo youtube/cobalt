@@ -78,7 +78,8 @@ void WaitWithoutBlockingObserver(WaitableEvent* event) {
 class TaskSchedulerWorkerPoolImplTestBase {
  protected:
   TaskSchedulerWorkerPoolImplTestBase()
-      : service_thread_("TaskSchedulerServiceThread"){};
+      : statistics_recorder_(StatisticsRecorder::CreateTemporaryForTesting()),
+        service_thread_("TaskSchedulerServiceThread"){};
 
   void CommonSetUp(TimeDelta suggested_reclaim_time = TimeDelta::Max()) {
     CreateAndStartWorkerPool(suggested_reclaim_time, kMaxTasks);
@@ -116,6 +117,7 @@ class TaskSchedulerWorkerPoolImplTestBase {
     StartWorkerPool(suggested_reclaim_time, max_tasks);
   }
 
+  std::unique_ptr<StatisticsRecorder> statistics_recorder_;
   Thread service_thread_;
   TaskTracker task_tracker_ = {"Test"};
 
@@ -1321,6 +1323,8 @@ TEST_F(TaskSchedulerWorkerPoolBlockingTest,
 TEST(TaskSchedulerWorkerPoolOverCapacityTest, VerifyCleanup) {
   constexpr size_t kLocalMaxTasks = 3;
 
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   DelayedTaskManager delayed_task_manager;
   scoped_refptr<TaskRunner> service_thread_task_runner =

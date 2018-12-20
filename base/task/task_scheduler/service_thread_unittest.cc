@@ -8,6 +8,7 @@
 
 #include "base/bind.h"
 #include "base/debug/stack_trace.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "base/task/task_scheduler/task_scheduler_impl.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -56,6 +57,8 @@ TEST(TaskSchedulerServiceThreadTest, MAYBE_StackHasIdentifyingFrame) {
 // integrated TaskScheduler environment results in reporting
 // HeartbeatLatencyMicroseconds metrics.
 TEST(TaskSchedulerServiceThreadIntegrationTest, HeartbeatLatencyReport) {
+  std::unique_ptr<StatisticsRecorder> temp_recorder =
+      StatisticsRecorder::CreateTemporaryForTesting();
   ServiceThread::SetHeartbeatIntervalForTesting(TimeDelta::FromMilliseconds(1));
 
   TaskScheduler::SetInstance(

@@ -26,9 +26,31 @@
 #endif
 
 #if __cplusplus < 201402L
+namespace {
+template <int Index, class TargetType, class SkipType, class... Types>
+struct get_internal {
+  typedef typename get_internal<Index + 1, TargetType, Types...>::type type;
+  // The line above will expand until TargetType is found,
+  // Only the index of the get_internal not expanded will return.
+  static constexpr int index = Index;
+};
+
+template <int Index, class TargetType, class... Types>
+struct get_internal<Index, TargetType, TargetType, Types...> {
+  typedef get_internal type;
+  // This line is for the case that first type matches TargetType.
+  static constexpr int index = Index;
+};
+}  // namespace
+
 namespace std {
 
-template <size_t... Ints> 
+template <class TargetType, class... Types>
+TargetType get(std::tuple<Types...> tuple) {
+  return std::get<get_internal<0, TargetType, Types...>::type::index>(tuple);
+}
+
+template <size_t... Ints>
 class index_sequence {};
 
 namespace detail {

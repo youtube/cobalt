@@ -94,20 +94,20 @@ using LazyCOMSTATaskRunner =
 // of a static initializer.
 
 // |traits| are TaskTraits used when creating the SequencedTaskRunner.
-#define LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER(traits)                 \
-  base::LazySequencedTaskRunner::CreateInternal(traits);               \
-  ALLOW_UNUSED_TYPE CONSTEXPR base::TaskTraits                         \
-      LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(kVerifyTraitsAreConstexpr, \
-                                            __LINE__) = traits
+#define LAZY_SEQUENCED_TASK_RUNNER_INITIALIZER(traits)        \
+  base::LazySequencedTaskRunner::CreateInternal(traits);      \
+  ALLOW_UNUSED_TYPE CONSTEXPR                                 \
+      base::TaskTraits LAZY_TASK_RUNNER_CONCATENATE_INTERNAL( \
+          kVerifyTraitsAreConstexpr, __LINE__) = traits
 
 // |traits| are TaskTraits used when creating the SingleThreadTaskRunner.
 // |thread_mode| specifies whether the SingleThreadTaskRunner can share its
 // thread with other SingleThreadTaskRunners.
 #define LAZY_SINGLE_THREAD_TASK_RUNNER_INITIALIZER(traits, thread_mode)   \
   base::LazySingleThreadTaskRunner::CreateInternal(traits, thread_mode);  \
-  ALLOW_UNUSED_TYPE CONSTEXPR base::TaskTraits                            \
-      LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(kVerifyTraitsAreConstexpr,    \
-                                            __LINE__) = traits;           \
+  ALLOW_UNUSED_TYPE CONSTEXPR                                             \
+      base::TaskTraits LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(             \
+          kVerifyTraitsAreConstexpr, __LINE__) = traits;                  \
   ALLOW_UNUSED_TYPE CONSTEXPR base::SingleThreadTaskRunnerThreadMode      \
       LAZY_TASK_RUNNER_CONCATENATE_INTERNAL(kVerifyThreadModeIsConstexpr, \
                                             __LINE__) = thread_mode

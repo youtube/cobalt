@@ -6,6 +6,8 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/metrics/persistent_histogram_allocator.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/sequence_checker_impl.h"
 #include "base/task/scoped_set_task_priority_for_current_thread.h"
 #include "base/test/scoped_task_environment.h"
@@ -82,7 +84,11 @@ void ExpectSingleThreadEnvironment(SequenceCheckerImpl* sequence_checker,
 
 class TaskSchedulerLazyTaskRunnerEnvironmentTest : public testing::Test {
  protected:
-  TaskSchedulerLazyTaskRunnerEnvironmentTest() = default;
+  TaskSchedulerLazyTaskRunnerEnvironmentTest()
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
+        scoped_task_environment_() {
+    GlobalHistogramAllocator::ReleaseForTesting();
+  }
 
   void TestTaskRunnerEnvironment(scoped_refptr<SequencedTaskRunner> task_runner,
                                  bool expect_single_thread,
@@ -116,6 +122,7 @@ class TaskSchedulerLazyTaskRunnerEnvironmentTest : public testing::Test {
     scoped_task_environment_.RunUntilIdle();
   }
 
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   test::ScopedTaskEnvironment scoped_task_environment_;
 
  private:
@@ -163,6 +170,8 @@ TEST_F(TaskSchedulerLazyTaskRunnerEnvironmentTest,
 #endif  // defined(OS_WIN)
 
 TEST(TaskSchdulerLazyTaskRunnerTest, LazySequencedTaskRunnerReset) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_ =
+      StatisticsRecorder::CreateTemporaryForTesting();
   for (int i = 0; i < 2; ++i) {
     test::ScopedTaskEnvironment scoped_task_environment;
     // If the TaskRunner isn't released when the test::ScopedTaskEnvironment
@@ -174,6 +183,8 @@ TEST(TaskSchdulerLazyTaskRunnerTest, LazySequencedTaskRunnerReset) {
 }
 
 TEST(TaskSchdulerLazyTaskRunnerTest, LazySingleThreadTaskRunnerReset) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_ =
+      StatisticsRecorder::CreateTemporaryForTesting();
   for (int i = 0; i < 2; ++i) {
     test::ScopedTaskEnvironment scoped_task_environment;
     // If the TaskRunner isn't released when the test::ScopedTaskEnvironment
@@ -186,6 +197,8 @@ TEST(TaskSchdulerLazyTaskRunnerTest, LazySingleThreadTaskRunnerReset) {
 
 #if defined(OS_WIN)
 TEST(TaskSchdulerLazyTaskRunnerTest, LazyCOMSTATaskRunnerReset) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_ =
+      StatisticsRecorder::CreateTemporaryForTesting();
   for (int i = 0; i < 2; ++i) {
     test::ScopedTaskEnvironment scoped_task_environment;
     // If the TaskRunner isn't released when the test::ScopedTaskEnvironment
