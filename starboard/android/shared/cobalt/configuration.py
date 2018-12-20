@@ -75,5 +75,4 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'StorageUpgradeTest.UpgradeMinimalCookie',
           'StorageUpgradeTest.UpgradeExtraFields',
       ],
-      'web_platform_tests': [test_filter.FILTER_ALL],
   }
