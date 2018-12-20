@@ -90,6 +90,15 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       activity_state_(AndroidCommand::kUndefined),
       window_(kSbWindowInvalid),
       last_is_accessibility_high_contrast_text_enabled_(false) {
+
+  // Initialize Time Zone early so that local time works correctly.
+  // Called once here to help SbTimeZoneGet*Name()
+  tzset();
+
+  // Initialize Android asset access early so that ICU can load its tables
+  // from the assets. The use ICU is used in our logging.
+  SbFileAndroidInitialize();
+
   int pipefd[2];
   int err;
 
@@ -119,9 +128,6 @@ ApplicationAndroid::~ApplicationAndroid() {
 }
 
 void ApplicationAndroid::Initialize() {
-  // Called once here to help SbTimeZoneGet*Name()
-  tzset();
-  SbFileAndroidInitialize();
   SbAudioSinkPrivate::Initialize();
 }
 
