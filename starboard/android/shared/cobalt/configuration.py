@@ -71,8 +71,4 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       'renderer_test': [
           'StressTest.TooManyTextures',
       ],
-      'storage_test': [
-          'StorageUpgradeTest.UpgradeMinimalCookie',
-          'StorageUpgradeTest.UpgradeExtraFields',
-      ],
   }
