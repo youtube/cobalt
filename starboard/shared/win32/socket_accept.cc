@@ -17,8 +17,8 @@
 #include <winsock2.h>
 
 #include "starboard/log.h"
-#include "starboard/shared/win32/set_non_blocking_internal.h"
 #include "starboard/shared/win32/socket_internal.h"
+#include "starboard/shared/win32/socket_util.h"
 
 namespace sbwin32 = starboard::shared::win32;
 
@@ -36,7 +36,7 @@ SbSocket SbSocketAccept(SbSocket socket) {
   }
 
   // All Starboard sockets are non-blocking, so let's ensure it.
-  if (!sbwin32::SetNonBlocking(socket_handle)) {
+  if (!sbwin32::SetSocketToNonBlocking(socket_handle)) {
     // Something went wrong, we'll clean up and return failure.
     socket->error = sbwin32::TranslateSocketErrorStatus(WSAGetLastError());
     closesocket(socket_handle);

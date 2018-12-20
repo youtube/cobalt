@@ -21,8 +21,8 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
-#include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
+#include "starboard/shared/posix/socket_util.h"
 
 namespace sbposix = starboard::shared::posix;
 
@@ -41,7 +41,7 @@ SbSocket SbSocketAccept(SbSocket socket) {
   }
 
   // All Starboard sockets are non-blocking, so let's ensure it.
-  if (!sbposix::SetNonBlocking(socket_fd)) {
+  if (!sbposix::SetSocketToNonBlocking(socket_fd)) {
     // Something went wrong, we'll clean up and return failure.
     socket->error = sbposix::TranslateSocketErrno(errno);
     HANDLE_EINTR(close(socket_fd));
