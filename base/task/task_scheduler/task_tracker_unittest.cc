@@ -171,7 +171,9 @@ class ScopedSetSingletonAllowed {
 class TaskSchedulerTaskTrackerTest
     : public testing::TestWithParam<TaskShutdownBehavior> {
  protected:
-  TaskSchedulerTaskTrackerTest() = default;
+  TaskSchedulerTaskTrackerTest()
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {
+  }
 
   // Creates a task.
   Task CreateTask() {
@@ -239,6 +241,7 @@ class TaskSchedulerTaskTrackerTest
     return num_tasks_executed_;
   }
 
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   TaskTracker tracker_ = {"Test"};
   testing::StrictMock<MockCanScheduleSequenceObserver> never_notified_observer_;
 
@@ -1405,6 +1408,8 @@ class WaitAllowedTestThread : public SimpleThread {
 
  private:
   void Run() override {
+    std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+        StatisticsRecorder::CreateTemporaryForTesting();
     auto task_tracker = std::make_unique<TaskTracker>("Test");
 
     // Waiting is allowed by default. Expect TaskTracker to disallow it before

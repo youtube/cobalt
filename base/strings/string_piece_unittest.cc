@@ -707,62 +707,62 @@ TYPED_TEST(CommonStringPieceTest, CheckConstructors) {
   ASSERT_EQ(empty, BasicStringPiece<TypeParam>(empty.begin(), empty.end()));
 }
 
-TEST(StringPieceTest, ConstexprCtor) {
+TEST(StringPieceTest, CONSTEXPRCtor) {
   {
-    constexpr StringPiece piece;
+    CONSTEXPR StringPiece piece;
     std::ignore = piece;
   }
 
   {
-    constexpr StringPiece piece("abc");
+    CONSTEXPR StringPiece piece("abc");
     std::ignore = piece;
   }
 
   {
-    constexpr StringPiece piece("abc", 2);
+    CONSTEXPR StringPiece piece("abc", 2);
     std::ignore = piece;
   }
 }
 
-TEST(StringPieceTest, ConstexprData) {
+TEST(StringPieceTest, CONSTEXPRData) {
   {
-    constexpr StringPiece piece;
-    static_assert(piece.data() == nullptr, "");
+    CONSTEXPR StringPiece piece;
+    STATIC_ASSERT(piece.data() == nullptr, "");
   }
 
   {
-    constexpr StringPiece piece("abc");
-    static_assert(piece.data()[0] == 'a', "");
-    static_assert(piece.data()[1] == 'b', "");
-    static_assert(piece.data()[2] == 'c', "");
+    CONSTEXPR StringPiece piece("abc");
+    STATIC_ASSERT(piece.data()[0] == 'a', "");
+    STATIC_ASSERT(piece.data()[1] == 'b', "");
+    STATIC_ASSERT(piece.data()[2] == 'c', "");
   }
 
   {
-    constexpr StringPiece piece("def", 2);
-    static_assert(piece.data()[0] == 'd', "");
-    static_assert(piece.data()[1] == 'e', "");
+    CONSTEXPR StringPiece piece("def", 2);
+    STATIC_ASSERT(piece.data()[0] == 'd', "");
+    STATIC_ASSERT(piece.data()[1] == 'e', "");
   }
 }
 
-TEST(StringPieceTest, ConstexprSize) {
+TEST(StringPieceTest, CONSTEXPRSize) {
   {
-    constexpr StringPiece piece;
-    static_assert(piece.size() == 0, "");
+    CONSTEXPR StringPiece piece;
+    STATIC_ASSERT(piece.size() == 0, "");
   }
 
   {
-    constexpr StringPiece piece("abc");
-    static_assert(piece.size() == 3, "");
+    CONSTEXPR StringPiece piece("abc");
+    STATIC_ASSERT(piece.size() == 3, "");
   }
 
   {
-    constexpr StringPiece piece("def", 2);
-    static_assert(piece.size() == 2, "");
+    CONSTEXPR StringPiece piece("def", 2);
+    STATIC_ASSERT(piece.size() == 2, "");
   }
 }
 
 TEST(StringPieceTest, Compare) {
-  constexpr StringPiece piece = "def";
+  CONSTEXPR StringPiece piece = "def";
 
   STATIC_ASSERT(piece.compare("ab") == 1, "");
   STATIC_ASSERT(piece.compare("abc") == 1, "");
@@ -776,7 +776,7 @@ TEST(StringPieceTest, Compare) {
 }
 
 TEST(StringPieceTest, StartsWith) {
-  constexpr StringPiece piece("abc");
+  CONSTEXPR StringPiece piece("abc");
 
   STATIC_ASSERT(piece.starts_with(""), "");
   STATIC_ASSERT(piece.starts_with("a"), "");
@@ -790,7 +790,7 @@ TEST(StringPieceTest, StartsWith) {
 }
 
 TEST(StringPieceTest, EndsWith) {
-  constexpr StringPiece piece("abc");
+  CONSTEXPR StringPiece piece("abc");
 
   STATIC_ASSERT(piece.ends_with(""), "");
   STATIC_ASSERT(piece.ends_with("c"), "");

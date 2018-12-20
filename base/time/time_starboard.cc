@@ -30,11 +30,6 @@ SbTime TimeDelta::ToSbTime() const {
   return InMicroseconds();
 }
 
-// static
-Time Time::Now() {
-  return Time(SbTimeGetNow());
-}
-
 void Time::Explode(bool is_local, Exploded *exploded) const {
   EzTimeValue value = EzTimeValueFromSbTime(ToSbTime());
   EzTimeExploded ez_exploded;
@@ -93,11 +88,6 @@ Time Time::FromSbTime(SbTime t) {
 
 SbTime Time::ToSbTime() const {
   return us_;
-}
-
-// static
-TimeTicks TimeTicks::Now() {
-  return TimeTicks(SbTimeGetMonotonicNow());
 }
 
 // static

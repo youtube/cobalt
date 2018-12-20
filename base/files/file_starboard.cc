@@ -155,7 +155,7 @@ int File::Write(int64_t offset, const char* data, int size) {
     return -1;
   }
 
-  int position = SbFileSeek(file_.get(), kSbFileFromBegin, offset);
+  int64_t position = SbFileSeek(file_.get(), kSbFileFromBegin, offset);
   int result = 0;
   if (position == offset) {
     result = WriteAtCurrentPos(data, size);

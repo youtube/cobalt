@@ -9,6 +9,7 @@
 #include "base/atomicops.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/post_task.h"
@@ -271,6 +272,7 @@ TEST_F(ScopedTaskEnvironmentTest, SupportsFileDescriptorWatcherOnIOMainThread) {
 // |ScopedTaskEnvironment::GetMockTickClock| gets updated when the
 // FastForward(By|UntilNoTasksRemain) functions are called.
 TEST_F(ScopedTaskEnvironmentTest, FastForwardAdvanceTickClock) {
+  auto recorder = StatisticsRecorder::CreateTemporaryForTesting();
   // Use a QUEUED execution-mode environment, so that no tasks are actually
   // executed until RunUntilIdle()/FastForwardBy() are invoked.
   ScopedTaskEnvironment scoped_task_environment(

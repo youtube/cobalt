@@ -10,6 +10,8 @@
 #include "base/bind.h"
 #include "base/environment.h"
 #include "base/files/file_util.h"
+#include "base/metrics/persistent_histogram_allocator.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/optional.h"
 #include "base/process/process_metrics.h"
 #include "base/run_loop.h"
@@ -130,7 +132,7 @@ TEST_F(SysInfoTest, HardwareModelNameFormatMacAndiOS) {
   std::string hardware_model = SysInfo::HardwareModelName();
   ASSERT_FALSE(hardware_model.empty());
   // Check that the model is of the expected format "Foo,Bar" where "Bar" is
-  // a number.
+  // a number.ReleaseForTesting
   std::vector<StringPiece> pieces =
       SplitStringPiece(hardware_model, ",", KEEP_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(2u, pieces.size()) << hardware_model;
@@ -140,6 +142,10 @@ TEST_F(SysInfoTest, HardwareModelNameFormatMacAndiOS) {
 #endif
 
 TEST_F(SysInfoTest, GetHardwareInfo) {
+  // Histograms added by previous tests using static method could still be
+  // there. Let's get a clean environment for testing.
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   test::ScopedTaskEnvironment task_environment;
   base::Optional<SysInfo::HardwareInfo> hardware_info;
 

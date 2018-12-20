@@ -34,6 +34,8 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_ERROR_TOO_MANY_OPENED, file2.error_details());
   }
 
+#if !defined(STARBOARD)
+  // Starboard doesn't support GetLastFileError().
   {
     // Open a file that doesn't exist.
     File file(file_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
@@ -41,6 +43,7 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, file.error_details());
     EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, base::File::GetLastFileError());
   }
+#endif
 
   {
     // Open or create a file.
@@ -75,6 +78,7 @@ TEST(FileTest, Create) {
     EXPECT_FALSE(file.IsValid());
   }
 
+#if !defined(STARBOARD)
   {
     // Create a file that exists.
     File file(file_path, base::File::FLAG_CREATE | base::File::FLAG_READ);
@@ -83,6 +87,7 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_ERROR_EXISTS, file.error_details());
     EXPECT_EQ(base::File::FILE_ERROR_EXISTS, base::File::GetLastFileError());
   }
+#endif
 
   {
     // Create or overwrite a file.
@@ -149,6 +154,7 @@ TEST(FileTest, Async) {
 }
 
 #if !defined(STARBOARD)
+// Starboard does not support getting last file access error yet.
 TEST(FileTest, DeleteOpenFile) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -253,6 +259,7 @@ TEST(FileTest, ReadWrite) {
     EXPECT_EQ(data_to_write[i - kOffsetBeyondEndOfFile], data_read_2[i]);
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, GetLastFileError) {
 #if defined(OS_WIN)
   ::SetLastError(ERROR_ACCESS_DENIED);
@@ -271,6 +278,7 @@ TEST(FileTest, GetLastFileError) {
   EXPECT_EQ(File::FILE_ERROR_NOT_FOUND, file.error_details());
   EXPECT_EQ(File::FILE_ERROR_NOT_FOUND, last_error);
 }
+#endif
 
 TEST(FileTest, Append) {
   base::ScopedTempDir temp_dir;
@@ -567,9 +575,8 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.GetPath().AppendASCII("file");
-  File file(file_path,
-            (base::File::FLAG_CREATE | base::File::FLAG_READ |
-             base::File::FLAG_WRITE | base::File::FLAG_DELETE_ON_CLOSE));
+  File file(file_path, (base::File::FLAG_CREATE | base::File::FLAG_READ |
+                        base::File::FLAG_WRITE));
   ASSERT_TRUE(file.IsValid());
 
   const char kData[] = "this file is sparse.";

@@ -93,6 +93,60 @@ constexpr InvalidTrait GetTraitFromArg(CallSecondTag, ArgType arg) {
 #if __cplusplus < 201402L
 template <class TraitFilterType,
           class ArgTypes1,
+          class ArgTypes2,
+          class ArgTypes3,
+          class ArgTypes4,
+          class TestCompatibleArgument = std::enable_if_t<
+              std::is_constructible<TraitFilterType, ArgTypes1>::value ||
+              std::is_constructible<TraitFilterType, ArgTypes2>::value ||
+              std::is_constructible<TraitFilterType, ArgTypes3>::value ||
+              std::is_constructible<TraitFilterType, ArgTypes4>::value>>
+TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
+                                        ArgTypes1 arg1,
+                                        ArgTypes2 arg2,
+                                        ArgTypes3 arg3,
+                                        ArgTypes4 arg4) {
+  return std::get<TraitFilterType>(
+      std::make_tuple(GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg1),
+                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg2),
+                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg3),
+                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg4)));
+}
+
+template <class TraitFilterType,
+          class ArgTypes1,
+          class ArgTypes2,
+          class ArgTypes3,
+          class TestCompatibleArgument = std::enable_if_t<
+              std::is_constructible<TraitFilterType, ArgTypes1>::value ||
+              std::is_constructible<TraitFilterType, ArgTypes2>::value ||
+              std::is_constructible<TraitFilterType, ArgTypes3>::value>>
+TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
+                                        ArgTypes1 arg1,
+                                        ArgTypes2 arg2,
+                                        ArgTypes3 arg3) {
+  return std::get<TraitFilterType>(
+      std::make_tuple(GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg1),
+                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg2),
+                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg3)));
+}
+
+template <class TraitFilterType,
+          class ArgTypes1,
+          class ArgTypes2,
+          class TestCompatibleArgument = std::enable_if_t<
+              std::is_constructible<TraitFilterType, ArgTypes1>::value ||
+              std::is_constructible<TraitFilterType, ArgTypes2>::value>>
+TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
+                                        ArgTypes1 arg1,
+                                        ArgTypes2 arg2) {
+  return std::get<TraitFilterType>(
+      std::make_tuple(GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg1),
+                      GetTraitFromArg<TraitFilterType>(CallFirstTag(), arg2)));
+}
+
+template <class TraitFilterType,
+          class ArgTypes1,
           class TestCompatibleArgument = std::enable_if_t<
               std::is_constructible<TraitFilterType, ArgTypes1>::value>>
 constexpr TraitFilterType GetTraitFromArgListImpl(CallFirstTag,
@@ -163,8 +217,15 @@ constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2, ArgType3 arg3) {
          std::is_constructible<TraitFilterType, ArgType3>::value;
 }
 
-template <class TraitFilterType, class ArgType1, class ArgType2, class ArgType3, class ArgType4>
-constexpr bool TraitIsDefined(ArgType1 arg1, ArgType2 arg2, ArgType3 arg3, ArgType4 arg4) {
+template <class TraitFilterType,
+          class ArgType1,
+          class ArgType2,
+          class ArgType3,
+          class ArgType4>
+constexpr bool TraitIsDefined(ArgType1 arg1,
+                              ArgType2 arg2,
+                              ArgType3 arg3,
+                              ArgType4 arg4) {
   return std::is_constructible<TraitFilterType, ArgType1>::value ||
          std::is_constructible<TraitFilterType, ArgType2>::value ||
          std::is_constructible<TraitFilterType, ArgType3>::value ||
