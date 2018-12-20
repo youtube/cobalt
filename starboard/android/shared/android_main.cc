@@ -168,7 +168,6 @@ void OnInputQueueDestroyed(ANativeActivity* activity, AInputQueue* queue) {
 
 extern "C" SB_EXPORT_PLATFORM void ANativeActivity_onCreate(
     ANativeActivity *activity, void *savedState, size_t savedStateSize) {
-  SB_DLOG(INFO) << "ANativeActivity_onCreate";
 
   // Start the Starboard thread the first time an Activity is created.
   if (!SbThreadIsValid(g_starboard_thread)) {
