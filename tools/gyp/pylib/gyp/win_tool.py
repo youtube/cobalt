@@ -22,6 +22,9 @@ def main(args):
   executor = WinTool()
   exit_code = executor.Dispatch(args)
   if exit_code is not None:
+    if exit_code != 0:
+      print("Abnormal exit (" + str(exit_code) + ") code while executing " \
+            + str(args))
     sys.exit(exit_code)
 
 
