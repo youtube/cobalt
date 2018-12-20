@@ -106,7 +106,6 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
           'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest'
           '.SunnyDaySourceNotLoopback/1',
       ],
-      'nplb_blitter_pixel_tests': [test_filter.FILTER_ALL],
       'player_filter_tests': [
           # TODO: debug these failures.
           'VideoDecoderTests/VideoDecoderTest.EndOfStreamWithoutAnyInput/0',
