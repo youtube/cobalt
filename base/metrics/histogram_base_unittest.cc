@@ -6,6 +6,7 @@
 
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_base.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/sample_vector.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/metrics/statistics_recorder.h"
@@ -20,6 +21,7 @@ class HistogramBaseTest : public testing::Test {
     // Each test will have a clean state (no Histogram / BucketRanges
     // registered).
     ResetStatisticsRecorder();
+    GlobalHistogramAllocator::ReleaseForTesting();
   }
 
   ~HistogramBaseTest() override = default;

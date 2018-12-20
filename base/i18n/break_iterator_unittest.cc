@@ -142,7 +142,9 @@ TEST(BreakIteratorTest, BreakWordThai) {
 // dictionary to detect word boundaries in Thai, Chinese, Japanese, Burmese,
 // and Khmer. Due to the size of such a table, the part for Chinese and
 // Japanese is not shipped on mobile.
-#if !(defined(OS_IOS) || defined(OS_ANDROID))
+// Cobalt does not support Chinese/Japanese word breaking yet. This feature
+// requires a big dictionary(cjdict.txt) to support.
+#if !(defined(OS_IOS) || defined(OS_ANDROID) || defined(OS_STARBOARD))
 
 TEST(BreakIteratorTest, BreakWordChinese) {
   // Terms in Traditional Chinese, without spaces in between.

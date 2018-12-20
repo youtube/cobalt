@@ -26,8 +26,11 @@ struct BindLambdaHelper<F, R(Args...)> {
 // This doesn't support extra arguments binding as the lambda itself can do.
 #if __cplusplus < 201402L
 template <typename F>
-auto BindLambdaForTesting(F&& f) -> decltype(BindRepeating(&internal::BindLambdaHelper<F, internal::ExtractCallableRunType<std::decay_t<F>>>::Run,
-                       std::forward<F>(f))) {
+auto BindLambdaForTesting(F&& f) -> decltype(
+    BindRepeating(&internal::BindLambdaHelper<
+                      F,
+                      internal::ExtractCallableRunType<std::decay_t<F>>>::Run,
+                  std::forward<F>(f))) {
   using Signature = internal::ExtractCallableRunType<std::decay_t<F>>;
   return BindRepeating(&internal::BindLambdaHelper<F, Signature>::Run,
                        std::forward<F>(f));

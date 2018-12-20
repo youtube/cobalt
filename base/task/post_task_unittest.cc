@@ -5,6 +5,7 @@
 #include "base/task/post_task.h"
 
 #include "base/bind_helpers.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/task/task_executor.h"
 #include "base/task/test_task_traits_extension.h"
 #include "base/test/gtest_util.h"
@@ -84,6 +85,9 @@ class MockTaskExecutor : public TaskExecutor {
 
 class PostTaskTestWithExecutor : public ::testing::Test {
  public:
+  PostTaskTestWithExecutor()
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
+        scoped_task_environment_() {}
   void SetUp() override {
     RegisterTaskExecutor(TestTaskTraitsExtension::kExtensionId, &executor_);
   }
@@ -94,6 +98,7 @@ class PostTaskTestWithExecutor : public ::testing::Test {
 
  protected:
   testing::StrictMock<MockTaskExecutor> executor_;
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   test::ScopedTaskEnvironment scoped_task_environment_;
 };
 

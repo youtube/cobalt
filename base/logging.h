@@ -25,6 +25,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
+#include "starboard/log.h"
 #include "starboard/system.h"
 #endif
 
@@ -551,6 +552,9 @@ class CheckOpResult {
 //   CHECK. This is achieved by putting opcodes that will cause a non
 //   continuable exception after the actual trap instruction.
 // - Don't cause too much binary bloat.
+#if defined(STARBOARD)
+#define IMMEDIATE_CRASH() SB_CHECK(false)
+#else
 #if defined(COMPILER_GCC)
 
 #if defined(ARCH_CPU_X86_FAMILY) && !defined(OS_NACL)
@@ -627,6 +631,7 @@ class CheckOpResult {
 
 #else
 #error Port
+#endif
 #endif
 
 // CHECK dies with a fatal error if condition is not true.  It is *not*
@@ -885,6 +890,10 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 // DCHECK_IS_ON() is true. When DCHECK_IS_ON() is false, the macros use
 // EAT_STREAM_PARAMETERS to avoid expressions that would create temporaries.
 
+#if defined(STARBOARD)
+#define DCHECK(condition) SB_DCHECK(condition)
+#define DPCHECK(condition) SB_DCHECK(condition)
+#else
 #if defined(_PREFAST_) && defined(OS_WIN)
 // See comments on the previous use of __analysis_assume.
 
@@ -917,6 +926,7 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 #endif  // DCHECK_IS_ON()
 
 #endif  // defined(_PREFAST_) && defined(OS_WIN)
+#endif  // defined(STARBOARD)
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use DCHECK_EQ et al below.
@@ -927,14 +937,18 @@ const LogSeverity LOG_DCHECK = LOG_FATAL;
 #if DCHECK_IS_ON()
 
 #define DCHECK_OP(name, op, val1, val2)                                \
-  switch (0) case 0: default:                                          \
-  if (::logging::CheckOpResult true_if_passed =                        \
-      ::logging::Check##name##Impl((val1), (val2),                     \
-                                   #val1 " " #op " " #val2))           \
-   ;                                                                   \
-  else                                                                 \
-    ::logging::LogMessage(__FILE__, __LINE__, ::logging::LOG_DCHECK,   \
-                          true_if_passed.message()).stream()
+  switch (0)                                                           \
+  case 0:                                                              \
+  default:                                                             \
+    if (::logging::CheckOpResult true_if_passed =                      \
+            ::logging::Check##name##Impl((val1), (val2),               \
+                                         #val1 " " #op " " #val2))     \
+      ;                                                                \
+    else                                                               \
+      ::logging::LogMessage(__FILE__, __LINE__, ::logging::LOG_DCHECK, \
+                            true_if_passed.message())                  \
+              .stream() &&                                             \
+          IMMEDIATE_CRASH()
 
 #else  // DCHECK_IS_ON()
 

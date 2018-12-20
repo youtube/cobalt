@@ -53,7 +53,15 @@ bool StatisticsRecorder::BucketRangesEqual::operator()(
 StatisticsRecorder::~StatisticsRecorder() {
   const AutoLock auto_lock(lock_.Get());
   DCHECK_EQ(this, top_);
+  DCHECK_NE(this, previous_);
   top_ = previous_;
+  // previous_ is only used for testing purpose to create temporary clean
+  // environment, sometimes multiple temporary environment can be messy and
+  // we want to make sure at least the last temporary StatisticsRecorder clears
+  // the static StatisticsRecorder's previous_.
+  if (top_ && top_->previous_) {
+    top_->previous_ = nullptr;
+  }
 }
 
 // static

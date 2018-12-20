@@ -11,6 +11,7 @@
 #include "base/callback.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker_impl.h"
 #include "base/sequenced_task_runner.h"
@@ -26,6 +27,9 @@ namespace {
 
 class SequencedTaskRunnerHandleTest : public ::testing::Test {
  protected:
+  SequencedTaskRunnerHandleTest()
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {
+  }
   // Verifies that the context it runs on has a SequencedTaskRunnerHandle
   // and that posting to it results in the posted task running in that same
   // context (sequence).
@@ -49,6 +53,7 @@ class SequencedTaskRunnerHandleTest : public ::testing::Test {
     EXPECT_TRUE(sequence_checker->CalledOnValidSequence());
   }
 
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
   base::test::ScopedTaskEnvironment scoped_task_environment_;
 };
 

@@ -76,7 +76,6 @@ class StatisticsRecorderTest : public testing::TestWithParam<bool> {
 
   ~StatisticsRecorderTest() override {
     GlobalHistogramAllocator::ReleaseForTesting();
-    UninitializeStatisticsRecorder();
   }
 
   void InitializeStatisticsRecorder() {

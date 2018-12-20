@@ -14,6 +14,7 @@
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/task_scheduler/environment_config.h"
@@ -79,7 +80,8 @@ class SchedulerWorkerDefaultDelegate : public SchedulerWorker::Delegate {
 class TaskSchedulerWorkerTest : public testing::TestWithParam<size_t> {
  protected:
   TaskSchedulerWorkerTest()
-      : num_get_work_cv_(lock_.CreateConditionVariable()) {}
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
+        num_get_work_cv_(lock_.CreateConditionVariable()) {}
 
   void SetUp() override {
     worker_ = MakeRefCounted<SchedulerWorker>(
@@ -261,6 +263,8 @@ class TaskSchedulerWorkerTest : public testing::TestWithParam<size_t> {
     ++num_run_tasks_;
     EXPECT_LE(num_run_tasks_, created_sequences_.size());
   }
+
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
 
   TaskTracker task_tracker_ = {"Test"};
 
@@ -510,6 +514,8 @@ class MockedControllableCleanupDelegate : public ControllableCleanupDelegate {
 // Verify that calling SchedulerWorker::Cleanup() from GetWork() causes
 // the SchedulerWorker's thread to exit.
 TEST(TaskSchedulerWorkerTest, WorkerCleanupFromGetWork) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   // Will be owned by SchedulerWorker.
   MockedControllableCleanupDelegate* delegate =
@@ -529,6 +535,8 @@ TEST(TaskSchedulerWorkerTest, WorkerCleanupFromGetWork) {
 }
 
 TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringWork) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   // Will be owned by SchedulerWorker.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -554,6 +562,8 @@ TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringWork) {
 }
 
 TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringWait) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   // Will be owned by SchedulerWorker.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -576,6 +586,8 @@ TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringWait) {
 }
 
 TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringShutdown) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   // Will be owned by SchedulerWorker.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -603,6 +615,8 @@ TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringShutdown) {
 
 // Verify that Start() is a no-op after Cleanup().
 TEST(TaskSchedulerWorkerTest, CleanupBeforeStart) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   // Will be owned by SchedulerWorker.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -649,6 +663,8 @@ class CallJoinFromDifferentThread : public SimpleThread {
 }  // namespace
 
 TEST(TaskSchedulerWorkerTest, WorkerCleanupDuringJoin) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   // Will be owned by SchedulerWorker.
   // No mock here as that's reasonably covered by other tests and the
@@ -733,6 +749,8 @@ class ExpectThreadPriorityDelegate : public SchedulerWorkerDefaultDelegate {
 }  // namespace
 
 TEST(TaskSchedulerWorkerTest, BumpPriorityOfAliveThreadDuringShutdown) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   if (!CanUseBackgroundPriorityForSchedulerWorker())
     return;
 
@@ -797,6 +815,8 @@ class VerifyCallsToObserverDelegate : public SchedulerWorkerDefaultDelegate {
 TEST(TaskSchedulerWorkerTest, MAYBE_SchedulerWorkerObserver) {
   StrictMock<test::MockSchedulerWorkerObserver> observer;
   {
+    std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+        StatisticsRecorder::CreateTemporaryForTesting();
     TaskTracker task_tracker("Test");
     auto delegate = std::make_unique<VerifyCallsToObserverDelegate>(&observer);
     auto worker = MakeRefCounted<SchedulerWorker>(ThreadPriority::NORMAL,
@@ -845,6 +865,8 @@ class CoInitializeDelegate : public SchedulerWorkerDefaultDelegate {
 }  // namespace
 
 TEST(TaskSchedulerWorkerTest, BackwardCompatibilityEnabled) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   auto delegate = std::make_unique<CoInitializeDelegate>();
   CoInitializeDelegate* const delegate_raw = delegate.get();
@@ -872,6 +894,8 @@ TEST(TaskSchedulerWorkerTest, BackwardCompatibilityEnabled) {
 }
 
 TEST(TaskSchedulerWorkerTest, BackwardCompatibilityDisabled) {
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing =
+      StatisticsRecorder::CreateTemporaryForTesting();
   TaskTracker task_tracker("Test");
   auto delegate = std::make_unique<CoInitializeDelegate>();
   CoInitializeDelegate* const delegate_raw = delegate.get();

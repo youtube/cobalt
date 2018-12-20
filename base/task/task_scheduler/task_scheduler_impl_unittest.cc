@@ -19,6 +19,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/task_scheduler/environment_config.h"
 #include "base/task/task_scheduler/scheduler_worker_observer.h"
@@ -211,7 +212,8 @@ class TaskSchedulerImplTest
     : public testing::TestWithParam<TraitsExecutionModePair> {
  protected:
   TaskSchedulerImplTest()
-      : scheduler_("Test")
+      : recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()),
+        scheduler_("Test")
 #if !defined(STARBOARD)
         ,
         field_trial_list_(nullptr)
@@ -260,6 +262,8 @@ class TaskSchedulerImplTest
     scheduler_.JoinForTesting();
     did_tear_down_ = true;
   }
+
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
 
   TaskSchedulerImpl scheduler_;
 
@@ -711,34 +715,45 @@ void VerifyHasStringOnStack(const std::string& query) {
 TEST_F(TaskSchedulerImplTest, MAYBE_IdentifiableStacks) {
   StartTaskScheduler();
 
+#if !defined(STARBOARD)
+  // The tests with TaskPriority::BEST_EFFORT want to create background
+  // scheduler worker that has low priority. They are disabled because for
+  // Starboard, lock does not handle thread priorities of multiple threads and
+  // starboard does not support changing thread priorities(see
+  // CanUseBackgroundPriorityForSchedulerWorker() for more details).
   scheduler_.CreateSequencedTaskRunnerWithTraits({})->PostTask(
       FROM_HERE, BindOnce(&VerifyHasStringOnStack, "RunPooledWorker"));
   scheduler_.CreateSequencedTaskRunnerWithTraits({TaskPriority::BEST_EFFORT})
       ->PostTask(FROM_HERE, BindOnce(&VerifyHasStringOnStack,
                                      "RunBackgroundPooledWorker"));
+#endif
 
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {}, SingleThreadTaskRunnerThreadMode::SHARED)
       ->PostTask(FROM_HERE,
                  BindOnce(&VerifyHasStringOnStack, "RunSharedWorker"));
+#if !defined(STARBOARD)
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {TaskPriority::BEST_EFFORT}, SingleThreadTaskRunnerThreadMode::SHARED)
       ->PostTask(FROM_HERE, BindOnce(&VerifyHasStringOnStack,
                                      "RunBackgroundSharedWorker"));
+#endif
 
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {}, SingleThreadTaskRunnerThreadMode::DEDICATED)
       ->PostTask(FROM_HERE,
                  BindOnce(&VerifyHasStringOnStack, "RunDedicatedWorker"));
+#if !defined(STARBOARD)
   scheduler_
       .CreateSingleThreadTaskRunnerWithTraits(
           {TaskPriority::BEST_EFFORT},
           SingleThreadTaskRunnerThreadMode::DEDICATED)
       ->PostTask(FROM_HERE, BindOnce(&VerifyHasStringOnStack,
                                      "RunBackgroundDedicatedWorker"));
+#endif
 
 #if defined(OS_WIN)
   scheduler_

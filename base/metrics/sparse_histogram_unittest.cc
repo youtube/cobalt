@@ -29,15 +29,13 @@ class SparseHistogramTest : public testing::TestWithParam<bool> {
  protected:
   const int32_t kAllocatorMemorySize = 8 << 20;  // 8 MiB
 
-  SparseHistogramTest() : use_persistent_histogram_allocator_(GetParam()) {}
+  SparseHistogramTest()
+      : statistics_recorder_(StatisticsRecorder::CreateTemporaryForTesting()),
+        use_persistent_histogram_allocator_(GetParam()) {}
 
   void SetUp() override {
     if (use_persistent_histogram_allocator_)
       CreatePersistentMemoryAllocator();
-
-    // Each test will have a clean state (no Histogram / BucketRanges
-    // registered).
-    InitializeStatisticsRecorder();
   }
 
   void TearDown() override {
@@ -45,17 +43,7 @@ class SparseHistogramTest : public testing::TestWithParam<bool> {
       ASSERT_FALSE(allocator_->IsFull());
       ASSERT_FALSE(allocator_->IsCorrupt());
     }
-    UninitializeStatisticsRecorder();
     DestroyPersistentMemoryAllocator();
-  }
-
-  void InitializeStatisticsRecorder() {
-    DCHECK(!statistics_recorder_);
-    statistics_recorder_ = StatisticsRecorder::CreateTemporaryForTesting();
-  }
-
-  void UninitializeStatisticsRecorder() {
-    statistics_recorder_.reset();
   }
 
   void CreatePersistentMemoryAllocator() {

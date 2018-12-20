@@ -414,8 +414,8 @@ TraceLog::TraceLog()
 #if !defined(STARBOARD)
   MemoryDumpManager::GetInstance()->RegisterDumpProvider(this, "TraceLog",
                                                          nullptr);
-  g_trace_log_for_testing = this;
 #endif
+  g_trace_log_for_testing = this;
 }
 
 TraceLog::~TraceLog() = default;

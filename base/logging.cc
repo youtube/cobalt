@@ -464,6 +464,7 @@ SbLogPriority LogLevelToStarboardLogPriority(int level) {
     case LOG_ERROR:
       return kSbLogPriorityError;
     case LOG_FATAL:
+    case LOG_VERBOSE:
       return kSbLogPriorityFatal;
     default:
       NOTREACHED() << "Unrecognized log level.";

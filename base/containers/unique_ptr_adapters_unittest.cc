@@ -21,6 +21,7 @@ class Foo {
 
 int Foo::instance_count = 0;
 
+#if __cplusplus >= 201402L
 TEST(UniquePtrComparatorTest, Basic) {
   std::set<std::unique_ptr<Foo>, UniquePtrComparator> set;
   Foo* foo1 = new Foo();
@@ -64,13 +65,14 @@ TEST(UniquePtrComparatorTest, Basic) {
   delete foo3;
   EXPECT_EQ(0, Foo::instance_count);
 }
+#endif
 
 TEST(UniquePtrMatcherTest, Basic) {
   std::vector<std::unique_ptr<Foo>> v;
-  auto foo_ptr1 = std::make_unique<Foo>();
+  auto foo_ptr1 = std::unique_ptr<Foo>();
   Foo* foo1 = foo_ptr1.get();
   v.push_back(std::move(foo_ptr1));
-  auto foo_ptr2 = std::make_unique<Foo>();
+  auto foo_ptr2 = std::unique_ptr<Foo>();
   Foo* foo2 = foo_ptr2.get();
   v.push_back(std::move(foo_ptr2));
 

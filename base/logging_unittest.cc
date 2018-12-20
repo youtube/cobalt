@@ -555,7 +555,7 @@ class ScopedDcheckSeverity {
 #endif  // DCHECK_IS_CONFIGURABLE
 
 // https://crbug.com/709067 tracks test flakiness on iOS.
-#if defined(OS_IOS)
+#if defined(OS_IOS) || defined(OS_STARBOARD)
 #define MAYBE_Dcheck DISABLED_Dcheck
 #else
 #define MAYBE_Dcheck Dcheck

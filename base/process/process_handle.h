@@ -59,7 +59,7 @@ const ProcessId kNullProcessId = 0;
 #else
 #define CrPRIdPid "d"
 #endif
-#endif
+#endif  // defined(STARBOARD)
 
 // Returns the id of the current process.
 // Note that on some platforms, this is not guaranteed to be unique across

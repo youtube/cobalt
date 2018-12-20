@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include "base/compiler_specific.h"
+#include "base/cpp14oncpp11.h"
 
 namespace base {
 
@@ -29,13 +30,9 @@ struct CharTraits {
 };
 
 template <typename T>
-#if defined(STARBOARD)
-int CharTraits<T>::compare(const T* s1,
-#else
-constexpr int CharTraits<T>::compare(const T* s1,
-#endif
-                           const T* s2,
-                           size_t n) noexcept {
+CONSTEXPR int CharTraits<T>::compare(const T* s1,
+                                     const T* s2,
+                                     size_t n) noexcept {
   for (; n; --n, ++s1, ++s2) {
     if (*s1 < *s2)
       return -1;
@@ -55,6 +52,27 @@ CONSTEXPR size_t CharTraits<T>::length(const T* s) noexcept {
 
 // char specialization of CharTraits that can use clang's constexpr instrinsics,
 // where available.
+#if defined(STARBOARD)
+template <>
+struct CharTraits<char> {
+  static int compare(const char* s1, const char* s2, size_t n) noexcept {
+    for (; n; --n, ++s1, ++s2) {
+      if (*s1 < *s2)
+        return -1;
+      if (*s1 > *s2)
+        return 1;
+    }
+    return 0;
+  }
+
+  static size_t length(const char* s) noexcept {
+    size_t i = 0;
+    for (; *s; ++s)
+      ++i;
+    return i;
+  }
+};
+#else
 template <>
 struct CharTraits<char> {
   static constexpr int compare(const char* s1,
@@ -89,6 +107,7 @@ constexpr size_t CharTraits<char>::length(const char* s) noexcept {
   return i;
 #endif
 }
+#endif
 
 }  // namespace base
 
