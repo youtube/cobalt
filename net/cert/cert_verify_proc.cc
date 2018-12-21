@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "base/containers/span.h"
+#include "base/cpp14oncpp11.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -646,9 +647,9 @@ bool CertVerifyProc::IsBlacklisted(X509Certificate* cert) {
   // The old certs had a lifetime of five years, so this can be removed April
   // 2nd, 2019.
   const base::StringPiece cn(cert->subject().common_name);
-  static constexpr base::StringPiece kCloudflareCNSuffix(".cloudflare.com");
+  static CONSTEXPR base::StringPiece kCloudflareCNSuffix(".cloudflare.com");
   // April 2nd, 2014 UTC, expressed as seconds since the Unix Epoch.
-  static constexpr base::TimeDelta kCloudflareEpoch =
+  static CONSTEXPR base::TimeDelta kCloudflareEpoch =
       base::TimeDelta::FromSeconds(1396396800);
 
   if (cn.ends_with(kCloudflareCNSuffix) &&
@@ -722,7 +723,7 @@ bool CertVerifyProc::HasNameConstraintsViolation(
     const std::string& common_name,
     const std::vector<std::string>& dns_names,
     const std::vector<std::string>& ip_addrs) {
-  static constexpr base::StringPiece kDomainsANSSI[] = {
+  static CONSTEXPR base::StringPiece kDomainsANSSI[] = {
       ".fr",  // France
       ".gp",  // Guadeloupe
       ".gf",  // Guyane
@@ -738,12 +739,12 @@ bool CertVerifyProc::HasNameConstraintsViolation(
       ".tf",  // Terres australes et antarctiques françaises
   };
 
-  static constexpr base::StringPiece kDomainsIndiaCCA[] = {
+  static CONSTEXPR base::StringPiece kDomainsIndiaCCA[] = {
       ".gov.in",   ".nic.in",    ".ac.in", ".rbi.org.in", ".bankofindia.co.in",
       ".ncode.in", ".tcs.co.in",
   };
 
-  static constexpr base::StringPiece kDomainsTest[] = {
+  static CONSTEXPR base::StringPiece kDomainsTest[] = {
       ".example.com",
   };
 

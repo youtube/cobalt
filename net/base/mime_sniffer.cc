@@ -89,6 +89,7 @@
 #include "net/base/mime_sniffer.h"
 
 #include "base/containers/span.h"
+#include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
@@ -564,8 +565,8 @@ static bool SniffXML(const char* content,
     if (!pos)
       return false;
 
-    static constexpr base::StringPiece kXmlPrefix("<?xml");
-    static constexpr base::StringPiece kDocTypePrefix("<!DOCTYPE");
+    static CONSTEXPR base::StringPiece kXmlPrefix("<?xml");
+    static CONSTEXPR base::StringPiece kDocTypePrefix("<!DOCTYPE");
 
     base::StringPiece current(pos, end - pos);
     if (base::EqualsCaseInsensitiveASCII(current.substr(0, kXmlPrefix.size()),

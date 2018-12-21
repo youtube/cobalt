@@ -4,6 +4,8 @@
 
 #include "net/base/escape.h"
 
+#include "base/cpp14oncpp11.h"
+
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
@@ -327,7 +329,7 @@ std::string UnescapeURLWithAdjustmentsImpl(
 // Convert a character |c| to a form that will not be mistaken as HTML.
 template <class str>
 void AppendEscapedCharForHTMLImpl(typename str::value_type c, str* output) {
-  static constexpr struct {
+  static CONSTEXPR struct {
     char key;
     base::StringPiece replacement;
   } kCharsToEscape[] = {

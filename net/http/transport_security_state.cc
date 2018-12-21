@@ -358,8 +358,8 @@ bool DecodeHSTSPreload(const std::string& search_hostname, PreloadResult* out) {
   if (g_hsts_source == nullptr)
     return false;
 #endif
-  bool found = false;
 #endif  // !defined(STARBOARD)
+  bool found = false;
 
   // Ensure that |search_hostname| is a valid hostname before
   // processing.
