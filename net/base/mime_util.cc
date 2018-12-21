@@ -10,6 +10,7 @@
 
 #include "base/base64.h"
 #include "base/containers/span.h"
+#include "base/cpp14oncpp11.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/rand_util.h"
@@ -588,7 +589,7 @@ void UnorderedSetToVector(std::unordered_set<T>* source,
 // following characters are legal for boundaries:  '()+_,-./:=?
 // However the following characters, though legal, cause some sites
 // to fail: (),./:=+
-constexpr base::StringPiece kMimeBoundaryCharacters(
+CONSTEXPR base::StringPiece kMimeBoundaryCharacters(
     "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
 // Size of mime multipart boundary.

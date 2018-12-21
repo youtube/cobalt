@@ -4,7 +4,7 @@
 
 #include "net/network_error_logging/network_error_logging_delegate.h"
 
-#include <memory>
+#include "base/cpp14oncpp11.h"
 
 namespace net {
 

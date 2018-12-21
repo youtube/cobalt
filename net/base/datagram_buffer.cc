@@ -5,6 +5,8 @@
 #include "net/base/datagram_buffer.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 
+#include "starboard/memory.h"
+
 namespace net {
 
 DatagramBufferPool::DatagramBufferPool(size_t max_buffer_size)
@@ -42,7 +44,7 @@ DatagramBuffer::~DatagramBuffer() {}
 
 void DatagramBuffer::Set(const char* buffer, size_t buf_len) {
   length_ = buf_len;
-  std::memcpy(data_.get(), buffer, buf_len);
+  SbMemoryCopy(data_.get(), buffer, buf_len);
 }
 
 char* DatagramBuffer::data() const {

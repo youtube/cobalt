@@ -172,7 +172,11 @@ void UDPClientSocket::SetWriteMultiCoreEnabled(bool enabled) {
 }
 
 void UDPClientSocket::SetSendmmsgEnabled(bool enabled) {
+#if defined(STARBOARD)
+  NOTIMPLEMENTED() << "Cobalt does not implement sendmmsg related functions!";
+#else
   socket_.SetSendmmsgEnabled(enabled);
+#endif
 }
 
 void UDPClientSocket::SetWriteBatchingActive(bool active) {

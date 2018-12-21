@@ -12,6 +12,8 @@
 #include "third_party/boringssl/src/include/openssl/nid.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace quic {
 
 // static
