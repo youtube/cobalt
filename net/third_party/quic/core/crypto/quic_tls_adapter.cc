@@ -8,6 +8,8 @@
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace quic {
 
 const BIO_METHOD QuicTlsAdapter::kBIOMethod = {

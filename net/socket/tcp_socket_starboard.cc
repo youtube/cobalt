@@ -120,7 +120,7 @@ int TCPSocketStarboard::Listen(int backlog) {
 
 int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
                                IPEndPoint* address,
-                               const CompletionCallback& callback) {
+                               CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(socket);
   DCHECK(!callback.is_null());
@@ -132,15 +132,15 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
 
   if (result == ERR_IO_PENDING) {
     if (!base::MessageLoopForIO::current()->Watch(
-             socket_, true, base::MessageLoopForIO::WATCH_READ,
-             &socket_watcher_, this)) {
+            socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
+            &socket_watcher_, this)) {
       DLOG(ERROR) << "WatchSocket failed on read";
       return MapLastSocketError(socket_);
     }
 
     accept_socket_ = socket;
     accept_address_ = address;
-    accept_callback_ = callback;
+    accept_callback_ = std::move(callback);
   }
 
   return result;
@@ -265,10 +265,10 @@ void TCPSocketStarboard::OnSocketReadyToRead(SbSocket socket) {
     int result = AcceptInternal(accept_socket_, accept_address_);
     if (result != ERR_IO_PENDING) {
       accept_socket_ = nullptr;
-      CompletionCallback callback = accept_callback_;
+      CompletionOnceCallback callback = std::move(accept_callback_);
       accept_callback_.Reset();
       ClearWatcherIfOperationsNotPending();
-      callback.Run(result);
+      std::move(callback).Run(result);
     }
   } else if (read_pending()) {
     DidCompleteRead();
@@ -290,8 +290,8 @@ void TCPSocketStarboard::OnSocketReadyToWrite(SbSocket socket) {
   }
 }
 
-int TCPSocketStarboard::Connect(
-    const IPEndPoint& address, const CompletionCallback& callback) {
+int TCPSocketStarboard::Connect(const IPEndPoint& address,
+                                CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!peer_address_);
@@ -320,11 +320,11 @@ int TCPSocketStarboard::Connect(
   }
 
   waiting_connect_ = true;
-  write_callback_ = callback;
+  write_callback_ = std::move(callback);
 
   // When it is ready to write, it will have connected.
   base::MessageLoopForIO::current()->Watch(
-      socket_, true, base::MessageLoopForIO::WATCH_WRITE,
+      socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
       &socket_watcher_, this);
 
   return ERR_IO_PENDING;
@@ -351,10 +351,10 @@ void TCPSocketStarboard::DidCompleteConnect() {
   int rv = SbSocketIsConnected(socket_) ? OK : ERR_FAILED;
 
   waiting_connect_ = false;
-  CompletionCallback callback = write_callback_;
+  CompletionOnceCallback callback = std::move(write_callback_);
   write_callback_.Reset();
   ClearWatcherIfOperationsNotPending();
-  callback.Run(HandleConnectCompleted(rv));
+  std::move(callback).Run(HandleConnectCompleted(rv));
 }
 
 void TCPSocketStarboard::StartLoggingMultipleConnectAttempts(
@@ -402,10 +402,9 @@ void TCPSocketStarboard::LogConnectEnd(int net_error) {
   net_log_.EndEvent(NetLogEventType::TCP_CONNECT);
 }
 
-
 int TCPSocketStarboard::Read(IOBuffer* buf,
                              int buf_len,
-                             const CompletionCallback& callback) {
+                             CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!connect_pending());
@@ -422,13 +421,13 @@ int TCPSocketStarboard::Read(IOBuffer* buf,
   // We'll callback when there is more data.
   read_buf_ = buf;
   read_buf_len_ = buf_len;
-  read_callback_ = callback;
+  read_callback_ = std::move(callback);
   return rv;
 }
 
 int TCPSocketStarboard::ReadIfReady(IOBuffer* buf,
                                     int buf_len,
-                                    const CompletionCallback& callback) {
+                                    CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(read_if_ready_callback_.is_null());
@@ -439,12 +438,22 @@ int TCPSocketStarboard::ReadIfReady(IOBuffer* buf,
     return rv;
   }
 
-  read_if_ready_callback_ = callback;
+  read_if_ready_callback_ = std::move(callback);
   base::MessageLoopForIO::current()->Watch(
-      socket_, true, base::MessageLoopForIO::WATCH_READ,
+      socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
       &socket_watcher_, this);
 
   return rv;
+}
+
+int TCPSocketStarboard::CancelReadIfReady() {
+  DCHECK(read_if_ready_callback_);
+
+  bool ok = socket_watcher_.StopWatchingSocket();
+  DCHECK(ok);
+
+  read_if_ready_callback_.Reset();
+  return net::OK;
 }
 
 void TCPSocketStarboard::RetryRead(int rv) {
@@ -489,16 +498,18 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
 void TCPSocketStarboard::DidCompleteRead() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  CompletionCallback callback = read_if_ready_callback_;
+  CompletionOnceCallback callback = std::move(read_if_ready_callback_);
   read_if_ready_callback_.Reset();
 
   ClearWatcherIfOperationsNotPending();
-  callback.Run(OK);
+  std::move(callback).Run(OK);
 }
 
-int TCPSocketStarboard::Write(IOBuffer* buf,
-                              int buf_len,
-                              const CompletionCallback& callback) {
+int TCPSocketStarboard::Write(
+    IOBuffer* buf,
+    int buf_len,
+    CompletionOnceCallback callback,
+    const NetworkTrafficAnnotationTag& traffic_annotation) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!connect_pending());
@@ -511,9 +522,9 @@ int TCPSocketStarboard::Write(IOBuffer* buf,
     // We are just blocked, so let's set up the callback.
     write_buf_ = buf;
     write_buf_len_ = buf_len;
-    write_callback_ = callback;
+    write_callback_ = std::move(callback);
     base::MessageLoopForIO::current()->Watch(
-        socket_, true, base::MessageLoopForIO::WATCH_WRITE,
+        socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
         &socket_watcher_, this);
   }
 
@@ -552,11 +563,11 @@ void TCPSocketStarboard::DidCompleteWrite() {
     write_buf_ = nullptr;
     write_buf_len_ = 0;
 
-    CompletionCallback callback = write_callback_;
+    CompletionOnceCallback callback = std::move(write_callback_);
     write_callback_.Reset();
 
     ClearWatcherIfOperationsNotPending();
-    callback.Run(rv);
+    std::move(callback).Run(rv);
   }
 }
 
@@ -618,6 +629,17 @@ SocketDescriptor TCPSocketStarboard::ReleaseSocketDescriptorForTesting() {
   socket_ = kSbSocketInvalid;
   Close();
   return socket_descriptor;
+}
+
+SocketDescriptor TCPSocketStarboard::SocketDescriptorForTesting() const {
+  return socket_;
+}
+
+void TCPSocketStarboard::ApplySocketTag(const SocketTag& tag) {
+  if (SbSocketIsValid(socket_) && tag != tag_) {
+    tag.Apply(socket_);
+  }
+  tag_ = tag;
 }
 
 void TCPSocketStarboard::ClearWatcherIfOperationsNotPending() {

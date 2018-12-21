@@ -62,7 +62,12 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
 #if !defined(NET_DISABLE_BROTLI)
+#if defined(STARBOARD)
+// #include "third_party/brotli/c/include/brotli/decode.h"
+#include <brotli/decode.h>
+#else
 #include "third_party/brotli/include/brotli/decode.h"
+#endif  // defined(STARBOARD)
 #endif
 
 namespace net {

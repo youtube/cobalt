@@ -29,7 +29,12 @@ class SSLKeyLoggerImpl::Core {
   void OpenFile(const base::FilePath& path) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(!file_);
+#if defined(STARBOARD)
+    file_.reset(
+        new starboard::ScopedFile(path.value().c_str(), kSbFileCreateAlways));
+#else
     file_.reset(base::OpenFile(path, "a"));
+#endif
     if (!file_)
       LOG(WARNING) << "Could not open " << path.value();
   }
@@ -38,12 +43,20 @@ class SSLKeyLoggerImpl::Core {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!file_)
       return;
+#if defined(STARBOARD)
+    file_->WriteAll(line.c_str(), line.length());
+#else
     fprintf(file_.get(), "%s\n", line.c_str());
     fflush(file_.get());
+#endif
   }
 
  private:
+#if defined(STARBOARD)
+  std::unique_ptr<starboard::ScopedFile> file_;
+#else
   base::ScopedFILE file_;
+#endif
   SEQUENCE_CHECKER(sequence_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(Core);

@@ -22,6 +22,8 @@
 #include "net/http/http_auth_sspi_win.h"
 #elif defined(OS_POSIX)
 #include "net/http/http_auth_gssapi_posix.h"
+#elif defined(OS_STARBOARD)
+#include "net/http/http_auth_gssapi_starboard.h"
 #endif
 
 namespace net {
@@ -40,7 +42,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
 #elif defined(OS_WIN)
   typedef SSPILibrary AuthLibrary;
   typedef HttpAuthSSPI AuthSystem;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(OS_STARBOARD)
   typedef GSSAPILibrary AuthLibrary;
   typedef HttpAuthGSSAPI AuthSystem;
 #endif

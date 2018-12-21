@@ -19,7 +19,9 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "net/base/completion_callback.h"
+#include "base/timer/timer.h"
+#include "net/base/completion_once_callback.h"
+#include "net/base/datagram_buffer.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -30,14 +32,75 @@
 #include "net/log/net_log_with_source.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
+#include "net/socket/socket_descriptor.h"
+#include "net/socket/socket_tag.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "starboard/socket.h"
 
 namespace net {
 
+// Sendresult is inspired by sendmmsg, but unlike sendmmsg it is not
+// convenient to require that a positive |write_count| and a negative
+// error code are mutually exclusive.
+struct NET_EXPORT SendResult {
+  explicit SendResult();
+  ~SendResult();
+  SendResult(int rv, int write_count, DatagramBuffers buffers);
+  SendResult(SendResult& other) = delete;
+  SendResult& operator=(SendResult& other) = delete;
+  SendResult(SendResult&& other);
+  SendResult& operator=(SendResult&& other) = default;
+  int rv;
+  // number of successful writes.
+  int write_count;
+  DatagramBuffers buffers;
+};
+
+// Don't delay writes more than this.
+const base::TimeDelta kWriteAsyncMsThreshold =
+    base::TimeDelta::FromMilliseconds(1);
+// Prefer local if number of writes is not more than this.
+const int kWriteAsyncMinBuffersThreshold = 2;
+// Don't allow more than this many outstanding async writes.
+const int kWriteAsyncMaxBuffersThreshold = 16;
+// PostTask immediately when unwritten buffers reaches this.
+const int kWriteAsyncPostBuffersThreshold = kWriteAsyncMaxBuffersThreshold / 2;
+// Don't unblock writer unless pending async writes are less than this.
+const int kWriteAsyncCallbackBuffersThreshold = kWriteAsyncMaxBuffersThreshold;
+
+// To allow mock |Send|/|Sendmsg| in testing.  This has to be
+// reference counted thread safe because |SendBuffers| may be invoked in
+// another thread via PostTask*.
+class NET_EXPORT UDPSocketStarboardSender
+    : public base::RefCountedThreadSafe<UDPSocketStarboardSender> {
+ public:
+  explicit UDPSocketStarboardSender();
+
+  SendResult SendBuffers(const SbSocket& socket,
+                         DatagramBuffers buffers,
+                         SbSocketAddress address);
+
+ protected:
+  friend class base::RefCountedThreadSafe<UDPSocketStarboardSender>;
+
+  virtual ~UDPSocketStarboardSender();
+  virtual int Send(const SbSocket& socket,
+                   const char* buf,
+                   size_t len,
+                   SbSocketAddress address) const;
+
+  SendResult InternalSendBuffers(const SbSocket& socket,
+                                 DatagramBuffers buffers,
+                                 SbSocketAddress address) const;
+
+ private:
+  UDPSocketStarboardSender(const UDPSocketStarboardSender&) = delete;
+  UDPSocketStarboardSender& operator=(const UDPSocketStarboardSender&) = delete;
+};
+
 class NET_EXPORT UDPSocketStarboard {
  public:
   UDPSocketStarboard(DatagramSocket::BindType bind_type,
-                     const RandIntCallback& rand_int_cb,
                      net::NetLog* net_log,
                      const net::NetLogSource& source);
   virtual ~UDPSocketStarboard();
@@ -77,39 +140,49 @@ class NET_EXPORT UDPSocketStarboard {
   // Multiple outstanding read requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
 
-  // Read from the socket.
+  // Reads from the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
-  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
+  int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
-  // Write to the socket.
+  // Writes to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
-  int Write(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag& traffic_annotation);
 
-  // Read from a socket and receive sender address information.
+  // Refer to datagram_client_socket.h
+  int WriteAsync(DatagramBuffers buffers,
+                 CompletionOnceCallback callback,
+                 const NetworkTrafficAnnotationTag& traffic_annotation);
+  int WriteAsync(const char* buffer,
+                 size_t buf_len,
+                 CompletionOnceCallback callback,
+                 const NetworkTrafficAnnotationTag& traffic_annotation);
+
+  DatagramBuffers GetUnwrittenBuffers();
+
+  // Reads from a socket and receive sender address information.
   // |buf| is the buffer to read data into.
   // |buf_len| is the maximum amount of data to read.
   // |address| is a buffer provided by the caller for receiving the sender
   //   address information about the received data.  This buffer must be kept
   //   alive by the caller until the callback is placed.
-  // |address_length| is a ptr to the length of the |address| buffer.  This
-  //   is an input parameter containing the maximum size |address| can hold
-  //   and also an output parameter for the size of |address| upon completion.
-  // |callback| the callback on completion of the Recv.
+  // |callback| is the callback on completion of the RecvFrom.
   // Returns a net error code, or ERR_IO_PENDING if the IO is in progress.
-  // If ERR_IO_PENDING is returned, the caller must keep |buf|, |address|,
-  // and |address_length| alive until the callback is called.
+  // If ERR_IO_PENDING is returned, the caller must keep |buf| and |address|
+  // alive until the callback is called.
   int RecvFrom(IOBuffer* buf,
                int buf_len,
                IPEndPoint* address,
-               const CompletionCallback& callback);
+               CompletionOnceCallback callback);
 
-  // Send to a socket with a particular destination.
-  // |buf| is the buffer to send
-  // |buf_len| is the number of bytes to send
+  // Sends to a socket with a particular destination.
+  // |buf| is the buffer to send.
+  // |buf_len| is the number of bytes to send.
   // |address| is the recipient address.
-  // |address_length| is the size of the recipient address
   // |callback| is the user callback function to call on complete.
   // Returns a net error code, or ERR_IO_PENDING if the IO is in progress.
   // If ERR_IO_PENDING is returned, the caller must keep |buf| and |address|
@@ -117,13 +190,15 @@ class NET_EXPORT UDPSocketStarboard {
   int SendTo(IOBuffer* buf,
              int buf_len,
              const IPEndPoint& address,
-             const CompletionCallback& callback);
+             CompletionOnceCallback callback);
 
-  // Set the receive buffer size (in bytes) for the socket.
-  bool SetReceiveBufferSize(int32_t size);
+  // Sets the receive buffer size (in bytes) for the socket.
+  // Returns a net error code.
+  int SetReceiveBufferSize(int32_t size);
 
-  // Set the send buffer size (in bytes) for the socket.
-  bool SetSendBufferSize(int32_t size);
+  // Sets the send buffer size (in bytes) for the socket.
+  // Returns a net error code.
+  int SetSendBufferSize(int32_t size);
 
   // Requests that packets sent by this socket not be fragment, either locally
   // by the host, or by routers (via the DF bit in the IPv4 packet header).
@@ -132,18 +207,23 @@ class NET_EXPORT UDPSocketStarboard {
   // return ERR_IO_PENDING.
   int SetDoNotFragment();
 
+  // If |confirm| is true, then the MSG_CONFIRM flag will be passed to
+  // subsequent writes if it's supported by the platform.
+  void SetMsgConfirm(bool confirm);
+
   // Returns true if the socket is already connected or bound.
-  bool is_connected() const { return socket_ != kSbSocketInvalid; }
+  bool is_connected() const { return is_connected_; }
 
   const NetLogWithSource& NetLog() const { return net_log_; }
 
-  // Sets corresponding flags in |socket_options_| to allow the socket
-  // to share the local address to which the socket will be bound with
-  // other processes. Should be called before Bind().
+  // Call this to enable SO_REUSEADDR on the underlying socket.
+  // Should be called between Open() and Bind().
+  // Returns a net error code.
   int AllowAddressReuse();
 
-  // Sets corresponding flags in |socket_options_| to allow sending
-  // and receiving packets to and from broadcast addresses.
+  // Call this to allow or disallow sending and receiving packets to and from
+  // broadcast addresses.
+  // Returns a net error code.
   int SetBroadcast(bool broadcast);
 
   // Joins the multicast group.
@@ -158,7 +238,7 @@ class NET_EXPORT UDPSocketStarboard {
   // it will be ignored.
   // It's optional to leave the multicast group before destroying
   // the socket. It will be done by the OS.
-  // Return a net error code.
+  // Returns a net error code.
   int LeaveGroup(const IPAddress& group_address) const;
 
   // Sets interface to use for multicast. If |interface_index| set to 0,
@@ -171,12 +251,14 @@ class NET_EXPORT UDPSocketStarboard {
   // group address. The default value of this option is 1.
   // Cannot be negative or more than 255.
   // Should be called before Bind().
+  // Returns a net error code.
   int SetMulticastTimeToLive(int time_to_live);
 
   // Sets the loopback flag for UDP socket. If this flag is true, the host
   // will receive packets sent to the joined group from itself.
   // The default value of this option is true.
   // Should be called before Bind().
+  // Returns a net error code.
   //
   // Note: the behavior of |SetMulticastLoopbackMode| is slightly
   // different between Windows and Unix-like systems. The inconsistency only
@@ -190,17 +272,88 @@ class NET_EXPORT UDPSocketStarboard {
 
   // Sets the differentiated services flags on outgoing packets. May not
   // do anything on some platforms.
+  // Returns a net error code.
   int SetDiffServCodePoint(DiffServCodePoint dscp);
 
   // Resets the thread to be used for thread-safety checks.
   void DetachFromThread();
 
+  // Apply |tag| to this socket.
+  void ApplySocketTag(const SocketTag& tag);
+
+  void SetWriteAsyncEnabled(bool enabled) { write_async_enabled_ = enabled; }
+  bool WriteAsyncEnabled() { return write_async_enabled_; }
+
+  void SetMaxPacketSize(size_t max_packet_size);
+
+  void SetWriteMultiCoreEnabled(bool enabled) {
+    write_multi_core_enabled_ = enabled;
+  }
+
+  void SetWriteBatchingActive(bool active) { write_batching_active_ = active; }
+
+  void SetWriteAsyncMaxBuffers(int value) {
+    LOG(INFO) << "SetWriteAsyncMaxBuffers: " << value;
+    write_async_max_buffers_ = value;
+  }
+
+  // Enables experimental optimization. This method should be called
+  // before the socket is used to read data for the first time.
+  void enable_experimental_recv_optimization() {
+    DCHECK(SbSocketIsValid(socket_));
+    experimental_recv_optimization_enabled_ = true;
+  };
+
+ protected:
+  // Watcher for WriteAsync paths.
+  class WriteAsyncWatcher : public base::MessageLoopCurrentForIO::Watcher {
+   public:
+    explicit WriteAsyncWatcher(UDPSocketStarboard* socket)
+        : socket_(socket), watching_(false) {}
+
+    // MessageLoopCurrentForIO::Watcher methods
+
+    void OnSocketReadyToRead(SbSocket /*socket*/) override;
+    void OnSocketReadyToWrite(SbSocket /*socket*/) override{};
+
+    void set_watching(bool watching) { watching_ = watching; }
+
+    bool watching() { return watching_; }
+
+   private:
+    UDPSocketStarboard* const socket_;
+    bool watching_;
+
+    DISALLOW_COPY_AND_ASSIGN(WriteAsyncWatcher);
+  };
+
+  void IncreaseWriteAsyncOutstanding(int increment) {
+    write_async_outstanding_ += increment;
+  }
+
+  virtual bool InternalWatchSocket();
+  virtual void InternalStopWatchingSocket();
+
+  void SetWriteCallback(CompletionOnceCallback callback) {
+    write_callback_ = std::move(callback);
+  }
+
+  void DidSendBuffers(SendResult buffers);
+  void FlushPending();
+
+  std::unique_ptr<WriteAsyncWatcher> write_async_watcher_;
+  scoped_refptr<UDPSocketStarboardSender> sender_;
+  std::unique_ptr<DatagramBufferPool> datagram_buffer_pool_;
+  // |WriteAsync| pending writes, does not include buffers that have
+  // been |PostTask*|'d.
+  DatagramBuffers pending_writes_;
+
  private:
-  class ReadWatcher : public base::MessageLoopForIO::Watcher {
+  class ReadWatcher : public base::MessageLoopCurrentForIO::Watcher {
    public:
     explicit ReadWatcher(UDPSocketStarboard* socket) : socket_(socket) {}
 
-    // MessageLoopForIO::Watcher methods
+    // MessageLoopCurrentForIO::Watcher methods
 
     void OnSocketReadyToRead(SbSocket /*socket*/) override;
     void OnSocketReadyToWrite(SbSocket /*socket*/) override{};
@@ -211,11 +364,11 @@ class NET_EXPORT UDPSocketStarboard {
     DISALLOW_COPY_AND_ASSIGN(ReadWatcher);
   };
 
-  class WriteWatcher : public base::MessageLoopForIO::Watcher {
+  class WriteWatcher : public base::MessageLoopCurrentForIO::Watcher {
    public:
     explicit WriteWatcher(UDPSocketStarboard* socket) : socket_(socket) {}
 
-    // MessageLoopForIO::Watcher methods
+    // MessageLoopCurrentForIO::Watcher methods
 
     void OnSocketReadyToRead(SbSocket /*socket*/) override{};
     void OnSocketReadyToWrite(SbSocket /*socket*/) override;
@@ -225,6 +378,11 @@ class NET_EXPORT UDPSocketStarboard {
 
     DISALLOW_COPY_AND_ASSIGN(WriteWatcher);
   };
+
+  int InternalWriteAsync(CompletionOnceCallback callback,
+                         const NetworkTrafficAnnotationTag& traffic_annotation);
+  bool WatchSocket();
+  void StopWatchingSocket();
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
@@ -244,7 +402,7 @@ class NET_EXPORT UDPSocketStarboard {
   int SendToOrWrite(IOBuffer* buf,
                     int buf_len,
                     const IPEndPoint* address,
-                    const CompletionCallback& callback);
+                    CompletionOnceCallback callback);
 
   int InternalConnect(const IPEndPoint& address);
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
@@ -255,7 +413,16 @@ class NET_EXPORT UDPSocketStarboard {
   int DoBind(const IPEndPoint& address);
   int RandomBind(const IPAddress& address);
 
+  // Helpers for |WriteAsync|
+  base::SequencedTaskRunner* GetTaskRunner();
+  void OnWriteAsyncTimerFired();
+  void LocalSendBuffers();
+  void PostSendBuffers();
+  int ResetLastAsyncResult();
+  int ResetWrittenBytes();
+
   SbSocket socket_;
+  bool is_connected_ = false;
 
   SbSocketAddressType address_type_;
 
@@ -267,21 +434,33 @@ class NET_EXPORT UDPSocketStarboard {
   // UDPClientSocket, since UDPServerSocket provides Bind.
   DatagramSocket::BindType bind_type_;
 
-  // PRNG function for generating port numbers.
-  RandIntCallback rand_int_cb_;
-
   // These are mutable since they're just cached copies to make
   // GetPeerAddress/GetLocalAddress smarter.
   mutable std::unique_ptr<IPEndPoint> local_address_;
   mutable std::unique_ptr<IPEndPoint> remote_address_;
 
   // The socket's SbSocketWaiter wrappers
-  base::MessageLoopForIO::SocketWatcher read_socket_watcher_;
-  base::MessageLoopForIO::SocketWatcher write_socket_watcher_;
+  base::MessageLoopCurrentForIO::SocketWatcher read_socket_watcher_;
+  base::MessageLoopCurrentForIO::SocketWatcher write_socket_watcher_;
 
   // The corresponding watchers for reads and writes.
   ReadWatcher read_watcher_;
   WriteWatcher write_watcher_;
+
+  // Various bits to support |WriteAsync()|.
+  bool write_async_enabled_ = false;
+  bool write_batching_active_ = false;
+  bool write_multi_core_enabled_ = false;
+  int write_async_max_buffers_ = 16;
+  int written_bytes_ = 0;
+
+  int last_async_result_;
+  base::RepeatingTimer write_async_timer_;
+  bool write_async_timer_running_;
+  // Total writes in flight, including those |PostTask*|'d.
+  int write_async_outstanding_;
+
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // The buffer used by InternalRead() to retry Read requests
   IOBuffer* read_buf_;
@@ -294,14 +473,23 @@ class NET_EXPORT UDPSocketStarboard {
   std::unique_ptr<IPEndPoint> send_to_address_;
 
   // External callback; called when read is complete.
-  CompletionCallback read_callback_;
+  CompletionOnceCallback read_callback_;
 
   // External callback; called when write is complete.
-  CompletionCallback write_callback_;
+  CompletionOnceCallback write_callback_;
 
   NetLogWithSource net_log_;
 
+  // If set to true, the socket will use an optimized experimental code path.
+  // By default, the value is set to false. To use the optimization, the
+  // client of the socket has to opt-in by calling the
+  // enable_experimental_recv_optimization() method.
+  bool experimental_recv_optimization_enabled_ = false;
+
   THREAD_CHECKER(thread_checker_);
+
+  // Used for alternate writes that are posted for concurrent execution.
+  base::WeakPtrFactory<UDPSocketStarboard> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(UDPSocketStarboard);
 };

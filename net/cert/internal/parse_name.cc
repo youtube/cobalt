@@ -11,6 +11,8 @@
 #include "base/sys_byteorder.h"
 #include "base/third_party/icu/icu_utf.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace net {
 
 namespace {

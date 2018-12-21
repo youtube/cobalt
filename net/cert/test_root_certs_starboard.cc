@@ -15,10 +15,9 @@ namespace net {
 
 bool TestRootCerts::Add(X509Certificate* certificate) {
   CertErrors errors;
-  auto parsed = ParsedCertificate::Create(
-      bssl::UniquePtr<CRYPTO_BUFFER>(
-          X509Certificate::DupOSCertHandle(certificate->os_cert_handle())),
-      ParseCertificateOptions(), &errors);
+  auto parsed =
+      ParsedCertificate::Create(bssl::UpRef(certificate->cert_buffer()),
+                                ParseCertificateOptions(), &errors);
   if (!parsed) {
     LOG(ERROR) << "Failed to parse DER certificate: " << errors.ToDebugString();
     return false;
