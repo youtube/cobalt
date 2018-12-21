@@ -66,6 +66,20 @@ def _FilterTests(target_list, filters, config_name):
   return targets
 
 
+def _VerifyConfig(config):
+  """Ensures a platform or app config is self-consistent."""
+  targets = config.GetTestTargets()
+  filters = config.GetTestFilters()
+  filter_targets = [f.target_name for f in filters]
+
+  # Filters must be defined in the same config as the targets they're filtering,
+  # platform filters in platform config, and app filters in app config.
+  unknown_targets = set(filter_targets) - set(targets)
+  if unknown_targets:
+    raise ValueError("Unknown filter targets in {} config ({}): {}".format(
+        config.GetName(), config.__class__.__name__, sorted(unknown_targets)))
+
+
 class TestLineReader(object):
   """Reads lines from the test runner's launcher output via an OS pipe.
 
@@ -95,7 +109,7 @@ class TestLineReader(object):
           sys.stdout.write(line)
           sys.stdout.flush()
         except IOError as err:
-          self.output_lines.write("error: " + str(err) + '\n')
+          self.output_lines.write("error: " + str(err) + "\n")
           return
       else:
         break
@@ -197,6 +211,9 @@ class TestRunner(object):
     self.xml_output_dir = xml_output_dir
     self.threads = []
 
+    _VerifyConfig(self._platform_config)
+    _VerifyConfig(self._app_config)
+
     # If a particular test binary has been provided, configure only that one.
     if specified_targets:
       self.test_targets = self._GetSpecifiedTestTargets(specified_targets)
@@ -219,16 +236,15 @@ class TestRunner(object):
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    targets = _FilterTests(
-        specified_targets, self._GetTestFilters(), self.config)
+    targets = _FilterTests(specified_targets, self._GetTestFilters(),
+                           self.config)
     if len(targets) != len(specified_targets):
       # If any of the provided target names have been filtered,
       # they will not all run.
-      sys.stderr.write(
-          "Test list has been filtered. Not all will run.\n"
-          "Original list: \"{}\".\n"
-          "Filtered list: \"{}\".\n".format(
-              specified_targets, list(targets.keys())))
+      sys.stderr.write("Test list has been filtered. Not all will run.\n"
+                       "Original list: \"{}\".\n"
+                       "Filtered list: \"{}\".\n".format(
+                           specified_targets, list(targets.keys())))
 
     return targets
 
@@ -323,6 +339,7 @@ class TestRunner(object):
     self.threads.append(test_reader)
 
     if self.dry_run:
+      # pylint: disable=g-long-ternary
       sys.stdout.write("{} {}\n".format(target_name, test_params)
                        if test_params else "{}\n".format(target_name))
       write_pipe.close()
