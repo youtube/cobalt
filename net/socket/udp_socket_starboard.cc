@@ -20,6 +20,9 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/rand_util.h"
+#include "base/task/post_task.h"
+#include "base/task_runner_util.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -43,23 +46,22 @@ static const int kPortEnd = 65535;
 namespace net {
 
 UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
-                                       const RandIntCallback& rand_int_cb,
                                        net::NetLog* net_log,
                                        const net::NetLogSource& source)
-    : socket_(kSbSocketInvalid),
+    : write_async_watcher_(std::make_unique<WriteAsyncWatcher>(this)),
+      sender_(new UDPSocketStarboardSender()),
+      socket_(kSbSocketInvalid),
       socket_options_(0),
       bind_type_(bind_type),
-      rand_int_cb_(rand_int_cb),
       read_watcher_(this),
       write_watcher_(this),
       read_buf_len_(0),
       recv_from_address_(NULL),
       write_buf_len_(0),
-      net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)) {
+      net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
+      weak_factory_(this) {
   net_log_.BeginEvent(NetLogEventType::SOCKET_ALIVE,
                       source.ToEventParametersCallback());
-  if (bind_type == DatagramSocket::RANDOM_BIND)
-    DCHECK(!rand_int_cb.is_null());
 }
 
 UDPSocketStarboard::~UDPSocketStarboard() {
@@ -144,14 +146,14 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
 
 int UDPSocketStarboard::Read(IOBuffer* buf,
                              int buf_len,
-                             const CompletionCallback& callback) {
-  return RecvFrom(buf, buf_len, NULL, callback);
+                             CompletionOnceCallback callback) {
+  return RecvFrom(buf, buf_len, NULL, std::move(callback));
 }
 
 int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
                                  int buf_len,
                                  IPEndPoint* address,
-                                 const CompletionCallback& callback) {
+                                 CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_NE(kSbSocketInvalid, socket_);
   DCHECK(read_callback_.is_null());
@@ -164,9 +166,9 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
     return nread;
 
   if (!base::MessageLoopForIO::current()->Watch(
-           socket_, true, base::MessageLoopForIO::WATCH_READ,
-           &read_socket_watcher_, &read_watcher_)) {
-    PLOG(ERROR) << "WatchFileDescriptor failed on read";
+          socket_, true, base::MessageLoopCurrentForIO::WATCH_READ,
+          &read_socket_watcher_, &read_watcher_)) {
+    PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
     LogRead(result, NULL, NULL);
     return result;
@@ -175,27 +177,28 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
   read_buf_ = buf;
   read_buf_len_ = buf_len;
   recv_from_address_ = address;
-  read_callback_ = callback;
+  read_callback_ = std::move(callback);
   return ERR_IO_PENDING;
 }
 
 int UDPSocketStarboard::Write(IOBuffer* buf,
                               int buf_len,
-                              const CompletionCallback& callback) {
-  return SendToOrWrite(buf, buf_len, NULL, callback);
+                              CompletionOnceCallback callback,
+                              const NetworkTrafficAnnotationTag&) {
+  return SendToOrWrite(buf, buf_len, NULL, std::move(callback));
 }
 
 int UDPSocketStarboard::SendTo(IOBuffer* buf,
                                int buf_len,
                                const IPEndPoint& address,
-                               const CompletionCallback& callback) {
-  return SendToOrWrite(buf, buf_len, &address, callback);
+                               CompletionOnceCallback callback) {
+  return SendToOrWrite(buf, buf_len, &address, std::move(callback));
 }
 
 int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
                                       int buf_len,
                                       const IPEndPoint* address,
-                                      const CompletionCallback& callback) {
+                                      CompletionOnceCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(write_callback_.is_null());
@@ -207,7 +210,7 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
     return result;
 
   if (!base::MessageLoopForIO::current()->Watch(
-          socket_, true, base::MessageLoopForIO::WATCH_WRITE,
+          socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
           &write_socket_watcher_, &write_watcher_)) {
     DVLOG(1) << "Watch failed on write, error "
              << SbSocketGetLastError(socket_);
@@ -222,7 +225,7 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
   if (address) {
     send_to_address_.reset(new IPEndPoint(*address));
   }
-  write_callback_ = callback;
+  write_callback_ = std::move(callback);
   return ERR_IO_PENDING;
 }
 
@@ -283,23 +286,29 @@ int UDPSocketStarboard::BindToNetwork(
   return ERR_NOT_IMPLEMENTED;
 }
 
-bool UDPSocketStarboard::SetReceiveBufferSize(int32_t size) {
+int UDPSocketStarboard::SetReceiveBufferSize(int32_t size) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
 
-  bool result = SbSocketSetReceiveBufferSize(socket_, size);
-  DCHECK(result) << "Could not " << __FUNCTION__ << ": "
-                 << SbSocketGetLastError(socket_);
+  int result = OK;
+  if (!SbSocketSetReceiveBufferSize(socket_, size)) {
+    result = MapLastSocketError(socket_);
+  }
+  DCHECK_EQ(result, OK) << "Could not " << __FUNCTION__ << ": "
+                        << SbSocketGetLastError(socket_);
   return result;
 }
 
-bool UDPSocketStarboard::SetSendBufferSize(int32_t size) {
+int UDPSocketStarboard::SetSendBufferSize(int32_t size) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
 
-  bool result = SbSocketSetSendBufferSize(socket_, size);
-  DCHECK(result) << "Could not " << __FUNCTION__ << ": "
-                 << SbSocketGetLastError(socket_);
+  int result = OK;
+  if (!SbSocketSetSendBufferSize(socket_, size)) {
+    result = MapLastSocketError(socket_);
+  }
+  DCHECK_EQ(result, OK) << "Could not " << __FUNCTION__ << ": "
+                        << SbSocketGetLastError(socket_);
   return result;
 }
 
@@ -335,9 +344,9 @@ void UDPSocketStarboard::DoReadCallback(int rv) {
   DCHECK(!read_callback_.is_null());
 
   // since Run may result in Read being called, clear read_callback_ up front.
-  CompletionCallback c = read_callback_;
+  CompletionOnceCallback c = std::move(read_callback_);
   read_callback_.Reset();
-  c.Run(rv);
+  std::move(c).Run(rv);
 }
 
 void UDPSocketStarboard::DoWriteCallback(int rv) {
@@ -468,11 +477,10 @@ int UDPSocketStarboard::DoBind(const IPEndPoint& address) {
 }
 
 int UDPSocketStarboard::RandomBind(const IPAddress& address) {
-  DCHECK(bind_type_ == DatagramSocket::RANDOM_BIND && !rand_int_cb_.is_null());
+  DCHECK_EQ(bind_type_, DatagramSocket::RANDOM_BIND);
 
   for (int i = 0; i < kBindRetries; ++i) {
-    int rv =
-        DoBind(IPEndPoint(address, rand_int_cb_.Run(kPortStart, kPortEnd)));
+    int rv = DoBind(IPEndPoint(address, base::RandInt(kPortStart, kPortEnd)));
     if (rv != ERR_ADDRESS_IN_USE)
       return rv;
   }
@@ -542,11 +550,302 @@ void UDPSocketStarboard::DetachFromThread() {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
-int UDPSocketStarboard::SetDoNotFragment() {
+void UDPSocketStarboard::ApplySocketTag(const SocketTag&) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(SbSocketIsValid(socket_));
+  NOTREACHED();
+}
 
-  return ERR_NOT_IMPLEMENTED;
+UDPSocketStarboardSender::UDPSocketStarboardSender() {}
+UDPSocketStarboardSender::~UDPSocketStarboardSender() {}
+
+SendResult::SendResult() : rv(0), write_count(0) {}
+SendResult::~SendResult() {}
+SendResult::SendResult(int _rv, int _write_count, DatagramBuffers _buffers)
+    : rv(_rv), write_count(_write_count), buffers(std::move(_buffers)) {}
+SendResult::SendResult(SendResult&& other) = default;
+
+SendResult UDPSocketStarboardSender::InternalSendBuffers(
+    const SbSocket& socket,
+    DatagramBuffers buffers,
+    SbSocketAddress address) const {
+  int rv = 0;
+  int write_count = 0;
+  for (auto& buffer : buffers) {
+    int result = Send(socket, buffer->data(), buffer->length(), address);
+    if (result < 0) {
+      rv = MapLastSocketError(socket);
+      break;
+    }
+    write_count++;
+  }
+  return SendResult(rv, write_count, std::move(buffers));
+}
+
+SendResult UDPSocketStarboardSender::SendBuffers(const SbSocket& socket,
+                                                 DatagramBuffers buffers,
+                                                 SbSocketAddress address) {
+  return InternalSendBuffers(socket, std::move(buffers), address);
+}
+
+int UDPSocketStarboardSender::Send(const SbSocket& socket,
+                                   const char* buf,
+                                   size_t len,
+                                   SbSocketAddress address) const {
+  return SbSocketSendTo(socket, buf, len, &address);
+}
+
+int UDPSocketStarboard::WriteAsync(
+    const char* buffer,
+    size_t buf_len,
+    CompletionOnceCallback callback,
+    const NetworkTrafficAnnotationTag& traffic_annotation) {
+  DCHECK(datagram_buffer_pool_ != nullptr);
+  IncreaseWriteAsyncOutstanding(1);
+  datagram_buffer_pool_->Enqueue(buffer, buf_len, &pending_writes_);
+  return InternalWriteAsync(std::move(callback), traffic_annotation);
+}
+
+int UDPSocketStarboard::WriteAsync(
+    DatagramBuffers buffers,
+    CompletionOnceCallback callback,
+    const NetworkTrafficAnnotationTag& traffic_annotation) {
+  IncreaseWriteAsyncOutstanding(buffers.size());
+  pending_writes_.splice(pending_writes_.end(), std::move(buffers));
+  return InternalWriteAsync(std::move(callback), traffic_annotation);
+}
+
+int UDPSocketStarboard::InternalWriteAsync(
+    CompletionOnceCallback callback,
+    const NetworkTrafficAnnotationTag& traffic_annotation) {
+  CHECK(write_callback_.is_null());
+
+  // Surface error immediately if one is pending.
+  if (last_async_result_ < 0) {
+    return ResetLastAsyncResult();
+  }
+
+  size_t flush_threshold =
+      write_batching_active_ ? kWriteAsyncPostBuffersThreshold : 1;
+  if (pending_writes_.size() >= flush_threshold) {
+    FlushPending();
+    // Surface error immediately if one is pending.
+    if (last_async_result_ < 0) {
+      return ResetLastAsyncResult();
+    }
+  }
+
+  if (!write_async_timer_running_) {
+    write_async_timer_running_ = true;
+    write_async_timer_.Start(FROM_HERE, kWriteAsyncMsThreshold, this,
+                             &UDPSocketStarboard::OnWriteAsyncTimerFired);
+  }
+
+  int blocking_threshold =
+      write_batching_active_ ? kWriteAsyncMaxBuffersThreshold : 1;
+  if (write_async_outstanding_ >= blocking_threshold) {
+    write_callback_ = std::move(callback);
+    return ERR_IO_PENDING;
+  }
+
+  DVLOG(2) << __func__ << " pending " << pending_writes_.size()
+           << " outstanding " << write_async_outstanding_;
+  return ResetWrittenBytes();
+}
+
+DatagramBuffers UDPSocketStarboard::GetUnwrittenBuffers() {
+  write_async_outstanding_ -= pending_writes_.size();
+  return std::move(pending_writes_);
+}
+
+void UDPSocketStarboard::FlushPending() {
+  // Nothing to do if socket is blocked.
+  if (write_async_watcher_->watching())
+    return;
+
+  if (pending_writes_.empty())
+    return;
+
+  if (write_async_timer_running_)
+    write_async_timer_.Reset();
+
+  int num_pending_writes = static_cast<int>(pending_writes_.size());
+  if (!write_multi_core_enabled_ ||
+      // Don't bother with post if not enough buffers
+      (num_pending_writes <= kWriteAsyncMinBuffersThreshold &&
+       // but not if there is a previous post
+       // outstanding, to prevent out of order transmission.
+       (num_pending_writes == write_async_outstanding_))) {
+    LocalSendBuffers();
+  } else {
+    PostSendBuffers();
+  }
+}
+
+// TODO(ckrasic) Sad face.  Do this lazily because many tests exploded
+// otherwise.  |threading_and_tasks.md| advises to instantiate a
+// |base::test::ScopedTaskEnvironment| in the test, implementing that
+// for all tests that might exercise QUIC is too daunting.  Also, in
+// some tests it seemed like following the advice just broke in other
+// ways.
+base::SequencedTaskRunner* UDPSocketStarboard::GetTaskRunner() {
+  if (task_runner_ == nullptr) {
+    task_runner_ = CreateSequencedTaskRunnerWithTraits(base::TaskTraits());
+  }
+  return task_runner_.get();
+}
+
+void UDPSocketStarboard::OnWriteAsyncTimerFired() {
+  DVLOG(2) << __func__ << " pending writes " << pending_writes_.size();
+  if (pending_writes_.empty()) {
+    write_async_timer_.Stop();
+    write_async_timer_running_ = false;
+    return;
+  }
+  if (last_async_result_ < 0) {
+    DVLOG(1) << __func__ << " socket not writeable";
+    return;
+  }
+  FlushPending();
+}
+
+void UDPSocketStarboard::LocalSendBuffers() {
+  DVLOG(1) << __func__ << " queue " << pending_writes_.size() << " out of "
+           << write_async_outstanding_ << " total";
+  SbSocketAddress sb_address;
+  DCHECK(remote_address_.get()->ToSbSocketAddress(&sb_address));
+  DidSendBuffers(
+      sender_->SendBuffers(socket_, std::move(pending_writes_), sb_address));
+}
+
+void UDPSocketStarboard::PostSendBuffers() {
+  DVLOG(1) << __func__ << " queue " << pending_writes_.size() << " out of "
+           << write_async_outstanding_ << " total";
+  SbSocketAddress sb_address;
+  DCHECK(remote_address_.get()->ToSbSocketAddress(&sb_address));
+  base::PostTaskAndReplyWithResult(
+      GetTaskRunner(), FROM_HERE,
+      base::BindOnce(&UDPSocketStarboardSender::SendBuffers, sender_, socket_,
+                     std::move(pending_writes_), sb_address),
+      base::BindOnce(&UDPSocketStarboard::DidSendBuffers,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
+  DVLOG(3) << __func__;
+  int write_count = send_result.write_count;
+  DatagramBuffers& buffers = send_result.buffers;
+
+  DCHECK(!buffers.empty());
+  int num_buffers = buffers.size();
+
+  // Dequeue buffers that have been written.
+  if (write_count > 0) {
+    write_async_outstanding_ -= write_count;
+
+    DatagramBuffers::const_iterator it;
+    // Generate logs for written buffers
+    it = buffers.cbegin();
+    for (int i = 0; i < write_count; i++, it++) {
+      auto& buffer = *it;
+      LogWrite(buffer->length(), buffer->data(), NULL);
+      written_bytes_ += buffer->length();
+    }
+    // Return written buffers to pool
+    DatagramBuffers written_buffers;
+    if (write_count == num_buffers) {
+      it = buffers.cend();
+    } else {
+      it = buffers.cbegin();
+      for (int i = 0; i < write_count; i++) {
+        it++;
+      }
+    }
+    written_buffers.splice(written_buffers.cend(), buffers, buffers.cbegin(),
+                           it);
+    DCHECK(datagram_buffer_pool_ != nullptr);
+    datagram_buffer_pool_->Dequeue(&written_buffers);
+  }
+
+  // Requeue left-over (unwritten) buffers.
+  if (!buffers.empty()) {
+    DVLOG(2) << __func__ << " requeue " << buffers.size() << " buffers";
+    pending_writes_.splice(pending_writes_.begin(), std::move(buffers));
+  }
+
+  last_async_result_ = send_result.rv;
+  if (last_async_result_ == ERR_IO_PENDING) {
+    DVLOG(2) << __func__ << " WatchSocket start";
+    if (!WatchSocket()) {
+      last_async_result_ = MapLastSocketError(socket_);
+      DVLOG(1) << "WatchSocket failed on write, error: " << last_async_result_;
+      LogWrite(last_async_result_, NULL, NULL);
+    } else {
+      last_async_result_ = 0;
+    }
+  } else if (last_async_result_ < 0 || pending_writes_.empty()) {
+    DVLOG(2) << __func__ << " WatchSocket stop: result "
+             << ErrorToShortString(last_async_result_) << " pending_writes "
+             << pending_writes_.size();
+    StopWatchingSocket();
+  }
+  DCHECK(last_async_result_ != ERR_IO_PENDING);
+
+  if (write_callback_.is_null())
+    return;
+
+  if (last_async_result_ < 0) {
+    DVLOG(1) << last_async_result_;
+    // Update the writer with the latest result.
+    DoWriteCallback(ResetLastAsyncResult());
+  } else if (write_async_outstanding_ < kWriteAsyncCallbackBuffersThreshold) {
+    DVLOG(1) << write_async_outstanding_ << " < "
+             << kWriteAsyncCallbackBuffersThreshold;
+    DoWriteCallback(ResetWrittenBytes());
+  }
+}
+
+bool UDPSocketStarboard::WatchSocket() {
+  if (write_async_watcher_->watching())
+    return true;
+  bool result = InternalWatchSocket();
+  if (result) {
+    write_async_watcher_->set_watching(true);
+  }
+  return result;
+}
+
+void UDPSocketStarboard::StopWatchingSocket() {
+  if (!write_async_watcher_->watching())
+    return;
+  InternalStopWatchingSocket();
+  write_async_watcher_->set_watching(false);
+}
+
+bool UDPSocketStarboard::InternalWatchSocket() {
+  return base::MessageLoopForIO::current()->Watch(
+      socket_, true, base::MessageLoopCurrentForIO::WATCH_WRITE,
+      &write_socket_watcher_, write_async_watcher_.get());
+}
+
+void UDPSocketStarboard::InternalStopWatchingSocket() {
+  bool ok = write_socket_watcher_.StopWatchingSocket();
+  DCHECK(ok);
+}
+
+void UDPSocketStarboard::SetMaxPacketSize(size_t max_packet_size) {
+  datagram_buffer_pool_ = std::make_unique<DatagramBufferPool>(max_packet_size);
+}
+
+int UDPSocketStarboard::ResetLastAsyncResult() {
+  int result = last_async_result_;
+  last_async_result_ = 0;
+  return result;
+}
+
+int UDPSocketStarboard::ResetWrittenBytes() {
+  int bytes = written_bytes_;
+  written_bytes_ = 0;
+  return bytes;
 }
 
 }  // namespace net

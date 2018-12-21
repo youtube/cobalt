@@ -9,6 +9,8 @@
 #include "base/logging.h"
 #include "third_party/zlib/zlib.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace net {
 
 const uint8_t GZipHeader::magic[] = {0x1f, 0x8b};

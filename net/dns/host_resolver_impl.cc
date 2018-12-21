@@ -130,7 +130,7 @@ const char kOSErrorsForGetAddrinfoHistogramName[] =
     "Net.OSErrorsForGetAddrinfo_Mac";
 #elif defined(OS_LINUX)
     "Net.OSErrorsForGetAddrinfo_Linux";
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(OS_STARBOARD)
     "Net.OSErrorsForGetAddrinfo";
 #endif
 
@@ -346,7 +346,7 @@ bool HaveOnlyLoopbackAddresses() {
   return false;
 #elif defined(OS_ANDROID)
   return android::HaveOnlyLoopbackAddresses();
-#elif defined(OS_NACL)
+#elif defined(OS_NACL) || defined(OS_STARBOARD)
   NOTIMPLEMENTED();
   return false;
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)

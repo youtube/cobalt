@@ -17,17 +17,21 @@
 
 #include "base/message_loop/message_loop.h"
 #include "net/base/address_list.h"
-#include "net/base/completion_callback.h"
+#include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/socket_performance_watcher.h"
+#include "net/socket/socket_tag.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+
 #include "starboard/socket.h"
 
 namespace net {
 
-class NET_EXPORT TCPSocketStarboard : public base::MessageLoopForIO::Watcher {
+class NET_EXPORT TCPSocketStarboard
+    : public base::MessageLoopCurrentForIO::Watcher {
  public:
   TCPSocketStarboard(
       std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
@@ -50,19 +54,23 @@ class NET_EXPORT TCPSocketStarboard : public base::MessageLoopForIO::Watcher {
   int Bind(const IPEndPoint& address);
 
   int Listen(int backlog);
+  // Accepts incoming connection.
+  // Returns a net error code.
   int Accept(std::unique_ptr<TCPSocketStarboard>* socket,
              IPEndPoint* address,
-             const CompletionCallback& callback);
+             CompletionOnceCallback callback);
 
-  int Connect(const IPEndPoint& address, const CompletionCallback& callback);
+  int Connect(const IPEndPoint& address, CompletionOnceCallback callback);
   bool IsConnected() const;
   bool IsConnectedAndIdle() const;
 
-  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
-  int ReadIfReady(IOBuffer* buf,
-                  int buf_len,
-                  const CompletionCallback& callback);
-  int Write(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
+  int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
+  int ReadIfReady(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
+  int CancelReadIfReady();
+  int Write(IOBuffer* buf,
+            int buf_len,
+            CompletionOnceCallback callback,
+            const NetworkTrafficAnnotationTag&);
 
   int GetLocalAddress(IPEndPoint* address) const;
   int GetPeerAddress(IPEndPoint* address) const;
@@ -112,7 +120,19 @@ class NET_EXPORT TCPSocketStarboard : public base::MessageLoopForIO::Watcher {
   // write, or accept operations should be pending.
   SocketDescriptor ReleaseSocketDescriptorForTesting();
 
-  // MessageLoopForIO::Watcher implementation.
+  // Exposes the underlying socket descriptor for testing its state. Does not
+  // release ownership of the descriptor.
+  SocketDescriptor SocketDescriptorForTesting() const;
+
+  // Apply |tag| to this socket.
+  void ApplySocketTag(const SocketTag& tag);
+
+  // May return nullptr.
+  SocketPerformanceWatcher* socket_performance_watcher() const {
+    return socket_performance_watcher_.get();
+  }
+
+  // MessageLoopCurrentForIO::Watcher implementation.
   void OnSocketReadyToRead(SbSocket socket) override;
   void OnSocketReadyToWrite(SbSocket socket) override;
 
@@ -146,11 +166,11 @@ class NET_EXPORT TCPSocketStarboard : public base::MessageLoopForIO::Watcher {
 
   SbSocket socket_;
 
-  base::MessageLoopForIO::SocketWatcher socket_watcher_;
+  base::MessageLoopCurrentForIO::SocketWatcher socket_watcher_;
 
   std::unique_ptr<TCPSocketStarboard>* accept_socket_;
   IPEndPoint* accept_address_;
-  CompletionCallback accept_callback_;
+  CompletionOnceCallback accept_callback_;
 
   std::unique_ptr<IPEndPoint> peer_address_;
   std::unique_ptr<IPEndPoint> local_address_;
@@ -172,14 +192,19 @@ class NET_EXPORT TCPSocketStarboard : public base::MessageLoopForIO::Watcher {
 
   IOBuffer* read_buf_;
   int read_buf_len_;
-  CompletionCallback read_callback_;
-  CompletionCallback read_if_ready_callback_;
+  CompletionOnceCallback read_callback_;
+  CompletionOnceCallback read_if_ready_callback_;
 
   IOBuffer* write_buf_;
   int write_buf_len_;
-  CompletionCallback write_callback_;
+  CompletionOnceCallback write_callback_;
 
   THREAD_CHECKER(thread_checker_);
+
+  // Current socket tag if |socket_| is valid, otherwise the tag to apply when
+  // |socket_| is opened.
+  SocketTag tag_;
+
   DISALLOW_COPY_AND_ASSIGN(TCPSocketStarboard);
 };
 

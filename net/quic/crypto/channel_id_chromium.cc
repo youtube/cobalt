@@ -14,6 +14,8 @@
 #include "net/cert/asn1_util.h"
 #include "net/ssl/channel_id_service.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace net {
 
 ChannelIDKeyChromium::ChannelIDKeyChromium(

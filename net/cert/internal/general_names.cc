@@ -12,6 +12,8 @@
 #include "net/der/parser.h"
 #include "net/der/tag.h"
 
+#include "starboard/client_porting/poem/string_poem.h"
+
 namespace net {
 
 DEFINE_CERT_ERROR_ID(kFailedParsingGeneralName, "Failed parsing GeneralName");
