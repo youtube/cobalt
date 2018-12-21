@@ -197,9 +197,15 @@ class MsvsSettings(CompilerSettings):
 
     target_platform = 'Win32' if self.GetArch(config) == 'x86' else 'x64'
 
+    try:
+      vc_install_dir = os.path.join(vs_path, 'VC') + '\\'
+    except TypeError as te:
+      raise IOError('Error while constructing path, is vs_path (' + \
+                    str(vs_path) + ') missing?')
+
     replacements = {
         '$(VSInstallDir)': vs_path,
-        '$(VCInstallDir)': os.path.join(vs_path, 'VC') + '\\',
+        '$(VCInstallDir)': vc_install_dir,
         '$(OutDir)\\': base_to_build + '\\' if base_to_build else '',
         '$(IntDir)': '$!INTERMEDIATE_DIR',
         '$(InputPath)': '${source}',
