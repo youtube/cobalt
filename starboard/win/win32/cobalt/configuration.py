@@ -23,7 +23,7 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
 
   def __init__(self, platform_configuration, application_name,
                application_directory):
-    super(WinWin32CobaltConfiguration, self).__init__(
+    super(CobaltWinWin32Configuration, self).__init__(
         platform_configuration, application_name, application_directory)
     self.vmware = platform_configuration.vmware
 
@@ -31,7 +31,7 @@ class CobaltWinWin32Configuration(cobalt_configuration.CobaltConfiguration):
     return False
 
   def GetTestFilters(self):
-    filters = super(WinWin32CobaltConfiguration, self).GetTestFilters()
+    filters = super(CobaltWinWin32Configuration, self).GetTestFilters()
     filtered_tests = dict(self._FILTERED_TESTS)  # Copy.
     # On the VWware buildbot doesn't have a lot of video memory and
     # the following tests will fail or crash the system. Therefore they
