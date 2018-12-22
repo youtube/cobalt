@@ -49,14 +49,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module
 
-  def GetVideoProcessorDescription(self):
-    try:
-      cmd = 'powershell -command "(Get-WmiObject Win32_VideoController).Description"'
-      return subprocess.check_output(cmd, shell=True).splitlines()[0]
-    except Exception as err:
-      logging.error("Could not detect video card because: " + str(err))
-      return "UNKNOWN"
-
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
 
@@ -78,11 +70,8 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       # UPDATE: This might actually be a memory leak:
       #   https://b.***REMOVED***/issues/113123413
       # TODO: Remove these filters once the bug has been addressed.
-      if "vmware" in self.GetVideoProcessorDescription().lower():
-        filtered_tests.update( {'layout_tests': [ test_filter.FILTER_ALL] } )
-        filtered_tests.update( {'renderer_test': [ test_filter.FILTER_ALL] } )
-        filtered_tests.update(
-            {'player_filter_tests': [ test_filter.FILTER_ALL] })
+      if self.vmware:
+        filtered_tests.update({'player_filter_tests': [test_filter.FILTER_ALL]})
         # TODO: Figure out why these tests are flaky on buildbot.
         nplb_tests = filtered_tests.get('nplb', [])
         nplb_tests.append('RWLock.*HoldsLockForTime')
@@ -94,17 +83,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
       return filters
 
   _FILTERED_TESTS = {
-      'base_unittests': [
-          'PathServiceTest.Get',
-      ],
-      'renderer_test': [
-          'ResourceProviderTest.ManyTexturesCanBeCreatedAndDestroyedQuickly', # Flaky.
-          'ResourceProviderTest.TexturesCanBeCreatedFromSecondaryThread',
-          'PixelTest.Width1Image',
-          'PixelTest.Height1Image',
-          'PixelTest.Area1Image',
-      ],
-
       'nplb': [
           # TODO: Check these unit tests and fix them!
           'SbAudioSinkCreateTest.MultiSink',
@@ -151,17 +129,6 @@ class WinWin32PlatformConfig(gyp_configuration.Win32SharedConfiguration):
           # Fails when subtracting infinity and expecting NaN:
           # for EXPECT_TRUE(SbDoubleIsNan(infinity + -infinity))
           'SbUnsafeMathTest.NaNDoubleSunnyDay',
-       ],
-
-       'net_unittests': [
-           'HostResolverImplDnsTest.DnsTaskUnspec',
-           'UDPListenSocketTest.DoRead',
-           'UDPListenSocketTest.DoReadReturnsNullAtEnd',
-           'UDPListenSocketTest.SendTo',
-       ],
-
-       'web_platform_tests': [
-          '*WebPlatformTest.Run*',
        ],
   }
 

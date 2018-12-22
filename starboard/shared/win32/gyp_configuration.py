@@ -46,6 +46,15 @@ class Win32SharedConfiguration(config.base.PlatformConfigBase):
   def __init__(self, platform):
     super(Win32SharedConfiguration, self).__init__(platform)
     self.sdk = win_sdk_configuration.SdkConfiguration(self.GetName())
+    self.vmware = 'vmware' in self.GetVideoProcessorDescription().lower()
+
+  def GetVideoProcessorDescription(self):
+    try:
+      cmd = 'powershell -command "(Get-WmiObject Win32_VideoController).Description"'
+      return subprocess.check_output(cmd, shell=True).splitlines()[0]
+    except Exception as err:
+      logging.error("Could not detect video card because: " + str(err))
+      return "UNKNOWN"
 
   def AdditionalPlatformCompilerOptions(self):
     force_include_files = self.sdk.versioned_winmd_files
