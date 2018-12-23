@@ -15,6 +15,11 @@
 #include "starboard/blitter.h"
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
+
+#if SB_HAS(PLAYER_WITH_URL)
+#include "starboard/shared/darwin/url_player.h"
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -55,16 +60,13 @@ TEST(SbPlayerUrlTest, SunnyDay) {
 
   for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
     SbPlayerOutputMode output_mode = output_modes[i];
-    if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
+    if (!SbUrlPlayerOutputModeSupported(output_mode)) {
       continue;
     }
-    SbPlayer player = SbPlayerCreateWithUrl(
-        kPlayerUrl, window,
-#if SB_API_VERSION < 10
-        SB_PLAYER_NO_DURATION,
-#endif  // SB_API_VERSION < 10
-        DummyPlayerStatusFunc, DummyEncryptedMediaInitaDataEncounteredFunc,
-        DummyPlayerErrorFunc, NULL);
+    SbPlayer player =
+        SbUrlPlayerCreate(kPlayerUrl, window, DummyPlayerStatusFunc,
+                          DummyEncryptedMediaInitaDataEncounteredFunc,
+                          DummyPlayerErrorFunc, NULL);
 
     EXPECT_TRUE(SbPlayerIsValid(player));
 
@@ -78,7 +80,6 @@ TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowDestroy(window);
 }
 
-#if SB_API_VERSION >= 10
 TEST(SbPlayerUrlTest, NullCallbacks) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -94,20 +95,19 @@ TEST(SbPlayerUrlTest, NullCallbacks) {
 
   for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
     SbPlayerOutputMode output_mode = output_modes[i];
-    if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
+    if (!SbUrlPlayerOutputModeSupported(output_mode)) {
       continue;
     }
     {
       SbPlayer player =
-          SbPlayerCreateWithUrl(kPlayerUrl, window,
-                                NULL /* player_status_func */,
-                                DummyEncryptedMediaInitaDataEncounteredFunc,
-                                DummyPlayerErrorFunc, NULL /* context */);
+          SbUrlPlayerCreate(kPlayerUrl, window, NULL /* player_status_func */,
+                            DummyEncryptedMediaInitaDataEncounteredFunc,
+                            DummyPlayerErrorFunc, NULL /* context */);
       EXPECT_FALSE(SbPlayerIsValid(player));
       SbPlayerDestroy(player);
     }
     {
-      SbPlayer player = SbPlayerCreateWithUrl(
+      SbPlayer player = SbUrlPlayerCreate(
           kPlayerUrl, window, DummyPlayerStatusFunc,
           NULL /* encrypted_media_inita_data_encountered_func */,
           DummyPlayerErrorFunc, NULL /* context */);
@@ -115,18 +115,16 @@ TEST(SbPlayerUrlTest, NullCallbacks) {
       SbPlayerDestroy(player);
     }
     {
-      SbPlayer player = SbPlayerCreateWithUrl(
-          kPlayerUrl, window, DummyPlayerStatusFunc,
-          DummyEncryptedMediaInitaDataEncounteredFunc,
-          NULL /* player_error_func */, NULL /* context */);
+      SbPlayer player =
+          SbUrlPlayerCreate(kPlayerUrl, window, DummyPlayerStatusFunc,
+                            DummyEncryptedMediaInitaDataEncounteredFunc,
+                            NULL /* player_error_func */, NULL /* context */);
       EXPECT_FALSE(SbPlayerIsValid(player));
       SbPlayerDestroy(player);
     }
   }
 }
-#endif  // SB_API_VERSION >= 10
 
-#if SB_API_VERSION >= 10
 TEST(SbPlayerUrlTest, MultiPlayer) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -139,14 +137,14 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
 
   for (int i = 0; i < SB_ARRAY_SIZE_INT(output_modes); ++i) {
     SbPlayerOutputMode output_mode = output_modes[i];
-    if (!SbPlayerOutputModeSupportedWithUrl(output_mode)) {
+    if (!SbUrlPlayerOutputModeSupported(output_mode)) {
       continue;
     }
     const int kMaxPlayers = 16;
     std::vector<SbPlayer> created_players;
     for (int j = 0; j < kMaxPlayers; ++j) {
       created_players.push_back(
-          SbPlayerCreateWithUrl(kPlayerUrl, window, NULL, NULL, NULL, NULL));
+          SbUrlPlayerCreate(kPlayerUrl, window, NULL, NULL, NULL, NULL));
       if (!SbPlayerIsValid(created_players[j])) {
         created_players.pop_back();
         break;
@@ -160,7 +158,6 @@ TEST(SbPlayerUrlTest, MultiPlayer) {
   }
   SbWindowDestroy(window);
 }
-#endif  // SB_API_VERSION >= 10
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
