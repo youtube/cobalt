@@ -33,6 +33,10 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 
+#if SB_HAS(PLAYER_WITH_URL)
+#include SB_URL_PLAYER_INCLUDE_PATH
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 namespace cobalt {
 namespace media {
 
@@ -76,6 +80,7 @@ class StarboardPlayer {
                   bool prefer_decode_to_texture,
                   VideoFrameProvider* const video_frame_provider);
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
   ~StarboardPlayer();
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
@@ -87,6 +92,7 @@ class StarboardPlayer {
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
 #endif  // !SB_HAS(PLAYER_WITH_URL)
+
   void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();
@@ -96,14 +102,13 @@ class StarboardPlayer {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
+
 #if SB_HAS(PLAYER_WITH_URL)
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time, base::TimeDelta* buffer_start_time,
                base::TimeDelta* buffer_length_time, int* frame_width,
                int* frame_height);
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
-#if SB_HAS(PLAYER_WITH_URL)
   base::TimeDelta GetDuration();
   base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
@@ -137,6 +142,7 @@ class StarboardPlayer {
                        const std::string& message);
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
     void OnDeallocateSample(const void* sample_buffer);
+
     void ResetPlayer();
 
    private:
@@ -157,7 +163,7 @@ class StarboardPlayer {
   OnEncryptedMediaInitDataEncounteredCB
       on_encrypted_media_init_data_encountered_cb_;
 
-  void CreatePlayerWithUrl(const std::string& url);
+  void CreateUrlPlayer(const std::string& url);
 #else   // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
@@ -191,8 +197,9 @@ class StarboardPlayer {
                                  const void* sample_buffer);
 
 #if SB_HAS(PLAYER_WITH_URL)
+  // TODO: Combine two compute output mode functions into one.
   // Returns the output mode that should be used for the URL player.
-  static SbPlayerOutputMode ComputeSbPlayerOutputModeWithUrl(
+  static SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(
       bool prefer_decode_to_texture);
 
   static void EncryptedMediaInitDataEncounteredCB(
@@ -205,6 +212,7 @@ class StarboardPlayer {
       SbMediaVideoCodec codec, SbDrmSystem drm_system,
       bool prefer_decode_to_texture);
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
   // The following variables are initialized in the ctor and never changed.
   std::string url_;
   const scoped_refptr<base::MessageLoopProxy> message_loop_;
