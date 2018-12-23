@@ -104,6 +104,9 @@
 // kSbMediaVideoCodecVp10 in media.h is replaced by kSbMediaVideoCodecAv1.
 #define SB_HAS_AV1_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add a new SbPlayerError enum kSbPlayerErrorMax in player.h.
+#define SB_HAS_PLAYER_ERROR_MAX_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
