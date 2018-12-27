@@ -116,16 +116,16 @@ SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
 // number of samples per channel. The frame, in this case, represents a
 // group of samples at the same media time, one for each channel.
 // |update_source_status_func|: The audio sink calls this function on an
-// internal thread to query the status of the source. The value cannot be NULL.
+// internal thread to query the status of the source. It is called
+// immediately after SbAudioSinkCreate is called, even before it returns.
+// The caller has to ensure that the callback functions above return
+// meaningful values in this case. The value cannot be NULL.
 // |consume_frames_func|: The audio sink calls this function on an internal
 // thread to report consumed frames. The value cannot be NULL.
 // |context|: A value that is passed back to all callbacks and is generally
 // used to point at a class or struct that contains state associated with the
 // audio sink.
-// |update_source_status_func|: A function that the audio sink starts to call
-// immediately after SbAudioSinkCreate is called, even before it returns.
-// The caller has to ensure that the callback functions above return
-// meaningful values in this case.
+
 SB_EXPORT SbAudioSink
 SbAudioSinkCreate(int channels,
                   int sampling_frequency_hz,
