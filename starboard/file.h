@@ -373,6 +373,10 @@ class ScopedFile {
     return (success ? file_info.size : -1);
   }
 
+  // disallow copy and move operations
+  ScopedFile(const ScopedFile&) = delete;
+  ScopedFile& operator=(const ScopedFile&) = delete;
+
  private:
   SbFile file_;
 };
