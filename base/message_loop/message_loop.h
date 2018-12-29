@@ -423,36 +423,6 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
 
   static MessageLoopCurrentForIO current();
   static bool IsCurrent();
-#if defined(STARBOARD)
-  // Returns the MessageLoopForIO of the current thread.
-  // static MessageLoopCurrentForIO* current() {
-  //   MessageLoop* loop = MessageLoop::current();
-  //   DCHECK(loop);
-  //   DCHECK_EQ(MessageLoop::TYPE_IO, loop->type());
-  //   return static_cast<MessageLoopCurrentForIO*>(loop);
-  // }
-
-  // static bool IsCurrent() {
-  //   MessageLoop* loop = MessageLoop::current();
-  //   return loop && loop->type() == MessageLoop::TYPE_IO;
-  // }
-
-  typedef base::MessagePumpIOStarboard::Watcher Watcher;
-  typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
-  typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
-
-  enum Mode {
-    WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
-    WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
-    WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE
-  };
-
-  bool Watch(SbSocket socket,
-             bool persistent,
-             int mode,
-             SocketWatcher* controller,
-             Watcher* delegate);
-#endif  // !defined(STARBOARD)
 };
 
 // Do not add any member variables to MessageLoopForIO!  This is important b/c
