@@ -54,6 +54,9 @@
 // TODO(zhongyi): Remove once the bug is resolved.
 #include <dlfcn.h>
 #include <pthread.h>
+
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif  // defined(OS_MACOSX) && !defined(OS_IOS)
 
 namespace net {
@@ -986,8 +989,8 @@ int UDPSocketPosix::JoinGroup(const IPAddress& group_address) const {
       mreq.imr_ifindex = multicast_interface_;
       mreq.imr_address.s_addr = htonl(INADDR_ANY);
 #endif
-      memcpy(&mreq.imr_multiaddr, group_address.bytes().data(),
-             IPAddress::kIPv4AddressSize);
+      SbMemoryCopy(&mreq.imr_multiaddr, group_address.bytes().data(),
+                   IPAddress::kIPv4AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                           &mreq, sizeof(mreq));
       if (rv < 0)
@@ -999,8 +1002,8 @@ int UDPSocketPosix::JoinGroup(const IPAddress& group_address) const {
         return ERR_ADDRESS_INVALID;
       ipv6_mreq mreq;
       mreq.ipv6mr_interface = multicast_interface_;
-      memcpy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
-             IPAddress::kIPv6AddressSize);
+      SbMemoryCopy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
+                   IPAddress::kIPv6AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IPV6, IPV6_JOIN_GROUP,
                           &mreq, sizeof(mreq));
       if (rv < 0)
@@ -1026,8 +1029,8 @@ int UDPSocketPosix::LeaveGroup(const IPAddress& group_address) const {
       ip_mreqn mreq = {};
       mreq.imr_ifindex = multicast_interface_;
       mreq.imr_address.s_addr = INADDR_ANY;
-      memcpy(&mreq.imr_multiaddr, group_address.bytes().data(),
-             IPAddress::kIPv4AddressSize);
+      SbMemoryCopy(&mreq.imr_multiaddr, group_address.bytes().data(),
+                   IPAddress::kIPv4AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IP, IP_DROP_MEMBERSHIP,
                           &mreq, sizeof(mreq));
       if (rv < 0)
@@ -1043,8 +1046,8 @@ int UDPSocketPosix::LeaveGroup(const IPAddress& group_address) const {
 #else   // defined(OS_FUCHSIA)
       mreq.ipv6mr_interface = 0;  // 0 indicates default multicast interface.
 #endif  // !defined(OS_FUCHSIA)
-      memcpy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
-             IPAddress::kIPv6AddressSize);
+      SbMemoryCopy(&mreq.ipv6mr_multiaddr, group_address.bytes().data(),
+                   IPAddress::kIPv6AddressSize);
       int rv = setsockopt(socket_, IPPROTO_IPV6, IPV6_LEAVE_GROUP,
                           &mreq, sizeof(mreq));
       if (rv < 0)

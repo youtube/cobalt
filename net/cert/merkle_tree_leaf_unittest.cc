@@ -13,6 +13,8 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/ct_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +43,7 @@ MATCHER_P(HexEq, hexStr, "") {
 
   // Print hex string (easier to read than default GTest representation)
   *result_listener << "a.k.a. 0x" << base::HexEncode(arg.data(), arg.size());
-  return memcmp(arg.data(), bytes.data(), bytes.size()) == 0;
+  return SbMemoryCompare(arg.data(), bytes.data(), bytes.size()) == 0;
 }
 
 class MerkleTreeLeafTest : public ::testing::Test {

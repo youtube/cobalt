@@ -32,6 +32,8 @@
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -82,7 +84,7 @@ NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
 
   // Test wireless extensions for CONNECTION_WIFI
   struct iwreq pwrq = {};
-  strncpy(pwrq.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+  SbStringCopy(pwrq.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
   if (ioctl(s.get(), SIOCGIWNAME, &pwrq) != -1)
     return NetworkChangeNotifier::CONNECTION_WIFI;
 
@@ -92,7 +94,7 @@ NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
   ecmd.cmd = ETHTOOL_GSET;
   struct ifreq ifr = {};
   ifr.ifr_data = &ecmd;
-  strncpy(ifr.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+  SbStringCopy(ifr.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
   if (ioctl(s.get(), SIOCETHTOOL, &ifr) != -1)
     return NetworkChangeNotifier::CONNECTION_ETHERNET;
 #endif  // !defined(OS_ANDROID)
@@ -105,7 +107,7 @@ std::string GetInterfaceSSID(const std::string& ifname) {
   if (!ioctl_socket.is_valid())
     return std::string();
   struct iwreq wreq = {};
-  strncpy(wreq.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
+  SbStringCopy(wreq.ifr_name, ifname.c_str(), IFNAMSIZ - 1);
 
   char ssid[IW_ESSID_MAX_SIZE + 1] = {0};
   wreq.u.essid.pointer = ssid;

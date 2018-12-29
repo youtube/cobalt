@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_RESOLUTION_PROXY_RESOLUTION_SERVICE_H_
 #define NET_PROXY_RESOLUTION_PROXY_RESOLUTION_SERVICE_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <set>
 #include <string>
@@ -28,6 +26,7 @@
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
 #include "net/proxy_resolution/proxy_info.h"
 #include "net/proxy_resolution/proxy_resolver.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 class GURL;

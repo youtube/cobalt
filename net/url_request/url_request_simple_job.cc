@@ -19,6 +19,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_status.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -28,7 +29,7 @@ void CopyData(const scoped_refptr<IOBuffer>& buf,
               int buf_size,
               const scoped_refptr<base::RefCountedMemory>& data,
               int64_t data_offset) {
-  memcpy(buf->data(), data->front() + data_offset, buf_size);
+  SbMemoryCopy(buf->data(), data->front() + data_offset, buf_size);
 }
 
 }  // namespace

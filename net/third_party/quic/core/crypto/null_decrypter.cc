@@ -10,6 +10,7 @@
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_uint128.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -62,7 +63,7 @@ bool NullDecrypter::DecryptPacket(QuicTransportVersion version,
     return false;
   }
   // Copy the plaintext to output.
-  memcpy(output, plaintext.data(), plaintext.length());
+  SbMemoryCopy(output, plaintext.data(), plaintext.length());
   *output_length = plaintext.length();
   return true;
 }

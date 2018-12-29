@@ -25,6 +25,7 @@
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/spdy/core/spdy_framer.h"
+#include "starboard/types.h"
 
 namespace quic {
 

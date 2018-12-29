@@ -7,12 +7,10 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_STORAGE_BLOCK_H_
 #define NET_DISK_CACHE_BLOCKFILE_STORAGE_BLOCK_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "net/disk_cache/blockfile/addr.h"
 #include "net/disk_cache/blockfile/mapped_file.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

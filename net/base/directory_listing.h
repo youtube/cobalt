@@ -5,11 +5,11 @@
 #ifndef NET_BASE_DIRECTORY_LISTING_H_
 #define NET_BASE_DIRECTORY_LISTING_H_
 
-#include <stdint.h>
 #include <string>
 
 #include "base/strings/string16.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class Time;

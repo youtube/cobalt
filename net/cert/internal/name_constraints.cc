@@ -17,6 +17,7 @@
 #include "net/der/input.h"
 #include "net/der/parser.h"
 #include "net/der/tag.h"
+#include "starboard/types.h"
 
 namespace net {
 

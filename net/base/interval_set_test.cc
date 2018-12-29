@@ -10,6 +10,7 @@
 #include <limits>
 
 #include "net/test/gtest_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using std::string;

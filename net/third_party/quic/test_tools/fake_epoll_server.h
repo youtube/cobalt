@@ -5,15 +5,13 @@
 #ifndef NET_THIRD_PARTY_QUIC_TEST_TOOLS_FAKE_EPOLL_SERVER_H_
 #define NET_THIRD_PARTY_QUIC_TEST_TOOLS_FAKE_EPOLL_SERVER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <unordered_map>
 #include <unordered_set>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "net/tools/epoll_server/epoll_server.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace quic {

@@ -17,6 +17,8 @@
 #include "net/base/address_tracker_linux.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/network_interfaces_posix.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -33,14 +35,14 @@ static const unsigned char kIPv6Addr[] = {0x24, 0x01, 0xfa, 0x00, 0x00, 0x04,
 
 char* GetInterfaceName(int interface_index, char* ifname) {
   static_assert(base::size(kIfnameEm1) < IF_NAMESIZE, "Invalid interface name");
-  memcpy(ifname, kIfnameEm1, base::size(kIfnameEm1));
+  SbMemoryCopy(ifname, kIfnameEm1, base::size(kIfnameEm1));
   return ifname;
 }
 
 char* GetInterfaceNameVM(int interface_index, char* ifname) {
   static_assert(base::size(kIfnameVmnet) < IF_NAMESIZE,
                 "Invalid interface name");
-  memcpy(ifname, kIfnameVmnet, base::size(kIfnameVmnet));
+  SbMemoryCopy(ifname, kIfnameVmnet, base::size(kIfnameVmnet));
   return ifname;
 }
 

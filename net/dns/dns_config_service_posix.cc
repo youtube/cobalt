@@ -39,6 +39,8 @@
 #include "net/base/address_tracker_linux.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_interfaces.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -151,7 +153,7 @@ ConfigParsePosixResult ReadDnsConfig(DnsConfig* dns_config) {
 #if defined(OS_OPENBSD) || defined(OS_FUCHSIA)
   // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
   // res_init behaves the same way.
-  memset(&_res, 0, sizeof(_res));
+  SbMemorySet(&_res, 0, sizeof(_res));
   if (res_init() == 0) {
     result = ConvertResStateToDnsConfig(_res, dns_config);
   } else {
@@ -159,7 +161,7 @@ ConfigParsePosixResult ReadDnsConfig(DnsConfig* dns_config) {
   }
 #else  // all other OS_POSIX
   struct __res_state res;
-  memset(&res, 0, sizeof(res));
+  SbMemorySet(&res, 0, sizeof(res));
   if (res_ninit(&res) == 0) {
     result = ConvertResStateToDnsConfig(res, dns_config);
   } else {

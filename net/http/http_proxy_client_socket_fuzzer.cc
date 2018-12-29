@@ -4,9 +4,6 @@
 
 #include "net/http/http_proxy_client_socket.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -27,6 +24,7 @@
 #include "net/socket/fuzzed_socket.h"
 #include "net/socket/next_proto.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/types.h"
 
 // Fuzzer for HttpProxyClientSocket only tests establishing a connection when
 // using the proxy as a tunnel.

@@ -5,8 +5,6 @@
 #ifndef NET_DNS_DNS_SESSION_H_
 #define NET_DNS_DNS_SESSION_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -20,6 +18,7 @@
 #include "net/base/rand_callback.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_socket_pool.h"
+#include "starboard/types.h"
 
 namespace base {
 class BucketRanges;

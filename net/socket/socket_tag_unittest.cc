@@ -12,13 +12,13 @@
 #include <sys/types.h>
 #endif
 
-#include <stdint.h>
-
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/sockaddr_storage.h"
 #include "net/socket/socket_test_util.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -86,8 +86,8 @@ TEST(SocketTagTest, Apply) {
   SocketTag tag2(getuid(), tag_val2);
   tag2.Apply(s);
   const char kRequest1[] = "GET / HTTP/1.0";
-  ASSERT_EQ(send(s, kRequest1, strlen(kRequest1), 0),
-            static_cast<int>(strlen(kRequest1)));
+  ASSERT_EQ(send(s, kRequest1, SbStringGetLength(kRequest1), 0),
+            static_cast<int>(SbStringGetLength(kRequest1)));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
 
   // Verify socket can be retagged with a new value and the current process's
@@ -95,8 +95,8 @@ TEST(SocketTagTest, Apply) {
   old_traffic = GetTaggedBytes(tag_val1);
   tag1.Apply(s);
   const char kRequest2[] = "\n\n";
-  ASSERT_EQ(send(s, kRequest2, strlen(kRequest2), 0),
-            static_cast<int>(strlen(kRequest2)));
+  ASSERT_EQ(send(s, kRequest2, SbStringGetLength(kRequest2), 0),
+            static_cast<int>(SbStringGetLength(kRequest2)));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 
   ASSERT_EQ(close(s), 0);

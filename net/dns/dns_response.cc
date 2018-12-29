@@ -21,6 +21,7 @@
 #include "net/dns/record_rdata.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -252,7 +253,7 @@ DnsResponse::DnsResponse(const void* data, size_t length, size_t answer_offset)
       io_buffer_size_(length),
       parser_(io_buffer_->data(), length, answer_offset) {
   DCHECK(data);
-  memcpy(io_buffer_->data(), data, length);
+  SbMemoryCopy(io_buffer_->data(), data, length);
 }
 
 DnsResponse::~DnsResponse() = default;

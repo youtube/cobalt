@@ -4,8 +4,6 @@
 
 #include "net/http/failing_http_transaction_factory.h"
 
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/bind.h"
@@ -19,6 +17,7 @@
 #include "net/base/net_error_details.h"
 #include "net/http/http_response_info.h"
 #include "net/socket/connection_attempts.h"
+#include "starboard/types.h"
 
 namespace net {
 

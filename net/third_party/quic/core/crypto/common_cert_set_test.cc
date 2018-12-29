@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "net/third_party/quic/platform/api/quic_test.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace test {
@@ -209,7 +210,7 @@ TEST_F(CommonCertSetsTest, FindGIA_2) {
   QuicStringPiece gia_copy = sets->GetCert(hash, index);
   EXPECT_FALSE(gia_copy.empty());
   ASSERT_EQ(gia.size(), gia_copy.size());
-  EXPECT_EQ(0, memcmp(gia.data(), gia_copy.data(), gia.size()));
+  EXPECT_EQ(0, SbMemoryCompare(gia.data(), gia_copy.data(), gia.size()));
 }
 
 TEST_F(CommonCertSetsTest, FindGIA_3) {
@@ -230,7 +231,7 @@ TEST_F(CommonCertSetsTest, FindGIA_3) {
   QuicStringPiece gia_copy = sets->GetCert(hash, index);
   EXPECT_FALSE(gia_copy.empty());
   ASSERT_EQ(gia.size(), gia_copy.size());
-  EXPECT_EQ(0, memcmp(gia.data(), gia_copy.data(), gia.size()));
+  EXPECT_EQ(0, SbMemoryCompare(gia.data(), gia_copy.data(), gia.size()));
 }
 
 TEST_F(CommonCertSetsTest, NonMatch) {

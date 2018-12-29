@@ -11,6 +11,8 @@
 #include "base/containers/circular_deque.h"
 #include "base/logging.h"
 #include "net/base/io_buffer.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/zlib/zlib.h"
 
 namespace net {
@@ -53,7 +55,7 @@ bool WebSocketDeflater::Initialize(int window_bits) {
   // See https://crbug.com/691074
   window_bits = -std::max(window_bits, 9);
 
-  memset(stream_.get(), 0, sizeof(*stream_));
+  SbMemorySet(stream_.get(), 0, sizeof(*stream_));
   int result = deflateInit2(stream_.get(),
                             Z_DEFAULT_COMPRESSION,
                             Z_DEFLATED,

@@ -16,6 +16,7 @@
 #include "net/base/sockaddr_storage.h"
 #include "net/socket/socket_posix.h"
 #include "net/socket/unix_domain_client_socket_posix.h"
+#include "starboard/types.h"
 
 namespace net {
 

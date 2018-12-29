@@ -21,6 +21,7 @@
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {

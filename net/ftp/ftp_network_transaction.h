@@ -5,8 +5,6 @@
 #ifndef NET_FTP_FTP_NETWORK_TRANSACTION_H_
 #define NET_FTP_FTP_NETWORK_TRANSACTION_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -25,6 +23,7 @@
 #include "net/ftp/ftp_transaction.h"
 #include "net/log/net_log_with_source.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

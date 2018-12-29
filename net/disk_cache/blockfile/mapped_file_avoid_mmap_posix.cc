@@ -8,6 +8,8 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 
@@ -19,13 +21,13 @@ void* MappedFile::Init(const base::FilePath& name, size_t size) {
   if (!size)
     size = GetLength();
 
-  buffer_ = malloc(size);
-  snapshot_ = malloc(size);
+  buffer_ = SbMemoryAllocate(size);
+  snapshot_ = SbMemoryAllocate(size);
   if (buffer_ && snapshot_ && Read(buffer_, size, 0)) {
-    memcpy(snapshot_, buffer_, size);
+    SbMemoryCopy(snapshot_, buffer_, size);
   } else {
-    free(buffer_);
-    free(snapshot_);
+    SbMemoryFree(buffer_);
+    SbMemoryFree(snapshot_);
     buffer_ = snapshot_ = 0;
   }
 
@@ -42,8 +44,8 @@ void MappedFile::Flush() {
   const size_t block_size = 4096;
   for (size_t offset = 0; offset < view_size_; offset += block_size) {
     size_t size = std::min(view_size_ - offset, block_size);
-    if (memcmp(snapshot_ptr + offset, buffer_ptr + offset, size)) {
-      memcpy(snapshot_ptr + offset, buffer_ptr + offset, size);
+    if (SbMemoryCompare(snapshot_ptr + offset, buffer_ptr + offset, size)) {
+      SbMemoryCopy(snapshot_ptr + offset, buffer_ptr + offset, size);
       Write(snapshot_ptr + offset, size, offset);
     }
   }
@@ -56,8 +58,8 @@ MappedFile::~MappedFile() {
   if (buffer_ && snapshot_) {
     Flush();
   }
-  free(buffer_);
-  free(snapshot_);
+  SbMemoryFree(buffer_);
+  SbMemoryFree(snapshot_);
 }
 
 }  // namespace disk_cache

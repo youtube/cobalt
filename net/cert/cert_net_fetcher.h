@@ -5,8 +5,6 @@
 #ifndef NET_CERT_CERT_NET_FETCHER_H_
 #define NET_CERT_CERT_NET_FETCHER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -14,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 

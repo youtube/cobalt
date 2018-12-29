@@ -12,6 +12,7 @@
 #include "base/third_party/icu/icu_utf.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -27,8 +28,8 @@ bool ConvertBmpStringValue(const der::Input& in, std::string* out) {
 
   base::string16 in_16bit;
   if (in.Length()) {
-    memcpy(base::WriteInto(&in_16bit, in.Length() / 2 + 1), in.UnsafeData(),
-           in.Length());
+    SbMemoryCopy(base::WriteInto(&in_16bit, in.Length() / 2 + 1),
+                 in.UnsafeData(), in.Length());
   }
   for (base::char16& c : in_16bit) {
     // BMPString is UCS-2 in big-endian order.
@@ -52,7 +53,7 @@ bool ConvertUniversalStringValue(const der::Input& in, std::string* out) {
 
   std::vector<uint32_t> in_32bit(in.Length() / 4);
   if (in.Length())
-    memcpy(in_32bit.data(), in.UnsafeData(), in.Length());
+    SbMemoryCopy(in_32bit.data(), in.UnsafeData(), in.Length());
   for (const uint32_t c : in_32bit) {
     // UniversalString is UCS-4 in big-endian order.
     uint32_t codepoint = base::NetToHost32(c);

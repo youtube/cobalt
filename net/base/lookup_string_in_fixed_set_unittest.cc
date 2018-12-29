@@ -36,6 +36,8 @@ namespace test5 {
 }
 namespace test6 {
 #include "net/base/registry_controlled_domains/effective_tld_names_unittest6-inc.cc"
+#include "starboard/string.h"
+#include "starboard/types.h"
 }
 
 struct Expectation {
@@ -51,7 +53,7 @@ class LookupStringInFixedSetTest : public testing::TestWithParam<Expectation> {
  protected:
   template <size_t N>
   int LookupInGraph(const unsigned char(&graph)[N], const char* key) {
-    return LookupStringInFixedSet(graph, N, key, strlen(key));
+    return LookupStringInFixedSet(graph, N, key, SbStringGetLength(key));
   }
 };
 

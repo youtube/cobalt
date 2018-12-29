@@ -9,10 +9,9 @@
 // Backend on disk. Assumes no backend operations are running simultaneously.
 // Hence must be run at cache initialization step.
 
-#include <stdint.h>
-
 #include "net/base/cache_type.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class FilePath;

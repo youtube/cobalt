@@ -23,6 +23,7 @@
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -151,7 +152,7 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
   size_t bytes_written = 4;
 
   if (orbit.size() == 8) {
-    memcpy(&(*nonce)[bytes_written], orbit.data(), orbit.size());
+    SbMemoryCopy(&(*nonce)[bytes_written], orbit.data(), orbit.size());
     bytes_written += orbit.size();
   }
 

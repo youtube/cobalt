@@ -27,6 +27,7 @@
 #include "net/cert/x509_util_nss.h"
 #include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
 #include "net/third_party/mozilla_security_manager/nsPKCS12Blob.h"
+#include "starboard/types.h"
 
 // PSM = Mozilla's Personal Security Manager.
 namespace psm = mozilla_security_manager;

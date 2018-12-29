@@ -7,6 +7,7 @@
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -17,7 +18,7 @@ QuicPathResponseFrame::QuicPathResponseFrame(
     QuicControlFrameId control_frame_id,
     const QuicPathFrameBuffer& data_buff)
     : control_frame_id(control_frame_id) {
-  memcpy(data_buffer.data(), data_buff.data(), data_buffer.size());
+  SbMemoryCopy(data_buffer.data(), data_buff.data(), data_buffer.size());
 }
 
 QuicPathResponseFrame::~QuicPathResponseFrame() {}

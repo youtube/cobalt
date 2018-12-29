@@ -5,9 +5,6 @@
 #ifndef NET_QUIC_QUIC_HTTP_STREAM_H_
 #define NET_QUIC_QUIC_HTTP_STREAM_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <list>
 #include <string>
 #include <vector>
@@ -26,6 +23,7 @@
 #include "net/spdy/multiplexed_http_stream.h"
 #include "net/third_party/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quic/core/quic_packets.h"
+#include "starboard/types.h"
 
 namespace net {
 

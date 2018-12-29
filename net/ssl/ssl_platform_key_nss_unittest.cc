@@ -6,7 +6,6 @@
 
 #include <keyhi.h>
 #include <pk11pub.h>
-#include <stdint.h>
 #include <string.h>
 
 #include <memory>
@@ -26,6 +25,8 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
 #include "net/test/test_with_scoped_task_environment.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
@@ -86,7 +87,7 @@ TEST_P(SSLPlatformKeyNSSTest, KeyMatches) {
     SECItem encrypted_item = {siBuffer, encrypted.data(),
                               static_cast<unsigned>(encrypted.size())};
     SECKEYEncryptedPrivateKeyInfo epki;
-    memset(&epki, 0, sizeof(epki));
+    SbMemorySet(&epki, 0, sizeof(epki));
     crypto::ScopedPLArenaPool arena(PORT_NewArena(DER_DEFAULT_CHUNKSIZE));
     ASSERT_EQ(SECSuccess,
               SEC_QuickDERDecodeItem(

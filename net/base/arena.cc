@@ -9,6 +9,8 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -44,13 +46,13 @@ char* UnsafeArena::Realloc(char* original, size_t oldsize, size_t newsize) {
     }
   }
   char* out = Alloc(newsize);
-  memcpy(out, original, oldsize);
+  SbMemoryCopy(out, original, oldsize);
   return out;
 }
 
 char* UnsafeArena::Memdup(const char* data, size_t size) {
   char* out = Alloc(size);
-  memcpy(out, data, size);
+  SbMemoryCopy(out, data, size);
   return out;
 }
 

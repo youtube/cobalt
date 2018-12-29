@@ -5,11 +5,11 @@
 #ifndef NET_CERT_CT_POLICY_ENFORCER_H_
 #define NET_CERT_CT_POLICY_ENFORCER_H_
 
-#include <stddef.h>
 #include <vector>
 
 #include "net/base/net_export.h"
 #include "net/cert/signed_certificate_timestamp.h"
+#include "starboard/types.h"
 
 namespace net {
 

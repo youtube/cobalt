@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_PAC_FILE_FETCHER_IMPL_H_
 #define NET_PROXY_PAC_FILE_FETCHER_IMPL_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 
@@ -21,6 +19,7 @@
 #include "net/proxy_resolution/pac_file_fetcher.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request.h"
+#include "starboard/types.h"
 
 class GURL;
 

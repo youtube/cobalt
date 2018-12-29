@@ -4,7 +4,6 @@
 
 #include "net/test/ct_test_util.h"
 
-#include <stdint.h>
 #include <string.h>
 #include <vector>
 
@@ -18,6 +17,8 @@
 #include "net/cert/merkle_tree_leaf.h"
 #include "net/cert/signed_tree_head.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -189,7 +190,8 @@ std::string GetDerEncodedX509Cert() { return HexToBytes(kDefaultDerCert); }
 void GetPrecertSignedEntry(SignedEntryData* entry) {
   entry->type = ct::SignedEntryData::LOG_ENTRY_TYPE_PRECERT;
   std::string issuer_hash(HexToBytes(kDefaultIssuerKeyHash));
-  memcpy(entry->issuer_key_hash.data, issuer_hash.data(), issuer_hash.size());
+  SbMemoryCopy(entry->issuer_key_hash.data, issuer_hash.data(),
+               issuer_hash.size());
   entry->tbs_certificate = HexToBytes(kDefaultDerTbsCert);
 }
 
@@ -276,7 +278,8 @@ bool GetSampleSignedTreeHead(SignedTreeHead* sth) {
                    base::TimeDelta::FromMilliseconds(kTestTimestamp);
   sth->tree_size = kSampleSTHTreeSize;
   std::string sha256_root_hash = GetSampleSTHSHA256RootHash();
-  memcpy(sth->sha256_root_hash, sha256_root_hash.c_str(), kSthRootHashLength);
+  SbMemoryCopy(sth->sha256_root_hash, sha256_root_hash.c_str(),
+               kSthRootHashLength);
   sth->log_id = GetTestPublicKeyId();
 
   return GetSampleSTHTreeHeadDecodedSignature(&(sth->signature));
@@ -289,7 +292,8 @@ bool GetSampleEmptySignedTreeHead(SignedTreeHead* sth) {
   sth->tree_size = 0;
   std::string empty_root_hash = HexToBytes(
       "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-  memcpy(sth->sha256_root_hash, empty_root_hash.c_str(), kSthRootHashLength);
+  SbMemoryCopy(sth->sha256_root_hash, empty_root_hash.c_str(),
+               kSthRootHashLength);
   sth->log_id = GetTestPublicKeyId();
 
   std::string tree_head_signature = HexToBytes(
@@ -305,7 +309,7 @@ bool GetBadEmptySignedTreeHead(SignedTreeHead* sth) {
   sth->timestamp = base::Time::UnixEpoch() +
                    base::TimeDelta::FromMilliseconds(INT64_C(1450870952897));
   sth->tree_size = 0;
-  memset(sth->sha256_root_hash, 'f', kSthRootHashLength);
+  SbMemorySet(sth->sha256_root_hash, 'f', kSthRootHashLength);
   sth->log_id = GetTestPublicKeyId();
 
   std::string tree_head_signature = HexToBytes(

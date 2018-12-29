@@ -5,9 +5,8 @@
 #ifndef NET_BASE_LOOKUP_STRING_IN_FIXED_SET_H_
 #define NET_BASE_LOOKUP_STRING_IN_FIXED_SET_H_
 
-#include <stddef.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

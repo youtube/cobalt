@@ -5,8 +5,6 @@
 #ifndef NET_DNS_HOST_CACHE_H_
 #define NET_DNS_HOST_CACHE_H_
 
-#include <stddef.h>
-
 #include <functional>
 #include <map>
 #include <memory>
@@ -23,6 +21,7 @@
 #include "net/base/net_export.h"
 #include "net/dns/dns_util.h"
 #include "net/dns/host_resolver_source.h"
+#include "starboard/types.h"
 
 namespace base {
 class ListValue;

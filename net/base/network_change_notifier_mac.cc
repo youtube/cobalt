@@ -13,6 +13,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "net/dns/dns_config_service.h"
+#include "starboard/types.h"
 
 namespace net {
 

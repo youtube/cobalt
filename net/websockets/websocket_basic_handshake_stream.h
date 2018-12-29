@@ -5,8 +5,6 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_BASIC_HANDSHAKE_STREAM_H_
 #define NET_WEBSOCKETS_WEBSOCKET_BASIC_HANDSHAKE_STREAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +16,7 @@
 #include "net/base/net_export.h"
 #include "net/http/http_basic_state.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

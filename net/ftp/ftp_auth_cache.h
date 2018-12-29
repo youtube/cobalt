@@ -5,12 +5,11 @@
 #ifndef NET_FTP_FTP_AUTH_CACHE_H_
 #define NET_FTP_FTP_AUTH_CACHE_H_
 
-#include <stddef.h>
-
 #include <list>
 
 #include "net/base/auth.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

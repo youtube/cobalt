@@ -5,14 +5,13 @@
 #ifndef NET_FTP_FTP_DIRECTORY_LISTING_PARSER_H_
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/strings/string16.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

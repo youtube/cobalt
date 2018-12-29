@@ -26,6 +26,7 @@
 #include "net/third_party/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/simple_data_producer.h"
+#include "starboard/memory.h"
 
 using testing::_;
 using testing::Return;
@@ -85,7 +86,7 @@ class TestEncrypter : public QuicEncrypter {
     packet_number_ = packet_number;
     associated_data_ = QuicString(associated_data);
     plaintext_ = QuicString(plaintext);
-    memcpy(output, plaintext.data(), plaintext.length());
+    SbMemoryCopy(output, plaintext.data(), plaintext.length());
     *output_length = plaintext.length();
     return true;
   }
@@ -131,7 +132,7 @@ class TestDecrypter : public QuicDecrypter {
     packet_number_ = packet_number;
     associated_data_ = QuicString(associated_data);
     ciphertext_ = QuicString(ciphertext);
-    memcpy(output, ciphertext.data(), ciphertext.length());
+    SbMemoryCopy(output, ciphertext.data(), ciphertext.length());
     *output_length = ciphertext.length();
     return true;
   }
@@ -506,7 +507,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     char* buffer = new char[kMaxPacketSize + 1];
     size_t len = 0;
     for (const auto& fragment : fragments) {
-      memcpy(buffer + len, fragment.fragment.data(), fragment.fragment.size());
+      SbMemoryCopy(buffer + len, fragment.fragment.data(),
+                   fragment.fragment.size());
       len += fragment.fragment.size();
     }
     return QuicMakeUnique<QuicEncryptedPacket>(buffer, len, true);
@@ -746,7 +748,7 @@ TEST_P(QuicFramerTest, LargePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER);
 
-  memset(p + header_size, 0, kMaxPacketSize - header_size);
+  SbMemorySet(p + header_size, 0, kMaxPacketSize - header_size);
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
   EXPECT_QUIC_BUG(framer_.ProcessPacket(encrypted), "Packet too large:1");
@@ -5106,7 +5108,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5324,7 +5326,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5397,7 +5399,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_2BYTE_PACKET_NUMBER);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5455,7 +5457,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
       framer_.transport_version(), PACKET_8BYTE_CONNECTION_ID,
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_1BYTE_PACKET_NUMBER);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  SbMemorySet(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -9317,8 +9319,9 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
   EXPECT_EQ(sizeof(expected_token_value), visitor_.new_token_.token.length());
-  EXPECT_EQ(0, memcmp(expected_token_value, visitor_.new_token_.token.data(),
-                      sizeof(expected_token_value)));
+  EXPECT_EQ(
+      0, SbMemoryCompare(expected_token_value, visitor_.new_token_.token.data(),
+                         sizeof(expected_token_value)));
 
   CheckFramingBoundaries(packet, QUIC_INVALID_NEW_TOKEN);
 }

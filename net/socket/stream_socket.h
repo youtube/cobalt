@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_STREAM_SOCKET_H_
 #define NET_SOCKET_STREAM_SOCKET_H_
 
-#include <stdint.h>
-
 #include "base/bind.h"
 #include "base/macros.h"
 #include "net/base/net_errors.h"
@@ -14,6 +12,7 @@
 #include "net/socket/connection_attempts.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/socket.h"
+#include "starboard/types.h"
 
 namespace crypto {
 class ECPrivateKey;

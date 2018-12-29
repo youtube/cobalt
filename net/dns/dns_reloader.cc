@@ -16,6 +16,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_local_storage.h"
 #include "net/base/network_change_notifier.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,10 +5,9 @@
 #ifndef NET_SOCKET_SOCKET_OPTIONS_H_
 #define NET_SOCKET_SOCKET_OPTIONS_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
 #include "net/socket/socket_descriptor.h"
+#include "starboard/types.h"
 
 namespace net {
 

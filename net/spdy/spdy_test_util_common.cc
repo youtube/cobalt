@@ -34,6 +34,7 @@
 #include "net/third_party/spdy/core/spdy_framer.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request_job_factory_impl.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using net::test::IsError;
@@ -152,7 +153,7 @@ spdy::SpdySerializedFrame CombineFrames(
   auto data = std::unique_ptr<char[]>(new char[total_size]);
   char* ptr = data.get();
   for (const auto* frame : frames) {
-    memcpy(ptr, frame->data(), frame->size());
+    SbMemoryCopy(ptr, frame->data(), frame->size());
     ptr += frame->size();
   }
   return spdy::SpdySerializedFrame(data.release(), total_size,
@@ -1068,7 +1069,7 @@ spdy::SpdyHeaderBlock SpdyTestUtil::ConstructHeaderBlock(
 namespace test {
 HashValue GetTestHashValue(uint8_t label) {
   HashValue hash_value(HASH_VALUE_SHA256);
-  memset(hash_value.data(), label, hash_value.size());
+  SbMemorySet(hash_value.data(), label, hash_value.size());
   return hash_value;
 }
 

@@ -5,6 +5,7 @@
 #include "net/third_party/quic/core/crypto/transport_parameters.h"
 
 #include "net/third_party/quic/core/crypto/crypto_framer.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 
 namespace quic {
@@ -181,7 +182,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
     return false;
   }
   out->resize(CBB_len(cbb.get()));
-  memcpy(out->data(), CBB_data(cbb.get()), CBB_len(cbb.get()));
+  SbMemoryCopy(out->data(), CBB_data(cbb.get()), CBB_len(cbb.get()));
   return true;
 }
 

@@ -4,6 +4,7 @@
 
 #include "net/base/mime_sniffer.h"
 
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -530,7 +531,7 @@ class MimeSnifferControlCodesEdgeCaseTest
 
 TEST_P(MimeSnifferControlCodesEdgeCaseTest, EdgeCase) {
   const char* param = GetParam();
-  EXPECT_TRUE(LooksLikeBinary(param, strlen(param)));
+  EXPECT_TRUE(LooksLikeBinary(param, SbStringGetLength(param)));
 }
 
 INSTANTIATE_TEST_CASE_P(MimeSnifferControlCodesEdgeCaseTest,

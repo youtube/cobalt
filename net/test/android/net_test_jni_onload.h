@@ -7,6 +7,8 @@
 
 #include <jni.h>
 
+#include "starboard/types.h"
+
 namespace net {
 namespace test {
 

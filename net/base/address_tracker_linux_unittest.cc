@@ -17,6 +17,7 @@
 #include "base/test/scoped_task_environment.h"
 #include "base/threading/simple_thread.h"
 #include "net/base/ip_address.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #ifndef IFA_F_HOMEADDRESS

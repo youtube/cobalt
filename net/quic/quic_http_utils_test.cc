@@ -4,12 +4,11 @@
 
 #include "net/quic/quic_http_utils.h"
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "net/third_party/quic/platform/api/quic_endian.h"
 #include "net/third_party/spdy/core/spdy_alt_svc_wire_format.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

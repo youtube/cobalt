@@ -9,6 +9,8 @@
 #include <string>
 #include <utility>
 
+#include "starboard/types.h"
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/files/file_util.h"

@@ -14,6 +14,8 @@
 
 #if defined(OS_MACOSX)
 #include <unistd.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace net {

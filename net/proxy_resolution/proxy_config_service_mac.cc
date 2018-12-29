@@ -16,6 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/proxy_server.h"
 #include "net/proxy_resolution/proxy_info.h"
+#include "starboard/types.h"
 
 namespace net {
 

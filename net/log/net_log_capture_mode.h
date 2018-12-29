@@ -5,11 +5,10 @@
 #ifndef NET_LOG_NET_LOG_CAPTURE_MODE_H_
 #define NET_LOG_NET_LOG_CAPTURE_MODE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

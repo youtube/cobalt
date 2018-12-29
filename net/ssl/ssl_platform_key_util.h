@@ -5,11 +5,10 @@
 #ifndef NET_SSL_SSL_PLATFORM_KEY_UTIL_H_
 #define NET_SSL_SSL_PLATFORM_KEY_UTIL_H_
 
-#include <stddef.h>
-
 #include "base/memory/ref_counted.h"
 #include "base/single_thread_task_runner.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

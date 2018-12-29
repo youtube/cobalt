@@ -5,8 +5,6 @@
 #ifndef NET_CERT_NSS_CERT_DATABASE_H_
 #define NET_CERT_NSS_CERT_DATABASE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,6 +20,7 @@
 #include "net/cert/cert_type.h"
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/types.h"
 
 namespace base {
 template <class ObserverType>

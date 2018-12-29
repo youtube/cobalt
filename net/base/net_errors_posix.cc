@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/posix/safe_strerror.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -6,8 +6,6 @@
 #define NET_TOOLS_EPOLL_SERVER_EPOLL_SERVER_H_
 
 #include <fcntl.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/queue.h>
 
 #include <map>
@@ -33,7 +31,9 @@
 // within the EpollServer class for more details.
 #ifdef EPOLL_SERVER_EVENT_TRACING
 #include <ostream>
+
 #include "base/logging.h"
+#include "starboard/types.h"
 #endif
 
 #include "base/compiler_specific.h"

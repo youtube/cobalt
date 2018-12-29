@@ -5,8 +5,6 @@
 #ifndef NET_DNS_RECORD_RDATA_H_
 #define NET_DNS_RECORD_RDATA_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,6 +17,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_protocol.h"
+#include "starboard/types.h"
 
 namespace net {
 

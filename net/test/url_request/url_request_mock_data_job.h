@@ -5,13 +5,12 @@
 #ifndef NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_DATA_JOB_H_
 #define NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_DATA_JOB_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/memory/weak_ptr.h"
 #include "base/optional.h"
 #include "net/url_request/url_request_job.h"
+#include "starboard/types.h"
 
 namespace net {
 

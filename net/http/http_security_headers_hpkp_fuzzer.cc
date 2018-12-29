@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string>
 
 #include "base/time/time.h"
 #include "net/base/hash_value.h"
 #include "net/http/http_security_headers.h"
 #include "net/ssl/ssl_info.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

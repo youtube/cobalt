@@ -5,9 +5,6 @@
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_NTLM_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_NTLM_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "build/build_config.h"
 
 // This contains the portable and the SSPI implementations for NTLM.
@@ -36,6 +33,7 @@
 #include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "starboard/types.h"
 
 namespace net {
 

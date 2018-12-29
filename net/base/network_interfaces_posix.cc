@@ -12,6 +12,7 @@
 #include <set>
 
 #include "net/base/network_interfaces.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace internal {

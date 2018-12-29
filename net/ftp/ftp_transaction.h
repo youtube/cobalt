@@ -5,13 +5,12 @@
 #ifndef NET_FTP_FTP_TRANSACTION_H_
 #define NET_FTP_FTP_TRANSACTION_H_
 
-#include <stdint.h>
-
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

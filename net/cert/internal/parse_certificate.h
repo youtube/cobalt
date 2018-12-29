@@ -5,8 +5,6 @@
 #ifndef NET_CERT_INTERNAL_PARSE_CERTIFICATE_H_
 #define NET_CERT_INTERNAL_PARSE_CERTIFICATE_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <vector>
@@ -15,6 +13,7 @@
 #include "net/base/net_export.h"
 #include "net/der/input.h"
 #include "net/der/parse_values.h"
+#include "starboard/types.h"
 
 namespace net {
 

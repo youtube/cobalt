@@ -5,13 +5,12 @@
 #ifndef NET_DER_PARSER_H_
 #define NET_DER_PARSER_H_
 
-#include <stdint.h>
-
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/der/input.h"
 #include "net/der/tag.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 
 namespace net {

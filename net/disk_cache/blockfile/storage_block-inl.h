@@ -7,12 +7,10 @@
 
 #include "net/disk_cache/blockfile/storage_block.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/hash.h"
 #include "base/logging.h"
 #include "net/disk_cache/blockfile/trace.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

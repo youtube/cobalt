@@ -5,11 +5,10 @@
 #ifndef NET_TOOLS_HUFFMAN_TRIE_BIT_WRITER_H_
 #define NET_TOOLS_HUFFMAN_TRIE_BIT_WRITER_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,8 +5,6 @@
 #ifndef NET_DNS_MDNS_CLIENT_IMPL_H_
 #define NET_DNS_MDNS_CLIENT_IMPL_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -26,6 +24,7 @@
 #include "net/socket/datagram_server_socket.h"
 #include "net/socket/udp_server_socket.h"
 #include "net/socket/udp_socket.h"
+#include "starboard/types.h"
 
 namespace base {
 class Clock;

@@ -18,6 +18,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -830,7 +831,7 @@ class FtpNetworkTransactionTest : public PlatformTest,
     if (expected_result == OK) {
       scoped_refptr<IOBuffer> io_buffer =
           base::MakeRefCounted<IOBuffer>(kBufferSize);
-      memset(io_buffer->data(), 0, kBufferSize);
+      SbMemorySet(io_buffer->data(), 0, kBufferSize);
       ASSERT_EQ(ERR_IO_PENDING, transaction_->Read(io_buffer.get(), kBufferSize,
                                                    callback_.callback()));
       ASSERT_EQ(static_cast<int>(mock_data.length()),

@@ -10,9 +10,10 @@
 #include "net/socket/socket_descriptor.h"
 
 #if defined(OS_ANDROID)
-#include <stdint.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "starboard/types.h"
 #endif  // OS_ANDROID
 
 namespace net {

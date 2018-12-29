@@ -7,14 +7,13 @@
 
 #include "net/socket/datagram_client_socket.h"
 
-#include <stdint.h>
-
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/network_change_notifier.h"
 #include "net/log/net_log_with_source.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace base {
 class FuzzedDataProvider;

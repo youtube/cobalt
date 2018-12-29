@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 
 #include "base/lazy_instance.h"
+#include "starboard/types.h"
 #include "third_party/apple_apsl/dnsinfo.h"
 
 namespace {

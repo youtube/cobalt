@@ -7,14 +7,13 @@
 #ifndef NET_BASE_MOCK_FILE_STREAM_H_
 #define NET_BASE_MOCK_FILE_STREAM_H_
 
-#include <stdint.h>
-
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/file_stream.h"
 #include "net/base/net_errors.h"
+#include "starboard/types.h"
 
 namespace net {
 

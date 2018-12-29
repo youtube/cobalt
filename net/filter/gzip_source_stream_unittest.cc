@@ -13,6 +13,7 @@
 #include "net/filter/filter_source_stream_test_util.h"
 #include "net/filter/gzip_source_stream.h"
 #include "net/filter/mock_source_stream.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/zlib/zlib.h"
 
@@ -286,7 +287,7 @@ TEST_P(GzipSourceStreamTest, GzipCorrectness) {
   source()->AddReadResult(nullptr, 0, OK, GetParam().mode);
   std::string actual_output;
   int rv = ReadStream(&actual_output);
-  EXPECT_EQ(static_cast<int>(strlen(kDecompressedData)), rv);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kDecompressedData)), rv);
   EXPECT_EQ(kDecompressedData, actual_output);
   EXPECT_EQ("GZIP", stream()->Description());
 }
@@ -308,7 +309,7 @@ TEST_P(GzipSourceStreamTest, GzipCorrectnessWithoutFooter) {
   source()->AddReadResult(nullptr, 0, OK, GetParam().mode);
   std::string actual_output;
   int rv = ReadStream(&actual_output);
-  EXPECT_EQ(static_cast<int>(strlen(kDecompressedData)), rv);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kDecompressedData)), rv);
   EXPECT_EQ(kDecompressedData, actual_output);
   EXPECT_EQ("GZIP", stream()->Description());
 }
@@ -327,7 +328,7 @@ TEST_P(GzipSourceStreamTest, DeflateWithAdler32) {
   source()->AddReadResult(nullptr, 0, OK, GetParam().mode);
   std::string actual_output;
   int rv = ReadStream(&actual_output);
-  EXPECT_EQ(static_cast<int>(strlen(kDecompressedData)), rv);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kDecompressedData)), rv);
   EXPECT_EQ(kDecompressedData, actual_output);
   EXPECT_EQ("DEFLATE", stream()->Description());
 }
@@ -356,7 +357,7 @@ TEST_P(GzipSourceStreamTest, DeflateWithoutHeaderWithAdler32) {
   source()->AddReadResult(nullptr, 0, OK, GetParam().mode);
   std::string actual_output;
   int rv = ReadStream(&actual_output);
-  EXPECT_EQ(static_cast<int>(strlen(kDecompressedData)), rv);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kDecompressedData)), rv);
   EXPECT_EQ(kDecompressedData, actual_output);
   EXPECT_EQ("DEFLATE", stream()->Description());
 }

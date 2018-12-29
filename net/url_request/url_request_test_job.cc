@@ -20,6 +20,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -256,7 +257,7 @@ int URLRequestTestJob::CopyDataForRead(IOBuffer* buf, int buf_size) {
     if (bytes_read + offset_ > static_cast<int>(response_data_.length()))
       bytes_read = static_cast<int>(response_data_.length()) - offset_;
 
-    memcpy(buf->data(), &response_data_.c_str()[offset_], bytes_read);
+    SbMemoryCopy(buf->data(), &response_data_.c_str()[offset_], bytes_read);
     offset_ += bytes_read;
   }
   return bytes_read;

@@ -46,6 +46,7 @@
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/third_party/spdy/core/spdy_test_utils.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/platform_test.h"
 
@@ -786,11 +787,11 @@ TEST_F(SpdySessionTest, GoAwayWhileDraining) {
   auto buffer = std::make_unique<char[]>(joint_size);
   {
     size_t out = 0;
-    memcpy(&buffer[out], goaway.data(), goaway.size());
+    SbMemoryCopy(&buffer[out], goaway.data(), goaway.size());
     out += goaway.size();
-    memcpy(&buffer[out], body.data(), body.size());
+    SbMemoryCopy(&buffer[out], body.data(), body.size());
     out += body.size();
-    memcpy(&buffer[out], goaway.data(), goaway.size());
+    SbMemoryCopy(&buffer[out], goaway.data(), goaway.size());
     out += goaway.size();
     ASSERT_EQ(out, joint_size);
   }

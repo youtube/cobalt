@@ -16,6 +16,7 @@
 #include "net/http/http_transaction_test_util.h"
 #include "net/test/gtest_util.h"
 #include "net/url_request/url_request_context.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -73,7 +74,7 @@ void WriteData(disk_cache::Entry* entry, int index, const std::string& data) {
 
   int len = data.length();
   scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(len);
-  memcpy(buf->data(), data.data(), data.length());
+  SbMemoryCopy(buf->data(), data.data(), data.length());
 
   TestCompletionCallback cb;
   int rv = entry->WriteData(index, 0, buf.get(), len, cb.callback(), true);

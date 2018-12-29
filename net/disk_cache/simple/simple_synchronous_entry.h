@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_SYNCHRONOUS_ENTRY_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_SYNCHRONOUS_ENTRY_H_
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -25,6 +23,7 @@
 #include "net/base/net_export.h"
 #include "net/disk_cache/simple/simple_entry_format.h"
 #include "net/disk_cache/simple/simple_file_tracker.h"
+#include "starboard/types.h"
 
 namespace net {
 class GrowableIOBuffer;

@@ -7,8 +7,6 @@
 #ifndef NET_DISK_CACHE_MEMORY_MEM_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_MEMORY_MEM_BACKEND_IMPL_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <unordered_map>
 
@@ -23,6 +21,7 @@
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/memory/mem_entry_impl.h"
+#include "starboard/types.h"
 
 namespace net {
 class NetLog;

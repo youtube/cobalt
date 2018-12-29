@@ -5,14 +5,13 @@
 #ifndef NET_THIRD_PARTY_QUIC_CORE_QUIC_CONSTANTS_H_
 #define NET_THIRD_PARTY_QUIC_CORE_QUIC_CONSTANTS_H_
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <limits>
 
 #include "base/macros.h"
 #include "net/third_party/quic/core/quic_types.h"
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "starboard/types.h"
 
 // Definitions of constant values used throughout the QUIC code.
 

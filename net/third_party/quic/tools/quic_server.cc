@@ -33,6 +33,7 @@
 #include "net/third_party/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "net/third_party/quic/tools/quic_simple_dispatcher.h"
 #include "net/third_party/quic/tools/quic_simple_server_backend.h"
+#include "starboard/types.h"
 
 #ifndef SO_RXQ_OVFL
 #define SO_RXQ_OVFL 40

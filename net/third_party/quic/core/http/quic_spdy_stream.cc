@@ -16,6 +16,7 @@
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
+#include "starboard/character.h"
 
 using spdy::SpdyHeaderBlock;
 using spdy::SpdyPriority;
@@ -280,7 +281,7 @@ bool QuicSpdyStream::ParseHeaderStatusCode(const SpdyHeaderBlock& header,
     return false;
   }
   // The remaining two characters must be integers.
-  if (!isdigit(status[1]) || !isdigit(status[2])) {
+  if (!SbCharacterIsDigit(status[1]) || !SbCharacterIsDigit(status[2])) {
     return false;
   }
   return QuicTextUtils::StringToInt(status, status_code);

@@ -5,15 +5,13 @@
 #ifndef NET_BASE_NTLM_BUFFER_READER_H_
 #define NET_BASE_NTLM_BUFFER_READER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "net/base/net_export.h"
 #include "net/ntlm/ntlm_constants.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ntlm {

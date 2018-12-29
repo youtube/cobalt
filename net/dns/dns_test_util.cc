@@ -20,6 +20,7 @@
 #include "net/dns/dns_response.h"
 #include "net/dns/dns_transaction.h"
 #include "net/dns/dns_util.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -103,7 +104,7 @@ class MockTransaction : public DnsTransaction,
         DnsResponse response;
         char* buffer = response.io_buffer()->data();
         int nbytes = query.io_buffer()->size();
-        memcpy(buffer, query.io_buffer()->data(), nbytes);
+        SbMemoryCopy(buffer, query.io_buffer()->data(), nbytes);
         dns_protocol::Header* header =
             reinterpret_cast<dns_protocol::Header*>(buffer);
         header->flags |= dns_protocol::kFlagResponse;

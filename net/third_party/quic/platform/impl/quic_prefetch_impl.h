@@ -7,6 +7,8 @@
 
 #if defined(_MSC_VER)
 #include <intrin.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace quic {

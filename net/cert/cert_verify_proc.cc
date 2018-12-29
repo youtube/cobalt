@@ -4,8 +4,6 @@
 
 #include "net/cert/cert_verify_proc.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/containers/span.h"
@@ -315,14 +313,14 @@ struct HashToArrayComparator {
   bool operator()(const uint8_t(&lhs)[N], const HashValue& rhs) const {
     static_assert(N == crypto::kSHA256Length,
                   "Only SHA-256 hashes are supported");
-    return memcmp(lhs, rhs.data(), crypto::kSHA256Length) < 0;
+    return SbMemoryCompare(lhs, rhs.data(), crypto::kSHA256Length) < 0;
   }
 
   template <size_t N>
   bool operator()(const HashValue& lhs, const uint8_t(&rhs)[N]) const {
     static_assert(N == crypto::kSHA256Length,
                   "Only SHA-256 hashes are supported");
-    return memcmp(lhs.data(), rhs, crypto::kSHA256Length) < 0;
+    return SbMemoryCompare(lhs.data(), rhs, crypto::kSHA256Length) < 0;
   }
 };
 
@@ -665,6 +663,8 @@ bool CertVerifyProc::IsPublicKeyBlacklisted(
     const HashValueVector& public_key_hashes) {
 // Defines kBlacklistedSPKIs.
 #include "net/cert/cert_verify_proc_blacklist.inc"
+#include "starboard/memory.h"
+#include "starboard/types.h"
   for (const auto& hash : public_key_hashes) {
     if (hash.tag() != HASH_VALUE_SHA256)
       continue;
@@ -809,7 +809,8 @@ bool CertVerifyProc::HasNameConstraintsViolation(
     for (const auto& hash : public_key_hashes) {
       if (hash.tag() != HASH_VALUE_SHA256)
         continue;
-      if (memcmp(hash.data(), limit.public_key_hash.data, hash.size()) != 0)
+      if (SbMemoryCompare(hash.data(), limit.public_key_hash.data,
+                          hash.size()) != 0)
         continue;
       if (dns_names.empty() && ip_addrs.empty()) {
         std::vector<std::string> names;

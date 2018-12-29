@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "base/base64.h"
 #include "base/stl_util.h"
 #include "base/strings/string_piece.h"
@@ -22,11 +20,13 @@ namespace {
 
 namespace test_default {
 #include "net/http/transport_security_state_static_unittest_default.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 }
 
 HashValue GetTestHashValue(uint8_t label, HashValueTag tag) {
   HashValue hash_value(tag);
-  memset(hash_value.data(), label, hash_value.size());
+  SbMemorySet(hash_value.data(), label, hash_value.size());
   return hash_value;
 }
 

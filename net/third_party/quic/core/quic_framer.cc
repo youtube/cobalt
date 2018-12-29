@@ -32,6 +32,7 @@
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -1261,7 +1262,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         if (remaining.length() >=
             sizeof(header->possible_stateless_reset_token)) {
           header->has_possible_stateless_reset_token = true;
-          memcpy(
+          SbMemoryCopy(
               &header->possible_stateless_reset_token,
               &remaining.data()[remaining.length() -
                                 sizeof(header->possible_stateless_reset_token)],
@@ -3158,7 +3159,7 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
   // Copy in the header, because the encrypter only populates the encrypted
   // plaintext content.
   const size_t ad_len = associated_data.length();
-  memmove(buffer, associated_data.data(), ad_len);
+  SbMemoryMove(buffer, associated_data.data(), ad_len);
   // Encrypt the plaintext into the buffer.
   size_t output_length = 0;
   if (!encrypter_[level]->EncryptPacket(

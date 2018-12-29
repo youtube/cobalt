@@ -2,20 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "net/base/io_buffer.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto packet = base::MakeRefCounted<net::IOBufferWithSize>(size);
-  memcpy(packet->data(), data, size);
+  SbMemoryCopy(packet->data(), data, size);
   base::Optional<net::DnsQuery> query;
   query.emplace(packet);
   if (!query->Parse()) {

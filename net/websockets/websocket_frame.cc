@@ -4,7 +4,6 @@
 
 #include "net/websockets/websocket_frame.h"
 
-#include <stddef.h>
 #include <algorithm>
 
 #include "base/big_endian.h"
@@ -12,6 +11,8 @@
 #include "base/rand_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -227,9 +228,8 @@ void MaskWebSocketFramePayload(const WebSocketMaskingKey& masking_key,
 
   for (size_t i = 0; i < kPackedMaskKeySize; i += kMaskingKeyLength) {
     // memcpy() is allegedly blessed by the C++ standard for type-punning.
-    memcpy(reinterpret_cast<char*>(&packed_mask_key) + i,
-           realigned_mask,
-           kMaskingKeyLength);
+    SbMemoryCopy(reinterpret_cast<char*>(&packed_mask_key) + i, realigned_mask,
+                 kMaskingKeyLength);
   }
 
   // The main loop.

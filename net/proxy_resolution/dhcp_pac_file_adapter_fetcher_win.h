@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_DHCP_PAC_FILE_ADAPTER_FETCHER_WIN_H_
 #define NET_PROXY_DHCP_PAC_FILE_ADAPTER_FETCHER_WIN_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 
@@ -19,6 +17,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace base {

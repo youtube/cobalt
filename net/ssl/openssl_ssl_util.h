@@ -5,11 +5,10 @@
 #ifndef NET_SSL_OPENSSL_SSL_UTIL_H_
 #define NET_SSL_OPENSSL_SSL_UTIL_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
 #include "net/cert/x509_certificate.h"
 #include "net/log/net_log_parameters_callback.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {

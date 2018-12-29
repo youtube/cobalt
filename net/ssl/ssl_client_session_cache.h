@@ -5,7 +5,6 @@
 #ifndef NET_SSL_SSL_CLIENT_SESSION_CACHE_H_
 #define NET_SSL_SSL_CLIENT_SESSION_CACHE_H_
 
-#include <stddef.h>
 #include <time.h>
 
 #include <memory>
@@ -19,6 +18,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace base {

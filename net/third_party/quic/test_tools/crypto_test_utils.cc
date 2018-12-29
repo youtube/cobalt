@@ -34,6 +34,8 @@
 #include "net/third_party/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/simple_quic_framer.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
 #include "third_party/boringssl/src/include/openssl/ecdsa.h"
@@ -57,9 +59,10 @@ bool TestChannelIDKey::Sign(QuicStringPiece signed_data,
   }
 
   EVP_DigestUpdate(md_ctx.get(), ChannelIDVerifier::kContextStr,
-                   strlen(ChannelIDVerifier::kContextStr) + 1);
-  EVP_DigestUpdate(md_ctx.get(), ChannelIDVerifier::kClientToServerStr,
-                   strlen(ChannelIDVerifier::kClientToServerStr) + 1);
+                   SbStringGetLength(ChannelIDVerifier::kContextStr) + 1);
+  EVP_DigestUpdate(
+      md_ctx.get(), ChannelIDVerifier::kClientToServerStr,
+      SbStringGetLength(ChannelIDVerifier::kClientToServerStr) + 1);
   EVP_DigestUpdate(md_ctx.get(), signed_data.data(), signed_data.size());
 
   size_t sig_len;
@@ -650,7 +653,7 @@ class MockCommonCertSets : public CommonCertSets {
     bool client_has_set = false;
     for (size_t i = 0; i < common_set_hashes.size(); i += sizeof(uint64_t)) {
       uint64_t hash;
-      memcpy(&hash, common_set_hashes.data() + i, sizeof(hash));
+      SbMemoryCopy(&hash, common_set_hashes.data() + i, sizeof(hash));
       if (hash == hash_) {
         client_has_set = true;
         break;
@@ -832,7 +835,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
 }
 
 QuicTag ParseTag(const char* tagstr) {
-  const size_t len = strlen(tagstr);
+  const size_t len = SbStringGetLength(tagstr);
   CHECK_NE(0u, len);
 
   QuicTag tag = 0;
@@ -945,8 +948,8 @@ void MovePacketsForTlsHandshake(PacketSavingConnection* source_conn,
       // |stream_frames|, including making a copy of the data buffer, since a
       // QuicStreamFrame does not own the data it points to.
       std::vector<char> buffer(stream_frame->data_length);
-      memcpy(buffer.data(), stream_frame->data_buffer,
-             stream_frame->data_length);
+      SbMemoryCopy(buffer.data(), stream_frame->data_buffer,
+                   stream_frame->data_length);
       auto frame = QuicMakeUnique<QuicStreamFrame>(
           stream_frame->stream_id, stream_frame->fin, stream_frame->offset,
           QuicStringPiece(buffer.data(), buffer.size()));
@@ -1059,7 +1062,7 @@ QuicString GenerateClientNonceHex(const QuicClock* clock,
 
 QuicString GenerateClientPublicValuesHex() {
   char public_value[32];
-  memset(public_value, 42, sizeof(public_value));
+  SbMemorySet(public_value, 42, sizeof(public_value));
   return ("#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value)));
 }
 

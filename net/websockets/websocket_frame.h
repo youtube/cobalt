@@ -5,14 +5,13 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_FRAME_H_
 #define NET_WEBSOCKETS_WEBSOCKET_FRAME_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

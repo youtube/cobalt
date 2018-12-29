@@ -5,13 +5,12 @@
 #ifndef NET_SOCKET_UDP_CLIENT_SOCKET_H_
 #define NET_SOCKET_UDP_CLIENT_SOCKET_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/socket/datagram_client_socket.h"
 #include "net/socket/udp_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

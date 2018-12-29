@@ -17,6 +17,7 @@
 #include "net/socket/udp_socket.h"
 #include "net/test/gtest_util.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -72,7 +73,7 @@ void UDPSocketPerfTest::WritePacketsToSocket(UDPClientSocket* socket,
                                              base::Closure done_callback) {
   scoped_refptr<IOBufferWithSize> io_buffer =
       base::MakeRefCounted<IOBufferWithSize>(kPacketSize);
-  memset(io_buffer->data(), 'G', kPacketSize);
+  SbMemorySet(io_buffer->data(), 'G', kPacketSize);
 
   while (num_of_packets) {
     int rv =

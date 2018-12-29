@@ -26,6 +26,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -226,7 +227,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
 
     scoped_refptr<IOBuffer> buffer =
         base::MakeRefCounted<IOBuffer>(payload_write.size());
-    memcpy(buffer->data(), payload_write.data(), payload_write.size());
+    SbMemoryCopy(buffer->data(), payload_write.data(), payload_write.size());
     rv = user_sock_->Write(buffer.get(), payload_write.size(),
                            callback_.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(rv, IsError(ERR_IO_PENDING));

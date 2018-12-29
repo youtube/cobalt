@@ -5,9 +5,6 @@
 #ifndef NET_DNS_DNS_TEST_UTIL_H_
 #define NET_DNS_DNS_TEST_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +12,7 @@
 #include "net/dns/dns_client.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_protocol.h"
+#include "starboard/types.h"
 
 namespace net {
 

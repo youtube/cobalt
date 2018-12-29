@@ -11,6 +11,7 @@
 
 #include "base/mac/scoped_cftyperef.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 class Thread;

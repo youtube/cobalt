@@ -5,7 +5,6 @@
 #ifndef NET_BASE_PRIORITIZED_TASK_RUNNER_H_
 #define NET_BASE_PRIORITIZED_TASK_RUNNER_H_
 
-#include <stdint.h>
 #include <vector>
 
 #include "base/bind.h"
@@ -16,6 +15,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class TaskRunner;

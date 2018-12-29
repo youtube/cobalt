@@ -23,6 +23,7 @@
 #include "net/base/mime_util.h"
 #include "net/base/platform_mime_util.h"
 #include "net/http/http_util.h"
+#include "starboard/string.h"
 
 using std::string;
 
@@ -191,7 +192,8 @@ static bool FindPreferredExtension(const MimeInfo (&mappings)[num_mappings],
     if (mapping.mime_type == mime_type) {
       const char* extensions = mapping.extensions;
       const char* extension_end = strchr(extensions, ',');
-      int len = extension_end ? extension_end - extensions : strlen(extensions);
+      int len = extension_end ? extension_end - extensions
+                              : SbStringGetLength(extensions);
       *result = StringToFilePathStringType(base::StringPiece(extensions, len));
       return true;
     }

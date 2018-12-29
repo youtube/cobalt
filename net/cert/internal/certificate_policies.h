@@ -5,13 +5,12 @@
 #ifndef NET_CERT_INTERNAL_CERTIFICATE_POLICIES_H_
 #define NET_CERT_INTERNAL_CERTIFICATE_POLICIES_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "net/base/net_export.h"
 #include "net/der/input.h"
+#include "starboard/types.h"
 
 namespace net {
 

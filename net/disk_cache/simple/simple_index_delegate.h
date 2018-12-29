@@ -5,12 +5,11 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_INDEX_DELEGATE_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_INDEX_DELEGATE_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

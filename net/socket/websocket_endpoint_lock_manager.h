@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_WEBSOCKET_ENDPOINT_LOCK_MANAGER_H_
 #define NET_SOCKET_WEBSOCKET_ENDPOINT_LOCK_MANAGER_H_
 
-#include <stddef.h>
-
 #include <map>
 #include <memory>
 
@@ -17,6 +15,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/socket/websocket_transport_client_socket_pool.h"
+#include "starboard/types.h"
 
 namespace net {
 

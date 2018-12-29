@@ -13,6 +13,8 @@
 #include <ws2bth.h>
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <netinet/in.h>
+
+#include "starboard/types.h"
 #endif
 
 using std::string;

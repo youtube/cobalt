@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/numerics/safe_math.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -136,7 +137,8 @@ GrowableIOBuffer::GrowableIOBuffer()
 void GrowableIOBuffer::SetCapacity(int capacity) {
   DCHECK_GE(capacity, 0);
   // realloc will crash if it fails.
-  real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
+  real_data_.reset(
+      static_cast<char*>(SbMemoryReallocate(real_data_.release(), capacity)));
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);

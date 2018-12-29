@@ -8,6 +8,7 @@
 #include <string.h>  // for memcpy().
 #include <algorithm>
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 // This is a class for generating an infinite stream of data which can be
 // verified independently to be the correct stream of data.

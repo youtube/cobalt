@@ -5,8 +5,6 @@
 #ifndef NET_COOKIES_COOKIE_STORE_UNITTEST_H_
 #define NET_COOKIES_COOKIE_STORE_UNITTEST_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <set>
 #include <string>
@@ -29,6 +27,7 @@
 
 #if defined(OS_IOS)
 #include "base/ios/ios_util.h"
+#include "starboard/types.h"
 #endif
 
 // This file declares unittest templates that can be used to test common

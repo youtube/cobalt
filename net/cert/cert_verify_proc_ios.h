@@ -9,6 +9,8 @@
 
 #include <Security/Security.h>
 
+#include "starboard/types.h"
+
 namespace net {
 
 // Performs certificate path construction and validation using iOS's

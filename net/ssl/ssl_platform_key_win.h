@@ -13,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/win/wincrypt_shim.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 
