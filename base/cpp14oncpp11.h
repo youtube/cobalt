@@ -76,9 +76,25 @@ class GetSequenceHelper<0> {
 
 }  // namespace detail
 
+template <class T>
+struct type_teller {
+  typedef std::unique_ptr<T> object_type;
+};
+
+template <class T>
+struct type_teller<T[]> {
+  typedef std::unique_ptr<T[]> array_type;
+};
+
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args&&... args) {
+typename type_teller<T>::object_type make_unique(Args&&... args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+template <typename T>
+typename type_teller<T>::array_type make_unique(size_t n) {
+  typedef typename remove_extent<T>::type underlying_type;
+  return std::unique_ptr<T>(new underlying_type[n]());
 }
 
 // In C++14, less<void> has a special meaning and defines the is_transparent

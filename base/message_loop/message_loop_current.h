@@ -264,6 +264,21 @@ class BASE_EXPORT MessageLoopCurrentForIO : public MessageLoopCurrent {
 
   MessageLoopCurrentForIO* operator->() { return this; }
 
+#if defined(STARBOARD)
+  typedef base::MessagePumpIOStarboard::Watcher Watcher;
+  typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
+  typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
+
+  enum Mode{WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
+            WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
+            WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE};
+
+  bool Watch(SbSocket socket,
+             bool persistent,
+             int mode,
+             SocketWatcher* controller,
+             Watcher* delegate);
+#else
 #if !defined(OS_NACL_SFI)
 
 #if defined(OS_WIN)
@@ -291,6 +306,7 @@ class BASE_EXPORT MessageLoopCurrentForIO : public MessageLoopCurrent {
 #endif  // defined(OS_FUCHSIA)
 
 #endif  // !defined(OS_NACL_SFI)
+#endif  // defined(STARBOARD)
 
  private:
   MessageLoopCurrentForIO(MessageLoop* current, MessagePumpForIO* pump)

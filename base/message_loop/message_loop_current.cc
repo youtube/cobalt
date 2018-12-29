@@ -211,6 +211,16 @@ bool MessageLoopCurrentForIO::IsSet() {
   return loop && loop->IsType(MessageLoop::TYPE_IO);
 }
 
+#if defined(STARBOARD)
+bool MessageLoopCurrentForIO::Watch(SbSocket socket,
+                                    bool persistent,
+                                    int mode,
+                                    SocketWatcher* controller,
+                                    Watcher* delegate) {
+  return static_cast<MessagePumpIOStarboard*>(pump_)->Watch(
+      socket, persistent, mode, controller, delegate);
+}
+#else
 #if !defined(OS_NACL_SFI)
 
 #if defined(OS_WIN)
@@ -261,5 +271,6 @@ bool MessageLoopCurrentForIO::WatchZxHandle(
                               delegate);
 }
 #endif
+#endif  // defined(STARBORAD)
 
 }  // namespace base
