@@ -16,6 +16,7 @@
 #include "base/sequenced_task_runner.h"
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
+#include "starboard/types.h"
 
 namespace net {
 

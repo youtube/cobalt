@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_WEBSOCKET_TRANSPORT_CONNECT_SUB_JOB_H_
 #define NET_SOCKET_WEBSOCKET_TRANSPORT_CONNECT_SUB_JOB_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <utility>
 
@@ -16,6 +14,7 @@
 #include "net/base/load_states.h"
 #include "net/socket/websocket_endpoint_lock_manager.h"
 #include "net/socket/websocket_transport_client_socket_pool.h"
+#include "starboard/types.h"
 
 namespace net {
 

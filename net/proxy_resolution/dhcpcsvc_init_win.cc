@@ -12,6 +12,8 @@
 #include <dhcpcsdk.h>
 #include <dhcpv6csdk.h>
 
+#include "starboard/types.h"
+
 namespace {
 
 class DhcpcsvcInitSingleton {

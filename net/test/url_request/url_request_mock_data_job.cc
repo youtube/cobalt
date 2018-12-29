@@ -20,6 +20,7 @@
 #include "net/http/http_util.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/url_request/url_request_filter.h"
+#include "starboard/memory.h"
 
 namespace net {
 namespace {
@@ -127,7 +128,7 @@ URLRequestMockDataJob::~URLRequestMockDataJob() = default;
 int URLRequestMockDataJob::ReadRawData(IOBuffer* buf, int buf_size) {
   int bytes_read =
       std::min(static_cast<size_t>(buf_size), data_.length() - data_offset_);
-  memcpy(buf->data(), data_.c_str() + data_offset_, bytes_read);
+  SbMemoryCopy(buf->data(), data_.c_str() + data_offset_, bytes_read);
   data_offset_ += bytes_read;
   return bytes_read;
 }

@@ -5,15 +5,13 @@
 #ifndef NET_TEST_CT_TEST_UTIL_H_
 #define NET_TEST_CT_TEST_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "net/cert/signed_certificate_timestamp.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
+#include "starboard/types.h"
 
 namespace net {
 

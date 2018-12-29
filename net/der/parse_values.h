@@ -5,11 +5,10 @@
 #ifndef NET_DER_PARSE_VALUES_H_
 #define NET_DER_PARSE_VALUES_H_
 
-#include <stdint.h>
-
 #include "base/compiler_specific.h"
 #include "net/base/net_export.h"
 #include "net/der/input.h"
+#include "starboard/types.h"
 
 namespace net {
 

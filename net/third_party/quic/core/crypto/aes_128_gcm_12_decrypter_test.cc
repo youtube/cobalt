@@ -12,6 +12,7 @@
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
+#include "starboard/memory.h"
 
 namespace {
 
@@ -207,8 +208,8 @@ QuicData* DecryptWithNonce(Aes128Gcm12Decrypter* decrypter,
   QuicStringPiece nonce_prefix(nonce.data(),
                                nonce.size() - sizeof(packet_number));
   decrypter->SetNoncePrefix(nonce_prefix);
-  memcpy(&packet_number, nonce.data() + nonce_prefix.size(),
-         sizeof(packet_number));
+  SbMemoryCopy(&packet_number, nonce.data() + nonce_prefix.size(),
+               sizeof(packet_number));
   std::unique_ptr<char[]> output(new char[ciphertext.length()]);
   size_t output_length = 0;
   const bool success = decrypter->DecryptPacket(

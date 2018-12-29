@@ -46,6 +46,7 @@
 #include "net/disk_cache/simple/simple_synchronous_entry.h"
 #include "net/disk_cache/simple/simple_util.h"
 #include "net/disk_cache/simple/simple_version_upgrade.h"
+#include "starboard/types.h"
 
 using base::Callback;
 using base::Closure;

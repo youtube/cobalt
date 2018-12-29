@@ -5,9 +5,6 @@
 #ifndef NET_HTTP_HTTP_RESPONSE_HEADERS_H_
 #define NET_HTTP_HTTP_RESPONSE_HEADERS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -18,6 +15,7 @@
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/http/http_version.h"
+#include "starboard/types.h"
 
 namespace base {
 class Pickle;

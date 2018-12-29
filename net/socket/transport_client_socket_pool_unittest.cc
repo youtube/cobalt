@@ -30,6 +30,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1188,9 +1189,10 @@ TEST_F(TransportClientSocketPoolTest, Tag) {
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
   rv =
-      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback.GetResult(rv));
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
   // Disconnect socket to prevent reuse.
   handle.socket()->Disconnect();
@@ -1214,9 +1216,10 @@ TEST_F(TransportClientSocketPoolTest, Tag) {
   // Verify socket has |tag2| applied.
   old_traffic = GetTaggedBytes(tag_val2);
   rv =
-      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback.GetResult(rv));
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
   // Disconnect socket to prevent reuse.
   handle.socket()->Disconnect();
@@ -1250,17 +1253,19 @@ TEST_F(TransportClientSocketPoolTest, Tag) {
   EXPECT_TRUE(handle.socket()->IsConnected());
   // Verify |handle_high_pri| has |tag2| applied.
   old_traffic = GetTaggedBytes(tag_val2);
-  rv = handle_high_pri.socket()->Write(write_buffer.get(), strlen(kRequest),
-                                       callback.callback(),
-                                       TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback.GetResult(rv));
+  rv = handle_high_pri.socket()->Write(
+      write_buffer.get(), SbStringGetLength(kRequest), callback.callback(),
+      TRAFFIC_ANNOTATION_FOR_TESTS);
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val2), old_traffic);
   // Verify |handle| has |tag1| applied.
   old_traffic = GetTaggedBytes(tag_val1);
   rv =
-      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback.GetResult(rv));
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
   EXPECT_GT(GetTaggedBytes(tag_val1), old_traffic);
 }
 #endif

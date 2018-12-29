@@ -20,6 +20,7 @@
 #include <nss.h>
 
 #include "net/cert/x509_util_nss.h"
+#include "starboard/types.h"
 #endif
 
 using net::test::IsOk;

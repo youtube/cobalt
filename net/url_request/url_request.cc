@@ -48,6 +48,7 @@
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "net/network_error_logging/network_error_logging_service.h"
 #include "net/reporting/reporting_service.h"
+#include "starboard/string.h"
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
 using base::Time;
@@ -332,7 +333,7 @@ std::unique_ptr<base::Value> URLRequest::GetStateAsValue() const {
 
 void URLRequest::LogBlockedBy(const char* blocked_by) {
   DCHECK(blocked_by);
-  DCHECK_GT(strlen(blocked_by), 0u);
+  DCHECK_GT(SbStringGetLength(blocked_by), 0u);
 
   // Only log information to NetLog during startup and certain deferring calls
   // to delegates.  For all reads but the first, do nothing.

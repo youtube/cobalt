@@ -15,6 +15,7 @@
 #include "net/log/net_log_event_type.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -341,8 +342,8 @@ const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
   //               failing the connect attempt.
   CHECK_EQ(ADDRESS_FAMILY_IPV4, endpoint.GetFamily());
   CHECK_LE(endpoint.address().size(), sizeof(request.ip));
-  memcpy(&request.ip, &endpoint.address().bytes()[0],
-         endpoint.address().size());
+  SbMemoryCopy(&request.ip, &endpoint.address().bytes()[0],
+               endpoint.address().size());
 
   DVLOG(1) << "Resolved Host is : " << endpoint.ToStringWithoutPort();
 
@@ -365,8 +366,8 @@ int SOCKSClientSocket::DoHandshakeWrite() {
   int handshake_buf_len = buffer_.size() - bytes_sent_;
   DCHECK_GT(handshake_buf_len, 0);
   handshake_buf_ = base::MakeRefCounted<IOBuffer>(handshake_buf_len);
-  memcpy(handshake_buf_->data(), &buffer_[bytes_sent_],
-         handshake_buf_len);
+  SbMemoryCopy(handshake_buf_->data(), &buffer_[bytes_sent_],
+               handshake_buf_len);
   return transport_->socket()->Write(
       handshake_buf_.get(), handshake_buf_len,
       base::Bind(&SOCKSClientSocket::OnIOComplete, base::Unretained(this)),

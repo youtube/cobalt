@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_HTTP_TRANSACTION_H_
 #define NET_HTTP_HTTP_TRANSACTION_H_
 
-#include <stdint.h>
-
 #include "net/base/completion_callback.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/load_states.h"
@@ -18,6 +16,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/socket/connection_attempts.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
+#include "starboard/types.h"
 
 namespace net {
 

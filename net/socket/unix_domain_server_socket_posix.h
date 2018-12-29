@@ -5,7 +5,6 @@
 #ifndef NET_SOCKET_UNIX_DOMAIN_SERVER_SOCKET_POSIX_H_
 #define NET_SOCKET_UNIX_DOMAIN_SERVER_SOCKET_POSIX_H_
 
-#include <stdint.h>
 #include <sys/types.h>
 
 #include <memory>
@@ -18,6 +17,7 @@
 #include "net/base/net_export.h"
 #include "net/socket/server_socket.h"
 #include "net/socket/socket_descriptor.h"
+#include "starboard/types.h"
 
 namespace net {
 

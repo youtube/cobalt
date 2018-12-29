@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "starboard/types.h"
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"

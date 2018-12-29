@@ -30,6 +30,7 @@
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
+#include "starboard/string.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
 namespace quic {
@@ -632,7 +633,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     QuicString hkdf_input;
     const QuicData& client_hello_serialized = out->GetSerialized();
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
-                      strlen(QuicCryptoConfig::kCETVLabel) + 1);
+                      SbStringGetLength(QuicCryptoConfig::kCETVLabel) + 1);
     hkdf_input.append(reinterpret_cast<char*>(&connection_id),
                       sizeof(connection_id));
     hkdf_input.append(client_hello_serialized.data(),
@@ -698,7 +699,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   out_params->hkdf_input_suffix.append(certs[0]);
 
   QuicString hkdf_input;
-  const size_t label_len = strlen(QuicCryptoConfig::kInitialLabel) + 1;
+  const size_t label_len =
+      SbStringGetLength(QuicCryptoConfig::kInitialLabel) + 1;
   hkdf_input.reserve(label_len + out_params->hkdf_input_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);
@@ -878,7 +880,8 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
   }
 
   QuicString hkdf_input;
-  const size_t label_len = strlen(QuicCryptoConfig::kForwardSecureLabel) + 1;
+  const size_t label_len =
+      SbStringGetLength(QuicCryptoConfig::kForwardSecureLabel) + 1;
   hkdf_input.reserve(label_len + out_params->hkdf_input_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kForwardSecureLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);

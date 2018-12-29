@@ -5,12 +5,11 @@
 #ifndef NET_TOOLS_HUFFMAN_TRIE_TRIE_TRIE_BIT_BUFFER_H_
 #define NET_TOOLS_HUFFMAN_TRIE_TRIE_TRIE_BIT_BUFFER_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/macros.h"
 #include "net/tools/huffman_trie/huffman/huffman_builder.h"
+#include "starboard/types.h"
 
 namespace net {
 

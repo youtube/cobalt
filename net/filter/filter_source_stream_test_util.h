@@ -1,11 +1,10 @@
+#include "starboard/types.h"
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_FILTER_FILTER_SOURCE_STREAM_TEST_UTIL_H_
 #define NET_FILTER_FILTER_SOURCE_STREAM_TEST_UTIL_H_
-
-#include <stddef.h>
 
 namespace net {
 

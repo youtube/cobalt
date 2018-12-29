@@ -20,6 +20,7 @@
 #include "base/task/post_task.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "starboard/types.h"
 
 namespace net {
 

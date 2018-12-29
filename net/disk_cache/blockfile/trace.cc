@@ -14,6 +14,9 @@
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 #include "net/disk_cache/blockfile/stress_support.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 // Change this value to 1 to enable tracing on a release build. By default,
 // tracing is enabled only on debug builds.
@@ -95,7 +98,7 @@ void InitTrace(void) {
     return;
 
   s_trace_buffer = new TraceBuffer;
-  memset(s_trace_buffer, 0, sizeof(*s_trace_buffer));
+  SbMemorySet(s_trace_buffer, 0, sizeof(*s_trace_buffer));
 }
 
 void DestroyTrace(void) {
@@ -132,7 +135,8 @@ void Trace(const char* format, ...) {
     if (!s_trace_buffer || !s_trace_enabled)
       return;
 
-    memcpy(s_trace_buffer->buffer[s_trace_buffer->current], line, kEntrySize);
+    SbMemoryCopy(s_trace_buffer->buffer[s_trace_buffer->current], line,
+                 kEntrySize);
 
     s_trace_buffer->num_traces++;
     s_trace_buffer->current++;
@@ -157,9 +161,9 @@ void DumpTrace(int num_traces) {
       current += kNumberOfEntries;
 
     for (int i = 0; i < num_traces; i++) {
-      memcpy(line, s_trace_buffer->buffer[current], kEntrySize);
+      SbMemoryCopy(line, s_trace_buffer->buffer[current], kEntrySize);
       line[kEntrySize] = '\0';
-      size_t length = strlen(line);
+      size_t length = SbStringGetLength(line);
       if (length) {
         line[length] = '\n';
         line[length + 1] = '\0';

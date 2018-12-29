@@ -22,6 +22,9 @@
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <sys/stat.h>
+
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -197,7 +200,7 @@ void URLRequestFileDirJob::CompleteRead(Error error) {
 int URLRequestFileDirJob::ReadBuffer(char* buf, int buf_size) {
   int count = std::min(buf_size, static_cast<int>(data_.size()));
   if (count) {
-    memcpy(buf, &data_[0], count);
+    SbMemoryCopy(buf, &data_[0], count);
     data_.erase(0, count);
     return count;
   }

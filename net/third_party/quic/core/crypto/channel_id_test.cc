@@ -9,6 +9,7 @@
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/test_tools/crypto_test_utils.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace test {
@@ -303,13 +304,13 @@ TEST_F(ChannelIDTest, SignAndVerify) {
   EXPECT_FALSE(ChannelIDVerifier::Verify(key, "a" + signed_data, signature));
 
   std::unique_ptr<char[]> bad_key(new char[key.size()]);
-  memcpy(bad_key.get(), key.data(), key.size());
+  SbMemoryCopy(bad_key.get(), key.data(), key.size());
   bad_key[1] ^= 0x80;
   EXPECT_FALSE(ChannelIDVerifier::Verify(QuicString(bad_key.get(), key.size()),
                                          signed_data, signature));
 
   std::unique_ptr<char[]> bad_signature(new char[signature.size()]);
-  memcpy(bad_signature.get(), signature.data(), signature.size());
+  SbMemoryCopy(bad_signature.get(), signature.data(), signature.size());
   bad_signature[1] ^= 0x80;
   EXPECT_FALSE(ChannelIDVerifier::Verify(
       key, signed_data, QuicString(bad_signature.get(), signature.size())));

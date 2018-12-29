@@ -18,6 +18,7 @@
 #include "base/win/object_watcher.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
+#include "starboard/types.h"
 
 namespace net {
 

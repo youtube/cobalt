@@ -5,8 +5,6 @@
 #ifndef NET_TEST_EMBEDDED_TEST_SERVER_EMBEDDED_TEST_SERVER_H_
 #define NET_TEST_EMBEDDED_TEST_SERVER_EMBEDDED_TEST_SERVER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -28,6 +26,7 @@
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_server_socket.h"
 #include "net/ssl/ssl_server_config.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

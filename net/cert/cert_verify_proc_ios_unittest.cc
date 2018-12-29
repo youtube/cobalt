@@ -13,6 +13,7 @@
 #include "net/cert/x509_util_ios_and_mac.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 

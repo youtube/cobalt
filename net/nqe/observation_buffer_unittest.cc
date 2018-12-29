@@ -4,8 +4,6 @@
 
 #include "net/nqe/observation_buffer.h"
 
-#include <stddef.h>
-
 #include <map>
 #include <string>
 #include <utility>
@@ -18,6 +16,7 @@
 #include "net/nqe/network_quality_estimator_params.h"
 #include "net/nqe/network_quality_observation.h"
 #include "net/nqe/network_quality_observation_source.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

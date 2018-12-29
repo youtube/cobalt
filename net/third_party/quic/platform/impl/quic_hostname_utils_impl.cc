@@ -5,6 +5,7 @@
 #include "net/third_party/quic/platform/impl/quic_hostname_utils_impl.h"
 
 #include "net/base/url_util.h"
+#include "starboard/memory.h"
 #include "url/gurl.h"
 #include "url/url_canon.h"
 
@@ -42,7 +43,7 @@ char* QuicHostnameUtilsImpl::NormalizeHostname(char* hostname) {
     host.erase(host_end, host.length() - host_end);
   }
 
-  memcpy(hostname, host.c_str(), host.length());
+  SbMemoryCopy(hostname, host.c_str(), host.length());
   hostname[host.length()] = '\0';
 
   return hostname;

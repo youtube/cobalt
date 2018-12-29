@@ -5,8 +5,6 @@
 #ifndef NET_CERT_X509_UTIL_NSS_H_
 #define NET_CERT_X509_UTIL_NSS_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
@@ -14,6 +12,7 @@
 #include "net/cert/cert_type.h"
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/types.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
 typedef struct CERTNameStr CERTName;

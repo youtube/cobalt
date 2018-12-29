@@ -10,6 +10,8 @@
 #include <memory>
 #include <vector>
 
+#include "starboard/types.h"
+
 namespace net {
 
 struct FreeCERTCertificate {

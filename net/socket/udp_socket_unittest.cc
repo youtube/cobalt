@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "starboard/types.h"
+
 #include "base/bind.h"
 #include "base/containers/circular_deque.h"
 #include "base/location.h"

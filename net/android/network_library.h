@@ -6,8 +6,6 @@
 #define NET_ANDROID_NETWORK_LIBRARY_H_
 
 #include <jni.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
 
 #include <string>
@@ -20,6 +18,7 @@
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service_posix.h"
 #include "net/socket/socket_descriptor.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace android {

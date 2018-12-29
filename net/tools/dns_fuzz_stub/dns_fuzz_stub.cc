@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 #include <memory>
@@ -23,15 +21,17 @@
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
 #include "net/dns/dns_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace {
 
 void CrashDoubleFree(void) {
   // Cause memory corruption detectors to notice a double-free
-  void *p = malloc(1);
+  void* p = SbMemoryAllocate(1);
   LOG(INFO) << "Allocated p=" << p << ".  Double-freeing...";
-  free(p);
-  free(p);
+  SbMemoryFree(p);
+  SbMemoryFree(p);
 }
 
 void CrashNullPointerDereference(void) {

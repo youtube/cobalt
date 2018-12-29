@@ -8,6 +8,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -266,7 +267,7 @@ TEST(MimeUtilTest, TestGetExtensionsForMimeType) {
       // Convert ASCII to FilePath::StringType.
       base::FilePath::StringType contained_result(
           test.contained_result,
-          test.contained_result + strlen(test.contained_result));
+          test.contained_result + SbStringGetLength(test.contained_result));
 
       bool found = base::ContainsValue(extensions, contained_result);
 

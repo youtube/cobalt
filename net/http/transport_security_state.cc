@@ -47,6 +47,7 @@ namespace {
 #if !defined(STARBOARD)
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 #include "net/http/transport_security_state_static.h"  // nogncheck
+#include "starboard/memory.h"
 // Points to the active transport security state source.
 const TransportSecurityStateSource* const kDefaultHSTSSource = &kHSTSSource;
 #else
@@ -229,7 +230,7 @@ bool HashesIntersect(const HashValueVector& a,
 
 bool AddHash(const char* sha256_hash, HashValueVector* out) {
   HashValue hash(HASH_VALUE_SHA256);
-  memcpy(hash.data(), sha256_hash, hash.size());
+  SbMemoryCopy(hash.data(), sha256_hash, hash.size());
   out->push_back(hash);
   return true;
 }

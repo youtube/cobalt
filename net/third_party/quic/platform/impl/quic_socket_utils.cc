@@ -18,6 +18,8 @@
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 #ifndef SO_RXQ_OVFL
 #define SO_RXQ_OVFL 40
@@ -201,21 +203,21 @@ size_t QuicSocketUtils::SetIpInfoInCmsg(const QuicIpAddress& self_address,
     cmsg->cmsg_level = IPPROTO_IP;
     cmsg->cmsg_type = IP_PKTINFO;
     in_pktinfo* pktinfo = reinterpret_cast<in_pktinfo*>(CMSG_DATA(cmsg));
-    memset(pktinfo, 0, sizeof(in_pktinfo));
+    SbMemorySet(pktinfo, 0, sizeof(in_pktinfo));
     pktinfo->ipi_ifindex = 0;
     address_string = self_address.ToPackedString();
-    memcpy(&pktinfo->ipi_spec_dst, address_string.c_str(),
-           address_string.length());
+    SbMemoryCopy(&pktinfo->ipi_spec_dst, address_string.c_str(),
+                 address_string.length());
     return sizeof(in_pktinfo);
   } else if (self_address.IsIPv6()) {
     cmsg->cmsg_len = CMSG_LEN(sizeof(in6_pktinfo));
     cmsg->cmsg_level = IPPROTO_IPV6;
     cmsg->cmsg_type = IPV6_PKTINFO;
     in6_pktinfo* pktinfo = reinterpret_cast<in6_pktinfo*>(CMSG_DATA(cmsg));
-    memset(pktinfo, 0, sizeof(in6_pktinfo));
+    SbMemorySet(pktinfo, 0, sizeof(in6_pktinfo));
     address_string = self_address.ToPackedString();
-    memcpy(&pktinfo->ipi6_addr, address_string.c_str(),
-           address_string.length());
+    SbMemoryCopy(&pktinfo->ipi6_addr, address_string.c_str(),
+                 address_string.length());
     return sizeof(in6_pktinfo);
   } else {
     NOTREACHED() << "Unrecognized net::IPAddress";

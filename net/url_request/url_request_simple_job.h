@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_SIMPLE_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_SIMPLE_JOB_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -16,6 +14,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/url_request/url_range_request_job.h"
+#include "starboard/types.h"
 
 namespace base {
 class RefCountedMemory;

@@ -11,6 +11,8 @@
 
 #if defined(OS_MACOSX)
 #include <Security/SecBase.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

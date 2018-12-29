@@ -7,8 +7,6 @@
 #ifndef NET_QUIC_QUIC_TEST_PACKET_MAKER_H_
 #define NET_QUIC_QUIC_TEST_PACKET_MAKER_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +19,7 @@
 #include "net/third_party/quic/test_tools/mock_random.h"
 #include "net/third_party/spdy/core/spdy_framer.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace test {

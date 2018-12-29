@@ -5,8 +5,6 @@
 #ifndef NET_DNS_MOCK_MDNS_SOCKET_FACTORY_H_
 #define NET_DNS_MOCK_MDNS_SOCKET_FACTORY_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +13,7 @@
 #include "net/base/completion_repeating_callback.h"
 #include "net/dns/mdns_client_impl.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace net {

@@ -4,10 +4,9 @@
 
 #include "net/android/cellular_signal_strength.h"
 
-#include <stdint.h>
-
 #include "base/optional.h"
 #include "net/base/network_change_notifier.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

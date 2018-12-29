@@ -4,6 +4,7 @@
 
 #include "net/third_party/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -49,7 +50,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   if (length < sizeof(address_family)) {
     return false;
   }
-  memcpy(&address_family, data, sizeof(address_family));
+  SbMemoryCopy(&address_family, data, sizeof(address_family));
   data += sizeof(address_family);
   length -= sizeof(address_family);
 
@@ -68,7 +69,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
     return false;
   }
   std::vector<uint8_t> ip(ip_length);
-  memcpy(&ip[0], data, ip_length);
+  SbMemoryCopy(&ip[0], data, ip_length);
   data += ip_length;
   length -= ip_length;
 
@@ -76,7 +77,7 @@ bool QuicSocketAddressCoder::Decode(const char* data, size_t length) {
   if (length != sizeof(port)) {
     return false;
   }
-  memcpy(&port, data, length);
+  SbMemoryCopy(&port, data, length);
 
   QuicIpAddress ip_address;
   ip_address.FromPackedString(reinterpret_cast<const char*>(&ip[0]), ip_length);

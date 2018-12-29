@@ -6,6 +6,7 @@
 
 #include "net/third_party/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace test {
@@ -26,7 +27,7 @@ TEST_F(QuicTagTest, TagToString) {
 TEST_F(QuicTagTest, MakeQuicTag) {
   QuicTag tag = MakeQuicTag('A', 'B', 'C', 'D');
   char bytes[4];
-  memcpy(bytes, &tag, 4);
+  SbMemoryCopy(bytes, &tag, 4);
   EXPECT_EQ('A', bytes[0]);
   EXPECT_EQ('B', bytes[1]);
   EXPECT_EQ('C', bytes[2]);

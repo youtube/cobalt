@@ -5,14 +5,13 @@
 #ifndef NET_CERT_PEM_TOKENIZER_H_
 #define NET_CERT_PEM_TOKENIZER_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

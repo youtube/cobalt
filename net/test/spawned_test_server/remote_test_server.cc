@@ -4,8 +4,6 @@
 
 #include "net/test/spawned_test_server/remote_test_server.h"
 
-#include <stdint.h>
-
 #include <limits>
 #include <vector>
 
@@ -25,6 +23,7 @@
 #include "net/base/net_errors.h"
 #include "net/test/spawned_test_server/remote_test_server_spawner_request.h"
 #include "net/test/tcp_socket_proxy.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

@@ -24,6 +24,8 @@
 #include <CFNetwork/CFProxySupport.h>
 #else
 #include <CoreServices/CoreServices.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace net {

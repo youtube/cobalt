@@ -8,8 +8,6 @@
 #ifndef NET_TOOLS_QUIC_QUIC_CLIENT_MESSAGE_LOOP_NETWORK_HELPER_H_
 #define NET_TOOLS_QUIC_QUIC_CLIENT_MESSAGE_LOOP_NETWORK_HELPER_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 
@@ -24,6 +22,7 @@
 #include "net/third_party/quic/core/quic_config.h"
 #include "net/third_party/quic/platform/impl/quic_chromium_clock.h"
 #include "net/third_party/quic/tools/quic_spdy_client_base.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -20,6 +20,8 @@
 #include "base/strings/stringprintf.h"
 #include "crypto/nss_util.h"
 #include "crypto/scoped_nss_types.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 
 namespace net {
@@ -138,13 +140,13 @@ bool IsSameCertificate(CERTCertificate* a, CERTCertificate* b) {
   if (a == b)
     return true;
   return a->derCert.len == b->derCert.len &&
-         memcmp(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
+         SbMemoryCompare(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
 }
 
 bool IsSameCertificate(CERTCertificate* a, const X509Certificate* b) {
   return a->derCert.len == CRYPTO_BUFFER_len(b->cert_buffer()) &&
-         memcmp(a->derCert.data, CRYPTO_BUFFER_data(b->cert_buffer()),
-                a->derCert.len) == 0;
+         SbMemoryCompare(a->derCert.data, CRYPTO_BUFFER_data(b->cert_buffer()),
+                         a->derCert.len) == 0;
 }
 bool IsSameCertificate(const X509Certificate* a, CERTCertificate* b) {
   return IsSameCertificate(b, a);
@@ -361,7 +363,7 @@ void GetUPNSubjectAltNames(CERTCertificate* cert_handle,
     if (name->type == certOtherName) {
       OtherName* on = &name->name.OthName;
       if (on->oid.len == sizeof(kUpnOid) &&
-          memcmp(on->oid.data, kUpnOid, sizeof(kUpnOid)) == 0) {
+          SbMemoryCompare(on->oid.data, kUpnOid, sizeof(kUpnOid)) == 0) {
         SECItem decoded;
         if (SEC_QuickDERDecodeItem(arena.get(), &decoded,
                                    SEC_ASN1_GET(SEC_UTF8StringTemplate),
@@ -428,7 +430,7 @@ bool GetValidityTimes(CERTCertificate* cert,
 
 SHA256HashValue CalculateFingerprint256(CERTCertificate* cert) {
   SHA256HashValue sha256;
-  memset(sha256.data, 0, sizeof(sha256.data));
+  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
 
   DCHECK(cert->derCert.data);
   DCHECK_NE(0U, cert->derCert.len);

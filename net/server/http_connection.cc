@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "net/server/web_socket.h"
 #include "net/socket/stream_socket.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -71,7 +72,7 @@ void HttpConnection::ReadIOBuffer::DidConsume(int bytes) {
   DCHECK_LE(0, unconsumed_size);
   if (unconsumed_size > 0) {
     // Move unconsumed data to the start of buffer.
-    memmove(StartOfBuffer(), StartOfBuffer() + bytes, unconsumed_size);
+    SbMemoryMove(StartOfBuffer(), StartOfBuffer() + bytes, unconsumed_size);
   }
   base_->set_offset(unconsumed_size);
   data_ = base_->data();

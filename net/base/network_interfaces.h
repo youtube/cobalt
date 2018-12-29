@@ -5,8 +5,6 @@
 #ifndef NET_BASE_NETWORK_INTERFACES_H_
 #define NET_BASE_NETWORK_INTERFACES_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +13,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
+#include "starboard/types.h"
 
 namespace net {
 

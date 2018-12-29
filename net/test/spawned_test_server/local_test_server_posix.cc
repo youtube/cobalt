@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "base/test/test_timeouts.h"
 #include "net/test/python_utils.h"
+#include "starboard/types.h"
 
 namespace {
 

@@ -5,9 +5,6 @@
 #ifndef NET_HTTP_HTTP_SERVER_PROPERTIES_IMPL_H_
 #define NET_HTTP_HTTP_SERVER_PROPERTIES_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <set>
 #include <string>
@@ -25,6 +22,7 @@
 #include "net/base/net_export.h"
 #include "net/http/broken_alternative_services.h"
 #include "net/http/http_server_properties.h"
+#include "starboard/types.h"
 
 namespace base {
 class Clock;

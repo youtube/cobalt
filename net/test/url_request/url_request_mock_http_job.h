@@ -7,13 +7,12 @@
 #ifndef NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_HTTP_JOB_H_
 #define NET_TEST_URL_REQUEST_URL_REQUEST_MOCK_HTTP_JOB_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "base/macros.h"
 #include "net/url_request/url_request_file_job.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace base {

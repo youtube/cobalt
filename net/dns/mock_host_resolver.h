@@ -5,8 +5,6 @@
 #ifndef NET_DNS_MOCK_HOST_RESOLVER_H_
 #define NET_DNS_MOCK_HOST_RESOLVER_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -21,6 +19,7 @@
 #include "net/dns/host_resolver.h"
 #include "net/dns/host_resolver_proc.h"
 #include "net/dns/host_resolver_source.h"
+#include "starboard/types.h"
 
 namespace base {
 class TickClock;

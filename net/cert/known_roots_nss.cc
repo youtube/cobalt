@@ -16,6 +16,7 @@
 #include "crypto/nss_util_internal.h"
 #include "net/base/hash_value.h"
 #include "net/cert/x509_util_nss.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,13 +5,11 @@
 #ifndef NET_BASE_NTLM_CONSTANTS_H_
 #define NET_BASE_NTLM_CONSTANTS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/stl_util.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ntlm {

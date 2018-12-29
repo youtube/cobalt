@@ -4,8 +4,6 @@
 
 #include "net/cert/ct_serialization.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 
@@ -15,6 +13,7 @@
 #include "net/cert/merkle_tree_leaf.h"
 #include "net/cert/signed_certificate_timestamp.h"
 #include "net/cert/signed_tree_head.h"
+#include "starboard/types.h"
 
 namespace net {
 

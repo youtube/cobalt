@@ -4,9 +4,6 @@
 
 #include "net/url_request/url_request.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "base/run_loop.h"
 #include "base/test/fuzzed_data_provider.h"
@@ -22,6 +19,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory_impl.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace {

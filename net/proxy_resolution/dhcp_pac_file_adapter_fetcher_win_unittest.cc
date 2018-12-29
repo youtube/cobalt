@@ -20,6 +20,7 @@
 #include "net/test/gtest_util.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -329,7 +330,7 @@ TEST(DhcpPacFileAdapterFetcher, MockDhcpRealFetch) {
 TEST(DhcpPacFileAdapterFetcher, SanitizeDhcpApiString) {
   base::test::ScopedTaskEnvironment scoped_task_environment;
 
-  const size_t kBaseUrlLen = strlen(BASE_URL);
+  const size_t kBaseUrlLen = SbStringGetLength(BASE_URL);
 
   // Default case.
   EXPECT_EQ(BASE_URL, DhcpPacFileAdapterFetcher::SanitizeDhcpApiString(

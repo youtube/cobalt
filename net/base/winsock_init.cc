@@ -8,6 +8,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace {
 

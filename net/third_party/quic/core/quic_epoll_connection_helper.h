@@ -19,6 +19,7 @@
 #include "net/third_party/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quic/core/quic_time.h"
 #include "net/third_party/quic/platform/impl/quic_epoll_clock.h"
+#include "starboard/types.h"
 
 namespace quic {}  // namespace quic
 namespace net {

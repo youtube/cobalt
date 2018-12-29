@@ -6,12 +6,14 @@
 
 #include "net/third_party/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
 QuicWriteBlockedList::QuicWriteBlockedList() : last_priority_popped_(0) {
-  memset(batch_write_stream_id_, 0, sizeof(batch_write_stream_id_));
-  memset(bytes_left_for_batch_write_, 0, sizeof(bytes_left_for_batch_write_));
+  SbMemorySet(batch_write_stream_id_, 0, sizeof(batch_write_stream_id_));
+  SbMemorySet(bytes_left_for_batch_write_, 0,
+              sizeof(bytes_left_for_batch_write_));
 }
 
 QuicWriteBlockedList::~QuicWriteBlockedList() {}

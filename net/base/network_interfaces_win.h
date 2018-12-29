@@ -15,6 +15,7 @@
 #include "base/win/scoped_handle.h"
 #include "net/base/net_export.h"
 #include "net/base/network_interfaces.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace internal {

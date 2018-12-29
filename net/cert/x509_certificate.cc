@@ -36,6 +36,8 @@
 #include "net/cert/pem_tokenizer.h"
 #include "net/cert/x509_util.h"
 #include "net/der/parser.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/pkcs7.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
@@ -757,7 +759,7 @@ SHA256HashValue X509Certificate::CalculateFingerprint256(
 
 SHA256HashValue X509Certificate::CalculateChainFingerprint256() const {
   SHA256HashValue sha256;
-  memset(sha256.data, 0, sizeof(sha256.data));
+  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
 
   SHA256_CTX sha256_ctx;
   SHA256_Init(&sha256_ctx);

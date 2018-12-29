@@ -88,6 +88,8 @@
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -538,7 +540,7 @@ class PriorityTracker {
  public:
   explicit PriorityTracker(RequestPriority initial_priority)
       : highest_priority_(initial_priority), total_count_(0) {
-    memset(counts_, 0, sizeof(counts_));
+    SbMemorySet(counts_, 0, sizeof(counts_));
   }
 
   RequestPriority highest_priority() const {

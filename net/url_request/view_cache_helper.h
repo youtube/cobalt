@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_VIEW_CACHE_HELPER_H_
 #define NET_URL_REQUEST_VIEW_CACHE_HELPER_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/macros.h"
@@ -15,6 +13,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,13 +5,12 @@
 #ifndef NET_CERT_MERKLE_AUDIT_PROOF_H_
 #define NET_CERT_MERKLE_AUDIT_PROOF_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ct {

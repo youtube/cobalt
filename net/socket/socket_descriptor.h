@@ -13,6 +13,7 @@
 #endif  // OS_WIN
 #if defined(OS_STARBOARD)
 #include "starboard/socket.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {

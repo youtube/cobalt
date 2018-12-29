@@ -4,10 +4,9 @@
 
 #include "net/der/parse_values.h"
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "base/stl_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

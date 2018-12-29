@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "starboard/types.h"
+
 #include "build/build_config.h"
 #include "net/base/ip_endpoint.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_HTTP_NETWORK_TRANSACTION_H_
 #define NET_HTTP_HTTP_NETWORK_TRANSACTION_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -32,6 +30,7 @@
 #include "net/ssl/channel_id_service.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
+#include "starboard/types.h"
 
 namespace net {
 

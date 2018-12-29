@@ -7,6 +7,8 @@
 #include <string.h>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ntlm {
@@ -57,7 +59,7 @@ bool NtlmBufferReader::ReadBytes(base::span<uint8_t> buffer) {
   if (buffer.empty())
     return true;
 
-  memcpy(buffer.data(), GetBufferAtCursor(), buffer.size());
+  SbMemoryCopy(buffer.data(), GetBufferAtCursor(), buffer.size());
 
   AdvanceCursor(buffer.size());
   return true;
@@ -71,7 +73,7 @@ bool NtlmBufferReader::ReadBytesFrom(const SecurityBuffer& sec_buf,
   if (buffer.empty())
     return true;
 
-  memcpy(buffer.data(), GetBufferPtr() + sec_buf.offset, sec_buf.length);
+  SbMemoryCopy(buffer.data(), GetBufferPtr() + sec_buf.offset, sec_buf.length);
 
   return true;
 }
@@ -241,7 +243,7 @@ bool NtlmBufferReader::MatchSignature() {
   if (!CanRead(kSignatureLen))
     return false;
 
-  if (memcmp(kSignature, GetBufferAtCursor(), kSignatureLen) != 0)
+  if (SbMemoryCompare(kSignature, GetBufferAtCursor(), kSignatureLen) != 0)
     return false;
 
   AdvanceCursor(kSignatureLen);

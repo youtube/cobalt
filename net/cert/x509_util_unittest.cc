@@ -14,6 +14,7 @@
 #include "net/cert/x509_certificate.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -132,7 +133,7 @@ TEST(X509UtilTest, CreateSelfSigned) {
 
   std::vector<uint8_t> input;
   input.resize(sizeof(private_key_info));
-  memcpy(&input.front(), private_key_info, sizeof(private_key_info));
+  SbMemoryCopy(&input.front(), private_key_info, sizeof(private_key_info));
 
   std::unique_ptr<crypto::RSAPrivateKey> private_key(
       crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input));

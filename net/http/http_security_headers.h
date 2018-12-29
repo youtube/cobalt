@@ -5,14 +5,13 @@
 #ifndef NET_HTTP_HTTP_SECURITY_HEADERS_H_
 #define NET_HTTP_HTTP_SECURITY_HEADERS_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/time/time.h"
 #include "base/values.h"
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 

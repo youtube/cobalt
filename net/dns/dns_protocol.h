@@ -5,9 +5,8 @@
 #ifndef NET_DNS_DNS_PROTOCOL_H_
 #define NET_DNS_DNS_PROTOCOL_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

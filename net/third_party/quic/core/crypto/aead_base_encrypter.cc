@@ -9,6 +9,7 @@
 #include "net/third_party/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_logging.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -63,7 +64,7 @@ bool AeadBaseEncrypter::SetKey(QuicStringPiece key) {
   if (key.size() != key_size_) {
     return false;
   }
-  memcpy(key_, key.data(), key.size());
+  SbMemoryCopy(key_, key.data(), key.size());
 
   EVP_AEAD_CTX_cleanup(ctx_.get());
 
@@ -85,7 +86,7 @@ bool AeadBaseEncrypter::SetNoncePrefix(QuicStringPiece nonce_prefix) {
   if (nonce_prefix.size() != nonce_size_ - sizeof(QuicPacketNumber)) {
     return false;
   }
-  memcpy(iv_, nonce_prefix.data(), nonce_prefix.size());
+  SbMemoryCopy(iv_, nonce_prefix.data(), nonce_prefix.size());
   return true;
 }
 
@@ -98,7 +99,7 @@ bool AeadBaseEncrypter::SetIV(QuicStringPiece iv) {
   if (iv.size() != nonce_size_) {
     return false;
   }
-  memcpy(iv_, iv.data(), iv.size());
+  SbMemoryCopy(iv_, iv.data(), iv.size());
   return true;
 }
 
@@ -137,7 +138,7 @@ bool AeadBaseEncrypter::EncryptPacket(QuicTransportVersion /*version*/,
   // TODO(ianswett): Introduce a check to ensure that we don't encrypt with the
   // same packet number twice.
   QUIC_ALIGNED(4) char nonce_buffer[kMaxNonceSize];
-  memcpy(nonce_buffer, iv_, nonce_size_);
+  SbMemoryCopy(nonce_buffer, iv_, nonce_size_);
   size_t prefix_len = nonce_size_ - sizeof(packet_number);
   if (use_ietf_nonce_construction_) {
     for (size_t i = 0; i < sizeof(packet_number); ++i) {
@@ -145,7 +146,8 @@ bool AeadBaseEncrypter::EncryptPacket(QuicTransportVersion /*version*/,
           (packet_number >> ((sizeof(packet_number) - i - 1) * 8)) & 0xff;
     }
   } else {
-    memcpy(nonce_buffer + prefix_len, &packet_number, sizeof(packet_number));
+    SbMemoryCopy(nonce_buffer + prefix_len, &packet_number,
+                 sizeof(packet_number));
   }
 
   if (!Encrypt(QuicStringPiece(nonce_buffer, nonce_size_), associated_data,

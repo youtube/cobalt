@@ -18,6 +18,7 @@
 #include "net/base/escape.h"
 #include "net/base/ip_address.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 #include "url/url_canon.h"
 #include "url/url_canon_ip.h"

@@ -5,8 +5,6 @@
 #ifndef NET_CERT_X509_UTIL_H_
 #define NET_CERT_X509_UTIL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,6 +17,7 @@
 #include "crypto/signature_verifier.h"
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 

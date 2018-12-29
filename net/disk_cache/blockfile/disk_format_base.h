@@ -1,3 +1,4 @@
+#include "starboard/types.h"
 // Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -19,8 +20,6 @@
 
 #ifndef NET_DISK_CACHE_BLOCKFILE_DISK_FORMAT_BASE_H_
 #define NET_DISK_CACHE_BLOCKFILE_DISK_FORMAT_BASE_H_
-
-#include <stdint.h>
 
 namespace disk_cache {
 

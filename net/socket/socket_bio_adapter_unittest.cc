@@ -23,6 +23,8 @@
 #include "net/socket/stream_socket.h"
 #include "net/ssl/openssl_ssl_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/bio.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
@@ -190,7 +192,7 @@ TEST_P(SocketBIOAdapterTest, ReadSync) {
   // BIO_read only reports one socket-level Read.
   char buf[10];
   EXPECT_EQ(5, BIO_read(bio, buf, sizeof(buf)));
-  EXPECT_EQ(0, memcmp("hello", buf, 5));
+  EXPECT_EQ(0, SbMemoryCompare("hello", buf, 5));
   EXPECT_FALSE(adapter->HasPendingReadData());
 
   // Consume the next portion one byte at a time.
@@ -204,7 +206,7 @@ TEST_P(SocketBIOAdapterTest, ReadSync) {
 
   // The remainder may be consumed in a single BIO_read.
   EXPECT_EQ(3, BIO_read(bio, buf, sizeof(buf)));
-  EXPECT_EQ(0, memcmp("rld", buf, 3));
+  EXPECT_EQ(0, SbMemoryCompare("rld", buf, 3));
   EXPECT_FALSE(adapter->HasPendingReadData());
 
   // The error is available synchoronously.
@@ -242,7 +244,7 @@ TEST_P(SocketBIOAdapterTest, ReadAsync) {
 
   // The first read is now available synchronously.
   EXPECT_EQ(5, BIO_read(bio, buf, sizeof(buf)));
-  EXPECT_EQ(0, memcmp("hello", buf, 5));
+  EXPECT_EQ(0, SbMemoryCompare("hello", buf, 5));
   EXPECT_FALSE(adapter->HasPendingReadData());
 
   // The adapter does not schedule another Read until BIO_read is next called.
@@ -264,7 +266,7 @@ TEST_P(SocketBIOAdapterTest, ReadAsync) {
 
   // The next read is now available synchronously.
   EXPECT_EQ(5, BIO_read(bio, buf, sizeof(buf)));
-  EXPECT_EQ(0, memcmp("world", buf, 5));
+  EXPECT_EQ(0, SbMemoryCompare("world", buf, 5));
   EXPECT_FALSE(adapter->HasPendingReadData());
 
   // The error is not yet available.

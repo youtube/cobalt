@@ -5,8 +5,6 @@
 #ifndef NET_BASE_UPLOAD_BYTES_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_BYTES_ELEMENT_READER_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -14,6 +12,7 @@
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_element_reader.h"
+#include "starboard/types.h"
 
 namespace net {
 

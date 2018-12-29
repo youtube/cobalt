@@ -30,6 +30,7 @@
 #include "net/third_party/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
 #include "net/third_party/spdy/core/spdy_test_utils.h"
+#include "starboard/string.h"
 
 using spdy::ERROR_CODE_PROTOCOL_ERROR;
 using spdy::SETTINGS_ENABLE_PUSH;
@@ -570,7 +571,7 @@ TEST_P(QuicHeadersStreamTest, ProcessBadData) {
               CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA, _, _))
       .Times(::testing::AnyNumber());
   stream_frame_.data_buffer = kBadData;
-  stream_frame_.data_length = strlen(kBadData);
+  stream_frame_.data_length = SbStringGetLength(kBadData);
   headers_stream_->OnStreamFrame(stream_frame_);
 }
 

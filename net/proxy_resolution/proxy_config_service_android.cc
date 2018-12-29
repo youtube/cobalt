@@ -23,6 +23,7 @@
 #include "jni/ProxyChangeListener_jni.h"
 #include "net/base/host_port_pair.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "starboard/types.h"
 #include "url/third_party/mozilla/url_parse.h"
 
 using base::android::AttachCurrentThread;

@@ -15,6 +15,7 @@
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 namespace {

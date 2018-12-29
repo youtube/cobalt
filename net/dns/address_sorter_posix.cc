@@ -33,6 +33,9 @@
 
 #if defined(OS_LINUX)
 #include "net/base/address_tracker_linux.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -373,9 +376,10 @@ void AddressSorterPosix::OnIPAddressChanged() {
     info.native = info.home = info.deprecated = false;
     if (ifa->ifa_addr->sa_family == AF_INET6) {
       struct in6_ifreq ifr = {};
-      strncpy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name) - 1);
+      SbStringCopy(ifr.ifr_name, ifa->ifa_name, sizeof(ifr.ifr_name) - 1);
       DCHECK_LE(ifa->ifa_addr->sa_len, sizeof(ifr.ifr_ifru.ifru_addr));
-      memcpy(&ifr.ifr_ifru.ifru_addr, ifa->ifa_addr, ifa->ifa_addr->sa_len);
+      SbMemoryCopy(&ifr.ifr_ifru.ifru_addr, ifa->ifa_addr,
+                   ifa->ifa_addr->sa_len);
       int rv = ioctl(ioctl_socket, SIOCGIFAFLAG_IN6, &ifr);
       if (rv >= 0) {
         info.deprecated = ifr.ifr_ifru.ifru_flags & IN6_IFF_DEPRECATED;

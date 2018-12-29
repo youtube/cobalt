@@ -13,6 +13,7 @@
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace {
@@ -210,7 +211,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
           " total_bytes_read_ = ", total_bytes_read_);
       return false;
     }
-    memcpy(dest, source, bytes_to_copy);
+    SbMemoryCopy(dest, source, bytes_to_copy);
     source += bytes_to_copy;
     source_remaining -= bytes_to_copy;
     offset += bytes_to_copy;
@@ -248,8 +249,8 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
             " total_bytes_read_ = ", total_bytes_read_);
         return QUIC_STREAM_SEQUENCER_INVALID_STATE;
       }
-      memcpy(dest, blocks_[block_idx]->buffer + start_offset_in_block,
-             bytes_to_copy);
+      SbMemoryCopy(dest, blocks_[block_idx]->buffer + start_offset_in_block,
+                   bytes_to_copy);
       dest += bytes_to_copy;
       dest_remaining -= bytes_to_copy;
       num_bytes_buffered_ -= bytes_to_copy;

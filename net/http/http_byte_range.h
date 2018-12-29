@@ -5,11 +5,10 @@
 #ifndef NET_HTTP_HTTP_BYTE_RANGE_H_
 #define NET_HTTP_HTTP_BYTE_RANGE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

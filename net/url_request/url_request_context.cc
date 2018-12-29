@@ -25,6 +25,7 @@
 #include "net/socket/ssl_client_socket_impl.h"
 #include "net/url_request/http_user_agent_settings.h"
 #include "net/url_request/url_request.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -12,6 +12,7 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/ct_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -81,7 +82,8 @@ TEST_F(CTObjectsExtractorTest, ExtractPrecert) {
   ASSERT_TRUE(entry.leaf_certificate.empty());
   // Compare hash values of issuer spki.
   SHA256HashValue expected_issuer_key_hash;
-  memcpy(expected_issuer_key_hash.data, GetDefaultIssuerKeyHash().data(), 32);
+  SbMemoryCopy(expected_issuer_key_hash.data, GetDefaultIssuerKeyHash().data(),
+               32);
   ASSERT_EQ(expected_issuer_key_hash, entry.issuer_key_hash);
 }
 

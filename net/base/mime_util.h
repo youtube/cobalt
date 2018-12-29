@@ -17,13 +17,12 @@
 // All constants in mime_util.cc must be written in lower case, except parameter
 // values, which can be any case.
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

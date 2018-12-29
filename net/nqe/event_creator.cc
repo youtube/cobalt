@@ -14,6 +14,7 @@
 #include "base/values.h"
 #include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace net {
 

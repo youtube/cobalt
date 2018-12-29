@@ -20,6 +20,7 @@
 #include "net/third_party/quic/test_tools/mock_clock.h"
 #include "net/third_party/quic/test_tools/simulator/packet_filter.h"
 #include "net/third_party/quic/test_tools/simulator/simulator.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -189,7 +190,7 @@ class QuartcSessionTest : public QuicTest {
     // Send a test message from peer 1 to peer 2.
     char kTestMessage[] = "Hello";
     test::QuicTestMemSliceVector data(
-        {std::make_pair(kTestMessage, strlen(kTestMessage))});
+        {std::make_pair(kTestMessage, SbStringGetLength(kTestMessage))});
     outgoing_stream->WriteMemSlices(data.span(), /*fin=*/false);
     RunTasks();
 
@@ -205,7 +206,7 @@ class QuartcSessionTest : public QuicTest {
     // Send a test message from peer 2 to peer 1.
     char kTestResponse[] = "Response";
     test::QuicTestMemSliceVector response(
-        {std::make_pair(kTestResponse, strlen(kTestResponse))});
+        {std::make_pair(kTestResponse, SbStringGetLength(kTestResponse))});
     incoming->WriteMemSlices(response.span(), /*fin=*/false);
     RunTasks();
     // Wait for peer 1 to receive messages.
@@ -299,7 +300,7 @@ TEST_F(QuartcSessionTest, WriterGivesPacketNumberToTransport) {
 
   char kClientMessage[] = "Hello";
   test::QuicTestMemSliceVector stream_data(
-      {std::make_pair(kClientMessage, strlen(kClientMessage))});
+      {std::make_pair(kClientMessage, SbStringGetLength(kClientMessage))});
   stream->WriteMemSlices(stream_data.span(), /*fin=*/false);
   RunTasks();
 
@@ -336,7 +337,7 @@ TEST_F(QuartcSessionTest, StreamRetransmissionEnabled) {
 
   char kClientMessage[] = "Hello";
   test::QuicTestMemSliceVector stream_data(
-      {std::make_pair(kClientMessage, strlen(kClientMessage))});
+      {std::make_pair(kClientMessage, SbStringGetLength(kClientMessage))});
   stream->WriteMemSlices(stream_data.span(), /*fin=*/false);
   RunTasks();
 
@@ -360,7 +361,7 @@ TEST_F(QuartcSessionTest, StreamRetransmissionDisabled) {
 
   char kMessage[] = "Hello";
   test::QuicTestMemSliceVector stream_data(
-      {std::make_pair(kMessage, strlen(kMessage))});
+      {std::make_pair(kMessage, SbStringGetLength(kMessage))});
   stream->WriteMemSlices(stream_data.span(), /*fin=*/false);
   simulator_.RunFor(QuicTime::Delta::FromMilliseconds(1));
 
@@ -370,7 +371,7 @@ TEST_F(QuartcSessionTest, StreamRetransmissionDisabled) {
 
   char kMessage1[] = "Second message";
   test::QuicTestMemSliceVector stream_data_1(
-      {std::make_pair(kMessage1, strlen(kMessage1))});
+      {std::make_pair(kMessage1, SbStringGetLength(kMessage1))});
   stream_1->WriteMemSlices(stream_data_1.span(), /*fin=*/false);
   RunTasks();
 

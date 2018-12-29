@@ -15,6 +15,7 @@
 #include "net/cert/internal/test_helpers.h"
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_util_nss.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

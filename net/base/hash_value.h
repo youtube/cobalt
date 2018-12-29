@@ -5,8 +5,6 @@
 #ifndef NET_BASE_HASH_VALUE_H_
 #define NET_BASE_HASH_VALUE_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include <string>
@@ -16,6 +14,8 @@
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "net/base/net_export.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -24,27 +24,27 @@ struct NET_EXPORT SHA256HashValue {
 };
 
 inline bool operator==(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) == 0;
+  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) == 0;
 }
 
 inline bool operator!=(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) != 0;
+  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) != 0;
 }
 
 inline bool operator<(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
+  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
 }
 
 inline bool operator>(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) > 0;
+  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) > 0;
 }
 
 inline bool operator<=(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) <= 0;
+  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) <= 0;
 }
 
 inline bool operator>=(const SHA256HashValue& lhs, const SHA256HashValue& rhs) {
-  return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) >= 0;
+  return SbMemoryCompare(lhs.data, rhs.data, sizeof(lhs.data)) >= 0;
 }
 
 enum HashValueTag {

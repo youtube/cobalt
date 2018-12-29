@@ -6,6 +6,8 @@
 
 #include <cerrno>
 
+#include "starboard/types.h"
+
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 

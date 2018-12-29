@@ -34,6 +34,7 @@
 #include "net/cert/known_roots_mac.h"
 #include "net/cert/x509_util_mac.h"
 #elif defined(OS_FUCHSIA)
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #endif
 

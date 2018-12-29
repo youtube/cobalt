@@ -44,6 +44,9 @@
 #include "net/third_party/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
@@ -301,7 +304,7 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
 
   char orbit_bytes[kOrbitSize];
   if (options.orbit.size() == sizeof(orbit_bytes)) {
-    memcpy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
+    SbMemoryCopy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
   } else {
     DCHECK(options.orbit.empty());
     rand->RandBytes(orbit_bytes, sizeof(orbit_bytes));
@@ -1006,7 +1009,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
 
   if (!info.sni.empty()) {
     std::unique_ptr<char[]> sni_tmp(new char[info.sni.length() + 1]);
-    memcpy(sni_tmp.get(), info.sni.data(), info.sni.length());
+    SbMemoryCopy(sni_tmp.get(), info.sni.data(), info.sni.length());
     sni_tmp[info.sni.length()] = 0;
     params->sni = QuicHostnameUtils::NormalizeHostname(sni_tmp.get());
   }
@@ -1038,7 +1041,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
         client_hello_copy.GetSerialized();
     QuicString hkdf_input;
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
-                      strlen(QuicCryptoConfig::kCETVLabel) + 1);
+                      SbStringGetLength(QuicCryptoConfig::kCETVLabel) + 1);
     hkdf_input.append(reinterpret_cast<char*>(&connection_id),
                       sizeof(connection_id));
     hkdf_input.append(client_hello_copy_serialized.data(),
@@ -1088,7 +1091,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   }
 
   QuicString hkdf_input;
-  size_t label_len = strlen(QuicCryptoConfig::kInitialLabel) + 1;
+  size_t label_len = SbStringGetLength(QuicCryptoConfig::kInitialLabel) + 1;
   hkdf_input.reserve(label_len + hkdf_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(hkdf_suffix);
@@ -1127,7 +1130,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   }
 
   QuicString forward_secure_hkdf_input;
-  label_len = strlen(QuicCryptoConfig::kForwardSecureLabel) + 1;
+  label_len = SbStringGetLength(QuicCryptoConfig::kForwardSecureLabel) + 1;
   forward_secure_hkdf_input.reserve(label_len + hkdf_suffix.size());
   forward_secure_hkdf_input.append(QuicCryptoConfig::kForwardSecureLabel,
                                    label_len);
@@ -1794,7 +1797,7 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
     return nullptr;
   }
   static_assert(sizeof(config->orbit) == kOrbitSize, "incorrect orbit size");
-  memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
+  SbMemoryCopy(config->orbit, orbit.data(), sizeof(config->orbit));
 
   if (kexs_tags.size() != protobuf->key_size()) {
     QUIC_LOG(WARNING) << "Server config has " << kexs_tags.size()

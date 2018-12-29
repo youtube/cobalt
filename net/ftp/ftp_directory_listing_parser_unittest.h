@@ -5,12 +5,11 @@
 #ifndef NET_FTP_FTP_DIRECTORY_LISTING_PARSER_UNITTEST_H_
 #define NET_FTP_FTP_DIRECTORY_LISTING_PARSER_UNITTEST_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/strings/utf_string_conversions.h"
 #include "net/ftp/ftp_directory_listing_parser.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

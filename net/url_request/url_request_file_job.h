@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_FILE_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_FILE_JOB_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,6 +18,7 @@
 #include "net/http/http_byte_range.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
+#include "starboard/types.h"
 
 namespace base {
 class TaskRunner;

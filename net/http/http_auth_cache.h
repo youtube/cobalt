@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_HTTP_AUTH_CACHE_H_
 #define NET_HTTP_HTTP_AUTH_CACHE_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <string>
 
@@ -17,6 +15,7 @@
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

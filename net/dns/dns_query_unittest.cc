@@ -8,6 +8,7 @@
 #include "net/base/io_buffer.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/record_rdata.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,7 +26,7 @@ bool ParseAndCreateDnsQueryFromRawPacket(const uint8_t* data,
                                          size_t length,
                                          std::unique_ptr<DnsQuery>* out) {
   auto packet = base::MakeRefCounted<IOBufferWithSize>(length);
-  memcpy(packet->data(), data, length);
+  SbMemoryCopy(packet->data(), data, length);
   out->reset(new DnsQuery(packet));
   return (*out)->Parse();
 }

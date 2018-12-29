@@ -5,8 +5,6 @@
 #ifndef NET_BASE_IP_ENDPOINT_H_
 #define NET_BASE_IP_ENDPOINT_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -17,6 +15,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/socket.h"
+#include "starboard/types.h"
 #endif
 
 struct sockaddr;

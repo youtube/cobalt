@@ -20,6 +20,7 @@
 #include "base/strings/string16.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service.h"
+#include "starboard/types.h"
 
 // The general effort of DnsConfigServiceWin is to configure |nameservers| and
 // |search| in DnsConfig. The settings are stored in the Windows registry, but

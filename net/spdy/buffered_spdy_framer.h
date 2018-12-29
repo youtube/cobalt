@@ -5,9 +5,6 @@
 #ifndef NET_SPDY_BUFFERED_SPDY_FRAMER_H_
 #define NET_SPDY_BUFFERED_SPDY_FRAMER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -21,6 +18,7 @@
 #include "net/third_party/spdy/core/spdy_framer.h"
 #include "net/third_party/spdy/core/spdy_header_block.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -25,6 +25,8 @@
 #include "net/log/net_log_event_type.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 #include "url/url_canon.h"
 
 namespace net {
@@ -42,7 +44,7 @@ std::string GetResponseHeaderLines(const HttpResponseHeaders& headers) {
   while (header_line[0] != 0) {
     cr_separated_headers += header_line;
     cr_separated_headers += "\n";
-    header_line += strlen(header_line) + 1;
+    header_line += SbStringGetLength(header_line) + 1;
   }
   return cr_separated_headers;
 }
@@ -276,7 +278,8 @@ int HttpStreamParser::SendRequest(
     request_headers_ = base::MakeRefCounted<DrainableIOBuffer>(
         merged_request_headers_and_body, merged_size);
 
-    memcpy(request_headers_->data(), request.data(), request_headers_length_);
+    SbMemoryCopy(request_headers_->data(), request.data(),
+                 request_headers_length_);
     request_headers_->DidConsume(request_headers_length_);
 
     uint64_t todo = request_->upload_data_stream->size();
@@ -674,9 +677,9 @@ int HttpStreamParser::DoReadBody() {
     if (available) {
       CHECK_GT(available, 0);
       int bytes_from_buffer = std::min(available, user_read_buf_len_);
-      memcpy(user_read_buf_->data(),
-             read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-             bytes_from_buffer);
+      SbMemoryCopy(user_read_buf_->data(),
+                   read_buf_->StartOfBuffer() + read_buf_unused_offset_,
+                   bytes_from_buffer);
       read_buf_unused_offset_ += bytes_from_buffer;
       if (bytes_from_buffer == available) {
         read_buf_->SetCapacity(0);
@@ -779,14 +782,14 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
 
     if (save_amount) {
       received_bytes_ -= save_amount;
-      memcpy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
-             save_amount);
+      SbMemoryCopy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
+                   save_amount);
     }
     read_buf_->set_offset(save_amount);
     if (additional_save_amount) {
-      memmove(read_buf_->data(),
-              read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-              additional_save_amount);
+      SbMemoryMove(read_buf_->data(),
+                   read_buf_->StartOfBuffer() + read_buf_unused_offset_,
+                   additional_save_amount);
       read_buf_->set_offset(save_amount + additional_save_amount);
     }
     read_buf_unused_offset_ = 0;
@@ -894,9 +897,9 @@ int HttpStreamParser::HandleReadHeaderResult(int result) {
       int extra_bytes = read_buf_->offset() - end_of_header_offset;
       if (extra_bytes) {
         CHECK_GT(extra_bytes, 0);
-        memmove(read_buf_->StartOfBuffer(),
-                read_buf_->StartOfBuffer() + end_of_header_offset,
-                extra_bytes);
+        SbMemoryMove(read_buf_->StartOfBuffer(),
+                     read_buf_->StartOfBuffer() + end_of_header_offset,
+                     extra_bytes);
       }
       read_buf_->SetCapacity(extra_bytes);
       if (response_->headers->response_code() / 100 == 1) {
@@ -1151,11 +1154,11 @@ int HttpStreamParser::EncodeChunk(const base::StringPiece& payload,
   cursor += num_chars;
   // Add the payload if any.
   if (payload.size() > 0) {
-    memcpy(cursor, payload.data(), payload.size());
+    SbMemoryCopy(cursor, payload.data(), payload.size());
     cursor += payload.size();
   }
   // Add the trailing CRLF.
-  memcpy(cursor, "\r\n", 2);
+  SbMemoryCopy(cursor, "\r\n", 2);
   cursor += 2;
 
   return cursor - output;

@@ -4,8 +4,6 @@
 
 #include "net/websockets/websocket_deflate_stream.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 #include <utility>
@@ -23,6 +21,7 @@
 #include "net/websockets/websocket_frame.h"
 #include "net/websockets/websocket_inflater.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 
 class GURL;
 

@@ -5,8 +5,6 @@
 #ifndef NET_QUIC_QUIC_CHROMIUM_PACKET_WRITER_H_
 #define NET_QUIC_QUIC_CHROMIUM_PACKET_WRITER_H_
 
-#include <stddef.h>
-
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
@@ -18,6 +16,7 @@
 #include "net/third_party/quic/core/quic_packet_writer.h"
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_types.h"
+#include "starboard/types.h"
 
 namespace net {
 

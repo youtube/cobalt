@@ -4,9 +4,6 @@
 
 #include "net/websockets/websocket_deflate_stream.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <iterator>
 #include <string>
 #include <utility>
@@ -29,6 +26,8 @@
 #include "net/websockets/websocket_inflater.h"
 #include "net/websockets/websocket_stream.h"
 #include "net/websockets/websocket_test_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -56,7 +55,7 @@ const int kWindowBits = 15;
 
 scoped_refptr<IOBuffer> ToIOBuffer(const std::string& s) {
   auto buffer = base::MakeRefCounted<IOBuffer>(s.size());
-  memcpy(buffer->data(), s.data(), s.size());
+  SbMemoryCopy(buffer->data(), s.data(), s.size());
   return buffer;
 }
 

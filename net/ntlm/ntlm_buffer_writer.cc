@@ -11,6 +11,8 @@
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ntlm {
@@ -55,7 +57,7 @@ bool NtlmBufferWriter::WriteBytes(base::span<const uint8_t> bytes) {
   if (!CanWrite(bytes.size()))
     return false;
 
-  memcpy(GetBufferPtrAtCursor(), bytes.data(), bytes.size());
+  SbMemoryCopy(GetBufferPtrAtCursor(), bytes.data(), bytes.size());
   AdvanceCursor(bytes.size());
   return true;
 }
@@ -67,7 +69,7 @@ bool NtlmBufferWriter::WriteZeros(size_t count) {
   if (!CanWrite(count))
     return false;
 
-  memset(GetBufferPtrAtCursor(), 0, count);
+  SbMemorySet(GetBufferPtrAtCursor(), 0, count);
   AdvanceCursor(count);
   return true;
 }
@@ -137,8 +139,8 @@ bool NtlmBufferWriter::WriteUtf16String(const base::string16& str) {
     ptr[i + 1] = str[i / 2] >> 8;
   }
 #else
-  memcpy(reinterpret_cast<void*>(GetBufferPtrAtCursor()), str.c_str(),
-         num_bytes);
+  SbMemoryCopy(reinterpret_cast<void*>(GetBufferPtrAtCursor()), str.c_str(),
+               num_bytes);
 
 #endif
 

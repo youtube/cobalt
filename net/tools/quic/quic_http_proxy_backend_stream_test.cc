@@ -17,6 +17,8 @@
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/tools/quic_backend_response.h"
 #include "net/tools/quic/quic_http_proxy_backend.h"
+#include "starboard/character.h"
+#include "starboard/string.h"
 
 namespace net {
 namespace test {
@@ -68,7 +70,7 @@ int ParseHeaderStatusCode(const spdy::SpdyHeaderBlock& header) {
     return -1;
   }
   // The remaining two characters must be integers.
-  if (!isdigit(status[1]) || !isdigit(status[2])) {
+  if (!SbCharacterIsDigit(status[1]) || !SbCharacterIsDigit(status[2])) {
     return -1;
   }
   if (base::StringToInt(status, &status_code)) {
@@ -366,7 +368,7 @@ TEST_F(QuicHttpProxyBackendStreamTest, SendRequestToBackendOnRedirect) {
 TEST_F(QuicHttpProxyBackendStreamTest, SendRequestToBackendHandleGzip) {
   const char kGzipData[] =
       "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!!";
-  uint64_t rawBodyLength = strlen(kGzipData);
+  uint64_t rawBodyLength = SbStringGetLength(kGzipData);
   spdy::SpdyHeaderBlock request_headers;
   request_headers[":path"] = std::string("/gzip-body?") + kGzipData;
   request_headers[":authority"] = "www.example.org";

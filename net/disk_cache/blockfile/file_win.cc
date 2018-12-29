@@ -13,6 +13,7 @@
 #include "base/message_loop/message_pump_for_io.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace {
 

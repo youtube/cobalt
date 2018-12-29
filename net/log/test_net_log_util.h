@@ -5,10 +5,9 @@
 #ifndef NET_LOG_TEST_NET_LOG_UTIL_H_
 #define NET_LOG_TEST_NET_LOG_UTIL_H_
 
-#include <stddef.h>
-
 #include "net/log/net_log_event_type.h"
 #include "net/log/test_net_log_entry.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

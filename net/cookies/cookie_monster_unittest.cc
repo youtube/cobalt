@@ -4,8 +4,6 @@
 
 #include "net/cookies/cookie_monster.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -45,6 +43,7 @@
 #include "net/log/test_net_log_util.h"
 #include "net/ssl/channel_id_service.h"
 #include "net/ssl/default_channel_id_store.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"

@@ -5,9 +5,6 @@
 #ifndef NET_THIRD_PARTY_QUIC_TEST_TOOLS_PACKET_DROPPING_TEST_WRITER_H_
 #define NET_THIRD_PARTY_QUIC_TEST_TOOLS_PACKET_DROPPING_TEST_WRITER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <string>
@@ -21,6 +18,7 @@
 #include "net/third_party/quic/platform/impl/quic_epoll_clock.h"
 #include "net/third_party/quic/test_tools/quic_test_client.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
+#include "starboard/types.h"
 
 namespace quic {
 namespace test {

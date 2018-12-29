@@ -5,12 +5,11 @@
 #ifndef NET_TEST_TCP_SOCKET_PROXY_H_
 #define NET_TEST_TCP_SOCKET_PROXY_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;

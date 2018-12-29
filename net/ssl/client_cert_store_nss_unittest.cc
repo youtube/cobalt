@@ -26,6 +26,7 @@
 #include "net/ssl/ssl_private_key.h"
 #include "net/ssl/ssl_private_key_test_util.h"
 #include "net/test/cert_test_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 

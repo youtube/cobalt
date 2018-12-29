@@ -5,8 +5,6 @@
 #ifndef NET_LOG_TEST_NET_LOG_H_
 #define NET_LOG_TEST_NET_LOG_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
@@ -15,6 +13,7 @@
 #include "net/log/net_log.h"
 #include "net/log/net_log_with_source.h"
 #include "net/log/test_net_log_entry.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -4,8 +4,6 @@
 
 #include "net/http/http_stream_factory.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <tuple>
@@ -71,6 +69,7 @@
 // introduce any link dependency to net/websockets.
 #include "net/websockets/websocket_handshake_stream_base.h"
 
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

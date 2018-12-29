@@ -16,6 +16,7 @@
 #include "base/synchronization/lock.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_config_watcher_mac.h"
+#include "starboard/types.h"
 
 namespace net {
 

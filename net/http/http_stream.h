@@ -11,8 +11,6 @@
 #ifndef NET_HTTP_HTTP_STREAM_H_
 #define NET_HTTP_HTTP_STREAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -23,6 +21,7 @@
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_raw_request_headers.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -45,6 +45,8 @@ const int kMaxLabelLength = 63;
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -71,7 +73,7 @@ bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
       if (namelen + labellen + 1 > sizeof name)
         return false;
       name[namelen++] = static_cast<char>(labellen);
-      memcpy(name + namelen, label, labellen);
+      SbMemoryCopy(name + namelen, label, labellen);
       namelen += labellen;
       labellen = 0;
       continue;
@@ -89,7 +91,7 @@ bool DNSDomainFromDot(const base::StringPiece& dotted, std::string* out) {
     if (namelen + labellen + 1 > sizeof name)
       return false;
     name[namelen++] = static_cast<char>(labellen);
-    memcpy(name + namelen, label, labellen);
+    SbMemoryCopy(name + namelen, label, labellen);
     namelen += labellen;
     labellen = 0;
   }

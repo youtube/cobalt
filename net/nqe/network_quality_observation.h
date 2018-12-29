@@ -5,8 +5,6 @@
 #ifndef NET_NQE_NETWORK_QUALITY_OBSERVATION_H_
 #define NET_NQE_NETWORK_QUALITY_OBSERVATION_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/optional.h"
@@ -14,6 +12,7 @@
 #include "net/base/net_export.h"
 #include "net/nqe/network_quality_estimator_util.h"
 #include "net/nqe/network_quality_observation_source.h"
+#include "starboard/types.h"
 
 namespace net {
 

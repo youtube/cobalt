@@ -17,6 +17,7 @@
 #include "third_party/boringssl/src/include/openssl/evp.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace {
@@ -40,7 +41,7 @@ class P256KeyExchangeFactory : public KeyExchange::Factory {
 P256KeyExchange::P256KeyExchange(bssl::UniquePtr<EC_KEY> private_key,
                                  const uint8_t* public_key)
     : private_key_(std::move(private_key)) {
-  memcpy(public_key_, public_key, sizeof(public_key_));
+  SbMemoryCopy(public_key_, public_key, sizeof(public_key_));
 }
 
 P256KeyExchange::~P256KeyExchange() {}

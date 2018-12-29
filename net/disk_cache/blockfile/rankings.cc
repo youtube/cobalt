@@ -4,9 +4,11 @@
 
 #include "net/disk_cache/blockfile/rankings.h"
 
-#include <stdint.h>
-
 #include <limits>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/macros.h"
 #include "base/process/process.h"
@@ -202,7 +204,7 @@ Rankings::ScopedRankingsBlock::ScopedRankingsBlock(Rankings* rankings,
     : std::unique_ptr<CacheRankingsBlock>(node), rankings_(rankings) {}
 
 Rankings::Iterator::Iterator() {
-  memset(this, 0, sizeof(Iterator));
+  SbMemorySet(this, 0, sizeof(Iterator));
 }
 
 void Rankings::Iterator::Reset() {
@@ -210,7 +212,7 @@ void Rankings::Iterator::Reset() {
     for (int i = 0; i < 3; i++)
       ScopedRankingsBlock(my_rankings, nodes[i]);
   }
-  memset(this, 0, sizeof(Iterator));
+  SbMemorySet(this, 0, sizeof(Iterator));
 }
 
 Rankings::Rankings() : init_(false) {}

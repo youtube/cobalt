@@ -4,8 +4,6 @@
 
 #include "net/http/http_response_body_drainer.h"
 
-#include <stdint.h>
-
 #include <cstring>
 
 #include "base/bind.h"
@@ -31,6 +29,7 @@
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
 #include "net/test/test_with_scoped_task_environment.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

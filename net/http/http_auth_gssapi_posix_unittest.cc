@@ -11,6 +11,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
 #include "net/http/mock_gssapi_library_posix.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -35,7 +36,7 @@ void SetBuffer(gss_buffer_t dest, const void* src, size_t length) {
   dest->length = length;
   if (length) {
     dest->value = new char[length];
-    memcpy(dest->value, src, length);
+    SbMemoryCopy(dest->value, src, length);
   }
 }
 

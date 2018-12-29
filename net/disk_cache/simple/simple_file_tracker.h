@@ -5,7 +5,6 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_FILE_TRACKER_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_FILE_TRACKER_H_
 
-#include <stdint.h>
 #include <algorithm>
 #include <list>
 #include <memory>
@@ -18,6 +17,7 @@
 #include "base/synchronization/lock.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/simple/simple_entry_format.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

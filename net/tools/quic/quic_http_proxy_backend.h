@@ -19,8 +19,6 @@
 #ifndef NET_TOOLS_QUIC_QUIC_HTTP_PROXY_BACKEND_H_
 #define NET_TOOLS_QUIC_QUIC_HTTP_PROXY_BACKEND_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <queue>
 
@@ -35,6 +33,7 @@
 #include "net/third_party/quic/tools/quic_simple_server_backend.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace base {

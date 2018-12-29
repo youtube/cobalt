@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -18,6 +16,7 @@
 #include "net/base/net_export.h"
 #include "net/socket/ssl_socket.h"
 #include "net/socket/stream_socket.h"
+#include "starboard/types.h"
 
 namespace net {
 

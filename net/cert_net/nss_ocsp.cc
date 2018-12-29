@@ -46,6 +46,7 @@
 #include "net/url_request/redirect_info.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

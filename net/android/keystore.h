@@ -6,7 +6,6 @@
 #define NET_ANDROID_KEYSTORE_H_
 
 #include <jni.h>
-#include <stdint.h>
 
 #include <string>
 #include <vector>
@@ -15,6 +14,7 @@
 #include "base/containers/span.h"
 #include "base/strings/string_piece.h"
 #include "net/ssl/ssl_client_cert_type.h"
+#include "starboard/types.h"
 
 // Misc functions to access the Android platform KeyStore.
 

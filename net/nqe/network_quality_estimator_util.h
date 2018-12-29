@@ -5,9 +5,8 @@
 #ifndef NET_NQE_NETWORK_QUALITY_ESTIMATOR_UTIL_H_
 #define NET_NQE_NETWORK_QUALITY_ESTIMATOR_UTIL_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

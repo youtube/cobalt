@@ -22,9 +22,6 @@
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <cstddef>
 #include <list>
 #include <map>
@@ -52,6 +49,7 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/stream_socket.h"
+#include "starboard/types.h"
 
 namespace base {
 class DictionaryValue;

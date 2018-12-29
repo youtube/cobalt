@@ -4,7 +4,6 @@
 
 #include "net/disk_cache/simple/simple_version_upgrade.h"
 
-#include <stdint.h>
 #include <string>
 
 #include "base/files/file_path.h"
@@ -15,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/disk_cache/simple/simple_backend_version.h"
 #include "net/disk_cache/simple/simple_entry_format_history.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // The migration process relies on ability to rename newly created files, which

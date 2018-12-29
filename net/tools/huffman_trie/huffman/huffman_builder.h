@@ -5,11 +5,11 @@
 #ifndef NET_TOOLS_HUFFMAN_TRIE_HUFFMAN_HUFFMAN_BUILDER_H_
 #define NET_TOOLS_HUFFMAN_TRIE_HUFFMAN_HUFFMAN_BUILDER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <vector>
+
+#include "starboard/types.h"
 
 namespace net {
 

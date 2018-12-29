@@ -21,6 +21,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -214,7 +215,7 @@ TEST_F(TCPServerSocketTest, AcceptIO) {
   while (bytes_written < message.size()) {
     scoped_refptr<IOBufferWithSize> write_buffer =
         base::MakeRefCounted<IOBufferWithSize>(message.size() - bytes_written);
-    memmove(write_buffer->data(), message.data(), message.size());
+    SbMemoryMove(write_buffer->data(), message.data(), message.size());
 
     TestCompletionCallback write_callback;
     int write_result = accepted_socket->Write(
@@ -236,7 +237,7 @@ TEST_F(TCPServerSocketTest, AcceptIO) {
     read_result = read_callback.GetResult(read_result);
     ASSERT_TRUE(read_result >= 0);
     ASSERT_TRUE(bytes_read + read_result <= message.size());
-    memmove(&buffer[bytes_read], read_buffer->data(), read_result);
+    SbMemoryMove(&buffer[bytes_read], read_buffer->data(), read_result);
     bytes_read += read_result;
   }
 

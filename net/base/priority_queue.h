@@ -5,9 +5,6 @@
 #ifndef NET_BASE_PRIORITY_QUEUE_H_
 #define NET_BASE_PRIORITY_QUEUE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <list>
 #include <vector>
 
@@ -17,6 +14,8 @@
 
 #if !defined(NDEBUG)
 #include <unordered_set>
+
+#include "starboard/types.h"
 #endif
 
 namespace net {

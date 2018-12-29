@@ -3,8 +3,6 @@
 // found in the LICENSE file.
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <iostream>
 #include <limits>
@@ -27,6 +25,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
 #include "net/url_request/url_request_interceptor.h"
+#include "starboard/types.h"
 
 namespace net {
 

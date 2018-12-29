@@ -5,13 +5,12 @@
 #ifndef NET_SSL_SSL_CONFIG_H_
 #define NET_SSL_SSL_CONFIG_H_
 
-#include <stdint.h>
-
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
 #include "net/cert/x509_certificate.h"
 #include "net/socket/next_proto.h"
 #include "net/ssl/ssl_private_key.h"
+#include "starboard/types.h"
 
 namespace net {
 

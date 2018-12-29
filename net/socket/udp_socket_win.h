@@ -6,7 +6,6 @@
 #define NET_SOCKET_UDP_SOCKET_WIN_H_
 
 #include <qos2.h>
-#include <stdint.h>
 #include <winsock2.h>
 
 #include <memory>
@@ -29,6 +28,7 @@
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

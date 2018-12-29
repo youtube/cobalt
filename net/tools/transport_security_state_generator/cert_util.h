@@ -5,9 +5,8 @@
 #ifndef NET_TOOLS_TRANSPORT_SECURITY_STATE_GENERATOR_CERT_UTIL_H_
 #define NET_TOOLS_TRANSPORT_SECURITY_STATE_GENERATOR_CERT_UTIL_H_
 
-#include <stdint.h>
-
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/x509v3.h"
 
 namespace net {

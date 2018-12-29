@@ -5,7 +5,6 @@
 #include "net/socket/socket_test_util.h"
 
 #include <inttypes.h>  // For SCNx64
-#include <stdint.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -43,6 +42,8 @@
 #include "net/ssl/ssl_connection_status_flags.h"
 #include "net/ssl/ssl_info.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #define NET_TRACE(level, s) VLOG(level) << s << __FUNCTION__ << "() "
@@ -1249,7 +1250,7 @@ int MockTCPClientSocket::ReadIfReadyImpl(IOBuffer* buf,
   if (read_data_.data) {
     if (read_data_.data_len - read_offset_ > 0) {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
-      memcpy(buf->data(), read_data_.data + read_offset_, result);
+      SbMemoryCopy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;
@@ -1591,7 +1592,7 @@ int MockSSLClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
                                               const base::StringPiece& context,
                                               unsigned char* out,
                                               unsigned int outlen) {
-  memset(out, 'A', outlen);
+  SbMemorySet(out, 'A', outlen);
   return OK;
 }
 
@@ -1924,7 +1925,7 @@ int MockUDPClientSocket::CompleteRead() {
   if (read_data_.data) {
     if (read_data_.data_len - read_offset_ > 0) {
       result = std::min(buf_len, read_data_.data_len - read_offset_);
-      memcpy(buf->data(), read_data_.data + read_offset_, result);
+      SbMemoryCopy(buf->data(), read_data_.data + read_offset_, result);
       read_offset_ += result;
       if (read_offset_ == read_data_.data_len) {
         need_read_data_ = true;

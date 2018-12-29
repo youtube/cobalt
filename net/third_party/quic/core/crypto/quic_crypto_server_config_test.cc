@@ -22,6 +22,7 @@
 #include "net/third_party/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quic/test_tools/mock_clock.h"
 #include "net/third_party/quic/test_tools/quic_crypto_server_config_peer.h"
+#include "starboard/types.h"
 
 namespace quic {
 namespace test {

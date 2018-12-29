@@ -17,6 +17,7 @@
 #include "net/cert/test_keychain_search_list_mac.h"
 #include "net/cert/x509_util.h"
 #include "net/cert/x509_util_mac.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,9 +5,6 @@
 #ifndef NET_BASE_CHUNKED_UPLOAD_DATA_STREAM_H_
 #define NET_BASE_CHUNKED_UPLOAD_DATA_STREAM_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -17,6 +14,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

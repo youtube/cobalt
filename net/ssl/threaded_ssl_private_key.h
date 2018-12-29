@@ -5,9 +5,6 @@
 #ifndef NET_SSL_THREADED_SSL_PRIVATE_KEY_H_
 #define NET_SSL_THREADED_SSL_PRIVATE_KEY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -16,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "net/ssl/ssl_private_key.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;

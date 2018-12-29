@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/containers/span.h"
 #include "base/test/fuzzed_data_provider.h"
 #include "net/ntlm/ntlm_client.h"
 #include "net/ntlm/ntlm_test_data.h"
+#include "starboard/types.h"
 
 base::string16 ConsumeRandomLengthString16(
     base::FuzzedDataProvider& data_provider,

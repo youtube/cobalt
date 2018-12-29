@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_H_
 #define NET_URL_REQUEST_URL_REQUEST_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +40,7 @@
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_request_status.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 

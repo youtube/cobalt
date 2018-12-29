@@ -5,8 +5,6 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_EVENT_INTERFACE_H_
 #define NET_WEBSOCKETS_WEBSOCKET_EVENT_INTERFACE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,6 +15,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/optional.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 

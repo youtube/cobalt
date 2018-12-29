@@ -5,12 +5,11 @@
 #ifndef NET_BASE_BACKOFF_ENTRY_H_
 #define NET_BASE_BACKOFF_ENTRY_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class TickClock;

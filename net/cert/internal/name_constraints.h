@@ -5,8 +5,6 @@
 #ifndef NET_CERT_INTERNAL_NAME_CONSTRAINTS_H_
 #define NET_CERT_INTERNAL_NAME_CONSTRAINTS_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/compiler_specific.h"
@@ -14,6 +12,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
 #include "net/cert/internal/general_names.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,9 +5,6 @@
 #ifndef NET_BASE_NTLM_BUFFER_WRITER_H_
 #define NET_BASE_NTLM_BUFFER_WRITER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -16,6 +13,7 @@
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/ntlm/ntlm_constants.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ntlm {

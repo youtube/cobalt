@@ -83,7 +83,6 @@
 // Note that our definition of HTML payload is much stricter than IE's
 // definition and roughly the same as Firefox's definition.
 
-#include <stdint.h>
 #include <string>
 
 #include "net/base/mime_sniffer.h"
@@ -93,6 +92,9 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -322,7 +324,8 @@ static bool MatchMagicNumber(const char* content,
   // To compare with magic strings, we need to compute strlen(content), but
   // content might not actually have a null terminator.  In that case, we
   // pretend the length is content_size.
-  const char* end = static_cast<const char*>(memchr(content, '\0', size));
+  const char* end =
+      static_cast<const char*>(SbMemoryFindByte(content, '\0', size));
   const size_t content_strlen =
       (end != NULL) ? static_cast<size_t>(end - content) : size;
 
@@ -330,7 +333,7 @@ static bool MatchMagicNumber(const char* content,
   if (magic_entry.is_string) {
     if (content_strlen >= len) {
       // Do a case-insensitive prefix comparison.
-      DCHECK_EQ(strlen(magic_entry.magic), len);
+      DCHECK_EQ(SbStringGetLength(magic_entry.magic), len);
       match = base::EqualsCaseInsensitiveASCII(magic_entry.magic,
                                                base::StringPiece(content, len));
     }
@@ -561,7 +564,7 @@ static bool SniffXML(const char* content,
   // based on the name (or possibly attributes) of that tag.
   const int kMaxTagIterations = 5;
   for (int i = 0; i < kMaxTagIterations && pos < end; ++i) {
-    pos = reinterpret_cast<const char*>(memchr(pos, '<', end - pos));
+    pos = reinterpret_cast<const char*>(SbMemoryFindByte(pos, '<', end - pos));
     if (!pos)
       return false;
 

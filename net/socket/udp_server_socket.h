@@ -5,13 +5,12 @@
 #ifndef NET_SOCKET_UDP_SERVER_SOCKET_H_
 #define NET_SOCKET_UDP_SERVER_SOCKET_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/socket/datagram_server_socket.h"
 #include "net/socket/udp_socket.h"
+#include "starboard/types.h"
 
 namespace net {
 

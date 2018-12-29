@@ -26,6 +26,8 @@
 #include "net/der/encode_values.h"
 #include "net/der/input.h"
 #include "net/der/parse_values.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -351,8 +353,8 @@ bool CryptoBufferEqual(const CRYPTO_BUFFER* a, const CRYPTO_BUFFER* b) {
   if (a == b)
     return true;
   return CRYPTO_BUFFER_len(a) == CRYPTO_BUFFER_len(b) &&
-         memcmp(CRYPTO_BUFFER_data(a), CRYPTO_BUFFER_data(b),
-                CRYPTO_BUFFER_len(a)) == 0;
+         SbMemoryCompare(CRYPTO_BUFFER_data(a), CRYPTO_BUFFER_data(b),
+                         CRYPTO_BUFFER_len(a)) == 0;
 }
 
 base::StringPiece CryptoBufferAsStringPiece(const CRYPTO_BUFFER* buffer) {

@@ -31,6 +31,8 @@
 #include "net/socket/socket_net_log_params.h"
 #include "net/socket/socket_options.h"
 #include "net/socket/socket_tag.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -187,7 +189,7 @@ TCPSocketWin::Core::Core(TCPSocketWin* socket)
       socket_(socket),
       reader_(this),
       writer_(this) {
-  memset(&write_overlapped_, 0, sizeof(write_overlapped_));
+  SbMemorySet(&write_overlapped_, 0, sizeof(write_overlapped_));
   write_overlapped_.hEvent = WSACreateEvent();
 }
 
@@ -199,7 +201,7 @@ TCPSocketWin::Core::~Core() {
   // in Detach().
   write_watcher_.StopWatching();
   WSACloseEvent(write_overlapped_.hEvent);
-  memset(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
+  SbMemorySet(&write_overlapped_, 0xaf, sizeof(write_overlapped_));
 }
 
 void TCPSocketWin::Core::WatchForRead() {

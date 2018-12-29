@@ -5,8 +5,6 @@
 #ifndef NET_SPDY_SPDY_HTTP_STREAM_H_
 #define NET_SPDY_SPDY_HTTP_STREAM_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 
@@ -20,6 +18,7 @@
 #include "net/spdy/spdy_read_queue.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

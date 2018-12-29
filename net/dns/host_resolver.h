@@ -5,9 +5,6 @@
 #ifndef NET_DNS_HOST_RESOLVER_H_
 #define NET_DNS_HOST_RESOLVER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +18,7 @@
 #include "net/dns/dns_config.h"
 #include "net/dns/host_cache.h"
 #include "net/dns/host_resolver_source.h"
+#include "starboard/types.h"
 
 namespace base {
 class Value;

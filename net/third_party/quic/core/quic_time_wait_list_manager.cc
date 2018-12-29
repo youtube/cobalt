@@ -21,6 +21,7 @@
 #include "net/third_party/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
+#include "starboard/types.h"
 
 namespace quic {
 

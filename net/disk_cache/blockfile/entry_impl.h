@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_ENTRY_IMPL_H_
 #define NET_DISK_CACHE_BLOCKFILE_ENTRY_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -17,6 +15,7 @@
 #include "net/disk_cache/blockfile/storage_block.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace net {
 class NetLog;

@@ -15,6 +15,7 @@
 #include "base/time/time.h"
 #include "net/nqe/network_quality_estimator_params.h"
 #include "net/nqe/weighted_observation.h"
+#include "starboard/types.h"
 
 namespace net {
 

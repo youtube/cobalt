@@ -10,6 +10,7 @@
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/simple/simple_entry_impl.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

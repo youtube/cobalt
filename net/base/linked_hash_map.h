@@ -15,14 +15,13 @@
 #ifndef NET_BASE_LINKED_HASH_MAP_H_
 #define NET_BASE_LINKED_HASH_MAP_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <unordered_map>
 #include <utility>
 
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace net {
 

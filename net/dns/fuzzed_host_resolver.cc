@@ -4,8 +4,6 @@
 
 #include "net/dns/fuzzed_host_resolver.h"
 
-#include <stdint.h>
-
 #include <limits>
 #include <string>
 
@@ -23,6 +21,7 @@
 #include "net/dns/dns_client.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_hosts.h"
+#include "starboard/types.h"
 
 namespace net {
 

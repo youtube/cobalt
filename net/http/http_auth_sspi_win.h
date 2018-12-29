@@ -20,6 +20,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth.h"
+#include "starboard/types.h"
 
 namespace net {
 

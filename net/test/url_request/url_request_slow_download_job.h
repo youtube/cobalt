@@ -8,15 +8,13 @@
 #ifndef NET_TEST_URL_REQUEST_URL_REQUEST_SLOW_DOWNLOAD_JOB_H_
 #define NET_TEST_URL_REQUEST_URL_REQUEST_SLOW_DOWNLOAD_JOB_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <set>
 #include <string>
 
 #include "base/lazy_instance.h"
 #include "base/memory/weak_ptr.h"
 #include "net/url_request/url_request_job.h"
+#include "starboard/types.h"
 
 namespace net {
 

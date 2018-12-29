@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_HTTP_STREAM_FACTORY_H_
 #define NET_HTTP_HTTP_STREAM_FACTORY_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -35,6 +33,7 @@
 #include "net/spdy/spdy_session_key.h"
 #include "net/ssl/ssl_config.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

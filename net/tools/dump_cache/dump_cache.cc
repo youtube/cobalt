@@ -14,6 +14,7 @@
 #include "base/strings/string_util.h"
 #include "net/disk_cache/blockfile/disk_format.h"
 #include "net/tools/dump_cache/dump_files.h"
+#include "starboard/types.h"
 
 enum Errors {
   GENERIC = -1,
