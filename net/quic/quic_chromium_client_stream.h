@@ -7,8 +7,6 @@
 #ifndef NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_
 #define NET_QUIC_QUIC_CHROMIUM_CLIENT_STREAM_H_
 
-#include <stddef.h>
-
 #include <vector>
 
 #include "base/callback_forward.h"
@@ -25,6 +23,7 @@
 #include "net/third_party/quic/core/http/quic_spdy_stream.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace quic {
 class QuicSpdyClientSessionBase;

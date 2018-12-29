@@ -25,6 +25,7 @@
 #include "net/ssl/ssl_connection_status_flags.h"
 #include "net/ssl/ssl_info.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
@@ -315,7 +316,7 @@ SSLServerContextImpl::SocketImpl::PrivateKeyCompleteCallback(uint8_t* out,
     OpenSSLPutNetError(FROM_HERE, ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED);
     return ssl_private_key_failure;
   }
-  memcpy(out, signature_.data(), signature_.size());
+  SbMemoryCopy(out, signature_.data(), signature_.size());
   *out_len = signature_.size();
   signature_.clear();
   return ssl_private_key_success;

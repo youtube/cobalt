@@ -19,6 +19,7 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/keychain_test_util_mac.h"
 #include "net/test/test_data_directory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 

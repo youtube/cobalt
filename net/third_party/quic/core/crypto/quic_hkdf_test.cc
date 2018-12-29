@@ -8,6 +8,7 @@
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace test {
@@ -77,8 +78,9 @@ TEST_F(QuicHKDFTest, HKDF) {
     QuicHKDF hkdf(key, salt, info, expected.size(), 0, 0);
 
     ASSERT_EQ(expected.size(), hkdf.client_write_key().size());
-    EXPECT_EQ(0, memcmp(expected.data(), hkdf.client_write_key().data(),
-                        expected.size()));
+    EXPECT_EQ(0,
+              SbMemoryCompare(expected.data(), hkdf.client_write_key().data(),
+                              expected.size()));
   }
 }
 

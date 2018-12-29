@@ -11,6 +11,7 @@
 #include "base/values.h"
 #include "crypto/sha2.h"
 #include "net/base/trace_constants.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
 
@@ -45,7 +46,7 @@ base::DictionaryValue* ReadHeader(base::StringPiece* data) {
   if (data->size() < sizeof(header_len))
     return nullptr;
   // Assumes little-endian.
-  memcpy(&header_len, data->data(), sizeof(header_len));
+  SbMemoryCopy(&header_len, data->data(), sizeof(header_len));
   data->remove_prefix(sizeof(header_len));
 
   if (data->size() < header_len)
@@ -80,7 +81,7 @@ bool ReadCRL(base::StringPiece* data,
   if (data->size() < sizeof(num_serials))
     return false;
   // Assumes little endian.
-  memcpy(&num_serials, data->data(), sizeof(num_serials));
+  SbMemoryCopy(&num_serials, data->data(), sizeof(num_serials));
   data->remove_prefix(sizeof(num_serials));
 
   if (num_serials > 32 * 1024 * 1024)  // Sanity check.
@@ -259,7 +260,7 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
 CRLSet::Result CRLSet::CheckSPKI(const base::StringPiece& spki_hash) const {
   for (auto i = blocked_spkis_.begin(); i != blocked_spkis_.end(); ++i) {
     if (spki_hash.size() == i->size() &&
-        memcmp(spki_hash.data(), i->data(), i->size()) == 0) {
+        SbMemoryCompare(spki_hash.data(), i->data(), i->size()) == 0) {
       return REVOKED;
     }
   }

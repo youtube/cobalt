@@ -5,10 +5,8 @@
 #ifndef NET_DER_ENCODE_VALUES_H_
 #define NET_DER_ENCODE_VALUES_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class Time;

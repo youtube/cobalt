@@ -5,8 +5,6 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_DEFLATE_STREAM_H_
 #define NET_WEBSOCKETS_WEBSOCKET_DEFLATE_STREAM_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +16,7 @@
 #include "net/websockets/websocket_frame.h"
 #include "net/websockets/websocket_inflater.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

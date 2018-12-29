@@ -4,7 +4,6 @@
 
 #include "net/websockets/websocket_test_util.h"
 
-#include <stddef.h>
 #include <algorithm>
 #include <utility>
 
@@ -17,6 +16,7 @@
 #include "net/third_party/spdy/core/spdy_protocol.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/websockets/websocket_basic_handshake_stream.h"
+#include "starboard/types.h"
 #include "url/origin.h"
 
 namespace net {

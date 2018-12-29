@@ -5,9 +5,6 @@
 #ifndef NET_QUIC_QUIC_STREAM_FACTORY_H_
 #define NET_QUIC_QUIC_STREAM_FACTORY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <list>
 #include <map>
 #include <set>
@@ -41,6 +38,7 @@
 #include "net/third_party/quic/core/quic_packets.h"
 #include "net/third_party/quic/core/quic_server_id.h"
 #include "net/third_party/quic/platform/api/quic_string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 class Value;

@@ -32,6 +32,7 @@
 #include "net/cert/x509_util_mac.h"
 #include "net/ssl/client_cert_identity_mac.h"
 #include "net/ssl/ssl_platform_key_util.h"
+#include "starboard/types.h"
 
 using base::ScopedCFTypeRef;
 

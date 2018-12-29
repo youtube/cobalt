@@ -5,12 +5,11 @@
 #ifndef NET_CERT_MERKLE_CONSISTENCY_PROOF_H_
 #define NET_CERT_MERKLE_CONSISTENCY_PROOF_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

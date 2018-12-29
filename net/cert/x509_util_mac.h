@@ -16,6 +16,8 @@
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -181,7 +183,7 @@ class CSSMCachedCertificate {
 // Compares two OIDs by value.
 inline bool CSSMOIDEqual(const CSSM_OID* oid1, const CSSM_OID* oid2) {
   return oid1->Length == oid2->Length &&
-         (memcmp(oid1->Data, oid2->Data, oid1->Length) == 0);
+         (SbMemoryCompare(oid1->Data, oid2->Data, oid1->Length) == 0);
 }
 
 #pragma clang diagnostic pop  // "-Wdeprecated-declarations"

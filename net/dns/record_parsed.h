@@ -5,13 +5,12 @@
 #ifndef NET_DNS_RECORD_PARSED_H_
 #define NET_DNS_RECORD_PARSED_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

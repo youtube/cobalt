@@ -5,12 +5,11 @@
 #ifndef NET_SPDY_SPDY_SESSION_TEST_UTIL_H_
 #define NET_SPDY_SPDY_SESSION_TEST_UTIL_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/message_loop/message_loop.h"
 #include "base/pending_task.h"
+#include "starboard/types.h"
 
 namespace net {
 

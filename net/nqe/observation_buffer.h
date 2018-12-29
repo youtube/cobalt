@@ -5,8 +5,6 @@
 #ifndef NET_NQE_OBSERVATION_BUFFER_H_
 #define NET_NQE_OBSERVATION_BUFFER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <set>
@@ -19,6 +17,7 @@
 #include "net/nqe/network_quality_estimator_util.h"
 #include "net/nqe/network_quality_observation.h"
 #include "net/nqe/network_quality_observation_source.h"
+#include "starboard/types.h"
 
 namespace base {
 

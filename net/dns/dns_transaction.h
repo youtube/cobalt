@@ -5,14 +5,13 @@
 #ifndef NET_DNS_DNS_TRANSACTION_H_
 #define NET_DNS_DNS_TRANSACTION_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "net/base/request_priority.h"
 #include "net/dns/record_rdata.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

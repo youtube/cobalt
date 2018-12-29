@@ -12,6 +12,10 @@
 #include <map>
 #include <utility>
 
+#include "starboard/types.h"
+
+#include "starboard/string.h"
+
 #include "base/bind.h"
 #include "base/files/file_descriptor_watcher_posix.h"
 #include "base/files/file_path.h"
@@ -827,7 +831,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
     // fgets() will return NULL on EOF or error.
     while (fgets(line, sizeof(line), input.get())) {
       // fgets() guarantees the line will be properly terminated.
-      size_t length = strlen(line);
+      size_t length = SbStringGetLength(line);
       if (!length)
         continue;
       // This should be true even with CRLF endings.

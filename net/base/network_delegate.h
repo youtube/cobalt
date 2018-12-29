@@ -5,8 +5,6 @@
 #ifndef NET_BASE_NETWORK_DELEGATE_H_
 #define NET_BASE_NETWORK_DELEGATE_H_
 
-#include <stdint.h>
-
 #include <set>
 #include <string>
 
@@ -18,6 +16,7 @@
 #include "net/base/net_export.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
+#include "starboard/types.h"
 
 class GURL;
 

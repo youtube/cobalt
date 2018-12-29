@@ -5,11 +5,10 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_TEST_UTIL_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_TEST_UTIL_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/callback.h"
+#include "starboard/types.h"
 
 namespace base {
 class FilePath;

@@ -30,6 +30,7 @@
 #include "net/http/http_log_util.h"
 #include "net/http/http_util.h"
 #include "net/log/net_log_capture_mode.h"
+#include "starboard/string.h"
 
 using base::StringPiece;
 using base::Time;
@@ -202,7 +203,8 @@ void HttpResponseHeaders::Persist(base::Pickle* pickle,
   // This copies the status line w/ terminator null.
   // Note raw_headers_ has embedded nulls instead of \n,
   // so this just copies the first header line.
-  blob.assign(raw_headers_.c_str(), strlen(raw_headers_.c_str()) + 1);
+  blob.assign(raw_headers_.c_str(),
+              SbStringGetLength(raw_headers_.c_str()) + 1);
 
   for (size_t i = 0; i < parsed_.size(); ++i) {
     DCHECK(!parsed_[i].is_continuation());

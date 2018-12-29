@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_FUZZED_SERVER_SOCKET_H_
 #define NET_SOCKET_FUZZED_SERVER_SOCKET_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -15,6 +13,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/socket/server_socket.h"
+#include "starboard/types.h"
 
 namespace base {
 class FuzzedDataProvider;

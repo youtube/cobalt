@@ -11,6 +11,7 @@
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/platform/api/quic_test.h"
+#include "starboard/types.h"
 
 namespace quic {
 namespace test {

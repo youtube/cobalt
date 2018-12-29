@@ -5,8 +5,6 @@
 #ifndef NET_TOOLS_TRANSPORT_SECURITY_STATE_GENERATOR_PRELOADED_STATE_GENERATOR_H_
 #define NET_TOOLS_TRANSPORT_SECURITY_STATE_GENERATOR_PRELOADED_STATE_GENERATOR_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -14,6 +12,7 @@
 #include "net/tools/transport_security_state_generator/pinset.h"
 #include "net/tools/transport_security_state_generator/pinsets.h"
 #include "net/tools/transport_security_state_generator/transport_security_state_entry.h"
+#include "starboard/types.h"
 
 namespace net {
 

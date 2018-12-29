@@ -16,6 +16,7 @@
 #include "base/values.h"
 #include "net/log/net_log_entry.h"
 #include "net/log/net_log_event_type.h"
+#include "starboard/types.h"
 
 namespace net {
 

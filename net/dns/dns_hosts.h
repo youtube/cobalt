@@ -5,8 +5,6 @@
 #ifndef NET_DNS_DNS_HOSTS_H_
 #define NET_DNS_DNS_HOSTS_H_
 
-#include <stddef.h>
-
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -18,6 +16,7 @@
 #include "net/base/address_family.h"
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

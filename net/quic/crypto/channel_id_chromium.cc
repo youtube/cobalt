@@ -15,6 +15,8 @@
 #include "net/ssl/channel_id_service.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 
 namespace net {
 
@@ -31,12 +33,14 @@ bool ChannelIDKeyChromium::Sign(quic::QuicStringPiece signed_data,
   if (!sig_creator) {
     return false;
   }
-  const size_t len1 = strlen(quic::ChannelIDVerifier::kContextStr) + 1;
-  const size_t len2 = strlen(quic::ChannelIDVerifier::kClientToServerStr) + 1;
+  const size_t len1 =
+      SbStringGetLength(quic::ChannelIDVerifier::kContextStr) + 1;
+  const size_t len2 =
+      SbStringGetLength(quic::ChannelIDVerifier::kClientToServerStr) + 1;
   std::vector<uint8_t> data(len1 + len2 + signed_data.size());
-  memcpy(&data[0], quic::ChannelIDVerifier::kContextStr, len1);
-  memcpy(&data[len1], quic::ChannelIDVerifier::kClientToServerStr, len2);
-  memcpy(&data[len1 + len2], signed_data.data(), signed_data.size());
+  SbMemoryCopy(&data[0], quic::ChannelIDVerifier::kContextStr, len1);
+  SbMemoryCopy(&data[len1], quic::ChannelIDVerifier::kClientToServerStr, len2);
+  SbMemoryCopy(&data[len1 + len2], signed_data.data(), signed_data.size());
   std::vector<uint8_t> der_signature;
   if (!sig_creator->Sign(&data[0], data.size(), &der_signature)) {
     return false;
@@ -45,8 +49,8 @@ bool ChannelIDKeyChromium::Sign(quic::QuicStringPiece signed_data,
   if (!sig_creator->DecodeSignature(der_signature, &raw_signature)) {
     return false;
   }
-  memcpy(base::WriteInto(out_signature, raw_signature.size() + 1),
-         &raw_signature[0], raw_signature.size());
+  SbMemoryCopy(base::WriteInto(out_signature, raw_signature.size() + 1),
+               &raw_signature[0], raw_signature.size());
   return true;
 }
 

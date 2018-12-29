@@ -4,8 +4,6 @@
 
 #include "net/http/http_cache.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -64,6 +62,9 @@
 #include "net/test/test_data_directory.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -2078,8 +2079,8 @@ TEST_F(HttpCacheTest, RangeGET_ParallelValidationCouldConditionalize) {
   mock_transaction.url = kRangeGET_TransactionOK.url;
   mock_transaction.data = kFullRangeData;
   std::string response_headers_str = base::StrCat(
-      {"ETag: StrongOne\n",
-       "Content-Length:", base::IntToString(strlen(kFullRangeData)), "\n"});
+      {"ETag: StrongOne\n", "Content-Length:",
+       base::IntToString(SbStringGetLength(kFullRangeData)), "\n"});
   mock_transaction.response_headers = response_headers_str.c_str();
 
   ScopedMockTransaction transaction(mock_transaction);
@@ -9200,7 +9201,7 @@ TEST_F(HttpCacheTest, WriteMetadata_OK) {
   // Write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  memset(buf->data(), 0, buf->size());
+  SbMemorySet(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   cache.http_cache()->WriteMetadata(GURL(kSimpleGET_Transaction.url),
                                     DEFAULT_PRIORITY, response.response_time,
@@ -9236,7 +9237,7 @@ TEST_F(HttpCacheTest, WriteMetadata_Fail) {
   // Attempt to write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  memset(buf->data(), 0, buf->size());
+  SbMemorySet(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   base::Time expected_time = response.response_time -
                              base::TimeDelta::FromMilliseconds(20);
@@ -9276,7 +9277,7 @@ TEST_F(HttpCacheTest, WriteMetadata_IgnoreVary) {
   // Attempt to write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  memset(buf->data(), 0, buf->size());
+  SbMemorySet(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   cache.http_cache()->WriteMetadata(GURL(transaction.url), DEFAULT_PRIORITY,
                                     response.response_time, buf.get(),
@@ -9401,7 +9402,7 @@ TEST_F(HttpCacheTest, ReadMetadata) {
   // Write meta data to the same entry.
   scoped_refptr<IOBufferWithSize> buf =
       base::MakeRefCounted<IOBufferWithSize>(50);
-  memset(buf->data(), 0, buf->size());
+  SbMemorySet(buf->data(), 0, buf->size());
   base::strlcpy(buf->data(), "Hi there", buf->size());
   cache.http_cache()->WriteMetadata(GURL(kTypicalGET_Transaction.url),
                                     DEFAULT_PRIORITY, response.response_time,

@@ -4,8 +4,6 @@
 
 #include "net/url_request/url_request_http_job.h"
 
-#include <stdint.h>
-
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -51,6 +49,7 @@
 #if defined(OS_ANDROID)
 #include "base/android/jni_android.h"
 #include "jni/AndroidNetworkLibraryTestUtil_jni.h"
+#include "starboard/types.h"
 #endif
 
 using net::test::IsError;

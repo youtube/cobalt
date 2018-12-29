@@ -5,8 +5,6 @@
 #ifndef NET_DNS_FUZZED_HOST_RESOLVER_H_
 #define NET_DNS_FUZZED_HOST_RESOLVER_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
@@ -15,6 +13,7 @@
 #include "net/dns/host_resolver.h"
 #include "net/dns/host_resolver_impl.h"
 #include "net/socket/fuzzed_socket_factory.h"
+#include "starboard/types.h"
 
 namespace base {
 class FuzzedDataProvider;

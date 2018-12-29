@@ -5,9 +5,6 @@
 #ifndef NET_DNS_DNS_RESPONSE_H_
 #define NET_DNS_DNS_RESPONSE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/macros.h"
@@ -16,6 +13,7 @@
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class BigEndianWriter;

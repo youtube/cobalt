@@ -10,6 +10,7 @@
 #include "third_party/zlib/zlib.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -124,7 +125,8 @@ GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
           break;
         }
         // See if we can find the end of the \0-terminated FNAME field.
-        pos = reinterpret_cast<const uint8_t*>(memchr(pos, '\0', (end - pos)));
+        pos = reinterpret_cast<const uint8_t*>(
+            SbMemoryFindByte(pos, '\0', (end - pos)));
         if ( pos != NULL ) {
           pos++;  // advance past the '\0'
           flags_ &= ~FLAG_FNAME;   // we're done with the FNAME stuff
@@ -140,7 +142,8 @@ GZipHeader::Status GZipHeader::ReadMore(const char* inbuf, int inbuf_len,
           break;
         }
         // See if we can find the end of the \0-terminated FCOMMENT field.
-        pos = reinterpret_cast<const uint8_t*>(memchr(pos, '\0', (end - pos)));
+        pos = reinterpret_cast<const uint8_t*>(
+            SbMemoryFindByte(pos, '\0', (end - pos)));
         if ( pos != NULL ) {
           pos++;  // advance past the '\0'
           flags_ &= ~FLAG_FCOMMENT;   // we're done with the FCOMMENT stuff

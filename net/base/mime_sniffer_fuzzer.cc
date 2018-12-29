@@ -4,13 +4,11 @@
 
 #include "net/base/mime_sniffer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace {

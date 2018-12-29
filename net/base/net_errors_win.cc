@@ -7,6 +7,7 @@
 #include <winsock2.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace net {
 

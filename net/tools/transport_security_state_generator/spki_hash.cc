@@ -9,6 +9,7 @@
 #include "base/base64.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 
 namespace net {
@@ -37,7 +38,7 @@ bool SPKIHash::FromString(base::StringPiece hash_string) {
     return false;
   }
 
-  memcpy(data_, decoded.data(), decoded.size());
+  SbMemoryCopy(data_, decoded.data(), decoded.size());
   return true;
 }
 

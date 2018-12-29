@@ -17,6 +17,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_multi_round_parse.h"
+#include "starboard/memory.h"
 
 // These are defined for the GSSAPI library:
 // Paraphrasing the comments from gssapi.h:
@@ -217,9 +218,8 @@ std::string AppendIfPredefinedValue(gss_OID oid,
   std::string output;
   if (oid->length != predefined_oid->length)
     return output;
-  if (0 != memcmp(oid->elements,
-                  predefined_oid->elements,
-                  predefined_oid->length))
+  if (0 != SbMemoryCompare(oid->elements, predefined_oid->elements,
+                           predefined_oid->length))
     return output;
 
   output += " (";

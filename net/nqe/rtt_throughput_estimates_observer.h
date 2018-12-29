@@ -5,12 +5,11 @@
 #ifndef NET_NQE_RTT_THROUGHPUT_ESTIMATES_OBSERVER_H_
 #define NET_NQE_RTT_THROUGHPUT_ESTIMATES_OBSERVER_H_
 
-#include <stdint.h>
-
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,7 +5,6 @@
 #include "net/websockets/websocket_channel.h"
 
 #include <limits.h>  // for INT_MAX
-#include <stddef.h>
 
 #include <algorithm>
 #include <utility>
@@ -36,6 +35,7 @@
 #include "net/websockets/websocket_handshake_response_info.h"
 #include "net/websockets/websocket_handshake_stream_create_helper.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 #include "url/origin.h"
 
 namespace net {

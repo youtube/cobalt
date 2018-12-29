@@ -9,6 +9,7 @@
 
 #include "net/base/net_export.h"
 #include "net/cert/cert_verify_proc.h"
+#include "starboard/types.h"
 
 namespace net {
 

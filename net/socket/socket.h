@@ -5,12 +5,11 @@
 #ifndef NET_SOCKET_SOCKET_H_
 #define NET_SOCKET_SOCKET_H_
 
-#include <stdint.h>
-
 #include "base/feature_list.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

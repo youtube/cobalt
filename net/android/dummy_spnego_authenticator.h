@@ -6,13 +6,13 @@
 #define NET_ANDROID_DUMMY_SPNEGO_AUTHENTICATOR_H_
 
 #include <jni.h>
-#include <stdint.h>
 
 #include <cstdint>
 #include <list>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
+#include "starboard/types.h"
 
 // Provides an interface for controlling the DummySpnegoAuthenticator service.
 // This includes a basic stub of the Mock GSSAPI library, so that OS independent

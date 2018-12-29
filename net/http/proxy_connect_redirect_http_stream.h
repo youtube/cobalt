@@ -5,14 +5,13 @@
 #ifndef NET_HTTP_PROXY_CONNECT_REDIRECT_HTTP_STREAM_H_
 #define NET_HTTP_PROXY_CONNECT_REDIRECT_HTTP_STREAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/compiler_specific.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/load_timing_info.h"
 #include "net/http/http_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

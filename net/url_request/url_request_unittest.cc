@@ -15,8 +15,6 @@
 #include <wrl/client.h>
 #endif
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 #include <memory>
@@ -176,6 +174,9 @@ namespace {
 
 namespace test_default {
 #include "net/http/transport_security_state_static_unittest_default.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 }
 
 const base::string16 kChrome(ASCIIToUTF16("chrome"));
@@ -364,15 +365,16 @@ class PriorityMonitoringURLRequestJob : public URLRequestTestJob {
 
 // Do a case-insensitive search through |haystack| for |needle|.
 bool ContainsString(const std::string& haystack, const char* needle) {
-  std::string::const_iterator it = std::search(
-      haystack.begin(), haystack.end(), needle, needle + strlen(needle),
-      base::CaseInsensitiveCompareASCII<char>());
+  std::string::const_iterator it =
+      std::search(haystack.begin(), haystack.end(), needle,
+                  needle + SbStringGetLength(needle),
+                  base::CaseInsensitiveCompareASCII<char>());
   return it != haystack.end();
 }
 
 std::unique_ptr<UploadDataStream> CreateSimpleUploadData(const char* data) {
   std::unique_ptr<UploadElementReader> reader(
-      new UploadBytesElementReader(data, strlen(data)));
+      new UploadBytesElementReader(data, SbStringGetLength(data)));
   return ElementsUploadDataStream::CreateWithReader(std::move(reader), 0);
 }
 
@@ -1363,7 +1365,8 @@ TEST_F(URLRequestTest, FileDirOutputSanity) {
   EXPECT_TRUE(base::GetFileInfo(sentinel_path, &info));
   EXPECT_GT(info.size, 0);
   std::string sentinel_output = GetDirectoryListingEntry(
-      base::string16(sentinel_name, sentinel_name + strlen(sentinel_name)),
+      base::string16(sentinel_name,
+                     sentinel_name + SbStringGetLength(sentinel_name)),
       std::string(sentinel_name), false /* is_dir */, info.size,
 
       info.last_modified);
@@ -4070,7 +4073,7 @@ class URLRequestTestHTTP : public URLRequestTest {
     char* ptr = uploadBytes;
     char marker = 'a';
     for (int idx = 0; idx < kMsgSize/10; idx++) {
-      memcpy(ptr, "----------", 10);
+      SbMemoryCopy(ptr, "----------", 10);
       ptr += 10;
       if (idx % 100 == 0) {
         ptr--;
@@ -10081,7 +10084,8 @@ TEST_F(HTTPSRequestTest, HSTSCrossOriginAddHeaders) {
                                         test_server.host_port_pair().port()));
   url::Replacements<char> replacements;
   const char kNewScheme[] = "https";
-  replacements.SetScheme(kNewScheme, url::Component(0, strlen(kNewScheme)));
+  replacements.SetScheme(kNewScheme,
+                         url::Component(0, SbStringGetLength(kNewScheme)));
   GURL hsts_https_url = hsts_http_url.ReplaceComponents(replacements);
 
   TestDelegate d;

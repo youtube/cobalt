@@ -18,6 +18,7 @@
 #include "net/third_party/quic/test_tools/quic_client_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/tools/epoll_server/epoll_server.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace quic {

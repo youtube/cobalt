@@ -18,6 +18,7 @@
 #include "base/task_runner_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "starboard/types.h"
 
 namespace net {
 

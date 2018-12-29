@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -22,6 +19,7 @@
 #include "net/websockets/websocket_extension.h"
 #include "net/websockets/websocket_frame.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -13,6 +13,7 @@
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_util.h"
 #include "net/cert/x509_util_nss.h"
+#include "starboard/types.h"
 
 // TODO(mattm): structure so that supporting ChromeOS multi-profile stuff is
 // doable (Have a TrustStoreChromeOS which uses net::NSSProfileFilterChromeOS,

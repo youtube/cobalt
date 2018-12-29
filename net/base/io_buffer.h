@@ -5,8 +5,6 @@
 #ifndef NET_BASE_IO_BUFFER_H_
 #define NET_BASE_IO_BUFFER_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 
@@ -14,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/pickle.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

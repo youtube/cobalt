@@ -5,8 +5,6 @@
 #ifndef NET_TEST_EMBEDDED_TEST_SERVER_HTTP_REQUEST_H_
 #define NET_TEST_EMBEDDED_TEST_SERVER_HTTP_REQUEST_H_
 
-#include <stddef.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -14,6 +12,7 @@
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

@@ -23,6 +23,7 @@
 #include <CoreFoundation/CFArray.h>
 #include <Security/SecTrust.h>
 #include "base/mac/scoped_cftyperef.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

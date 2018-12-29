@@ -5,12 +5,11 @@
 #ifndef NET_CERT_INTERNAL_SIMPLE_PATH_BUILDER_DELEGATE_H_
 #define NET_CERT_INTERNAL_SIMPLE_PATH_BUILDER_DELEGATE_H_
 
-#include <stddef.h>
-
 #include "base/compiler_specific.h"
 #include "net/base/net_export.h"
 #include "net/cert/internal/path_builder.h"
 #include "net/cert/internal/signature_algorithm.h"
+#include "starboard/types.h"
 
 namespace net {
 

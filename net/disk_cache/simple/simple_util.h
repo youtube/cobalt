@@ -5,13 +5,12 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_UTIL_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_UTIL_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/simple/simple_file_tracker.h"
+#include "starboard/types.h"
 
 namespace base {
 class FilePath;

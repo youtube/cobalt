@@ -43,6 +43,9 @@
 #include "net/third_party/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quic/test_tools/simple_session_notifier.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gmock_mutant.h"
 
 using testing::_;
@@ -115,9 +118,9 @@ class TaggingEncrypter : public QuicEncrypter {
       return false;
     }
     // Memmove is safe for inplace encryption.
-    memmove(output, plaintext.data(), plaintext.size());
+    SbMemoryMove(output, plaintext.data(), plaintext.size());
     output += plaintext.size();
-    memset(output, tag_, kTagSize);
+    SbMemorySet(output, tag_, kTagSize);
     *output_length = len;
     return true;
   }
@@ -182,7 +185,7 @@ class TaggingDecrypter : public QuicDecrypter {
       return false;
     }
     *output_length = ciphertext.size() - kTagSize;
-    memcpy(output, ciphertext.data(), *output_length);
+    SbMemoryCopy(output, ciphertext.data(), *output_length);
     return true;
   }
 
@@ -315,8 +318,9 @@ class TestPacketWriter : public QuicPacketWriter {
 
     if (packet.length() >= sizeof(final_bytes_of_last_packet_)) {
       final_bytes_of_previous_packet_ = final_bytes_of_last_packet_;
-      memcpy(&final_bytes_of_last_packet_, packet.data() + packet.length() - 4,
-             sizeof(final_bytes_of_last_packet_));
+      SbMemoryCopy(&final_bytes_of_last_packet_,
+                   packet.data() + packet.length() - 4,
+                   sizeof(final_bytes_of_last_packet_));
     }
 
     if (use_tagging_decrypter_) {
@@ -2646,7 +2650,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(8);
   size_t len = 10000;
   std::unique_ptr<char[]> data_array(new char[len]);
-  memset(data_array.get(), '?', len);
+  SbMemorySet(data_array.get(), '?', len);
   struct iovec iov;
   iov.iov_base = data_array.get();
   iov.iov_len = len;
@@ -6433,7 +6437,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   for (int i = 0; i < 2; ++i) {
@@ -6512,7 +6516,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPathDegradingAlarm) {
   EXPECT_FALSE(connection_.GetRetransmittableOnWireAlarm()->IsSet());
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   // Send a packet.
@@ -6567,7 +6571,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   // Send the first packet. Now there's a retransmittable packet on the wire, so
@@ -6632,7 +6636,7 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   // Send the first packet. Now there's a retransmittable packet on the wire, so
@@ -7020,7 +7024,7 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
   EXPECT_CALL(visitor_, HasOpenDynamicStreams()).WillRepeatedly(Return(true));
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   // Advance 5ms, send a retransmittable packet to the peer.
@@ -7091,7 +7095,7 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
   EXPECT_CALL(visitor_, HasOpenDynamicStreams()).WillRepeatedly(Return(true));
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   // Advance 5ms, send a retransmittable packet to the peer.
@@ -7150,7 +7154,7 @@ TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {
   EXPECT_TRUE(connection_.connected());
 
   const char data[] = "data";
-  size_t data_size = strlen(data);
+  size_t data_size = SbStringGetLength(data);
   QuicStreamOffset offset = 0;
 
   // Send two packets.

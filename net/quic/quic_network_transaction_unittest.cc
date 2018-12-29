@@ -78,6 +78,7 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job_factory_impl.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -7285,17 +7286,18 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectHttpsServer) {
       ConstructServerDataPacket(2, GetNthClientInitiatedStreamId(0), false,
                                 false, 0, quic::QuicStringPiece(get_response)));
 
-  mock_quic_data.AddRead(SYNCHRONOUS, ConstructServerDataPacket(
-                                          3, GetNthClientInitiatedStreamId(0),
-                                          false, false, strlen(get_response),
-                                          quic::QuicStringPiece("0123456789")));
+  mock_quic_data.AddRead(
+      SYNCHRONOUS,
+      ConstructServerDataPacket(3, GetNthClientInitiatedStreamId(0), false,
+                                false, SbStringGetLength(get_response),
+                                quic::QuicStringPiece("0123456789")));
   mock_quic_data.AddWrite(SYNCHRONOUS, ConstructClientAckPacket(4, 3, 2, 1));
   mock_quic_data.AddRead(SYNCHRONOUS, ERR_IO_PENDING);  // No more data to read
 
   mock_quic_data.AddWrite(
       SYNCHRONOUS, ConstructClientRstPacket(5, GetNthClientInitiatedStreamId(0),
                                             quic::QUIC_STREAM_CANCELLED,
-                                            strlen(get_request)));
+                                            SbStringGetLength(get_request)));
 
   mock_quic_data.AddSocketDataToFactory(&socket_factory_);
 
@@ -7436,7 +7438,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
       ConstructClientAckAndDataPacket(
           3, false, GetNthClientInitiatedStreamId(0), 1, 1, 1, false,
           client_data_offset, quic::QuicStringPiece(get_request_1)));
-  client_data_offset += strlen(get_request_1);
+  client_data_offset += SbStringGetLength(get_request_1);
 
   const char get_response_1[] =
       "HTTP/1.1 200 OK\r\n"
@@ -7445,7 +7447,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
       ASYNC, ConstructServerDataPacket(2, GetNthClientInitiatedStreamId(0),
                                        false, false, server_data_offset,
                                        quic::QuicStringPiece(get_response_1)));
-  server_data_offset += strlen(get_response_1);
+  server_data_offset += SbStringGetLength(get_response_1);
 
   mock_quic_data.AddRead(SYNCHRONOUS, ConstructServerDataPacket(
                                           3, GetNthClientInitiatedStreamId(0),
@@ -7464,7 +7466,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
       ConstructClientDataPacket(5, GetNthClientInitiatedStreamId(0), false,
                                 false, client_data_offset,
                                 quic::QuicStringPiece(get_request_2)));
-  client_data_offset += strlen(get_request_2);
+  client_data_offset += SbStringGetLength(get_request_2);
 
   const char get_response_2[] =
       "HTTP/1.1 200 OK\r\n"
@@ -7473,7 +7475,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseTransportSocket) {
       ASYNC, ConstructServerDataPacket(4, GetNthClientInitiatedStreamId(0),
                                        false, false, server_data_offset,
                                        quic::QuicStringPiece(get_response_2)));
-  server_data_offset += strlen(get_response_2);
+  server_data_offset += SbStringGetLength(get_response_2);
 
   mock_quic_data.AddRead(
       SYNCHRONOUS, ConstructServerDataPacket(
@@ -7571,10 +7573,11 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
       ASYNC,
       ConstructServerDataPacket(2, GetNthClientInitiatedStreamId(0), false,
                                 false, 0, quic::QuicStringPiece(get_response)));
-  mock_quic_data.AddRead(SYNCHRONOUS, ConstructServerDataPacket(
-                                          3, GetNthClientInitiatedStreamId(0),
-                                          false, false, strlen(get_response),
-                                          quic::QuicStringPiece("0123456789")));
+  mock_quic_data.AddRead(
+      SYNCHRONOUS,
+      ConstructServerDataPacket(3, GetNthClientInitiatedStreamId(0), false,
+                                false, SbStringGetLength(get_response),
+                                quic::QuicStringPiece("0123456789")));
   mock_quic_data.AddWrite(SYNCHRONOUS, ConstructClientAckPacket(4, 3, 2, 1));
 
   // CONNECT request and response for second request
@@ -7620,7 +7623,7 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectReuseQuicSession) {
   mock_quic_data.AddWrite(
       SYNCHRONOUS, ConstructClientRstPacket(8, GetNthClientInitiatedStreamId(0),
                                             quic::QUIC_STREAM_CANCELLED,
-                                            strlen(get_request)));
+                                            SbStringGetLength(get_request)));
   mock_quic_data.AddWrite(
       SYNCHRONOUS,
       ConstructClientRstPacket(9, GetNthClientInitiatedStreamId(1),
@@ -7806,17 +7809,18 @@ TEST_P(QuicNetworkTransactionTest, QuicProxyConnectBadCertificate) {
       ConstructServerDataPacket(3, GetNthClientInitiatedStreamId(1), false,
                                 false, 0, quic::QuicStringPiece(get_response)));
 
-  mock_quic_data.AddRead(SYNCHRONOUS, ConstructServerDataPacket(
-                                          4, GetNthClientInitiatedStreamId(1),
-                                          false, false, strlen(get_response),
-                                          quic::QuicStringPiece("0123456789")));
+  mock_quic_data.AddRead(
+      SYNCHRONOUS,
+      ConstructServerDataPacket(4, GetNthClientInitiatedStreamId(1), false,
+                                false, SbStringGetLength(get_response),
+                                quic::QuicStringPiece("0123456789")));
   mock_quic_data.AddWrite(SYNCHRONOUS, ConstructClientAckPacket(6, 4, 3, 1));
   mock_quic_data.AddRead(SYNCHRONOUS, ERR_IO_PENDING);  // No more data to read
 
   mock_quic_data.AddWrite(
       SYNCHRONOUS, ConstructClientRstPacket(7, GetNthClientInitiatedStreamId(1),
                                             quic::QUIC_STREAM_CANCELLED,
-                                            strlen(get_request)));
+                                            SbStringGetLength(get_request)));
 
   mock_quic_data.AddSocketDataToFactory(&socket_factory_);
 

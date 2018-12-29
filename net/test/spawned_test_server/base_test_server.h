@@ -5,8 +5,6 @@
 #ifndef NET_TEST_SPAWNED_TEST_SERVER_BASE_TEST_SERVER_H_
 #define NET_TEST_SPAWNED_TEST_SERVER_BASE_TEST_SERVER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -18,6 +16,7 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/host_port_pair.h"
 #include "net/ssl/ssl_client_cert_type.h"
+#include "starboard/types.h"
 
 class GURL;
 

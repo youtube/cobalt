@@ -17,6 +17,7 @@
 #include "net/log/net_log_event_type.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -291,8 +292,8 @@ int SOCKS5ClientSocket::DoGreetWrite() {
   next_state_ = STATE_GREET_WRITE_COMPLETE;
   size_t handshake_buf_len = buffer_.size() - bytes_sent_;
   handshake_buf_ = base::MakeRefCounted<IOBuffer>(handshake_buf_len);
-  memcpy(handshake_buf_->data(), &buffer_.data()[bytes_sent_],
-         handshake_buf_len);
+  SbMemoryCopy(handshake_buf_->data(), &buffer_.data()[bytes_sent_],
+               handshake_buf_len);
   return transport_->socket()->Write(handshake_buf_.get(), handshake_buf_len,
                                      io_callback_, traffic_annotation_);
 }
@@ -390,8 +391,8 @@ int SOCKS5ClientSocket::DoHandshakeWrite() {
   int handshake_buf_len = buffer_.size() - bytes_sent_;
   DCHECK_LT(0, handshake_buf_len);
   handshake_buf_ = base::MakeRefCounted<IOBuffer>(handshake_buf_len);
-  memcpy(handshake_buf_->data(), &buffer_[bytes_sent_],
-         handshake_buf_len);
+  SbMemoryCopy(handshake_buf_->data(), &buffer_[bytes_sent_],
+               handshake_buf_len);
   return transport_->socket()->Write(handshake_buf_.get(), handshake_buf_len,
                                      io_callback_, traffic_annotation_);
 }

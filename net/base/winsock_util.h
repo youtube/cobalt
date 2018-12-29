@@ -5,8 +5,9 @@
 #ifndef NET_BASE_WINSOCK_UTIL_H_
 #define NET_BASE_WINSOCK_UTIL_H_
 
-#include <stddef.h>
 #include <winsock2.h>
+
+#include "starboard/types.h"
 
 namespace net {
 

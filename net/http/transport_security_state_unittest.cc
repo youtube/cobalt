@@ -57,6 +57,7 @@ namespace test2 {
 }
 namespace test3 {
 #include "net/http/transport_security_state_static_unittest3.h"
+#include "starboard/memory.h"
 }
 
 const char kHost[] = "example.test";
@@ -334,14 +335,14 @@ class TransportSecurityStateTest : public testing::Test {
   static HashValueVector GetSampleSPKIHashes() {
     HashValueVector spki_hashes;
     HashValue hash(HASH_VALUE_SHA256);
-    memset(hash.data(), 0, hash.size());
+    SbMemorySet(hash.data(), 0, hash.size());
     spki_hashes.push_back(hash);
     return spki_hashes;
   }
 
   static HashValue GetSampleSPKIHash(uint8_t value) {
     HashValue hash(HASH_VALUE_SHA256);
-    memset(hash.data(), value, hash.size());
+    SbMemorySet(hash.data(), value, hash.size());
     return hash;
   }
 
@@ -683,11 +684,11 @@ TEST_F(TransportSecurityStateTest, NewPinsOverride) {
   const base::Time current_time(base::Time::Now());
   const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
   HashValue hash1(HASH_VALUE_SHA256);
-  memset(hash1.data(), 0x01, hash1.size());
+  SbMemorySet(hash1.data(), 0x01, hash1.size());
   HashValue hash2(HASH_VALUE_SHA256);
-  memset(hash2.data(), 0x02, hash1.size());
+  SbMemorySet(hash2.data(), 0x02, hash1.size());
   HashValue hash3(HASH_VALUE_SHA256);
-  memset(hash3.data(), 0x03, hash1.size());
+  SbMemorySet(hash3.data(), 0x03, hash1.size());
 
   state.AddHPKP("example.com", expiry, true, HashValueVector(1, hash1),
                 report_uri);

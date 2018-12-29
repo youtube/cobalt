@@ -19,6 +19,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest-spi.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -125,7 +126,7 @@ class ReentrantHelper {
     } else {
       scoped_refptr<IOBuffer> write_buf =
           base::MakeRefCounted<IOBuffer>(second_len_);
-      memcpy(write_buf->data(), second_write_data_, second_len_);
+      SbMemoryCopy(write_buf->data(), second_write_data_, second_len_);
       ASSERT_EQ(second_rv_, socket_->Write(write_buf.get(), second_len_,
                                            std::move(second_callback_),
                                            TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -341,7 +342,7 @@ void SequencedSocketDataTest::AssertWriteReturns(const char* data,
                                                  int len,
                                                  int rv) {
   scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(len);
-  memcpy(buf->data(), data, len);
+  SbMemoryCopy(buf->data(), data, len);
 
   if (rv == ERR_IO_PENDING) {
     ASSERT_EQ(rv, sock_->Write(buf.get(), len, write_callback_.callback(),
@@ -390,7 +391,7 @@ void SequencedSocketDataTest::ReentrantAsyncWriteCallback(
     int rv) {
   EXPECT_EQ(expected_rv, rv);
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(len);
-  memcpy(write_buf->data(), data, len);
+  SbMemoryCopy(write_buf->data(), data, len);
   EXPECT_THAT(sock_->Write(write_buf.get(), len, std::move(callback),
                            TRAFFIC_ANNOTATION_FOR_TESTS),
               IsError(ERR_IO_PENDING));
@@ -803,7 +804,7 @@ TEST_F(SequencedSocketDataTest, SyncWriteFromCompletionCallback) {
   Initialize(base::span<MockRead>(), writes);
 
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(kLen1);
-  memcpy(write_buf->data(), kMsg1, kLen1);
+  SbMemoryCopy(write_buf->data(), kMsg1, kLen1);
   ASSERT_EQ(ERR_IO_PENDING,
             sock_->Write(
                 write_buf.get(), kLen1,
@@ -822,7 +823,7 @@ TEST_F(SequencedSocketDataTest, AsyncWriteFromCompletionCallback) {
   Initialize(base::span<MockRead>(), writes);
 
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(kLen1);
-  memcpy(write_buf->data(), kMsg1, kLen1);
+  SbMemoryCopy(write_buf->data(), kMsg1, kLen1);
   ASSERT_EQ(
       ERR_IO_PENDING,
       sock_->Write(write_buf.get(), kLen1,
@@ -859,7 +860,7 @@ TEST_F(SequencedSocketDataTest, ManyReentrantWrites) {
   helper.SetInvokeWrite(kMsg2, kLen2, ERR_IO_PENDING, helper2.callback());
 
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(kLen1);
-  memcpy(write_buf->data(), kMsg1, kLen1);
+  SbMemoryCopy(write_buf->data(), kMsg1, kLen1);
   sock_->Write(write_buf.get(), kLen1, helper.callback(),
                TRAFFIC_ANNOTATION_FOR_TESTS);
 
@@ -1000,7 +1001,7 @@ TEST_F(SequencedSocketDataTest, AsyncReadFromWriteCompletionCallback) {
   Initialize(reads, writes);
 
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(kLen1);
-  memcpy(write_buf->data(), kMsg1, kLen1);
+  SbMemoryCopy(write_buf->data(), kMsg1, kLen1);
   ASSERT_EQ(ERR_IO_PENDING,
             sock_->Write(
                 write_buf.get(), kLen1,
@@ -1065,7 +1066,7 @@ TEST_F(SequencedSocketDataTest, MixedReentrantOperations) {
                        helper2.callback());
 
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(kLen1);
-  memcpy(write_buf->data(), kMsg1, kLen1);
+  SbMemoryCopy(write_buf->data(), kMsg1, kLen1);
   sock_->Write(write_buf.get(), kLen1, helper.callback(),
                TRAFFIC_ANNOTATION_FOR_TESTS);
 
@@ -1099,7 +1100,7 @@ TEST_F(SequencedSocketDataTest, MixedReentrantOperationsThenSynchronousRead) {
                        helper2.callback());
 
   scoped_refptr<IOBuffer> write_buf = base::MakeRefCounted<IOBuffer>(kLen1);
-  memcpy(write_buf->data(), kMsg1, kLen1);
+  SbMemoryCopy(write_buf->data(), kMsg1, kLen1);
   ASSERT_EQ(ERR_IO_PENDING,
             sock_->Write(write_buf.get(), kLen1, helper.callback(),
                          TRAFFIC_ANNOTATION_FOR_TESTS));

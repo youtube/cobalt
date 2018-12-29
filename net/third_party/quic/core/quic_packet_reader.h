@@ -18,6 +18,7 @@
 #include "net/third_party/quic/platform/api/quic_clock.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/platform/impl/quic_socket_utils.h"
+#include "starboard/types.h"
 
 #define MMSG_MORE 0
 

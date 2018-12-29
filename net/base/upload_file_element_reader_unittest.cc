@@ -4,8 +4,6 @@
 
 #include "net/base/upload_file_element_reader.h"
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/files/file_util.h"
@@ -23,6 +21,7 @@
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
+#include "starboard/types.h"
 #endif
 
 using net::test::IsError;

@@ -30,6 +30,8 @@
 #include "net/disk_cache/blockfile/storage_block-inl.h"
 #include "net/disk_cache/blockfile/storage_block.h"
 #include "net/url_request/view_cache_helper.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace {
 
@@ -253,7 +255,7 @@ bool CacheDumper::LoadEntry(disk_cache::CacheAddr addr,
   if (!entry_block.Load())
     return false;
 
-  memcpy(entry, entry_block.Data(), sizeof(*entry));
+  SbMemoryCopy(entry, entry_block.Data(), sizeof(*entry));
   if (!entry_block.VerifyHash())
     printf("Self hash failed at 0x%x\n", addr);
 
@@ -285,7 +287,7 @@ bool CacheDumper::LoadRankings(disk_cache::CacheAddr addr,
   if (!rank_block.VerifyHash())
     printf("Self hash failed at 0x%x\n", addr);
 
-  memcpy(rankings, rank_block.Data(), sizeof(*rankings));
+  SbMemoryCopy(rankings, rank_block.Data(), sizeof(*rankings));
   return true;
 }
 

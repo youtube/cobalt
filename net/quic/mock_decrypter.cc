@@ -6,6 +6,7 @@
 
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
+#include "starboard/memory.h"
 
 using quic::DiversificationNonce;
 using quic::Perspective;
@@ -50,7 +51,7 @@ bool MockDecrypter::DecryptPacket(QuicTransportVersion version,
     return false;
   }
 
-  memcpy(output, ciphertext.data(), ciphertext.length());
+  SbMemoryCopy(output, ciphertext.data(), ciphertext.length());
   *output_length = ciphertext.length();
   return true;
 }

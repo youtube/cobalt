@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_TEST_URL_FETCHER_FACTORY_H_
 #define NET_URL_REQUEST_TEST_URL_FETCHER_FACTORY_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -26,6 +24,7 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_fetcher_factory.h"
 #include "net/url_request/url_request_status.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

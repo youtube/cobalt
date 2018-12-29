@@ -5,9 +5,6 @@
 #ifndef NET_HTTP_HTTP_UTIL_H_
 #define NET_HTTP_HTTP_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <set>
 #include <string>
 #include <vector>
@@ -20,6 +17,7 @@
 #include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_version.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 // This is a macro to support extending this string literal at compile time.

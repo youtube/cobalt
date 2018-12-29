@@ -5,9 +5,6 @@
 #ifndef NET_SERVER_HTTP_SERVER_H_
 #define NET_SERVER_HTTP_SERVER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -16,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -7,10 +7,9 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_FILE_LOCK_H_
 #define NET_DISK_CACHE_BLOCKFILE_FILE_LOCK_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/disk_format_base.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

@@ -10,8 +10,6 @@
 #ifndef NET_COOKIES_COOKIE_MONSTER_STORE_TEST_H_
 #define NET_COOKIES_COOKIE_MONSTER_STORE_TEST_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -22,6 +20,7 @@
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 class GURL;
 

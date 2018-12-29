@@ -5,8 +5,6 @@
 #ifndef NET_SSL_SSL_INFO_H_
 #define NET_SSL_SSL_INFO_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -19,6 +17,7 @@
 #include "net/cert/signed_certificate_timestamp_and_status.h"
 #include "net/cert/x509_cert_types.h"
 #include "net/ssl/ssl_config.h"
+#include "starboard/types.h"
 
 namespace net {
 

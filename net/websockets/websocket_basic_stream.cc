@@ -4,8 +4,6 @@
 
 #include "net/websockets/websocket_basic_stream.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -20,6 +18,8 @@
 #include "net/websockets/websocket_basic_stream_adapters.h"
 #include "net/websockets/websocket_errors.h"
 #include "net/websockets/websocket_frame.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -381,9 +381,8 @@ int WebSocketBasicStream::ConvertChunkToFrame(
       DCHECK_EQ(body_size,
                 static_cast<int>(current_frame_header_->payload_length));
       auto body = base::MakeRefCounted<IOBufferWithSize>(body_size);
-      memcpy(body->data(),
-             incomplete_control_frame_body_->StartOfBuffer(),
-             body_size);
+      SbMemoryCopy(body->data(),
+                   incomplete_control_frame_body_->StartOfBuffer(), body_size);
       incomplete_control_frame_body_ = NULL;  // Frame now complete.
       DCHECK(is_final_chunk);
       *frame = CreateFrame(is_final_chunk, body);
@@ -451,9 +450,8 @@ void WebSocketBasicStream::AddToIncompleteControlFrameBody(
   CHECK_GE(incomplete_control_frame_body_->capacity(), new_offset)
       << "Control frame body larger than frame header indicates; frame parser "
          "bug?";
-  memcpy(incomplete_control_frame_body_->data(),
-         data_buffer->data(),
-         data_buffer->size());
+  SbMemoryCopy(incomplete_control_frame_body_->data(), data_buffer->data(),
+               data_buffer->size());
   incomplete_control_frame_body_->set_offset(new_offset);
 }
 

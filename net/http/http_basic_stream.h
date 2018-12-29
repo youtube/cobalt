@@ -9,8 +9,6 @@
 #ifndef NET_HTTP_HTTP_BASIC_STREAM_H_
 #define NET_HTTP_HTTP_BASIC_STREAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -19,6 +17,7 @@
 #include "net/base/net_export.h"
 #include "net/http/http_basic_state.h"
 #include "net/http/http_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,9 +5,8 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_ENTRY_FORMAT_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_ENTRY_FORMAT_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

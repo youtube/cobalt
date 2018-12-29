@@ -10,6 +10,7 @@
 #include "base/mac/mac_util.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/posix/eintr_wrapper.h"
+#include "starboard/types.h"
 
 namespace net {
 

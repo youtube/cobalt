@@ -5,9 +5,6 @@
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <set>
@@ -33,6 +30,7 @@
 #include "net/spdy/spdy_session_pool.h"
 #include "net/ssl/ssl_client_auth_cache.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
+#include "starboard/types.h"
 
 namespace base {
 class Value;

@@ -5,14 +5,13 @@
 #ifndef NET_SOCKET_SERVER_SOCKET_H_
 #define NET_SOCKET_SERVER_SOCKET_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "base/macros.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

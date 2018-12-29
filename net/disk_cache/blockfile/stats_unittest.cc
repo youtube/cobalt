@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(DiskCacheStatsTest, Init) {
@@ -18,7 +19,7 @@ TEST(DiskCacheStatsTest, InitWithEmptyBuffer) {
   disk_cache::Stats stats;
   int required_len = stats.StorageSize();
   std::unique_ptr<char[]> storage(new char[required_len]);
-  memset(storage.get(), 0, required_len);
+  SbMemorySet(storage.get(), 0, required_len);
 
   ASSERT_TRUE(stats.Init(storage.get(), required_len, disk_cache::Addr()));
   EXPECT_EQ(0, stats.GetCounter(disk_cache::Stats::TRIM_ENTRY));
@@ -28,7 +29,7 @@ TEST(DiskCacheStatsTest, FailsInit) {
   disk_cache::Stats stats;
   int required_len = stats.StorageSize();
   std::unique_ptr<char[]> storage(new char[required_len]);
-  memset(storage.get(), 0, required_len);
+  SbMemorySet(storage.get(), 0, required_len);
 
   // Try a small buffer.
   EXPECT_LT(200, required_len);
@@ -36,7 +37,7 @@ TEST(DiskCacheStatsTest, FailsInit) {
   EXPECT_FALSE(stats.Init(storage.get(), 200, addr));
 
   // Try a buffer with garbage.
-  memset(storage.get(), 'a', required_len);
+  SbMemorySet(storage.get(), 'a', required_len);
   EXPECT_FALSE(stats.Init(storage.get(), required_len, addr));
 }
 

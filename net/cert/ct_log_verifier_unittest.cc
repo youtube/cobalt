@@ -4,8 +4,6 @@
 
 #include "net/cert/ct_log_verifier.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,6 +20,8 @@
 #include "net/cert/signed_certificate_timestamp.h"
 #include "net/cert/signed_tree_head.h"
 #include "net/test/ct_test_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -590,7 +590,7 @@ std::string HashLeaf(const std::string& leaf) {
   const char kLeafPrefix[] = {'\x00'};
 
   SHA256HashValue sha256;
-  memset(sha256.data, 0, sizeof(sha256.data));
+  SbMemorySet(sha256.data, 0, sizeof(sha256.data));
 
   std::unique_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));

@@ -5,8 +5,6 @@
 #ifndef NET_CERT_INTERNAL_TEST_HELPERS_H_
 #define NET_CERT_INTERNAL_TEST_HELPERS_H_
 
-#include <stddef.h>
-
 #include <ostream>
 #include <string>
 #include <vector>
@@ -15,6 +13,7 @@
 #include "net/cert/internal/trust_store.h"
 #include "net/cert/internal/verify_certificate_chain.h"
 #include "net/der/input.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

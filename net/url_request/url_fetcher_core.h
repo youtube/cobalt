@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_FETCHER_CORE_H_
 #define NET_URL_REQUEST_URL_FETCHER_CORE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <set>
 #include <string>
@@ -26,6 +24,7 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context_getter_observer.h"
 #include "net/url_request/url_request_status.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace base {

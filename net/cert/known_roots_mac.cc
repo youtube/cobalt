@@ -12,6 +12,7 @@
 #include "base/lazy_instance.h"
 #include "crypto/mac_security_services_lock.h"
 #include "net/cert/x509_util_mac.h"
+#include "starboard/types.h"
 
 using base::ScopedCFTypeRef;
 

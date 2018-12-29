@@ -7,8 +7,6 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_BLOCKFILE_BACKEND_IMPL_H_
 
-#include <stdint.h>
-
 #include <unordered_map>
 
 #include "base/files/file_path.h"
@@ -24,6 +22,7 @@
 #include "net/disk_cache/blockfile/stress_support.h"
 #include "net/disk_cache/blockfile/trace.h"
 #include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;

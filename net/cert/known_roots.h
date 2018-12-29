@@ -5,10 +5,9 @@
 #ifndef NET_CERT_KNOWN_ROOTS_H_
 #define NET_CERT_KNOWN_ROOTS_H_
 
-#include <stdint.h>
-
 #include "build/build_config.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

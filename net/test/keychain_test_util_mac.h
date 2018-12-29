@@ -11,6 +11,7 @@
 
 #include "base/files/scoped_temp_dir.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "starboard/types.h"
 
 namespace net {
 

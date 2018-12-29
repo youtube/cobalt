@@ -23,6 +23,9 @@
 #include <winsock2.h>
 #include <dhcpcsdk.h>
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 namespace {
 
 // Maximum amount of time to wait for response from the Win32 DHCP API.
@@ -231,7 +234,8 @@ std::string DhcpPacFileAdapterFetcher::GetPacURLFromDhcp(
   int retry_count = 0;
   DWORD res = NO_ERROR;
   do {
-    result_buffer.reset(static_cast<BYTE*>(malloc(result_buffer_size)));
+    result_buffer.reset(
+        static_cast<BYTE*>(SbMemoryAllocate(result_buffer_size)));
 
     // Note that while the DHCPCAPI_REQUEST_SYNCHRONOUS flag seems to indicate
     // there might be an asynchronous mode, there seems to be (at least in

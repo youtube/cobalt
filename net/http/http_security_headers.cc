@@ -12,6 +12,7 @@
 #include "net/base/parse_number.h"
 #include "net/http/http_security_headers.h"
 #include "net/http/http_util.h"
+#include "starboard/memory.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -102,7 +103,7 @@ bool ParseAndAppendPin(std::string::const_iterator begin,
   if (decoded.size() != hash.size())
     return false;
 
-  memcpy(hash.data(), decoded.data(), hash.size());
+  SbMemoryCopy(hash.data(), decoded.data(), hash.size());
   hashes->push_back(hash);
   return true;
 }

@@ -5,13 +5,12 @@
 #ifndef NET_CERT_INTERNAL_SIGNATURE_ALGORITHM_H_
 #define NET_CERT_INTERNAL_SIGNATURE_ALGORITHM_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

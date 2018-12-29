@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_MEMORY_MEM_ENTRY_IMPL_H_
 #define NET_DISK_CACHE_MEMORY_MEM_ENTRY_IMPL_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -22,6 +20,7 @@
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace net {
 class NetLog;

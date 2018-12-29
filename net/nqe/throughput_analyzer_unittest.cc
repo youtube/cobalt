@@ -4,8 +4,6 @@
 
 #include "net/nqe/throughput_analyzer.h"
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -34,6 +32,7 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

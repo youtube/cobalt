@@ -5,14 +5,13 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_DEFLATE_PARAMETERS_H_
 #define NET_WEBSOCKETS_WEBSOCKET_DEFLATE_PARAMETERS_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/logging.h"
 #include "net/base/net_export.h"
 #include "net/websockets/websocket_deflater.h"
 #include "net/websockets/websocket_extension.h"
+#include "starboard/types.h"
 
 namespace net {
 

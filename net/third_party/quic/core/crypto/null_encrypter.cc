@@ -6,6 +6,7 @@
 
 #include "net/third_party/quic/core/quic_data_writer.h"
 #include "net/third_party/quic/core/quic_utils.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -51,7 +52,7 @@ bool NullEncrypter::EncryptPacket(QuicTransportVersion version,
   }
   // TODO(ianswett): memmove required for in place encryption.  Placing the
   // hash at the end would allow use of memcpy, doing nothing for in place.
-  memmove(output + GetHashLength(), plaintext.data(), plaintext.length());
+  SbMemoryMove(output + GetHashLength(), plaintext.data(), plaintext.length());
   QuicUtils::SerializeUint128Short(hash,
                                    reinterpret_cast<unsigned char*>(output));
   *output_length = len;

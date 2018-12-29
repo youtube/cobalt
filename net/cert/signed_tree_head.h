@@ -5,8 +5,6 @@
 #ifndef NET_CERT_SIGNED_TREE_HEAD_H_
 #define NET_CERT_SIGNED_TREE_HEAD_H_
 
-#include <stdint.h>
-
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -15,6 +13,7 @@
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
 #include "net/cert/signed_certificate_timestamp.h"
+#include "starboard/types.h"
 
 namespace net {
 

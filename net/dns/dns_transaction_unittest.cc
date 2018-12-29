@@ -4,8 +4,6 @@
 
 #include "net/dns/dns_transaction.h"
 
-#include <stdint.h>
-
 #include <limits>
 #include <utility>
 #include <vector>
@@ -46,6 +44,8 @@
 #include "net/url_request/url_request_filter.h"
 #include "net/url_request/url_request_interceptor.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -523,12 +523,12 @@ class URLRequestMockDohJob : public URLRequestJob, public AsyncSocket {
                    IOBuffer* buf,
                    int buf_size) {
     if (data_len > buf_size) {
-      memcpy(buf->data(), data, buf_size);
+      SbMemoryCopy(buf->data(), data, buf_size);
       leftover_data_ = data + buf_size;
       leftover_data_len_ = data_len - buf_size;
       return buf_size;
     }
-    memcpy(buf->data(), data, data_len);
+    SbMemoryCopy(buf->data(), data, data_len);
     return data_len;
   }
 

@@ -18,6 +18,7 @@
 #include "crypto/mac_security_services_lock.h"
 #include "net/base/net_errors.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/types.h"
 
 namespace net {
 

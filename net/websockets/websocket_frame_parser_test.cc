@@ -4,11 +4,11 @@
 
 #include "net/websockets/websocket_frame_parser.h"
 
-#include <stdint.h>
 #include <algorithm>
 #include <vector>
 
 #include "net/base/io_buffer.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

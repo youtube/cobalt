@@ -14,6 +14,7 @@
 #include "net/cert/ct_serialization.h"
 #include "net/cert/signed_tree_head.h"
 #include "net/test/ct_test_util.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -43,7 +44,7 @@ TEST(CTLogResponseParserTest, ParsesValidJsonSTH) {
   // Copy the field from the SignedTreeHead because it's not null terminated
   // there and ASSERT_STREQ expects null-terminated strings.
   char actual_hash[kSthRootHashLength + 1];
-  memcpy(actual_hash, tree_head.sha256_root_hash, kSthRootHashLength);
+  SbMemoryCopy(actual_hash, tree_head.sha256_root_hash, kSthRootHashLength);
   actual_hash[kSthRootHashLength] = '\0';
   std::string expected_sha256_root_hash = GetSampleSTHSHA256RootHash();
   ASSERT_STREQ(expected_sha256_root_hash.c_str(), actual_hash);

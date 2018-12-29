@@ -21,6 +21,8 @@
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
 #include "net/dns/dns_config_service.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -61,7 +63,7 @@ NetworkChangeNotifierWin::NetworkChangeNotifierWin()
       last_announced_offline_(last_computed_connection_type_ ==
                               CONNECTION_NONE),
       weak_factory_(this) {
-  memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
+  SbMemorySet(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
 }
 

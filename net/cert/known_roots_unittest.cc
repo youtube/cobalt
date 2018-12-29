@@ -10,6 +10,8 @@
 
 #include "net/base/hash_value.h"
 #include "net/cert/root_cert_list_generated.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -20,7 +22,8 @@ TEST(KnownRootsTest, RootCertDataIsSorted) {
   EXPECT_TRUE(std::is_sorted(
       std::begin(kRootCerts), std::end(kRootCerts),
       [](const RootCertData& lhs, const RootCertData& rhs) {
-        return memcmp(lhs.sha256_spki_hash, rhs.sha256_spki_hash, 32) < 0;
+        return SbMemoryCompare(lhs.sha256_spki_hash, rhs.sha256_spki_hash, 32) <
+               0;
       }));
 }
 

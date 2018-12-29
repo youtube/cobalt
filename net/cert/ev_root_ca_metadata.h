@@ -19,6 +19,7 @@
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/types.h"
 
 #if defined(USE_NSS_CERTS) || defined(OS_WIN) || defined(OS_MACOSX) || \
     defined(OS_FUCHSIA)

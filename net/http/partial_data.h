@@ -5,13 +5,12 @@
 #ifndef NET_HTTP_PARTIAL_DATA_H_
 #define NET_HTTP_PARTIAL_DATA_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "net/base/completion_once_callback.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_headers.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 class Entry;

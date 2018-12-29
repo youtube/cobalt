@@ -15,10 +15,9 @@
 #ifndef NET_FILTER_GZIP_HEADER_H_
 #define NET_FILTER_GZIP_HEADER_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

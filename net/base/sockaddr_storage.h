@@ -16,6 +16,7 @@
 #endif
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 #if !defined(STARBOARD)
 

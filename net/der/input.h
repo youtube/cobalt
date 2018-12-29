@@ -5,14 +5,12 @@
 #ifndef NET_DER_INPUT_H_
 #define NET_DER_INPUT_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/compiler_specific.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

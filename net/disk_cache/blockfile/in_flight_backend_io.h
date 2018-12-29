@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_IN_FLIGHT_BACKEND_IO_H_
 #define NET_DISK_CACHE_BLOCKFILE_IN_FLIGHT_BACKEND_IO_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <string>
 
@@ -18,6 +16,7 @@
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/blockfile/in_flight_io.h"
 #include "net/disk_cache/blockfile/rankings.h"
+#include "starboard/types.h"
 
 namespace base {
 class Location;

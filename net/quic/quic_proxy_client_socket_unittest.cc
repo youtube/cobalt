@@ -41,6 +41,7 @@
 #include "net/third_party/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -454,7 +455,7 @@ class QuicProxyClientSocketTest
   void AssertWriteReturns(const char* data, int len, int rv) {
     scoped_refptr<IOBufferWithSize> buf =
         base::MakeRefCounted<IOBufferWithSize>(len);
-    memcpy(buf->data(), data, len);
+    SbMemoryCopy(buf->data(), data, len);
     EXPECT_EQ(rv,
               sock_->Write(buf.get(), buf->size(), write_callback_.callback(),
                            TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -463,7 +464,7 @@ class QuicProxyClientSocketTest
   void AssertSyncWriteSucceeds(const char* data, int len) {
     scoped_refptr<IOBufferWithSize> buf =
         base::MakeRefCounted<IOBufferWithSize>(len);
-    memcpy(buf->data(), data, len);
+    SbMemoryCopy(buf->data(), data, len);
     EXPECT_EQ(len,
               sock_->Write(buf.get(), buf->size(), CompletionOnceCallback(),
                            TRAFFIC_ANNOTATION_FOR_TESTS));

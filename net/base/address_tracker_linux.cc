@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <linux/if.h>
-#include <stdint.h>
 #include <sys/ioctl.h>
 
 #include "base/bind_helpers.h"
@@ -18,6 +17,9 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
 #include "net/base/network_interfaces_linux.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace internal {
@@ -101,7 +103,7 @@ bool GetAddress(const struct nlmsghdr* header,
 
 // static
 char* AddressTrackerLinux::GetInterfaceName(int interface_index, char* buf) {
-  memset(buf, 0, IFNAMSIZ);
+  SbMemorySet(buf, 0, IFNAMSIZ);
   base::ScopedFD ioctl_socket = GetSocketForIoctl();
   if (!ioctl_socket.is_valid())
     return buf;
@@ -110,7 +112,7 @@ char* AddressTrackerLinux::GetInterfaceName(int interface_index, char* buf) {
   ifr.ifr_ifindex = interface_index;
 
   if (ioctl(ioctl_socket.get(), SIOCGIFNAME, &ifr) == 0)
-    strncpy(buf, ifr.ifr_name, IFNAMSIZ - 1);
+    SbStringCopy(buf, ifr.ifr_name, IFNAMSIZ - 1);
   return buf;
 }
 
@@ -364,7 +366,7 @@ void AddressTrackerLinux::HandleMessage(char* buffer,
           if (it == address_map_.end()) {
             address_map_.insert(it, std::make_pair(address, *msg));
             *address_changed = true;
-          } else if (memcmp(&it->second, msg, sizeof(*msg))) {
+          } else if (SbMemoryCompare(&it->second, msg, sizeof(*msg))) {
             it->second = *msg;
             *address_changed = true;
           }

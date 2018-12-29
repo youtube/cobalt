@@ -5,7 +5,6 @@
 #ifndef NET_SOCKET_UDP_SOCKET_POSIX_H_
 #define NET_SOCKET_UDP_SOCKET_POSIX_H_
 
-#include <stdint.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -30,6 +29,7 @@
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 #if defined(__ANDROID__) && defined(__aarch64__)
 #define HAVE_SENDMMSG 1

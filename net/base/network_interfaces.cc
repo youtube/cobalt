@@ -13,6 +13,7 @@
 #if defined(OS_WIN)
 #include <winsock2.h>
 #include "net/base/winsock_init.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {

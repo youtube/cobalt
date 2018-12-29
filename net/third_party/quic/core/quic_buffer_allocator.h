@@ -5,9 +5,8 @@
 #ifndef NET_THIRD_PARTY_QUIC_CORE_QUIC_BUFFER_ALLOCATOR_H_
 #define NET_THIRD_PARTY_QUIC_CORE_QUIC_BUFFER_ALLOCATOR_H_
 
-#include <stddef.h>
-
 #include "net/third_party/quic/platform/api/quic_export.h"
+#include "starboard/types.h"
 
 namespace quic {
 

@@ -5,11 +5,10 @@
 #ifndef NET_DISK_CACHE_NET_LOG_PARAMETERS_H_
 #define NET_DISK_CACHE_NET_LOG_PARAMETERS_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "net/log/net_log_parameters_callback.h"
+#include "starboard/types.h"
 
 namespace net {
 struct NetLogSource;

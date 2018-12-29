@@ -5,14 +5,13 @@
 #ifndef NET_PROXY_RESOLUTION_PROXY_LIST_H_
 #define NET_PROXY_RESOLUTION_PROXY_LIST_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
+#include "starboard/types.h"
 
 namespace base {
 class ListValue;

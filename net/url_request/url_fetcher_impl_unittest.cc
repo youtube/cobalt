@@ -4,7 +4,6 @@
 
 #include "net/url_request/url_fetcher_impl.h"
 
-#include <stdint.h>
 #include <string.h>
 
 #include <algorithm>
@@ -47,6 +46,8 @@
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_test_util.h"
 #include "net/url_request/url_request_throttler_manager.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -378,7 +379,7 @@ class URLFetcherTest : public TestWithScopedTaskEnvironment {
     ++num_upload_streams_created_;
     std::vector<char> buffer(
         kCreateUploadStreamBody,
-        kCreateUploadStreamBody + strlen(kCreateUploadStreamBody));
+        kCreateUploadStreamBody + SbStringGetLength(kCreateUploadStreamBody));
     return ElementsUploadDataStream::CreateWithReader(
         std::unique_ptr<UploadElementReader>(
             new UploadOwnedBytesElementReader(&buffer)),
@@ -540,13 +541,13 @@ TEST_F(URLFetcherTest, SameThreadTest) {
   ASSERT_TRUE(delegate.fetcher()->GetResponseAsString(&data));
   EXPECT_EQ(kDefaultResponseBody, data);
 
-  EXPECT_EQ(static_cast<int64_t>(strlen(kDefaultResponseBody)),
+  EXPECT_EQ(static_cast<int64_t>(SbStringGetLength(kDefaultResponseBody)),
             delegate.fetcher()->GetReceivedResponseContentLength());
   std::string parsed_headers;
   base::ReplaceChars(delegate.fetcher()->GetResponseHeaders()->raw_headers(),
                      std::string("\0", 1), "\n\r", &parsed_headers);
   EXPECT_EQ(static_cast<int64_t>(parsed_headers.size() +
-                                 strlen(kDefaultResponseBody)),
+                                 SbStringGetLength(kDefaultResponseBody)),
             delegate.fetcher()->GetTotalReceivedBytes());
   EXPECT_EQ(ProxyServer::SCHEME_DIRECT,
             delegate.fetcher()->ProxyServerUsed().scheme());

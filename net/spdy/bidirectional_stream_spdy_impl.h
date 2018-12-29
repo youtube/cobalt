@@ -5,8 +5,6 @@
 #ifndef NET_SPDY_BIDIRECTIONAL_STREAM_SPDY_IMPL_H_
 #define NET_SPDY_BIDIRECTIONAL_STREAM_SPDY_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -22,6 +20,7 @@
 #include "net/spdy/spdy_read_queue.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_stream.h"
+#include "starboard/types.h"
 
 namespace base {
 class OneShotTimer;

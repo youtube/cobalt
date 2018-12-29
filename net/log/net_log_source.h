@@ -5,11 +5,10 @@
 #ifndef NET_LOG_NET_LOG_SOURCE_H_
 #define NET_LOG_NET_LOG_SOURCE_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
 #include "net/log/net_log_parameters_callback.h"
 #include "net/log/net_log_source_type.h"
+#include "starboard/types.h"
 
 namespace base {
 class DictionaryValue;

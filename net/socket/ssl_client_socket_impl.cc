@@ -66,6 +66,8 @@
 // #include "third_party/brotli/c/include/brotli/decode.h"
 #include <brotli/decode.h>
 #else
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/brotli/include/brotli/decode.h"
 #endif  // defined(STARBOARD)
 #endif
@@ -1709,7 +1711,7 @@ ssl_private_key_result_t SSLClientSocketImpl::PrivateKeyCompleteCallback(
     OpenSSLPutNetError(FROM_HERE, ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED);
     return ssl_private_key_failure;
   }
-  memcpy(out, signature_.data(), signature_.size());
+  SbMemoryCopy(out, signature_.data(), signature_.size());
   *out_len = signature_.size();
   signature_.clear();
   return ssl_private_key_success;

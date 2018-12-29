@@ -23,6 +23,7 @@
 #include "net/http/http_byte_range.h"
 #include "net/http/http_util.h"
 #include "net/test/embedded_test_server/http_request.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

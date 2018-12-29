@@ -16,6 +16,7 @@
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quic/tools/quic_simple_server_session.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
+#include "starboard/string.h"
 
 namespace quic {
 
@@ -235,7 +236,7 @@ void QuicSimpleServerStream::SendNotFoundResponse() {
   spdy::SpdyHeaderBlock headers;
   headers[":status"] = "404";
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(strlen(kNotFoundResponseBody));
+      QuicTextUtils::Uint64ToString(SbStringGetLength(kNotFoundResponseBody));
   SendHeadersAndBody(std::move(headers), kNotFoundResponseBody);
 }
 
@@ -252,7 +253,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
     headers[":status"] = QuicTextUtils::Uint64ToString(resp_code);
   }
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(strlen(kErrorResponseBody));
+      QuicTextUtils::Uint64ToString(SbStringGetLength(kErrorResponseBody));
   SendHeadersAndBody(std::move(headers), kErrorResponseBody);
 }
 

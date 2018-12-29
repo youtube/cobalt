@@ -4,7 +4,6 @@
 
 #include "net/url_request/url_fetcher_core.h"
 
-#include <stdint.h>
 #include <utility>
 
 #include "base/bind.h"
@@ -28,6 +27,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_throttler_manager.h"
+#include "starboard/types.h"
 #include "url/origin.h"
 
 namespace {

@@ -4,13 +4,13 @@
 
 #include "net/websockets/websocket_inflater.h"
 
-#include <stdint.h>
 #include <string>
 #include <vector>
 
 #include "net/base/io_buffer.h"
 #include "net/websockets/websocket_deflater.h"
 #include "net/websockets/websocket_test_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

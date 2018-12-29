@@ -21,6 +21,7 @@
 #include "base/threading/thread.h"
 #include "base/win/scoped_handle.h"
 #include "net/test/python_utils.h"
+#include "starboard/types.h"
 
 namespace {
 

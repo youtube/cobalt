@@ -20,6 +20,7 @@
 #include "net/third_party/quic/test_tools/quic_server_peer.h"
 #include "net/third_party/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quic/tools/quic_simple_crypto_server_stream_helper.h"
+#include "starboard/memory.h"
 
 using ::testing::_;
 
@@ -132,7 +133,7 @@ TEST_F(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
   ASSERT_LT(0, fd);
 
   char buf[1024];
-  memset(buf, 0, QUIC_ARRAYSIZE(buf));
+  SbMemorySet(buf, 0, QUIC_ARRAYSIZE(buf));
   sockaddr_storage storage = server_address_.generic_address();
   int rc = sendto(fd, buf, QUIC_ARRAYSIZE(buf), 0,
                   reinterpret_cast<sockaddr*>(&storage), sizeof(storage));

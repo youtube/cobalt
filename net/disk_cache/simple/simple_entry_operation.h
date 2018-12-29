@@ -5,10 +5,9 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_ENTRY_OPERATION_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_ENTRY_OPERATION_H_
 
-#include <stdint.h>
-
 #include "base/memory/ref_counted.h"
 #include "net/base/completion_once_callback.h"
+#include "starboard/types.h"
 
 namespace net {
 class IOBuffer;

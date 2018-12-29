@@ -47,6 +47,8 @@
 #include "base/strings/string_util.h"
 #include "crypto/nss_util_internal.h"
 #include "net/base/net_errors.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace mozilla_security_manager {
 
@@ -69,7 +71,7 @@ void unicodeToItem(const PRUnichar *uni, SECItem *item)
     item->data[2*i+1] = (unsigned char )(uni[i]);
   }
 #else
-  memcpy(item->data, uni, item->len);
+  SbMemoryCopy(item->data, uni, item->len);
 #endif
 }
 
@@ -139,7 +141,7 @@ pip_ucs2_ascii_conversion_fn(PRBool toUnicode,
   CHECK_GE(maxOutBufLen, inBufLen);
   // do a no-op, since I've already got Unicode.  Hah!
   *outBufLen = inBufLen;
-  memcpy(outBuf, inBuf, inBufLen);
+  SbMemoryCopy(outBuf, inBuf, inBufLen);
   return PR_TRUE;
 }
 

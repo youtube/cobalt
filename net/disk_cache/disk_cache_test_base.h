@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_DISK_CACHE_TEST_BASE_H_
 #define NET_DISK_CACHE_DISK_CACHE_TEST_BASE_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/files/file_path.h"
@@ -16,6 +14,7 @@
 #include "net/base/cache_type.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/test/test_with_scoped_task_environment.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 

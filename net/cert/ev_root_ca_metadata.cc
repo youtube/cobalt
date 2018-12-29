@@ -22,6 +22,7 @@
 #if defined(USE_NSS_CERTS)
 #include "crypto/nss_util.h"
 #elif defined(PLATFORM_USES_CHROMIUM_EV_METADATA) || defined(OS_WIN)
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #endif

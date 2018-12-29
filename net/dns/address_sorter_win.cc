@@ -18,6 +18,8 @@
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/winsock_init.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -59,10 +61,10 @@ class AddressSorterWin : public AddressSorter {
           buffer_size_(sizeof(SOCKET_ADDRESS_LIST) +
                        list.size() *
                            (sizeof(SOCKET_ADDRESS) + sizeof(SOCKADDR_STORAGE))),
-          input_buffer_(
-              reinterpret_cast<SOCKET_ADDRESS_LIST*>(malloc(buffer_size_))),
-          output_buffer_(
-              reinterpret_cast<SOCKET_ADDRESS_LIST*>(malloc(buffer_size_))),
+          input_buffer_(reinterpret_cast<SOCKET_ADDRESS_LIST*>(
+              SbMemoryAllocate(buffer_size_))),
+          output_buffer_(reinterpret_cast<SOCKET_ADDRESS_LIST*>(
+              SbMemoryAllocate(buffer_size_))),
           success_(false) {
       input_buffer_->iAddressCount = list.size();
       SOCKADDR_STORAGE* storage = reinterpret_cast<SOCKADDR_STORAGE*>(

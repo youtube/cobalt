@@ -4,9 +4,6 @@
 
 #include "net/http/http_stream_parser.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -26,6 +23,7 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/fuzzed_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 // Fuzzer for HttpStreamParser.

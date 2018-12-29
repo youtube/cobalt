@@ -9,6 +9,7 @@
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/win/scoped_handle.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

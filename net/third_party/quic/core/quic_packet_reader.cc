@@ -20,6 +20,8 @@
 #include "net/third_party/quic/platform/api/quic_logging.h"
 #include "net/third_party/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quic/platform/impl/quic_socket_utils.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 #ifndef SO_RXQ_OVFL
 #define SO_RXQ_OVFL 40
@@ -34,14 +36,14 @@ QuicPacketReader::QuicPacketReader() {
 void QuicPacketReader::Initialize() {
 #if MMSG_MORE
   // Zero initialize uninitialized memory.
-  memset(mmsg_hdr_, 0, sizeof(mmsg_hdr_));
+  SbMemorySet(mmsg_hdr_, 0, sizeof(mmsg_hdr_));
 
   for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
     packets_[i].iov.iov_base = packets_[i].buf;
     packets_[i].iov.iov_len = kMaxPacketSize;
-    memset(&packets_[i].raw_address, 0, sizeof(packets_[i].raw_address));
-    memset(packets_[i].cbuf, 0, sizeof(packets_[i].cbuf));
-    memset(packets_[i].buf, 0, sizeof(packets_[i].buf));
+    SbMemorySet(&packets_[i].raw_address, 0, sizeof(packets_[i].raw_address));
+    SbMemorySet(packets_[i].cbuf, 0, sizeof(packets_[i].cbuf));
+    SbMemorySet(packets_[i].buf, 0, sizeof(packets_[i].buf));
 
     msghdr* hdr = &mmsg_hdr_[i].msg_hdr;
     hdr->msg_name = &packets_[i].raw_address;

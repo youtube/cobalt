@@ -4,9 +4,6 @@
 
 #include "net/nqe/network_quality_estimator.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <cmath>
 #include <limits>
 #include <map>
@@ -44,6 +41,7 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 

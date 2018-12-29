@@ -7,8 +7,6 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_BLOCK_FILES_H_
 #define NET_DISK_CACHE_BLOCKFILE_BLOCK_FILES_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -20,6 +18,7 @@
 #include "net/disk_cache/blockfile/addr.h"
 #include "net/disk_cache/blockfile/disk_format_base.h"
 #include "net/disk_cache/blockfile/mapped_file.h"
+#include "starboard/types.h"
 
 namespace base {
 class ThreadChecker;

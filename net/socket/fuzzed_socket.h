@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_FUZZED_SOCKET_H_
 #define NET_SOCKET_FUZZED_SOCKET_H_
 
-#include <stdint.h>
-
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
@@ -16,6 +14,7 @@
 #include "net/log/net_log_with_source.h"
 #include "net/socket/transport_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace base {
 class FuzzedDataProvider;

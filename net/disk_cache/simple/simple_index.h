@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_INDEX_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_INDEX_H_
 
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -32,6 +30,7 @@
 
 #if defined(OS_ANDROID)
 #include "base/android/application_status_listener.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

@@ -5,8 +5,6 @@
 #ifndef NET_NQE_NETWORK_QUALITY_ESTIMATOR_H_
 #define NET_NQE_NETWORK_QUALITY_ESTIMATOR_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -39,6 +37,7 @@
 #include "net/nqe/observation_buffer.h"
 #include "net/nqe/rtt_throughput_estimates_observer.h"
 #include "net/nqe/socket_watcher_factory.h"
+#include "starboard/types.h"
 
 namespace base {
 class TickClock;

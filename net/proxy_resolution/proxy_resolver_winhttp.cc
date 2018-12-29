@@ -13,6 +13,7 @@
 #include "net/base/net_errors.h"
 #include "net/proxy_resolution/proxy_info.h"
 #include "net/proxy_resolution/proxy_resolver.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 using base::TimeDelta;

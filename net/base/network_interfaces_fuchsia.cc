@@ -16,6 +16,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_interfaces.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace internal {

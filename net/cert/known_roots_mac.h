@@ -7,6 +7,8 @@
 
 #include <Security/Security.h>
 
+#include "starboard/types.h"
+
 namespace net {
 
 // IsKnownRoot returns true if the given certificate is one that we believe

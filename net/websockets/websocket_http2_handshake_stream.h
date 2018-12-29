@@ -5,8 +5,6 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_HTTP2_HANDSHAKE_STREAM_H_
 #define NET_WEBSOCKETS_WEBSOCKET_HTTP2_HANDSHAKE_STREAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,6 +20,7 @@
 #include "net/websockets/websocket_basic_stream_adapters.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

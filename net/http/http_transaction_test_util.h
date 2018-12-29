@@ -7,8 +7,6 @@
 
 #include "net/http/http_transaction.h"
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/callback.h"
@@ -28,6 +26,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/socket/connection_attempts.h"
+#include "starboard/types.h"
 
 namespace net {
 

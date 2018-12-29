@@ -4,7 +4,6 @@
 
 #include "net/websockets/websocket_basic_handshake_stream.h"
 
-#include <stddef.h>
 #include <algorithm>
 #include <iterator>
 #include <set>
@@ -45,6 +44,7 @@
 #include "net/websockets/websocket_handshake_request_info.h"
 #include "net/websockets/websocket_handshake_response_info.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -5,12 +5,11 @@
 #ifndef NET_SOCKET_DATAGRAM_SERVER_SOCKET_H_
 #define NET_SOCKET_DATAGRAM_SERVER_SOCKET_H_
 
-#include <stdint.h>
-
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
+#include "starboard/types.h"
 
 namespace net {
 

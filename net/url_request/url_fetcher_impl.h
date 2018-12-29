@@ -14,8 +14,6 @@
 #ifndef NET_URL_REQUEST_URL_FETCHER_IMPL_H_
 #define NET_URL_REQUEST_URL_FETCHER_IMPL_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/macros.h"
@@ -23,6 +21,7 @@
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/url_fetcher.h"
+#include "starboard/types.h"
 
 namespace net {
 class URLFetcherCore;

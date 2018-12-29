@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_RESOLUTION_PROXY_CONFIG_SERVICE_LINUX_H_
 #define NET_PROXY_RESOLUTION_PROXY_CONFIG_SERVICE_LINUX_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +19,7 @@
 #include "net/base/proxy_server.h"
 #include "net/proxy_resolution/proxy_config_service.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "starboard/types.h"
 
 namespace base {
 class SingleThreadTaskRunner;

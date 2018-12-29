@@ -25,6 +25,7 @@
 #include "net/test/ct_test_util.h"
 #include "net/test/test_data_directory.h"
 #include "net/third_party/quic/core/crypto/proof_verifier.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -438,7 +439,7 @@ TEST_F(ProofVerifierChromiumTest, CTEVHistogramCompliant) {
 
 HashValueVector MakeHashValueVector(uint8_t tag) {
   HashValue hash(HASH_VALUE_SHA256);
-  memset(hash.data(), tag, hash.size());
+  SbMemorySet(hash.data(), tag, hash.size());
   HashValueVector hashes;
   hashes.push_back(hash);
   return hashes;

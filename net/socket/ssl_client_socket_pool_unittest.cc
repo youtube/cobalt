@@ -41,6 +41,7 @@
 #include "net/test/test_certificate_data.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -928,9 +929,10 @@ TEST_F(SSLClientSocketPoolTest, Tag) {
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
   rv =
-      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback.GetResult(rv));
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
   scoped_refptr<IOBufferWithSize> read_buffer =
       base::MakeRefCounted<IOBufferWithSize>(1);
   rv = handle.socket()->Read(read_buffer.get(), read_buffer->size(),
@@ -993,10 +995,11 @@ TEST_F(SSLClientSocketPoolTest, TagTwoSockets) {
   const char kRequest[] = "GET / HTTP/1.1\r\n\r\n";
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
-  rv = handle.socket()->Write(write_buffer.get(), strlen(kRequest),
+  rv = handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
                               callback2.callback(),
                               TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback2.GetResult(rv));
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback2.GetResult(rv));
   scoped_refptr<IOBufferWithSize> read_buffer =
       base::MakeRefCounted<IOBufferWithSize>(1);
   rv = handle.socket()->Read(read_buffer.get(), read_buffer->size(),
@@ -1073,9 +1076,10 @@ TEST_F(SSLClientSocketPoolTest, TagTwoSocketsFullPool) {
   scoped_refptr<IOBuffer> write_buffer =
       base::MakeRefCounted<StringIOBuffer>(kRequest);
   rv =
-      handle.socket()->Write(write_buffer.get(), strlen(kRequest),
+      handle.socket()->Write(write_buffer.get(), SbStringGetLength(kRequest),
                              callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
-  EXPECT_EQ(static_cast<int>(strlen(kRequest)), callback.GetResult(rv));
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kRequest)),
+            callback.GetResult(rv));
   scoped_refptr<IOBufferWithSize> read_buffer =
       base::MakeRefCounted<IOBufferWithSize>(1);
   EXPECT_EQ(handle.socket()->Read(read_buffer.get(), read_buffer->size(),

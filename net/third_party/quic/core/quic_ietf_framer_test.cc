@@ -39,6 +39,8 @@
 #include "net/third_party/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/simple_data_producer.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 
 namespace quic {
 namespace test {
@@ -349,9 +351,9 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                                                           &receive_frame));
 
     // Now check that the received frame matches the sent frame.
-    EXPECT_EQ(
-        0, memcmp(transmit_frame.data_buffer.data(),
-                  receive_frame.data_buffer.data(), kQuicPathFrameBufferSize));
+    EXPECT_EQ(0, SbMemoryCompare(transmit_frame.data_buffer.data(),
+                                 receive_frame.data_buffer.data(),
+                                 kQuicPathFrameBufferSize));
     return true;
   }
 
@@ -382,9 +384,9 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                                                          &receive_frame));
 
     // Now check that the received frame matches the sent frame.
-    EXPECT_EQ(
-        0, memcmp(transmit_frame.data_buffer.data(),
-                  receive_frame.data_buffer.data(), kQuicPathFrameBufferSize));
+    EXPECT_EQ(0, SbMemoryCompare(transmit_frame.data_buffer.data(),
+                                 receive_frame.data_buffer.data(),
+                                 kQuicPathFrameBufferSize));
     return true;
   }
 
@@ -568,7 +570,7 @@ TEST_F(QuicIetfFramerTest, StreamFrame) {
       "can do a simple strcmp to see if the "
       "input and output are the same!";
 
-  size_t transmit_packet_data_len = strlen(transmit_packet_data) + 1;
+  size_t transmit_packet_data_len = SbStringGetLength(transmit_packet_data) + 1;
   for (size_t i = 0; i < QUIC_ARRAYSIZE(stream_frame_to_test); ++i) {
     SCOPED_TRACE(i);
     struct stream_frame_variant* variant = &stream_frame_to_test[i];
@@ -726,7 +728,7 @@ TEST_F(QuicIetfFramerTest, AckFrameNoRanges) {
   };
   EXPECT_EQ(expected_size, sizeof(packet));
   EXPECT_EQ(sizeof(packet), writer.length());
-  EXPECT_EQ(0, memcmp(packet, packet_buffer, writer.length()));
+  EXPECT_EQ(0, SbMemoryCompare(packet, packet_buffer, writer.length()));
 
   // Now set up a reader to read in the frame.
   QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
@@ -829,7 +831,7 @@ TEST_F(QuicIetfFramerTest, MaxDataFrame) {
                                      20,      50,       100,      200,     500,
                                      1000000, kOffset8, kOffset4, kOffset2};
   for (QuicStreamOffset window_size : window_sizes) {
-    memset(packet_buffer, 0, sizeof(packet_buffer));
+    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
     // Set up the writer and transmit QuicWindowUpdateFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -869,7 +871,7 @@ TEST_F(QuicIetfFramerTest, MaxStreamDataFrame) {
 
   for (QuicIetfStreamId stream_id : stream_ids) {
     for (QuicStreamOffset window_size : window_sizes) {
-      memset(packet_buffer, 0, sizeof(packet_buffer));
+      SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
       // Set up the writer and transmit QuicWindowUpdateFrame
       QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -907,7 +909,7 @@ TEST_F(QuicIetfFramerTest, MaxStreamIdFrame) {
                                    kStreamId0};
 
   for (QuicIetfStreamId stream_id : stream_ids) {
-    memset(packet_buffer, 0, sizeof(packet_buffer));
+    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
     // Set up the writer and transmit QuicMaxStreamIdFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -942,7 +944,7 @@ TEST_F(QuicIetfFramerTest, BlockedFrame) {
                                 kOffset0};
 
   for (QuicStreamOffset offset : offsets) {
-    memset(packet_buffer, 0, sizeof(packet_buffer));
+    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
     // Set up the writer and transmit QuicBlockedFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -982,7 +984,7 @@ TEST_F(QuicIetfFramerTest, StreamBlockedFrame) {
 
   for (QuicIetfStreamId stream_id : stream_ids) {
     for (QuicStreamOffset offset : offsets) {
-      memset(packet_buffer, 0, sizeof(packet_buffer));
+      SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
       // Set up the writer and transmit QuicWindowUpdateFrame
       QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1020,7 +1022,7 @@ TEST_F(QuicIetfFramerTest, StreamIdBlockedFrame) {
                                    kStreamId0};
 
   for (QuicIetfStreamId stream_id : stream_ids) {
-    memset(packet_buffer, 0, sizeof(packet_buffer));
+    SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
     // Set up the writer and transmit QuicStreamIdBlockedFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1064,10 +1066,10 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   unsigned char token_bytes[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
                                  0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
                                  0x0c, 0x0d, 0x0e, 0x0f};
-  memcpy(&transmit_frame.stateless_reset_token, token_bytes,
-         sizeof(transmit_frame.stateless_reset_token));
+  SbMemoryCopy(&transmit_frame.stateless_reset_token, token_bytes,
+               sizeof(transmit_frame.stateless_reset_token));
 
-  memset(packet_buffer, 0, sizeof(packet_buffer));
+  SbMemorySet(packet_buffer, 0, sizeof(packet_buffer));
 
   // Set up the writer and transmit QuicStreamIdBlockedFrame
   QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
@@ -1092,7 +1094,7 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   };
 
   // clang-format on
-  EXPECT_EQ(0, memcmp(packet_buffer, packet, sizeof(packet)));
+  EXPECT_EQ(0, SbMemoryCompare(packet_buffer, packet, sizeof(packet)));
 
   // Set up reader and empty receive QuicPaddingFrame.
   QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
