@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_HTTP_SERVER_PROPERTIES_MANAGER_H_
 #define NET_HTTP_HTTP_SERVER_PROPERTIES_MANAGER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,6 +23,7 @@
 #include "net/http/http_server_properties.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace base {
 class DictionaryValue;

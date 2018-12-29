@@ -5,10 +5,9 @@
 #ifndef NET_BASE_COMPLETION_REPEATING_CALLBACK_H_
 #define NET_BASE_COMPLETION_REPEATING_CALLBACK_H_
 
-#include <stdint.h>
-
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -8,8 +8,6 @@
 #ifndef NET_DISK_CACHE_DISK_CACHE_H_
 #define NET_DISK_CACHE_DISK_CACHE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,6 +21,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
+#include "starboard/types.h"
 
 namespace base {
 class FilePath;

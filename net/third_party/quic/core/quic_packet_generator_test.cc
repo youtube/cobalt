@@ -26,6 +26,7 @@
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quic/test_tools/simple_quic_framer.h"
+#include "starboard/memory.h"
 
 using std::string;
 using testing::_;
@@ -248,7 +249,7 @@ class QuicPacketGeneratorTest : public QuicTest {
 
   void CreateData(size_t len) {
     data_array_.reset(new char[len]);
-    memset(data_array_.get(), '?', len);
+    SbMemorySet(data_array_.get(), '?', len);
     iov_.iov_base = data_array_.get();
     iov_.iov_len = len;
   }

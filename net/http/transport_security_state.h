@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_TRANSPORT_SECURITY_STATE_H_
 #define NET_HTTP_TRANSPORT_SECURITY_STATE_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <string>
 
@@ -22,6 +20,7 @@
 #include "net/base/net_export.h"
 #include "net/cert/signed_certificate_timestamp_and_status.h"
 #include "net/http/transport_security_state_source.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

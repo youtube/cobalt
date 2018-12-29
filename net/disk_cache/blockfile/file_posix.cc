@@ -4,7 +4,6 @@
 
 #include "net/disk_cache/blockfile/file.h"
 
-#include <stdint.h>
 #include <limits>
 #include <utility>
 
@@ -16,6 +15,7 @@
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

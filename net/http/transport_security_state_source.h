@@ -5,10 +5,8 @@
 #ifndef NET_HTTP_TRANSPORT_SECURITY_STATE_SOURCE_H_
 #define NET_HTTP_TRANSPORT_SECURITY_STATE_SOURCE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

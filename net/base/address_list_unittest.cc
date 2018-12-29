@@ -10,6 +10,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/sockaddr_storage.h"
 #include "net/base/sys_addrinfo.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Starboard does not define sockaddr or other types from <sys/socket.h>.
@@ -25,11 +26,11 @@ TEST(AddressListTest, Canonical) {
   struct sockaddr_in address;
   // The contents of address do not matter for this test,
   // so just zero-ing them out for consistency.
-  memset(&address, 0x0, sizeof(address));
+  SbMemorySet(&address, 0x0, sizeof(address));
   // But we need to set the family.
   address.sin_family = AF_INET;
   struct addrinfo ai;
-  memset(&ai, 0x0, sizeof(ai));
+  SbMemorySet(&ai, 0x0, sizeof(ai));
   ai.ai_family = AF_INET;
   ai.ai_socktype = SOCK_STREAM;
   ai.ai_addrlen = sizeof(address);
@@ -56,11 +57,11 @@ TEST(AddressListTest, CreateFromAddrinfo) {
         reinterpret_cast<struct sockaddr_in*>(storage[i].addr);
     storage[i].addr_len = sizeof(struct sockaddr_in);
     // Populating the address with { i, i, i, i }.
-    memset(&addr->sin_addr, i, IPAddress::kIPv4AddressSize);
+    SbMemorySet(&addr->sin_addr, i, IPAddress::kIPv4AddressSize);
     addr->sin_family = AF_INET;
     // Set port to i << 2;
     addr->sin_port = base::HostToNet16(static_cast<uint16_t>(i << 2));
-    memset(&ai[i], 0x0, sizeof(ai[i]));
+    SbMemorySet(&ai[i], 0x0, sizeof(ai[i]));
     ai[i].ai_family = addr->sin_family;
     ai[i].ai_socktype = SOCK_STREAM;
     ai[i].ai_addrlen = storage[i].addr_len;

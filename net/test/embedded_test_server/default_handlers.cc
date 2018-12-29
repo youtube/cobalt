@@ -36,6 +36,7 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace test_server {

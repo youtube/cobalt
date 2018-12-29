@@ -5,8 +5,6 @@
 #ifndef NET_QUIC_BIDIRECTIONAL_STREAM_QUIC_IMPL_H_
 #define NET_QUIC_BIDIRECTIONAL_STREAM_QUIC_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -18,6 +16,7 @@
 #include "net/quic/quic_chromium_client_session.h"
 #include "net/quic/quic_chromium_client_stream.h"
 #include "net/third_party/spdy/core/spdy_header_block.h"
+#include "starboard/types.h"
 
 namespace base {
 class OneShotTimer;

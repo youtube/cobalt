@@ -5,15 +5,13 @@
 #ifndef NET_DNS_DNS_QUERY_H_
 #define NET_DNS_DNS_QUERY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace base {
 class BigEndianReader;

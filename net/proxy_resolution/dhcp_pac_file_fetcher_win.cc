@@ -7,6 +7,10 @@
 #include <memory>
 #include <vector>
 
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/containers/queue.h"
@@ -561,7 +565,8 @@ bool DhcpPacFileFetcherWin::GetCandidateAdapterNames(
   int num_tries = 0;
 
   do {
-    adapters.reset(static_cast<IP_ADAPTER_ADDRESSES*>(malloc(adapters_size)));
+    adapters.reset(
+        static_cast<IP_ADAPTER_ADDRESSES*>(SbMemoryAllocate(adapters_size)));
     // Return only unicast addresses, and skip information we do not need.
     base::ScopedBlockingCall scoped_blocking_call(
         base::BlockingType::MAY_BLOCK);

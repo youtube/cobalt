@@ -5,9 +5,6 @@
 #ifndef NET_SPDY_SPDY_TEST_UTIL_COMMON_H_
 #define NET_SPDY_SPDY_TEST_UTIL_COMMON_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -37,6 +34,7 @@
 #include "net/third_party/spdy/core/spdy_protocol.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class GURL;

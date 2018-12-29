@@ -11,6 +11,7 @@
 #include "crypto/nss_util.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_nss.h"
+#include "starboard/types.h"
 
 namespace net {
 

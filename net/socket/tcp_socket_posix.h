@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_TCP_SOCKET_POSIX_H_
 #define NET_SOCKET_TCP_SOCKET_POSIX_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/callback.h"
@@ -20,6 +18,7 @@
 #include "net/socket/socket_performance_watcher.h"
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace base {
 class TimeDelta;

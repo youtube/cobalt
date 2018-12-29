@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_BACKEND_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -27,6 +25,7 @@
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/simple/simple_entry_impl.h"
 #include "net/disk_cache/simple/simple_index_delegate.h"
+#include "starboard/types.h"
 
 namespace base {
 class SequencedTaskRunner;

@@ -5,8 +5,6 @@
 #ifndef NET_NQE_NETWORK_QUALITY_PROVIDER_H_
 #define NET_NQE_NETWORK_QUALITY_PROVIDER_H_
 
-#include <stdint.h>
-
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
@@ -14,6 +12,7 @@
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/nqe/effective_connection_type.h"
+#include "starboard/types.h"
 
 namespace net {
 

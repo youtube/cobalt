@@ -4,8 +4,6 @@
 
 #include "net/server/http_server.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -49,6 +47,8 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -601,7 +601,7 @@ class MockStreamSocket : public StreamSocket {
     DCHECK_GT(buf_len, 0);
     int read_len = std::min(static_cast<int>(pending_read_data_.size()),
                             buf_len);
-    memcpy(buf->data(), pending_read_data_.data(), read_len);
+    SbMemoryCopy(buf->data(), pending_read_data_.data(), read_len);
     pending_read_data_.erase(0, read_len);
     return read_len;
   }
@@ -623,7 +623,7 @@ class MockStreamSocket : public StreamSocket {
       return;
     }
     int read_len = std::min(data_len, read_buf_len_);
-    memcpy(read_buf_->data(), data, read_len);
+    SbMemoryCopy(read_buf_->data(), data, read_len);
     pending_read_data_.assign(data + read_len, data_len - read_len);
     read_buf_ = NULL;
     read_buf_len_ = 0;

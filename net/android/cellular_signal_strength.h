@@ -6,10 +6,10 @@
 #define NET_ANDROID_CELLULAR_SIGNAL_STRENGTH_H_
 
 #include <jni.h>
-#include <stdint.h>
 
 #include "base/optional.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

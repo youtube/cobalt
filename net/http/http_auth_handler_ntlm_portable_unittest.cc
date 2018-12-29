@@ -22,6 +22,7 @@
 #include "net/ntlm/ntlm_test_data.h"
 #include "net/ssl/ssl_info.h"
 #include "net/test/gtest_util.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -144,7 +145,7 @@ class HttpAuthHandlerNtlmPortableTest : public PlatformTest {
   static void MockRandom(uint8_t* output, size_t n) {
     // This is set to 0xaa because the client challenge for testing in
     // [MS-NLMP] Section 4.2.1 is 8 bytes of 0xaa.
-    memset(output, 0xaa, n);
+    SbMemorySet(output, 0xaa, n);
   }
 
   static uint64_t MockGetMSTime() {
@@ -232,9 +233,10 @@ TEST_F(HttpAuthHandlerNtlmPortableTest, NtlmV1AuthenticationSuccess) {
   ASSERT_TRUE(DecodeChallenge(token, &decoded));
   ASSERT_EQ(arraysize(ntlm::test::kExpectedAuthenticateMsgSpecResponseV1),
             decoded.size());
-  ASSERT_EQ(0, memcmp(decoded.data(),
-                      ntlm::test::kExpectedAuthenticateMsgSpecResponseV1,
-                      decoded.size()));
+  ASSERT_EQ(0,
+            SbMemoryCompare(decoded.data(),
+                            ntlm::test::kExpectedAuthenticateMsgSpecResponseV1,
+                            decoded.size()));
 }
 
 }  // namespace net

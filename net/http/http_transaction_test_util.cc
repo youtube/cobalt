@@ -28,6 +28,7 @@
 #include "net/log/net_log.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -350,7 +351,7 @@ int MockNetworkTransaction::Read(net::IOBuffer* buf,
       if (test_mode_ & TEST_MODE_SLOW_READ)
         num = std::min(num, 1);
       if (num) {
-        memcpy(buf->data(), data_.data() + data_cursor_, num);
+        SbMemoryCopy(buf->data(), data_.data() + data_cursor_, num);
         data_cursor_ += num;
       }
     }

@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/io_buffer.h"
+#include "starboard/memory.h"
 #include "third_party/zlib/zlib.h"
 
 namespace net {
@@ -59,7 +60,7 @@ bool GzipSourceStream::Init() {
   zlib_stream_.reset(new z_stream);
   if (!zlib_stream_)
     return false;
-  memset(zlib_stream_.get(), 0, sizeof(z_stream));
+  SbMemorySet(zlib_stream_.get(), 0, sizeof(z_stream));
 
   int ret;
   if (type() == TYPE_GZIP) {

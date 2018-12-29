@@ -5,7 +5,6 @@
 #ifndef NET_CERT_X509_CERTIFICATE_H_
 #define NET_CERT_X509_CERTIFICATE_H_
 
-#include <stddef.h>
 #include <string.h>
 
 #include <string>
@@ -18,6 +17,7 @@
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/cert/x509_cert_types.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace base {

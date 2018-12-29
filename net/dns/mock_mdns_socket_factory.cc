@@ -12,6 +12,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "net/base/net_errors.h"
+#include "starboard/memory.h"
 
 using testing::_;
 using testing::Invoke;
@@ -58,7 +59,7 @@ int MockMDnsDatagramServerSocket::HandleRecvNow(
     CompletionRepeatingCallback callback) {
   int size_returned =
       std::min(response_packet_.size(), static_cast<size_t>(size));
-  memcpy(buffer->data(), response_packet_.data(), size_returned);
+  SbMemoryCopy(buffer->data(), response_packet_.data(), size_returned);
   return size_returned;
 }
 
@@ -105,7 +106,7 @@ void MockMDnsSocketFactory::SimulateReceive(const uint8_t* packet, int size) {
   DCHECK(recv_buffer_.get());
   DCHECK(!recv_callback_.is_null());
 
-  memcpy(recv_buffer_->data(), packet, size);
+  SbMemoryCopy(recv_buffer_->data(), packet, size);
   base::ResetAndReturn(&recv_callback_).Run(size);
 }
 

@@ -9,6 +9,7 @@
 
 #include "base/mac/mac_logging.h"
 #include "net/cert/x509_util_mac.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/ec_key.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"

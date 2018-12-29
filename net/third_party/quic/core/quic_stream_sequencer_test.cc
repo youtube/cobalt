@@ -24,6 +24,8 @@
 #include "net/third_party/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quic/test_tools/quic_stream_sequencer_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 #include "testing/gmock_mutant.h"
 
 using testing::_;
@@ -118,7 +120,8 @@ class QuicStreamSequencerTest : public QuicTest {
                       << expected.length();
       return false;
     }
-    if (memcmp(iovec.iov_base, expected.data(), expected.length()) != 0) {
+    if (SbMemoryCompare(iovec.iov_base, expected.data(), expected.length()) !=
+        0) {
       QUIC_LOG(ERROR) << "Invalid data: " << static_cast<char*>(iovec.iov_base)
                       << " vs " << expected;
       return false;
@@ -131,7 +134,7 @@ class QuicStreamSequencerTest : public QuicTest {
     frame.stream_id = 1;
     frame.offset = byte_offset;
     frame.data_buffer = data;
-    frame.data_length = strlen(data);
+    frame.data_length = SbStringGetLength(data);
     frame.fin = true;
     sequencer_->OnStreamFrame(frame);
   }
@@ -141,7 +144,7 @@ class QuicStreamSequencerTest : public QuicTest {
     frame.stream_id = 1;
     frame.offset = byte_offset;
     frame.data_buffer = data;
-    frame.data_length = strlen(data);
+    frame.data_length = SbStringGetLength(data);
     frame.fin = false;
     sequencer_->OnStreamFrame(frame);
   }

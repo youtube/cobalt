@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_ENTRY_IMPL_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_ENTRY_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -23,6 +21,7 @@
 #include "net/disk_cache/simple/simple_synchronous_entry.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace base {
 class TaskRunner;

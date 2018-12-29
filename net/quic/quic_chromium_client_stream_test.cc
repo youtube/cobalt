@@ -25,6 +25,7 @@
 #include "net/third_party/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gmock_mutant.h"
 
@@ -368,7 +369,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailable) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = strlen(data);
+  int data_len = SbStringGetLength(data);
   stream_->OnStreamFrame(quic::QuicStreamFrame(kTestStreamId, /*fin=*/false,
                                                /*offset=*/0, data));
 
@@ -386,7 +387,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableAfterReadBody) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = strlen(data);
+  int data_len = SbStringGetLength(data);
 
   // Start to read the body.
   TestCompletionCallback callback;
@@ -424,7 +425,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableWithError) {
               SendRstStream(kTestStreamId, quic::QUIC_STREAM_CANCELLED, 0));
 
   const char data[] = "hello world!";
-  int data_len = strlen(data);
+  int data_len = SbStringGetLength(data);
 
   // Start to read the body.
   TestCompletionCallback callback;
@@ -454,7 +455,7 @@ TEST_P(QuicChromiumClientStreamTest, OnTrailers) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = strlen(data);
+  int data_len = SbStringGetLength(data);
   stream_->OnStreamFrame(quic::QuicStreamFrame(kTestStreamId, /*fin=*/false,
                                                /*offset=*/0, data));
 
@@ -468,7 +469,8 @@ TEST_P(QuicChromiumClientStreamTest, OnTrailers) {
 
   spdy::SpdyHeaderBlock trailers;
   trailers["bar"] = "foo";
-  trailers[quic::kFinalOffsetHeaderKey] = base::IntToString(strlen(data));
+  trailers[quic::kFinalOffsetHeaderKey] =
+      base::IntToString(SbStringGetLength(data));
 
   auto t = ProcessTrailers(trailers);
 
@@ -495,7 +497,7 @@ TEST_P(QuicChromiumClientStreamTest, MarkTrailersConsumedWhenNotifyDelegate) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = strlen(data);
+  int data_len = SbStringGetLength(data);
   stream_->OnStreamFrame(quic::QuicStreamFrame(kTestStreamId, /*fin=*/false,
                                                /*offset=*/0, data));
 
@@ -514,7 +516,8 @@ TEST_P(QuicChromiumClientStreamTest, MarkTrailersConsumedWhenNotifyDelegate) {
 
   spdy::SpdyHeaderBlock trailers;
   trailers["bar"] = "foo";
-  trailers[quic::kFinalOffsetHeaderKey] = base::IntToString(strlen(data));
+  trailers[quic::kFinalOffsetHeaderKey] =
+      base::IntToString(SbStringGetLength(data));
   quic::QuicHeaderList t = ProcessTrailers(trailers);
   EXPECT_FALSE(stream_->IsDoneReading());
 
@@ -543,7 +546,7 @@ TEST_P(QuicChromiumClientStreamTest, ReadAfterTrailersReceivedButNotDelivered) {
   ProcessHeadersFull(headers_);
 
   const char data[] = "hello world!";
-  int data_len = strlen(data);
+  int data_len = SbStringGetLength(data);
   stream_->OnStreamFrame(quic::QuicStreamFrame(kTestStreamId, /*fin=*/false,
                                                /*offset=*/0, data));
 
@@ -558,7 +561,8 @@ TEST_P(QuicChromiumClientStreamTest, ReadAfterTrailersReceivedButNotDelivered) {
   // Deliver trailers. Delegate notification is posted asynchronously.
   spdy::SpdyHeaderBlock trailers;
   trailers["bar"] = "foo";
-  trailers[quic::kFinalOffsetHeaderKey] = base::IntToString(strlen(data));
+  trailers[quic::kFinalOffsetHeaderKey] =
+      base::IntToString(SbStringGetLength(data));
 
   quic::QuicHeaderList t = ProcessTrailers(trailers);
 

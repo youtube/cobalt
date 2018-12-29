@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/compiler_specific.h"
@@ -20,6 +18,7 @@
 #include "net/socket/tcp_socket.h"
 #include "net/socket/transport_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

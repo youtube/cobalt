@@ -5,9 +5,6 @@
 #ifndef NET_HTTP_HTTP_STREAM_PARSER_H_
 #define NET_HTTP_HTTP_STREAM_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -22,6 +19,7 @@
 #include "net/base/net_export.h"
 #include "net/log/net_log_with_source.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

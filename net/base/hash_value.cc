@@ -12,6 +12,8 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "crypto/sha2.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -23,12 +25,12 @@ namespace {
 struct SHA256ToHashValueComparator {
   bool operator()(const SHA256HashValue& lhs, const HashValue& rhs) const {
     DCHECK_EQ(HASH_VALUE_SHA256, rhs.tag());
-    return memcmp(lhs.data, rhs.data(), rhs.size()) < 0;
+    return SbMemoryCompare(lhs.data, rhs.data(), rhs.size()) < 0;
   }
 
   bool operator()(const HashValue& lhs, const SHA256HashValue& rhs) const {
     DCHECK_EQ(HASH_VALUE_SHA256, lhs.tag());
-    return memcmp(lhs.data(), rhs.data, lhs.size()) < 0;
+    return SbMemoryCompare(lhs.data(), rhs.data, lhs.size()) < 0;
   }
 };
 
@@ -53,7 +55,7 @@ bool HashValue::FromString(const base::StringPiece value) {
   if (!base::Base64Decode(base64_str, &decoded) || decoded.size() != size())
     return false;
 
-  memcpy(data(), decoded.data(), size());
+  SbMemoryCopy(data(), decoded.data(), size());
   return true;
 }
 

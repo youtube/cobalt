@@ -5,9 +5,6 @@
 #ifndef NET_SOCKET_SOCKET_TEST_UTIL_H_
 #define NET_SOCKET_SOCKET_TEST_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <cstring>
 #include <memory>
 #include <string>
@@ -46,6 +43,8 @@
 #include "net/socket/transport_client_socket_pool.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -147,7 +146,7 @@ struct MockReadWrite {
       : mode(ASYNC),
         result(0),
         data(data),
-        data_len(strlen(data)),
+        data_len(SbStringGetLength(data)),
         sequence_number(0) {}
 
   // Read/write success (inferred data length).
@@ -155,7 +154,7 @@ struct MockReadWrite {
       : mode(io_mode),
         result(0),
         data(data),
-        data_len(strlen(data)),
+        data_len(SbStringGetLength(data)),
         sequence_number(0) {}
 
   // Read/write success.
@@ -171,7 +170,7 @@ struct MockReadWrite {
       : mode(io_mode),
         result(0),
         data(data),
-        data_len(strlen(data)),
+        data_len(SbStringGetLength(data)),
         sequence_number(seq) {}
 
   // Read/write success with sequence information.

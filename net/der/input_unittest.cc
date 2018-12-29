@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -21,7 +22,7 @@ TEST(InputTest, Equals) {
   EXPECT_EQ(test, test2);
 
   uint8_t input_copy[base::size(kInput)] = {0};
-  memcpy(input_copy, kInput, base::size(kInput));
+  SbMemoryCopy(input_copy, kInput, base::size(kInput));
   Input test_copy(input_copy);
   EXPECT_EQ(test, test_copy);
 

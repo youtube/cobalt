@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
+#include "starboard/string.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -224,10 +225,10 @@ base::Time ParseCookieExpirationTime(const std::string& time_string) {
     } else {
       // Overflow with atoi() is unspecified, so we enforce a max length.
       if (!found_day_of_month && token.length() <= 2) {
-        exploded.day_of_month = atoi(token.c_str());
+        exploded.day_of_month = SbStringAToI(token.c_str());
         found_day_of_month = true;
       } else if (!found_year && token.length() <= 5) {
-        exploded.year = atoi(token.c_str());
+        exploded.year = SbStringAToI(token.c_str());
         found_year = true;
       } else {
         // If we're here, it means we've either found an extra numeric field,

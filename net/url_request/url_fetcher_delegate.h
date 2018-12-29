@@ -5,12 +5,11 @@
 #ifndef NET_URL_REQUEST_URL_FETCHER_DELEGATE_H_
 #define NET_URL_REQUEST_URL_FETCHER_DELEGATE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

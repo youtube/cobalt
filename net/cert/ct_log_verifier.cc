@@ -16,6 +16,8 @@
 #include "net/cert/merkle_audit_proof.h"
 #include "net/cert/merkle_consistency_proof.h"
 #include "net/cert/signed_tree_head.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 
@@ -113,8 +115,9 @@ bool CTLogVerifier::VerifySignedTreeHead(
                       signed_tree_head.signature.signature_data)) {
     if (signed_tree_head.tree_size == 0) {
       // Root hash must equate SHA256 hash of the empty string.
-      return (memcmp(signed_tree_head.sha256_root_hash, kSHA256EmptyStringHash,
-                     ct::kSthRootHashLength) == 0);
+      return (SbMemoryCompare(signed_tree_head.sha256_root_hash,
+                              kSHA256EmptyStringHash,
+                              ct::kSthRootHashLength) == 0);
     }
     return true;
   }

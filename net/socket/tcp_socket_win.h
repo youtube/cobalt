@@ -5,7 +5,6 @@
 #ifndef NET_SOCKET_TCP_SOCKET_WIN_H_
 #define NET_SOCKET_TCP_SOCKET_WIN_H_
 
-#include <stdint.h>
 #include <winsock2.h>
 
 #include <memory>
@@ -22,6 +21,7 @@
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/socket_performance_watcher.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

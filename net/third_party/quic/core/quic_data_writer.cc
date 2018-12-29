@@ -12,6 +12,7 @@
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -140,7 +141,7 @@ bool QuicDataWriter::WriteBytes(const void* data, size_t data_len) {
     return false;
   }
 
-  memcpy(dest, data, data_len);
+  SbMemoryCopy(dest, data, data_len);
 
   length_ += data_len;
   return true;
@@ -152,7 +153,7 @@ bool QuicDataWriter::WriteRepeatedByte(uint8_t byte, size_t count) {
     return false;
   }
 
-  memset(dest, byte, count);
+  SbMemorySet(dest, byte, count);
 
   length_ += count;
   return true;
@@ -163,7 +164,7 @@ void QuicDataWriter::WritePadding() {
   if (length_ > capacity_) {
     return;
   }
-  memset(buffer_ + length_, 0x00, capacity_ - length_);
+  SbMemorySet(buffer_ + length_, 0x00, capacity_ - length_);
   length_ = capacity_;
 }
 

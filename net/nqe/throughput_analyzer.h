@@ -5,8 +5,6 @@
 #ifndef NET_NQE_THROUGHPUT_ANALYZER_H_
 #define NET_NQE_THROUGHPUT_ANALYZER_H_
 
-#include <stdint.h>
-
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
 #include "base/macros.h"
@@ -15,6 +13,7 @@
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace {
 typedef base::Callback<void(int32_t)> ThroughputObservationCallback;

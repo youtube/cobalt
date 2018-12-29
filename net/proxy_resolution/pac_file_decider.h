@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_PAC_FILE_DECIDER_H_
 #define NET_PROXY_PAC_FILE_DECIDER_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
@@ -22,6 +20,7 @@
 #include "net/log/net_log_with_source.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
 #include "net/proxy_resolution/proxy_resolver.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace base {

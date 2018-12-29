@@ -35,6 +35,7 @@
 #include "net/dns/dns_hosts.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/serial_worker.h"
+#include "starboard/memory.h"
 #include "url/url_canon.h"
 
 namespace net {
@@ -130,8 +131,8 @@ std::unique_ptr<IP_ADAPTER_ADDRESSES, base::FreeDeleter> ReadIpHelper(
   // Try up to three times.
   for (unsigned tries = 0; (tries < 3) && (rv == ERROR_BUFFER_OVERFLOW);
        tries++) {
-    out.reset(static_cast<PIP_ADAPTER_ADDRESSES>(malloc(len)));
-    memset(out.get(), 0, len);
+    out.reset(static_cast<PIP_ADAPTER_ADDRESSES>(SbMemoryAllocate(len)));
+    SbMemorySet(out.get(), 0, len);
     rv = GetAdaptersAddresses(AF_UNSPEC, flags, NULL, out.get(), &len);
   }
   if (rv != NO_ERROR)

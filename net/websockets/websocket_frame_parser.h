@@ -5,9 +5,6 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_FRAME_PARSER_H_
 #define NET_WEBSOCKETS_WEBSOCKET_FRAME_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -15,6 +12,7 @@
 #include "net/base/net_export.h"
 #include "net/websockets/websocket_errors.h"
 #include "net/websockets/websocket_frame.h"
+#include "starboard/types.h"
 
 namespace net {
 

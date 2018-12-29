@@ -5,9 +5,6 @@
 #ifndef NET_SPDY_SPDY_PROXY_CLIENT_SOCKET_H_
 #define NET_SPDY_SPDY_PROXY_CLIENT_SOCKET_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <list>
 #include <memory>
 #include <string>
@@ -33,6 +30,7 @@
 #include "net/spdy/spdy_stream.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

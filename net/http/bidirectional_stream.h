@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_BIDIRECTIONAL_STREAM_H_
 #define NET_HTTP_BIDIRECTIONAL_STREAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -21,6 +19,7 @@
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_request.h"
 #include "net/log/net_log_with_source.h"
+#include "starboard/types.h"
 
 namespace base {
 class OneShotTimer;

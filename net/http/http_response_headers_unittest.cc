@@ -4,8 +4,6 @@
 
 #include "net/http/http_response_headers.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <iostream>
 #include <limits>
@@ -18,6 +16,7 @@
 #include "net/http/http_byte_range.h"
 #include "net/http/http_util.h"
 #include "net/log/net_log_capture_mode.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

@@ -5,9 +5,8 @@
 #ifndef NET_DER_TAG_H_
 #define NET_DER_TAG_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 
 namespace net {

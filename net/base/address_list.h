@@ -5,8 +5,6 @@
 #ifndef NET_BASE_ADDRESS_LIST_H_
 #define NET_BASE_ADDRESS_LIST_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -17,6 +15,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/socket.h"
+#include "starboard/types.h"
 #else
 struct addrinfo;
 #endif

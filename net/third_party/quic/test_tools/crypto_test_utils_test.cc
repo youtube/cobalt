@@ -12,7 +12,7 @@
 #include "net/third_party/quic/platform/api/quic_test.h"
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quic/test_tools/mock_clock.h"
-
+#include "starboard/memory.h"
 
 namespace quic {
 namespace test {
@@ -144,7 +144,7 @@ TEST(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   QuicString nonce_hex = "#" + QuicTextUtils::HexEncode(nonce);
 
   char public_value[32];
-  memset(public_value, 42, sizeof(public_value));
+  SbMemorySet(public_value, 42, sizeof(public_value));
   QuicString pub_hex =
       "#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value));
 

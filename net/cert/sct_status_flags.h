@@ -5,9 +5,8 @@
 #ifndef NET_CERT_SCT_STATUS_FLAGS_H_
 #define NET_CERT_SCT_STATUS_FLAGS_H_
 
-#include <stdint.h>
-
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

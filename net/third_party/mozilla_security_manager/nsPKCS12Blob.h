@@ -38,14 +38,13 @@
 #ifndef NET_THIRD_PARTY_MOZILLA_SECURITY_MANAGER_NSPKCS12BLOB_H_
 #define NET_THIRD_PARTY_MOZILLA_SECURITY_MANAGER_NSPKCS12BLOB_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "base/strings/string16.h"
 #include "net/cert/scoped_nss_types.h"
+#include "starboard/types.h"
 
 typedef struct CERTCertificateStr CERTCertificate;
 typedef struct PK11SlotInfoStr PK11SlotInfo;

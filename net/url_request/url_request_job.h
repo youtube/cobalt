@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_JOB_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -28,6 +26,7 @@
 #include "net/socket/connection_attempts.h"
 #include "net/url_request/redirect_info.h"
 #include "net/url_request/url_request.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace net {

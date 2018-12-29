@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_SIMPLE_SIMPLE_INDEX_FILE_H_
 #define NET_DISK_CACHE_SIMPLE_SIMPLE_INDEX_FILE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,6 +17,7 @@
 #include "net/base/cache_type.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/simple/simple_index.h"
+#include "starboard/types.h"
 
 namespace base {
 class SequencedTaskRunner;

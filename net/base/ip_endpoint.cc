@@ -26,6 +26,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace net {
@@ -201,11 +202,11 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
         return false;
       *address_length = kSockaddrInSize;
       struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
-      memset(addr, 0, sizeof(struct sockaddr_in));
+      SbMemorySet(addr, 0, sizeof(struct sockaddr_in));
       addr->sin_family = AF_INET;
       addr->sin_port = base::HostToNet16(port_);
-      memcpy(&addr->sin_addr, address_.bytes().data(),
-             IPAddress::kIPv4AddressSize);
+      SbMemoryCopy(&addr->sin_addr, address_.bytes().data(),
+                   IPAddress::kIPv4AddressSize);
       break;
     }
     case IPAddress::kIPv6AddressSize: {
@@ -214,11 +215,11 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       *address_length = kSockaddrIn6Size;
       struct sockaddr_in6* addr6 =
           reinterpret_cast<struct sockaddr_in6*>(address);
-      memset(addr6, 0, sizeof(struct sockaddr_in6));
+      SbMemorySet(addr6, 0, sizeof(struct sockaddr_in6));
       addr6->sin6_family = AF_INET6;
       addr6->sin6_port = base::HostToNet16(port_);
-      memcpy(&addr6->sin6_addr, address_.bytes().data(),
-             IPAddress::kIPv6AddressSize);
+      SbMemoryCopy(&addr6->sin6_addr, address_.bytes().data(),
+                   IPAddress::kIPv6AddressSize);
       break;
     }
     default:

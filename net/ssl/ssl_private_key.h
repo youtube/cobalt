@@ -5,8 +5,6 @@
 #ifndef NET_SSL_SSL_PRIVATE_KEY_H_
 #define NET_SSL_SSL_PRIVATE_KEY_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/callback_forward.h"
@@ -15,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

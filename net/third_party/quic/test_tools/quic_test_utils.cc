@@ -26,6 +26,7 @@
 #include "net/third_party/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/spdy/core/spdy_frame_builder.h"
+#include "starboard/memory.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 
 using testing::_;
@@ -112,7 +113,7 @@ uint64_t SimpleRandom::RandUint64() {
   QuicString hash =
       Sha1Hash(QuicStringPiece(reinterpret_cast<char*>(&seed_), sizeof(seed_)));
   DCHECK_EQ(static_cast<size_t>(SHA_DIGEST_LENGTH), hash.length());
-  memcpy(&seed_, hash.data(), sizeof(seed_));
+  SbMemoryCopy(&seed_, hash.data(), sizeof(seed_));
   return seed_;
 }
 
@@ -822,7 +823,7 @@ QuicReceivedPacket* ConstructReceivedPacket(
     const QuicEncryptedPacket& encrypted_packet,
     QuicTime receipt_time) {
   char* buffer = new char[encrypted_packet.length()];
-  memcpy(buffer, encrypted_packet.data(), encrypted_packet.length());
+  SbMemoryCopy(buffer, encrypted_packet.data(), encrypted_packet.length());
   return new QuicReceivedPacket(buffer, encrypted_packet.length(), receipt_time,
                                 true);
 }

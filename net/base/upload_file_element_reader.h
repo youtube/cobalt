@@ -5,8 +5,6 @@
 #ifndef NET_BASE_UPLOAD_FILE_ELEMENT_READER_H_
 #define NET_BASE_UPLOAD_FILE_ELEMENT_READER_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/compiler_specific.h"
@@ -19,6 +17,7 @@
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_element_reader.h"
+#include "starboard/types.h"
 
 namespace base {
 class TaskRunner;

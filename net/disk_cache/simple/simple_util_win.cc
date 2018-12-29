@@ -11,6 +11,7 @@
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "net/disk_cache/cache_util.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 namespace simple_util {

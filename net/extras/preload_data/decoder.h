@@ -5,11 +5,10 @@
 #ifndef NET_EXTRAS_PRELOAD_DATA_DECODER_H_
 #define NET_EXTRAS_PRELOAD_DATA_DECODER_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace net {
 

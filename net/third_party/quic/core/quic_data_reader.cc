@@ -9,6 +9,7 @@
 #include "net/third_party/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/third_party/quic/platform/api/quic_str_cat.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -159,7 +160,7 @@ bool QuicDataReader::ReadBytes(void* result, size_t size) {
   }
 
   // Read into result.
-  memcpy(result, data_ + pos_, size);
+  SbMemoryCopy(result, data_ + pos_, size);
 
   // Iterate.
   pos_ += size;

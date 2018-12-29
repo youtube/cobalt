@@ -10,7 +10,6 @@
 #define net net_kernel
 #include <linux/rtnetlink.h>
 #undef net
-#include <stddef.h>
 
 #include <map>
 #include <unordered_set>
@@ -25,6 +24,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace internal {

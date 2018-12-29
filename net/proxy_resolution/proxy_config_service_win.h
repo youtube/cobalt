@@ -16,6 +16,7 @@
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/polling_proxy_config_service.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace win {

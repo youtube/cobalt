@@ -8,12 +8,10 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_ADDR_H_
 #define NET_DISK_CACHE_BLOCKFILE_ADDR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/disk_format_base.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

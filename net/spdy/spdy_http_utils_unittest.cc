@@ -4,13 +4,12 @@
 
 #include "net/spdy/spdy_http_utils.h"
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "net/http/http_request_info.h"
 #include "net/third_party/spdy/core/spdy_framer.h"
 #include "net/third_party/spdy/core/spdy_test_utils.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

@@ -5,11 +5,12 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_BITMAP_H_
 #define NET_DISK_CACHE_BLOCKFILE_BITMAP_H_
 
-#include <stdint.h>
 #include <string.h>
 
 #include "base/macros.h"
 #include "net/base/net_export.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 
@@ -44,7 +45,7 @@ class NET_EXPORT_PRIVATE Bitmap {
 
   // Sets all the bits to true or false.
   void SetAll(bool value) {
-    memset(map_, (value ? 0xFF : 0x00), array_size_ * sizeof(*map_));
+    SbMemorySet(map_, (value ? 0xFF : 0x00), array_size_ * sizeof(*map_));
   }
 
   // Clears all bits in the bitmap

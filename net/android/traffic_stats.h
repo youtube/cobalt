@@ -9,9 +9,9 @@
 // provided on Android.
 
 #include <jni.h>
-#include <stdint.h>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

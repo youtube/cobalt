@@ -6,6 +6,7 @@
 
 #include "base/stl_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -122,7 +123,7 @@ TEST(NtlmBufferReaderTest, ReadBytes) {
   NtlmBufferReader reader(expected);
 
   ASSERT_TRUE(reader.ReadBytes(actual));
-  ASSERT_EQ(0, memcmp(actual, expected, base::size(actual)));
+  ASSERT_EQ(0, SbMemoryCompare(actual, expected, base::size(actual)));
   ASSERT_TRUE(reader.IsEndOfBuffer());
   ASSERT_FALSE(reader.ReadBytes(base::make_span(actual, 1)));
 }
@@ -446,7 +447,7 @@ TEST(NtlmBufferReaderTest, ReadTargetInfoOtherField) {
   // Verify the domain name AvPair.
   ASSERT_EQ(TargetInfoAvId::kDomainName, av_pairs[0].avid);
   ASSERT_EQ(8, av_pairs[0].avlen);
-  ASSERT_EQ(0, memcmp(buf + 4, av_pairs[0].buffer.data(), 8));
+  ASSERT_EQ(0, SbMemoryCompare(buf + 4, av_pairs[0].buffer.data(), 8));
 }
 
 TEST(NtlmBufferReaderTest, ReadTargetInfoNoTerminator) {

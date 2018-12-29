@@ -5,8 +5,6 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_TEST_UTIL_H_
 #define NET_WEBSOCKETS_WEBSOCKET_TEST_UTIL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -22,6 +20,7 @@
 #include "net/url_request/url_request_test_util.h"
 #include "net/websockets/websocket_handshake_stream_create_helper.h"
 #include "net/websockets/websocket_stream.h"
+#include "starboard/types.h"
 
 namespace url {
 class Origin;

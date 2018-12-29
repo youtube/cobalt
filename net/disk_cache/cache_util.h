@@ -5,11 +5,10 @@
 #ifndef NET_DISK_CACHE_CACHE_UTIL_H_
 #define NET_DISK_CACHE_CACHE_UTIL_H_
 
-#include <stdint.h>
-
 #include "base/feature_list.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/disk_cache.h"
+#include "starboard/types.h"
 
 namespace base {
 class FilePath;

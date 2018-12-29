@@ -4,8 +4,6 @@
 
 #include "net/base/network_activity_monitor.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -13,6 +11,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

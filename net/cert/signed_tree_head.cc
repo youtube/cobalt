@@ -9,6 +9,8 @@
 #include <ostream>
 
 #include "base/strings/string_number_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 namespace ct {
@@ -26,7 +28,7 @@ SignedTreeHead::SignedTreeHead(Version version,
       tree_size(tree_size),
       signature(signature),
       log_id(log_id) {
-  memcpy(this->sha256_root_hash, sha256_root_hash, kSthRootHashLength);
+  SbMemoryCopy(this->sha256_root_hash, sha256_root_hash, kSthRootHashLength);
 }
 
 SignedTreeHead::SignedTreeHead(const SignedTreeHead& other) = default;
@@ -48,8 +50,8 @@ void PrintTo(const SignedTreeHead& sth, std::ostream* os) {
 bool operator==(const SignedTreeHead& lhs, const SignedTreeHead& rhs) {
   return std::tie(lhs.version, lhs.timestamp, lhs.tree_size, lhs.log_id) ==
              std::tie(rhs.version, rhs.timestamp, rhs.tree_size, rhs.log_id) &&
-         memcmp(lhs.sha256_root_hash, rhs.sha256_root_hash,
-                kSthRootHashLength) == 0 &&
+         SbMemoryCompare(lhs.sha256_root_hash, rhs.sha256_root_hash,
+                         kSthRootHashLength) == 0 &&
          lhs.signature.SignatureParametersMatch(
              rhs.signature.hash_algorithm, rhs.signature.signature_algorithm) &&
          lhs.signature.signature_data == rhs.signature.signature_data;

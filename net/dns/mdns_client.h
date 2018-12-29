@@ -5,8 +5,6 @@
 #ifndef NET_DNS_MDNS_CLIENT_H_
 #define NET_DNS_MDNS_CLIENT_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +16,7 @@
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"
 #include "net/dns/record_parsed.h"
+#include "starboard/types.h"
 
 namespace net {
 

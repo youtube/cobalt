@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_RESOLUTION_PROXY_RESOLVER_V8_H_
 #define NET_PROXY_RESOLUTION_PROXY_RESOLVER_V8_H_
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/compiler_specific.h"
@@ -14,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/strings/string16.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 

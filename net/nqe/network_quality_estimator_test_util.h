@@ -5,8 +5,6 @@
 #ifndef NET_NQE_NETWORK_QUALITY_ESTIMATOR_TEST_UTIL_H_
 #define NET_NQE_NETWORK_QUALITY_ESTIMATOR_TEST_UTIL_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -23,6 +21,7 @@
 #include "net/nqe/effective_connection_type.h"
 #include "net/nqe/network_quality_estimator.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 

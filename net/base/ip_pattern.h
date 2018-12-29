@@ -5,8 +5,6 @@
 #ifndef NET_BASE_IP_PATTERN_H_
 #define NET_BASE_IP_PATTERN_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,6 +12,7 @@
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

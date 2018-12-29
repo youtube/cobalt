@@ -5,8 +5,6 @@
 #ifndef NET_QUIC_QUIC_CONNECTION_LOGGER_H_
 #define NET_QUIC_QUIC_CONNECTION_LOGGER_H_
 
-#include <stddef.h>
-
 #include <bitset>
 #include <string>
 
@@ -21,6 +19,7 @@
 #include "net/third_party/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quic/core/quic_connection.h"
 #include "net/third_party/quic/core/quic_packets.h"
+#include "starboard/types.h"
 
 namespace base {
 class HistogramBase;

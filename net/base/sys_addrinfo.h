@@ -26,6 +26,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
+#include "starboard/types.h"
 #endif
 
 #endif  // NET_BASE_SYS_ADDRINFO_H_

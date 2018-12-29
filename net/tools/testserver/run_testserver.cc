@@ -13,6 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/test_timeouts.h"
 #include "net/test/spawned_test_server/spawned_test_server.h"
+#include "starboard/types.h"
 
 static void PrintUsage() {
   printf("run_testserver --doc-root=relpath\n"

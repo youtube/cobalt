@@ -4,8 +4,6 @@
 
 #include "net/dns/dns_session.h"
 
-#include <stdint.h>
-
 #include <limits>
 #include <utility>
 
@@ -27,6 +25,7 @@
 #include "net/log/net_log_with_source.h"
 #include "net/socket/datagram_client_socket.h"
 #include "net/socket/stream_socket.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -6,6 +6,7 @@
 
 #include "net/third_party/quic/core/quic_data_writer.h"
 #include "net/third_party/quic/core/quic_utils.h"
+#include "starboard/memory.h"
 
 using quic::DiversificationNonce;
 using quic::Perspective;
@@ -39,7 +40,7 @@ bool MockEncrypter::EncryptPacket(QuicTransportVersion version,
   if (max_output_length < plaintext.size()) {
     return false;
   }
-  memcpy(output, plaintext.data(), plaintext.length());
+  SbMemoryCopy(output, plaintext.data(), plaintext.length());
   *output_length = plaintext.size();
   return true;
 }

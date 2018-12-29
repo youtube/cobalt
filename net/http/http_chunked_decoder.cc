@@ -53,6 +53,7 @@
 #include "net/base/net_errors.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -99,7 +100,7 @@ int HttpChunkedDecoder::FilterBuf(char* buf, int buf_len) {
 
     buf_len -= bytes_consumed;
     if (buf_len > 0)
-      memmove(buf, buf + bytes_consumed, buf_len);
+      SbMemoryMove(buf, buf + bytes_consumed, buf_len);
   }
 
   return result;

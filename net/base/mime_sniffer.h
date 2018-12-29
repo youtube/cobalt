@@ -5,11 +5,10 @@
 #ifndef NET_BASE_MIME_SNIFFER_H__
 #define NET_BASE_MIME_SNIFFER_H__
 
-#include <stddef.h>
-
 #include <string>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 

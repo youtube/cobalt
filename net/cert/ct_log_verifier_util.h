@@ -5,11 +5,10 @@
 #ifndef NET_CERT_CT_LOG_VERIFIER_UTIL_H_
 #define NET_CERT_CT_LOG_VERIFIER_UTIL_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

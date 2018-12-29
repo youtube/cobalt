@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include "starboard/types.h"
+
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "base/native_library.h"

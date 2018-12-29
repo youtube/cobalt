@@ -4,10 +4,9 @@
 
 #include "net/nqe/network_quality_estimator_params.h"
 
-#include <stdint.h>
-
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace net {
 

@@ -22,6 +22,7 @@
 #include "net/third_party/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quic/test_tools/quic_crypto_server_config_peer.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace test {
@@ -117,7 +118,7 @@ class StatelessRejectorTest : public QuicTestWithParam<TestParams> {
 
     // Generate a public value.
     char public_value[32];
-    memset(public_value, 42, sizeof(public_value));
+    SbMemorySet(public_value, 42, sizeof(public_value));
     pubs_hex_ =
         "#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value));
 

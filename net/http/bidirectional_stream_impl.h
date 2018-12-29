@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_BIDIRECTIONAL_STREAM_IMPL_H_
 #define NET_HTTP_BIDIRECTIONAL_STREAM_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -16,6 +14,7 @@
 #include "net/base/net_export.h"
 #include "net/socket/next_proto.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace base {
 class OneShotTimer;

@@ -22,6 +22,7 @@
 #include "net/third_party/quic/test_tools/mock_quic_session_visitor.h"
 #include "net/third_party/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quic/test_tools/quic_time_wait_list_manager_peer.h"
+#include "starboard/types.h"
 
 using testing::_;
 using testing::Args;

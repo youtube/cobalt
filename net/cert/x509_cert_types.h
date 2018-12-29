@@ -5,7 +5,6 @@
 #ifndef NET_CERT_X509_CERT_TYPES_H_
 #define NET_CERT_X509_CERT_TYPES_H_
 
-#include <stddef.h>
 #include <string.h>
 
 #include <map>
@@ -19,6 +18,7 @@
 #include "net/base/hash_value.h"
 #include "net/base/net_export.h"
 #include "net/cert/cert_status_flags.h"
+#include "starboard/types.h"
 
 namespace base {
 class Time;

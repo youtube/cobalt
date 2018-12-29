@@ -9,6 +9,8 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace net {
 
@@ -36,7 +38,7 @@ base::StringPiece Input::AsStringPiece() const {
 bool operator==(const Input& lhs, const Input& rhs) {
   if (lhs.Length() != rhs.Length())
     return false;
-  return memcmp(lhs.UnsafeData(), rhs.UnsafeData(), lhs.Length()) == 0;
+  return SbMemoryCompare(lhs.UnsafeData(), rhs.UnsafeData(), lhs.Length()) == 0;
 }
 
 bool operator!=(const Input& lhs, const Input& rhs) {

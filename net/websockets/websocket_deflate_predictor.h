@@ -5,12 +5,11 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_DEFLATE_PREDICTOR_H_
 #define NET_WEBSOCKETS_WEBSOCKET_DEFLATE_PREDICTOR_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <vector>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

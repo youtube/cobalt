@@ -5,9 +5,6 @@
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_IMPL_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,6 +29,7 @@
 #include "net/ssl/ssl_client_cert_type.h"
 #include "net/ssl/ssl_config.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 

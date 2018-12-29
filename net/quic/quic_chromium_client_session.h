@@ -10,8 +10,6 @@
 #ifndef NET_QUIC_QUIC_CHROMIUM_CLIENT_SESSION_H_
 #define NET_QUIC_QUIC_CHROMIUM_CLIENT_SESSION_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <memory>
 #include <set>
@@ -45,6 +43,7 @@
 #include "net/third_party/quic/core/quic_server_id.h"
 #include "net/third_party/quic/core/quic_time.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

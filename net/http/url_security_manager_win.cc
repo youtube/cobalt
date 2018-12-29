@@ -11,6 +11,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/http/http_auth_filter.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 // The Windows implementation of URLSecurityManager uses WinINet/IE's

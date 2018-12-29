@@ -5,13 +5,12 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_NETLOG_PARAMS_H_
 #define NET_URL_REQUEST_URL_REQUEST_NETLOG_PARAMS_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
+#include "starboard/types.h"
 
 class GURL;
 

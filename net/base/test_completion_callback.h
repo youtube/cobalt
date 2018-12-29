@@ -5,8 +5,6 @@
 #ifndef NET_BASE_TEST_COMPLETION_CALLBACK_H_
 #define NET_BASE_TEST_COMPLETION_CALLBACK_H_
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/callback.h"
@@ -14,6 +12,7 @@
 #include "base/macros.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_errors.h"
+#include "starboard/types.h"
 
 //-----------------------------------------------------------------------------
 // completion callback helper

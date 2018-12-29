@@ -17,6 +17,7 @@
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service.h"
+#include "starboard/types.h"
 
 namespace net {
 struct DnsConfig;

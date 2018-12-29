@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <utility>
 
+#include "starboard/types.h"
+
 #include "base/callback_helpers.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"

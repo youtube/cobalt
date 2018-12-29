@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
+#include "starboard/types.h"
 
 namespace net {
 

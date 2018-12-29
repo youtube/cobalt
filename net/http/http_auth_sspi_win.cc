@@ -14,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_multi_round_parse.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -317,7 +318,7 @@ int HttpAuthSSPI::GenerateAuthToken(const AuthCredentials* credentials,
   std::string encode_output;
   base::Base64Encode(encode_input, &encode_output);
   // OK, we are done with |out_buf|
-  free(out_buf);
+  SbMemoryFree(out_buf);
   *auth_token = scheme_ + " " + encode_output;
   return OK;
 }
@@ -404,7 +405,7 @@ int HttpAuthSSPI::GetNextSecurityToken(const std::string& spn,
   out_buffer_desc.pBuffers = &out_buffer;
   out_buffer.BufferType = SECBUFFER_TOKEN;
   out_buffer.cbBuffer = max_token_length_;
-  out_buffer.pvBuffer = malloc(out_buffer.cbBuffer);
+  out_buffer.pvBuffer = SbMemoryAllocate(out_buffer.cbBuffer);
   if (!out_buffer.pvBuffer)
     return ERR_OUT_OF_MEMORY;
 
@@ -433,11 +434,11 @@ int HttpAuthSSPI::GetNextSecurityToken(const std::string& spn,
   int rv = MapInitializeSecurityContextStatusToError(status);
   if (rv != OK) {
     ResetSecurityContext();
-    free(out_buffer.pvBuffer);
+    SbMemoryFree(out_buffer.pvBuffer);
     return rv;
   }
   if (!out_buffer.cbBuffer) {
-    free(out_buffer.pvBuffer);
+    SbMemoryFree(out_buffer.pvBuffer);
     out_buffer.pvBuffer = NULL;
   }
   *out_token = out_buffer.pvBuffer;

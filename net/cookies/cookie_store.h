@@ -7,8 +7,6 @@
 #ifndef NET_COOKIES_COOKIE_STORE_H_
 #define NET_COOKIES_COOKIE_STORE_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -19,6 +17,7 @@
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_deletion_info.h"
 #include "net/cookies/cookie_options.h"
+#include "starboard/types.h"
 
 class GURL;
 

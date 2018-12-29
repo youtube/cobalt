@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -21,6 +18,7 @@
 #include "net/dns/host_resolver.h"
 #include "net/log/net_log_with_source.h"
 #include "net/log/test_net_log.h"
+#include "starboard/types.h"
 
 namespace {
 

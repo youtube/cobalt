@@ -49,6 +49,7 @@
 #include "net/log/net_log_event_type.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config_service.h"
+#include "starboard/types.h"
 
 using base::Time;
 using base::TimeDelta;

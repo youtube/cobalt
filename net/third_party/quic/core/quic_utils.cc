@@ -14,6 +14,7 @@
 #include "net/third_party/quic/platform/api/quic_prefetch.h"
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "net/third_party/quic/platform/api/quic_uint128.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace {
@@ -128,8 +129,8 @@ void QuicUtils::SerializeUint128Short(QuicUint128 v, uint8_t* out) {
   const uint64_t lo = QuicUint128Low64(v);
   const uint64_t hi = QuicUint128High64(v);
   // This assumes that the system is little-endian.
-  memcpy(out, &lo, sizeof(lo));
-  memcpy(out + sizeof(lo), &hi, sizeof(hi) / 2);
+  SbMemoryCopy(out, &lo, sizeof(lo));
+  SbMemoryCopy(out + sizeof(lo), &hi, sizeof(hi) / 2);
 }
 
 #define RETURN_STRING_LITERAL(x) \
@@ -274,7 +275,7 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
 
   const char* src = static_cast<char*>(iov[iovnum].iov_base) + iov_offset;
   while (true) {
-    memcpy(buffer, src, copy_len);
+    SbMemoryCopy(buffer, src, copy_len);
     buffer_length -= copy_len;
     buffer += copy_len;
     if (buffer_length == 0 || ++iovnum >= iov_count) {

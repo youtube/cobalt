@@ -22,6 +22,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_scoped_task_environment.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

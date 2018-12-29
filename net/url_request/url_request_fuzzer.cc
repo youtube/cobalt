@@ -4,9 +4,6 @@
 
 #include "net/url_request/url_request.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/run_loop.h"
@@ -17,6 +14,7 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_test_util.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 // Integration fuzzer for URLRequest's handling of HTTP requests. Can follow

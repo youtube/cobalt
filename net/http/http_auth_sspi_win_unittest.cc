@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/http/http_auth_sspi_win.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_challenge_tokenizer.h"
-#include "net/http/http_auth_sspi_win.h"
 #include "net/http/mock_sspi_library_win.h"
 #include "net/test/gtest_util.h"
+#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,7 +45,7 @@ TEST(HttpAuthSSPITest, SplitUserAndDomain) {
 
 TEST(HttpAuthSSPITest, DetermineMaxTokenLength_Normal) {
   SecPkgInfoW package_info;
-  memset(&package_info, 0x0, sizeof(package_info));
+  SbMemorySet(&package_info, 0x0, sizeof(package_info));
   package_info.cbMaxToken = 1337;
 
   MockSSPILibrary mock_library;

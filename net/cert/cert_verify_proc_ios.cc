@@ -17,6 +17,7 @@
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_ios.h"
 #include "net/cert/x509_util_ios_and_mac.h"
+#include "starboard/types.h"
 
 using base::ScopedCFTypeRef;
 

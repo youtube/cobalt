@@ -5,8 +5,6 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_SPARSE_CONTROL_H_
 #define NET_DISK_CACHE_BLOCKFILE_SPARSE_CONTROL_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -15,6 +13,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/blockfile/bitmap.h"
 #include "net/disk_cache/blockfile/disk_format.h"
+#include "starboard/types.h"
 
 namespace net {
 class IOBuffer;

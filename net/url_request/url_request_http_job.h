@@ -5,9 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -24,6 +21,7 @@
 #include "net/socket/connection_attempts.h"
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
+#include "starboard/types.h"
 
 namespace net {
 

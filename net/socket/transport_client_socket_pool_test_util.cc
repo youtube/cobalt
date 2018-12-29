@@ -4,7 +4,6 @@
 
 #include "net/socket/transport_client_socket_pool_test_util.h"
 
-#include <stdint.h>
 #include <string>
 #include <utility>
 
@@ -27,6 +26,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/transport_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {

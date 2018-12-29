@@ -8,8 +8,6 @@
 // inefficient. However, it makes these tests a good fit for scenarios which
 // require special server configurations.
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -52,6 +50,7 @@
 #include "net/url_request/url_request_test_util.h"
 #include "net/websockets/websocket_channel.h"
 #include "net/websockets/websocket_event_interface.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 #include "url/origin.h"

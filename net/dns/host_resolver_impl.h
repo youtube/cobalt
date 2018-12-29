@@ -5,9 +5,6 @@
 #ifndef NET_DNS_HOST_RESOLVER_IMPL_H_
 #define NET_DNS_HOST_RESOLVER_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <set>
@@ -24,6 +21,7 @@
 #include "net/dns/host_resolver.h"
 #include "net/dns/host_resolver_proc.h"
 #include "net/url_request/url_request_context.h"
+#include "starboard/types.h"
 #include "url/gurl.h"
 
 namespace base {

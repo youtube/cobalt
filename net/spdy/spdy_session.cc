@@ -57,6 +57,7 @@
 #include "net/third_party/quic/core/http/spdy_utils.h"
 #include "net/third_party/spdy/core/spdy_frame_builder.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
+#include "starboard/memory.h"
 #include "url/url_constants.h"
 
 namespace net {
@@ -2382,17 +2383,18 @@ void SpdySession::SendInitialData() {
 #endif
   size_t offset = 0;
 
-  memcpy(initial_frame_data.get() + offset, spdy::kHttp2ConnectionHeaderPrefix,
-         spdy::kHttp2ConnectionHeaderPrefixSize);
+  SbMemoryCopy(initial_frame_data.get() + offset,
+               spdy::kHttp2ConnectionHeaderPrefix,
+               spdy::kHttp2ConnectionHeaderPrefixSize);
   offset += spdy::kHttp2ConnectionHeaderPrefixSize;
 
-  memcpy(initial_frame_data.get() + offset, settings_frame->data(),
-         settings_frame->size());
+  SbMemoryCopy(initial_frame_data.get() + offset, settings_frame->data(),
+               settings_frame->size());
   offset += settings_frame->size();
 
   if (send_window_update) {
-    memcpy(initial_frame_data.get() + offset, window_update_frame->data(),
-           window_update_frame->size());
+    SbMemoryCopy(initial_frame_data.get() + offset, window_update_frame->data(),
+                 window_update_frame->size());
   }
 
   auto initial_frame = std::make_unique<spdy::SpdySerializedFrame>(

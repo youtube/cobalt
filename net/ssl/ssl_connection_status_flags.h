@@ -5,10 +5,9 @@
 #ifndef NET_SSL_SSL_CONNECTION_STATUS_FLAGS_H_
 #define NET_SSL_SSL_CONNECTION_STATUS_FLAGS_H_
 
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace net {
 

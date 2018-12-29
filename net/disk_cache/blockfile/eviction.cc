@@ -28,8 +28,6 @@
 
 #include "net/disk_cache/blockfile/eviction.h"
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/bind.h"
@@ -48,6 +46,7 @@
 #include "net/disk_cache/blockfile/histogram_macros.h"
 #include "net/disk_cache/blockfile/trace.h"
 #include "net/disk_cache/blockfile/webfonts_histogram.h"
+#include "starboard/types.h"
 
 // Provide a BackendImpl object to macros from histogram_macros.h.
 #define CACHE_UMA_BACKEND_IMPL_OBJ backend_

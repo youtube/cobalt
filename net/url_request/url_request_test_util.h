@@ -5,7 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
 #define NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_
 
-#include <stdint.h>
 #include <stdlib.h>
 
 #include <map>
@@ -44,6 +43,7 @@
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_context_storage.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "starboard/types.h"
 #include "url/url_util.h"
 
 using base::TimeDelta;

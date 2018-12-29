@@ -5,12 +5,11 @@
 #ifndef NET_BASE_HOST_PORT_PAIR_H_
 #define NET_BASE_HOST_PORT_PAIR_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <tuple>
 
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 class GURL;
 

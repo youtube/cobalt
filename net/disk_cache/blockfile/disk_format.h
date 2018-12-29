@@ -45,12 +45,11 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_DISK_FORMAT_H_
 #define NET_DISK_CACHE_BLOCKFILE_DISK_FORMAT_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/disk_format_base.h"
+#include "starboard/types.h"
 
 namespace disk_cache {
 

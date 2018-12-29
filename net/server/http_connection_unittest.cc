@@ -8,6 +8,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_piece.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -48,7 +49,7 @@ TEST(HttpConnectionTest, ReadIOBuffer_SetCapacity_WithData) {
   // Write arbitrary data up to kInitialBufSize.
   const std::string kReadData(
       GetTestString(HttpConnection::ReadIOBuffer::kInitialBufSize));
-  memcpy(buffer->data(), kReadData.data(), kReadData.size());
+  SbMemoryCopy(buffer->data(), kReadData.data(), kReadData.size());
   buffer->DidRead(kReadData.size());
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize + 0,
             buffer->GetCapacity());
@@ -118,7 +119,7 @@ TEST(HttpConnectionTest, ReadIOBuffer_IncreaseCapacity_WithData) {
 
   // Write arbitrary data up to kExpectedInitialBufSize.
   std::string kReadData(GetTestString(kExpectedInitialBufSize));
-  memcpy(buffer->data(), kReadData.data(), kReadData.size());
+  SbMemoryCopy(buffer->data(), kReadData.data(), kReadData.size());
   buffer->DidRead(kReadData.size());
   EXPECT_EQ(kExpectedInitialBufSize, buffer->GetCapacity());
   EXPECT_EQ(kExpectedInitialBufSize - static_cast<int>(kReadData.size()),
@@ -152,7 +153,7 @@ TEST(HttpConnectionTest, ReadIOBuffer_DidRead_DidConsume) {
   // Read data.
   const int kReadLength = 128;
   const std::string kReadData(GetTestString(kReadLength));
-  memcpy(buffer->data(), kReadData.data(), kReadLength);
+  SbMemoryCopy(buffer->data(), kReadData.data(), kReadLength);
   buffer->DidRead(kReadLength);
   // No change in total capacity.
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize + 0,

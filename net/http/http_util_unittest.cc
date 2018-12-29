@@ -7,6 +7,7 @@
 
 #include "base/strings/string_util.h"
 #include "net/http/http_util.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -306,7 +307,7 @@ TEST(HttpUtilTest, LocateEndOfHeaders) {
       {"foo\nbar\r\n\njunk", 10},
   };
   for (size_t i = 0; i < arraysize(tests); ++i) {
-    int input_len = static_cast<int>(strlen(tests[i].input));
+    int input_len = static_cast<int>(SbStringGetLength(tests[i].input));
     int eoh = HttpUtil::LocateEndOfHeaders(tests[i].input, input_len);
     EXPECT_EQ(tests[i].expected_result, eoh);
   }
@@ -330,7 +331,7 @@ TEST(HttpUtilTest, LocateEndOfAdditionalHeaders) {
       {"foo\nbar\r\n\njunk", 10},
   };
   for (size_t i = 0; i < arraysize(tests); ++i) {
-    int input_len = static_cast<int>(strlen(tests[i].input));
+    int input_len = static_cast<int>(SbStringGetLength(tests[i].input));
     int eoh = HttpUtil::LocateEndOfAdditionalHeaders(tests[i].input, input_len);
     EXPECT_EQ(tests[i].expected_result, eoh);
   }

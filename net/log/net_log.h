@@ -5,8 +5,6 @@
 #ifndef NET_LOG_NET_LOG_H_
 #define NET_LOG_NET_LOG_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -24,6 +22,7 @@
 #include "net/log/net_log_parameters_callback.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_source_type.h"
+#include "starboard/types.h"
 
 namespace base {
 class Value;

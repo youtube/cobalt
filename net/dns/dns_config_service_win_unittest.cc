@@ -9,6 +9,7 @@
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/dns/dns_protocol.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -71,9 +72,9 @@ std::unique_ptr<IP_ADAPTER_ADDRESSES, base::FreeDeleter> CreateAdapterAddresses(
                      num_addresses * (sizeof(IP_ADAPTER_DNS_SERVER_ADDRESS) +
                                       sizeof(struct sockaddr_storage));
   std::unique_ptr<IP_ADAPTER_ADDRESSES, base::FreeDeleter> heap(
-      static_cast<IP_ADAPTER_ADDRESSES*>(malloc(heap_size)));
+      static_cast<IP_ADAPTER_ADDRESSES*>(SbMemoryAllocate(heap_size)));
   CHECK(heap.get());
-  memset(heap.get(), 0, heap_size);
+  SbMemorySet(heap.get(), 0, heap_size);
 
   IP_ADAPTER_ADDRESSES* adapters = heap.get();
   IP_ADAPTER_DNS_SERVER_ADDRESS* addresses =

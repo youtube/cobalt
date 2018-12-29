@@ -17,6 +17,7 @@
 #include "base/win/registry.h"
 #include "base/win/scoped_handle.h"
 #include "net/base/net_errors.h"
+#include "starboard/types.h"
 
 namespace net {
 

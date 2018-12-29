@@ -5,14 +5,13 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_INTERFACE_H_
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_INTERFACE_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
+#include "starboard/types.h"
 
 namespace net {
 

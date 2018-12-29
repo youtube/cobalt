@@ -5,12 +5,11 @@
 #ifndef NET_SSL_SSL_SERVER_CONFIG_H_
 #define NET_SSL_SSL_SERVER_CONFIG_H_
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "net/base/net_export.h"
 #include "net/ssl/ssl_config.h"
+#include "starboard/types.h"
 
 namespace net {
 

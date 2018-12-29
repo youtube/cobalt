@@ -12,6 +12,7 @@
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace quic {
 namespace {
@@ -54,7 +55,7 @@ std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
   }
 
   auto ka = QuicWrapUnique(new Curve25519KeyExchange);
-  memcpy(ka->private_key_, private_key.data(), X25519_PRIVATE_KEY_LEN);
+  SbMemoryCopy(ka->private_key_, private_key.data(), X25519_PRIVATE_KEY_LEN);
   X25519_public_from_private(ka->public_key_, ka->private_key_);
   return ka;
 }

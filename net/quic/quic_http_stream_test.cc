@@ -4,8 +4,6 @@
 
 #include "net/quic/quic_http_stream.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 
@@ -63,6 +61,8 @@
 #include "net/third_party/spdy/core/spdy_framer.h"
 #include "net/third_party/spdy/core/spdy_protocol.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -927,14 +927,14 @@ TEST_P(QuicHttpStreamTest, GetRequestWithTrailers) {
   size_t spdy_trailers_frame_length;
   trailers["foo"] = "bar";
   trailers[quic::kFinalOffsetHeaderKey] =
-      base::IntToString(strlen(kResponseBody));
+      base::IntToString(SbStringGetLength(kResponseBody));
   ProcessPacket(ConstructResponseTrailersPacket(
       4, kFin, std::move(trailers), &spdy_trailers_frame_length, &offset));
 
   // Make sure trailers are processed.
   base::RunLoop().RunUntilIdle();
 
-  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
   EXPECT_TRUE(stream_->IsResponseBodyComplete());
@@ -950,10 +950,10 @@ TEST_P(QuicHttpStreamTest, GetRequestWithTrailers) {
   // headers and payload.
   EXPECT_EQ(static_cast<int64_t>(spdy_request_header_frame_length),
             stream_->GetTotalSentBytes());
-  EXPECT_EQ(
-      static_cast<int64_t>(spdy_response_header_frame_length +
-                           strlen(kResponseBody) + +spdy_trailers_frame_length),
-      stream_->GetTotalReceivedBytes());
+  EXPECT_EQ(static_cast<int64_t>(spdy_response_header_frame_length +
+                                 SbStringGetLength(kResponseBody) +
+                                 +spdy_trailers_frame_length),
+            stream_->GetTotalReceivedBytes());
   // Check that NetLog was filled as expected.
   TestNetLogEntry::List entries;
   net_log_.GetEntries(&entries);
@@ -1227,7 +1227,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequest) {
 
   std::vector<std::unique_ptr<UploadElementReader>> element_readers;
   element_readers.push_back(std::make_unique<UploadBytesElementReader>(
-      kUploadData, strlen(kUploadData)));
+      kUploadData, SbStringGetLength(kUploadData)));
   upload_data_stream_ =
       std::make_unique<ElementsUploadDataStream>(std::move(element_readers), 0);
   request_.method = "POST";
@@ -1262,7 +1262,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequest) {
   const char kResponseBody[] = "Hello world!";
   ProcessPacket(ConstructServerDataPacket(3, false, kFin, 0, kResponseBody));
   // Since the body has already arrived, this should return immediately.
-  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
   EXPECT_EQ(0,
@@ -1275,10 +1275,10 @@ TEST_P(QuicHttpStreamTest, SendPostRequest) {
   // QuicHttpStream::GetTotalSent/ReceivedBytes currently only includes the
   // headers and payload.
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length +
-                                 strlen(kUploadData)),
+                                 SbStringGetLength(kUploadData)),
             stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             stream_->GetTotalReceivedBytes());
 }
 
@@ -1297,7 +1297,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequestAndReceiveSoloFin) {
 
   std::vector<std::unique_ptr<UploadElementReader>> element_readers;
   element_readers.push_back(std::make_unique<UploadBytesElementReader>(
-      kUploadData, strlen(kUploadData)));
+      kUploadData, SbStringGetLength(kUploadData)));
   upload_data_stream_ =
       std::make_unique<ElementsUploadDataStream>(std::move(element_readers), 0);
   request_.method = "POST";
@@ -1332,7 +1332,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequestAndReceiveSoloFin) {
   const char kResponseBody[] = "Hello world!";
   ProcessPacket(ConstructServerDataPacket(3, false, !kFin, 0, kResponseBody));
   // Since the body has already arrived, this should return immediately.
-  EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
+  EXPECT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
   ProcessPacket(ConstructServerDataPacket(4, false, kFin,
@@ -1347,16 +1347,16 @@ TEST_P(QuicHttpStreamTest, SendPostRequestAndReceiveSoloFin) {
   // QuicHttpStream::GetTotalSent/ReceivedBytes currently only includes the
   // headers and payload.
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length +
-                                 strlen(kUploadData)),
+                                 SbStringGetLength(kUploadData)),
             stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             stream_->GetTotalReceivedBytes());
 }
 
 TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
   SetRequest("POST", "/", DEFAULT_PRIORITY);
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   size_t spdy_request_headers_frame_length;
   quic::QuicStreamOffset header_stream_offset = 0;
   AddWrite(ConstructInitialSettingsPacket(&header_stream_offset));
@@ -1410,7 +1410,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
       3, false, kFin, response_data_.length(), kResponseBody));
 
   // Since the body has already arrived, this should return immediately.
-  ASSERT_EQ(static_cast<int>(strlen(kResponseBody)),
+  ASSERT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
 
@@ -1420,16 +1420,16 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
   // QuicHttpStream::GetTotalSent/ReceivedBytes currently only includes the
   // headers and payload.
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length +
-                                 strlen(kUploadData) * 2),
+                                 SbStringGetLength(kUploadData) * 2),
             stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             stream_->GetTotalReceivedBytes());
 }
 
 TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithFinalEmptyDataPacket) {
   SetRequest("POST", "/", DEFAULT_PRIORITY);
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   size_t spdy_request_headers_frame_length;
   quic::QuicStreamOffset header_stream_offset = 0;
   AddWrite(ConstructInitialSettingsPacket(&header_stream_offset));
@@ -1481,7 +1481,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithFinalEmptyDataPacket) {
       3, false, kFin, response_data_.length(), kResponseBody));
 
   // The body has arrived, but it is delivered asynchronously
-  ASSERT_EQ(static_cast<int>(strlen(kResponseBody)),
+  ASSERT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
   EXPECT_TRUE(stream_->IsResponseBodyComplete());
@@ -1490,10 +1490,10 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithFinalEmptyDataPacket) {
   // QuicHttpStream::GetTotalSent/ReceivedBytes currently only includes the
   // headers and payload.
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length +
-                                 strlen(kUploadData)),
+                                 SbStringGetLength(kUploadData)),
             stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             stream_->GetTotalReceivedBytes());
 }
 
@@ -1549,7 +1549,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithOneEmptyDataPacket) {
       3, false, kFin, response_data_.length(), kResponseBody));
 
   // The body has arrived, but it is delivered asynchronously
-  ASSERT_EQ(static_cast<int>(strlen(kResponseBody)),
+  ASSERT_EQ(static_cast<int>(SbStringGetLength(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
 
@@ -1561,7 +1561,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithOneEmptyDataPacket) {
   EXPECT_EQ(static_cast<int64_t>(spdy_request_headers_frame_length),
             stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             stream_->GetTotalReceivedBytes());
 }
 
@@ -1678,7 +1678,7 @@ TEST_P(QuicHttpStreamTest, SessionClosedDuringDoLoop) {
   ASSERT_EQ(OK, request_.upload_data_stream->Init(
                     TestCompletionCallback().callback(), NetLogWithSource()));
 
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
   ASSERT_EQ(OK,
             stream_->InitializeStream(&request_, false, DEFAULT_PRIORITY,
@@ -1722,7 +1722,7 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendHeadersComplete) {
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
   // Error will be surfaced once |upload_data_stream| triggers the next write.
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
   ASSERT_EQ(ERR_QUIC_PROTOCOL_ERROR, callback_.WaitForResult());
 
@@ -1745,7 +1745,7 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendHeadersCompleteReadResponse) {
   request_.url = GURL("https://www.example.org/");
   request_.upload_data_stream = upload_data_stream_.get();
 
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
 
   ASSERT_EQ(OK, request_.upload_data_stream->Init(
@@ -1793,7 +1793,7 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBodyComplete) {
   ASSERT_EQ(ERR_IO_PENDING,
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
   // Error does not surface yet since packet write is triggered by a packet
   // flusher that tries to bundle request body writes.
@@ -1826,7 +1826,7 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBundledBodyComplete) {
   request_.url = GURL("https://www.example.org/");
   request_.upload_data_stream = upload_data_stream_.get();
 
-  size_t chunk_size = strlen(kUploadData);
+  size_t chunk_size = SbStringGetLength(kUploadData);
   chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
 
   ASSERT_EQ(OK, request_.upload_data_stream->Init(
@@ -1903,7 +1903,7 @@ TEST_P(QuicHttpStreamTest, ServerPushGetRequest) {
 
   // As will be the body.
   EXPECT_EQ(
-      static_cast<int>(strlen(kResponseBody)),
+      static_cast<int>(SbStringGetLength(kResponseBody)),
       promised_stream_->ReadResponseBody(
           read_buffer_.get(), read_buffer_->size(), callback_.callback()));
   EXPECT_TRUE(promised_stream_->IsResponseBodyComplete());
@@ -1913,7 +1913,7 @@ TEST_P(QuicHttpStreamTest, ServerPushGetRequest) {
   EXPECT_EQ(0, stream_->GetTotalReceivedBytes());
   EXPECT_EQ(0, promised_stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             promised_stream_->GetTotalReceivedBytes());
 }
 
@@ -1974,7 +1974,7 @@ TEST_P(QuicHttpStreamTest, ServerPushGetRequestSlowResponse) {
               IsOk());
 
   EXPECT_EQ(
-      static_cast<int>(strlen(kResponseBody)),
+      static_cast<int>(SbStringGetLength(kResponseBody)),
       promised_stream_->ReadResponseBody(
           read_buffer_.get(), read_buffer_->size(), callback_.callback()));
 
@@ -1986,7 +1986,7 @@ TEST_P(QuicHttpStreamTest, ServerPushGetRequestSlowResponse) {
   EXPECT_EQ(0, stream_->GetTotalReceivedBytes());
   EXPECT_EQ(0, promised_stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             promised_stream_->GetTotalReceivedBytes());
 }
 
@@ -2089,7 +2089,7 @@ TEST_P(QuicHttpStreamTest, ServerPushCrossOriginOK) {
 
   // As will be the body.
   EXPECT_EQ(
-      static_cast<int>(strlen(kResponseBody)),
+      static_cast<int>(SbStringGetLength(kResponseBody)),
       promised_stream_->ReadResponseBody(
           read_buffer_.get(), read_buffer_->size(), callback_.callback()));
   EXPECT_TRUE(promised_stream_->IsResponseBodyComplete());
@@ -2099,7 +2099,7 @@ TEST_P(QuicHttpStreamTest, ServerPushCrossOriginOK) {
   EXPECT_EQ(0, stream_->GetTotalReceivedBytes());
   EXPECT_EQ(0, promised_stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             promised_stream_->GetTotalReceivedBytes());
 }
 
@@ -2188,7 +2188,7 @@ TEST_P(QuicHttpStreamTest, ServerPushVaryCheckOK) {
               IsOk());
 
   EXPECT_EQ(
-      static_cast<int>(strlen(kResponseBody)),
+      static_cast<int>(SbStringGetLength(kResponseBody)),
       promised_stream_->ReadResponseBody(
           read_buffer_.get(), read_buffer_->size(), callback_.callback()));
 
@@ -2200,7 +2200,7 @@ TEST_P(QuicHttpStreamTest, ServerPushVaryCheckOK) {
   EXPECT_EQ(0, stream_->GetTotalReceivedBytes());
   EXPECT_EQ(0, promised_stream_->GetTotalSentBytes());
   EXPECT_EQ(static_cast<int64_t>(spdy_response_headers_frame_length +
-                                 strlen(kResponseBody)),
+                                 SbStringGetLength(kResponseBody)),
             promised_stream_->GetTotalReceivedBytes());
 }
 

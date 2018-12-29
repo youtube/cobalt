@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "net/cert/scoped_nss_types.h"
+#include "starboard/types.h"
 
 namespace net {
 

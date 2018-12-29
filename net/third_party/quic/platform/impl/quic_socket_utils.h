@@ -8,7 +8,6 @@
 #define NET_THIRD_PARTY_QUIC_PLATFORM_IMPL_QUIC_SOCKET_UTILS_H_
 
 #include <netinet/in.h>
-#include <stddef.h>
 #include <sys/socket.h>
 
 #include <string>
@@ -18,6 +17,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/third_party/quic/core/quic_bandwidth.h"
 #include "net/third_party/quic/core/quic_types.h"
+#include "starboard/types.h"
 
 namespace quic {
 class QuicIpAddress;

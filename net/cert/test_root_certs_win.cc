@@ -4,13 +4,12 @@
 
 #include "net/cert/test_root_certs.h"
 
-#include <stdint.h>
-
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/win/win_util.h"
 #include "net/cert/x509_certificate.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 
 namespace net {

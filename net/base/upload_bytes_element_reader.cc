@@ -9,6 +9,7 @@
 #include "net/base/net_errors.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace net {
 
@@ -53,7 +54,7 @@ int UploadBytesElementReader::Read(IOBuffer* buf,
   // the address of an element in |bytes_| and that will throw an
   // exception if |bytes_| is an empty vector.
   if (num_bytes_to_read > 0)
-    memcpy(buf->data(), bytes_ + offset_, num_bytes_to_read);
+    SbMemoryCopy(buf->data(), bytes_ + offset_, num_bytes_to_read);
 
   offset_ += num_bytes_to_read;
   return num_bytes_to_read;

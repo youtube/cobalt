@@ -27,8 +27,6 @@
 #ifndef NET_BASE_FILE_STREAM_CONTEXT_H_
 #define NET_BASE_FILE_STREAM_CONTEXT_H_
 
-#include <stdint.h>
-
 #include "base/files/file.h"
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
@@ -41,6 +39,8 @@
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <errno.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

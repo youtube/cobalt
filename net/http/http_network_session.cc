@@ -37,6 +37,7 @@
 #include "net/third_party/quic/core/quic_tag.h"
 #include "net/third_party/quic/core/quic_utils.h"
 #include "net/third_party/quic/platform/impl/quic_chromium_clock.h"
+#include "starboard/types.h"
 
 namespace net {
 

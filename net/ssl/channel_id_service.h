@@ -5,8 +5,6 @@
 #ifndef NET_SSL_CHANNEL_ID_SERVICE_H_
 #define NET_SSL_CHANNEL_ID_SERVICE_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -21,6 +19,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/ssl/channel_id_store.h"
+#include "starboard/types.h"
 
 namespace crypto {
 class ECPrivateKey;

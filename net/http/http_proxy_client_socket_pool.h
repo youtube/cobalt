@@ -5,8 +5,6 @@
 #ifndef NET_HTTP_HTTP_PROXY_CLIENT_SOCKET_POOL_H_
 #define NET_HTTP_HTTP_PROXY_CLIENT_SOCKET_POOL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -25,6 +23,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_session.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "starboard/types.h"
 
 namespace net {
 

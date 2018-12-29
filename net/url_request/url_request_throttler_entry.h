@@ -5,8 +5,6 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_H_
 #define NET_URL_REQUEST_URL_REQUEST_THROTTLER_ENTRY_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/containers/queue.h"
@@ -16,6 +14,7 @@
 #include "net/base/net_export.h"
 #include "net/log/net_log_with_source.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
+#include "starboard/types.h"
 
 namespace net {
 

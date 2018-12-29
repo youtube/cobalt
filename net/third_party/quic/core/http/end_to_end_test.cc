@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -58,6 +56,7 @@
 #include "net/third_party/quic/tools/quic_server.h"
 #include "net/third_party/quic/tools/quic_simple_server_stream.h"
 #include "net/tools/epoll_server/epoll_server.h"
+#include "starboard/types.h"
 
 using net::EpollEvent;
 using net::EpollServer;

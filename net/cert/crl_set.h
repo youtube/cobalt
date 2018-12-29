@@ -5,9 +5,6 @@
 #ifndef NET_CERT_CRL_SET_H_
 #define NET_CERT_CRL_SET_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -17,6 +14,7 @@
 #include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/cert/x509_cert_types.h"
+#include "starboard/types.h"
 
 namespace net {
 

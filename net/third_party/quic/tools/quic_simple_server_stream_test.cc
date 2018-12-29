@@ -24,6 +24,7 @@
 #include "net/third_party/quic/tools/quic_backend_response.h"
 #include "net/third_party/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quic/tools/quic_simple_server_session.h"
+#include "starboard/string.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -330,7 +331,8 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
       .Times(1)
       .WillOnce(Return(QuicConsumedData(
-          strlen(QuicSimpleServerStream::kErrorResponseBody), true)));
+          SbStringGetLength(QuicSimpleServerStream::kErrorResponseBody),
+          true)));
 
   QuicSimpleServerStreamPeer::SendResponse(stream_);
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
@@ -360,7 +362,8 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
       .Times(1)
       .WillOnce(Return(QuicConsumedData(
-          strlen(QuicSimpleServerStream::kErrorResponseBody), true)));
+          SbStringGetLength(QuicSimpleServerStream::kErrorResponseBody),
+          true)));
 
   QuicSimpleServerStreamPeer::SendResponse(stream_);
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));

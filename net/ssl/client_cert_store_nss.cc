@@ -27,6 +27,7 @@
 #include "net/ssl/ssl_platform_key_nss.h"
 #include "net/ssl/threaded_ssl_private_key.h"
 #include "net/third_party/nss/ssl/cmpcert.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 
 namespace net {

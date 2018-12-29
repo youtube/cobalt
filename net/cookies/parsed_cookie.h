@@ -5,14 +5,13 @@
 #ifndef NET_COOKIES_PARSED_COOKIE_H_
 #define NET_COOKIES_PARSED_COOKIE_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/cookies/cookie_constants.h"
+#include "starboard/types.h"
 
 namespace net {
 

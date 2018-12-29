@@ -5,8 +5,6 @@
 #ifndef NET_PROXY_RESOLUTION_MULTI_THREADED_PROXY_RESOLVER_H_
 #define NET_PROXY_RESOLUTION_MULTI_THREADED_PROXY_RESOLVER_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <set>
 
@@ -14,6 +12,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/proxy_resolution/proxy_resolver_factory.h"
+#include "starboard/types.h"
 
 namespace net {
 class ProxyResolver;

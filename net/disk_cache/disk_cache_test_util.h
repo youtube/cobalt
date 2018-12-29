@@ -5,9 +5,6 @@
 #ifndef NET_DISK_CACHE_DISK_CACHE_TEST_UTIL_H_
 #define NET_DISK_CACHE_DISK_CACHE_TEST_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/files/file_path.h"
@@ -15,6 +12,7 @@
 #include "base/run_loop.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // Re-creates a given test file inside the cache test folder.
 bool CreateCacheTestFile(const base::FilePath& name);

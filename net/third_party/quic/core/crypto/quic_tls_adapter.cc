@@ -9,6 +9,7 @@
 #include "net/third_party/quic/platform/api/quic_text_utils.h"
 
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
 
 namespace quic {
 
@@ -108,7 +109,7 @@ int QuicTlsAdapter::Read(char* out, int len) {
   if (len >= static_cast<int>(read_buffer_.length())) {
     len = read_buffer_.length();
   }
-  memcpy(out, read_buffer_.data(), len);
+  SbMemoryCopy(out, read_buffer_.data(), len);
   read_buffer_.erase(0, len);
   QUIC_LOG(INFO) << "BIO_read: reading " << len << " bytes:\n";
   return len;
