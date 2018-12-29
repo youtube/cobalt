@@ -6,9 +6,9 @@
 #define BASE_LOGGING_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <cassert>
-#include <cstring>
 #include <sstream>
 #include <string>
 #include <type_traits>

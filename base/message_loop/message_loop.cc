@@ -640,17 +640,6 @@ void MessageLoopForUI::QuitWhenIdle(base::OnceClosure callback) {
 }
 #endif  // defined(OS_ANDROID)
 
-#if defined(STARBOARD)
-bool MessageLoopForIO::Watch(SbSocket socket,
-                             bool persistent,
-                             int mode,
-                             SocketWatcher* controller,
-                             Watcher* delegate) {
-  return static_cast<MessagePumpIOStarboard*>(pump_.get())
-      ->Watch(socket, persistent, mode, controller, delegate);
-}
-#endif
-
 #if defined(OS_WIN)
 void MessageLoopForUI::EnableWmQuit() {
   static_cast<MessagePumpForUI*>(pump_.get())->EnableWmQuit();
