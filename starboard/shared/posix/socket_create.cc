@@ -21,8 +21,8 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
+#include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
-#include "starboard/shared/posix/socket_util.h"
 
 namespace sbposix = starboard::shared::posix;
 
@@ -65,7 +65,7 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
   }
 
   // All Starboard sockets are non-blocking, so let's ensure it.
-  if (!sbposix::SetSocketToNonBlocking(socket_fd)) {
+  if (!sbposix::SetNonBlocking(socket_fd)) {
     // Something went wrong, we'll clean up (preserving errno) and return
     // failure.
     int save_errno = errno;
@@ -76,8 +76,9 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
 
 #if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
   // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
-  int optval_set = 1;
-  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, &optval_set, sizeof(int));
+  int optval_set=1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, (void*)&optval_set,
+    sizeof(int));
 #endif
 
   return new SbSocketPrivate(address_type, protocol, socket_fd);
