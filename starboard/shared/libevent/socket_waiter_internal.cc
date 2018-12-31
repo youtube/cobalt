@@ -24,8 +24,8 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
+#include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
-#include "starboard/shared/posix/socket_util.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/thread.h"
 #include "third_party/libevent/event.h"
@@ -119,11 +119,11 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
   SB_DCHECK(result == 0);
 
   wakeup_read_fd_ = fds[0];
-  result = sbposix::SetSocketToNonBlocking(wakeup_read_fd_);
+  result = sbposix::SetNonBlocking(wakeup_read_fd_);
   SB_DCHECK(result);
 
   wakeup_write_fd_ = fds[1];
-  result = sbposix::SetSocketToNonBlocking(wakeup_write_fd_);
+  result = sbposix::SetNonBlocking(wakeup_write_fd_);
   SB_DCHECK(result);
 #else
   GetSocketPipe(&client_socket_, &server_socket_);
