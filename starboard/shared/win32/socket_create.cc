@@ -14,13 +14,12 @@
 
 #include "starboard/socket.h"
 
-// "winsock2.h" has to be included before "mswsock.h" to avoid compile errors.
 #include <winsock2.h>
 #include <mswsock.h>
 
 #include "starboard/log.h"
+#include "starboard/shared/win32/set_non_blocking_internal.h"
 #include "starboard/shared/win32/socket_internal.h"
-#include "starboard/shared/win32/socket_util.h"
 
 namespace sbwin32 = starboard::shared::win32;
 
@@ -109,7 +108,7 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
   }
 
   // All Starboard sockets are non-blocking, so let's ensure it.
-  if (!sbwin32::SetSocketToNonBlocking(socket_handle)) {
+  if (!sbwin32::SetNonBlocking(socket_handle)) {
     // Something went wrong, we'll clean up and return failure.
     closesocket(socket_handle);
     return kSbSocketInvalid;
