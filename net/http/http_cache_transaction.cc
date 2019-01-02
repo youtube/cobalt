@@ -284,8 +284,9 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
 
   // Setting this here allows us to check for the existence of a callback_ to
   // determine if we are still inside Start.
-  if (rv == ERR_IO_PENDING)
+  if (rv == ERR_IO_PENDING) {
     callback_ = std::move(callback);
+  }
 
   return rv;
 }
@@ -1127,6 +1128,7 @@ int HttpCache::Transaction::DoInitEntry() {
 
   if (!cache_.get()) {
     TransitionToState(STATE_FINISH_HEADERS);
+    NOTIMPLEMENTED() << "HTTP cache not implemented";
     return ERR_UNEXPECTED;
   }
 
@@ -2080,7 +2082,6 @@ int HttpCache::Transaction::DoFinishHeaders(int result) {
   }
 
   TransitionToState(STATE_FINISH_HEADERS_COMPLETE);
-
   // If it was an auth failure, this transaction should continue to be
   // headers_transaction till consumer takes an action, so no need to do
   // anything now.

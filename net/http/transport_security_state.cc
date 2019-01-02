@@ -13,8 +13,10 @@
 #include "base/containers/span.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#if !defined(STARBOARD)
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
+#endif
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/stl_util.h"
@@ -44,7 +46,7 @@ namespace {
 
 #include "net/http/transport_security_state_ct_policies.inc"
 
-#if !defined(STARBOARD)
+// #if !defined(STARBOARD)
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 #include "net/http/transport_security_state_static.h"  // nogncheck
 #include "starboard/memory.h"
@@ -53,9 +55,9 @@ const TransportSecurityStateSource* const kDefaultHSTSSource = &kHSTSSource;
 #else
 const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
 #endif
-#else
-const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
-#endif
+// #else
+// const TransportSecurityStateSource* const kDefaultHSTSSource = nullptr;
+// #endif
 
 const TransportSecurityStateSource* g_hsts_source = kDefaultHSTSSource;
 
@@ -76,8 +78,12 @@ const base::Feature kEnforceCTForNewCerts{"EnforceCTForNewCerts",
                                           base::FEATURE_DISABLED_BY_DEFAULT};
 // The date (as the number of seconds since the Unix Epoch) to enforce CT for
 // new certificates.
+#if defined(STARBOARD)
+const int kEnforceCTForNewCertsDate = 0;
+#else
 constexpr base::FeatureParam<int> kEnforceCTForNewCertsDate{
     &kEnforceCTForNewCerts, "date", 0};
+#endif
 
 bool IsDynamicExpectCTEnabled() {
   return base::FeatureList::IsEnabled(
@@ -354,12 +360,10 @@ class HSTSPreloadDecoder : public net::extras::PreloadDecoder {
 };
 
 bool DecodeHSTSPreload(const std::string& search_hostname, PreloadResult* out) {
-#if !defined(STARBOARD)
 #if !BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   if (g_hsts_source == nullptr)
     return false;
 #endif
-#endif  // !defined(STARBOARD)
   bool found = false;
 
   // Ensure that |search_hostname| is a valid hostname before
@@ -555,7 +559,11 @@ TransportSecurityState::CheckCTRequirements(
   if (base::FeatureList::IsEnabled(kEnforceCTForNewCerts)) {
     base::Time enforcement_date =
         base::Time::UnixEpoch() +
+#if defined(STARBOARD)
+        base::TimeDelta::FromSeconds(kEnforceCTForNewCertsDate);
+#else
         base::TimeDelta::FromSeconds(kEnforceCTForNewCertsDate.Get());
+#endif
     if (enforcement_date > base::Time::UnixEpoch() &&
         validated_certificate_chain->valid_start() > enforcement_date) {
       return complies ? CT_REQUIREMENTS_MET : CT_REQUIREMENTS_NOT_MET;
@@ -1191,10 +1199,6 @@ bool TransportSecurityState::GetStaticDomainState(const std::string& host,
                                                   PKPState* pkp_result) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-#if defined(STARBOARD)
-  NOTIMPLEMENTED();
-  return false;
-#else
   if (!IsBuildTimely())
     return false;
 
@@ -1239,7 +1243,6 @@ bool TransportSecurityState::GetStaticDomainState(const std::string& host,
   }
 
   return true;
-#endif
 }
 
 bool TransportSecurityState::GetSTSState(const std::string& host,

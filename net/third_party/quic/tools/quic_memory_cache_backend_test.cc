@@ -32,7 +32,7 @@ class QuicMemoryCacheBackendTest : public QuicTest {
 
   QuicString CacheDirectory() {
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.AppendASCII("net").AppendASCII("data").AppendASCII(
         "quic_http_response_cache_data");
     // The file path is known to be an ascii string.

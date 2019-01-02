@@ -84,7 +84,9 @@ class HttpProxyClientSocketPoolTest
                          NULL,
                          session_deps_.ssl_config_service.get(),
                          NetLogWithSource().net_log()),
+#if !defined(STARBOARD)
         field_trial_list_(nullptr),
+#endif
         pool_(
             std::make_unique<HttpProxyClientSocketPool>(kMaxSockets,
                                                         kMaxSocketsPerGroup,
@@ -119,10 +121,12 @@ class HttpProxyClientSocketPoolTest
       params["max_proxy_connection_timeout_seconds"] =
           base::IntToString(max_proxy_connection_timeout.InSeconds());
     }
+#if !defined(STARBOARD)
     base::FieldTrialParamAssociator::GetInstance()->ClearAllParamsForTesting();
     EXPECT_TRUE(
         base::AssociateFieldTrialParams(trial_name, group_name, params));
     EXPECT_TRUE(base::FieldTrialList::CreateFieldTrial(trial_name, group_name));
+#endif
 
     // Reset |pool_| so that the field trial parameters are read by the
     // |pool_|.
@@ -246,7 +250,10 @@ class HttpProxyClientSocketPoolTest
 
   base::HistogramTester histogram_tester_;
 
+#if !defined(STARBOARD)
+  // Starboard does not support FieldTrial.
   base::FieldTrialList field_trial_list_;
+#endif
 
  protected:
   SpdyTestUtil spdy_util_;
@@ -770,6 +777,8 @@ TEST_P(HttpProxyClientSocketPoolTest, ProxyPoolMaxTimeout) {
 #endif
 }
 
+// Cobalt does not need FieldTrial yet.
+#if !defined(STARBOARD)
 // Tests the connection timeout values when the field trial parameters are
 // specified.
 TEST_P(HttpProxyClientSocketPoolTest, ProxyPoolTimeoutWithExperiment) {
@@ -853,6 +862,7 @@ TEST_P(HttpProxyClientSocketPoolTest, ProxyPoolTimeoutWithConnectionProperty) {
   EXPECT_EQ(kNonSecureMultiplier * kRttEstimate,
             job_factory.ConnectionTimeoutWithConnectionProperty(false));
 }
+#endif
 
 // Tests the connection timeout values when the field trial parameters are not
 // specified.

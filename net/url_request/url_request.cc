@@ -480,7 +480,13 @@ void URLRequest::set_first_party_url_policy(
 
 void URLRequest::set_initiator(const base::Optional<url::Origin>& initiator) {
   DCHECK(!is_pending_);
+#if defined(STARBOARD)
+  // This is not a Cobalt change, but due toa mismatch between src/net and
+  // src/url version.
+  DCHECK(!initiator.has_value() || initiator.value().unique() ||
+#else
   DCHECK(!initiator.has_value() || initiator.value().opaque() ||
+#endif
          initiator.value().GetURL().is_valid());
   initiator_ = initiator;
 }

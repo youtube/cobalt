@@ -24,6 +24,9 @@
 #include "url/gurl.h"
 #include "url/url_canon.h"
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 namespace {
 
 // RFC 1035, section 2.3.4: labels 63 octets or less.
@@ -45,8 +48,6 @@ const int kMaxLabelLength = 63;
 
 #if defined(OS_ANDROID)
 #include "net/android/network_library.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #endif
 
 namespace net {

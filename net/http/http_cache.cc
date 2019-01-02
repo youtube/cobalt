@@ -78,10 +78,10 @@ int HttpCache::DefaultBackend::CreateBackend(
     NetLog* net_log,
     std::unique_ptr<disk_cache::Backend>* backend,
     CompletionOnceCallback callback) {
-#if defined(STARBOARD)
-  return ERR_NOT_IMPLEMENTED;
-#else
   DCHECK_GE(max_bytes_, 0);
+#if defined(STARBOARD)
+  return ERR_FAILED;
+#else
 #if defined(OS_ANDROID)
   if (app_status_listener_) {
     return disk_cache::CreateCacheBackend(
@@ -92,7 +92,7 @@ int HttpCache::DefaultBackend::CreateBackend(
   return disk_cache::CreateCacheBackend(type_, backend_type_, path_, max_bytes_,
                                         true, net_log, backend,
                                         std::move(callback));
-#endif  // defined(STARBOARD)
+#endif
 }
 
 #if defined(OS_ANDROID)

@@ -107,7 +107,7 @@ bool GetLocalCertificatesDir(const base::FilePath& certificates_dir,
   }
 
   base::FilePath src_dir;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir))
+  if (!base::PathService::Get(base::DIR_TEST_DATA, &src_dir))
     return false;
 
   *local_certificates_dir = src_dir.Append(certificates_dir);

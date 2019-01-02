@@ -842,7 +842,7 @@ TEST_F(FileStreamTest, AsyncFlagMismatch) {
 #if defined(OS_ANDROID)
 TEST_F(FileStreamTest, ContentUriRead) {
   base::FilePath test_dir;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &test_dir);
+  base::PathService::Get(base::DIR_TEST_DATA, &test_dir);
   test_dir = test_dir.AppendASCII("net");
   test_dir = test_dir.AppendASCII("data");
   test_dir = test_dir.AppendASCII("file_stream_unittest");

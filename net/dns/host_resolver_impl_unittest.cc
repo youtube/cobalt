@@ -1274,7 +1274,6 @@ TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
     EXPECT_THAT(CreateRequest(hostname, 81)->Resolve(),
                 IsError(ERR_IO_PENDING));
   }
-
   EXPECT_TRUE(proc_->WaitFor(kMaxJobs));
 
   // Cancel all but last two.

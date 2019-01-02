@@ -780,8 +780,20 @@ TEST_F(ThroughputAnalyzerTest, TestThroughputWithMultipleNetworkRequests) {
   request_4->Start();
 
   // We dispatched four requests, so wait for four completions.
-  for (int i = 0; i < 4; ++i)
+  for (int i = 0; i < 4; ++i) {
+#if defined(STARBOARD)
+    // Cobalt does not support HTTP cache yet and sometimes a second request
+    // can return after RunLoop::Quit() is posted but before executed
+    // on the MessageLoop.
+    if (request_1->status().status() != URLRequestStatus::IO_PENDING &&
+        request_2->status().status() != URLRequestStatus::IO_PENDING &&
+        request_3->status().status() != URLRequestStatus::IO_PENDING &&
+        request_4->status().status() != URLRequestStatus::IO_PENDING) {
+      break;
+    }
+#endif
     test_delegate.RunUntilComplete();
+  }
 
   EXPECT_EQ(0, throughput_analyzer.throughput_observations_received());
 

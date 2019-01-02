@@ -37,7 +37,9 @@
 #include "net/filter/source_stream.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_error_job.h"
+#if !defined(STARBOARD)
 #include "net/url_request/url_request_file_dir_job.h"
+#endif
 #include "url/gurl.h"
 
 #if defined(OS_WIN)

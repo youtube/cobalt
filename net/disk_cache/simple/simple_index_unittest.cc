@@ -18,7 +18,9 @@
 #include "base/sha1.h"
 #include "base/strings/stringprintf.h"
 #include "base/task_runner.h"
+#if !defined(STARBOARD)
 #include "base/test/mock_entropy_provider.h"
+#endif
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"

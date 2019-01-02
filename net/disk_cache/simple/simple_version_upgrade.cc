@@ -215,12 +215,17 @@ SimpleCacheConsistencyResult UpgradeSimpleCacheOnDisk(
     LogMessageFailedUpgradeFromVersion(file_header.version);
     return SimpleCacheConsistencyResult::kWriteFakeIndexFileFailed;
   }
+#if defined(STARBOARD)
+  NOTIMPLEMENTED() << "Starboard does not support file replacement.";
+  return SimpleCacheConsistencyResult::kReplaceFileFailed;
+#else
   if (!base::ReplaceFile(temp_fake_index, fake_index, NULL)) {
     LOG(ERROR) << "Failed to replace the fake index.";
     LogMessageFailedUpgradeFromVersion(file_header.version);
     return SimpleCacheConsistencyResult::kReplaceFileFailed;
   }
   return SimpleCacheConsistencyResult::kOK;
+#endif
 }
 
 }  // namespace disk_cache

@@ -27,6 +27,8 @@ bool IsDotDot(const base::FilePath& path) {
   return FILE_PATH_LITERAL("..") == path.BaseName().value();
 }
 
+// Cobalt icu does not support LocaleAwareCompareFilenames yet.
+#if !defined(STARBOARD)
 // Comparator for sorting lister results. This uses the locale aware filename
 // comparison function on the filenames for sorting in the user's locale.
 // Static.
@@ -47,6 +49,7 @@ bool CompareAlphaDirsFirst(const DirectoryLister::DirectoryListerData& a,
   return base::i18n::LocaleAwareCompareFilenames(a.info.GetName(),
                                                  b.info.GetName());
 }
+#endif
 
 void SortData(std::vector<DirectoryLister::DirectoryListerData>* data,
               DirectoryLister::ListingType listing_type) {

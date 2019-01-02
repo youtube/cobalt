@@ -7,6 +7,9 @@
 #ifndef NET_DISK_CACHE_BLOCKFILE_MAPPED_FILE_H_
 #define NET_DISK_CACHE_BLOCKFILE_MAPPED_FILE_H_
 
+#if !defined(STARBOARD)
+// Starboard does not supported memory mapped files.
+
 #include "base/macros.h"
 #include "net/base/net_export.h"
 #include "net/disk_cache/blockfile/file.h"
@@ -76,5 +79,7 @@ class ScopedFlush {
 };
 
 }  // namespace disk_cache
+
+#endif  // defined(STARBOARD)
 
 #endif  // NET_DISK_CACHE_BLOCKFILE_MAPPED_FILE_H_

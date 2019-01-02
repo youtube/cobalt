@@ -11,7 +11,11 @@
 #include "base/metrics/histogram_macros.h"
 #include "net/base/io_buffer.h"
 #include "starboard/memory.h"
+#if defined(STARBOARD)
+#include <brotli/decode.h>
+#else
 #include "third_party/brotli/include/brotli/decode.h"
+#endif
 
 namespace net {
 

@@ -78,7 +78,7 @@ const char kCreateUploadStreamBody[] = "rosebud";
 
 base::FilePath GetUploadFileTestPath() {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   return path.Append(
       FILE_PATH_LITERAL("net/data/url_request_unittest/BullRunSpeech.txt"));
 }
@@ -428,7 +428,7 @@ class URLFetcherTest : public TestWithScopedTaskEnvironment {
     }
 
     base::FilePath server_root;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &server_root);
+    base::PathService::Get(base::DIR_TEST_DATA, &server_root);
 
     EXPECT_TRUE(base::ContentsEqual(
         server_root.Append(kDocRoot).AppendASCII(file_to_fetch), out_path));
@@ -1050,7 +1050,7 @@ TEST_F(URLFetcherTest, DownloadProgress) {
   std::string file_contents;
 
   base::FilePath server_root;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &server_root);
+  base::PathService::Get(base::DIR_TEST_DATA, &server_root);
 
   ASSERT_TRUE(base::ReadFileToString(
       server_root.Append(kDocRoot).AppendASCII(kFileToFetch), &file_contents));
@@ -1608,7 +1608,13 @@ TEST_F(URLFetcherTest, FileTestTryToOverwriteDirectory) {
 
   EXPECT_FALSE(delegate.fetcher()->GetStatus().is_success());
   EXPECT_THAT(delegate.fetcher()->GetStatus().error(),
+#if defined(STARBOARD)
+              // Starboard does not define net error code specifically, all
+              // failures return ERR_FAILED.
+              IsError(ERR_FAILED));
+#else
               IsError(ERR_ACCESS_DENIED));
+#endif
 }
 
 // Get a small file and save it to a temp file.

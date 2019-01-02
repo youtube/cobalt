@@ -133,7 +133,7 @@ GURL GetTestFileUrl(const std::string& relpath) {
       << "Built a file:// URL to test data, however file support is disabled.";
 #endif  // BUILDFLAG(DISABLE_FILE_SUPPORT)
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.AppendASCII("net");
   path = path.AppendASCII("data");
   path = path.AppendASCII("pac_file_fetcher_unittest");
