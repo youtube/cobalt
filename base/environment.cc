@@ -4,9 +4,11 @@
 
 #include "base/environment.h"
 
-#include <stddef.h>
-
 #include <vector>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_piece.h"
@@ -231,7 +233,7 @@ std::unique_ptr<char* []> AlterEnvironment(const char* const* const env,
   char* storage_data = reinterpret_cast<char*>(
       &result.get()[result_indices.size() + 1]);
   if (!value_storage.empty())
-    memcpy(storage_data, value_storage.data(), value_storage.size());
+    SbMemoryCopy(storage_data, value_storage.data(), value_storage.size());
 
   // Fill array of pointers at the beginning of the result.
   for (size_t i = 0; i < result_indices.size(); i++)

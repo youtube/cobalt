@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_offset_string_conversions.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

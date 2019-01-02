@@ -5,8 +5,6 @@
 #include "base/trace_event/trace_event.h"
 
 #include <math.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <cstdlib>
 #include <memory>
@@ -37,6 +35,8 @@
 #include "base/trace_event/trace_event_filter.h"
 #include "base/trace_event/trace_event_filter_test_utils.h"
 #include "base/values.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -160,7 +160,7 @@ class TraceEventTestFixture : public testing::Test {
     if (TraceLog::GetInstance())
       EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
     PlatformThread::SetName(old_thread_name_ ? old_thread_name_ : "");
-    free(old_thread_name_);
+    SbMemoryFree(old_thread_name_);
     old_thread_name_ = nullptr;
     // We want our singleton torn down after each test.
     TraceLog::ResetForTesting();

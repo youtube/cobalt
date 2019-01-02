@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/allocator/malloc_zone_functions_mac.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -45,7 +46,7 @@ TEST_F(MallocZoneFunctionsTest, CannotStoreMoreThanMaxZones) {
   zones.resize(kMaxZoneCount * 2);
   for (int i = 0; i < kMaxZoneCount * 2; ++i) {
     ChromeMallocZone& zone = zones[i];
-    memcpy(&zone, malloc_default_zone(), sizeof(ChromeMallocZone));
+    SbMemoryCopy(&zone, malloc_default_zone(), sizeof(ChromeMallocZone));
     StoreMallocZone(&zone);
   }
 

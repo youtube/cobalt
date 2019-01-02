@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +26,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

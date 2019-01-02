@@ -5,11 +5,10 @@
 #ifndef BASE_TASK_TASK_SCHEDULER_ENVIRONMENT_CONFIG_H_
 #define BASE_TASK_TASK_SCHEDULER_ENVIRONMENT_CONFIG_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/task/task_traits.h"
 #include "base/threading/thread.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

@@ -4,8 +4,6 @@
 
 #include "base/sys_info.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/utsname.h>
 
 #include "base/environment.h"
@@ -21,6 +19,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/types.h"
 
 namespace base {
 

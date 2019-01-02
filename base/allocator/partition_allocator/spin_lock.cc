@@ -10,6 +10,8 @@
 #include <windows.h>
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <sched.h>
+
+#include "starboard/types.h"
 #endif
 
 // The YIELD_PROCESSOR macro wraps an architecture specific-instruction that

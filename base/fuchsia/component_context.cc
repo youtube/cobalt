@@ -10,6 +10,7 @@
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/no_destructor.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace fuchsia {

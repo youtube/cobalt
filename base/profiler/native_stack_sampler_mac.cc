@@ -27,6 +27,8 @@
 #include "base/memory/ptr_util.h"
 #include "base/sampling_heap_profiler/module_cache.h"
 #include "base/strings/string_number_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 extern "C" {
 void _sigtramp(int, int, struct sigset*);
@@ -477,7 +479,7 @@ void NativeStackSamplerMac::WalkStack(
   // exactly those registers in exactly the same order, so just bulk copy them
   // over.
   unw_context_t unwind_context;
-  memcpy(&unwind_context, &thread_state, sizeof(uintptr_t) * 17);
+  SbMemoryCopy(&unwind_context, &thread_state, sizeof(uintptr_t) * 17);
   bool result = WalkStackFromContext(&unwind_context, &frame_count, callback,
                                      continue_unwind);
 

@@ -6,6 +6,7 @@
 
 #include "base/atomicops.h"
 #include "base/synchronization/lock.h"
+#include "starboard/memory.h"
 
 namespace base {
 namespace allocator {
@@ -16,7 +17,7 @@ static_assert(std::is_pod<MallocZoneFunctions>::value,
 
 void StoreZoneFunctions(const ChromeMallocZone* zone,
                         MallocZoneFunctions* functions) {
-  memset(functions, 0, sizeof(MallocZoneFunctions));
+  SbMemorySet(functions, 0, sizeof(MallocZoneFunctions));
   functions->malloc = zone->malloc;
   functions->calloc = zone->calloc;
   functions->valloc = zone->valloc;
@@ -106,7 +107,7 @@ int GetMallocZoneCountForTesting() {
 void ClearAllMallocZonesForTesting() {
   base::AutoLock l(GetLock());
   EnsureMallocZonesInitializedLocked();
-  memset(g_malloc_zones, 0, kMaxZoneCount * sizeof(MallocZoneFunctions));
+  SbMemorySet(g_malloc_zones, 0, kMaxZoneCount * sizeof(MallocZoneFunctions));
   g_zone_count = 0;
 }
 

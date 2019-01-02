@@ -36,6 +36,7 @@
 //      In most of the anticipated use cases, that's probably the preferred
 //      behavior.
 #include "base/logging.h"
+#include "starboard/types.h"
 #define DEBUG_CHECK RAW_CHECK
 #else
 #define DEBUG_CHECK(x) do { if (x) { } } while (0)

@@ -156,6 +156,8 @@
 #if defined(MEMORY_SANITIZER) && !defined(OS_NACL)
 #include <sanitizer/msan_interface.h>
 
+#include "starboard/types.h"
+
 // Mark a memory region fully initialized.
 // Use this to annotate code that deliberately reads uninitialized data, for
 // example a GC scavenging root set pointers from the stack.

@@ -5,7 +5,6 @@
 #include <windows.h>
 #include <mmsystem.h>
 #include <process.h>
-#include <stdint.h>
 
 #include <cmath>
 #include <limits>
@@ -14,6 +13,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/win/registry.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

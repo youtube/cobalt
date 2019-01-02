@@ -26,8 +26,6 @@
 // This code uses type uint8_t throughout to represent bytes, to avoid
 // signed/unsigned char confusion.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,6 +42,7 @@
 #include "base/macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
 namespace {

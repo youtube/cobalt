@@ -5,7 +5,6 @@
 #include "base/process/process_iterator.h"
 
 #include <errno.h>
-#include <stddef.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -14,6 +13,7 @@
 #include "base/macros.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "starboard/types.h"
 
 namespace base {
 

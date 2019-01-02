@@ -29,6 +29,7 @@
 #include <sys/types.h>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace mac {

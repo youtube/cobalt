@@ -4,12 +4,12 @@
 
 #include "base/containers/stack_container.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/memory/ref_counted.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -105,7 +105,7 @@ namespace {
 template <size_t alignment>
 class AlignedData {
  public:
-  AlignedData() { memset(data_, 0, alignment); }
+  AlignedData() { SbMemorySet(data_, 0, alignment); }
   ~AlignedData() = default;
   alignas(alignment) char data_[alignment];
 };

@@ -4,7 +4,6 @@
 
 #include "base/task/sequence_manager/work_queue.h"
 
-#include <stddef.h>
 #include <memory>
 
 #include "base/bind.h"
@@ -12,6 +11,7 @@
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/task/sequence_manager/task_queue_impl.h"
 #include "base/task/sequence_manager/work_queue_sets.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {

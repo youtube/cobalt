@@ -10,6 +10,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/strings/string16.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(ARCH_CPU_64_BITS)

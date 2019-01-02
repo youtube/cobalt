@@ -9,11 +9,12 @@
 #include "base/base_paths.h"
 
 #include <limits.h>
-#include <stddef.h>
 
 #include <memory>
 #include <ostream>
 #include <string>
+
+#include "starboard/types.h"
 
 #include "base/environment.h"
 #include "base/files/file_path.h"

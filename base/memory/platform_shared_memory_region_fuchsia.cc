@@ -11,6 +11,7 @@
 #include "base/bits.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/process/process_metrics.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace subtle {

@@ -5,13 +5,12 @@
 #ifndef BASE_VERSION_H_
 #define BASE_VERSION_H_
 
-#include <stdint.h>
-
 #include <iosfwd>
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

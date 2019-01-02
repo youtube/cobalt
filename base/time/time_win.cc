@@ -35,7 +35,6 @@
 
 #include <windows.h>
 #include <mmsystem.h>
-#include <stdint.h>
 
 #include "base/atomicops.h"
 #include "base/bit_cast.h"
@@ -44,6 +43,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
+#include "starboard/types.h"
 
 namespace base {
 

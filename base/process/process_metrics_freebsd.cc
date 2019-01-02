@@ -4,7 +4,6 @@
 
 #include "base/process/process_metrics.h"
 
-#include <stddef.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
 #include <unistd.h>
@@ -13,6 +12,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/process/process_metrics_iocounters.h"
 #include "base/stl_util.h"
+#include "starboard/types.h"
 
 namespace base {
 

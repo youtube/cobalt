@@ -4,9 +4,6 @@
 
 #include "base/sys_info.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/files/file_util.h"
@@ -18,6 +15,8 @@
 #include "base/strings/string_util.h"
 #include "base/sys_info_internal.h"
 #include "build/build_config.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace {
 
@@ -83,7 +82,7 @@ std::string SysInfo::CPUModelName() {
     std::istringstream iss(contents);
     std::string line;
     while (std::getline(iss, line)) {
-      if (line.compare(0, strlen(kCpuModelPrefix), kCpuModelPrefix) == 0) {
+      if (line.compare(0, SbStringGetLength(kCpuModelPrefix), kCpuModelPrefix) == 0) {
         size_t pos = line.find(": ");
         return line.substr(pos + 2);
       }

@@ -6,6 +6,8 @@
 
 #include <zircon/syscalls.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 void RandBytes(void* output, size_t output_length) {

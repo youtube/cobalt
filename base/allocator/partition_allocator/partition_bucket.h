@@ -5,12 +5,10 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_BUCKET_H_
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_BUCKET_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

@@ -8,6 +8,8 @@
 
 #include <windows.h>
 
+#include "starboard/types.h"
+
 namespace base {
 namespace internal {
 

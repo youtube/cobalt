@@ -8,6 +8,7 @@
 #include <Block.h>
 
 #include "base/mac/scoped_typeref.h"
+#include "starboard/types.h"
 
 #if defined(__has_feature) && __has_feature(objc_arc)
 #define BASE_MAC_BRIDGE_CAST(TYPE, VALUE) (__bridge TYPE)(VALUE)

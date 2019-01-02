@@ -24,6 +24,8 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/time/time.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -34,7 +36,7 @@ namespace {
 class TestActivityTracker : public ThreadActivityTracker {
  public:
   TestActivityTracker(std::unique_ptr<char[]> memory, size_t mem_size)
-      : ThreadActivityTracker(memset(memory.get(), 0, mem_size), mem_size),
+      : ThreadActivityTracker(SbMemorySet(memory.get(), 0, mem_size), mem_size),
         mem_segment_(std::move(memory)) {}
 
   ~TestActivityTracker() override = default;
@@ -316,7 +318,7 @@ TEST_F(ActivityAnalyzerTest, UserDataSnapshotTest) {
       EXPECT_EQ(sizeof(string2a), user_data.at("ref2").GetReference().size());
       ASSERT_TRUE(ContainsKey(user_data, "sref2"));
       EXPECT_EQ(string2b, user_data.at("sref2").GetStringReference().data());
-      EXPECT_EQ(strlen(string2b),
+      EXPECT_EQ(SbStringGetLength(string2b),
                 user_data.at("sref2").GetStringReference().size());
     }
 
@@ -340,7 +342,7 @@ TEST_F(ActivityAnalyzerTest, UserDataSnapshotTest) {
     EXPECT_EQ(string1a, user_data.at("ref1").GetReference().data());
     EXPECT_EQ(sizeof(string1a), user_data.at("ref1").GetReference().size());
     EXPECT_EQ(string1b, user_data.at("sref1").GetStringReference().data());
-    EXPECT_EQ(strlen(string1b),
+    EXPECT_EQ(SbStringGetLength(string1b),
               user_data.at("sref1").GetStringReference().size());
   }
 
@@ -394,7 +396,7 @@ TEST_F(ActivityAnalyzerTest, GlobalUserDataTest) {
   EXPECT_EQ(sizeof(string1), snapshot.at("ref").GetReference().size());
   ASSERT_TRUE(ContainsKey(snapshot, "sref"));
   EXPECT_EQ(string2, snapshot.at("sref").GetStringReference().data());
-  EXPECT_EQ(strlen(string2), snapshot.at("sref").GetStringReference().size());
+  EXPECT_EQ(SbStringGetLength(string2), snapshot.at("sref").GetStringReference().size());
 }
 
 TEST_F(ActivityAnalyzerTest, GlobalModulesTest) {

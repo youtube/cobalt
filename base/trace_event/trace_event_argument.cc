@@ -4,8 +4,6 @@
 
 #include "base/trace_event/trace_event_argument.h"
 
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/bits.h"
@@ -16,6 +14,7 @@
 #include "base/trace_event/trace_event_impl.h"
 #include "base/trace_event/trace_event_memory_overhead.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

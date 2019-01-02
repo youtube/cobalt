@@ -5,12 +5,11 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_ENQUEUE_ORDER_H_
 #define BASE_TASK_SEQUENCE_MANAGER_ENQUEUE_ORDER_H_
 
-#include <stdint.h>
-
 #include <atomic>
 
 #include "base/base_export.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace sequence_manager {

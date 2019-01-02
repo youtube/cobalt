@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <signal.h>
-#include <stdint.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 
@@ -21,6 +20,8 @@
 
 #if defined(OS_MACOSX)
 #include <sys/event.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace {

@@ -17,10 +17,10 @@
 #import <IOBluetooth/IOBluetooth.h>
 #import <ImageCaptureCore/ImageCaptureCore.h>
 #import <QuartzCore/QuartzCore.h>
-#include <stdint.h>
 
 #include "base/base_export.h"
 #include "base/mac/availability.h"
+#include "starboard/types.h"
 
 // ----------------------------------------------------------------------------
 // Define typedefs, enums, and protocols not available in the version of the

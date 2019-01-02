@@ -10,6 +10,8 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+
+#include "starboard/types.h"
 #endif  // defined(OS_WIN)
 
 namespace base {

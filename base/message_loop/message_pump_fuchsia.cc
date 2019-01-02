@@ -12,6 +12,7 @@
 #include "base/auto_reset.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

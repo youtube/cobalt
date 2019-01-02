@@ -4,8 +4,6 @@
 
 #include "base/threading/platform_thread_win.h"
 
-#include <stddef.h>
-
 #include "base/debug/activity_tracker.h"
 #include "base/debug/alias.h"
 #include "base/debug/profiler.h"
@@ -18,6 +16,8 @@
 #include "base/win/windows_version.h"
 
 #include <windows.h>
+
+#include "starboard/types.h"
 
 namespace base {
 

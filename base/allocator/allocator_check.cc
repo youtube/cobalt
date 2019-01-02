@@ -17,6 +17,7 @@
 
 #if defined(OS_MACOSX)
 #include "base/allocator/allocator_interception_mac.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

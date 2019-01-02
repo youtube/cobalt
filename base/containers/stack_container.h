@@ -5,12 +5,11 @@
 #ifndef BASE_CONTAINERS_STACK_CONTAINER_H_
 #define BASE_CONTAINERS_STACK_CONTAINER_H_
 
-#include <stddef.h>
-
 #include <vector>
 
 #include "base/macros.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

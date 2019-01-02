@@ -13,6 +13,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/metrics/statistics_recorder.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -33,7 +34,7 @@ class PersistentHistogramAllocatorTest : public testing::Test {
     allocator_memory_.reset(new char[kAllocatorMemorySize]);
 
     GlobalHistogramAllocator::ReleaseForTesting();
-    memset(allocator_memory_.get(), 0, kAllocatorMemorySize);
+    SbMemorySet(allocator_memory_.get(), 0, kAllocatorMemorySize);
     GlobalHistogramAllocator::CreateWithPersistentMemory(
         allocator_memory_.get(), kAllocatorMemorySize, 0, 0,
         "PersistentHistogramAllocatorTest");

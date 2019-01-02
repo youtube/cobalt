@@ -8,11 +8,9 @@
 // Low-level UTF handling functions. Most code will want to use the functions
 // in utf_string_conversions.h
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/strings/string16.h"
+#include "starboard/types.h"
 
 namespace base {
 

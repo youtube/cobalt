@@ -5,13 +5,12 @@
 #ifndef BASE_TEST_MOCK_LOG_H_
 #define BASE_TEST_MOCK_LOG_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/synchronization/lock.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {

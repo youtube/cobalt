@@ -32,6 +32,7 @@
 
 #include "base/win/com_init_util.h"
 #include "base/win/current_module.h"
+#include "starboard/types.h"
 #endif  // defined(OS_WIN)
 
 namespace base {

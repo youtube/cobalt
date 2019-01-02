@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

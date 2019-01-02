@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "jni/MainReturnCodeResult_jni.h"
 #include "jni/MultiprocessTestClientLauncher_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 

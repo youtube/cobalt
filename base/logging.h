@@ -5,9 +5,6 @@
 #ifndef BASE_LOGGING_H_
 #define BASE_LOGGING_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <cassert>
 #include <sstream>
 #include <string>
@@ -27,6 +24,7 @@
 #if defined(STARBOARD)
 #include "starboard/log.h"
 #include "starboard/system.h"
+#include "starboard/types.h"
 #endif
 
 //

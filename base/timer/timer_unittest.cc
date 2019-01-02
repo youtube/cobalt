@@ -4,8 +4,6 @@
 
 #include "base/timer/timer.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/bind.h"
@@ -28,6 +26,7 @@
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

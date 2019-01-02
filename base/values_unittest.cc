@@ -4,8 +4,6 @@
 
 #include "base/values.h"
 
-#include <stddef.h>
-
 #include <functional>
 #include <limits>
 #include <memory>
@@ -19,6 +17,8 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -797,14 +797,14 @@ TEST(ValuesTest, BinaryValue) {
   ASSERT_EQ(15U, binary->GetBlob().size());
 
   char stack_buffer[42];
-  memset(stack_buffer, '!', 42);
+  SbMemorySet(stack_buffer, '!', 42);
   binary = Value::CreateWithCopiedBuffer(stack_buffer, 42);
   ASSERT_TRUE(binary.get());
   ASSERT_TRUE(binary->GetBlob().data());
   ASSERT_NE(stack_buffer,
             reinterpret_cast<const char*>(binary->GetBlob().data()));
   ASSERT_EQ(42U, binary->GetBlob().size());
-  ASSERT_EQ(0, memcmp(stack_buffer, binary->GetBlob().data(),
+  ASSERT_EQ(0, SbMemoryCompare(stack_buffer, binary->GetBlob().data(),
                       binary->GetBlob().size()));
 }
 

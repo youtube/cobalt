@@ -36,8 +36,6 @@
 #ifndef BASE_TASK_CANCELABLE_TASK_TRACKER_H_
 #define BASE_TASK_CANCELABLE_TASK_TRACKER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 
@@ -49,6 +47,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/post_task_and_reply_with_result_internal.h"
 #include "base/sequence_checker.h"
+#include "starboard/types.h"
 
 namespace base {
 

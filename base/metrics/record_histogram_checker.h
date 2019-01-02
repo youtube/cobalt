@@ -5,9 +5,8 @@
 #ifndef BASE_METRICS_RECORD_HISTOGRAM_CHECKER_H_
 #define BASE_METRICS_RECORD_HISTOGRAM_CHECKER_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

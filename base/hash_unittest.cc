@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -67,16 +68,16 @@ TEST(HashTest, CString) {
   const char* str;
   // Empty string (should hash to 0).
   str = "";
-  EXPECT_EQ(0u, Hash(str, strlen(str)));
+  EXPECT_EQ(0u, Hash(str, SbStringGetLength(str)));
 
   // Simple test.
   str = "hello world";
-  EXPECT_EQ(2794219650u, Hash(str, strlen(str)));
+  EXPECT_EQ(2794219650u, Hash(str, SbStringGetLength(str)));
 
   // Ensure that it stops reading after the given length, and does not expect a
   // null byte.
   str = "hello world; don't read this part";
-  EXPECT_EQ(2794219650u, Hash(str, strlen("hello world")));
+  EXPECT_EQ(2794219650u, Hash(str, SbStringGetLength("hello world")));
 }
 
 }  // namespace base

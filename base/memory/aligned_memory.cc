@@ -9,6 +9,8 @@
 
 #if defined(OS_ANDROID)
 #include <malloc.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

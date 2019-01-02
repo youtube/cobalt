@@ -5,12 +5,11 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_FREELIST_ENTRY_H_
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PARTITION_FREELIST_ENTRY_H_
 
-#include <stdint.h>
-
 #include "base/allocator/partition_allocator/partition_alloc_constants.h"
 #include "base/compiler_specific.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

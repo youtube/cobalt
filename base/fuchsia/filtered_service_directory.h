@@ -10,6 +10,7 @@
 #include <lib/zx/channel.h>
 
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace fuchsia {

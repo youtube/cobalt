@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -19,6 +18,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -5,7 +5,6 @@
 #include "base/debug/stack_trace.h"
 
 #include <link.h>
-#include <stddef.h>
 #include <string.h>
 #include <threads.h>
 #include <unwind.h>
@@ -20,6 +19,8 @@
 #include <iostream>
 
 #include "base/logging.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace debug {
@@ -105,7 +106,7 @@ void SymbolMap::Populate() {
   // if we keep hitting problems with truncation, find a way to plumb argv[0]
   // through to here instead, e.g. using CommandLine::GetProgramName().
   char app_name[arraysize(SymbolMap::Entry::name)];
-  strcpy(app_name, kProcessNamePrefix);
+  SbStringCopyUnsafe(app_name, kProcessNamePrefix);
   zx_status_t status = zx_object_get_property(
       process, ZX_PROP_NAME, app_name + kProcessNamePrefixLen,
       sizeof(app_name) - kProcessNamePrefixLen);

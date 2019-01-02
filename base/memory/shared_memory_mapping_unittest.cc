@@ -4,13 +4,12 @@
 
 #include "base/memory/shared_memory_mapping.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 
 #include "base/containers/span.h"
 #include "base/memory/read_only_shared_memory_region.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

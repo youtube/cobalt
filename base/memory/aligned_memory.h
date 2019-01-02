@@ -5,10 +5,11 @@
 #ifndef BASE_MEMORY_ALIGNED_MEMORY_H_
 #define BASE_MEMORY_ALIGNED_MEMORY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <type_traits>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
@@ -43,7 +44,7 @@ inline void AlignedFree(void* ptr) {
 #if defined(COMPILER_MSVC)
   _aligned_free(ptr);
 #else
-  free(ptr);
+  SbMemoryFree(ptr);
 #endif
 }
 

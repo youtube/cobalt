@@ -4,8 +4,6 @@
 
 #include "base/strings/safe_sprintf.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -15,6 +13,9 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Death tests on Android are currently very flaky. No need to add more flaky
@@ -65,46 +66,46 @@ TEST(SafeSPrintfTest, NoArguments) {
   // always add a trailing NUL; it always deduplicates '%' characters).
   static const char text[] = "hello world";
   char ref[20], buf[20];
-  memset(ref, 'X', sizeof(ref));
-  memcpy(buf, ref, sizeof(buf));
+  SbMemorySet(ref, 'X', sizeof(ref));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A negative buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, static_cast<size_t>(-1), text));
-  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
 
   // Zero buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, 0, text));
-  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
 
   // A one-byte buffer should always print a single NUL byte.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 1, text));
   EXPECT_EQ(0, buf[0]);
-  EXPECT_TRUE(!memcmp(buf+1, ref+1, sizeof(buf)-1));
-  memcpy(buf, ref, sizeof(buf));
+  EXPECT_TRUE(!SbMemoryCompare(buf+1, ref+1, sizeof(buf)-1));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
   // unchanged.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSNPrintf(buf, 2, text));
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
-  EXPECT_TRUE(!memcmp(buf+2, ref+2, sizeof(buf)-2));
-  memcpy(buf, ref, sizeof(buf));
+  EXPECT_TRUE(!SbMemoryCompare(buf+2, ref+2, sizeof(buf)-2));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
   // unchanged.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, sizeof(buf), text));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
                       sizeof(buf) - sizeof(text)));
-  memcpy(buf, ref, sizeof(buf));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, text));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
                       sizeof(buf) - sizeof(text)));
-  memcpy(buf, ref, sizeof(buf));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // Check for deduplication of '%' percent characters.
   EXPECT_EQ(1, SafeSPrintf(buf, "%%"));
@@ -129,23 +130,23 @@ TEST(SafeSPrintfTest, OneArgument) {
   const char text[] = "hello world";
   const char fmt[]  = "hello%cworld";
   char ref[20], buf[20];
-  memset(ref, 'X', sizeof(buf));
-  memcpy(buf, ref, sizeof(buf));
+  SbMemorySet(ref, 'X', sizeof(buf));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A negative buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, static_cast<size_t>(-1), fmt, ' '));
-  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
 
   // Zero buffer size should always result in an error.
   EXPECT_EQ(-1, SafeSNPrintf(buf, 0, fmt, ' '));
-  EXPECT_TRUE(!memcmp(buf, ref, sizeof(buf)));
+  EXPECT_TRUE(!SbMemoryCompare(buf, ref, sizeof(buf)));
 
   // A one-byte buffer should always print a single NUL byte.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, 1, fmt, ' '));
   EXPECT_EQ(0, buf[0]);
-  EXPECT_TRUE(!memcmp(buf+1, ref+1, sizeof(buf)-1));
-  memcpy(buf, ref, sizeof(buf));
+  EXPECT_TRUE(!SbMemoryCompare(buf+1, ref+1, sizeof(buf)-1));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A larger (but limited) buffer should always leave the trailing bytes
   // unchanged.
@@ -153,24 +154,24 @@ TEST(SafeSPrintfTest, OneArgument) {
             SafeSNPrintf(buf, 2, fmt, ' '));
   EXPECT_EQ(text[0], buf[0]);
   EXPECT_EQ(0, buf[1]);
-  EXPECT_TRUE(!memcmp(buf+2, ref+2, sizeof(buf)-2));
-  memcpy(buf, ref, sizeof(buf));
+  EXPECT_TRUE(!SbMemoryCompare(buf+2, ref+2, sizeof(buf)-2));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // A unrestricted buffer length should always leave the trailing bytes
   // unchanged.
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1,
             SafeSNPrintf(buf, sizeof(buf), fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
                       sizeof(buf) - sizeof(text)));
-  memcpy(buf, ref, sizeof(buf));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // The same test using SafeSPrintf() instead of SafeSNPrintf().
   EXPECT_EQ(static_cast<ssize_t>(sizeof(text))-1, SafeSPrintf(buf, fmt, ' '));
   EXPECT_EQ(std::string(text), std::string(buf));
-  EXPECT_TRUE(!memcmp(buf + sizeof(text), ref + sizeof(text),
+  EXPECT_TRUE(!SbMemoryCompare(buf + sizeof(text), ref + sizeof(text),
                       sizeof(buf) - sizeof(text)));
-  memcpy(buf, ref, sizeof(buf));
+  SbMemoryCopy(buf, ref, sizeof(buf));
 
   // Check for deduplication of '%' percent characters.
   EXPECT_EQ(1, SafeSPrintf(buf, "%%", 0));
@@ -354,9 +355,9 @@ TEST(SafeSPrintfTest, DataTypes) {
   SafeSPrintf(buf, "%019p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
   sprintf(addr, "0x%llX", (unsigned long long)(uintptr_t)buf);
-  memset(addr, ' ',
-         (char*)memmove(addr + sizeof(addr) - strlen(addr) - 1,
-                        addr, strlen(addr)+1) - addr);
+  SbMemorySet(addr, ' ',
+         (char*)SbMemoryMove(addr + sizeof(addr) - SbStringGetLength(addr) - 1,
+                        addr, SbStringGetLength(addr)+1) - addr);
   SafeSPrintf(buf, "%19p", buf);
   EXPECT_EQ(std::string(addr), std::string(buf));
 }
@@ -370,7 +371,7 @@ void PrintLongString(char* buf, size_t sz) {
   // Allocate slightly more space, so that we can verify that SafeSPrintf()
   // never writes past the end of the buffer.
   std::unique_ptr<char[]> tmp(new char[sz + 2]);
-  memset(tmp.get(), 'X', sz+2);
+  SbMemorySet(tmp.get(), 'X', sz+2);
 
   // Use SafeSPrintf() to output a complex list of arguments:
   // - test padding and truncating %c single characters.
@@ -398,7 +399,7 @@ void PrintLongString(char* buf, size_t sz) {
     // Various sanity checks:
     // The numbered of characters needed to print the full string should always
     // be bigger or equal to the bytes that have actually been output.
-    len = strlen(tmp.get());
+    len = SbStringGetLength(tmp.get());
     CHECK_GE(needed, len+1);
 
     // The number of characters output should always fit into the buffer that
@@ -455,7 +456,7 @@ void PrintLongString(char* buf, size_t sz) {
   // We allocated a slightly larger buffer, so that we could perform some
   // extra sanity checks. Now that the tests have all passed, we copy the
   // data to the output buffer that the caller provided.
-  memcpy(buf, tmp.get(), len+1);
+  SbMemoryCopy(buf, tmp.get(), len+1);
 }
 
 #if !defined(NDEBUG)
@@ -486,7 +487,7 @@ TEST(SafeSPrintfTest, Truncation) {
   // happen in a lot of different states.
   char ref[256];
   PrintLongString(ref, sizeof(ref));
-  for (size_t i = strlen(ref)+1; i; --i) {
+  for (size_t i = SbStringGetLength(ref)+1; i; --i) {
     char buf[sizeof(ref)];
     PrintLongString(buf, i);
     EXPECT_EQ(std::string(ref, i - 1), std::string(buf));
@@ -499,7 +500,7 @@ TEST(SafeSPrintfTest, Truncation) {
   // Repeat the truncation test and verify that this other code path in
   // SafeSPrintf() works correctly, too.
 #if !defined(NDEBUG)
-  for (size_t i = strlen(ref)+1; i > 1; --i) {
+  for (size_t i = SbStringGetLength(ref)+1; i > 1; --i) {
     ScopedSafeSPrintfSSizeMaxSetter ssize_max_setter(i);
     char buf[sizeof(ref)];
     PrintLongString(buf, sizeof(buf));

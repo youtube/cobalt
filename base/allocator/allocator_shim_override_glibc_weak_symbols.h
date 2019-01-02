@@ -25,6 +25,7 @@
 #include <new>
 
 #include "base/allocator/allocator_shim_internals.h"
+#include "starboard/types.h"
 
 // __MALLOC_HOOK_VOLATILE not defined in all Glibc headers.
 #if !defined(__MALLOC_HOOK_VOLATILE)

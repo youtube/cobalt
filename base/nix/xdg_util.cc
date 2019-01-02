@@ -13,6 +13,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/third_party/xdg_user_dirs/xdg_user_dir_lookup.h"
+#include "starboard/memory.h"
 
 namespace {
 
@@ -45,7 +46,7 @@ FilePath GetXDGUserDirectory(const char* dir_name, const char* fallback_dir) {
   char* xdg_dir = xdg_user_dir_lookup(dir_name);
   if (xdg_dir) {
     path = FilePath(xdg_dir);
-    free(xdg_dir);
+    SbMemoryFree(xdg_dir);
   } else {
     PathService::Get(DIR_HOME, &path);
     path = path.Append(fallback_dir);

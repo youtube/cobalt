@@ -4,12 +4,11 @@
 
 #include "base/process/process_info.h"
 
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "base/process/internal_linux.h"
 #include "base/process/process_handle.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

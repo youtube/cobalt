@@ -9,6 +9,8 @@
 
 #include <sys/cdefs.h>  // for __THROW
 
+#include "starboard/types.h"
+
 #ifndef __THROW  // Not a glibc system
 #ifdef _NOEXCEPT  // LLVM libc++ uses noexcept instead
 #define __THROW _NOEXCEPT

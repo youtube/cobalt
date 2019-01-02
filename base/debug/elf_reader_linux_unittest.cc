@@ -9,6 +9,7 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 extern char __executable_start;

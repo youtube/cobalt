@@ -10,6 +10,7 @@
 #include "base/base_export.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "starboard/types.h"
 
 namespace base {
 

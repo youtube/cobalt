@@ -4,11 +4,10 @@
 
 #include "base/version.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <utility>
 
 #include "base/macros.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

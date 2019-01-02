@@ -5,14 +5,13 @@
 #ifndef BASE_JSON_JSON_FILE_VALUE_SERIALIZER_H_
 #define BASE_JSON_JSON_FILE_VALUE_SERIALIZER_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"
 #include "base/macros.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 class BASE_EXPORT JSONFileValueSerializer : public base::ValueSerializer {
  public:

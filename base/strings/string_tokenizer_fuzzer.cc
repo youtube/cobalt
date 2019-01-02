@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/strings/string_tokenizer.h"
+#include "starboard/types.h"
 
 void GetAllTokens(base::StringTokenizer& t) {
   while (t.GetNext()) {

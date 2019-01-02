@@ -17,6 +17,8 @@
 
 #if defined(OS_IOS)
 #include <objc/runtime.h>
+
+#include "starboard/types.h"
 #endif  // OS_IOS
 
 namespace base {

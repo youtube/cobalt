@@ -5,9 +5,6 @@
 #ifndef BASE_FILES_FILE_ENUMERATOR_H_
 #define BASE_FILES_FILE_ENUMERATOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/base_export.h"
@@ -26,6 +23,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_set>
+
+#include "starboard/types.h"
 #endif
 #endif
 

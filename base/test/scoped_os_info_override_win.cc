@@ -7,6 +7,7 @@
 #include <windows.h>
 
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace test {

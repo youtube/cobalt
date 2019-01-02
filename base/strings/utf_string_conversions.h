@@ -5,13 +5,12 @@
 #ifndef BASE_STRINGS_UTF_STRING_CONVERSIONS_H_
 #define BASE_STRINGS_UTF_STRING_CONVERSIONS_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/base_export.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 

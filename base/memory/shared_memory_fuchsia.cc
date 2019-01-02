@@ -14,6 +14,7 @@
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/memory/shared_memory_tracker.h"
 #include "base/process/process_metrics.h"
+#include "starboard/types.h"
 
 namespace base {
 

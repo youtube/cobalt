@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 #include <type_traits>
+
+#include "starboard/types.h"
 
 #include "base/compiler_specific.h"
 

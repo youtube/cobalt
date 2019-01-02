@@ -11,6 +11,8 @@
 #include "base/debug/alias.h"
 #include "base/threading/simple_thread.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -64,8 +66,8 @@ TEST_F(SamplingHeapProfilerTest, SampleObserver) {
   sampler->SetSamplingInterval(1024);
   sampler->Start();
   sampler->AddSamplesObserver(&collector);
-  void* volatile p = malloc(10000);
-  free(p);
+  void* volatile p = SbMemoryAllocate(10000);
+  SbMemoryFree(p);
   sampler->Stop();
   sampler->RemoveSamplesObserver(&collector);
   EXPECT_TRUE(collector.sample_added);
@@ -81,8 +83,8 @@ TEST_F(SamplingHeapProfilerTest, SampleObserverMuted) {
   sampler->AddSamplesObserver(&collector);
   {
     PoissonAllocationSampler::ScopedMuteThreadSamples muted_scope;
-    void* volatile p = malloc(10000);
-    free(p);
+    void* volatile p = SbMemoryAllocate(10000);
+    SbMemoryFree(p);
   }
   sampler->Stop();
   sampler->RemoveSamplesObserver(&collector);
@@ -109,17 +111,17 @@ TEST_F(SamplingHeapProfilerTest, IntervalRandomizationSanity) {
 const int kNumberOfAllocations = 10000;
 
 NOINLINE void Allocate1() {
-  void* p = malloc(400);
+  void* p = SbMemoryAllocate(400);
   base::debug::Alias(&p);
 }
 
 NOINLINE void Allocate2() {
-  void* p = malloc(700);
+  void* p = SbMemoryAllocate(700);
   base::debug::Alias(&p);
 }
 
 NOINLINE void Allocate3() {
-  void* p = malloc(20480);
+  void* p = SbMemoryAllocate(20480);
   base::debug::Alias(&p);
 }
 

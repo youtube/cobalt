@@ -11,6 +11,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -9,6 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/mac/scoped_mach_port.h"
+#include "starboard/types.h"
 
 namespace base {
 

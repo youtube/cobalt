@@ -9,6 +9,10 @@
 #include <algorithm>
 #include <sstream>
 
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
+
 #include "base/logging.h"
 #include "base/macros.h"
 
@@ -205,7 +209,7 @@ StackTrace::StackTrace() : StackTrace(arraysize(trace_)) {}
 StackTrace::StackTrace(const void* const* trace, size_t count) {
   count = std::min(count, arraysize(trace_));
   if (count)
-    memcpy(trace_, trace, count * sizeof(trace_[0]));
+    SbMemoryCopy(trace_, trace, count * sizeof(trace_[0]));
   count_ = count;
 }
 

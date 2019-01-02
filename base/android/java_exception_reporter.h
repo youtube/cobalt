@@ -8,6 +8,7 @@
 #include <jni.h>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

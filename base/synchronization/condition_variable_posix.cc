@@ -5,7 +5,6 @@
 #include "base/synchronization/condition_variable.h"
 
 #include <errno.h>
-#include <stdint.h>
 #include <sys/time.h>
 
 #include "base/synchronization/lock.h"
@@ -13,6 +12,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

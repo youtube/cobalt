@@ -10,8 +10,6 @@
 #ifndef BASE_METRICS_STATISTICS_RECORDER_H_
 #define BASE_METRICS_STATISTICS_RECORDER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -28,6 +26,7 @@
 #include "base/metrics/record_histogram_checker.h"
 #include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
+#include "starboard/types.h"
 
 namespace base {
 

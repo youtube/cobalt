@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 #include <unistd.h>
 
+#include "starboard/types.h"
+
 // If the non-cancelable variants of all system calls have already been
 // chosen, do nothing.
 #if !__DARWIN_NON_CANCELABLE

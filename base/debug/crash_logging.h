@@ -5,13 +5,12 @@
 #ifndef BASE_DEBUG_CRASH_LOGGING_H_
 #define BASE_DEBUG_CRASH_LOGGING_H_
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace debug {

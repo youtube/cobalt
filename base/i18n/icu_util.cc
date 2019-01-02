@@ -43,6 +43,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/icu_init/icu_init.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

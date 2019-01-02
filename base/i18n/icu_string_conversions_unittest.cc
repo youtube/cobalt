@@ -4,7 +4,6 @@
 
 #include <math.h>
 #include <stdarg.h>
-#include <stddef.h>
 
 #include <limits>
 #include <sstream>
@@ -17,6 +16,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

@@ -4,10 +4,9 @@
 
 #include "base/task/sequence_manager/work_queue_sets.h"
 
-#include <stddef.h>
-
 #include "base/memory/ptr_util.h"
 #include "base/task/sequence_manager/work_queue.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {

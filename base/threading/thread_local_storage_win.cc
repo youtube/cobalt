@@ -7,6 +7,7 @@
 #include <windows.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

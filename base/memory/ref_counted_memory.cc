@@ -8,6 +8,7 @@
 
 #include "base/logging.h"
 #include "base/memory/read_only_shared_memory_region.h"
+#include "starboard/memory.h"
 
 namespace base {
 
@@ -15,7 +16,7 @@ bool RefCountedMemory::Equals(
     const scoped_refptr<RefCountedMemory>& other) const {
   return other.get() &&
          size() == other->size() &&
-         (memcmp(front(), other->front(), size()) == 0);
+         (SbMemoryCompare(front(), other->front(), size()) == 0);
 }
 
 RefCountedMemory::RefCountedMemory() = default;

@@ -54,9 +54,6 @@
 #ifndef BASE_METRICS_FIELD_TRIAL_H_
 #define BASE_METRICS_FIELD_TRIAL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <set>
@@ -81,6 +78,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 #if defined(STARBOARD)
 namespace base {

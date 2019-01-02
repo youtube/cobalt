@@ -5,11 +5,9 @@
 #ifndef BASE_TRACE_EVENT_CATEGORY_REGISTRY_H_
 #define BASE_TRACE_EVENT_CATEGORY_REGISTRY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

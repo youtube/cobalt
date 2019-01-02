@@ -7,8 +7,6 @@
 
 #include "build/build_config.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
@@ -17,6 +15,7 @@
 #endif
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace strings {

@@ -12,6 +12,7 @@
 #include "base/debug/alias.h"
 #include "base/threading/simple_thread.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

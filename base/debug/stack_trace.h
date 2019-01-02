@@ -5,10 +5,10 @@
 #ifndef BASE_DEBUG_STACK_TRACE_H_
 #define BASE_DEBUG_STACK_TRACE_H_
 
-#include <stddef.h>
-
 #include <iosfwd>
 #include <string>
+
+#include "starboard/types.h"
 
 #include "base/base_export.h"
 #include "base/debug/debugging_buildflags.h"

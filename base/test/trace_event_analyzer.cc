@@ -18,6 +18,7 @@
 #include "base/trace_event/trace_config.h"
 #include "base/trace_event/trace_log.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace {
 void OnTraceDataCollected(base::OnceClosure quit_closure,

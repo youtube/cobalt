@@ -5,8 +5,6 @@
 #ifndef BASE_TRACE_EVENT_MEMORY_USAGE_ESTIMATOR_H_
 #define BASE_TRACE_EVENT_MEMORY_USAGE_ESTIMATOR_H_
 
-#include <stdint.h>
-
 #include <array>
 #include <deque>
 #include <list>
@@ -32,6 +30,7 @@
 #include "base/stl_util.h"
 #include "base/strings/string16.h"
 #include "base/template_util.h"
+#include "starboard/types.h"
 
 // Composable memory usage estimators.
 //

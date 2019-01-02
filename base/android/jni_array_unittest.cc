@@ -4,14 +4,13 @@
 
 #include "base/android/jni_array.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/macros.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -334,7 +333,7 @@ TEST(JniArray, JavaArrayOfByteArrayToStringVector) {
     snprintf(text, sizeof text, "%d", i);
     ScopedJavaLocalRef<jbyteArray> byte_array =
         ToJavaByteArray(env, reinterpret_cast<uint8_t*>(text),
-                        static_cast<size_t>(strlen(text)));
+                        static_cast<size_t>(SbStringGetLength(text)));
     ASSERT_TRUE(byte_array.obj());
 
     env->SetObjectArrayElement(array.obj(), i, byte_array.obj());

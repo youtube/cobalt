@@ -7,13 +7,13 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sched.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include <memory>
+
+#include "starboard/types.h"
 
 #include "base/debug/activity_tracker.h"
 #include "base/lazy_instance.h"

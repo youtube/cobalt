@@ -5,8 +5,6 @@
 #ifndef BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
 #define BASE_SYNCHRONIZATION_WAITABLE_EVENT_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "build/build_config.h"
@@ -29,6 +27,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

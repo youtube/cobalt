@@ -8,8 +8,6 @@
 // Starboard doesn't curretly support multiple processes or shared memory.
 #if !defined(STARBOARD)
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/base_export.h"
@@ -31,6 +29,7 @@
 
 #if defined(OS_WIN)
 #include "base/win/scoped_handle.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

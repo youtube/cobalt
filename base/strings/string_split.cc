@@ -4,11 +4,10 @@
 
 #include "base/strings/string_split.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/third_party/icu/icu_utf.h"
+#include "starboard/types.h"
 
 namespace base {
 

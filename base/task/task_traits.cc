@@ -4,11 +4,10 @@
 
 #include "base/task/task_traits.h"
 
-#include <stddef.h>
-
 #include <ostream>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

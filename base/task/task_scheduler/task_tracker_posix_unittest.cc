@@ -24,6 +24,7 @@
 #include "base/test/null_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

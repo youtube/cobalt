@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -29,6 +28,7 @@
 
 #if defined(OS_ANDROID)
 #include "base/os_compat_android.h"
+#include "starboard/types.h"
 #include "third_party/ashmem/ashmem.h"
 #endif
 

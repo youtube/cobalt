@@ -4,14 +4,13 @@
 
 #include "base/test/gtest_util.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/files/file_path.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

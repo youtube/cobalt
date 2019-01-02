@@ -8,6 +8,7 @@
 #include <lib/zx/handle.h>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -13,6 +13,7 @@
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
+#include "starboard/types.h"
 
 typedef struct svc_dir svc_dir_t;
 

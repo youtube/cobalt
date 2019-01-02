@@ -21,6 +21,7 @@
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // Android stripped sys/timerfd.h out of their platform headers, so we have to
 // use syscall to make use of timerfd. Once the min API level is 20, we can

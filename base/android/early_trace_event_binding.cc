@@ -4,12 +4,11 @@
 
 #include "base/android/early_trace_event_binding.h"
 
-#include <stdint.h>
-
 #include "base/android/jni_string.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "jni/EarlyTraceEvent_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

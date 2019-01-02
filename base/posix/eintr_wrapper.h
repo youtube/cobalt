@@ -23,6 +23,8 @@
 
 #include <errno.h>
 
+#include "starboard/types.h"
+
 #if defined(NDEBUG)
 
 #define HANDLE_EINTR(x) ({ \

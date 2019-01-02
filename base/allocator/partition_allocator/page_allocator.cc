@@ -24,6 +24,7 @@
 #include "base/allocator/partition_allocator/page_allocator_internals_win.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/allocator/partition_allocator/page_allocator_internals_posix.h"
+#include "starboard/types.h"
 #else
 #error Platform not supported.
 #endif

@@ -5,8 +5,6 @@
 #include "base/memory/platform_shared_memory_region.h"
 
 #include <aclapi.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/bits.h"
@@ -16,6 +14,7 @@
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace subtle {

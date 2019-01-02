@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // Not defined on AIX by default.
 #if defined(OS_AIX)

@@ -4,8 +4,6 @@
 
 #include "base/test/test_reg_util_win.h"
 
-#include <stdint.h>
-
 #include "base/guid.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -16,6 +14,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include <windows.h>
+
+#include "starboard/types.h"
 
 namespace registry_util {
 

@@ -20,6 +20,8 @@
 #include <ostream>
 #include <string>
 
+#include "starboard/types.h"
+
 namespace logging {
 
 #if defined(OS_WIN)

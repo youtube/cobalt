@@ -5,12 +5,11 @@
 #ifndef BASE_DEBUG_PROC_MAPS_LINUX_H_
 #define BASE_DEBUG_PROC_MAPS_LINUX_H_
 
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace debug {

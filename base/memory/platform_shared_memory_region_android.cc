@@ -10,6 +10,7 @@
 #include "base/memory/shared_memory_tracker.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/process_metrics.h"
+#include "starboard/types.h"
 #include "third_party/ashmem/ashmem.h"
 
 namespace base {

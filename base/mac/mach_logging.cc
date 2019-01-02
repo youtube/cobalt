@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <string>
 
+#include "starboard/types.h"
+
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 

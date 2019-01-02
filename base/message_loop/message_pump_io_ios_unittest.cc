@@ -10,6 +10,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/test/gtest_util.h"
 #include "base/threading/thread.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

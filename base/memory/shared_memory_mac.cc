@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <mach/mach_vm.h>
-#include <stddef.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -29,6 +28,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 #if defined(OS_IOS)
 #error "MacOS only - iOS uses shared_memory_posix.cc"

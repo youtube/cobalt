@@ -6,6 +6,9 @@
 
 #include <stdlib.h>
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 void* MallocWrapper(size_t size) {
-  return malloc(size);
+  return SbMemoryAllocate(size);
 }

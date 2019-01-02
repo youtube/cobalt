@@ -9,6 +9,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 // Manages WeakGlobalRef lifecycle.
 // This class is not thread-safe w.r.t. get() and reset(). Multiple threads may

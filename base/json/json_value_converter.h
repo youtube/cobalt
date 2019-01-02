@@ -5,8 +5,6 @@
 #ifndef BASE_JSON_JSON_VALUE_CONVERTER_H_
 #define BASE_JSON_JSON_VALUE_CONVERTER_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +16,7 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 // JSONValueConverter converts a JSON value into a C++ struct in a
 // lightweight way.

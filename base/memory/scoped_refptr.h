@@ -5,8 +5,6 @@
 #ifndef BASE_MEMORY_SCOPED_REFPTR_H_
 #define BASE_MEMORY_SCOPED_REFPTR_H_
 
-#include <stddef.h>
-
 #include <iosfwd>
 #include <type_traits>
 #include <utility>
@@ -15,6 +13,7 @@
 #include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 template <class T>
 class scoped_refptr;

@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "starboard/types.h"
 
 namespace base {
 

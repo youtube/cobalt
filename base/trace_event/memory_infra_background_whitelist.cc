@@ -10,6 +10,8 @@
 #include <string>
 
 #include "base/strings/string_util.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {
@@ -378,14 +380,14 @@ bool IsMemoryDumpProviderWhitelisted(const char* mdp_name) {
 bool IsMemoryAllocatorDumpNameWhitelisted(const std::string& name) {
   // Global dumps are explicitly whitelisted for background use.
   if (base::StartsWith(name, "global/", CompareCase::SENSITIVE)) {
-    for (size_t i = strlen("global/"); i < name.size(); i++)
+    for (size_t i = SbStringGetLength("global/"); i < name.size(); i++)
       if (!base::IsHexDigit(name[i]))
         return false;
     return true;
   }
 
   if (base::StartsWith(name, "shared_memory/", CompareCase::SENSITIVE)) {
-    for (size_t i = strlen("shared_memory/"); i < name.size(); i++)
+    for (size_t i = SbStringGetLength("shared_memory/"); i < name.size(); i++)
       if (!base::IsHexDigit(name[i]))
         return false;
     return true;

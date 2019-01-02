@@ -4,8 +4,6 @@
 
 #include "base/vlog.h"
 
-#include <stddef.h>
-
 #include <ostream>
 #include <utility>
 
@@ -13,6 +11,7 @@
 #include "base/macros.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "starboard/types.h"
 
 namespace logging {
 

@@ -10,6 +10,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
 #include "base/unguessable_token.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

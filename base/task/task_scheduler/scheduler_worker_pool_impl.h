@@ -5,8 +5,6 @@
 #ifndef BASE_TASK_TASK_SCHEDULER_SCHEDULER_WORKER_POOL_IMPL_H_
 #define BASE_TASK_TASK_SCHEDULER_SCHEDULER_WORKER_POOL_IMPL_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,6 +29,7 @@
 #include "base/task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

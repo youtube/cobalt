@@ -5,11 +5,10 @@
 #ifndef BASE_TRACE_EVENT_MEMORY_ALLOCATOR_DUMP_GUID_H_
 #define BASE_TRACE_EVENT_MEMORY_ALLOCATOR_DUMP_GUID_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

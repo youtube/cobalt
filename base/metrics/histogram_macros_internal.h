@@ -5,8 +5,6 @@
 #ifndef BASE_METRICS_HISTOGRAM_MACROS_INTERNAL_H_
 #define BASE_METRICS_HISTOGRAM_MACROS_INTERNAL_H_
 
-#include <stdint.h>
-
 #include <limits>
 #include <type_traits>
 
@@ -15,6 +13,7 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 // This is for macros and helpers internal to base/metrics. They should not be
 // used outside of this directory. For writing to UMA histograms, see

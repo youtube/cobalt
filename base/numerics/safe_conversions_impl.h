@@ -5,10 +5,10 @@
 #ifndef BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
 #define BASE_NUMERICS_SAFE_CONVERSIONS_IMPL_H_
 
-#include <stdint.h>
-
 #include <limits>
 #include <type_traits>
+
+#include "starboard/types.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define BASE_NUMERICS_LIKELY(x) __builtin_expect(!!(x), 1)

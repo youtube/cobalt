@@ -16,6 +16,8 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+
+#include "starboard/types.h"
 #endif  // defined(OS_POSIX)
 
 #if !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)

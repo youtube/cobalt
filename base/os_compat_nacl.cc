@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "starboard/types.h"
+
 #if !defined (__GLIBC__)
 
 extern "C" {

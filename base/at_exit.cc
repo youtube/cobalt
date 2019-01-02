@@ -4,13 +4,13 @@
 
 #include "base/at_exit.h"
 
-#include <stddef.h>
 #include <ostream>
 #include <utility>
 
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -26,6 +26,7 @@
 
 #if !defined(OS_WIN)
 #include "base/callback.h"
+#include "starboard/types.h"
 #endif
 
 #if !defined(STARBOARD)

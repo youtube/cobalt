@@ -7,10 +7,9 @@
 #include "base/bits.h"
 #include "build/build_config.h"
 
-#include <stddef.h>
-
 #include <limits>
 
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

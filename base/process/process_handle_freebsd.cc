@@ -6,11 +6,12 @@
 #include "base/process/process_handle.h"
 
 #include <limits.h>
-#include <stddef.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <unistd.h>
+
+#include "starboard/types.h"
 
 namespace base {
 

@@ -4,12 +4,12 @@
 
 #include "base/memory/shared_memory.h"
 
-#include <stddef.h>
 #include <sys/mman.h>
 
 #include "base/bits.h"
 #include "base/logging.h"
 #include "base/process/process_metrics.h"
+#include "starboard/types.h"
 #include "third_party/ashmem/ashmem.h"
 
 namespace base {
