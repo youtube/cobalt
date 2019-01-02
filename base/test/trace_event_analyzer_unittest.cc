@@ -4,9 +4,6 @@
 
 #include "base/test/trace_event_analyzer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted_memory.h"
@@ -14,6 +11,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/trace_event/trace_buffer.h"
 #include "base/trace_event/trace_event_argument.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

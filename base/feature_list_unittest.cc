@@ -4,8 +4,6 @@
 
 #include "base/feature_list.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <utility>
 
@@ -17,6 +15,7 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

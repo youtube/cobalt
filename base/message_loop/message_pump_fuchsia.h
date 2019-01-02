@@ -14,6 +14,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/watchable_io_message_pump_posix.h"
+#include "starboard/types.h"
 
 typedef struct fdio fdio_t;
 

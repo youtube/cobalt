@@ -21,6 +21,7 @@
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
+#include "starboard/types.h"
 #endif
 
 // Lifecycle of struct event

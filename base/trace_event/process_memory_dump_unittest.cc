@@ -4,8 +4,6 @@
 
 #include "base/trace_event/process_memory_dump.h"
 
-#include <stddef.h>
-
 #include "base/memory/aligned_memory.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/shared_memory_tracker.h"
@@ -26,6 +24,8 @@
 
 #if defined(OS_IOS)
 #include "base/ios/ios_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {
@@ -488,7 +488,7 @@ TEST(ProcessMemoryDumpTest, MAYBE_CountResidentBytes) {
   // Allocate few page of dirty memory and check if it is resident.
   const size_t size1 = 5 * page_size;
   void* memory1 = Map(size1);
-  memset(memory1, 0, size1);
+  SbMemorySet(memory1, 0, size1);
   size_t res1 = ProcessMemoryDump::CountResidentBytes(memory1, size1);
   ASSERT_EQ(res1, size1);
   Unmap(memory1, size1);
@@ -496,7 +496,7 @@ TEST(ProcessMemoryDumpTest, MAYBE_CountResidentBytes) {
   // Allocate a large memory segment (> 8Mib).
   const size_t kVeryLargeMemorySize = 15 * 1024 * 1024;
   void* memory2 = Map(kVeryLargeMemorySize);
-  memset(memory2, 0, kVeryLargeMemorySize);
+  SbMemorySet(memory2, 0, kVeryLargeMemorySize);
   size_t res2 =
       ProcessMemoryDump::CountResidentBytes(memory2, kVeryLargeMemorySize);
   ASSERT_EQ(res2, kVeryLargeMemorySize);
@@ -524,7 +524,7 @@ TEST(ProcessMemoryDumpTest, MAYBE_CountResidentBytesInSharedMemory) {
   const size_t size1 = 5 * page_size;
   SharedMemory shared_memory1;
   shared_memory1.CreateAndMapAnonymous(size1);
-  memset(shared_memory1.memory(), 0, size1);
+  SbMemorySet(shared_memory1.memory(), 0, size1);
   base::Optional<size_t> res1 =
       ProcessMemoryDump::CountResidentBytesInSharedMemory(
           shared_memory1.memory(), shared_memory1.mapped_size());
@@ -537,7 +537,7 @@ TEST(ProcessMemoryDumpTest, MAYBE_CountResidentBytesInSharedMemory) {
   const size_t kVeryLargeMemorySize = 15 * 1024 * 1024;
   SharedMemory shared_memory2;
   shared_memory2.CreateAndMapAnonymous(kVeryLargeMemorySize);
-  memset(shared_memory2.memory(), 0, kVeryLargeMemorySize);
+  SbMemorySet(shared_memory2.memory(), 0, kVeryLargeMemorySize);
   base::Optional<size_t> res2 =
       ProcessMemoryDump::CountResidentBytesInSharedMemory(
           shared_memory2.memory(), shared_memory2.mapped_size());
@@ -550,7 +550,7 @@ TEST(ProcessMemoryDumpTest, MAYBE_CountResidentBytesInSharedMemory) {
   const size_t kTouchedMemorySize = 7 * 1024 * 1024;
   SharedMemory shared_memory3;
   shared_memory3.CreateAndMapAnonymous(kVeryLargeMemorySize);
-  memset(shared_memory3.memory(), 0, kTouchedMemorySize);
+  SbMemorySet(shared_memory3.memory(), 0, kTouchedMemorySize);
   base::Optional<size_t> res3 =
       ProcessMemoryDump::CountResidentBytesInSharedMemory(
           shared_memory3.memory(), shared_memory3.mapped_size());

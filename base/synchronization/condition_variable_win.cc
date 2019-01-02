@@ -11,6 +11,8 @@
 
 #include <windows.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 ConditionVariable::ConditionVariable(Lock* user_lock)

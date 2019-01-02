@@ -8,9 +8,6 @@
 #ifndef BASE_PROCESS_PROCESS_METRICS_H_
 #define BASE_PROCESS_PROCESS_METRICS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -34,6 +31,7 @@
 #if defined(OS_WIN)
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_types.h"
+#include "starboard/types.h"
 #endif
 
 #if !defined(STARBOARD)

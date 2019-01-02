@@ -8,6 +8,7 @@
 
 #include "base/feature_list.h"
 #include "base/mac/mach_logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

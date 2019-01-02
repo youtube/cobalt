@@ -7,8 +7,6 @@
 
 #include <windows.h>
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,6 +14,7 @@
 #include "base/base_export.h"
 #include "base/file_version_info.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 struct tagVS_FIXEDFILEINFO;
 typedef tagVS_FIXEDFILEINFO VS_FIXEDFILEINFO;

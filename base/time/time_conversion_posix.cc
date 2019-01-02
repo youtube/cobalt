@@ -4,13 +4,13 @@
 
 #include "base/time/time.h"
 
-#include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
 
 #include <limits>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

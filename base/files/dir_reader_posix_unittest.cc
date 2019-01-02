@@ -18,6 +18,7 @@
 
 #if defined(OS_ANDROID)
 #include "base/os_compat_android.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

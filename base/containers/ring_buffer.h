@@ -5,10 +5,9 @@
 #ifndef BASE_CONTAINERS_RING_BUFFER_H_
 #define BASE_CONTAINERS_RING_BUFFER_H_
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 

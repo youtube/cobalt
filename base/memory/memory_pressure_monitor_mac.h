@@ -15,6 +15,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/memory_pressure_monitor.h"
 #include "base/message_loop/message_pump_mac.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace mac {

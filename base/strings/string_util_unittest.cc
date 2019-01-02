@@ -6,14 +6,16 @@
 
 #include <math.h>
 #include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <algorithm>
 
 #include "base/macros.h"
 #include "base/strings/string16.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1106,9 +1108,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[10];
     wchar_t wdst[10];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, memcmp(dst, "abcdefg", 8));
+    EXPECT_EQ(0, SbMemoryCompare(dst, "abcdefg", 8));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, memcmp(wdst, L"abcdefg", sizeof(wchar_t) * 8));
+    EXPECT_EQ(0, SbMemoryCompare(wdst, L"abcdefg", sizeof(wchar_t) * 8));
   }
 
   // Test dst_size == 0, nothing should be written to |dst| and we should
@@ -1129,9 +1131,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[8];
     wchar_t wdst[8];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, memcmp(dst, "abcdefg", 8));
+    EXPECT_EQ(0, SbMemoryCompare(dst, "abcdefg", 8));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, memcmp(wdst, L"abcdefg", sizeof(wchar_t) * 8));
+    EXPECT_EQ(0, SbMemoryCompare(wdst, L"abcdefg", sizeof(wchar_t) * 8));
   }
 
   // Test the case were we we are one smaller, so we can't fit the null.
@@ -1139,9 +1141,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[7];
     wchar_t wdst[7];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, memcmp(dst, "abcdef", 7));
+    EXPECT_EQ(0, SbMemoryCompare(dst, "abcdef", 7));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, memcmp(wdst, L"abcdef", sizeof(wchar_t) * 7));
+    EXPECT_EQ(0, SbMemoryCompare(wdst, L"abcdef", sizeof(wchar_t) * 7));
   }
 
   // Test the case were we are just too small.
@@ -1149,9 +1151,9 @@ TEST(StringUtilTest, LcpyTest) {
     char dst[3];
     wchar_t wdst[3];
     EXPECT_EQ(7U, strlcpy(dst, "abcdefg", arraysize(dst)));
-    EXPECT_EQ(0, memcmp(dst, "ab", 3));
+    EXPECT_EQ(0, SbMemoryCompare(dst, "ab", 3));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", arraysize(wdst)));
-    EXPECT_EQ(0, memcmp(wdst, L"ab", sizeof(wchar_t) * 3));
+    EXPECT_EQ(0, SbMemoryCompare(wdst, L"ab", sizeof(wchar_t) * 3));
   }
 }
 
@@ -1263,7 +1265,7 @@ TEST(StringUtilTest, ReplaceChars) {
     // Test with an input/output var of ample capacity; should
     // not realloc.
     std::string input_output = scenario.input;
-    input_output.reserve(strlen(scenario.output) * 2);
+    input_output.reserve(SbStringGetLength(scenario.output) * 2);
     const void* original_buffer = input_output.data();
     bool result = ReplaceChars(input_output, scenario.replace_chars,
                                scenario.replace_with, &input_output);
@@ -1346,7 +1348,7 @@ class WriteIntoTest : public testing::Test {
   static void WritesCorrectly(size_t num_chars) {
     std::string buffer;
     char kOriginal[] = "supercali";
-    strncpy(WriteInto(&buffer, num_chars + 1), kOriginal, num_chars);
+    PoemStringCopyN(WriteInto(&buffer, num_chars + 1), kOriginal, num_chars);
     // Using std::string(buffer.c_str()) instead of |buffer| truncates the
     // string at the first \0.
     EXPECT_EQ(std::string(kOriginal,
@@ -1369,7 +1371,7 @@ TEST_F(WriteIntoTest, WriteInto) {
   const char kDead[] = "dead";
   const std::string live = kLive;
   std::string dead = live;
-  strncpy(WriteInto(&dead, 5), kDead, 4);
+  PoemStringCopyN(WriteInto(&dead, 5), kDead, 4);
   EXPECT_EQ(kDead, dead);
   EXPECT_EQ(4u, dead.size());
   EXPECT_EQ(kLive, live);

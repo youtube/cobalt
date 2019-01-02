@@ -8,8 +8,6 @@
 #include <CoreFoundation/CFTimeZone.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -27,6 +25,7 @@
 #if defined(OS_IOS)
 #include <time.h>
 #include "base/ios/ios_util.h"
+#include "starboard/types.h"
 #endif
 
 namespace {

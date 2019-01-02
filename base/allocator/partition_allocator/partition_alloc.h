@@ -80,6 +80,9 @@
 
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 #include <stdlib.h>
+
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {
@@ -271,7 +274,7 @@ ALWAYS_INLINE void* PartitionRoot::AllocFlags(int flags,
                                               size_t size,
                                               const char* type_name) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  void* result = malloc(size);
+  void* result = SbMemoryAllocate(size);
   CHECK(result);
   return result;
 #else
@@ -311,7 +314,7 @@ ALWAYS_INLINE size_t PartitionAllocGetSize(void* ptr) {
 
 ALWAYS_INLINE void PartitionFree(void* ptr) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  free(ptr);
+  SbMemoryFree(ptr);
 #else
   void* original_ptr = ptr;
   // TODO(palmer): Check ptr alignment before continuing. Shall we do the check
@@ -351,7 +354,7 @@ ALWAYS_INLINE void* PartitionAllocGenericFlags(PartitionRootGeneric* root,
 
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   const bool zero_fill = flags & PartitionAllocZeroFill;
-  void* result = zero_fill ? calloc(1, size) : malloc(size);
+  void* result = zero_fill ? calloc(1, size) : SbMemoryAllocate(size);
   CHECK(result || flags & PartitionAllocReturnNull);
   return result;
 #else
@@ -383,7 +386,7 @@ ALWAYS_INLINE void* PartitionRootGeneric::AllocFlags(int flags,
 
 ALWAYS_INLINE void PartitionRootGeneric::Free(void* ptr) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  free(ptr);
+  SbMemoryFree(ptr);
 #else
   DCHECK(this->initialized);
 
@@ -430,7 +433,7 @@ template <size_t N>
 class SizeSpecificPartitionAllocator {
  public:
   SizeSpecificPartitionAllocator() {
-    memset(actual_buckets_, 0,
+    SbMemorySet(actual_buckets_, 0,
            sizeof(internal::PartitionBucket) * base::size(actual_buckets_));
   }
   ~SizeSpecificPartitionAllocator() = default;

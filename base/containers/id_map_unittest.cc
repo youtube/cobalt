@@ -4,11 +4,10 @@
 
 #include "base/containers/id_map.h"
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/test/gtest_util.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

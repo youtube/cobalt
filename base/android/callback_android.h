@@ -11,6 +11,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 // Provides helper utility methods that run the given callback with the
 // specified argument.

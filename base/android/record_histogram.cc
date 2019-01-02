@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include <map>
 #include <string>
 
@@ -18,6 +16,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "jni/RecordHistogram_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

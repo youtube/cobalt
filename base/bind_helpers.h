@@ -5,8 +5,6 @@
 #ifndef BASE_BIND_HELPERS_H_
 #define BASE_BIND_HELPERS_H_
 
-#include <stddef.h>
-
 #include <type_traits>
 #include <utility>
 
@@ -14,6 +12,7 @@
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // This defines a set of simple functions and utilities that people want when
 // using Callback<> and Bind().

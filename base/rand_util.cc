@@ -6,13 +6,13 @@
 
 #include <limits.h>
 #include <math.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <limits>
 
 #include "base/logging.h"
 #include "base/strings/string_util.h"
+#include "starboard/types.h"
 
 namespace base {
 

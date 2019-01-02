@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/win/message_window.h"
 #include "base/win/scoped_handle.h"
+#include "starboard/types.h"
 
 namespace base {
 

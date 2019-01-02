@@ -26,12 +26,14 @@
 // libc functions with custom, 2-byte-char compatible routines. It is capable
 // of carrying UTF-16-encoded data.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include <functional>
 #include <string>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/base_export.h"
 #include "build/build_config.h"
@@ -56,12 +58,12 @@ typedef uint16_t char16;
 // char16 versions of the functions required by string16_char_traits; these
 // are based on the wide character functions of similar names ("w" or "wcs"
 // instead of "c16").
-BASE_EXPORT int c16memcmp(const char16* s1, const char16* s2, size_t n);
+BASE_EXPORT int c16SbMemoryCompare(const char16* s1, const char16* s2, size_t n);
 BASE_EXPORT size_t c16len(const char16* s);
-BASE_EXPORT const char16* c16memchr(const char16* s, char16 c, size_t n);
-BASE_EXPORT char16* c16memmove(char16* s1, const char16* s2, size_t n);
-BASE_EXPORT char16* c16memcpy(char16* s1, const char16* s2, size_t n);
-BASE_EXPORT char16* c16memset(char16* s, char16 c, size_t n);
+BASE_EXPORT const char16* c16SbMemoryFindByte(const char16* s, char16 c, size_t n);
+BASE_EXPORT char16* c16SbMemoryMove(char16* s1, const char16* s2, size_t n);
+BASE_EXPORT char16* c16SbMemoryCopy(char16* s1, const char16* s2, size_t n);
+BASE_EXPORT char16* c16SbMemorySet(char16* s, char16 c, size_t n);
 
 // This namespace contains the implementation of base::string16 along with
 // things that need to be found via argument-dependent lookup from a
@@ -93,7 +95,7 @@ struct string16_char_traits {
   }
 
   static int compare(const char_type* s1, const char_type* s2, size_t n) {
-    return c16memcmp(s1, s2, n);
+    return c16SbMemoryCompare(s1, s2, n);
   }
 
   static size_t length(const char_type* s) {
@@ -102,19 +104,19 @@ struct string16_char_traits {
 
   static const char_type* find(const char_type* s, size_t n,
                                const char_type& a) {
-    return c16memchr(s, a, n);
+    return c16SbMemoryFindByte(s, a, n);
   }
 
   static char_type* move(char_type* s1, const char_type* s2, size_t n) {
-    return c16memmove(s1, s2, n);
+    return c16SbMemoryMove(s1, s2, n);
   }
 
   static char_type* copy(char_type* s1, const char_type* s2, size_t n) {
-    return c16memcpy(s1, s2, n);
+    return c16SbMemoryCopy(s1, s2, n);
   }
 
   static char_type* assign(char_type* s, size_t n, char_type a) {
-    return c16memset(s, a, n);
+    return c16SbMemorySet(s, a, n);
   }
 
   static int_type not_eof(const int_type& c) {

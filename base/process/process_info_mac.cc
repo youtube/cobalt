@@ -4,7 +4,6 @@
 
 #include "base/process/process_info.h"
 
-#include <stddef.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -14,6 +13,8 @@
 #include "base/macros.h"
 #include "base/memory/free_deleter.h"
 #include "base/time/time.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -25,7 +26,7 @@ const Time CurrentProcessInfo::CreationTime() {
     return Time();
 
   std::unique_ptr<struct kinfo_proc, base::FreeDeleter> proc(
-      static_cast<struct kinfo_proc*>(malloc(len)));
+      static_cast<struct kinfo_proc*>(SbMemoryAllocate(len)));
   if (sysctl(mib, arraysize(mib), proc.get(), &len, NULL, 0) < 0)
     return Time();
   return Time::FromTimeVal(proc->kp_proc.p_un.__p_starttime);

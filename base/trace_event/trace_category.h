@@ -1,11 +1,10 @@
+#include "starboard/types.h"
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TRACE_EVENT_TRACE_CATEGORY_H_
 #define BASE_TRACE_EVENT_TRACE_CATEGORY_H_
-
-#include <stdint.h>
 
 namespace base {
 namespace trace_event {

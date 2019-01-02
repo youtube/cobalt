@@ -5,14 +5,13 @@
 #ifndef BASE_LOCATION_H_
 #define BASE_LOCATION_H_
 
-#include <stddef.h>
-
 #include <cassert>
 #include <string>
 
 #include "base/base_export.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/hash.h"
+#include "starboard/types.h"
 
 namespace base {
 

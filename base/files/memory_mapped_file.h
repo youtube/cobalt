@@ -5,9 +5,6 @@
 #ifndef BASE_FILES_MEMORY_MAPPED_FILE_H_
 #define BASE_FILES_MEMORY_MAPPED_FILE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/files/file.h"
 #include "base/macros.h"
@@ -15,6 +12,8 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+
+#include "starboard/types.h"
 #endif
 
 #if !defined(STARBOARD)

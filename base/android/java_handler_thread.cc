@@ -15,6 +15,7 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
 #include "jni/JavaHandlerThread_jni.h"
+#include "starboard/types.h"
 
 using base::android::AttachCurrentThread;
 

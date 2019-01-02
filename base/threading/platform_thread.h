@@ -9,8 +9,6 @@
 #ifndef BASE_THREADING_PLATFORM_THREAD_H_
 #define BASE_THREADING_PLATFORM_THREAD_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/time/time.h"
@@ -28,6 +26,8 @@
 #elif defined(OS_POSIX)
 #include <pthread.h>
 #include <unistd.h>
+
+#include "starboard/types.h"
 #endif
 #endif
 

@@ -5,10 +5,9 @@
 #ifndef BASE_FILES_FILE_TRACING_H_
 #define BASE_FILES_FILE_TRACING_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 #define FILE_TRACING_PREFIX "File"
 

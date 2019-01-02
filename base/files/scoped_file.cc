@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "base/posix/eintr_wrapper.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

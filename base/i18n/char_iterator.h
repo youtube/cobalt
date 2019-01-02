@@ -5,15 +5,13 @@
 #ifndef BASE_I18N_CHAR_ITERATOR_H_
 #define BASE_I18N_CHAR_ITERATOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/i18n/base_i18n_export.h"
 #include "base/macros.h"
 #include "base/strings/string16.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // The CharIterator classes iterate through the characters in UTF8 and
 // UTF16 strings.  Example usage:

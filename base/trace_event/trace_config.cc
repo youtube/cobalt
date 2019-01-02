@@ -4,8 +4,6 @@
 
 #include "base/trace_event/trace_config.h"
 
-#include <stddef.h>
-
 #include <utility>
 
 #include "base/json/json_reader.h"
@@ -15,6 +13,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

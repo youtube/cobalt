@@ -8,8 +8,6 @@
 // Starboard doesn't curretly support multiple processes or shared memory.
 #if !defined(STARBOARD)
 
-#include <stddef.h>
-
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 
@@ -27,6 +25,8 @@
 #include "base/file_descriptor_posix.h"
 #elif defined(OS_FUCHSIA)
 #include <zircon/types.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

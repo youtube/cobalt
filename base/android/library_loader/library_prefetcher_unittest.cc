@@ -4,12 +4,11 @@
 
 #include "base/android/library_loader/library_prefetcher.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/mman.h>
 #include "base/android/library_loader/anchor_functions_buildflags.h"
 #include "base/memory/shared_memory.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)

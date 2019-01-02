@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/process/process.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -15,6 +15,7 @@
 #include "base/mac/mach_logging.h"
 #include "base/mac/scoped_mach_port.h"
 #include "base/mac/scoped_nsautorelease_pool.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

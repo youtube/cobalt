@@ -4,9 +4,9 @@
 
 #include "base/trace_event/malloc_dump_provider.h"
 
-#include <stddef.h>
-
 #include <unordered_map>
+
+#include "starboard/types.h"
 
 #include "base/allocator/allocator_extension.h"
 #include "base/allocator/buildflags.h"

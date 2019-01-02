@@ -4,12 +4,10 @@
 
 #include "base/guid.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/rand_util.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "starboard/types.h"
 
 namespace base {
 

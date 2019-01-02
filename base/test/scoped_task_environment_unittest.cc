@@ -24,6 +24,7 @@
 #if defined(OS_POSIX)
 #include <unistd.h>
 #include "base/files/file_descriptor_watcher_posix.h"
+#include "starboard/types.h"
 #endif  // defined(OS_POSIX)
 
 namespace base {

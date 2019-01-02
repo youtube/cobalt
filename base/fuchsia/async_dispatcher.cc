@@ -12,6 +12,7 @@
 #include <zircon/syscalls.h>
 
 #include "base/fuchsia/fuchsia_logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

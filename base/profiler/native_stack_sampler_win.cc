@@ -6,7 +6,6 @@
 
 #include <windows.h>
 
-#include <stddef.h>
 #include <winternl.h>
 
 #include <cstdlib>
@@ -24,6 +23,7 @@
 #include "base/stl_util.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/types.h"
 
 namespace base {
 

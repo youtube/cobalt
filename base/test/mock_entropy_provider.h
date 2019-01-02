@@ -5,9 +5,8 @@
 #ifndef BASE_TEST_MOCK_ENTROPY_PROVIDER_H_
 #define BASE_TEST_MOCK_ENTROPY_PROVIDER_H_
 
-#include <stdint.h>
-
 #include "base/metrics/field_trial.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -6,6 +6,7 @@
 
 #include "base/allocator/winheap_stubs_win.h"
 #include "base/logging.h"
+#include "starboard/memory.h"
 
 namespace {
 
@@ -28,7 +29,7 @@ void* DefaultWinHeapCallocImpl(const AllocatorDispatch* self,
 
   void* result = DefaultWinHeapMallocImpl(self, size, context);
   if (result) {
-    memset(result, 0, size);
+    SbMemorySet(result, 0, size);
   }
   return result;
 }

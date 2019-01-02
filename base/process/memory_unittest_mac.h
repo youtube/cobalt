@@ -8,10 +8,10 @@
 #ifndef BASE_PROCESS_MEMORY_UNITTEST_MAC_H_
 #define BASE_PROCESS_MEMORY_UNITTEST_MAC_H_
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -17,6 +17,8 @@
 #include <sys/resource.h>
 
 #include <algorithm>
+
+#include "starboard/types.h"
 #endif
 
 #ifndef MAP_ANONYMOUS

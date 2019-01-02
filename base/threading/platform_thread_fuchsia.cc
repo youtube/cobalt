@@ -10,6 +10,7 @@
 
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
+#include "starboard/types.h"
 
 namespace base {
 

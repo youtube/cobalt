@@ -10,6 +10,7 @@
 #include "base/debug/activity_tracker.h"
 #include "base/macros.h"
 #include "base/threading/platform_thread.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

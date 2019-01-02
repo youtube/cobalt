@@ -14,6 +14,7 @@
 #include "base/macros.h"
 #include "base/task_runner.h"
 #include "base/task_runner_util.h"
+#include "starboard/memory.h"
 
 namespace {
 
@@ -208,7 +209,7 @@ class WriteHelper : public FileHelper {
         buffer_(new char[bytes_to_write]),
         bytes_to_write_(bytes_to_write),
         bytes_written_(0) {
-    memcpy(buffer_.get(), buffer, bytes_to_write);
+    SbMemoryCopy(buffer_.get(), buffer, bytes_to_write);
   }
 
   void RunWork(int64_t offset) {

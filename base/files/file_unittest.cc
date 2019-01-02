@@ -4,8 +4,6 @@
 
 #include "base/files/file.h"
 
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/files/file_util.h"
@@ -13,6 +11,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::File;

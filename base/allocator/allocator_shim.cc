@@ -304,6 +304,7 @@ ALWAYS_INLINE void ShimFreeDefiniteSize(void* ptr, size_t size, void* context) {
 // accidentally performed on the glibc heap instead of the tcmalloc one.
 #if defined(USE_TCMALLOC)
 #include "base/allocator/allocator_shim_override_glibc_weak_symbols.h"
+#include "starboard/types.h"
 #endif
 
 #if defined(OS_MACOSX)

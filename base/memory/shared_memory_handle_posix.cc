@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/unguessable_token.h"
+#include "starboard/types.h"
 
 namespace base {
 

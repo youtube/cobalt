@@ -4,8 +4,6 @@
 
 #include "base/task/cancelable_task_tracker.h"
 
-#include <stddef.h>
-
 #include <utility>
 
 #include "base/bind.h"
@@ -16,6 +14,7 @@
 #include "base/synchronization/cancellation_flag.h"
 #include "base/task_runner.h"
 #include "base/threading/sequenced_task_runner_handle.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -5,9 +5,6 @@
 #ifndef BASE_TEST_LAUNCHER_TEST_LAUNCHER_H_
 #define BASE_TEST_LAUNCHER_TEST_LAUNCHER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <set>
 #include <string>
@@ -23,6 +20,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 #if !defined(STARBOARD)
 

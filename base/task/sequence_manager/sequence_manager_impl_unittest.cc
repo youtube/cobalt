@@ -4,7 +4,6 @@
 
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 
-#include <stddef.h>
 #include <memory>
 #include <utility>
 
@@ -34,6 +33,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/blame_context.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using testing::AnyNumber;

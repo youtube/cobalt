@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/types.h"
+
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/mac/scoped_cftyperef.h"

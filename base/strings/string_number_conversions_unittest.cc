@@ -6,8 +6,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include <cmath>
@@ -18,6 +16,8 @@
 #include "base/macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -835,12 +835,12 @@ TEST(StringNumberConversionsTest, DoubleToString) {
   // The following two values were seen in crashes in the wild.
   const char input_bytes[8] = {0, 0, 0, 0, '\xee', '\x6d', '\x73', '\x42'};
   double input = 0;
-  memcpy(&input, input_bytes, arraysize(input_bytes));
+  SbMemoryCopy(&input, input_bytes, arraysize(input_bytes));
   EXPECT_EQ("1335179083776", NumberToString(input));
   const char input_bytes2[8] =
       {0, 0, 0, '\xa0', '\xda', '\x6c', '\x73', '\x42'};
   input = 0;
-  memcpy(&input, input_bytes2, arraysize(input_bytes2));
+  SbMemoryCopy(&input, input_bytes2, arraysize(input_bytes2));
   EXPECT_EQ("1334890332160", NumberToString(input));
 }
 

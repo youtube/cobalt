@@ -5,12 +5,11 @@
 #ifndef BASE_NUMERICS_CHECKED_MATH_H_
 #define BASE_NUMERICS_CHECKED_MATH_H_
 
-#include <stddef.h>
-
 #include <limits>
 #include <type_traits>
 
 #include "base/numerics/checked_math_impl.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

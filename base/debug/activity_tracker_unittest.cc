@@ -21,6 +21,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/time/time.h"
+#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -31,7 +32,7 @@ namespace {
 class TestActivityTracker : public ThreadActivityTracker {
  public:
   TestActivityTracker(std::unique_ptr<char[]> memory, size_t mem_size)
-      : ThreadActivityTracker(memset(memory.get(), 0, mem_size), mem_size),
+      : ThreadActivityTracker(SbMemorySet(memory.get(), 0, mem_size), mem_size),
         mem_segment_(std::move(memory)) {}
 
   ~TestActivityTracker() override = default;
@@ -109,7 +110,7 @@ class ActivityTrackerTest : public testing::Test {
 
 TEST_F(ActivityTrackerTest, UserDataTest) {
   char buffer[256];
-  memset(buffer, 0, sizeof(buffer));
+  SbMemorySet(buffer, 0, sizeof(buffer));
   ActivityUserData data(buffer, sizeof(buffer));
   size_t space = sizeof(buffer) - sizeof(ActivityUserData::MemoryHeader);
   ASSERT_EQ(space, data.available_);
@@ -518,7 +519,7 @@ TEST_F(ActivityTrackerTest, ProcessDeathTest) {
   // Make a copy of the thread-tracker state so it can be restored later.
   const size_t tracker_size = global->allocator()->GetAllocSize(tracker_ref);
   std::unique_ptr<char[]> tracker_copy(new char[tracker_size]);
-  memcpy(tracker_copy.get(), thread->GetBaseAddress(), tracker_size);
+  SbMemoryCopy(tracker_copy.get(), thread->GetBaseAddress(), tracker_size);
 
   // Change the objects to appear to be owned by another process. Use a "past"
   // time so that exit-time is always later than create-time.
@@ -568,7 +569,7 @@ TEST_F(ActivityTrackerTest, ProcessDeathTest) {
 
   // Restore memory contents and types so things don't crash when doing real
   // process clean-up.
-  memcpy(const_cast<void*>(thread->GetBaseAddress()), tracker_copy.get(),
+  SbMemoryCopy(const_cast<void*>(thread->GetBaseAddress()), tracker_copy.get(),
          tracker_size);
   global->allocator()->ChangeType(
       proc_data_ref, GlobalActivityTracker::kTypeIdProcessDataRecord,

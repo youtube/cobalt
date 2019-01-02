@@ -4,8 +4,7 @@
 
 #include "base/base64.h"
 
-#include <stddef.h>
-
+#include "starboard/types.h"
 #include "third_party/modp_b64/modp_b64.h"
 
 namespace base {

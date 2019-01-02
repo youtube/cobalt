@@ -5,7 +5,6 @@
 #include "base/debug/proc_maps_linux.h"
 
 #include <fcntl.h>
-#include <stddef.h>
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
@@ -14,6 +13,8 @@
 
 #if defined(OS_LINUX) || defined(OS_ANDROID)
 #include <inttypes.h>
+
+#include "starboard/types.h"
 #endif
 
 #if defined(OS_ANDROID) && !defined(__LP64__)

@@ -5,8 +5,6 @@
 #include "base/memory/shared_memory.h"
 
 #include <aclapi.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include "base/allocator/partition_allocator/page_allocator.h"
 #include "base/logging.h"
@@ -18,6 +16,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/unguessable_token.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace {

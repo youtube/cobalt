@@ -4,14 +4,13 @@
 
 #include "base/containers/small_map.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <functional>
 #include <map>
 #include <unordered_map>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

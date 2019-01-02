@@ -5,8 +5,6 @@
 #ifndef BASE_BIND_INTERNAL_H_
 #define BASE_BIND_INTERNAL_H_
 
-#include <stddef.h>
-
 #include <type_traits>
 #include <utility>
 
@@ -20,6 +18,7 @@
 
 #if defined(OS_MACOSX) && !HAS_FEATURE(objc_arc)
 #include "base/mac/scoped_block.h"
+#include "starboard/types.h"
 #endif
 
 // See base/callback.h for user documentation.

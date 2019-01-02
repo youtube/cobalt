@@ -5,7 +5,6 @@
 #if defined(STARBOARD)
 #include "base/test/time_helpers.h"
 #else
-#include <stdint.h>
 #include <time.h>
 #endif
 
@@ -14,6 +13,7 @@
 #include "base/third_party/nspr/prtime.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;

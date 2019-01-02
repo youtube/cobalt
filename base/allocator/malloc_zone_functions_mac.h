@@ -6,10 +6,10 @@
 #define BASE_ALLOCATOR_MALLOC_ZONE_FUNCTIONS_MAC_H_
 
 #include <malloc/malloc.h>
-#include <stddef.h>
 
 #include "base/base_export.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 #include "third_party/apple_apsl/malloc.h"
 
 namespace base {

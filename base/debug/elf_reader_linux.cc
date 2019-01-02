@@ -13,6 +13,7 @@
 #include "base/containers/span.h"
 #include "base/sha1.h"
 #include "base/strings/stringprintf.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace debug {

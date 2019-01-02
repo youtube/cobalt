@@ -5,8 +5,6 @@
 #ifndef BASE_TASK_TASK_SCHEDULER_TEST_TASK_FACTORY_H_
 #define BASE_TASK_TASK_SCHEDULER_TEST_TASK_FACTORY_H_
 
-#include <stddef.h>
-
 #include <unordered_set>
 
 #include "base/callback_forward.h"
@@ -18,6 +16,7 @@
 #include "base/task/task_traits.h"
 #include "base/task_runner.h"
 #include "base/threading/thread_checker_impl.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

@@ -5,12 +5,13 @@
 #include "base/time/time.h"
 
 #if !defined(STARBOARD)
-#include <stdint.h>
 #include <time.h>
 #endif
 
 #include <limits>
 #include <string>
+
+#include "starboard/types.h"
 
 #include "base/build_time.h"
 #include "base/compiler_specific.h"

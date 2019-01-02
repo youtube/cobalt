@@ -7,8 +7,6 @@
 #include <windows.h>  // Must be in front of other Windows header files.
 
 #include <psapi.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <winternl.h>
 
 #include <algorithm>
@@ -18,6 +16,8 @@
 #include "base/process/memory.h"
 #include "base/process/process_metrics_iocounters.h"
 #include "base/sys_info.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace {
@@ -203,7 +203,7 @@ class WorkingSetInformationBuffer {
 
  private:
   void Clear() {
-    free(buffer_);
+    SbMemoryFree(buffer_);
     buffer_ = nullptr;
   }
 

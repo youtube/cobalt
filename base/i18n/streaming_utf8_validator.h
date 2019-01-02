@@ -11,13 +11,11 @@
 #ifndef BASE_I18N_STREAMING_UTF8_VALIDATOR_H_
 #define BASE_I18N_STREAMING_UTF8_VALIDATOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/i18n/base_i18n_export.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 

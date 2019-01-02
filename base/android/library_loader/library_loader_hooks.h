@@ -9,6 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/callback.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

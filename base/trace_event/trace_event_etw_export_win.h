@@ -6,14 +6,13 @@
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_ETW_EXPORT_WIN_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_ETW_EXPORT_WIN_H_
 
-#include <stdint.h>
-
 #include <map>
 
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event_impl.h"
+#include "starboard/types.h"
 
 namespace base {
 

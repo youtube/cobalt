@@ -5,9 +5,6 @@
 #ifndef BASE_NUMERICS_CLAMPED_MATH_IMPL_H_
 #define BASE_NUMERICS_CLAMPED_MATH_IMPL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <climits>
 #include <cmath>
 #include <cstdlib>
@@ -17,6 +14,7 @@
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math_shared_impl.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

@@ -5,9 +5,6 @@
 #ifndef BASE_TRACE_EVENT_CFI_BACKTRACE_ANDROID_H_
 #define BASE_TRACE_EVENT_CFI_BACKTRACE_ANDROID_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 
 #include "base/base_export.h"
@@ -15,6 +12,7 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/gtest_prod_util.h"
 #include "base/threading/thread_local_storage.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

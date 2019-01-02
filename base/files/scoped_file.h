@@ -16,6 +16,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/file.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

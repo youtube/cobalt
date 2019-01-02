@@ -7,9 +7,8 @@
 #ifndef BASE_ATOMICOPS_INTERNALS_ATOMICWORD_COMPAT_H_
 #define BASE_ATOMICOPS_INTERNALS_ATOMICWORD_COMPAT_H_
 
-#include <stdint.h>
-
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // AtomicWord is a synonym for intptr_t, and Atomic32 is a synonym for int32_t,
 // which in turn means int. On some LP32 platforms, intptr_t is an int, but

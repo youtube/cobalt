@@ -14,6 +14,7 @@
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
+#include "starboard/types.h"
 
 namespace base {
 

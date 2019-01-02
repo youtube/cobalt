@@ -11,6 +11,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 #if defined(OS_IOS)
 #error "MacOS only - iOS uses platform_shared_memory_region_posix.cc"

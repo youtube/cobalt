@@ -5,10 +5,8 @@
 #ifndef BASE_I18N_UTF8_VALIDATOR_TABLES_H_
 #define BASE_I18N_UTF8_VALIDATOR_TABLES_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

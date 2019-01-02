@@ -6,6 +6,8 @@
 
 #include <lib/fdio/util.h>
 
+#include "starboard/types.h"
+
 namespace base {
 namespace fuchsia {
 

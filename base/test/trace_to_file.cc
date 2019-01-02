@@ -12,6 +12,7 @@
 #include "base/run_loop.h"
 #include "base/trace_event/trace_buffer.h"
 #include "base/trace_event/trace_log.h"
+#include "starboard/string.h"
 
 namespace base {
 namespace test {
@@ -60,12 +61,12 @@ void TraceToFile::BeginTracing(const FilePath& path,
 
 void TraceToFile::WriteFileHeader() {
   const char str[] = "{\"traceEvents\": [";
-  WriteFile(path_, str, static_cast<int>(strlen(str)));
+  WriteFile(path_, str, static_cast<int>(SbStringGetLength(str)));
 }
 
 void TraceToFile::AppendFileFooter() {
   const char str[] = "]}";
-  AppendToFile(path_, str, static_cast<int>(strlen(str)));
+  AppendToFile(path_, str, static_cast<int>(SbStringGetLength(str)));
 }
 
 void TraceToFile::TraceOutputCallback(const std::string& data) {

@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

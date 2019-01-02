@@ -15,6 +15,7 @@
 #include "base/macros.h"
 #include "base/message_loop/message_pump.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 struct ALooper;
 

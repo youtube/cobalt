@@ -4,12 +4,13 @@
 
 #include "base/strings/sys_string_conversions.h"
 
-#include <stddef.h>
 #include <wchar.h>
 
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -46,7 +47,7 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
   // Calculate the number of multi-byte characters.  We walk through the string
   // without writing the output, counting the number of multi-byte characters.
   size_t num_out_chars = 0;
-  memset(&ps, 0, sizeof(ps));
+  SbMemorySet(&ps, 0, sizeof(ps));
   for (size_t i = 0; i < wide.size(); ++i) {
     const wchar_t src = wide[i];
     // Use a temp buffer since calling wcrtomb with an output of NULL does not
@@ -77,7 +78,7 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
 
   // We walk the input string again, with |i| tracking the index of the
   // wide input, and |j| tracking the multi-byte output.
-  memset(&ps, 0, sizeof(ps));
+  SbMemorySet(&ps, 0, sizeof(ps));
   for (size_t i = 0, j = 0; i < wide.size(); ++i) {
     const wchar_t src = wide[i];
     // We don't want wcrtomb to do its funkiness for embedded NULLs.
@@ -106,7 +107,7 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
   // Calculate the number of wide characters.  We walk through the string
   // without writing the output, counting the number of wide characters.
   size_t num_out_chars = 0;
-  memset(&ps, 0, sizeof(ps));
+  SbMemorySet(&ps, 0, sizeof(ps));
   for (size_t i = 0; i < native_mb.size(); ) {
     const char* src = native_mb.data() + i;
     size_t res = mbrtowc(nullptr, src, native_mb.size() - i, &ps);
@@ -133,7 +134,7 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
   std::wstring out;
   out.resize(num_out_chars);
 
-  memset(&ps, 0, sizeof(ps));  // Clear the shift state.
+  SbMemorySet(&ps, 0, sizeof(ps));  // Clear the shift state.
   // We walk the input string again, with |i| tracking the index of the
   // multi-byte input, and |j| tracking the wide output.
   for (size_t i = 0, j = 0; i < native_mb.size(); ++j) {

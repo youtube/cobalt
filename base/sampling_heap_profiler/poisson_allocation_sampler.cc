@@ -8,6 +8,8 @@
 #include <cmath>
 #include <utility>
 
+#include "starboard/types.h"
+
 #include "base/allocator/allocator_shim.h"
 #include "base/allocator/buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc.h"

@@ -5,13 +5,12 @@
 #ifndef BASE_TEST_FUZZED_DATA_PROVIDER_H_
 #define BASE_TEST_FUZZED_DATA_PROVIDER_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 

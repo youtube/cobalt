@@ -4,12 +4,11 @@
 
 #include "base/i18n/file_util_icu.h"
 
-#include <stddef.h>
-
 #include "base/files/file_util.h"
 #include "base/macros.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 

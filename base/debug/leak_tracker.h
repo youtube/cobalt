@@ -5,8 +5,6 @@
 #ifndef BASE_DEBUG_LEAK_TRACKER_H_
 #define BASE_DEBUG_LEAK_TRACKER_H_
 
-#include <stddef.h>
-
 #include "build/build_config.h"
 
 // Only enable leak tracking in non-uClibc debug builds.
@@ -18,6 +16,7 @@
 #include "base/containers/linked_list.h"
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 #endif  // ENABLE_LEAK_TRACKER
 
 // LeakTracker is a helper to verify that all instances of a class

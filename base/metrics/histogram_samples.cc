@@ -12,6 +12,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
 #include "base/pickle.h"
+#include "starboard/memory.h"
 
 namespace base {
 
@@ -172,7 +173,7 @@ bool HistogramSamples::AtomicSingleSample::IsDisabled() const {
 HistogramSamples::LocalMetadata::LocalMetadata() {
   // This is the same way it's done for persistent metadata since no ctor
   // is called for the data members in that case.
-  memset(this, 0, sizeof(*this));
+  SbMemorySet(this, 0, sizeof(*this));
 }
 
 HistogramSamples::HistogramSamples(uint64_t id, Metadata* meta)

@@ -5,14 +5,12 @@
 #ifndef BASE_RAND_UTIL_H_
 #define BASE_RAND_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 
 #include "base/base_export.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

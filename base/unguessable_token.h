@@ -5,7 +5,6 @@
 #ifndef BASE_UNGUESSABLE_TOKEN_H_
 #define BASE_UNGUESSABLE_TOKEN_H_
 
-#include <stdint.h>
 #include <string.h>
 #include <iosfwd>
 #include <tuple>
@@ -13,6 +12,7 @@
 #include "base/base_export.h"
 #include "base/hash.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -8,7 +8,8 @@
 
 #include <new.h>
 #include <psapi.h>
-#include <stddef.h>
+
+#include "starboard/types.h"
 
 #if defined(__clang__)
 // This global constructor is trivial and non-racy (per being const).

@@ -5,8 +5,6 @@
 #ifndef BASE_MEMORY_REF_COUNTED_H_
 #define BASE_MEMORY_REF_COUNTED_H_
 
-#include <stddef.h>
-
 #include <utility>
 
 #include "base/atomic_ref_count.h"
@@ -19,6 +17,7 @@
 #include "base/sequence_checker.h"
 #include "base/threading/thread_collision_warner.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace subtle {

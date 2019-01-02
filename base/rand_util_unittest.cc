@@ -4,15 +4,14 @@
 
 #include "base/rand_util.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <limits>
 #include <memory>
 
 #include "base/logging.h"
 #include "base/time/time.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -44,7 +43,7 @@ TEST(RandUtilTest, RandDouble) {
 TEST(RandUtilTest, RandBytes) {
   const size_t buffer_size = 50;
   char buffer[buffer_size];
-  memset(buffer, 0, buffer_size);
+  SbMemorySet(buffer, 0, buffer_size);
   base::RandBytes(buffer, buffer_size);
   std::sort(buffer, buffer + buffer_size);
   // Probability of occurrence of less than 25 unique bytes in 50 random bytes

@@ -5,8 +5,6 @@
 #ifndef BASE_METRICS_HISTOGRAM_SNAPSHOT_MANAGER_H_
 #define BASE_METRICS_HISTOGRAM_SNAPSHOT_MANAGER_H_
 
-#include <stdint.h>
-
 #include <atomic>
 #include <map>
 #include <string>
@@ -15,6 +13,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "base/metrics/histogram_base.h"
+#include "starboard/types.h"
 
 namespace base {
 

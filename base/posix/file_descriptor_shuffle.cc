@@ -5,11 +5,11 @@
 #include "base/posix/file_descriptor_shuffle.h"
 
 #include <unistd.h>
-#include <stddef.h>
 #include <ostream>
 
 #include "base/posix/eintr_wrapper.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

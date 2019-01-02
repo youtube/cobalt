@@ -10,8 +10,6 @@
 #include <sched.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -64,6 +62,8 @@
 #include <sys/event.h>
 
 #include "base/feature_list.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #else
 extern char** environ;
 #endif
@@ -443,7 +443,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     void *malloc_thunk =
         reinterpret_cast<void*>(reinterpret_cast<intptr_t>(malloc) & ~4095);
     mprotect(malloc_thunk, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
-    memset(reinterpret_cast<void*>(malloc), 0xff, 8);
+    SbMemorySet(reinterpret_cast<void*>(malloc), 0xff, 8);
 #endif  // 0
 
 #if defined(OS_CHROMEOS)

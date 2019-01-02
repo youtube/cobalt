@@ -54,6 +54,10 @@
 
 #include "utilities.h"
 
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
+
 #if defined(HAVE_SYMBOLIZE)
 
 #include <string.h>
@@ -98,10 +102,10 @@ static ATTRIBUTE_NOINLINE void DemangleInplace(char *out, int out_size) {
   char demangled[256];  // Big enough for sane demangled symbols.
   if (Demangle(out, demangled, sizeof(demangled))) {
     // Demangling succeeded. Copy to out if the space allows.
-    size_t len = strlen(demangled);
+    size_t len = SbStringGetLength(demangled);
     if (len + 1 <= (size_t)out_size) {  // +1 for '\0'.
       SAFE_ASSERT(len < sizeof(demangled));
-      memmove(out, demangled, len + 1);
+      SbMemoryMove(out, demangled, len + 1);
     }
   }
 }
@@ -119,10 +123,8 @@ _END_GOOGLE_NAMESPACE_
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -188,7 +190,7 @@ static int FileGetElfType(const int fd) {
   if (!ReadFromOffsetExact(fd, &elf_header, sizeof(elf_header), 0)) {
     return -1;
   }
-  if (memcmp(elf_header.e_ident, ELFMAG, SELFMAG) != 0) {
+  if (SbMemoryCompare(elf_header.e_ident, ELFMAG, SELFMAG) != 0) {
     return -1;
   }
   return elf_header.e_type;
@@ -264,7 +266,7 @@ bool GetSectionHeaderByName(int fd, const char *name, size_t name_len,
       // Short read -- name could be at end of file.
       continue;
     }
-    if (memcmp(header_name, name, name_len) == 0) {
+    if (SbMemoryCompare(header_name, name, name_len) == 0) {
       return true;
     }
   }
@@ -315,7 +317,7 @@ FindSymbol(uint64_t pc, const int fd, char *out, int out_size,
           start_address <= pc && pc < end_address) {
         ssize_t len1 = ReadFromOffset(fd, out, out_size,
                                       strtab->sh_offset + symbol.st_name);
-        if (len1 <= 0 || memchr(out, '\0', out_size) == NULL) {
+        if (len1 <= 0 || SbMemoryFindByte(out, '\0', out_size) == NULL) {
           return false;
         }
         return true;  // Obtained the symbol name.
@@ -418,7 +420,7 @@ class LineReader {
       if (!HasCompleteLine()) {
         const int incomplete_line_length = eod_ - bol_;
         // Move the trailing incomplete line to the beginning.
-        memmove(buf_, bol_, incomplete_line_length);
+        SbMemoryMove(buf_, bol_, incomplete_line_length);
         // Read text from file and append it.
         char * const append_pos = buf_ + incomplete_line_length;
         const int capacity_left = buf_len_ - incomplete_line_length;
@@ -457,7 +459,19 @@ class LineReader {
   void operator=(const LineReader&);
 
   char *FindLineFeed() {
+#if defined(STARBOARD)
+    // STARBOARD does not have an equivalent of memchr that returns void*.
+    unsigned char *p = (unsigned char*)bol_;
+    size_t n = eod_ - bol_;
+    while( n-- )
+        if( *p != (unsigned char)'\n' )
+            p++;
+        else
+            return reinterpret_cast<char *>(p);
+    return NULL;
+#else
     return reinterpret_cast<char *>(memchr(bol_, '\n', eod_ - bol_));
+#endif
   }
 
   bool BufferIsEmpty() {
@@ -574,7 +588,7 @@ OpenObjectFileContainingPcAndGetStartAddress(uint64_t pc,
     ElfW(Ehdr) ehdr;
     if (flags_start[0] == 'r' &&
         ReadFromOffsetExact(mem_fd, &ehdr, sizeof(ElfW(Ehdr)), start_address) &&
-        memcmp(ehdr.e_ident, ELFMAG, SELFMAG) == 0) {
+        SbMemoryCompare(ehdr.e_ident, ELFMAG, SELFMAG) == 0) {
       switch (ehdr.e_type) {
         case ET_EXEC:
           base_address = 0;
@@ -613,7 +627,7 @@ OpenObjectFileContainingPcAndGetStartAddress(uint64_t pc,
     }
 
     // Check flags.  We are only interested in "r-x" maps.
-    if (memcmp(flags_start, "r-x", 3) != 0) {  // Not a "r-x" map.
+    if (SbMemoryCompare(flags_start, "r-x", 3) != 0) {  // Not a "r-x" map.
       continue;  // We skip this map.
     }
     ++cursor;  // Skip ' '.
@@ -648,7 +662,7 @@ OpenObjectFileContainingPcAndGetStartAddress(uint64_t pc,
     if (object_fd < 0) {
       // Failed to open object file.  Copy the object file name to
       // |out_file_name|.
-      strncpy(out_file_name, cursor, out_file_name_size);
+      SbStringCopy(out_file_name, cursor, out_file_name_size);
       // Making sure |out_file_name| is always null-terminated.
       out_file_name[out_file_name_size - 1] = '\0';
       return -1;
@@ -728,11 +742,11 @@ char *itoa_r(intptr_t i, char *buf, size_t sz, int base, size_t padding) {
 // Safely appends string |source| to string |dest|.  Never writes past the
 // buffer size |dest_size| and guarantees that |dest| is null-terminated.
 void SafeAppendString(const char* source, char* dest, int dest_size) {
-  int dest_string_length = strlen(dest);
+  int dest_string_length = SbStringGetLength(dest);
   SAFE_ASSERT(dest_string_length < dest_size);
   dest += dest_string_length;
   dest_size -= dest_string_length;
-  strncpy(dest, source, dest_size);
+  SbStringCopy(dest, source, dest_size);
   // Making sure |dest| is always null-terminated.
   dest[dest_size - 1] = '\0';
 }
@@ -840,8 +854,8 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void *pc, char *out,
                                                     int out_size) {
   Dl_info info;
   if (dladdr(pc, &info)) {
-    if ((int)strlen(info.dli_sname) < out_size) {
-      strcpy(out, info.dli_sname);
+    if ((int)SbStringGetLength(info.dli_sname) < out_size) {
+      SbStringCopyUnsafe(out, info.dli_sname);
       // Symbolization succeeded.  Now we try to demangle the symbol.
       DemangleInplace(out, out_size);
       return true;

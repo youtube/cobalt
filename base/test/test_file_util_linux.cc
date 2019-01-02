@@ -18,6 +18,7 @@
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_file.h"
+#include "starboard/types.h"
 
 namespace base {
 

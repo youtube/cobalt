@@ -13,6 +13,7 @@
 #include "base/strings/string_util.h"
 #include "base/threading/thread_local.h"
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace {

@@ -8,8 +8,6 @@
 #ifndef BASE_METRICS_SAMPLE_MAP_H_
 #define BASE_METRICS_SAMPLE_MAP_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 
@@ -17,6 +15,7 @@
 #include "base/macros.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
+#include "starboard/types.h"
 
 namespace base {
 

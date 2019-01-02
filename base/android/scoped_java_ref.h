@@ -6,7 +6,6 @@
 #define BASE_ANDROID_SCOPED_JAVA_REF_H_
 
 #include <jni.h>
-#include <stddef.h>
 
 #include <type_traits>
 #include <utility>
@@ -14,6 +13,7 @@
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

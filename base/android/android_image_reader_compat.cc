@@ -9,6 +9,7 @@
 #include "base/android/build_info.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 #define LOAD_FUNCTION(lib, func)                            \
   do {                                                      \

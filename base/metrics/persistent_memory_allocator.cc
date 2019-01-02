@@ -24,6 +24,8 @@
 #include "base/sys_info.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace {
 
@@ -412,7 +414,7 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
       shared_meta()->name = Allocate(name_length, 0);
       char* name_cstr = GetAsArray<char>(shared_meta()->name, 0, name_length);
       if (name_cstr)
-        memcpy(name_cstr, name.data(), name.length());
+        SbMemoryCopy(name_cstr, name.data(), name.length());
     }
 
     shared_meta()->memory_state.store(MEMORY_INITIALIZED,
@@ -993,9 +995,9 @@ LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size) {
   // achieve the same basic result but the acquired memory has to be
   // explicitly zeroed and thus realized immediately (i.e. all pages are
   // added to the process now istead of only when first accessed).
-  address = malloc(size);
+  address = SbMemoryAllocate(size);
   DPCHECK(address);
-  memset(address, 0, size);
+  SbMemorySet(address, 0, size);
   return Memory(address, MEM_MALLOC);
 }
 
@@ -1004,7 +1006,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
                                                            size_t size,
                                                            MemoryType type) {
   if (type == MEM_MALLOC) {
-    free(memory);
+    SbMemoryFree(memory);
     return;
   }
 

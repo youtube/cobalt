@@ -167,7 +167,6 @@ extern "C" {
 #include <sys/time.h>
 #endif
 #ifdef _EVENT_HAVE_STDINT_H
-#include <stdint.h>
 #endif
 #include <stdarg.h>
 
@@ -177,6 +176,8 @@ extern "C" {
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#include "starboard/types.h"
 #undef WIN32_LEAN_AND_MEAN
 typedef unsigned char u_char;
 typedef unsigned short u_short;

@@ -5,8 +5,6 @@
 #ifndef BASE_MEMORY_DISCARDABLE_SHARED_MEMORY_H_
 #define BASE_MEMORY_DISCARDABLE_SHARED_MEMORY_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/macros.h"
@@ -18,6 +16,8 @@
 
 #if DCHECK_IS_ON()
 #include <set>
+
+#include "starboard/types.h"
 #endif
 
 // Linux (including Android) support the MADV_REMOVE argument with madvise()

@@ -6,12 +6,12 @@
 #define BASE_STRINGS_STRING_UTIL_POSIX_H_
 
 #include <stdarg.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

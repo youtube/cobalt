@@ -6,9 +6,6 @@
 // The fuzzer input is passed through parsing twice,
 // so that presumably valid json is parsed/written again.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/json/json_reader.h"
@@ -16,6 +13,8 @@
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/values.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 // Entry point for libFuzzer.
 // We will use the last byte of data as parsing options.
@@ -30,7 +29,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Create a copy of input buffer, as otherwise we don't catch
   // overflow that touches the last byte (which is used in options).
   std::unique_ptr<char[]> input(new char[size - 1]);
-  memcpy(input.get(), data, size - 1);
+  SbMemoryCopy(input.get(), data, size - 1);
 
   base::StringPiece input_string(input.get(), size - 1);
 

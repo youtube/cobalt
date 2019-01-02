@@ -4,8 +4,6 @@
 
 #include "base/trace_event/trace_event_etw_export_win.h"
 
-#include <stddef.h>
-
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -30,6 +28,7 @@
 //
 // In SHARED_INTERMEDIATE_DIR.
 #include "base/trace_event/etw_manifest/chrome_events_win.h"  // NOLINT
+#include "starboard/types.h"
 
 namespace {
 // |kFilteredEventGroupNames| contains the event categories that can be

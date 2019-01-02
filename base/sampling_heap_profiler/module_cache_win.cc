@@ -14,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/pe_image.h"
 #include "base/win/scoped_handle.h"
+#include "starboard/types.h"
 
 namespace base {
 

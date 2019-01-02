@@ -5,13 +5,14 @@
 #include "base/files/file.h"
 
 #include <io.h>
-#include <stdint.h>
 
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/threading/scoped_blocking_call.h"
 
 #include <windows.h>
+
+#include "starboard/types.h"
 
 namespace base {
 

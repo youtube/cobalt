@@ -5,10 +5,9 @@
 #ifndef BASE_ALLOCATOR_ALLOCATOR_EXTENSION_H_
 #define BASE_ALLOCATOR_ALLOCATOR_EXTENSION_H_
 
-#include <stddef.h> // for size_t
-
 #include "base/base_export.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace allocator {

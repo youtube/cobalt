@@ -5,8 +5,6 @@
 #ifndef BASE_TASK_TASK_TRAITS_H_
 #define BASE_TASK_TASK_TRAITS_H_
 
-#include <stdint.h>
-
 #include <iosfwd>
 #include <tuple>
 #include <type_traits>
@@ -17,6 +15,7 @@
 #include "base/task/task_traits_details.h"
 #include "base/task/task_traits_extension.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

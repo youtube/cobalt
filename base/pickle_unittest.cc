@@ -5,8 +5,6 @@
 #include "base/pickle.h"
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <memory>
 #include <string>
@@ -14,6 +12,8 @@
 #include "base/macros.h"
 #include "base/strings/string16.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -101,7 +101,7 @@ void VerifyResult(const Pickle& pickle) {
   int outdatalen;
   EXPECT_TRUE(iter.ReadData(&outdata, &outdatalen));
   EXPECT_EQ(testdatalen, outdatalen);
-  EXPECT_EQ(memcmp(testdata, outdata, outdatalen), 0);
+  EXPECT_EQ(SbMemoryCompare(testdata, outdata, outdatalen), 0);
 
   // reads past the end should fail
   EXPECT_FALSE(iter.ReadInt(&outint));
@@ -331,7 +331,7 @@ TEST(PickleTest, FindNext) {
 TEST(PickleTest, FindNextWithIncompleteHeader) {
   size_t header_size = sizeof(Pickle::Header);
   std::unique_ptr<char[]> buffer(new char[header_size - 1]);
-  memset(buffer.get(), 0x1, header_size - 1);
+  SbMemorySet(buffer.get(), 0x1, header_size - 1);
 
   const char* start = buffer.get();
   const char* end = start + header_size - 1;
@@ -506,7 +506,7 @@ TEST(PickleTest, ReadBytes) {
   EXPECT_TRUE(iter.ReadBytes(&outdata_char, sizeof(data)));
 
   int outdata;
-  memcpy(&outdata, outdata_char, sizeof(outdata));
+  SbMemoryCopy(&outdata, outdata_char, sizeof(outdata));
   EXPECT_EQ(data, outdata);
 }
 
@@ -554,7 +554,7 @@ TEST(PickleTest, ClaimBytes) {
   pickle.WriteUInt32(data.size());
   void* bytes = pickle.ClaimBytes(data.size());
   pickle.WriteInt(42);
-  memcpy(bytes, data.data(), data.size());
+  SbMemoryCopy(bytes, data.data(), data.size());
 
   PickleIterator iter(pickle);
   uint32_t out_data_length;

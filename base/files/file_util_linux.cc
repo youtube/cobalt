@@ -9,6 +9,7 @@
 #include <sys/vfs.h>
 
 #include "base/files/file_path.h"
+#include "starboard/types.h"
 
 namespace base {
 

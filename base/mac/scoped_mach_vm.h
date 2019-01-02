@@ -6,13 +6,13 @@
 #define BASE_MAC_SCOPED_MACH_VM_H_
 
 #include <mach/mach.h>
-#include <stddef.h>
 
 #include <algorithm>
 
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 // Use ScopedMachVM to supervise ownership of pages in the current process
 // through the Mach VM subsystem. Pages allocated with vm_allocate can be

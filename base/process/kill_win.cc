@@ -8,12 +8,12 @@
 
 #include <windows.h>
 #include <io.h>
-#include <stdint.h>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/process/memory.h"
 #include "base/process/process_iterator.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -10,6 +10,8 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+
+#include "starboard/types.h"
 #endif
 
 // Do not want trivial entry points just calling OOM_CRASH() to be

@@ -4,10 +4,11 @@
 
 #include "base/memory/shared_memory.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/atomicops.h"
 #include "base/base_switches.h"
@@ -166,8 +167,8 @@ TEST_P(SharedMemoryTest, OpenClose) {
   ASSERT_NE(memory2.memory(), static_cast<void*>(nullptr));
 
   // Write data to the first memory segment, verify contents of second.
-  memset(memory1.memory(), '1', kDataSize);
-  EXPECT_EQ(memcmp(memory1.memory(), memory2.memory(), kDataSize), 0);
+  SbMemorySet(memory1.memory(), '1', kDataSize);
+  EXPECT_EQ(SbMemoryCompare(memory1.memory(), memory2.memory(), kDataSize), 0);
 
   // Close the first memory segment, and verify the second has the right data.
   memory1.Close();
@@ -212,7 +213,7 @@ TEST_P(SharedMemoryTest, OpenExclusive) {
   EXPECT_LT(memory1.mapped_size(),
             kDataSize + SysInfo::VMAllocationGranularity());
 
-  memset(memory1.memory(), 'G', kDataSize);
+  SbMemorySet(memory1.memory(), 'G', kDataSize);
 
   SharedMemory memory2;
   // Should not be able to create if openExisting is false.
@@ -260,7 +261,7 @@ TEST_P(SharedMemoryTest, CloseNoUnmap) {
   ASSERT_TRUE(memory.CreateAndMapAnonymous(kDataSize));
   char* ptr = static_cast<char*>(memory.memory());
   ASSERT_NE(ptr, static_cast<void*>(nullptr));
-  memset(ptr, 'G', kDataSize);
+  SbMemorySet(ptr, 'G', kDataSize);
 
   memory.Close();
 
@@ -373,7 +374,7 @@ TEST_P(SharedMemoryTest, GetReadOnlyHandle) {
 #endif
   ASSERT_TRUE(writable_shmem.Create(options));
   ASSERT_TRUE(writable_shmem.Map(options.size));
-  memcpy(writable_shmem.memory(), contents.data(), contents.size());
+  SbMemoryCopy(writable_shmem.memory(), contents.data(), contents.size());
   EXPECT_TRUE(writable_shmem.Unmap());
 
   SharedMemoryHandle readonly_handle = writable_shmem.GetReadOnlyHandle();
@@ -396,7 +397,7 @@ TEST_P(SharedMemoryTest, GetReadOnlyHandle) {
   // Make sure the writable instance is still writable.
   ASSERT_TRUE(writable_shmem.Map(contents.size()));
   StringPiece new_contents = "Goodbye";
-  memcpy(writable_shmem.memory(), new_contents.data(), new_contents.size());
+  SbMemoryCopy(writable_shmem.memory(), new_contents.data(), new_contents.size());
   EXPECT_EQ(new_contents,
             StringPiece(static_cast<const char*>(writable_shmem.memory()),
                         new_contents.size()));
@@ -474,7 +475,7 @@ TEST_P(SharedMemoryTest, ShareToSelf) {
 
   SharedMemory shmem;
   ASSERT_TRUE(shmem.CreateAndMapAnonymous(contents.size()));
-  memcpy(shmem.memory(), contents.data(), contents.size());
+  SbMemoryCopy(shmem.memory(), contents.data(), contents.size());
   EXPECT_TRUE(shmem.Unmap());
 
   SharedMemoryHandle shared_handle = shmem.handle().Duplicate();
@@ -530,14 +531,14 @@ TEST_P(SharedMemoryTest, ShareWithMultipleInstances) {
       shmem.requested_size());
 
   // |shmem| should be able to update the content.
-  memcpy(shmem.memory(), kContents.data(), kContents.size());
+  SbMemoryCopy(shmem.memory(), kContents.data(), kContents.size());
 
   ASSERT_EQ(kContents, shmem_contents);
   ASSERT_EQ(kContents, shared_contents);
   ASSERT_EQ(kContents, readonly_contents);
 
   // |shared| should also be able to update the content.
-  memcpy(shared.memory(), ToLowerASCII(kContents).c_str(), kContents.size());
+  SbMemoryCopy(shared.memory(), ToLowerASCII(kContents).c_str(), kContents.size());
 
   ASSERT_EQ(StringPiece(ToLowerASCII(kContents)), shmem_contents);
   ASSERT_EQ(StringPiece(ToLowerASCII(kContents)), shared_contents);

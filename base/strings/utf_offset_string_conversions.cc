@@ -4,14 +4,13 @@
 
 #include "base/strings/utf_offset_string_conversions.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversion_utils.h"
+#include "starboard/types.h"
 
 namespace base {
 

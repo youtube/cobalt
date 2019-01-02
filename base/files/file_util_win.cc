@@ -9,8 +9,6 @@
 #include <psapi.h>
 #include <shellapi.h>
 #include <shlobj.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <time.h>
 #include <winsock2.h>
 
@@ -34,6 +32,7 @@
 #include "base/time/time.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 namespace base {
 

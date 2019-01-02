@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <limits>
 #include <sstream>
 #include <string>
@@ -20,6 +18,7 @@
 
 #if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(OS_IOS)
 #include "base/test/multiprocess_test.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

@@ -21,9 +21,6 @@
 //   printf("xyz: %" PRIuS, size);
 // The "u" in the macro corresponds to %u, and S is for "size".
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "build/build_config.h"
 
 #if defined(STARBOARD)

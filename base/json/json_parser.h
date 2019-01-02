@@ -5,9 +5,6 @@
 #ifndef BASE_JSON_JSON_PARSER_H_
 #define BASE_JSON_JSON_PARSER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -18,6 +15,7 @@
 #include "base/macros.h"
 #include "base/optional.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 

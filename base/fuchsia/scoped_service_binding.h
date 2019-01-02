@@ -9,6 +9,7 @@
 
 #include "base/bind.h"
 #include "base/fuchsia/service_directory.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace fuchsia {

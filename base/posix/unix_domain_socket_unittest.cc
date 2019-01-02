@@ -4,8 +4,6 @@
 
 #include "build/build_config.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -20,6 +18,8 @@
 #include "base/single_thread_task_runner.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -121,7 +121,7 @@ TEST(UnixDomainSocketTest, RecvPid) {
   const ssize_t nread = UnixDomainSocket::RecvMsgWithPid(
       recv_sock.get(), buf, sizeof(buf), &fd_vec, &sender_pid);
   ASSERT_EQ(sizeof(kHello), static_cast<size_t>(nread));
-  ASSERT_EQ(0, memcmp(buf, kHello, sizeof(kHello)));
+  ASSERT_EQ(0, SbMemoryCompare(buf, kHello, sizeof(kHello)));
   ASSERT_EQ(0U, fd_vec.size());
 
   ASSERT_EQ(getpid(), sender_pid);
@@ -150,7 +150,7 @@ TEST(UnixDomainSocketTest, RecvPidWithMaxDescriptors) {
   const ssize_t nread = UnixDomainSocket::RecvMsgWithPid(
       recv_sock.get(), buf, sizeof(buf), &recv_fds, &sender_pid);
   ASSERT_EQ(sizeof(kHello), static_cast<size_t>(nread));
-  ASSERT_EQ(0, memcmp(buf, kHello, sizeof(kHello)));
+  ASSERT_EQ(0, SbMemoryCompare(buf, kHello, sizeof(kHello)));
   ASSERT_EQ(UnixDomainSocket::kMaxFileDescriptors, recv_fds.size());
 
   ASSERT_EQ(getpid(), sender_pid);

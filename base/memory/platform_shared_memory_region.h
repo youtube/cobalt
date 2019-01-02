@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include "base/file_descriptor_posix.h"
 #include "base/files/scoped_file.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

@@ -28,6 +28,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
+#include "starboard/memory.h"
 
 namespace base {
 
@@ -331,7 +332,7 @@ std::unique_ptr<HistogramBase> PersistentHistogramAllocator::AllocateHistogram(
       memory_allocator_->New<PersistentHistogramData>(
           offsetof(PersistentHistogramData, name) + name.length() + 1);
   if (histogram_data) {
-    memcpy(histogram_data->name, name.c_str(), name.size() + 1);
+    SbMemoryCopy(histogram_data->name, name.c_str(), name.size() + 1);
     histogram_data->histogram_type = histogram_type;
     histogram_data->flags = flags | HistogramBase::kIsPersistent;
   }

@@ -6,6 +6,8 @@
 
 #include <lib/fdio/limits.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 size_t GetMaxFds() {

@@ -9,8 +9,6 @@
 // data.  Because the receiving is blocking, they can be used to perform
 // rudimentary cross-process synchronization with low latency.
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/macros.h"
@@ -26,6 +24,7 @@
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/file_descriptor_posix.h"
+#include "starboard/types.h"
 #endif
 
 #if !defined(STARBOARD)

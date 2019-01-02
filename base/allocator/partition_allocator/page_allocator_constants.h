@@ -5,9 +5,8 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_PAGE_ALLOCATOR_CONSTANTS_H_
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PAGE_ALLOCATOR_CONSTANTS_H_
 
-#include <stddef.h>
-
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 #if defined(OS_WIN)

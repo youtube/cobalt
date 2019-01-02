@@ -4,10 +4,9 @@
 
 #include "base/files/memory_mapped_file.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
+
+#include "starboard/types.h"
 
 #include "base/files/file_path.h"
 #include "base/strings/string16.h"

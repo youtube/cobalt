@@ -19,6 +19,8 @@
 #include "base/rand_util.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 extern "C" {
 // There is no futimes() avaiable in Bionic, so we provide our own
@@ -119,7 +121,7 @@ char* mkdtemp(char* path) {
     return NULL;
   }
 
-  const int path_len = strlen(path);
+  const int path_len = SbStringGetLength(path);
 
   // The last six characters of 'path' must be XXXXXX.
   const base::StringPiece kSuffix("XXXXXX");

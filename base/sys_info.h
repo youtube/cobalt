@@ -5,9 +5,6 @@
 #ifndef BASE_SYS_INFO_H_
 #define BASE_SYS_INFO_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <string>
 
@@ -17,6 +14,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

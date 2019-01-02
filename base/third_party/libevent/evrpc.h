@@ -1,3 +1,4 @@
+#include "starboard/memory.h"
 /*
  * Copyright (c) 2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -185,14 +186,14 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
 	struct evrpc_status status;				    \
 	struct evrpc_request_wrapper *ctx;			    \
 	ctx = (struct evrpc_request_wrapper *) \
-	    malloc(sizeof(struct evrpc_request_wrapper));	    \
+	    SbMemoryAllocate(sizeof(struct evrpc_request_wrapper));	    \
 	if (ctx == NULL)					    \
 		goto error;					    \
 	ctx->pool = pool;					    \
 	ctx->evcon = NULL;					    \
 	ctx->name = strdup(#rpcname);				    \
 	if (ctx->name == NULL) {				    \
-		free(ctx);					    \
+		SbMemoryFree(ctx);					    \
 		goto error;					    \
 	}							    \
 	ctx->cb = (void (*)(struct evrpc_status *, \
@@ -205,7 +206,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
 	ctx->reply_unmarshal = (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal; \
 	return (evrpc_make_request(ctx));			    \
 error:								    \
-	memset(&status, 0, sizeof(status));			    \
+	SbMemorySet(&status, 0, sizeof(status));			    \
 	status.error = EVRPC_STATUS_ERR_UNSTARTED;		    \
 	(*(cb))(&status, request, reply, cbarg);		    \
 	return (-1);						    \

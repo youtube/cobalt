@@ -5,8 +5,6 @@
 #ifndef BASE_CONTAINERS_SPAN_H_
 #define BASE_CONTAINERS_SPAN_H_
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <array>
 #include <iterator>
@@ -17,6 +15,7 @@
 #include "base/cpp14oncpp11.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -7,12 +7,13 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fnmatch.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "base/logging.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace {
@@ -26,7 +27,7 @@ void GetStat(const FilePath& path, bool show_links, struct stat* st) {
     // symlinks.
     if (!(errno == ENOENT && !show_links))
       DPLOG(ERROR) << "Couldn't stat" << path.value();
-    memset(st, 0, sizeof(*st));
+    SbMemorySet(st, 0, sizeof(*st));
   }
 }
 
@@ -35,7 +36,7 @@ void GetStat(const FilePath& path, bool show_links, struct stat* st) {
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
-  memset(&stat_, 0, sizeof(stat_));
+  SbMemorySet(&stat_, 0, sizeof(stat_));
 }
 
 bool FileEnumerator::FileInfo::IsDirectory() const {

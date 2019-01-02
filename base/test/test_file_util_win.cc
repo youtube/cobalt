@@ -5,7 +5,6 @@
 #include "base/test/test_file_util.h"
 
 #include <aclapi.h>
-#include <stddef.h>
 #include <wchar.h>
 #include <windows.h>
 
@@ -20,6 +19,8 @@
 #include "base/threading/platform_thread.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/shlwapi.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -49,7 +50,7 @@ void* GetPermissionInfo(const FilePath& path, size_t* length) {
   *length = sizeof(PSECURITY_DESCRIPTOR) + dacl->AclSize;
   PermissionInfo* info = reinterpret_cast<PermissionInfo*>(new char[*length]);
   info->security_descriptor = security_descriptor;
-  memcpy(&info->dacl, dacl, dacl->AclSize);
+  SbMemoryCopy(&info->dacl, dacl, dacl->AclSize);
 
   return info;
 }

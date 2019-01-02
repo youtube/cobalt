@@ -20,6 +20,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker_impl.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

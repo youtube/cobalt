@@ -111,7 +111,7 @@
  *	if memory is available and otherwise does something you deem
  *	appropriate.  If MALLOC is undefined, malloc will be invoked
  *	directly -- and assumed always to succeed.  Similarly, if you
- *	want something other than the system's free() to be called to
+ *	want something other than the system's SbMemoryFree() to be called to
  *	recycle memory acquired from MALLOC, #define FREE to be the
  *	name of the alternate routine.  (FREE or free is only called in
  *	pathological cases, e.g., in a dtoa call after a dtoa return in
@@ -292,6 +292,9 @@ static double private_mem[PRIVATE_mem], *pmem_next = private_mem;
 
 #ifndef __MATH_H__
 #include "math.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 namespace dmg_fp {
@@ -599,7 +602,7 @@ Bfree
 #ifdef FREE
 			FREE((void*)v);
 #else
-			free((void*)v);
+			SbMemoryFree((void*)v);
 #endif
 		else {
 			ACQUIRE_DTOA_LOCK(0);
@@ -610,7 +613,7 @@ Bfree
 		}
 	}
 
-#define Bcopy(x,y) memcpy((char *)&x->sign, (char *)&y->sign, \
+#define Bcopy(x,y) SbMemoryCopy((char *)&x->sign, (char *)&y->sign, \
 y->wds*sizeof(Long) + 2*sizeof(int))
 
  static Bigint *
@@ -1813,8 +1816,8 @@ gethex( CONST char **sp, U *rvp, int rounding, int sign)
 	if (!(s0 = decimalpoint_cache)) {
 		s0 = (unsigned char*)localeconv()->decimal_point;
 		if ((decimalpoint_cache = (unsigned char*)
-				MALLOC(strlen((CONST char*)s0) + 1))) {
-			strcpy((char*)decimalpoint_cache, (CONST char*)s0);
+				MALLOC(SbStringGetLength((CONST char*)s0) + 1))) {
+			SbStringCopyUnsafe((char*)decimalpoint_cache, (CONST char*)s0);
 			s0 = decimalpoint_cache;
 			}
 		}

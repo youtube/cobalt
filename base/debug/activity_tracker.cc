@@ -26,6 +26,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/platform_thread.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
 
 namespace base {
 namespace debug {
@@ -517,7 +519,7 @@ void ActivityUserData::Set(StringPiece name,
     char* name_memory = reinterpret_cast<char*>(header) + sizeof(FieldHeader);
     void* value_memory =
         reinterpret_cast<char*>(header) + sizeof(FieldHeader) + name_extent;
-    memcpy(name_memory, name.data(), name_size);
+    SbMemoryCopy(name_memory, name.data(), name_size);
     header->type.store(type, std::memory_order_release);
 
     // Create an entry in |values_| so that this field can be found and changed
@@ -540,7 +542,7 @@ void ActivityUserData::Set(StringPiece name,
   DCHECK_EQ(type, info->type);
   size = std::min(size, info->extent);
   info->size_ptr->store(0, std::memory_order_seq_cst);
-  memcpy(info->memory, memory, size);
+  SbMemoryCopy(info->memory, memory, size);
   info->size_ptr->store(size, std::memory_order_release);
 }
 
@@ -954,12 +956,12 @@ bool ThreadActivityTracker::CreateSnapshot(Snapshot* output_snapshot) const {
     output_snapshot->activity_stack.resize(count);
     if (count > 0) {
       // Copy the existing contents. Memcpy is used for speed.
-      memcpy(&output_snapshot->activity_stack[0], stack_,
+      SbMemoryCopy(&output_snapshot->activity_stack[0], stack_,
              count * sizeof(Activity));
     }
 
     // Capture the last exception.
-    memcpy(&output_snapshot->last_exception, &header_->last_exception,
+    SbMemoryCopy(&output_snapshot->last_exception, &header_->last_exception,
            sizeof(Activity));
 
     // TODO(bcwhite): Snapshot other things here.
@@ -983,7 +985,7 @@ bool ThreadActivityTracker::CreateSnapshot(Snapshot* output_snapshot) const {
     // if the trailing NUL were missing. Now limit the length if the actual
     // name is shorter.
     output_snapshot->thread_name.resize(
-        strlen(output_snapshot->thread_name.c_str()));
+        SbStringGetLength(output_snapshot->thread_name.c_str()));
 
     // If the data ID has changed then the tracker has exited and the memory
     // reused by a new one. Try again.
@@ -1124,7 +1126,7 @@ bool GlobalActivityTracker::ModuleInfoRecord::DecodeTo(
   info->size = static_cast<size_t>(size);
   info->timestamp = timestamp;
   info->age = age;
-  memcpy(info->identifier, identifier, sizeof(info->identifier));
+  SbMemoryCopy(info->identifier, identifier, sizeof(info->identifier));
 
   if (offsetof(ModuleInfoRecord, pickle) + pickle_size > record_size)
     return false;
@@ -1150,8 +1152,8 @@ GlobalActivityTracker::ModuleInfoRecord::CreateFrom(
   record->size = info.size;
   record->timestamp = info.timestamp;
   record->age = info.age;
-  memcpy(record->identifier, info.identifier, sizeof(identifier));
-  memcpy(record->pickle, pickler.data(), pickler.size());
+  SbMemoryCopy(record->identifier, info.identifier, sizeof(identifier));
+  SbMemoryCopy(record->pickle, pickler.data(), pickler.size());
   record->pickle_size = pickler.size();
   record->changes.store(0, std::memory_order_relaxed);
 
@@ -1608,7 +1610,7 @@ void GlobalActivityTracker::RecordLogMessage(StringPiece message) {
   char* memory = allocator_->GetAsArray<char>(ref, kTypeIdGlobalLogMessage,
                                               message.size() + 1);
   if (memory) {
-    memcpy(memory, message.data(), message.size());
+    SbMemoryCopy(memory, message.data(), message.size());
     allocator_->MakeIterable(ref);
   }
 }

@@ -5,12 +5,16 @@
 #include "base/cpu.h"
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include <algorithm>
 #include <utility>
+
+#include "starboard/types.h"
+
+#include "starboard/string.h"
+
+#include "starboard/memory.h"
 
 #include "base/macros.h"
 #include "build/build_config.h"
@@ -111,10 +115,10 @@ std::string* CpuInfoBrand() {
     std::istringstream iss(contents);
     std::string line;
     while (std::getline(iss, line)) {
-      if (line.compare(0, strlen(kModelNamePrefix), kModelNamePrefix) == 0)
-        return new std::string(line.substr(strlen(kModelNamePrefix)));
-      if (line.compare(0, strlen(kProcessorPrefix), kProcessorPrefix) == 0)
-        return new std::string(line.substr(strlen(kProcessorPrefix)));
+      if (line.compare(0, SbStringGetLength(kModelNamePrefix), kModelNamePrefix) == 0)
+        return new std::string(line.substr(SbStringGetLength(kModelNamePrefix)));
+      if (line.compare(0, SbStringGetLength(kProcessorPrefix), kProcessorPrefix) == 0)
+        return new std::string(line.substr(SbStringGetLength(kProcessorPrefix)));
     }
 
     return new std::string();
@@ -149,7 +153,7 @@ void CPU::Initialize() {
   static constexpr size_t kVendorNameSize = 3 * sizeof(cpu_info[1]);
   static_assert(kVendorNameSize < arraysize(cpu_string),
                 "cpu_string too small");
-  memcpy(cpu_string, &cpu_info[1], kVendorNameSize);
+  SbMemoryCopy(cpu_string, &cpu_info[1], kVendorNameSize);
   cpu_string[kVendorNameSize] = '\0';
   cpu_vendor_ = cpu_string;
 
@@ -210,7 +214,7 @@ void CPU::Initialize() {
     for (int parameter = kParameterStart; parameter <= kParameterEnd;
          ++parameter) {
       __cpuid(cpu_info, parameter);
-      memcpy(&cpu_string[i], cpu_info, sizeof(cpu_info));
+      SbMemoryCopy(&cpu_string[i], cpu_info, sizeof(cpu_info));
       i += sizeof(cpu_info);
     }
     cpu_string[i] = '\0';

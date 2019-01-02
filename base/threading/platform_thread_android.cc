@@ -5,7 +5,6 @@
 #include "base/threading/platform_thread.h"
 
 #include <errno.h>
-#include <stddef.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -17,6 +16,7 @@
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "jni/ThreadUtils_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 
