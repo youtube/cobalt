@@ -93,9 +93,11 @@ class ListerDelegate : public DirectoryLister::DirectoryListerDelegate {
                   file_list_[current].GetName().BaseName().value());
         EXPECT_EQ(file_list_[previous].IsDirectory(),
                   file_list_[current].IsDirectory());
+#if !defined(STARBOARD)
         EXPECT_TRUE(base::i18n::LocaleAwareCompareFilenames(
             file_list_[previous].GetName(),
             file_list_[current].GetName()));
+#endif
       }
     }
   }

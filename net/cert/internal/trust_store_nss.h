@@ -5,6 +5,8 @@
 #ifndef NET_CERT_INTERNAL_TRUST_STORE_NSS_H_
 #define NET_CERT_INTERNAL_TRUST_STORE_NSS_H_
 
+#if !defined(STARBOARD)
+
 #include <certt.h>
 
 #include "base/memory/ref_counted.h"
@@ -38,5 +40,6 @@ class NET_EXPORT TrustStoreNSS : public TrustStore {
 };
 
 }  // namespace net
+#endif  // !defined(STARBOARD)
 
 #endif  // NET_CERT_INTERNAL_TRUST_STORE_NSS_H_

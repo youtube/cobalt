@@ -52,7 +52,7 @@ GURL FilePathToFileURL(const base::FilePath& path) {
   base::ReplaceSubstringsAfterOffset(
       &url_string, 0, FILE_PATH_LITERAL("?"), FILE_PATH_LITERAL("%3F"));
 
-#if defined(OS_POSIX) || defined(OS_FUCHSIA)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   base::ReplaceSubstringsAfterOffset(
       &url_string, 0, FILE_PATH_LITERAL("\\"), FILE_PATH_LITERAL("%5C"));
 #endif

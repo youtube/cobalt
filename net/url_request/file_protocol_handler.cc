@@ -26,6 +26,7 @@ URLRequestJob* FileProtocolHandler::MaybeCreateJob(
   base::FilePath file_path;
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
 
+#if !defined(STARBOARD)  // Cobalt doesn't support URLRequestFileDirJob
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
   // filesystem, we only look at the path string here.
@@ -37,6 +38,7 @@ URLRequestJob* FileProtocolHandler::MaybeCreateJob(
       file_path.IsAbsolute()) {
     return new URLRequestFileDirJob(request, network_delegate, file_path);
   }
+#endif
 
   // Use a regular file request job for all non-directories (including invalid
   // file names).

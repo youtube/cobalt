@@ -106,7 +106,7 @@ void URLRequestFileDirJob::OnListFile(
 
 #if defined(OS_WIN)
     const base::string16& title = dir_path_.value();
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
     // TODO(jungshik): Add SysNativeMBToUTF16 to sys_string_conversions.
     // On Mac, need to add NFKC->NFC conversion either here or in file_path.
     // On Linux, the file system encoding is not defined, but we assume that
@@ -135,7 +135,7 @@ void URLRequestFileDirJob::OnListFile(
       filename.value() != base::FilePath::kParentDirectory) {
 #if defined(OS_WIN)
     std::string raw_bytes;  // Empty on Windows means UTF-8 encoded name.
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
     // TODO(jungshik): The same issue as for the directory name.
     const std::string& raw_bytes = filename.value();
 #endif

@@ -5,6 +5,9 @@
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 
+#if !defined(STARBOARD)
+// Cobalt does not support Kerberos yet.
+
 #include <string>
 #include <utility>
 
@@ -91,7 +94,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
     bool is_unsupported_ = false;
 #if !defined(OS_ANDROID)
     std::unique_ptr<AuthLibrary> auth_library_;
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_STARBOARD)
     bool allow_gssapi_library_load_ = true;
 #endif  // defined(OS_POSIX)
 #endif  // !defined(OS_ANDROID)
@@ -172,5 +175,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
 };
 
 }  // namespace net
+
+#endif  // !defined(STARBOARD)
 
 #endif  // NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_

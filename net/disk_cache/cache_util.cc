@@ -115,6 +115,9 @@ void DeleteCache(const base::FilePath& path, bool remove_folder) {
 // rename the cache directory (for instance due to a sharing violation), and in
 // that case a cache for this profile (on the desired path) cannot be created.
 bool DelayedCacheCleanup(const base::FilePath& full_path) {
+#if defined(STARBOARD)
+  return false;
+#else
   // GetTempCacheName() and MoveCache() use synchronous file
   // operations.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
@@ -126,7 +129,7 @@ bool DelayedCacheCleanup(const base::FilePath& full_path) {
 #if defined(OS_WIN)
   // We created this file so it should only contain ASCII.
   std::string name_str = base::UTF16ToASCII(name.value());
-#elif defined(OS_POSIX) || defined(OS_FUCHSIA)
+#elif defined(OS_POSIX) || defined(OS_FUCHSIA) || defined(STARBOARD)
   std::string name_str = name.value();
 #endif
 
@@ -147,6 +150,7 @@ bool DelayedCacheCleanup(const base::FilePath& full_path) {
                             base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
                            base::Bind(&CleanupCallback, path, name_str));
   return true;
+#endif
 }
 
 // Returns the preferred maximum number of bytes for the cache given the
@@ -155,6 +159,10 @@ int PreferredCacheSize(int64_t available) {
   // Percent of cache size to use, relative to the default size. "100" means to
   // use 100% of the default size.
   int percent_relative_size;
+#if defined(STARBOARD)
+  percent_relative_size = 100;
+#else
+  // Starboard does not support FieldTrail.
   std::map<std::string, std::string> params;
   if (!base::GetFieldTrialParamsByFeature(
           disk_cache::kChangeDiskCacheSizeExperiment, &params) ||
@@ -163,6 +171,7 @@ int PreferredCacheSize(int64_t available) {
       percent_relative_size <= 0) {
     percent_relative_size = 100;
   }
+#endif
 
   // Cap scaling, as a safety check, to avoid overflow.
   if (percent_relative_size > 200)

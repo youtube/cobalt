@@ -116,7 +116,6 @@ class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
   // If |gssapi_library_name| is empty, hard-coded default library names are
   // used.
   explicit GSSAPISharedLibrary(const std::string& gssapi_library_name);
-  ~GSSAPISharedLibrary() override;
 
   // GSSAPILibrary methods:
   bool Init() override;
@@ -185,21 +184,10 @@ class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
   FRIEND_TEST_ALL_PREFIXES(HttpAuthGSSAPISTARBOARDTest, GSSAPIStartup);
 
   bool InitImpl();
-// Finds a usable dynamic library for GSSAPI and loads it.  The criteria are:
-//   1. The library must exist.
-//   2. The library must export the functions we need.
-#if !defined(STARBOARD)
-  base::NativeLibrary LoadSharedLibrary();
-  bool BindMethods(base::NativeLibrary lib);
-#endif
 
   bool initialized_;
 
   std::string gssapi_library_name_;
-#if !defined(STARBOARD)
-  // Need some way to invalidate the library.
-  base::NativeLibrary gssapi_library_;
-#endif
 
   // Function pointers
   gss_import_name_type import_name_;

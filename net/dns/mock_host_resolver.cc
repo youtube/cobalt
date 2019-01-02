@@ -716,6 +716,7 @@ class HangingHostResolver::RequestImpl
 
   const base::Optional<AddressList>& GetAddressResults() const override {
     IMMEDIATE_CRASH();
+    return fake_address;
   }
 
   void ChangeRequestPriority(RequestPriority priority) override {}
@@ -725,6 +726,9 @@ class HangingHostResolver::RequestImpl
   // outstanding request objects.
   base::WeakPtr<HangingHostResolver> resolver_;
   bool is_running_;
+#if defined(STARBOARD)
+  base::Optional<AddressList> fake_address;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(RequestImpl);
 };

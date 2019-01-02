@@ -301,14 +301,16 @@ bool ConfigureAsyncDnsNoFallbackFieldTrial() {
   return kDefault;
 }
 
+const base::Feature kSystemResolverPriorityExperiment = {
+    "SystemResolverPriorityExperiment", base::FEATURE_DISABLED_BY_DEFAULT};
+#if !defined(STARBOARD)
 const base::FeatureParam<base::TaskPriority>::Option prio_modes[] = {
     {base::TaskPriority::USER_VISIBLE, "default"},
     {base::TaskPriority::USER_BLOCKING, "user_blocking"}};
-const base::Feature kSystemResolverPriorityExperiment = {
-    "SystemResolverPriorityExperiment", base::FEATURE_DISABLED_BY_DEFAULT};
 const base::FeatureParam<base::TaskPriority> priority_mode{
     &kSystemResolverPriorityExperiment, "mode",
     base::TaskPriority::USER_VISIBLE, &prio_modes};
+#endif
 
 //-----------------------------------------------------------------------------
 
@@ -2133,9 +2135,15 @@ HostResolverImpl::HostResolverImpl(const Options& options, NetLog* net_log)
 
   DCHECK_GE(dispatcher_->num_priorities(), static_cast<size_t>(NUM_PRIORITIES));
 
-  proc_task_runner_ = base::CreateTaskRunnerWithTraits(
-      {base::MayBlock(), priority_mode.Get(),
-       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
+  proc_task_runner_ = base::CreateTaskRunnerWithTraits({
+    base::MayBlock(),
+#if defined(STARBOARD)
+        base::TaskPriority::USER_VISIBLE,
+#else
+        priority_mode.Get(),
+#endif
+        base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN
+  });
 
 #if defined(OS_WIN)
   EnsureWinsockInit();

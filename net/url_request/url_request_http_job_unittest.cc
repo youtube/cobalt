@@ -481,6 +481,7 @@ TEST_F(URLRequestHttpJobWithMockSocketsTest, TestSuccessfulHeadWithContent) {
             network_delegate_.total_network_bytes_received());
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
 TEST_F(URLRequestHttpJobWithMockSocketsTest, TestSuccessfulCachedHeadRequest) {
   // Cache the response.
   {
@@ -539,6 +540,7 @@ TEST_F(URLRequestHttpJobWithMockSocketsTest, TestSuccessfulCachedHeadRequest) {
     EXPECT_EQ(0, request->GetTotalReceivedBytes());
   }
 }
+#endif
 
 TEST_F(URLRequestHttpJobWithMockSocketsTest,
        TestContentLengthSuccessfulHttp09Request) {

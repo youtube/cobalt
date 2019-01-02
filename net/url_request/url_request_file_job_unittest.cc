@@ -358,7 +358,7 @@ TEST_F(URLRequestFileJobEventsTest, DecodeSvgzFile) {
 
 TEST_F(URLRequestFileJobEventsTest, OpenNonExistentFile) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(
       FILE_PATH_LITERAL("net/data/url_request_unittest/non-existent.txt"));
 
@@ -376,7 +376,7 @@ TEST_F(URLRequestFileJobEventsTest, OpenNonExistentFile) {
 
 TEST_F(URLRequestFileJobEventsTest, MultiRangeRequestNotSupported) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(
       FILE_PATH_LITERAL("net/data/url_request_unittest/BullRunSpeech.txt"));
 
@@ -395,7 +395,7 @@ TEST_F(URLRequestFileJobEventsTest, MultiRangeRequestNotSupported) {
 
 TEST_F(URLRequestFileJobEventsTest, RangeExceedingFileSize) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(
       FILE_PATH_LITERAL("net/data/url_request_unittest/BullRunSpeech.txt"));
 
@@ -414,7 +414,7 @@ TEST_F(URLRequestFileJobEventsTest, RangeExceedingFileSize) {
 
 TEST_F(URLRequestFileJobEventsTest, IgnoreRangeParsingError) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(
       FILE_PATH_LITERAL("net/data/url_request_unittest/simple.html"));
 
