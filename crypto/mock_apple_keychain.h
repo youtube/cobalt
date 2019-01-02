@@ -5,9 +5,6 @@
 #ifndef CRYPTO_MOCK_APPLE_KEYCHAIN_H_
 #define CRYPTO_MOCK_APPLE_KEYCHAIN_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <set>
 #include <string>
@@ -15,6 +12,7 @@
 
 #include "base/compiler_specific.h"
 #include "crypto/apple_keychain.h"
+#include "starboard/types.h"
 
 namespace crypto {
 

@@ -4,8 +4,6 @@
 
 #include "crypto/hmac.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <string>
 
@@ -14,6 +12,7 @@
 #include "crypto/openssl_util.h"
 #include "crypto/secure_util.h"
 #include "crypto/symmetric_key.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/hmac.h"
 
 namespace crypto {

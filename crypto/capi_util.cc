@@ -4,17 +4,19 @@
 
 #include "crypto/capi_util.h"
 
-#include <stddef.h>
 #include <stdlib.h>
+
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace crypto {
 
 void* WINAPI CryptAlloc(size_t size) {
-  return malloc(size);
+  return SbMemoryAllocate(size);
 }
 
 void WINAPI CryptFree(void* p) {
-  free(p);
+  SbMemoryFree(p);
 }
 
 }  // namespace crypto

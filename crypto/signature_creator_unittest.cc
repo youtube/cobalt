@@ -4,8 +4,6 @@
 
 #include "crypto/signature_creator.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,6 +12,7 @@
 #include "crypto/rsa_private_key.h"
 #include "crypto/sha2.h"
 #include "crypto/signature_verifier.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SignatureCreatorTest, BasicTest) {
