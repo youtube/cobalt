@@ -9,11 +9,11 @@
 
 #include "crypto/p224.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "base/sys_byteorder.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace {
 
@@ -45,7 +45,7 @@ void Contract(FieldElement* inout);
 // IsZero returns 0xffffffff if a == 0 mod p and 0 otherwise.
 uint32_t IsZero(const FieldElement& a) {
   FieldElement minimal;
-  memcpy(&minimal, &a, sizeof(minimal));
+  SbMemoryCopy(&minimal, &a, sizeof(minimal));
   Contract(&minimal);
 
   uint32_t is_zero = 0, is_p = 0;
@@ -172,7 +172,7 @@ void ReduceLarge(FieldElement* out, LargeFieldElement* inptr) {
 // out[i] < 2**29
 void Mul(FieldElement* out, const FieldElement& a, const FieldElement& b) {
   LargeFieldElement tmp;
-  memset(&tmp, 0, sizeof(tmp));
+  SbMemorySet(&tmp, 0, sizeof(tmp));
 
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
@@ -189,7 +189,7 @@ void Mul(FieldElement* out, const FieldElement& a, const FieldElement& b) {
 // out[i] < 2**29
 void Square(FieldElement* out, const FieldElement& a) {
   LargeFieldElement tmp;
-  memset(&tmp, 0, sizeof(tmp));
+  SbMemorySet(&tmp, 0, sizeof(tmp));
 
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j <= i; j++) {
@@ -596,7 +596,7 @@ void ScalarMult(Point* out,
                 const Point& a,
                 const uint8_t* scalar,
                 size_t scalar_len) {
-  memset(out, 0, sizeof(*out));
+  SbMemorySet(out, 0, sizeof(*out));
   Point tmp;
 
   for (size_t i = 0; i < scalar_len; i++) {
@@ -654,7 +654,7 @@ bool Point::SetFromString(base::StringPiece in) {
   const uint32_t* inwords = reinterpret_cast<const uint32_t*>(in.data());
   Get224Bits(x, inwords);
   Get224Bits(y, inwords + 7);
-  memset(&z, 0, sizeof(z));
+  SbMemorySet(&z, 0, sizeof(z));
   z[0] = 1;
 
   // Check that the point is on the curve, i.e. that y² = x³ - 3x + b.
@@ -676,7 +676,7 @@ bool Point::SetFromString(base::StringPiece in) {
 
   ::Add(&rhs, rhs, kB);
   Contract(&rhs);
-  return memcmp(&lhs, &rhs, sizeof(lhs)) == 0;
+  return SbMemoryCompare(&lhs, &rhs, sizeof(lhs)) == 0;
 }
 
 std::string Point::ToString() const {
@@ -738,7 +738,7 @@ void Negate(const Point& in, Point* out) {
   Subtract(&out->y, kP, y);
   Reduce(&out->y);
 
-  memset(&out->z, 0, sizeof(out->z));
+  SbMemorySet(&out->z, 0, sizeof(out->z));
   out->z[0] = 1;
 }
 

@@ -5,9 +5,6 @@
 #ifndef CRYPTO_EC_PRIVATE_KEY_H_
 #define CRYPTO_EC_PRIVATE_KEY_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +12,7 @@
 #include "base/macros.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {

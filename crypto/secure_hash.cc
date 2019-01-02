@@ -4,12 +4,12 @@
 
 #include "crypto/secure_hash.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/pickle.h"
 #include "crypto/openssl_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 
@@ -24,7 +24,7 @@ class SecureHashSHA256 : public SecureHash {
   }
 
   SecureHashSHA256(const SecureHashSHA256& other) {
-    memcpy(&ctx_, &other.ctx_, sizeof(ctx_));
+    SbMemoryCopy(&ctx_, &other.ctx_, sizeof(ctx_));
   }
 
   ~SecureHashSHA256() override {
