@@ -9,8 +9,6 @@
 #ifndef BASE_METRICS_PERSISTENT_SAMPLE_MAP_H_
 #define BASE_METRICS_PERSISTENT_SAMPLE_MAP_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 
@@ -19,6 +17,7 @@
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "starboard/types.h"
 
 namespace base {
 

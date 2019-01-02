@@ -4,8 +4,6 @@
 
 #include "base/metrics/field_trial.h"
 
-#include <stddef.h>
-
 #include "base/base_switches.h"
 #include "base/build_time.h"
 #include "base/feature_list.h"
@@ -22,6 +20,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_shared_memory_util.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

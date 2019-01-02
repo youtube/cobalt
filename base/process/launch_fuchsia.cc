@@ -9,7 +9,6 @@
 #include <lib/fdio/spawn.h>
 #include <lib/fdio/util.h>
 #include <lib/zx/job.h>
-#include <stdint.h>
 #include <unistd.h>
 #include <zircon/processargs.h>
 
@@ -21,6 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/scoped_generic.h"
+#include "starboard/types.h"
 
 namespace base {
 

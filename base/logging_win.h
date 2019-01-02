@@ -5,14 +5,13 @@
 #ifndef BASE_LOGGING_WIN_H_
 #define BASE_LOGGING_WIN_H_
 
-#include <stddef.h>
-
 #include <string>
 
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/win/event_trace_provider.h"
+#include "starboard/types.h"
 
 namespace base {
 template <typename Type>

@@ -74,6 +74,8 @@
 #include "base/fuchsia/file_utils.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/path_service.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {
@@ -629,7 +631,7 @@ bool TestLauncher::Run() {
   CHECK_EQ(0, pipe(g_shutdown_pipe));
 
   struct sigaction action;
-  memset(&action, 0, sizeof(action));
+  SbMemorySet(&action, 0, sizeof(action));
   sigemptyset(&action.sa_mask);
   action.sa_handler = &ShutdownPipeSignalHandler;
 

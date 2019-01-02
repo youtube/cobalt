@@ -4,14 +4,13 @@
 
 #include "base/sys_info.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/param.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace {
 

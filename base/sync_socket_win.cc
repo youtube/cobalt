@@ -5,13 +5,13 @@
 #include "base/sync_socket.h"
 
 #include <limits.h>
-#include <stddef.h>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/rand_util.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/scoped_handle.h"
+#include "starboard/types.h"
 
 namespace base {
 

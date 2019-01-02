@@ -6,14 +6,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <unistd.h>
 
 #include "base/files/file_util.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
+#include "starboard/types.h"
 
 namespace {
 

@@ -5,7 +5,6 @@
 #include "base/logging.h"
 
 #include <limits.h>
-#include <stdint.h>
 
 #include "base/macros.h"
 #include "build/build_config.h"
@@ -116,6 +115,8 @@ typedef pthread_mutex_t* MutexHandle;
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/posix/safe_strerror.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 namespace logging {
@@ -1161,13 +1162,13 @@ void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
 #if defined(STARBOARD)
     SbLogRaw(message);
-    const size_t message_len = strlen(message);
+    const size_t message_len = SbStringGetLength(message);
     if (message_len > 0 && message[message_len - 1] != '\n') {
       SbLogRaw("\n");
     }
 #else
     size_t bytes_written = 0;
-    const size_t message_len = strlen(message);
+    const size_t message_len = SbStringGetLength(message);
     int rv;
     while (bytes_written < message_len) {
       rv = HANDLE_EINTR(

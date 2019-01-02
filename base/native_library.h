@@ -10,6 +10,8 @@
 
 #include <string>
 
+#include "starboard/types.h"
+
 #include "base/base_export.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"

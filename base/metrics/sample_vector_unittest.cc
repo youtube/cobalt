@@ -5,7 +5,6 @@
 #include "base/metrics/sample_vector.h"
 
 #include <limits.h>
-#include <stddef.h>
 
 #include <atomic>
 #include <memory>
@@ -15,6 +14,8 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/test/gtest_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -374,7 +375,7 @@ TEST_F(SampleVectorTest, PersistentSampleVector) {
   std::atomic<PersistentMemoryAllocator::Reference> samples_ref;
   samples_ref.store(0, std::memory_order_relaxed);
   HistogramSamples::Metadata samples_meta;
-  memset(&samples_meta, 0, sizeof(samples_meta));
+  SbMemorySet(&samples_meta, 0, sizeof(samples_meta));
 
   // Custom buckets: [1, 5) [5, 10)
   BucketRanges ranges(3);
@@ -467,7 +468,7 @@ TEST_F(SampleVectorTest, PersistentSampleVectorTestWithOutsideAlloc) {
   std::atomic<PersistentMemoryAllocator::Reference> samples_ref;
   samples_ref.store(0, std::memory_order_relaxed);
   HistogramSamples::Metadata samples_meta;
-  memset(&samples_meta, 0, sizeof(samples_meta));
+  SbMemorySet(&samples_meta, 0, sizeof(samples_meta));
 
   // Custom buckets: [1, 5) [5, 10)
   BucketRanges ranges(3);

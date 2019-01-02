@@ -77,6 +77,7 @@
 
 #if defined(OS_WIN)
 #include "base/win/windows_types.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

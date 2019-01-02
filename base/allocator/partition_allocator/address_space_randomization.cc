@@ -14,6 +14,8 @@
 #include <windows.h>  // Must be in front of other Windows header files.
 
 #include <VersionHelpers.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

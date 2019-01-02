@@ -4,8 +4,6 @@
 
 #include "base/trace_event/trace_event_impl.h"
 
-#include <stddef.h>
-
 #include "base/format_macros.h"
 #include "base/json/string_escape.h"
 #include "base/memory/ptr_util.h"
@@ -18,13 +16,16 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_event_argument.h"
 #include "base/trace_event/trace_log.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {
 
 namespace {
 
-size_t GetAllocLength(const char* str) { return str ? strlen(str) + 1 : 0; }
+size_t GetAllocLength(const char* str) { return str ? SbStringGetLength(str) + 1 : 0; }
 
 // Copies |*member| into |*buffer|, sets |*member| to point to this new
 // location, and then advances |*buffer| by the amount written.
@@ -52,7 +53,7 @@ TraceEvent::TraceEvent()
       phase_(TRACE_EVENT_PHASE_BEGIN) {
   for (int i = 0; i < kTraceMaxNumArgs; ++i)
     arg_names_[i] = nullptr;
-  memset(arg_values_, 0, sizeof(arg_values_));
+  SbMemorySet(arg_values_, 0, sizeof(arg_values_));
 }
 
 TraceEvent::~TraceEvent() = default;

@@ -14,6 +14,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
+#include "starboard/types.h"
 
 namespace base {
 

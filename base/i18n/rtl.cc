@@ -4,9 +4,6 @@
 
 #include "base/i18n/rtl.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/command_line.h"
@@ -27,6 +24,7 @@
 #if defined(OS_IOS)
 #include "base/debug/crash_logging.h"
 #include "base/ios/ios_util.h"
+#include "starboard/types.h"
 #endif
 
 namespace {

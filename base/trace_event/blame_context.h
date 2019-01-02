@@ -11,6 +11,7 @@
 #include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_log.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

@@ -4,12 +4,11 @@
 
 #include "base/guid.h"
 
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

@@ -4,9 +4,9 @@
 
 #include "base/containers/hash_tables.h"
 
-#include <stdint.h>
 #include <string>
 
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

@@ -5,8 +5,6 @@
 #ifndef BASE_I18N_MESSAGE_FORMATTER_H_
 #define BASE_I18N_MESSAGE_FORMATTER_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
@@ -14,6 +12,7 @@
 #include "base/macros.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/uversion.h"
 
 U_NAMESPACE_BEGIN

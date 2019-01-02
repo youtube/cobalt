@@ -14,6 +14,8 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/numerics/checked_math.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {
@@ -47,7 +49,7 @@ class VectorBuffer {
 #endif
   VectorBuffer(size_t count)
       : buffer_(reinterpret_cast<T*>(
-            malloc(CheckMul(sizeof(T), count).ValueOrDie()))),
+            SbMemoryAllocate(CheckMul(sizeof(T), count).ValueOrDie()))),
         capacity_(count) {
   }
   VectorBuffer(VectorBuffer&& other) noexcept
@@ -56,10 +58,10 @@ class VectorBuffer {
     other.capacity_ = 0;
   }
 
-  ~VectorBuffer() { free(buffer_); }
+  ~VectorBuffer() { SbMemoryFree(buffer_); }
 
   VectorBuffer& operator=(VectorBuffer&& other) {
-    free(buffer_);
+    SbMemoryFree(buffer_);
     buffer_ = other.buffer_;
     capacity_ = other.capacity_;
 
@@ -125,7 +127,7 @@ class VectorBuffer {
                                     int>::type = 0>
   static void MoveRange(T* from_begin, T* from_end, T* to) {
     CHECK(!RangesOverlap(from_begin, from_end, to));
-    memcpy(
+    SbMemoryCopy(
         to, from_begin,
         CheckSub(get_uintptr(from_end), get_uintptr(from_begin)).ValueOrDie());
   }

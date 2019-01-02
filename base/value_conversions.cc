@@ -4,8 +4,6 @@
 
 #include "base/value_conversions.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -16,6 +14,7 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace {

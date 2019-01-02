@@ -5,7 +5,6 @@
 #include "base/strings/stringprintf.h"
 
 #include <errno.h>
-#include <stddef.h>
 
 #include <vector>
 
@@ -14,6 +13,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

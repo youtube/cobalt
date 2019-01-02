@@ -4,14 +4,13 @@
 
 #include "base/process/process_metrics.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
 #include "base/process/process_metrics_iocounters.h"
+#include "starboard/types.h"
 
 namespace base {
 

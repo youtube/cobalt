@@ -6,11 +6,11 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

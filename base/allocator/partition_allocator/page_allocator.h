@@ -5,14 +5,13 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_PAGE_ALLOCATOR_H
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_PAGE_ALLOCATOR_H
 
-#include <stdint.h>
-
 #include <cstddef>
 
 #include "base/allocator/partition_allocator/page_allocator_constants.h"
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

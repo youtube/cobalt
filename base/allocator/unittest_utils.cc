@@ -6,7 +6,8 @@
 // of other libraries
 
 #include <config.h>
-#include <stddef.h>
+
+#include "starboard/types.h"
 
 inline int snprintf(char* buffer, size_t count, const char* format, ...) {
     int result;

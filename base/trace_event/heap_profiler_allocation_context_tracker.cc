@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <iterator>
 
+#include "starboard/types.h"
+#include "starboard/string.h"
+
 #include "base/atomicops.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/debug/leak_annotations.h"
@@ -68,9 +71,9 @@ const char* GetAndLeakThreadName() {
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
   // Use tid if we don't have a thread name.
-  snprintf(name, sizeof(name), "%lu",
+  SbStringFormatF(name, sizeof(name), "%lu",
            static_cast<unsigned long>(PlatformThread::CurrentId()));
-  return strdup(name);
+  return SbStringDuplicate(name);
 }
 
 }  // namespace

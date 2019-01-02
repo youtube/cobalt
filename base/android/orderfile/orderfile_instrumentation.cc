@@ -30,6 +30,8 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif  // BUILDFLAG(DEVTOOLS_INSTRUMENTATION_DUMPING)
 
 #if !defined(ARCH_CPU_ARMEL)
@@ -291,9 +293,9 @@ NO_INSTRUMENT_FUNCTION void ResetForTesting() {
   Disable();
   g_data_index = 0;
   for (int i = 0; i < kPhases; i++) {
-    memset(reinterpret_cast<uint32_t*>(g_data[i].offsets), 0,
+    SbMemorySet(reinterpret_cast<uint32_t*>(g_data[i].offsets), 0,
            sizeof(uint32_t) * kBitfieldSize);
-    memset(reinterpret_cast<uint32_t*>(g_data[i].ordered_offsets), 0,
+    SbMemorySet(reinterpret_cast<uint32_t*>(g_data[i].ordered_offsets), 0,
            sizeof(uint32_t) * kMaxElements);
     g_data[i].index.store(0);
   }

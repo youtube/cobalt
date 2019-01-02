@@ -18,6 +18,8 @@
 #include "base/test/test_timeouts.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/multiprocess_func_list.h"
 
 namespace base {
@@ -66,7 +68,7 @@ win::ScopedHandle ReadHandleFromPipe(HANDLE pipe) {
   // Read from parent pipe.
   const size_t buf_size = 1000;
   char buffer[buf_size];
-  memset(buffer, 0, buf_size);
+  SbMemorySet(buffer, 0, buf_size);
   DWORD bytes_read;
   BOOL success = ReadFile(pipe, buffer, buf_size, &bytes_read, NULL);
 
@@ -90,7 +92,7 @@ void WriteHandleToPipe(HANDLE pipe, HANDLE handle) {
   uint32_t handle_as_int = base::win::HandleToUint32(handle);
 
   std::unique_ptr<char, base::FreeDeleter> buffer(
-      static_cast<char*>(malloc(1000)));
+      static_cast<char*>(SbMemoryAllocate(1000)));
   size_t index = 0;
   while (handle_as_int > 0) {
     buffer.get()[index] = handle_as_int % 10;

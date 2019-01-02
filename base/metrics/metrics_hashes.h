@@ -5,10 +5,9 @@
 #ifndef BASE_METRICS_METRICS_HASHES_H_
 #define BASE_METRICS_METRICS_HASHES_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 

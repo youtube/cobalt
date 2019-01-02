@@ -64,9 +64,6 @@
 #ifndef BASE_METRICS_HISTOGRAM_H_
 #define BASE_METRICS_HISTOGRAM_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <string>
@@ -83,6 +80,7 @@
 #include "base/metrics/histogram_samples.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

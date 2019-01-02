@@ -5,12 +5,10 @@
 #ifndef BASE_TRACE_EVENT_HEAP_PROFILER_ALLOCATION_CONTEXT_H_
 #define BASE_TRACE_EVENT_HEAP_PROFILER_ALLOCATION_CONTEXT_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <functional>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

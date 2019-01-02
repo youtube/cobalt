@@ -5,9 +5,6 @@
 #ifndef BASE_HASH_H_
 #define BASE_HASH_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 #include <string>
 #include <utility>
@@ -15,6 +12,7 @@
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/strings/string16.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -69,6 +69,8 @@
 
 #if !defined(ANDROID)
 #include <link.h>  // For ElfW() macro.
+
+#include "starboard/types.h"
 #endif
 
 // For systems where SIZEOF_VOID_P is not defined, determine it

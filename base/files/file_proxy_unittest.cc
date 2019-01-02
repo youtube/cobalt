@@ -4,9 +4,6 @@
 
 #include "base/files/file_proxy.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/bind.h"
@@ -20,6 +17,8 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -66,7 +65,7 @@ class FileProxyTest : public testing::Test {
                int bytes_read) {
     error_ = error;
     buffer_.resize(bytes_read);
-    memcpy(&buffer_[0], data, bytes_read);
+    SbMemoryCopy(&buffer_[0], data, bytes_read);
     RunLoop::QuitCurrentWhenIdleDeprecated();
   }
 

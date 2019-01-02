@@ -7,6 +7,10 @@
 #include <string.h>
 #include <algorithm>
 
+#include "starboard/types.h"
+
+#include "starboard/string.h"
+
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/pickle.h"
@@ -1234,7 +1238,7 @@ StringType FilePath::GetHFSDecomposedForm(StringPieceType string) {
                                                           length);
     if (success) {
       // Reduce result.length() to actual string length.
-      result.resize(strlen(result.c_str()));
+      result.resize(SbStringGetLength(result.c_str()));
     } else {
       // An error occurred -> clear result.
       result.clear();

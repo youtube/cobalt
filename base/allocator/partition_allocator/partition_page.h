@@ -9,6 +9,7 @@
 #include "base/allocator/partition_allocator/partition_bucket.h"
 #include "base/allocator/partition_allocator/partition_cookie.h"
 #include "base/allocator/partition_allocator/partition_freelist_entry.h"
+#include "starboard/memory.h"
 
 namespace base {
 namespace internal {
@@ -210,7 +211,7 @@ ALWAYS_INLINE void PartitionPage::Free(void* ptr) {
   PartitionCookieCheckValue(reinterpret_cast<char*>(ptr) + slot_size -
                             kCookieSize);
 
-  memset(ptr, kFreedByte, slot_size);
+  SbMemorySet(ptr, kFreedByte, slot_size);
 #endif
 
   DCHECK(this->num_allocated_slots);

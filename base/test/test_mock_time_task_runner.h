@@ -5,8 +5,6 @@
 #ifndef BASE_TEST_TEST_MOCK_TIME_TASK_RUNNER_H_
 #define BASE_TEST_TEST_MOCK_TIME_TASK_RUNNER_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <queue>
 #include <vector>
@@ -24,6 +22,7 @@
 #include "base/time/clock.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -5,8 +5,6 @@
 #ifndef BASE_TRACE_EVENT_TRACE_CONFIG_H_
 #define BASE_TRACE_EVENT_TRACE_CONFIG_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <set>
 #include <string>
@@ -19,6 +17,7 @@
 #include "base/trace_event/memory_dump_request_args.h"
 #include "base/trace_event/trace_config_category_filter.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

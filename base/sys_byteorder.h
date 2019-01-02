@@ -11,13 +11,13 @@
 #ifndef BASE_SYS_BYTEORDER_H_
 #define BASE_SYS_BYTEORDER_H_
 
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "build/build_config.h"
 
 #if defined(COMPILER_MSVC)
 #include <stdlib.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

@@ -10,6 +10,7 @@
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace fidl {
 

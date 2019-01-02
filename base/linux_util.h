@@ -5,12 +5,12 @@
 #ifndef BASE_LINUX_UTIL_H_
 #define BASE_LINUX_UTIL_H_
 
-#include <stdint.h>
 #include <sys/types.h>
 
 #include <string>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -5,12 +5,11 @@
 #ifndef BASE_I18N_BREAK_ITERATOR_H_
 #define BASE_I18N_BREAK_ITERATOR_H_
 
-#include <stddef.h>
-
 #include "base/i18n/base_i18n_export.h"
 #include "base/macros.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 // The BreakIterator class iterates through the words, word breaks, and
 // line breaks in a UTF-16 string.

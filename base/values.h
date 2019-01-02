@@ -21,9 +21,6 @@
 #ifndef BASE_VALUES_H_
 #define BASE_VALUES_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <iosfwd>
 #include <map>
 #include <memory>
@@ -38,6 +35,7 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "base/value_iterators.h"
+#include "starboard/types.h"
 
 namespace base {
 

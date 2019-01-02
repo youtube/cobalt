@@ -37,6 +37,8 @@
 
 #include <sys/types.h>
 
+#include "starboard/types.h"
+
 /*
  * Structure returned by gettimeofday(2) system call,
  * and used in other calls.

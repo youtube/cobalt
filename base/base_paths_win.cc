@@ -14,6 +14,7 @@
 #include "base/win/current_module.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 using base::FilePath;
 

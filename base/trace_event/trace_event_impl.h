@@ -6,8 +6,6 @@
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_IMPL_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,6 +23,7 @@
 #include "base/threading/thread_local.h"
 #include "base/trace_event/trace_event_memory_overhead.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

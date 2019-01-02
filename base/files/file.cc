@@ -15,6 +15,7 @@
 
 #if defined(OS_STARBOARD)
 #include "starboard/log.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

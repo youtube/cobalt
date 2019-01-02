@@ -4,8 +4,6 @@
 
 #include "base/memory/discardable_shared_memory.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 
 #include "base/atomicops.h"
@@ -30,6 +28,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

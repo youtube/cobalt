@@ -18,7 +18,9 @@
 #include <stdarg.h>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
 #include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -43,7 +45,7 @@ inline int strncmp16(const char16* s1, const char16* s2, size_t count) {
 #if defined(WCHAR_T_IS_UTF16)
   return SbStringCompareWide(s1, s2, count);
 #elif defined(WCHAR_T_IS_UTF32)
-  return c16memcmp(s1, s2, count);
+  return c16SbMemoryCompare(s1, s2, count);
 #endif
 }
 

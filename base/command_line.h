@@ -15,7 +15,6 @@
 #ifndef BASE_COMMAND_LINE_H_
 #define BASE_COMMAND_LINE_H_
 
-#include <stddef.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -24,6 +23,7 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

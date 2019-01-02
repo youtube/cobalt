@@ -14,6 +14,8 @@
 #include <MacTypes.h>
 #else
 #include <libkern/OSTypes.h>
+
+#include "starboard/types.h"
 #endif
 
 // Use the OSSTATUS_LOG family to log messages related to errors in Mac OS X

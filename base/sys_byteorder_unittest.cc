@@ -4,9 +4,8 @@
 
 #include "base/sys_byteorder.h"
 
-#include <stdint.h>
-
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

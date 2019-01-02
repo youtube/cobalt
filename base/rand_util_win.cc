@@ -5,8 +5,6 @@
 #include "base/rand_util.h"
 
 #include <windows.h>
-#include <stddef.h>
-#include <stdint.h>
 
 // #define needed to link in RtlGenRandom(), a.k.a. SystemFunction036.  See the
 // "Community Additions" comment on MSDN here:
@@ -19,6 +17,7 @@
 #include <limits>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

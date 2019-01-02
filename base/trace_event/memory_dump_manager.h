@@ -5,8 +5,6 @@
 #ifndef BASE_TRACE_EVENT_MEMORY_DUMP_MANAGER_H_
 #define BASE_TRACE_EVENT_MEMORY_DUMP_MANAGER_H_
 
-#include <stdint.h>
-
 #include <map>
 #include <memory>
 #include <unordered_set>
@@ -23,6 +21,7 @@
 #include "base/trace_event/memory_dump_request_args.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/types.h"
 
 #if !defined(STARBOARD)
 

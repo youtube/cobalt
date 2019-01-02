@@ -5,10 +5,9 @@
 #ifndef BASE_DEBUG_TASK_ANNOTATOR_H_
 #define BASE_DEBUG_TASK_ANNOTATOR_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 struct PendingTask;

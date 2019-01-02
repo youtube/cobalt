@@ -5,14 +5,13 @@
 #ifndef BASE_TASK_TASK_TRAITS_EXTENSION_H_
 #define BASE_TASK_TASK_TRAITS_EXTENSION_H_
 
-#include <stdint.h>
-
 #include <array>
 #include <tuple>
 #include <utility>
 
 #include "base/base_export.h"
 #include "base/task/task_traits_details.h"
+#include "starboard/types.h"
 
 namespace base {
 

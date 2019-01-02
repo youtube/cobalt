@@ -11,6 +11,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_event_impl.h"
 #include "jni/TraceEvent_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

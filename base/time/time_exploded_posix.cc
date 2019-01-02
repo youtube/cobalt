@@ -4,7 +4,6 @@
 
 #include "base/time/time.h"
 
-#include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
 #if defined(OS_ANDROID) && !defined(__LP64__)
@@ -22,6 +21,8 @@
 #include "base/os_compat_android.h"
 #elif defined(OS_NACL)
 #include "base/os_compat_nacl.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 #if defined(OS_MACOSX)
@@ -75,7 +76,7 @@ time_t aix_timegm(struct tm* tm) {
   ret = mktime(tm);
   if (tz) {
     setenv("TZ", tz, 1);
-    free(tz);
+    SbMemoryFree(tz);
   } else {
     unsetenv("TZ");
   }

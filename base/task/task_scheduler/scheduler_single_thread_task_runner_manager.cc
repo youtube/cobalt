@@ -29,6 +29,7 @@
 #include <windows.h>
 
 #include "base/win/scoped_com_initializer.h"
+#include "starboard/types.h"
 #endif  // defined(OS_WIN)
 
 namespace base {

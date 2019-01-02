@@ -6,9 +6,9 @@
 #define BASE_ANDROID_JNI_REGISTRAR_H_
 
 #include <jni.h>
-#include <stddef.h>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdint.h>
-
 #include "base/i18n/string_search.h"
 #include "base/logging.h"
 
+#include "starboard/types.h"
 #include "third_party/icu/source/i18n/unicode/usearch.h"
 
 namespace base {

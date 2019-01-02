@@ -51,7 +51,6 @@
 #ifndef BASE_TIME_TIME_H_
 #define BASE_TIME_TIME_H_
 
-#include <stdint.h>
 #include <time.h>
 
 #include <iosfwd>
@@ -90,6 +89,7 @@
 #if defined(OS_WIN)
 #include "base/gtest_prod_util.h"
 #include "base/win/windows_types.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

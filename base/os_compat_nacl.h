@@ -7,6 +7,8 @@
 
 #include <sys/types.h>
 
+#include "starboard/types.h"
+
 #if !defined (__GLIBC__)
 // NaCl has no timegm().
 extern "C" time_t timegm(struct tm* const t);

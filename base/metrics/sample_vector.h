@@ -8,9 +8,6 @@
 #ifndef BASE_METRICS_SAMPLE_VECTOR_H_
 #define BASE_METRICS_SAMPLE_VECTOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
@@ -22,6 +19,7 @@
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "starboard/types.h"
 
 namespace base {
 

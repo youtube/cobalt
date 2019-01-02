@@ -5,8 +5,6 @@
 #include "base/trace_event/trace_event_impl.h"
 
 #include <fcntl.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include "base/format_macros.h"
 #include "base/logging.h"
@@ -15,6 +13,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

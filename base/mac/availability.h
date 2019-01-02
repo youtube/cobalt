@@ -11,6 +11,8 @@
 
 #include <AvailabilityMacros.h>
 
+#include "starboard/types.h"
+
 #if !defined(MAC_OS_X_VERSION_10_12) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
 #define __API_AVAILABLE_PLATFORM_macos(x) macos, introduced = x

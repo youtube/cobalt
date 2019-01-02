@@ -5,7 +5,6 @@
 #include "base/debug/stack_trace.h"
 
 #include <android/log.h>
-#include <stddef.h>
 #include <unwind.h>
 
 #include <algorithm>
@@ -14,6 +13,8 @@
 #include "base/debug/proc_maps_linux.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 #ifdef __LP64__
 #define FMT_ADDR  "0x%016lx"
@@ -63,7 +64,7 @@ bool EnableInProcessStackDumping() {
   // with SIGPIPE ignored as well.
   // TODO(phajdan.jr): De-duplicate this SIGPIPE code.
   struct sigaction action;
-  memset(&action, 0, sizeof(action));
+  SbMemorySet(&action, 0, sizeof(action));
   action.sa_handler = SIG_IGN;
   sigemptyset(&action.sa_mask);
   return (sigaction(SIGPIPE, &action, NULL) == 0);

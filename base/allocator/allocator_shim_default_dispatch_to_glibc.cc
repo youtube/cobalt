@@ -6,6 +6,8 @@
 
 #include <malloc.h>
 
+#include "starboard/types.h"
+
 // This translation unit defines a default dispatch for the allocator shim which
 // routes allocations to libc functions.
 // The code here is strongly inspired from tcmalloc's libc_override_glibc.h.

@@ -10,6 +10,8 @@
 
 #include <fcntl.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 #if !defined(OS_ANDROID)

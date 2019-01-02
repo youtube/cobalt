@@ -13,6 +13,8 @@
 
 #include <windows.h>
 
+#include "starboard/types.h"
+
 namespace {
 
 DWORD kBasicProcessAccess =

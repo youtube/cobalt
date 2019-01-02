@@ -28,6 +28,7 @@
 #include "base/win/scoped_process_information.h"
 #include "base/win/startup_information.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 namespace base {
 

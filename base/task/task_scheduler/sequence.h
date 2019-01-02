@@ -5,8 +5,6 @@
 #ifndef BASE_TASK_TASK_SCHEDULER_SEQUENCE_H_
 #define BASE_TASK_TASK_SCHEDULER_SEQUENCE_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/containers/queue.h"
 #include "base/macros.h"
@@ -18,6 +16,7 @@
 #include "base/task/task_scheduler/task.h"
 #include "base/task/task_traits.h"
 #include "base/threading/sequence_local_storage_map.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

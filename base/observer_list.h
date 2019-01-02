@@ -5,8 +5,6 @@
 #ifndef BASE_OBSERVER_LIST_H_
 #define BASE_OBSERVER_LIST_H_
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <iterator>
 #include <limits>
@@ -19,6 +17,7 @@
 #include "base/observer_list_internal.h"
 #include "base/sequence_checker.h"
 #include "base/stl_util.h"
+#include "starboard/types.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //

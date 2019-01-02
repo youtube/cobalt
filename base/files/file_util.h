@@ -8,8 +8,6 @@
 #ifndef BASE_FILES_FILE_UTIL_H_
 #define BASE_FILES_FILE_UTIL_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include <set>
@@ -33,6 +31,7 @@
 #include "base/file_descriptor_posix.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

@@ -5,9 +5,6 @@
 #ifndef BASE_CONTAINERS_ID_MAP_H_
 #define BASE_CONTAINERS_ID_MAP_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <set>
 #include <type_traits>
@@ -18,6 +15,7 @@
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/sequence_checker.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -4,8 +4,6 @@
 
 #include "base/i18n/streaming_utf8_validator.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -34,6 +32,9 @@
 #include "base/synchronization/lock.h"
 #include "base/task/post_task.h"
 #include "base/task/task_scheduler/task_scheduler.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
 #endif  // BASE_I18N_UTF8_VALIDATOR_THOROUGH_TEST
@@ -76,7 +77,7 @@ class StreamingUtf8ValidatorThoroughTest : public ::testing::Test {
   // whether it is valid UTF-8 or not.
   void TestNumber(uint32_t n) const {
     char test[sizeof n];
-    memcpy(test, &n, sizeof n);
+    SbMemoryCopy(test, &n, sizeof n);
     StreamingUtf8Validator validator;
     EXPECT_EQ(IsStringUtf8(test, sizeof n),
               validator.AddBytes(test, sizeof n) == VALID_ENDPOINT)
@@ -212,10 +213,10 @@ class PartialIterator {
       : index_(index), prefix_length_(prefix_length) {}
 
   void Advance() {
-    if (index_ < arraysize(valid) && prefix_length_ < strlen(valid[index_]))
+    if (index_ < arraysize(valid) && prefix_length_ < SbStringGetLength(valid[index_]))
       ++prefix_length_;
     while (index_ < arraysize(valid) &&
-           prefix_length_ == strlen(valid[index_])) {
+           prefix_length_ == SbStringGetLength(valid[index_])) {
       ++index_;
       prefix_length_ = 1;
     }
@@ -308,7 +309,7 @@ TEST(StreamingUtf8ValidatorTest, HelloWorld) {
   static const char kHelloWorld[] = "Hello, World!";
   EXPECT_EQ(
       VALID_ENDPOINT,
-      StreamingUtf8Validator().AddBytes(kHelloWorld, strlen(kHelloWorld)));
+      StreamingUtf8Validator().AddBytes(kHelloWorld, SbStringGetLength(kHelloWorld)));
 }
 
 // Check that the Reset() method works.

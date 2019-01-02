@@ -6,6 +6,9 @@
 
 #include <stdlib.h>
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 namespace base {
 
 void EnableTerminationOnOutOfMemory() {
@@ -17,7 +20,7 @@ void EnableTerminationOnHeapCorruption() {
 }
 
 bool UncheckedMalloc(size_t size, void** result) {
-  *result = malloc(size);
+  *result = SbMemoryAllocate(size);
   return *result != nullptr;
 }
 

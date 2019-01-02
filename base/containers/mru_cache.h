@@ -16,8 +16,6 @@
 #ifndef BASE_CONTAINERS_MRU_CACHE_H_
 #define BASE_CONTAINERS_MRU_CACHE_H_
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <functional>
 #include <list>
@@ -27,6 +25,7 @@
 
 #include "base/logging.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

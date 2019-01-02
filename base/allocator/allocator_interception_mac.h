@@ -5,9 +5,8 @@
 #ifndef BASE_ALLOCATOR_ALLOCATOR_INTERCEPTION_MAC_H_
 #define BASE_ALLOCATOR_ALLOCATOR_INTERCEPTION_MAC_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
+#include "starboard/types.h"
 #include "third_party/apple_apsl/malloc.h"
 
 namespace base {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-
 #include <sstream>
 
 #include "base/files/file_path.h"
@@ -15,6 +13,7 @@
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/test/scoped_locale.h"
+#include "starboard/types.h"
 #endif
 
 // This macro helps avoid wrapped lines in the test structs.

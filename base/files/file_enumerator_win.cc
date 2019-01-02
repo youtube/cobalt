@@ -4,12 +4,13 @@
 
 #include "base/files/file_enumerator.h"
 
-#include <stdint.h>
 #include <string.h>
 
 #include "base/logging.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/shlwapi.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -35,7 +36,7 @@ FilePath BuildSearchFilter(FileEnumerator::FolderSearchPolicy policy,
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
-  memset(&find_data_, 0, sizeof(find_data_));
+  SbMemorySet(&find_data_, 0, sizeof(find_data_));
 }
 
 bool FileEnumerator::FileInfo::IsDirectory() const {
@@ -91,7 +92,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
       folder_search_policy_(folder_search_policy) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
-  memset(&find_data_, 0, sizeof(find_data_));
+  SbMemorySet(&find_data_, 0, sizeof(find_data_));
   pending_paths_.push(root_path);
 }
 
@@ -106,7 +107,7 @@ FileEnumerator::FileInfo FileEnumerator::GetInfo() const {
     return FileInfo();
   }
   FileInfo ret;
-  memcpy(&ret.find_data_, &find_data_, sizeof(find_data_));
+  SbMemoryCopy(&ret.find_data_, &find_data_, sizeof(find_data_));
   return ret;
 }
 

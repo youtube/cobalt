@@ -13,6 +13,7 @@
 #include "base/no_destructor.h"
 #include "base/threading/simple_thread.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)

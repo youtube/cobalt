@@ -5,14 +5,13 @@
 #ifndef BASE_METRICS_DUMMY_HISTOGRAM_H_
 #define BASE_METRICS_DUMMY_HISTOGRAM_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <string>
 
 #include "base/base_export.h"
 #include "base/metrics/histogram_base.h"
 #include "base/no_destructor.h"
+#include "starboard/types.h"
 
 namespace base {
 

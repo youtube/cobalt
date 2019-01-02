@@ -4,10 +4,10 @@
 
 #include "base/mac/call_with_eh_frame.h"
 
-#include <stdint.h>
 #include <unwind.h>
 
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace mac {

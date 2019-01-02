@@ -34,6 +34,7 @@
 #include "base/synchronization/lock.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -6,8 +6,6 @@
 // crashes if the test is ran without special memory testing tools. We use these
 // errors to verify the sanity of the tools.
 
-#include <stddef.h>
-
 #include "base/atomicops.h"
 #if !defined(STARBOARD)
 #include "base/cfi_buildflags.h"
@@ -18,6 +16,8 @@
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "debug/leak_annotations.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -140,9 +140,9 @@ TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
 }
 
 TEST(ToolsSanityTest, MAYBE_AccessesToMallocMemory) {
-  char *foo = reinterpret_cast<char*>(malloc(10));
+  char *foo = reinterpret_cast<char*>(SbMemoryAllocate(10));
   MakeSomeErrors(foo, 10);
-  free(foo);
+  SbMemoryFree(foo);
   // Use after free.
   HARMFUL_ACCESS(foo[5] = 0, "heap-use-after-free");
 }

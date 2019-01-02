@@ -4,11 +4,11 @@
 
 #include "base/sha1.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "base/sys_byteorder.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -204,7 +204,7 @@ void SHA1HashBytes(const unsigned char* data, size_t len,
   sha.Update(data, len);
   sha.Final();
 
-  memcpy(hash, sha.Digest(), SecureHashAlgorithm::kDigestSizeBytes);
+  SbMemoryCopy(hash, sha.Digest(), SecureHashAlgorithm::kDigestSizeBytes);
 }
 
 }  // namespace base

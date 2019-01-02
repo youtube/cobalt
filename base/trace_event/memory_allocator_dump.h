@@ -5,8 +5,6 @@
 #ifndef BASE_TRACE_EVENT_MEMORY_ALLOCATOR_DUMP_H_
 #define BASE_TRACE_EVENT_MEMORY_ALLOCATOR_DUMP_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <ostream>
 #include <string>
@@ -21,6 +19,7 @@
 #include "base/trace_event/trace_event_argument.h"
 #include "base/unguessable_token.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace trace_event {

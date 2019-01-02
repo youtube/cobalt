@@ -5,8 +5,6 @@
 #ifndef BASE_METRICS_PERSISTENT_MEMORY_ALLOCATOR_H_
 #define BASE_METRICS_PERSISTENT_MEMORY_ALLOCATOR_H_
 
-#include <stdint.h>
-
 #include <atomic>
 #include <memory>
 #include <type_traits>
@@ -17,6 +15,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace base {
 

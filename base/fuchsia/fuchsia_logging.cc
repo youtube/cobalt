@@ -8,6 +8,8 @@
 
 #include <iomanip>
 
+#include "starboard/types.h"
+
 namespace logging {
 
 ZxLogMessage::ZxLogMessage(const char* file_path,

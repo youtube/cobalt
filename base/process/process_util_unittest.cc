@@ -4,9 +4,6 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <limits>
 
 #include "base/command_line.h"
@@ -77,6 +74,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/fuchsia/file_utils.h"
 #include "base/fuchsia/fuchsia_logging.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

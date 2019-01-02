@@ -14,6 +14,9 @@
 
 #include <windows.h>
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 extern "C" {
 
 void* (*malloc_unchecked)(size_t) = &base::allocator::UncheckedAlloc;
@@ -49,15 +52,15 @@ int _query_new_mode() {
 }
 
 // These symbols override the CRT's implementation of the same functions.
-__declspec(restrict) void* malloc(size_t size) {
+__declspec(restrict) void* SbMemoryAllocate(size_t size) {
   return ShimMalloc(size, nullptr);
 }
 
-void free(void* ptr) {
+void SbMemoryFree(void* ptr) {
   ShimFree(ptr, nullptr);
 }
 
-__declspec(restrict) void* realloc(void* ptr, size_t size) {
+__declspec(restrict) void* SbMemoryReallocate(void* ptr, size_t size) {
   return ShimRealloc(ptr, size, nullptr);
 }
 

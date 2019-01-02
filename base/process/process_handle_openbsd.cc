@@ -5,10 +5,11 @@
 #include "base/macros.h"
 #include "base/process/process_handle.h"
 
-#include <stddef.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "starboard/types.h"
 
 namespace base {
 

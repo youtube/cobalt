@@ -4,9 +4,8 @@
 
 #include "base/i18n/break_iterator.h"
 
-#include <stdint.h>
-
 #include "base/logging.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/ubrk.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/ustring.h"

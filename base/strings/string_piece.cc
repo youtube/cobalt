@@ -11,6 +11,8 @@
 #include <ostream>
 
 #include "base/logging.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace {
@@ -91,7 +93,7 @@ size_t copyT(const BasicStringPiece<STR>& self,
              size_t n,
              size_t pos) {
   size_t ret = std::min(self.size() - pos, n);
-  memcpy(buf, self.data() + pos, ret * sizeof(typename STR::value_type));
+  SbMemoryCopy(buf, self.data() + pos, ret * sizeof(typename STR::value_type));
   return ret;
 }
 

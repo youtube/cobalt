@@ -5,9 +5,8 @@
 #ifndef BASE_METRICS_UKM_SOURCE_ID_H_
 #define BASE_METRICS_UKM_SOURCE_ID_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

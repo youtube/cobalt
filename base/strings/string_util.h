@@ -9,8 +9,6 @@
 
 #include <ctype.h>
 #include <stdarg.h>   // va_list
-#include <stddef.h>
-#include <stdint.h>
 
 #include <initializer_list>
 #include <string>
@@ -481,6 +479,7 @@ BASE_EXPORT string16 ReplaceStringPlaceholders(const string16& format_string,
 #include "base/strings/string_util_win.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/strings/string_util_posix.h"
+#include "starboard/types.h"
 #else
 #error Define string operations appropriately for your platform
 #endif

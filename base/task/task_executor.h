@@ -5,8 +5,6 @@
 #ifndef BASE_TASK_TASK_EXECUTOR_H_
 #define BASE_TASK_TASK_EXECUTOR_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequenced_task_runner.h"
@@ -14,6 +12,7 @@
 #include "base/task/single_thread_task_runner_thread_mode.h"
 #include "base/task_runner.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -13,6 +13,7 @@
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/clang_coverage.h"
+#include "starboard/types.h"
 
 namespace base {
 

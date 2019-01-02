@@ -4,8 +4,6 @@
 
 #include "base/task/task_scheduler/scheduler_worker_pool_impl.h"
 
-#include <stddef.h>
-
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -52,6 +50,7 @@
 
 #if defined(OS_WIN)
 #include "base/win/com_init_util.h"
+#include "starboard/types.h"
 #endif  // defined(OS_WIN)
 
 namespace base {

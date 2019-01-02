@@ -5,8 +5,6 @@
 #ifndef BASE_NUMERICS_SAFE_CONVERSIONS_H_
 #define BASE_NUMERICS_SAFE_CONVERSIONS_H_
 
-#include <stddef.h>
-
 #include <limits>
 #include <ostream>
 #include <type_traits>
@@ -15,6 +13,7 @@
 
 #if !defined(__native_client__) && (defined(__ARMEL__) || defined(__arch64__))
 #include "base/numerics/safe_conversions_arm_impl.h"
+#include "starboard/types.h"
 #define BASE_HAS_OPTIMIZED_SAFE_CONVERSIONS (1)
 #else
 #define BASE_HAS_OPTIMIZED_SAFE_CONVERSIONS (0)

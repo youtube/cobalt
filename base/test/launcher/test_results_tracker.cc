@@ -4,8 +4,6 @@
 
 #include "base/test/launcher/test_results_tracker.h"
 
-#include <stddef.h>
-
 #include <memory>
 #include <utility>
 
@@ -24,6 +22,7 @@
 #include "base/test/launcher/test_launcher.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "starboard/types.h"
 
 namespace base {
 

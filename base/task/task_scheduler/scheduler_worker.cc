@@ -4,8 +4,6 @@
 
 #include "base/task/task_scheduler/scheduler_worker.h"
 
-#include <stddef.h>
-
 #include <utility>
 
 #include "base/compiler_specific.h"
@@ -21,6 +19,7 @@
 #elif defined(OS_WIN)
 #include "base/win/com_init_check_hook.h"
 #include "base/win/scoped_com_initializer.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

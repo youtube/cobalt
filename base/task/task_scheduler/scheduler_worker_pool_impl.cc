@@ -4,8 +4,6 @@
 
 #include "base/task/task_scheduler/scheduler_worker_pool_impl.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <utility>
 
@@ -33,6 +31,7 @@
 #include "base/win/scoped_windows_thread_environment.h"
 #include "base/win/scoped_winrt_initializer.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 #endif  // defined(OS_WIN)
 
 namespace base {

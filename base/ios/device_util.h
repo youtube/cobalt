@@ -5,9 +5,9 @@
 #ifndef BASE_IOS_DEVICE_UTIL_H_
 #define BASE_IOS_DEVICE_UTIL_H_
 
-#include <stdint.h>
-
 #include <string>
+
+#include "starboard/types.h"
 
 namespace ios {
 namespace device_util {

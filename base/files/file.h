@@ -5,9 +5,9 @@
 #ifndef BASE_FILES_FILE_H_
 #define BASE_FILES_FILE_H_
 
-#include <stdint.h>
-
 #include <string>
+
+#include "starboard/types.h"
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"

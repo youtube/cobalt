@@ -5,12 +5,12 @@
 #include "base/file_version_info_win.h"
 
 #include <windows.h>
-#include <stddef.h>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/resource_util.h"
+#include "starboard/types.h"
 
 using base::FilePath;
 

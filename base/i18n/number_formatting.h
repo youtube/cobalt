@@ -5,10 +5,9 @@
 #ifndef BASE_I18N_NUMBER_FORMATTING_H_
 #define BASE_I18N_NUMBER_FORMATTING_H_
 
-#include <stdint.h>
-
 #include "base/i18n/base_i18n_export.h"
 #include "base/strings/string16.h"
+#include "starboard/types.h"
 
 namespace base {
 

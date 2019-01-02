@@ -4,8 +4,6 @@
 
 #include "base/json/json_parser.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/json/json_reader.h"
@@ -13,6 +11,9 @@
 #include "base/optional.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -33,9 +34,9 @@ class JSONParserTest : public testing::Test {
   // owned by |owner|, returning a StringPiece to |owner|.
   StringPiece MakeNotNullTerminatedInput(const char* input,
                                          std::unique_ptr<char[]>* owner) {
-    size_t str_len = strlen(input);
+    size_t str_len = SbStringGetLength(input);
     owner->reset(new char[str_len]);
-    memcpy(owner->get(), input, str_len);
+    SbMemoryCopy(owner->get(), input, str_len);
     return StringPiece(owner->get(), str_len);
   }
 

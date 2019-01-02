@@ -4,8 +4,6 @@
 
 #include "base/files/important_file_writer.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string>
 #include <utility>
@@ -29,6 +27,7 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

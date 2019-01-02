@@ -4,8 +4,6 @@
 
 #include "base/feature_list.h"
 
-#include <stddef.h>
-
 #include <utility>
 #include <vector>
 
@@ -15,6 +13,8 @@
 #include "base/pickle.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -185,7 +185,7 @@ void FeatureList::AddFeaturesToAllocator(PersistentMemoryAllocator* allocator) {
     entry->pickle_size = pickle.size();
 
     char* dst = reinterpret_cast<char*>(entry) + sizeof(FeatureEntry);
-    memcpy(dst, pickle.data(), pickle.size());
+    SbMemoryCopy(dst, pickle.data(), pickle.size());
 
     allocator->MakeIterable(entry);
   }

@@ -8,6 +8,7 @@
 #include <windows.h>
 
 #include "base/test/clang_coverage.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace debug {

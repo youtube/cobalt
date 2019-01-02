@@ -5,7 +5,6 @@
 #include "base/message_loop/message_pump_win.h"
 
 #include <math.h>
-#include <stdint.h>
 
 #include <limits>
 
@@ -16,6 +15,8 @@
 #include "base/trace_event/trace_event.h"
 #include "base/win/current_module.h"
 #include "base/win/wrapped_window_proc.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -442,7 +443,7 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
 // MessagePumpForIO public:
 
 MessagePumpForIO::IOContext::IOContext() {
-  memset(&overlapped, 0, sizeof(overlapped));
+  SbMemorySet(&overlapped, 0, sizeof(overlapped));
 }
 
 MessagePumpForIO::MessagePumpForIO() {
@@ -575,7 +576,7 @@ bool MessagePumpForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
 
 // Asks the OS for another IO completion result.
 bool MessagePumpForIO::GetIOItem(DWORD timeout, IOItem* item) {
-  memset(item, 0, sizeof(*item));
+  SbMemorySet(item, 0, sizeof(*item));
   ULONG_PTR key = reinterpret_cast<ULONG_PTR>(nullptr);
   OVERLAPPED* overlapped = nullptr;
   if (!GetQueuedCompletionStatus(port_.Get(), &item->bytes_transfered, &key,

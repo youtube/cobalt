@@ -6,7 +6,6 @@
 #define BASE_FILES_FILE_PATH_WATCHER_FSEVENTS_H_
 
 #include <CoreServices/CoreServices.h>
-#include <stddef.h>
 
 #include <vector>
 
@@ -15,6 +14,7 @@
 #include "base/mac/scoped_dispatch_object.h"
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
+#include "starboard/types.h"
 
 namespace base {
 

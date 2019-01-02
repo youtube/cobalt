@@ -7,9 +7,9 @@
 
 // File utility functions used only by tests.
 
-#include <stddef.h>
-
 #include <string>
+
+#include "starboard/types.h"
 
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"

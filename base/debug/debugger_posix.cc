@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
@@ -52,6 +51,7 @@
 
 #if defined(OS_ANDROID)
 #include "base/threading/platform_thread.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

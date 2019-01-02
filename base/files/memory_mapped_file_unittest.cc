@@ -4,13 +4,12 @@
 
 #include "base/files/memory_mapped_file.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <utility>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -29,7 +28,7 @@ std::unique_ptr<uint8_t[]> CreateTestBuffer(size_t size, size_t offset) {
 // Check that the watermark sequence is consistent with the |offset| provided.
 bool CheckBufferContents(const uint8_t* data, size_t size, size_t offset) {
   std::unique_ptr<uint8_t[]> test_data(CreateTestBuffer(size, offset));
-  return memcmp(test_data.get(), data, size) == 0;
+  return SbMemoryCompare(test_data.get(), data, size) == 0;
 }
 
 class MemoryMappedFileTest : public PlatformTest {

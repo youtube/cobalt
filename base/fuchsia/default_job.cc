@@ -7,6 +7,7 @@
 #include <zircon/types.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -18,13 +18,14 @@
 #include "base/threading/thread_restrictions.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
+#include "starboard/memory.h"
 
 namespace base {
 
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
-  memset(&sb_info_, 0, sizeof(sb_info_));
+  SbMemorySet(&sb_info_, 0, sizeof(sb_info_));
 }
 
 bool FileEnumerator::FileInfo::IsDirectory() const {
@@ -101,7 +102,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     // TODO: Make sure this follows symlinks on relevant platforms.
     if (!SbFileGetPathInfo(full_name.value().c_str(), &info.sb_info_)) {
       DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
-      memset(&info.sb_info_, 0, sizeof(info.sb_info_));
+      SbMemorySet(&info.sb_info_, 0, sizeof(info.sb_info_));
     }
 
     ret.push_back(info);

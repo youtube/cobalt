@@ -5,6 +5,7 @@
 #include "base/big_endian.h"
 
 #include "base/strings/string_piece.h"
+#include "starboard/memory.h"
 
 namespace base {
 
@@ -21,7 +22,7 @@ bool BigEndianReader::Skip(size_t len) {
 bool BigEndianReader::ReadBytes(void* out, size_t len) {
   if (ptr_ + len > end_)
     return false;
-  memcpy(out, ptr_, len);
+  SbMemoryCopy(out, ptr_, len);
   ptr_ += len;
   return true;
 }
@@ -72,7 +73,7 @@ bool BigEndianWriter::Skip(size_t len) {
 bool BigEndianWriter::WriteBytes(const void* buf, size_t len) {
   if (ptr_ + len > end_)
     return false;
-  memcpy(ptr_, buf, len);
+  SbMemoryCopy(ptr_, buf, len);
   ptr_ += len;
   return true;
 }

@@ -6,9 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "build/build_config.h"
 
@@ -30,6 +27,8 @@
 
 #if defined(OS_WIN)
 #include <aclapi.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

@@ -7,5 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "starboard/types.h"
+
 #define HAVE_SYMBOLIZE 1
 #define ATTRIBUTE_NOINLINE __attribute__ ((noinline))

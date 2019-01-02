@@ -13,6 +13,7 @@
 #include "base/test/gtest_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

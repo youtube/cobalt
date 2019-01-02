@@ -145,21 +145,21 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 }  // namespace base
 
 #if defined(STARBOARD)
-#  include "base/atomicops_internals_starboard.h"
+#include "base/atomicops_internals_starboard.h"
 #else
 #if defined(OS_WIN)
 // TODO(jfb): Try to use base/atomicops_internals_portable.h everywhere.
 // https://crbug.com/559247.
-#  include "base/atomicops_internals_x86_msvc.h"
+#include "base/atomicops_internals_x86_msvc.h"
 #else
-#  include "base/atomicops_internals_portable.h"
+#include "base/atomicops_internals_portable.h"
 #endif
-#endif  // defined(STARBOARD)
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
 #if defined(OS_MACOSX) || defined(OS_OPENBSD)
 #include "base/atomicops_internals_atomicword_compat.h"
 #endif
+#endif  // defined(STARBOARD)
 
 #endif  // BASE_ATOMICOPS_H_

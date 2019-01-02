@@ -4,10 +4,9 @@
 
 #include "base/sha1.h"
 
-#include <stddef.h>
-
 #include <string>
 
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SHA1Test, Test1) {

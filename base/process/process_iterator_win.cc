@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/process/process_iterator.h"
+#include "starboard/memory.h"
 
 namespace base {
 
@@ -28,7 +29,7 @@ bool ProcessIterator::CheckForNextProcess() {
 }
 
 void ProcessIterator::InitProcessEntry(ProcessEntry* entry) {
-  memset(entry, 0, sizeof(*entry));
+  SbMemorySet(entry, 0, sizeof(*entry));
   entry->dwSize = sizeof(*entry);
 }
 

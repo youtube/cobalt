@@ -43,7 +43,6 @@ extern "C" {
 #include <sys/time.h>
 #endif
 #ifdef _EVENT_HAVE_STDINT_H
-#include <stdint.h>
 #elif defined(_EVENT_HAVE_INTTYPES_H)
 #include <inttypes.h>
 #endif
@@ -51,6 +50,8 @@ extern "C" {
 #include <sys/types.h>
 #endif
 #include <stdarg.h>
+
+#include "starboard/types.h"
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t

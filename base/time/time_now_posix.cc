@@ -4,7 +4,6 @@
 
 #include "base/time/time.h"
 
-#include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
 #if defined(OS_ANDROID) && !defined(__LP64__)
@@ -16,6 +15,7 @@
 #include "base/numerics/safe_math.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // Ensure the Fuchsia and Mac builds do not include this module. Instead,
 // non-POSIX implementation is used for sampling the system clocks.

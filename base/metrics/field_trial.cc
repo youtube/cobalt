@@ -28,6 +28,7 @@
 // On POSIX, the fd is shared using the mapping in GlobalDescriptors.
 #if defined(OS_POSIX) && !defined(OS_NACL)
 #include "base/posix/global_descriptors.h"
+#include "starboard/memory.h"
 #endif
 
 namespace base {
@@ -1155,7 +1156,7 @@ void FieldTrialList::ClearParamsFromSharedMemoryForTesting() {
     // in memory, so we can avoid this memcpy.
     char* dst = reinterpret_cast<char*>(new_entry) +
                 sizeof(FieldTrial::FieldTrialEntry);
-    memcpy(dst, pickle.data(), pickle.size());
+    SbMemoryCopy(dst, pickle.data(), pickle.size());
 
     // Update the ref on the field trial and add it to the list to be made
     // iterable.
@@ -1455,7 +1456,7 @@ void FieldTrialList::AddToAllocatorWhileLocked(
   // memory, so we can avoid this memcpy.
   char* dst =
       reinterpret_cast<char*>(entry) + sizeof(FieldTrial::FieldTrialEntry);
-  memcpy(dst, pickle.data(), pickle.size());
+  SbMemoryCopy(dst, pickle.data(), pickle.size());
 
   allocator->MakeIterable(ref);
   field_trial->ref_ = ref;

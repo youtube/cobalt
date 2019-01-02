@@ -9,6 +9,7 @@
 
 #include "base/allocator/partition_allocator/page_allocator_constants.h"
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 
