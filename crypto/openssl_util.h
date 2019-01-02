@@ -5,11 +5,11 @@
 #ifndef CRYPTO_OPENSSL_UTIL_H_
 #define CRYPTO_OPENSSL_UTIL_H_
 
-#include <stddef.h>
-
 #include "base/location.h"
 #include "base/macros.h"
 #include "crypto/crypto_export.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace crypto {
 
@@ -31,7 +31,7 @@ class ScopedOpenSSLSafeSizeBuffer {
   ~ScopedOpenSSLSafeSizeBuffer() {
     if (output_len_ < MIN_SIZE) {
       // Copy the temporary buffer out, truncating as needed.
-      memcpy(output_, min_sized_buffer_, output_len_);
+      SbMemoryCopy(output_, min_sized_buffer_, output_len_);
     }
     // else... any writing already happened directly into |output_|.
   }

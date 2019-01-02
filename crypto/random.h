@@ -5,9 +5,8 @@
 #ifndef CRYPTO_RANDOM_H_
 #define CRYPTO_RANDOM_H_
 
-#include <stddef.h>
-
 #include "crypto/crypto_export.h"
+#include "starboard/types.h"
 
 namespace crypto {
 

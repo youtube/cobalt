@@ -4,12 +4,11 @@
 
 #include "crypto/sha2.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/stl_util.h"
 #include "crypto/secure_hash.h"
+#include "starboard/types.h"
 
 namespace crypto {
 
