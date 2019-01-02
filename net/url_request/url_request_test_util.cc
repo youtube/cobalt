@@ -347,10 +347,20 @@ void TestDelegate::OnReadCompleted(URLRequest* request, int bytes_read) {
 
 void TestDelegate::OnResponseCompleted(URLRequest* request) {
   response_completed_ = true;
-  if (use_legacy_on_complete_)
+  if (use_legacy_on_complete_) {
     base::RunLoop::QuitCurrentWhenIdleDeprecated();
-  else
+  } else {
+#if defined(STARBOARD)
+    // Cobalt doesn't have HTTP cache, skipping some steps in HTTP cache
+    // transactions and making request return faster in unit tests.
+    // Some net_unittests have dependency on request's return timing and can
+    // execute the request complete steps multiple times.
+    if (on_complete_.is_null()) {
+      return;
+    }
+#endif
     std::move(on_complete_).Run();
+  }
 }
 
 TestNetworkDelegate::TestNetworkDelegate()

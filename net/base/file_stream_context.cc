@@ -189,7 +189,7 @@ FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
   }
 #endif  // defined(OS_ANDROID)
   if (!file.IsValid()) {
-#if defined(STARBOARD)
+#if !defined(STARBOARD)
     return OpenResult(
         base::File(), IOResult::FromFileError(
             file.error_details(), logging::GetLastSystemErrorCode()));

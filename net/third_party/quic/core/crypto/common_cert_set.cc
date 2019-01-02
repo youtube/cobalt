@@ -11,6 +11,8 @@
 #include "net/third_party/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quic/platform/api/quic_singleton.h"
 
+#include "starboard/memory.h"
+
 namespace quic {
 
 namespace common_cert_set_2 {
@@ -19,7 +21,6 @@ namespace common_cert_set_2 {
 
 namespace common_cert_set_3 {
 #include "net/third_party/quic/core/crypto/common_cert_set_3.c"
-#include "starboard/memory.h"
 }
 
 namespace {

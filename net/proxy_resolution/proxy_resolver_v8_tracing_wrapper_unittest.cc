@@ -54,7 +54,7 @@ class ProxyResolverV8TracingWrapperTest : public TestWithScopedTaskEnvironment {
 
 scoped_refptr<PacFileData> LoadScriptData(const char* filename) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.AppendASCII("net");
   path = path.AppendASCII("data");
   path = path.AppendASCII("proxy_resolver_v8_tracing_unittest");

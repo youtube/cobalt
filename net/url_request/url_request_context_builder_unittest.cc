@@ -82,7 +82,14 @@ TEST_F(URLRequestContextBuilderTest, DefaultSettings) {
   request->set_method("GET");
   request->SetExtraRequestHeaderByName("Foo", "Bar", false);
   request->Start();
+#if defined(STARBOARD)
+  // Chromium's code here relies on a deprecated
+  // RunLoop::QuitCurrentWhenIdleDeprecated() function which is flaky
+  // sometimes.
+  delegate.RunUntilComplete();
+#else
   base::RunLoop().Run();
+#endif
   EXPECT_EQ("Bar", delegate.data_received());
 }
 
@@ -97,7 +104,14 @@ TEST_F(URLRequestContextBuilderTest, UserAgent) {
       &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
   request->set_method("GET");
   request->Start();
+#if defined(STARBOARD)
+  // Chromium's code here relies on a deprecated
+  // RunLoop::QuitCurrentWhenIdleDeprecated() function which is flaky
+  // sometimes.
+  delegate.RunUntilComplete();
+#else
   base::RunLoop().Run();
+#endif
   EXPECT_EQ("Bar", delegate.data_received());
 }
 

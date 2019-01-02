@@ -35,7 +35,7 @@ const char* const kHttp2StatusHeader = ":status";
 // To test uploading the contents of a file
 base::FilePath GetUploadFileTestPath() {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   return path.Append(
       FILE_PATH_LITERAL("net/data/url_request_unittest/BullRunSpeech.txt"));
 }

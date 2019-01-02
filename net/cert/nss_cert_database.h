@@ -5,6 +5,8 @@
 #ifndef NET_CERT_NSS_CERT_DATABASE_H_
 #define NET_CERT_NSS_CERT_DATABASE_H_
 
+#if !defined(STARBOARD)
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -296,5 +298,6 @@ class NET_EXPORT NSSCertDatabase {
 };
 
 }  // namespace net
+#endif  // !defined(STARBOARD)
 
 #endif  // NET_CERT_NSS_CERT_DATABASE_H_

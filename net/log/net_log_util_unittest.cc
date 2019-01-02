@@ -31,6 +31,8 @@ TEST(NetLogUtil, GetNetConstants) {
   std::unique_ptr<base::Value> constants(GetNetConstants());
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+// HTTP Cache is not supported yet.
 // Make sure GetNetInfo doesn't crash when called on contexts with and without
 // caches, and they have the same number of elements.
 TEST(NetLogUtil, GetNetInfo) {
@@ -57,6 +59,7 @@ TEST(NetLogUtil, GetNetInfo) {
 
   EXPECT_EQ(net_info_without_cache->size(), net_info_with_cache->size());
 }
+#endif
 
 // Make sure CreateNetLogEntriesForActiveObjects works for requests from a
 // single URLRequestContext.

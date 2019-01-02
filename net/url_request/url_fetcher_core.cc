@@ -574,7 +574,14 @@ void URLFetcherCore::StartURLRequest() {
   request_->SetReferrer(referrer_);
   request_->set_referrer_policy(referrer_policy_);
   request_->set_site_for_cookies(initiator_.has_value() &&
+#if defined(STARBOARD)
+                                         // This is not a Cobalt change, but due
+                                         // to a mismatch between src/net and
+                                         // src/url version.
+                                         !initiator_.value().unique()
+#else
                                          !initiator_.value().opaque()
+#endif
                                      ? initiator_.value().GetURL()
                                      : original_url_);
   request_->set_initiator(initiator_);

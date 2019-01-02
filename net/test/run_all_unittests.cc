@@ -10,11 +10,12 @@
 #include "crypto/nss_util.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/test/net_test_suite.h"
-#include "url/url_features.h"
-#include "mojo/core/embedder/embedder.h"  // nogncheck
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#else
+#include "mojo/core/embedder/embedder.h"  // nogncheck
+#include "url/url_features.h"
 #endif
 
 using net::internal::ClientSocketPoolBaseHelper;
@@ -62,11 +63,13 @@ int main(int argc, char** argv) {
   NetTestSuite test_suite(argc, argv);
   ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(false);
 
-  mojo::core::Init();
-
+#if defined(STARBOARD)
+  return test_suite.Run();
+#else
   return base::LaunchUnitTests(
       argc, argv, base::Bind(&NetTestSuite::Run,
                              base::Unretained(&test_suite)));
+#endif
 }
 
 #if defined(STARBOARD)

@@ -5,6 +5,8 @@
 #ifndef NET_CERT_CERT_STATUS_FLAGS_H_
 #define NET_CERT_CERT_STATUS_FLAGS_H_
 
+#include <stdint.h>
+
 #include "net/base/net_export.h"
 
 namespace net {
@@ -19,7 +21,6 @@ typedef uint32_t CertStatus;
 #define CERT_STATUS_FLAG(label, value) \
     CertStatus static const CERT_STATUS_##label = value;
 #include "net/cert/cert_status_flags_list.h"
-#include "starboard/types.h"
 #undef CERT_STATUS_FLAG
 
 static const CertStatus CERT_STATUS_ALL_ERRORS = 0xFF00FFFF;

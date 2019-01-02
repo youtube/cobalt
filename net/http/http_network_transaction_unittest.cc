@@ -10736,6 +10736,8 @@ TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
   base::DeleteFile(temp_file_path, false);
 }
 
+#if !defined(STARBOARD)
+// Starboard does not implement MakeFileUnreadable.
 TEST_F(HttpNetworkTransactionTest, UploadUnreadableFile) {
   base::FilePath temp_file;
   ASSERT_TRUE(base::CreateTemporaryFile(&temp_file));
@@ -10775,6 +10777,7 @@ TEST_F(HttpNetworkTransactionTest, UploadUnreadableFile) {
 
   base::DeleteFile(temp_file, false);
 }
+#endif
 
 TEST_F(HttpNetworkTransactionTest, CancelDuringInitRequestBody) {
   class FakeUploadElementReader : public UploadElementReader {

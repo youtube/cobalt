@@ -331,7 +331,6 @@ std::string DescribeContext(GSSAPILibrary* gssapi_lib,
 GSSAPISharedLibrary::GSSAPISharedLibrary(const std::string& gssapi_library_name)
     : initialized_(false),
       gssapi_library_name_(gssapi_library_name),
-      gssapi_library_(NULL),
       import_name_(NULL),
       release_name_(NULL),
       release_buffer_(NULL),
@@ -342,13 +341,6 @@ GSSAPISharedLibrary::GSSAPISharedLibrary(const std::string& gssapi_library_name)
       delete_sec_context_(NULL),
       inquire_context_(NULL) {}
 
-GSSAPISharedLibrary::~GSSAPISharedLibrary() {
-  if (gssapi_library_) {
-    base::UnloadNativeLibrary(gssapi_library_);
-    gssapi_library_ = NULL;
-  }
-}
-
 bool GSSAPISharedLibrary::Init() {
   if (!initialized_)
     InitImpl();
@@ -357,102 +349,9 @@ bool GSSAPISharedLibrary::Init() {
 
 bool GSSAPISharedLibrary::InitImpl() {
   DCHECK(!initialized_);
-#if defined(DLOPEN_KERBEROS)
-  gssapi_library_ = LoadSharedLibrary();
-  if (gssapi_library_ == NULL)
-    return false;
-#endif  // defined(DLOPEN_KERBEROS)
   initialized_ = true;
   return true;
 }
-
-base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
-  const char* const* library_names;
-  size_t num_lib_names;
-  const char* user_specified_library[1];
-  if (!gssapi_library_name_.empty()) {
-    user_specified_library[0] = gssapi_library_name_.c_str();
-    library_names = user_specified_library;
-    num_lib_names = 1;
-  } else {
-    static const char* const kDefaultLibraryNames[] = {
-#if defined(OS_MACOSX)
-      "/System/Library/Frameworks/GSS.framework/GSS"
-#elif defined(OS_OPENBSD)
-      "libgssapi.so"  // Heimdal - OpenBSD
-#else
-      "libgssapi_krb5.so.2",  // MIT Kerberos - FC, Suse10, Debian
-      "libgssapi.so.4",       // Heimdal - Suse10, MDK
-      "libgssapi.so.2",       // Heimdal - Gentoo
-      "libgssapi.so.1"        // Heimdal - Suse9, CITI - FC, MDK, Suse10
-#endif
-    };
-    library_names = kDefaultLibraryNames;
-    num_lib_names = arraysize(kDefaultLibraryNames);
-  }
-
-  for (size_t i = 0; i < num_lib_names; ++i) {
-    const char* library_name = library_names[i];
-    base::FilePath file_path(library_name);
-
-    // TODO(asanka): Move library loading to a separate thread.
-    //               http://crbug.com/66702
-    base::ThreadRestrictions::ScopedAllowIO allow_io_temporarily;
-    base::NativeLibraryLoadError load_error;
-    base::NativeLibrary lib = base::LoadNativeLibrary(file_path, &load_error);
-    if (lib) {
-      // Only return this library if we can bind the functions we need.
-      if (BindMethods(lib))
-        return lib;
-      base::UnloadNativeLibrary(lib);
-    } else {
-      // If this is the only library available, log the reason for failure.
-      LOG_IF(WARNING, num_lib_names == 1) << load_error.ToString();
-    }
-  }
-  LOG(WARNING) << "Unable to find a compatible GSSAPI library";
-  return NULL;
-}
-
-#if defined(DLOPEN_KERBEROS)
-#define BIND(lib, x)                                              \
-  DCHECK(lib);                                                    \
-  gss_##x##_type x = reinterpret_cast<gss_##x##_type>(            \
-      base::GetFunctionPointerFromNativeLibrary(lib, "gss_" #x)); \
-  if (x == NULL) {                                                \
-    LOG(WARNING) << "Unable to bind function \""                  \
-                 << "gss_" #x << "\"";                            \
-    return false;                                                 \
-  }
-#else
-#define BIND(lib, x) gss_##x##_type x = gss_##x
-#endif
-
-bool GSSAPISharedLibrary::BindMethods(base::NativeLibrary lib) {
-  BIND(lib, import_name);
-  BIND(lib, release_name);
-  BIND(lib, release_buffer);
-  BIND(lib, display_name);
-  BIND(lib, display_status);
-  BIND(lib, init_sec_context);
-  BIND(lib, wrap_size_limit);
-  BIND(lib, delete_sec_context);
-  BIND(lib, inquire_context);
-
-  import_name_ = import_name;
-  release_name_ = release_name;
-  release_buffer_ = release_buffer;
-  display_name_ = display_name;
-  display_status_ = display_status;
-  init_sec_context_ = init_sec_context;
-  wrap_size_limit_ = wrap_size_limit;
-  delete_sec_context_ = delete_sec_context;
-  inquire_context_ = inquire_context;
-
-  return true;
-}
-
-#undef BIND
 
 OM_uint32 GSSAPISharedLibrary::import_name(OM_uint32* minor_status,
                                            const gss_buffer_t input_name_buffer,

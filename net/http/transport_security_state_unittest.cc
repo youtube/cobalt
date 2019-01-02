@@ -17,7 +17,9 @@
 #include "base/rand_util.h"
 #include "base/strings/string_piece.h"
 #include "base/test/metrics/histogram_tester.h"
+#if !defined(STARBOARD)
 #include "base/test/mock_entropy_provider.h"
+#endif
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -1680,6 +1682,7 @@ TEST_F(TransportSecurityStateTest, RequireCTForSymantec) {
                 ct::CTPolicyCompliance::CT_POLICY_NOT_ENOUGH_SCTS));
 }
 
+#if !defined(STARBOARD)
 // Tests that CAs can enable CT for testing their issuance practices, prior
 // to CT becoming mandatory.
 TEST_F(TransportSecurityStateTest, RequireCTViaFieldTrial) {
@@ -1714,6 +1717,7 @@ TEST_F(TransportSecurityStateTest, RequireCTViaFieldTrial) {
   const char kFeatureName[] = "EnforceCTForNewCerts";
 
   base::test::ScopedFeatureList scoped_feature_list;
+  // Starboard does not support field trials.
   base::FieldTrialList field_trial_list(
       std::make_unique<base::MockEntropyProvider>());
   scoped_refptr<base::FieldTrial> trial =
@@ -1762,6 +1766,7 @@ TEST_F(TransportSecurityStateTest, RequireCTViaFieldTrial) {
                 TransportSecurityState::DISABLE_EXPECT_CT_REPORTS,
                 ct::CTPolicyCompliance::CT_POLICY_BUILD_NOT_TIMELY));
 }
+#endif
 
 // Tests that Certificate Transparency is required for all of the Symantec
 // Managed CAs, regardless of when the certificate was issued.

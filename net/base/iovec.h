@@ -5,6 +5,8 @@
 #ifndef NET_BASE_IOVEC_H_
 #define NET_BASE_IOVEC_H_
 
+#include <stddef.h>
+
 #include "build/build_config.h"
 
 #if defined(OS_WIN) || defined(OS_NACL) || defined(OS_STARBOARD)
@@ -15,8 +17,6 @@ struct iovec {
 };
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <sys/uio.h>
-
-#include "starboard/types.h"
 #endif  // defined(OS_WIN) || defined(OS_NACL)
 
 #endif  // NET_BASE_IOVEC_H_

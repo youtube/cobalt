@@ -27,6 +27,7 @@ class CacheUtilTest : public PlatformTest {
     dir1_ = base::FilePath(cache_dir_.Append(FILE_PATH_LITERAL("dir01")));
     file3_ = base::FilePath(dir1_.Append(FILE_PATH_LITERAL("file03")));
     ASSERT_TRUE(base::CreateDirectory(cache_dir_));
+#if !defined(STARBOARD)
     FILE *fp = base::OpenFile(file1_, "w");
     ASSERT_TRUE(fp != NULL);
     base::CloseFile(fp);
@@ -37,6 +38,7 @@ class CacheUtilTest : public PlatformTest {
     fp = base::OpenFile(file3_, "w");
     ASSERT_TRUE(fp != NULL);
     base::CloseFile(fp);
+#endif
     dest_dir_ = tmp_dir_.GetPath().Append(FILE_PATH_LITERAL("old_Cache_001"));
     dest_file1_ = base::FilePath(dest_dir_.Append(FILE_PATH_LITERAL("file01")));
     dest_file2_ =
@@ -57,6 +59,8 @@ class CacheUtilTest : public PlatformTest {
   base::FilePath dest_dir1_;
 };
 
+// Starboard does not support moving directory.
+#if !defined(STARBOARD)
 TEST_F(CacheUtilTest, MoveCache) {
   EXPECT_TRUE(disk_cache::MoveCache(cache_dir_, dest_dir_));
   EXPECT_TRUE(base::PathExists(dest_dir_));
@@ -72,6 +76,7 @@ TEST_F(CacheUtilTest, MoveCache) {
   EXPECT_FALSE(base::PathExists(file2_));
   EXPECT_FALSE(base::PathExists(dir1_));
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(CacheUtilTest, DeleteCache) {
   disk_cache::DeleteCache(cache_dir_, false);
@@ -95,8 +100,10 @@ TEST_F(CacheUtilTest, DeleteCacheFile) {
   EXPECT_TRUE(disk_cache::DeleteCacheFile(file1_));
   EXPECT_FALSE(base::PathExists(file1_));
   EXPECT_TRUE(base::PathExists(cache_dir_)); // cache dir stays
+#if !defined(STARBOARD)
   EXPECT_TRUE(base::PathExists(dir1_));
   EXPECT_TRUE(base::PathExists(file3_));
+#endif
 }
 
 TEST_F(CacheUtilTest, PreferredCacheSize) {
@@ -134,6 +141,8 @@ TEST_F(CacheUtilTest, PreferredCacheSize) {
               PreferredCacheSize(test_case.available));
   }
 
+// Cobalt does not support FieldTrial yet.
+#if !defined(STARBOARD)
   // Check 100 "percent_relative_size" matches default behavior.
   {
     base::test::ScopedFeatureList scoped_feature_list;
@@ -159,6 +168,7 @@ TEST_F(CacheUtilTest, PreferredCacheSize) {
                 PreferredCacheSize(test_case.available));
     }
   }
+#endif
 }
 
 }  // namespace disk_cache
