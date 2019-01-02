@@ -11,6 +11,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/file_descriptor_store.h"
 #include "jni/ApkAssets_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

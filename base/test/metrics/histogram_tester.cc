@@ -4,8 +4,6 @@
 
 #include "base/test/metrics/histogram_tester.h"
 
-#include <stddef.h>
-
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/metrics_hashes.h"
@@ -14,6 +12,7 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

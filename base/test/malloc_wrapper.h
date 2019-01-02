@@ -1,11 +1,10 @@
+#include "starboard/types.h"
 // Copyright 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_TEST_MALLOC_WRAPPER_H_
 #define BASE_TEST_MALLOC_WRAPPER_H_
-
-#include <stddef.h>
 
 // BASE_EXPORT depends on COMPONENT_BUILD.
 // This will always be a separate shared library, so don't use BASE_EXPORT here.

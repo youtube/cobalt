@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -68,6 +66,9 @@
 
 #if defined(OS_ANDROID)
 #include "base/android/content_uri_utils.h"
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 // This macro helps avoid wrapped lines in the test structs.
@@ -125,7 +126,7 @@ bool SetReparsePoint(HANDLE source, const FilePath& target_path) {
   REPARSE_DATA_BUFFER* data = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
 
   data->ReparseTag = 0xa0000003;
-  memcpy(data->MountPointReparseBuffer.PathBuffer, target, size_target + 2);
+  SbMemoryCopy(data->MountPointReparseBuffer.PathBuffer, target, size_target + 2);
 
   data->MountPointReparseBuffer.SubstituteNameLength = size_target;
   data->MountPointReparseBuffer.PrintNameOffset = size_target + 2;
@@ -2366,7 +2367,7 @@ TEST_F(FileUtilTest, GetTempDirTest) {
   // Restore the original $TMP.
   if (original_tmp) {
     ::_tputenv_s(kTmpKey, original_tmp);
-    free(original_tmp);
+    SbMemoryFree(original_tmp);
   } else {
     ::_tputenv_s(kTmpKey, _T(""));
   }
@@ -2807,8 +2808,8 @@ TEST_F(FileUtilTest, ReadFileToString) {
           .Append(FILE_PATH_LITERAL("ReadFileToStringTest"));
 
   // Create test file.
-  ASSERT_EQ(static_cast<int>(strlen(kTestData)),
-            WriteFile(file_path, kTestData, strlen(kTestData)));
+  ASSERT_EQ(static_cast<int>(SbStringGetLength(kTestData)),
+            WriteFile(file_path, kTestData, SbStringGetLength(kTestData)));
 
   EXPECT_TRUE(ReadFileToString(file_path, &data));
   EXPECT_EQ(kTestData, data);
@@ -2890,13 +2891,13 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
   int fd = open(pipe_path.value().c_str(), O_WRONLY);
   CHECK_NE(-1, fd);
   size_t written = 0;
-  while (written < strlen(kTestData)) {
-    ssize_t res = write(fd, kTestData + written, strlen(kTestData) - written);
+  while (written < SbStringGetLength(kTestData)) {
+    ssize_t res = write(fd, kTestData + written, SbStringGetLength(kTestData) - written);
     if (res == -1)
       break;
     written += res;
   }
-  CHECK_EQ(strlen(kTestData), written);
+  CHECK_EQ(SbStringGetLength(kTestData), written);
   CHECK_EQ(0, close(fd));
   return 0;
 }
@@ -3053,8 +3054,8 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
   EXPECT_TRUE(ConnectNamedPipe(ph, NULL));
 
   DWORD written;
-  EXPECT_TRUE(::WriteFile(ph, kTestData, strlen(kTestData), &written, NULL));
-  EXPECT_EQ(strlen(kTestData), written);
+  EXPECT_TRUE(::WriteFile(ph, kTestData, SbStringGetLength(kTestData), &written, NULL));
+  EXPECT_EQ(SbStringGetLength(kTestData), written);
   CloseHandle(ph);
   return 0;
 }

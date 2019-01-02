@@ -5,13 +5,12 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_TASK_QUEUE_SELECTOR_H_
 #define BASE_TASK_SEQUENCE_MANAGER_TASK_QUEUE_SELECTOR_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/pending_task.h"
 #include "base/task/sequence_manager/task_queue_selector_logic.h"
 #include "base/task/sequence_manager/work_queue_sets.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace sequence_manager {

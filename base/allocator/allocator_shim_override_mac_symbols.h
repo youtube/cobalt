@@ -8,6 +8,7 @@
 #define BASE_ALLOCATOR_ALLOCATOR_SHIM_OVERRIDE_MAC_SYMBOLS_H_
 
 #include "base/allocator/malloc_zone_functions_mac.h"
+#include "starboard/memory.h"
 #include "third_party/apple_apsl/malloc.h"
 
 namespace base {
@@ -15,7 +16,7 @@ namespace allocator {
 
 MallocZoneFunctions MallocZoneFunctionsToReplaceDefault() {
   MallocZoneFunctions new_functions;
-  memset(&new_functions, 0, sizeof(MallocZoneFunctions));
+  SbMemorySet(&new_functions, 0, sizeof(MallocZoneFunctions));
   new_functions.size = [](malloc_zone_t* zone, const void* ptr) -> size_t {
     return ShimGetSizeEstimate(ptr, zone);
   };

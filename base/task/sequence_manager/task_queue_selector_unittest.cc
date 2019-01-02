@@ -4,8 +4,6 @@
 
 #include "base/task/sequence_manager/task_queue_selector.h"
 
-#include <stddef.h>
-
 #include <map>
 #include <memory>
 #include <set>
@@ -22,6 +20,7 @@
 #include "base/task/sequence_manager/work_queue.h"
 #include "base/task/sequence_manager/work_queue_sets.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

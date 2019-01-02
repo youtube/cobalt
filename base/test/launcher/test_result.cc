@@ -4,9 +4,8 @@
 
 #include "base/test/launcher/test_result.h"
 
-#include <stddef.h>
-
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

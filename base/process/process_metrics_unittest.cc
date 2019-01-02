@@ -4,12 +4,13 @@
 
 #include "base/process/process_metrics.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/bind.h"
 #include "base/command_line.h"
@@ -618,7 +619,7 @@ TEST(ProcessMetricsTestLinux, GetPageFaultCounts) {
     const size_t kMappedSize = 4 * (1 << 20);
     SharedMemory memory;
     ASSERT_TRUE(memory.CreateAndMapAnonymous(kMappedSize));
-    memset(memory.memory(), 42, kMappedSize);
+    SbMemorySet(memory.memory(), 42, kMappedSize);
     memory.Unmap();
   }
 

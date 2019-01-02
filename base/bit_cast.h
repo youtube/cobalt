@@ -11,6 +11,8 @@
 #include "base/compiler_specific.h"
 #include "base/template_util.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 // bit_cast<Dest,Source> is a template function that implements the equivalent
 // of "*reinterpret_cast<Dest*>(&source)".  We need this in very low-level
@@ -70,7 +72,7 @@ inline Dest bit_cast(const Source& source) {
                 "bit_cast requires the source type to be copyable");
 
   Dest dest;
-  memcpy(&dest, &source, sizeof(dest));
+  SbMemoryCopy(&dest, &source, sizeof(dest));
   return dest;
 }
 

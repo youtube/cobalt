@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stddef.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -15,6 +14,7 @@
 
 #include "base/logging.h"
 #include "base/memory/shared_memory_tracker.h"
+#include "starboard/types.h"
 
 namespace base {
 

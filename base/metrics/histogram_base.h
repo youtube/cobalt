@@ -6,8 +6,6 @@
 #define BASE_METRICS_HISTOGRAM_BASE_H_
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <memory>
 #include <string>
@@ -18,6 +16,7 @@
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

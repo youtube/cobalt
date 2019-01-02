@@ -5,7 +5,6 @@
 #include "base/strings/stringprintf.h"
 
 #include <errno.h>
-#include <stddef.h>
 
 #include "base/macros.h"
 #include "build/build_config.h"
@@ -13,6 +12,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/string.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

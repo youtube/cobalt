@@ -1,3 +1,4 @@
+#include "starboard/types.h"
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -8,8 +9,6 @@
 
 #ifndef BASE_ALLOCATOR_WINHEAP_STUBS_H_
 #define BASE_ALLOCATOR_WINHEAP_STUBS_H_
-
-#include <stdint.h>
 
 namespace base {
 namespace allocator {

@@ -7,8 +7,6 @@
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <mach/shared_region.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/sysctl.h>
 
 #include "base/containers/hash_tables.h"
@@ -20,6 +18,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
 #include "base/process/process_metrics_iocounters.h"
+#include "starboard/types.h"
 
 namespace base {
 

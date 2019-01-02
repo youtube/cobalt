@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/memory/discardable_memory.h"
 #include "base/memory/ptr_util.h"
+#include "starboard/memory.h"
 
 namespace base {
 namespace {
@@ -31,7 +32,7 @@ class DiscardableMemoryImpl : public DiscardableMemory {
     is_locked_ = false;
     // Force eviction to catch clients not correctly checking the return value
     // of Lock().
-    memset(data_.get(), 0, size_);
+    SbMemorySet(data_.get(), 0, size_);
   }
 
   void* data() const override {

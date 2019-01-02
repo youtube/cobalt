@@ -5,10 +5,9 @@
 #ifndef BASE_I18N_STRING_SEARCH_H_
 #define BASE_I18N_STRING_SEARCH_H_
 
-#include <stddef.h>
-
 #include "base/i18n/base_i18n_export.h"
 #include "base/strings/string16.h"
+#include "starboard/types.h"
 
 struct UStringSearch;
 

@@ -10,6 +10,8 @@
 
 #include <dlfcn.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 namespace {

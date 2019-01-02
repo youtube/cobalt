@@ -27,6 +27,7 @@
 #if defined(OS_FUCHSIA)
 #include <lib/zx/vmar.h>
 #include "base/fuchsia/fuchsia_logging.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

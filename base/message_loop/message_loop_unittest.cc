@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/bind.h"
@@ -48,6 +45,8 @@
 #include "base/strings/string16.h"
 #include "base/win/current_module.h"
 #include "base/win/scoped_handle.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {
@@ -461,7 +460,7 @@ class TestIOHandler : public MessagePumpForIO::IOHandler {
 
 TestIOHandler::TestIOHandler(const wchar_t* name, HANDLE signal, bool wait)
     : signal_(signal), wait_(wait) {
-  memset(buffer_, 0, sizeof(buffer_));
+  SbMemorySet(buffer_, 0, sizeof(buffer_));
 
   file_.Set(CreateFile(name, GENERIC_READ, 0, NULL, OPEN_EXISTING,
                        FILE_FLAG_OVERLAPPED, NULL));

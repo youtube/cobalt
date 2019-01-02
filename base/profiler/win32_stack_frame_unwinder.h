@@ -12,6 +12,7 @@
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/win/scoped_handle.h"
+#include "starboard/types.h"
 
 namespace base {
 

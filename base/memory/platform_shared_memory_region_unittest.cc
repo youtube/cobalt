@@ -26,6 +26,7 @@
 #include <lib/zx/object.h>
 #include <lib/zx/process.h>
 #include "base/fuchsia/fuchsia_logging.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

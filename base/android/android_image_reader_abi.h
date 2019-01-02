@@ -25,7 +25,8 @@
 #include <media/NdkMediaError.h>
 
 #include <jni.h>
-#include <stdint.h>
+
+#include "starboard/types.h"
 
 // Use "C" linkage to match the original header file. This isn't strictly
 // required since the file is not declaring global functions, but the types

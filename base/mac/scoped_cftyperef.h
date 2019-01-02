@@ -8,6 +8,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 #include "base/mac/scoped_typeref.h"
+#include "starboard/types.h"
 
 namespace base {
 

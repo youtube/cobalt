@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <utime.h>
 
+#include "starboard/types.h"
+
 // Not implemented in Bionic.
 extern "C" int futimes(int fd, const struct timeval tv[2]);
 

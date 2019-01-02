@@ -5,8 +5,6 @@
 #include "base/sys_info.h"
 
 #include <windows.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <limits>
 
@@ -19,6 +17,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/windows_version.h"
 #include "base/win/wmi.h"
+#include "starboard/types.h"
 
 namespace {
 

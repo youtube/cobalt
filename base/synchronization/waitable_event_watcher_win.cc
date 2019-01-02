@@ -10,6 +10,8 @@
 
 #include <windows.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 WaitableEventWatcher::WaitableEventWatcher() = default;

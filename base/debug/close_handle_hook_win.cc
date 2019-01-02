@@ -6,7 +6,6 @@
 
 #include <Windows.h>
 #include <psapi.h>
-#include <stddef.h>
 
 #include <algorithm>
 #include <memory>
@@ -17,6 +16,7 @@
 #include "base/win/pe_image.h"
 #include "base/win/scoped_handle.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace {
 

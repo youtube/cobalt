@@ -4,8 +4,6 @@
 
 #include "base/trace_event/memory_dump_manager.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -34,6 +32,7 @@
 #include "base/trace_event/memory_infra_background_whitelist.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

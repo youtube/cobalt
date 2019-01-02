@@ -4,14 +4,13 @@
 
 #include "base/i18n/time_formatting.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/i18n/unicodestring.h"
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/datefmt.h"
 #include "third_party/icu/source/i18n/unicode/dtitvfmt.h"

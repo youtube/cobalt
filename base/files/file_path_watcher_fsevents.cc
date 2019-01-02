@@ -16,6 +16,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/sequenced_task_runner_handle.h"
+#include "starboard/types.h"
 
 namespace base {
 

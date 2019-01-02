@@ -65,6 +65,7 @@
 
 #if defined(OS_LINUX)
 #include "base/test/fontconfig_util_linux.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

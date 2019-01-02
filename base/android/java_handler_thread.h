@@ -12,6 +12,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
+#include "starboard/types.h"
 
 namespace base {
 

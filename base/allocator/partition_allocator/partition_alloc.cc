@@ -14,6 +14,8 @@
 #include "base/allocator/partition_allocator/partition_page.h"
 #include "base/allocator/partition_allocator/spin_lock.h"
 #include "base/lazy_instance.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -233,7 +235,7 @@ bool PartitionReallocDirectMappedInPlace(PartitionRootGeneric* root,
     root->RecommitSystemPages(char_ptr + current_size, recommit_size);
 
 #if DCHECK_IS_ON()
-    memset(char_ptr + current_size, kUninitializedByte, recommit_size);
+    SbMemorySet(char_ptr + current_size, kUninitializedByte, recommit_size);
 #endif
   } else {
     // We can't perform the realloc in-place.
@@ -260,7 +262,7 @@ void* PartitionReallocGenericFlags(PartitionRootGeneric* root,
                                    size_t new_size,
                                    const char* type_name) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  void* result = realloc(ptr, new_size);
+  void* result = SbMemoryReallocate(ptr, new_size);
   CHECK(result || flags & PartitionAllocReturnNull);
   return result;
 #else
@@ -324,7 +326,7 @@ void* PartitionReallocGenericFlags(PartitionRootGeneric* root,
   if (new_size < copy_size)
     copy_size = new_size;
 
-  memcpy(ret, ptr, copy_size);
+  SbMemoryCopy(ret, ptr, copy_size);
   root->Free(ptr);
   return ret;
 #endif
@@ -376,7 +378,7 @@ static size_t PartitionPurgePage(internal::PartitionPage* page, bool discard) {
   // DiscardVirtualMemory makes the contents of discarded memory undefined.
   size_t last_slot = static_cast<size_t>(-1);
 #endif
-  memset(slot_usage, 1, num_slots);
+  SbMemorySet(slot_usage, 1, num_slots);
   char* ptr = reinterpret_cast<char*>(internal::PartitionPage::ToPointer(page));
   // First, walk the freelist for this page and make a bitmap of which slots
   // are not in use.
@@ -562,7 +564,7 @@ static void PartitionDumpBucketStats(PartitionBucketMemoryStats* stats_out,
       !bucket->num_full_pages)
     return;
 
-  memset(stats_out, '\0', sizeof(*stats_out));
+  SbMemorySet(stats_out, '\0', sizeof(*stats_out));
   stats_out->is_valid = true;
   stats_out->is_direct_map = false;
   stats_out->num_full_pages = static_cast<size_t>(bucket->num_full_pages);

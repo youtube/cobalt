@@ -6,7 +6,6 @@
 
 #include <errno.h>
 #include <sched.h>
-#include <stddef.h>
 
 #include "base/files/file_util.h"
 #include "base/lazy_instance.h"
@@ -23,6 +22,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

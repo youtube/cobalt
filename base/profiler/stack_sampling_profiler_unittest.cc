@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <utility>
 #include <vector>
+
+#include "starboard/types.h"
 
 #include "base/bind.h"
 #include "base/callback.h"

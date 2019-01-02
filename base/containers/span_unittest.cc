@@ -4,8 +4,6 @@
 
 #include "base/containers/span.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -13,6 +11,7 @@
 
 #include "base/cpp14oncpp11.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -5,7 +5,6 @@
 #ifndef BASE_PROCESS_PROCESS_HANDLE_H_
 #define BASE_PROCESS_PROCESS_HANDLE_H_
 
-#include <stdint.h>
 #include <sys/types.h>
 
 #include "base/base_export.h"
@@ -18,6 +17,8 @@
 
 #if defined(OS_FUCHSIA)
 #include <zircon/types.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

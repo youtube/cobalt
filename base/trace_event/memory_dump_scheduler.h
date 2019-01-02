@@ -5,14 +5,13 @@
 #ifndef BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H
 #define BASE_TRACE_EVENT_MEMORY_DUMP_SCHEDULER_H
 
-#include <stdint.h>
-
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/trace_event/memory_dump_request_args.h"
+#include "starboard/types.h"
 
 namespace base {
 class SequencedTaskRunner;

@@ -4,8 +4,6 @@
 
 #include "base/json/json_writer.h"
 
-#include <stdint.h>
-
 #include <cmath>
 #include <limits>
 
@@ -15,6 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

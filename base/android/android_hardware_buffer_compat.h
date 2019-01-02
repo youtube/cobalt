@@ -10,6 +10,7 @@
 
 #include "base/base_export.h"
 #include "base/lazy_instance.h"
+#include "starboard/types.h"
 
 extern "C" {
 using PFAHardwareBuffer_allocate = void (*)(const AHardwareBuffer_Desc* desc,

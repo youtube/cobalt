@@ -5,7 +5,6 @@
 #include "base/files/file_path_watcher.h"
 
 #include <errno.h>
-#include <stddef.h>
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
@@ -38,6 +37,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/types.h"
 
 namespace base {
 

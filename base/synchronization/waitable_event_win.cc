@@ -5,7 +5,6 @@
 #include "base/synchronization/waitable_event.h"
 
 #include <windows.h>
-#include <stddef.h>
 
 #include <algorithm>
 #include <utility>
@@ -16,6 +15,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

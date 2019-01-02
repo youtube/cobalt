@@ -5,13 +5,12 @@
 #ifndef BASE_GUID_H_
 #define BASE_GUID_H_
 
-#include <stdint.h>
-
 #include <string>
 
 #include "base/base_export.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

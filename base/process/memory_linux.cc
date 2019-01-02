@@ -4,8 +4,6 @@
 
 #include "base/process/memory.h"
 
-#include <stddef.h>
-
 #include <new>
 
 #include "base/allocator/allocator_shim.h"
@@ -23,6 +21,8 @@
 #include "third_party/tcmalloc/chromium/src/config.h"
 #include "third_party/tcmalloc/chromium/src/gperftools/tcmalloc.h"
 #else
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/tcmalloc/gperftools-2.0/chromium/src/config.h"
 #include "third_party/tcmalloc/gperftools-2.0/chromium/src/gperftools/tcmalloc.h"
 #endif
@@ -130,7 +130,7 @@ bool UncheckedMalloc(size_t size, void** result) {
   *result = allocator::UncheckedAlloc(size);
 #elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || \
     (!defined(LIBC_GLIBC) && !defined(USE_TCMALLOC))
-  *result = malloc(size);
+  *result = SbMemoryAllocate(size);
 #elif defined(LIBC_GLIBC) && !defined(USE_TCMALLOC)
   *result = __libc_malloc(size);
 #elif defined(USE_TCMALLOC)

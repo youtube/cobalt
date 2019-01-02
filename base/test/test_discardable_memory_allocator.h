@@ -5,10 +5,9 @@
 #ifndef BASE_TEST_TEST_DISCARDABLE_MEMORY_ALLOCATOR_H_
 #define BASE_TEST_TEST_DISCARDABLE_MEMORY_ALLOCATOR_H_
 
-#include <stddef.h>
-
 #include "base/macros.h"
 #include "base/memory/discardable_memory_allocator.h"
+#include "starboard/types.h"
 
 namespace base {
 

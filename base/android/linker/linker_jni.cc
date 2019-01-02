@@ -22,6 +22,8 @@
 
 #include <crazy_linker.h>
 
+#include "starboard/types.h"
+
 // Set this to 1 to enable debug traces to the Android log.
 // Note that LOG() from "base/logging.h" cannot be used, since it is
 // in base/ which hasn't been loaded yet.

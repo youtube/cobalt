@@ -11,6 +11,7 @@
 #include "base/allocator/partition_allocator/partition_direct_map_extent.h"
 #include "base/allocator/partition_allocator/partition_page.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
 
 namespace base {
 namespace internal {
@@ -136,14 +137,14 @@ ALWAYS_INLINE void* PartitionRootBase::AllocFromBucket(PartitionBucket* bucket,
   // Fill the region kUninitializedByte or 0, and surround it with 2 cookies.
   PartitionCookieWriteValue(char_ret);
   if (!zero_fill) {
-    memset(ret, kUninitializedByte, no_cookie_size);
+    SbMemorySet(ret, kUninitializedByte, no_cookie_size);
   } else if (!is_already_zeroed) {
-    memset(ret, 0, no_cookie_size);
+    SbMemorySet(ret, 0, no_cookie_size);
   }
   PartitionCookieWriteValue(char_ret + kCookieSize + no_cookie_size);
 #else
   if (ret && zero_fill && !is_already_zeroed) {
-    memset(ret, 0, size);
+    SbMemorySet(ret, 0, size);
   }
 #endif
 

@@ -4,8 +4,6 @@
 
 #include "base/task/task_scheduler/task_tracker.h"
 
-#include <stdint.h>
-
 #include <memory>
 #include <utility>
 #include <vector>
@@ -38,6 +36,7 @@
 #include "base/threading/simple_thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

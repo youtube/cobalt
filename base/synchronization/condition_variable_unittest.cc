@@ -23,6 +23,7 @@
 #include "base/threading/thread_collision_warner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 

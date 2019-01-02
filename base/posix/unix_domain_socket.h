@@ -5,8 +5,6 @@
 #ifndef BASE_POSIX_UNIX_DOMAIN_SOCKET_H_
 #define BASE_POSIX_UNIX_DOMAIN_SOCKET_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
 #include <vector>
 
@@ -14,6 +12,7 @@
 #include "base/files/scoped_file.h"
 #include "base/process/process_handle.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

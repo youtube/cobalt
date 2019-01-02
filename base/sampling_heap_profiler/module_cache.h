@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/types.h"
+
 #include "base/base_export.h"
 #include "base/files/file_path.h"
 #include "build/build_config.h"

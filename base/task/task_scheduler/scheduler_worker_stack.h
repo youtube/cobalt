@@ -5,12 +5,11 @@
 #ifndef BASE_TASK_TASK_SCHEDULER_SCHEDULER_WORKER_STACK_H_
 #define BASE_TASK_TASK_SCHEDULER_SCHEDULER_WORKER_STACK_H_
 
-#include <stddef.h>
-
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

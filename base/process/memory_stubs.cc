@@ -4,8 +4,10 @@
 
 #include "base/process/memory.h"
 
-#include <stddef.h>
 #include <stdlib.h>
+
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -32,7 +34,7 @@ void TerminateBecauseOutOfMemory(size_t size) {
 // failure to allocate.
 
 bool UncheckedMalloc(size_t size, void** result) {
-  *result = malloc(size);
+  *result = SbMemoryAllocate(size);
   return *result != nullptr;
 }
 

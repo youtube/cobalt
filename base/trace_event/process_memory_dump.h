@@ -5,8 +5,6 @@
 #ifndef BASE_TRACE_EVENT_PROCESS_MEMORY_DUMP_H_
 #define BASE_TRACE_EVENT_PROCESS_MEMORY_DUMP_H_
 
-#include <stddef.h>
-
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -19,6 +17,7 @@
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // Define COUNT_RESIDENT_BYTES_SUPPORTED if platform supports counting of the
 // resident memory.

@@ -5,9 +5,6 @@
 #ifndef BASE_PICKLE_H_
 #define BASE_PICKLE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/base_export.h"
@@ -20,6 +17,7 @@
 
 #if defined(OS_POSIX)
 #include "base/files/file.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

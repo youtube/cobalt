@@ -8,6 +8,7 @@
 #include <launch.h>
 
 #include "base/scoped_generic.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace mac {

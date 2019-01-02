@@ -15,6 +15,7 @@
 #include "base/path_service.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/multiprocess_test.h"
+#include "starboard/types.h"
 
 namespace {
 

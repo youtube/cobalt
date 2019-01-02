@@ -5,8 +5,6 @@
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_ARGUMENT_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_ARGUMENT_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +13,7 @@
 #include "base/pickle.h"
 #include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event_impl.h"
+#include "starboard/types.h"
 
 namespace base {
 

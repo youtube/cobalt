@@ -18,6 +18,7 @@
 #include "base/process/port_provider_mac.h"
 #include "base/process/process_handle.h"
 #include "base/synchronization/lock.h"
+#include "starboard/types.h"
 
 namespace base {
 

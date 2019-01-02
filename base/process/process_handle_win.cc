@@ -9,6 +9,7 @@
 
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
+#include "starboard/types.h"
 
 namespace base {
 

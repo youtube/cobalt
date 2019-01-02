@@ -5,8 +5,6 @@
 #include "base/sys_info.h"
 
 #include <dlfcn.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/system_properties.h>
 
 #include "base/android/jni_android.h"
@@ -18,6 +16,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/sys_info_internal.h"
+#include "starboard/types.h"
 
 #if (__ANDROID_API__ >= 21 /* 5.0 - Lollipop */)
 

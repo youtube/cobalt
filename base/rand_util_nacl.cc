@@ -5,10 +5,9 @@
 #include "base/rand_util.h"
 
 #include <nacl/nacl_random.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

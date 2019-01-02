@@ -5,10 +5,9 @@
 #ifndef BASE_IOS_IOS_UTIL_H_
 #define BASE_IOS_IOS_UTIL_H_
 
-#include <stdint.h>
-
 #include "base/base_export.h"
 #include "base/files/file_path.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace ios {

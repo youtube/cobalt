@@ -9,6 +9,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if !defined(STARBOARD)

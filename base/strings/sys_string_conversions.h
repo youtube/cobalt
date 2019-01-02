@@ -9,9 +9,9 @@
 // necessary to not use ICU. Generally, you should not need this in Chrome,
 // but it is used in some shared code. Dependencies should be minimal.
 
-#include <stdint.h>
-
 #include <string>
+
+#include "starboard/types.h"
 
 #include "base/base_export.h"
 #include "base/strings/string16.h"

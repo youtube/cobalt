@@ -5,8 +5,6 @@
 #include "base/metrics/histogram.h"
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <climits>
 #include <memory>
@@ -28,6 +26,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/gtest_util.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

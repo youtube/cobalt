@@ -10,6 +10,7 @@
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

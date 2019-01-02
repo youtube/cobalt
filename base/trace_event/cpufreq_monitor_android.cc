@@ -18,6 +18,7 @@
 #include "base/task/post_task.h"
 #include "base/task/task_traits.h"
 #include "base/trace_event/trace_event.h"
+#include "starboard/types.h"
 
 namespace base {
 

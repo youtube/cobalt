@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +55,8 @@
 
 #if !defined(OS_IOS)
 #include <grp.h>
+
+#include "starboard/types.h"
 #endif
 
 // We need to do this on AIX due to some inconsistencies in how AIX

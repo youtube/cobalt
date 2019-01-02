@@ -9,6 +9,8 @@
 
 #if defined(OS_ANDROID) && __ANDROID_API__ < 17
 #include <dlfcn.h>
+
+#include "starboard/types.h"
 // This is defined in malloc.h on other platforms. We just need the definition
 // for the decltype(malloc_usable_size)* call to work.
 size_t malloc_usable_size(const void*);

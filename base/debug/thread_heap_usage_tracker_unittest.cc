@@ -12,6 +12,7 @@
 
 #if defined(OS_MACOSX)
 #include "base/allocator/allocator_interception_mac.h"
+#include "starboard/memory.h"
 #endif
 
 namespace base {
@@ -136,7 +137,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
                          void* context) {
     EXPECT_EQ(&g_mock_dispatch, self);
 
-    void* ret = malloc(size);
+    void* ret = SbMemoryAllocate(size);
     g_self->RecordAlloc(ret, size);
     return ret;
   }
@@ -160,7 +161,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
 
     // This is a cheat as it doesn't return aligned allocations. This has the
     // advantage of working for all platforms for this test.
-    void* ret = malloc(size);
+    void* ret = SbMemoryAllocate(size);
     g_self->RecordAlloc(ret, size);
     return ret;
   }
@@ -172,7 +173,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
     EXPECT_EQ(&g_mock_dispatch, self);
 
     g_self->DeleteAlloc(address);
-    void* ret = realloc(address, size);
+    void* ret = SbMemoryReallocate(address, size);
     g_self->RecordAlloc(ret, size);
     return ret;
   }
@@ -183,7 +184,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
     EXPECT_EQ(&g_mock_dispatch, self);
 
     g_self->DeleteAlloc(address);
-    free(address);
+    SbMemoryFree(address);
   }
 
   static size_t OnGetSizeEstimateFn(const AllocatorDispatch* self,
@@ -575,12 +576,12 @@ TEST_F(ThreadHeapUsageShimTest, HooksIntoMallocWhenShimAvailable) {
   usage_tracker.Start();
 
   ThreadHeapUsage u1 = ThreadHeapUsageTracker::GetUsageSnapshot();
-  void* ptr = malloc(kAllocSize);
+  void* ptr = SbMemoryAllocate(kAllocSize);
   // Prevent the compiler from optimizing out the malloc/free pair.
   ASSERT_NE(nullptr, ptr);
 
   ThreadHeapUsage u2 = ThreadHeapUsageTracker::GetUsageSnapshot();
-  free(ptr);
+  SbMemoryFree(ptr);
 
   usage_tracker.Stop(false);
   ThreadHeapUsage u3 = usage_tracker.usage();

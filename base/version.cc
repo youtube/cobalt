@@ -4,14 +4,13 @@
 
 #include "base/version.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "starboard/types.h"
 
 namespace base {
 

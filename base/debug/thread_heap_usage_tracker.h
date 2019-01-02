@@ -5,11 +5,10 @@
 #ifndef BASE_DEBUG_THREAD_HEAP_USAGE_TRACKER_H_
 #define BASE_DEBUG_THREAD_HEAP_USAGE_TRACKER_H_
 
-#include <stdint.h>
-
 #include "base/allocator/buildflags.h"
 #include "base/base_export.h"
 #include "base/threading/thread_checker.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace allocator {

@@ -5,13 +5,11 @@
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_MEMORY_OVERHEAD_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_MEMORY_OVERHEAD_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <unordered_map>
 
 #include "base/base_export.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -5,8 +5,6 @@
 #include "base/sys_info.h"
 
 #include <errno.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/utsname.h>
@@ -34,6 +32,8 @@
 #if defined(OS_LINUX)
 #include <linux/magic.h>
 #include <sys/vfs.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace {

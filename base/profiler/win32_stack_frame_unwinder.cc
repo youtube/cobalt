@@ -10,6 +10,7 @@
 
 #include "base/macros.h"
 #include "base/memory/ptr_util.h"
+#include "starboard/types.h"
 
 namespace base {
 

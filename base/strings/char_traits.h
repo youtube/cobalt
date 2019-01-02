@@ -5,10 +5,9 @@
 #ifndef BASE_STRINGS_CHAR_TRAITS_H_
 #define BASE_STRINGS_CHAR_TRAITS_H_
 
-#include <stddef.h>
-
 #include "base/compiler_specific.h"
 #include "base/cpp14oncpp11.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -4,8 +4,7 @@
 
 #include "base/metrics/bucket_ranges.h"
 
-#include <stdint.h>
-
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

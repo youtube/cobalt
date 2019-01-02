@@ -5,9 +5,6 @@
 #ifndef BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_
 #define BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 #include <vector>
 
@@ -15,6 +12,7 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // ----------------------------------------------------------------------------
 // IMPORTANT MESSAGE FROM YOUR SPONSOR

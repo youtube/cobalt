@@ -13,6 +13,8 @@
 #include <new.h>
 #include <windows.h>
 
+#include "starboard/types.h"
+
 namespace base {
 namespace allocator {
 

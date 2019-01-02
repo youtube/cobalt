@@ -4,8 +4,6 @@
 
 #include "base/i18n/number_formatting.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/format_macros.h"
@@ -16,6 +14,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/ustring.h"
 #include "third_party/icu/source/i18n/unicode/numfmt.h"
 

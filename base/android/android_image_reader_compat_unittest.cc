@@ -4,11 +4,11 @@
 
 #include "base/android/android_image_reader_compat.h"
 
-#include <stdint.h>
 #include <memory>
 
 #include "base/android/build_info.h"
 #include "base/test/scoped_feature_list.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

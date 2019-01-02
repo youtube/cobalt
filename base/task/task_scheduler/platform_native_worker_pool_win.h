@@ -12,6 +12,7 @@
 #include "base/synchronization/atomic_flag.h"
 #include "base/task/task_scheduler/priority_queue.h"
 #include "base/task/task_scheduler/scheduler_worker_pool.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace internal {

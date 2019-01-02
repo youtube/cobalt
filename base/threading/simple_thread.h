@@ -40,8 +40,6 @@
 #ifndef BASE_THREADING_SIMPLE_THREAD_H_
 #define BASE_THREADING_SIMPLE_THREAD_H_
 
-#include <stddef.h>
-
 #include <string>
 #include <vector>
 
@@ -52,6 +50,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
+#include "starboard/types.h"
 
 namespace base {
 

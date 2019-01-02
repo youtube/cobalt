@@ -4,8 +4,6 @@
 
 #include "base/json/json_reader.h"
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/base_paths.h"
@@ -17,6 +15,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

@@ -14,8 +14,6 @@
 
 #include "base/time/time.h"
 
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "base/numerics/safe_math.h"
 #include "base/time/time_override.h"
@@ -24,6 +22,7 @@
 #include "starboard/client_porting/poem/eztime_poem.h"
 #include "starboard/log.h"
 #include "starboard/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -5,8 +5,6 @@
 #include "base/files/memory_mapped_file.h"
 
 #include <fcntl.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -18,6 +16,8 @@
 
 #if defined(OS_ANDROID)
 #include <android/api-level.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

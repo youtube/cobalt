@@ -5,13 +5,12 @@
 #ifndef BASE_TASK_RUNNER_H_
 #define BASE_TASK_RUNNER_H_
 
-#include <stddef.h>
-
 #include "base/base_export.h"
 #include "base/callback.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
+#include "starboard/types.h"
 
 namespace base {
 

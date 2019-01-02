@@ -9,8 +9,6 @@
 
 #if !defined(STARBOARD)
 
-#include <stddef.h>
-
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +30,7 @@
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include "base/posix/file_descriptor_shuffle.h"
+#include "starboard/types.h"
 #endif
 
 namespace base {

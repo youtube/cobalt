@@ -9,6 +9,7 @@
 #include "base/process/process_iterator.h"
 #include "base/task/post_task.h"
 #include "base/threading/platform_thread.h"
+#include "starboard/types.h"
 
 namespace base {
 

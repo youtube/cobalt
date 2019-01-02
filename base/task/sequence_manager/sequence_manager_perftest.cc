@@ -4,7 +4,6 @@
 
 #include "base/task/sequence_manager/sequence_manager.h"
 
-#include <stddef.h>
 #include <memory>
 
 #include "base/bind.h"
@@ -22,6 +21,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/default_tick_clock.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_test.h"
 

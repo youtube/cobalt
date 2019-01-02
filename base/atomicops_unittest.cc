@@ -4,9 +4,10 @@
 
 #include "base/atomicops.h"
 
-#include <stdint.h>
 #include <string.h>
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 template <class AtomicType>
@@ -25,8 +26,8 @@ static void TestAtomicIncrement() {
   } s;
 
   AtomicType prev_word_value, next_word_value;
-  memset(&prev_word_value, 0xFF, sizeof(AtomicType));
-  memset(&next_word_value, 0xEE, sizeof(AtomicType));
+  SbMemorySet(&prev_word_value, 0xFF, sizeof(AtomicType));
+  SbMemorySet(&next_word_value, 0xEE, sizeof(AtomicType));
 
   s.prev_word = prev_word_value;
   s.count = 0;
@@ -163,7 +164,7 @@ static void TestAtomicIncrementBounds() {
 template <class AtomicType>
 static AtomicType TestFillValue() {
   AtomicType val = 0;
-  memset(&val, 0xa5, sizeof(AtomicType));
+  SbMemorySet(&val, 0xa5, sizeof(AtomicType));
   return val;
 }
 

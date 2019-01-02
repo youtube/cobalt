@@ -11,6 +11,7 @@
 #include "base/fuchsia/fidl_interface_request.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "starboard/types.h"
 
 namespace fidl {
 

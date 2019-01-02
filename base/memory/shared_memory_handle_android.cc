@@ -11,6 +11,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/posix/unix_domain_socket.h"
 #include "base/unguessable_token.h"
+#include "starboard/types.h"
 #include "third_party/ashmem/ashmem.h"
 
 namespace base {

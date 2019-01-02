@@ -40,6 +40,7 @@
 #include <zircon/syscalls/port.h>
 #include <zircon/types.h>
 #include "base/fuchsia/fuchsia_logging.h"
+#include "starboard/types.h"
 #endif
 
 namespace logging {

@@ -4,12 +4,11 @@
 
 #include "base/trace_event/trace_event_argument.h"
 
-#include <stddef.h>
-
 #include <utility>
 
 #include "base/memory/ptr_util.h"
 #include "base/values.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

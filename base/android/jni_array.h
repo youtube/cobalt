@@ -6,13 +6,12 @@
 #define BASE_ANDROID_JNI_ARRAY_H_
 
 #include <jni.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <string>
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
 #include "base/strings/string16.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

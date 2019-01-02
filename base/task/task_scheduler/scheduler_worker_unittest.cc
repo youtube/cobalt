@@ -4,8 +4,6 @@
 
 #include "base/task/task_scheduler/scheduler_worker.h"
 
-#include <stddef.h>
-
 #include <memory>
 #include <vector>
 
@@ -36,6 +34,7 @@
 #include <objbase.h>
 
 #include "base/win/com_init_check_hook.h"
+#include "starboard/types.h"
 #endif
 
 using testing::_;

@@ -13,6 +13,7 @@
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/no_destructor.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace fuchsia {

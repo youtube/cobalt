@@ -21,6 +21,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 
 namespace base {
 
@@ -72,7 +74,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
     if ((file1.eof() != file2.eof()) ||
         (file1.gcount() != file2.gcount()) ||
-        (memcmp(buffer1, buffer2, static_cast<size_t>(file1.gcount())))) {
+        (SbMemoryCompare(buffer1, buffer2, static_cast<size_t>(file1.gcount())))) {
       file1.close();
       file2.close();
       return false;

@@ -10,6 +10,7 @@
 #include "base/bind.h"
 #include "base/fuchsia/component_context.h"
 #include "base/fuchsia/fuchsia_logging.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace fuchsia {

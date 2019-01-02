@@ -7,13 +7,13 @@
 #include <cmath>
 
 #include <psapi.h>
-#include <stddef.h>
 #include <TlHelp32.h>
 
 #include "base/debug/alias.h"
 #include "base/logging.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
+#include "starboard/types.h"
 
 namespace {
 

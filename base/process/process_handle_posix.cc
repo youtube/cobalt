@@ -6,6 +6,8 @@
 
 #include <unistd.h>
 
+#include "starboard/types.h"
+
 namespace base {
 
 ProcessId GetCurrentProcId() {

@@ -32,6 +32,8 @@
 
 #include <sanitizer/lsan_interface.h>
 
+#include "starboard/types.h"
+
 class ScopedLeakSanitizerDisabler {
  public:
   ScopedLeakSanitizerDisabler() { __lsan_disable(); }

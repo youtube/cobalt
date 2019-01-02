@@ -5,8 +5,6 @@
 #include "base/process/process_metrics.h"
 
 #include <limits.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -21,6 +19,8 @@
 #include <malloc/malloc.h>
 #else
 #include <malloc.h>
+
+#include "starboard/types.h"
 #endif
 
 namespace base {

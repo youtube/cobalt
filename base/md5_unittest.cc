@@ -9,6 +9,9 @@
 #include <memory>
 #include <string>
 
+#include "starboard/memory.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -36,7 +39,7 @@ TEST(MD5, MD5SumEmtpyData) {
   MD5Digest digest;
   const char data[] = "";
 
-  MD5Sum(data, strlen(data), &digest);
+  MD5Sum(data, SbStringGetLength(data), &digest);
 
   int expected[] = {
     0xd4, 0x1d, 0x8c, 0xd9,
@@ -53,7 +56,7 @@ TEST(MD5, MD5SumOneByteData) {
   MD5Digest digest;
   const char data[] = "a";
 
-  MD5Sum(data, strlen(data), &digest);
+  MD5Sum(data, SbStringGetLength(data), &digest);
 
   int expected[] = {
     0x0c, 0xc1, 0x75, 0xb9,
@@ -244,10 +247,10 @@ TEST(MD5, IntermediateFinal) {
 
   // The header and full digest pairs are the same, and they aren't the same as
   // each other.
-  EXPECT_TRUE(!memcmp(&header_digest, &check_header_digest,
+  EXPECT_TRUE(!SbMemoryCompare(&header_digest, &check_header_digest,
                       sizeof(header_digest)));
-  EXPECT_TRUE(!memcmp(&digest, &check_full_digest, sizeof(digest)));
-  EXPECT_TRUE(memcmp(&digest, &header_digest, sizeof(digest)));
+  EXPECT_TRUE(!SbMemoryCompare(&digest, &check_full_digest, sizeof(digest)));
+  EXPECT_TRUE(SbMemoryCompare(&digest, &header_digest, sizeof(digest)));
 }
 
 }  // namespace base

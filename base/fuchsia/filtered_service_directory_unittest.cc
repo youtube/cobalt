@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/fuchsia/service_directory_test_base.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {

@@ -4,8 +4,6 @@
 
 #include "base/trace_event/memory_allocator_dump.h"
 
-#include <stdint.h>
-
 #include "base/format_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
@@ -14,6 +12,7 @@
 #include "base/trace_event/trace_event_argument.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

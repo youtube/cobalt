@@ -4,11 +4,14 @@
 
 #include "base/debug/thread_heap_usage_tracker.h"
 
-#include <stdint.h>
 #include <algorithm>
 #include <limits>
 #include <new>
 #include <type_traits>
+
+#include "starboard/types.h"
+
+#include "starboard/memory.h"
 
 #include "base/allocator/allocator_shim.h"
 #include "base/allocator/buildflags.h"
@@ -229,7 +232,7 @@ ThreadHeapUsage* GetOrCreateThreadUsage() {
     allocator_usage = new ThreadHeapUsage();
     static_assert(std::is_pod<ThreadHeapUsage>::value,
                   "AllocatorDispatch must be POD");
-    memset(allocator_usage, 0, sizeof(*allocator_usage));
+    SbMemorySet(allocator_usage, 0, sizeof(*allocator_usage));
     ThreadAllocationUsage().Set(allocator_usage);
   }
 
@@ -263,7 +266,7 @@ void ThreadHeapUsageTracker::Start() {
   // instance persists the outer scope's usage stats. On destruction, this
   // instance will restore the outer scope's usage stats with this scope's
   // usage added.
-  memset(thread_usage_, 0, sizeof(*thread_usage_));
+  SbMemorySet(thread_usage_, 0, sizeof(*thread_usage_));
 }
 
 void ThreadHeapUsageTracker::Stop(bool usage_is_exclusive) {

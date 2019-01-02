@@ -18,6 +18,7 @@
 #include "base/debug/debugging_buildflags.h"
 #include "base/debug/stack_trace.h"
 #include "base/macros.h"
+#include "starboard/types.h"
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 

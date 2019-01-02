@@ -94,6 +94,9 @@
 
 #include <stdarg.h>
 
+#include "starboard/memory.h"
+#include "starboard/types.h"
+
 /* Nb: this file might be included in a file compiled with -ansi.  So
    we can't use C++ style "//" comments nor the "asm" keyword (instead
    use "__asm__"). */
@@ -4293,7 +4296,7 @@ typedef
           VG_USERREQ__COUNT_ERRORS = 0x1201,
 
           /* These are useful and can be interpreted by any tool that
-             tracks malloc() et al, by using vg_replace_malloc.c. */
+             tracks SbMemoryAllocate() et al, by using vg_replace_SbMemoryAllocate.c. */
           VG_USERREQ__MALLOCLIKE_BLOCK = 0x1301,
           VG_USERREQ__FREELIKE_BLOCK   = 0x1302,
           /* Memory pool support. */
@@ -4567,7 +4570,7 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
 /* Several Valgrind tools (Memcheck, Massif, Helgrind, DRD) rely on knowing
    when heap blocks are allocated in order to give accurate results.  This
    happens automatically for the standard allocator functions such as
-   malloc(), calloc(), realloc(), memalign(), new, new[], free(), delete,
+   SbMemoryAllocate(), calloc(), SbMemoryReallocate(), memalign(), new, new[], SbMemoryFree(), delete,
    delete[], etc.
 
    But if your program uses a custom allocator, this doesn't automatically
@@ -4583,7 +4586,7 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
    that it can be handled accurately by Valgrind.
 
    VALGRIND_MALLOCLIKE_BLOCK marks a region of memory as having been allocated
-   by a malloc()-like function.  For Memcheck (an illustrative case), this
+   by a SbMemoryAllocate()-like function.  For Memcheck (an illustrative case), this
    does two things:
 
    - It records that the block has been allocated.  This means any addresses

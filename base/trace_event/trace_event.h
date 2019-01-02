@@ -9,9 +9,6 @@
 // trace_event_common.h collect and store trace events. Anything not
 // implementation-specific should go in trace_event_common.h instead of here.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "base/atomicops.h"
@@ -25,6 +22,7 @@
 #include "base/trace_event/trace_event_system_stats_monitor.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 // By default, const char* argument values are assumed to have long-lived scope
 // and will not be copied. Use this macro to force a const char* to be copied.

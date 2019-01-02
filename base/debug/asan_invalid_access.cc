@@ -4,9 +4,9 @@
 
 #include "base/debug/asan_invalid_access.h"
 
-#include <stddef.h>
-
 #include <memory>
+
+#include "starboard/types.h"
 
 #include "base/debug/alias.h"
 #include "base/logging.h"

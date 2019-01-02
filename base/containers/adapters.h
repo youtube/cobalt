@@ -5,11 +5,10 @@
 #ifndef BASE_CONTAINERS_ADAPTERS_H_
 #define BASE_CONTAINERS_ADAPTERS_H_
 
-#include <stddef.h>
-
 #include <iterator>
 
 #include "base/macros.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -4,11 +4,10 @@
 
 #include "base/sys_info.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/sysctl.h>
 
 #include "base/logging.h"
+#include "starboard/types.h"
 
 namespace base {
 

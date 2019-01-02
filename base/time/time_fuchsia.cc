@@ -9,6 +9,7 @@
 #include "base/compiler_specific.h"
 #include "base/numerics/checked_math.h"
 #include "base/time/time_override.h"
+#include "starboard/types.h"
 
 namespace base {
 

@@ -1,3 +1,4 @@
+#include "starboard/types.h"
 // Copyright 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -9,8 +10,6 @@
 
 #ifndef BASE_MACROS_H_
 #define BASE_MACROS_H_
-
-#include <stddef.h>  // For size_t.
 
 // Distinguish mips32.
 #if defined(__mips__) && (_MIPS_SIM == _ABIO32) && !defined(__mips32__)

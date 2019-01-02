@@ -7,11 +7,11 @@
 #ifndef BASE_PROCESS_PROCESS_ITERATOR_H_
 #define BASE_PROCESS_PROCESS_ITERATOR_H_
 
-#include <stddef.h>
-
 #include <list>
 #include <string>
 #include <vector>
+
+#include "starboard/types.h"
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"

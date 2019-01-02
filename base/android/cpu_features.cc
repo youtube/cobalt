@@ -6,6 +6,7 @@
 
 #include "base/android/jni_android.h"
 #include "jni/CpuFeatures_jni.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

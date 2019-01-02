@@ -6,8 +6,6 @@
 
 #include <windows.h>
 
-#include <stddef.h>
-
 #include <memory>
 
 #include "base/file_version_info.h"
@@ -16,6 +14,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "base/scoped_native_library.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::FilePath;

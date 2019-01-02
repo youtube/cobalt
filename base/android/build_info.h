@@ -13,6 +13,7 @@
 #include "base/base_export.h"
 #include "base/macros.h"
 #include "base/memory/singleton.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace android {

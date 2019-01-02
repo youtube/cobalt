@@ -8,11 +8,10 @@
 #ifndef BASE_PROCESS_INTERNAL_AIX_H_
 #define BASE_PROCESS_INTERNAL_AIX_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <unistd.h>
 
 #include "base/files/file_path.h"
+#include "starboard/types.h"
 
 namespace base {
 

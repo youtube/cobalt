@@ -5,8 +5,6 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_TASK_QUEUE_IMPL_H_
 #define BASE_TASK_SEQUENCE_MANAGER_TASK_QUEUE_IMPL_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <queue>
 #include <set>
@@ -25,6 +23,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_event_argument.h"
+#include "starboard/types.h"
 
 namespace base {
 namespace sequence_manager {

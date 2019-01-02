@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -22,6 +21,7 @@
 #include "base/logging.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 
 namespace base {
 

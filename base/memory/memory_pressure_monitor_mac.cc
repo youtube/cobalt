@@ -7,7 +7,6 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 #include <dlfcn.h>
-#include <stddef.h>
 #include <sys/sysctl.h>
 
 #include <cmath>
@@ -15,6 +14,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
+#include "starboard/types.h"
 
 // Redeclare for partial 10.9 availability.
 DISPATCH_EXPORT const struct dispatch_source_type_s

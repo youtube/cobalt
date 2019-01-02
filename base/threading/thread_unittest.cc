@@ -4,9 +4,6 @@
 
 #include "base/threading/thread.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <utility>
 #include <vector>
 
@@ -24,6 +21,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 

@@ -4,8 +4,9 @@
 
 #include "base/process/process_metrics.h"
 
-#include <stddef.h>
 #include <unistd.h>
+
+#include "starboard/types.h"
 
 namespace base {
 

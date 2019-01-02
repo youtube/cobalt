@@ -18,6 +18,8 @@
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <errno.h>
 #include <pthread.h>
+
+#include "starboard/types.h"
 #endif
 #endif
 

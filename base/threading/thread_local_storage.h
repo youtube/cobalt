@@ -5,8 +5,6 @@
 #ifndef BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 #define BASE_THREADING_THREAD_LOCAL_STORAGE_H_
 
-#include <stdint.h>
-
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/macros.h"
@@ -19,6 +17,8 @@
 #include "base/win/windows_types.h"
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <pthread.h>
+
+#include "starboard/types.h"
 #endif
 #endif
 

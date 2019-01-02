@@ -5,12 +5,12 @@
 #ifndef BASE_MAC_MAC_UTIL_H_
 #define BASE_MAC_MAC_UTIL_H_
 
-#include <stdint.h>
 #include <string>
 
 #import <CoreGraphics/CoreGraphics.h>
 
 #include "base/base_export.h"
+#include "starboard/types.h"
 
 namespace base {
 

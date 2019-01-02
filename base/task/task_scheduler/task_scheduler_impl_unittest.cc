@@ -4,8 +4,6 @@
 
 #include "base/task/task_scheduler/task_scheduler_impl.h"
 
-#include <stddef.h>
-
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,6 +47,7 @@
 
 #if defined(OS_WIN)
 #include "base/win/com_init_util.h"
+#include "starboard/types.h"
 #endif  // defined(OS_WIN)
 
 namespace base {

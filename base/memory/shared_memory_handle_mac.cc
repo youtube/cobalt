@@ -5,7 +5,6 @@
 #include "base/memory/shared_memory_handle.h"
 
 #include <mach/mach_vm.h>
-#include <stddef.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -13,6 +12,7 @@
 #include "base/mac/mach_logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/unguessable_token.h"
+#include "starboard/types.h"
 
 namespace base {
 
