@@ -4,14 +4,14 @@
 
 #include "crypto/rsa_private_key.h"
 
-#include <stdint.h>
-
 #include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #endif
 
 namespace {
@@ -107,8 +107,10 @@ TEST(RSAPrivateKeyUnitTest, InitRandomTest) {
 
   ASSERT_EQ(privkey1.size(), privkey3.size());
   ASSERT_EQ(privkey2.size(), privkey4.size());
-  ASSERT_EQ(0, memcmp(&privkey1.front(), &privkey3.front(), privkey1.size()));
-  ASSERT_EQ(0, memcmp(&privkey2.front(), &privkey4.front(), privkey2.size()));
+  ASSERT_EQ(0, SbMemoryCompare(&privkey1.front(), &privkey3.front(),
+                               privkey1.size()));
+  ASSERT_EQ(0, SbMemoryCompare(&privkey2.front(), &privkey4.front(),
+                               privkey2.size()));
 }
 
 // Test Copy() method.
@@ -197,8 +199,8 @@ TEST(RSAPrivateKeyUnitTest, PublicKeyTest) {
   std::vector<uint8_t> output;
   ASSERT_TRUE(key->ExportPublicKey(&output));
 
-  ASSERT_EQ(0,
-            memcmp(expected_public_key_info, &output.front(), output.size()));
+  ASSERT_EQ(0, SbMemoryCompare(expected_public_key_info, &output.front(),
+                               output.size()));
 }
 
 // These two test keys each contain an integer that has 0x00 for its most
@@ -332,10 +334,10 @@ TEST(RSAPrivateKeyUnitTest, ShortIntegers) {
   input1.resize(sizeof(short_integer_with_high_bit));
   input2.resize(sizeof(short_integer_without_high_bit));
 
-  memcpy(&input1.front(), short_integer_with_high_bit,
-         sizeof(short_integer_with_high_bit));
-  memcpy(&input2.front(), short_integer_without_high_bit,
-         sizeof(short_integer_without_high_bit));
+  SbMemoryCopy(&input1.front(), short_integer_with_high_bit,
+               sizeof(short_integer_with_high_bit));
+  SbMemoryCopy(&input2.front(), short_integer_without_high_bit,
+               sizeof(short_integer_without_high_bit));
 
   std::unique_ptr<crypto::RSAPrivateKey> keypair1(
       crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input1));
@@ -351,8 +353,10 @@ TEST(RSAPrivateKeyUnitTest, ShortIntegers) {
 
   ASSERT_EQ(input1.size(), output1.size());
   ASSERT_EQ(input2.size(), output2.size());
-  ASSERT_EQ(0, memcmp(&output1.front(), &input1.front(), input1.size()));
-  ASSERT_EQ(0, memcmp(&output2.front(), &input2.front(), input2.size()));
+  ASSERT_EQ(0,
+            SbMemoryCompare(&output1.front(), &input1.front(), input1.size()));
+  ASSERT_EQ(0,
+            SbMemoryCompare(&output2.front(), &input2.front(), input2.size()));
 }
 
 TEST(RSAPrivateKeyUnitTest, CreateFromKeyTest) {

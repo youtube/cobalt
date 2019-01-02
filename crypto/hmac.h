@@ -8,8 +8,6 @@
 #ifndef CRYPTO_HMAC_H_
 #define CRYPTO_HMAC_H_
 
-#include <stddef.h>
-
 #include <memory>
 #include <vector>
 
@@ -17,6 +15,7 @@
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "crypto/crypto_export.h"
+#include "starboard/types.h"
 
 namespace crypto {
 

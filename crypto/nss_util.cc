@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/types.h"
+
 #include "base/base_paths.h"
 #include "base/bind.h"
 #include "base/debug/alias.h"

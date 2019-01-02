@@ -4,14 +4,13 @@
 
 #include "crypto/encryptor.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/sys_byteorder.h"
 #include "crypto/openssl_util.h"
 #include "crypto/symmetric_key.h"
+#include "starboard/memory.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 
@@ -52,7 +51,7 @@ class ScopedCipherCTX {
 Encryptor::Counter::Counter(base::StringPiece counter) {
   CHECK(sizeof(counter_) == counter.length());
 
-  memcpy(&counter_, counter.data(), sizeof(counter_));
+  SbMemoryCopy(&counter_, counter.data(), sizeof(counter_));
 }
 
 Encryptor::Counter::~Counter() = default;
@@ -74,7 +73,7 @@ bool Encryptor::Counter::Increment() {
 
 void Encryptor::Counter::Write(void* buf) {
   uint8_t* buf_ptr = reinterpret_cast<uint8_t*>(buf);
-  memcpy(buf_ptr, &counter_, sizeof(counter_));
+  SbMemoryCopy(buf_ptr, &counter_, sizeof(counter_));
 }
 
 size_t Encryptor::Counter::GetLengthInBytes() const {

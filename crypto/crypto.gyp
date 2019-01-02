@@ -73,7 +73,6 @@
         'ec_private_key_unittest.cc',
         'ec_signature_creator_unittest.cc',
         'encryptor_unittest.cc',
-        'hkdf_unittest.cc',
         'hmac_unittest.cc',
         'p224_spake_unittest.cc',
         'p224_unittest.cc',

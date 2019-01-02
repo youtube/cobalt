@@ -4,12 +4,11 @@
 
 #include "crypto/aead.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string>
 
 #include "base/strings/string_util.h"
 #include "crypto/openssl_util.h"
+#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 
