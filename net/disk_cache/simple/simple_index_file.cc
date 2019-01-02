@@ -328,6 +328,10 @@ void SimpleIndexFile::SyncWriteToDisk(net::CacheType cache_type,
     return;
   }
 
+#if defined(STARBOARD)
+  NOTIMPLEMENTED() << "Starboard does not support file replacement.";
+  return;
+#else
   // Atomically rename the temporary index file to become the real one.
   if (!base::ReplaceFile(temp_index_filename, index_filename, NULL))
     return;
@@ -341,6 +345,7 @@ void SimpleIndexFile::SyncWriteToDisk(net::CacheType cache_type,
                      "IndexWriteToDiskTime.Foreground", cache_type,
                      (base::TimeTicks::Now() - start_time));
   }
+#endif
 }
 
 bool SimpleIndexFile::IndexMetadata::CheckIndexMetadata() {

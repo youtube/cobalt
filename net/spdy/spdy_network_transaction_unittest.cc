@@ -321,6 +321,8 @@ class SpdyNetworkTransactionTest : public TestWithScopedTaskEnvironment {
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
   }
 
+#if !defined(STARBOARD)
+  // base::MakeFileUnreadable is not supported.
   void UseUnreadableFilePostRequest() {
     ASSERT_FALSE(upload_data_stream_);
     base::FilePath file_path;
@@ -339,6 +341,7 @@ class SpdyNetworkTransactionTest : public TestWithScopedTaskEnvironment {
     request_.method = "POST";
     request_.upload_data_stream = upload_data_stream_.get();
   }
+#endif
 
   void UseComplexPostRequest() {
     ASSERT_FALSE(upload_data_stream_);
@@ -1803,6 +1806,7 @@ TEST_F(SpdyNetworkTransactionTest, FilePost) {
   EXPECT_EQ("hello!", out.response_data);
 }
 
+#if !defined(STARBOARD)
 // Test that a POST with a unreadable file fails.
 TEST_F(SpdyNetworkTransactionTest, UnreadableFilePost) {
   MockWrite writes[] = {
@@ -1823,6 +1827,7 @@ TEST_F(SpdyNetworkTransactionTest, UnreadableFilePost) {
   helper.VerifyDataNotConsumed();
   EXPECT_THAT(helper.output().rv, IsError(ERR_ACCESS_DENIED));
 }
+#endif
 
 // Test that a complex POST works.
 TEST_F(SpdyNetworkTransactionTest, ComplexPost) {

@@ -332,6 +332,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
   histogram_tester.ExpectBucketCount("SimpleCache.FileDescriptorLimiterAction",
                                      disk_cache::FD_LIMIT_FAIL_REOPEN_FILE, 1);
 
+#if !defined(STARBOARD)
   // Doom file for [1].
   SimpleFileTracker::EntryFileKey key = entries[1]->entry_file_key();
   file_tracker_.Doom(entries[1].get(), &key);
@@ -341,6 +342,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
       entries[1]->GetFilenameForSubfile(SimpleFileTracker::SubFile::FILE_0);
   EXPECT_TRUE(base::StartsWith(new_path.BaseName().MaybeAsASCII(), "todelete_",
                                base::CompareCase::SENSITIVE));
+  // Moving file is not supported by Starboard.
   EXPECT_TRUE(base::Move(old_path, new_path));
 
   // Now re-acquire everything again; this time reading.
@@ -373,6 +375,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
   EXPECT_EQ(1, borrow_last->Read(0, &read, 1));
   EXPECT_EQ('L', read);
 
+#endif  // !defined(STARBOARD)
   for (const auto& entry : entries)
     file_tracker_.Close(entry.get(), SimpleFileTracker::SubFile::FILE_0);
 };

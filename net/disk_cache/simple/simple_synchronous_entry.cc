@@ -133,8 +133,13 @@ const base::Feature kSimpleCachePrefetchExperiment = {
 const char kSimplePrefetchBytesParam[] = "Bytes";
 
 int GetSimpleCachePrefetchSize() {
+#if defined(STARBOARD)
+  NOTIMPLEMENTED() << "Starboard does not support FieldTrial.";
+  return 0;
+#else
   return base::GetFieldTrialParamByFeatureAsInt(kSimpleCachePrefetchExperiment,
                                                 kSimplePrefetchBytesParam, 0);
+#endif
 }
 
 SimpleEntryStat::SimpleEntryStat(base::Time last_used,
@@ -329,7 +334,11 @@ int SimpleSynchronousEntry::Doom() {
             GetFilenameFromEntryFileKeyAndFileIndex(orig_key, i));
         FilePath new_name = path_.AppendASCII(
             GetFilenameFromEntryFileKeyAndFileIndex(entry_file_key_, i));
+#if defined(STARBOARD)
+        ok = false;
+#else
         ok = base::ReplaceFile(old_name, new_name, &out_error) && ok;
+#endif
       }
     }
 
@@ -339,7 +348,11 @@ int SimpleSynchronousEntry::Doom() {
           path_.AppendASCII(GetSparseFilenameFromEntryFileKey(orig_key));
       FilePath new_name =
           path_.AppendASCII(GetSparseFilenameFromEntryFileKey(entry_file_key_));
+#if defined(STARBOARD)
+      ok = false;
+#else
       ok = base::ReplaceFile(old_name, new_name, &out_error) && ok;
+#endif
     }
 
     SIMPLE_CACHE_UMA(TIMES, "DiskDoomLatency", cache_type_,

@@ -1538,6 +1538,9 @@ void BackendImpl::RestartCache(bool failure) {
   int64_t last_report = stats_.GetCounter(Stats::LAST_REPORT);
 
   PrepareForRestart();
+#if defined(STARBOARD)
+  DeleteCache(path_, false);
+#else
   if (failure) {
     DCHECK(!num_refs_);
     DCHECK(open_entries_.empty());
@@ -1545,6 +1548,7 @@ void BackendImpl::RestartCache(bool failure) {
   } else {
     DeleteCache(path_, false);
   }
+#endif
 
   // Don't call Init() if directed by the unit test: we are simulating a failure
   // trying to re-enable the cache.

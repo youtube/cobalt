@@ -38,12 +38,14 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
+#if !defined(STARBOARD)
 // For getsockopt() call.
 #if defined(OS_WIN)
 #include <winsock2.h>
 #else  // !defined(OS_WIN)
 #include <sys/socket.h>
 #endif  //  !defined(OS_WIN)
+#endif  // !defined(STARBOARD)
 
 using net::test::IsError;
 using net::test::IsOk;
@@ -603,6 +605,8 @@ TEST_F(TCPSocketTest, CancelPendingReadIfReady) {
   ASSERT_EQ(0, SbMemoryCompare(&kMsg, read_buffer->data(), msg_size));
 }
 
+// Starboard does not provide any equivalent of getsockopt.
+#if !defined(STARBOARD)
 // Tests that setting a socket option in the BeforeConnectCallback works. With
 // real sockets, socket options often have to be set before the connect() call,
 // and the BeforeConnectCallback is the only way to do that, with a
@@ -651,6 +655,7 @@ TEST_F(TCPSocketTest, BeforeConnectCallback) {
   EXPECT_EQ(kReceiveBufferSize, actual_size);
 #endif
 }
+#endif
 
 TEST_F(TCPSocketTest, BeforeConnectCallbackFails) {
   // Setting up a server isn't strictly necessary, but it does allow checking

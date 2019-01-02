@@ -46,7 +46,11 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
+#if defined(STARBOARD)
+#include "base/buildflag.h"
+#else
 #include "build/buildflag.h"
+#endif
 #include "net/base/chunked_upload_data_stream.h"
 #include "net/base/directory_listing.h"
 #include "net/base/elements_upload_data_stream.h"
@@ -1323,7 +1327,7 @@ TEST_F(URLRequestTest, FileDirCancelTest) {
   TestDelegate d;
   {
     base::FilePath file_path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+    base::PathService::Get(base::DIR_TEST_DATA, &file_path);
     file_path = file_path.Append(FILE_PATH_LITERAL("net"));
     file_path = file_path.Append(FILE_PATH_LITERAL("data"));
 
@@ -1342,6 +1346,8 @@ TEST_F(URLRequestTest, FileDirCancelTest) {
   NetModule::SetResourceProvider(NULL);
 }
 
+#if !defined(STARBOARD)
+// Starboard does not support url_request_file_dir_job.
 TEST_F(URLRequestTest, FileDirOutputSanity) {
   // Verify the general sanity of the the output of the file:
   // directory lister by checking for the output of a known existing
@@ -1349,7 +1355,7 @@ TEST_F(URLRequestTest, FileDirOutputSanity) {
   const char sentinel_name[] = "filedir-sentinel";
 
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(kTestFilePath);
 
   TestDelegate d;
@@ -1361,6 +1367,7 @@ TEST_F(URLRequestTest, FileDirOutputSanity) {
 
   // Generate entry for the sentinel file.
   base::FilePath sentinel_path = path.AppendASCII(sentinel_name);
+
   base::File::Info info;
   EXPECT_TRUE(base::GetFileInfo(sentinel_path, &info));
   EXPECT_GT(info.size, 0);
@@ -1385,7 +1392,7 @@ TEST_F(URLRequestTest, FileDirRedirectNoCrash) {
   // redirects does not crash.  See http://crbug.com/18686.
 
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_TEST_DATA, &path);
   path = path.Append(kTestFilePath);
 
   TestDelegate d;
@@ -1400,6 +1407,7 @@ TEST_F(URLRequestTest, FileDirRedirectNoCrash) {
   ASSERT_FALSE(d.request_failed());
   EXPECT_EQ(OK, d.request_status());
 }
+#endif
 
 #if defined(OS_WIN)
 // Don't accept the url "file:///" on windows. See http://crbug.com/1474.
@@ -1451,7 +1459,7 @@ TEST_F(URLRequestTest, InvalidReferrerTest) {
 #if defined(OS_WIN)
 TEST_F(URLRequestTest, ResolveShortcutTest) {
   base::FilePath app_path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  base::PathService::Get(base::DIR_TEST_DATA, &app_path);
   app_path = app_path.Append(kTestFilePath);
   app_path = app_path.AppendASCII("with-headers.html");
 
@@ -5274,6 +5282,8 @@ TEST_F(URLRequestTestHTTP, GetTestLoadTiming) {
   }
 }
 
+// Use of SpawnedTestServer is not supported by Starboard.
+#if !defined(STARBOARD)
 // TODO(svaldez): Update tests to use EmbeddedTestServer.
 #if !defined(OS_IOS)
 TEST_F(URLRequestTestHTTP, GetZippedTest) {
@@ -5297,7 +5307,7 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
       { true, true, false, false, true };
 
   base::FilePath file_path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+  base::PathService::Get(base::DIR_TEST_DATA, &file_path);
   file_path = file_path.Append(kTestFilePath);
   file_path = file_path.Append(FILE_PATH_LITERAL("BullRunSpeech.txt"));
   std::string expected_content;
@@ -5344,6 +5354,7 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
   }
 }
 #endif  // !defined(OS_IOS)
+#endif  // !defined(STARBOARD)
 
 TEST_F(URLRequestTestHTTP, RedirectLoadTiming) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -5923,7 +5934,7 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateInfoAuth) {
 }
 
 // TODO(svaldez): Update tests to use EmbeddedTestServer.
-#if !defined(OS_IOS)
+#if !defined(OS_IOS) && !defined(STARBOARD)
 // Tests handling of delegate info from a URLRequest::Delegate.
 TEST_F(URLRequestTestHTTP, URLRequestDelegateInfo) {
   SpawnedTestServer test_server(SpawnedTestServer::TYPE_HTTP,
@@ -6369,12 +6380,15 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
 
     base::FilePath dir;
     base::PathService::Get(base::DIR_EXE, &dir);
+#if !defined(STARBOARD)
+    // Not supported by Starboard.
     base::SetCurrentDirectory(dir);
+#endif
 
     std::vector<std::unique_ptr<UploadElementReader>> element_readers;
 
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.Append(kTestFilePath);
     path = path.Append(FILE_PATH_LITERAL("with-headers.html"));
     element_readers.push_back(std::make_unique<UploadFileElementReader>(
@@ -6434,7 +6448,13 @@ TEST_F(URLRequestTestHTTP, PostUnreadableFileTest) {
     EXPECT_TRUE(d.request_failed());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(0, d.bytes_received());
+#if defined(STARBOARD)
+    // Starboard does not well define net errors, all failures return
+    // ERR_FAILED.
+    EXPECT_EQ(ERR_FAILED, d.request_status());
+#else
     EXPECT_EQ(ERR_FILE_NOT_FOUND, d.request_status());
+#endif
   }
 }
 
@@ -7911,6 +7931,7 @@ TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
   EXPECT_EQ(0, d.received_redirect_count());
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
 // Make sure redirects are cached, despite not reading their bodies.
 TEST_F(URLRequestTestHTTP, CacheRedirect) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -7947,6 +7968,7 @@ TEST_F(URLRequestTestHTTP, CacheRedirect) {
     EXPECT_EQ(http_test_server()->GetURL("/echo"), req->url());
   }
 }
+#endif
 
 // Make sure a request isn't cached when a NetworkDelegate forces a redirect
 // when the headers are read, since the body won't have been read.
@@ -8249,7 +8271,7 @@ TEST_F(URLRequestTestHTTP, DeferredRedirect) {
     EXPECT_EQ(OK, d.request_status());
 
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.Append(kTestFilePath);
     path = path.Append(FILE_PATH_LITERAL("with-headers.html"));
 
@@ -8286,7 +8308,7 @@ TEST_F(URLRequestTestHTTP, DeferredRedirect_GetFullRequestHeaders) {
     EXPECT_EQ(OK, d.request_status());
 
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_TEST_DATA, &path);
     path = path.Append(kTestFilePath);
     path = path.Append(FILE_PATH_LITERAL("with-headers.html"));
 
@@ -8371,6 +8393,7 @@ TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
   }
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
 TEST_F(URLRequestTestHTTP, VaryHeader) {
   ASSERT_TRUE(http_test_server()->Start());
 
@@ -8469,6 +8492,7 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
     EXPECT_TRUE(r->was_cached());
   }
 }
+#endif
 
 // Check that Set-Cookie headers in 401 responses are respected.
 // http://crbug.com/6450
@@ -8532,6 +8556,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   }
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
 // Tests that load timing works as expected with auth and the cache.
 TEST_F(URLRequestTestHTTP, BasicAuthLoadTiming) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -8594,6 +8619,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthLoadTiming) {
     TestLoadTimingNotReused(load_timing_info, CONNECT_TIMING_HAS_DNS_TIMES);
   }
 }
+#endif
 
 // In this test, we do a POST which the server will 302 redirect.
 // The subsequent transaction should use GET, and should not send the
@@ -9218,6 +9244,7 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedSetOnNetworkRequest) {
   EXPECT_TRUE(req->response_info().network_accessed);
 }
 
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
 TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnCachedResponse) {
   ASSERT_TRUE(http_test_server()->Start());
 
@@ -9243,6 +9270,7 @@ TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnCachedResponse) {
   EXPECT_FALSE(req->response_info().network_accessed);
   EXPECT_TRUE(req->response_info().was_cached);
 }
+#endif
 
 TEST_F(URLRequestTestHTTP, NetworkAccessedClearOnLoadOnlyFromCache) {
   ASSERT_TRUE(http_test_server()->Start());
@@ -10455,7 +10483,9 @@ TEST_F(HTTPSRequestTest, ClientAuthFailSigningRetry) {
     EXPECT_EQ(0, d.bytes_received());
   }
 }
-
+#endif  // !defiend(OS_IOS)
+#if !defined(STARBOARD)
+#if !defined(OS_IOS)
 TEST_F(HTTPSRequestTest, ResumeTest) {
   // Test that we attempt a session resume when making two connections to the
   // same host.
@@ -11909,8 +11939,8 @@ class URLRequestTestFTP : public URLRequestTest {
 
   std::string GetTestFileContents() {
     base::FilePath path;
-    EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &path));
-    path = path.Append(kTestFilePath);
+    EXPECT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &path));
+    path = path.Append(kTestFistarboardlePath);
     path = path.AppendASCII(kFtpTestFile);
     std::string contents;
     EXPECT_TRUE(base::ReadFileToString(path, &contents));
@@ -12205,6 +12235,7 @@ TEST_F(URLRequestTestFTP, RawBodyBytes) {
 }
 
 #endif  // !BUILDFLAG(DISABLE_FTP_SUPPORT)
+#endif  // !defined(STARBOARD)
 
 TEST_F(URLRequestTest, NetworkAccessedClearOnDataRequest) {
   TestDelegate d;
@@ -12310,7 +12341,9 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacks) {
         }));
     r->Start();
     delegate.RunUntilComplete();
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
     EXPECT_TRUE(r->was_cached());
+#endif
   }
 }
 
@@ -12442,10 +12475,14 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacksAuthRetry) {
   EXPECT_FALSE(r2->is_pending());
   ASSERT_EQ(raw_req_headers.size(), 3u);
   ASSERT_EQ(raw_resp_headers.size(), 3u);
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
+  // Google for the "If-None-Match" request header to see its relation to
+  // HTTP cache.
   EXPECT_TRUE(raw_req_headers[2]->FindHeaderForTest("If-None-Match", &value));
   EXPECT_NE(raw_resp_headers[2].get(), r2->response_headers());
   EXPECT_EQ(304, raw_resp_headers[2]->response_code());
   EXPECT_EQ("Not Modified", raw_resp_headers[2]->GetStatusText());
+#endif
 }
 
 TEST_F(URLRequestTest, HeadersCallbacksNonHTTP) {

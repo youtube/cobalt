@@ -29,7 +29,8 @@
 #include "net/http/mock_sspi_library_win.h"
 #elif defined(OS_POSIX)
 #include "net/http/mock_gssapi_library_posix.h"
-#include "starboard/memory.h"
+#elif defined(STARBOARD)
+#include "net/http/mock_gssapi_library_starboard.h"
 #endif
 
 using net::test::IsError;
@@ -41,7 +42,7 @@ namespace net {
 typedef net::android::DummySpnegoAuthenticator MockAuthLibrary;
 #elif defined(OS_WIN)
 typedef MockSSPILibrary MockAuthLibrary;
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) || defined(STARBOARD)
 typedef test::MockGSSAPILibrary MockAuthLibrary;
 #endif
 

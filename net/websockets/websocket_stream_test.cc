@@ -1640,7 +1640,6 @@ TEST_P(WebSocketMultiProtocolStreamCreateTest, Http2StreamReset) {
                WebSocketHandshakeStreamBase::HandshakeResult::HTTP2_FAILED)));
   }
 }
-#endif  // !defined(STARBOARD)
 
 TEST_P(WebSocketStreamCreateTest, HandleErrConnectionClosed) {
   base::HistogramTester histogram_tester;

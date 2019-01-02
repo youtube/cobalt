@@ -106,6 +106,7 @@ void UDPSocketStarboard::Close() {
   ok = write_socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
 
+  is_connected_ = false;
   if (!SbSocketDestroy(socket_)) {
     DPLOG(ERROR) << "SbSocketDestroy";
   }
@@ -236,6 +237,7 @@ int UDPSocketStarboard::Connect(const IPEndPoint& address) {
       CreateNetLogUDPConnectCallback(
           &address, NetworkChangeNotifier::kInvalidNetworkHandle));
   int rv = InternalConnect(address);
+  is_connected_ = (rv == OK);
   net_log_.EndEventWithNetErrorCode(NetLogEventType::UDP_CONNECT, rv);
   return rv;
 }
@@ -265,6 +267,7 @@ int UDPSocketStarboard::InternalConnect(const IPEndPoint& address) {
     return MapSocketError(sb_error);
 
   remote_address_.reset(new IPEndPoint(address));
+
   return OK;
 }
 
@@ -277,6 +280,7 @@ int UDPSocketStarboard::Bind(const IPEndPoint& address) {
   if (rv != OK)
     return rv;
   local_address_.reset();
+  is_connected_ = true;
   return OK;
 }
 
@@ -337,6 +341,14 @@ void UDPSocketStarboard::WriteWatcher::OnSocketReadyToWrite(
     SbSocket /*socket*/) {
   if (!socket_->write_callback_.is_null())
     socket_->DidCompleteWrite();
+}
+
+void UDPSocketStarboard::WriteAsyncWatcher::OnSocketReadyToWrite(
+    SbSocket /*socket*/) {
+  DVLOG(1) << __func__ << " queue " << socket_->pending_writes_.size()
+           << " out of " << socket_->write_async_outstanding_ << " total";
+  socket_->StopWatchingSocket();
+  socket_->FlushPending();
 }
 
 void UDPSocketStarboard::DoReadCallback(int rv) {
@@ -802,6 +814,18 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
              << kWriteAsyncCallbackBuffersThreshold;
     DoWriteCallback(ResetWrittenBytes());
   }
+}
+
+int UDPSocketStarboard::SetDoNotFragment() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(SbSocketIsValid(socket_));
+
+  NOTIMPLEMENTED();
+  return ERR_NOT_IMPLEMENTED;
+}
+
+void UDPSocketStarboard::SetMsgConfirm(bool confirm) {
+  NOTIMPLEMENTED();
 }
 
 bool UDPSocketStarboard::WatchSocket() {
