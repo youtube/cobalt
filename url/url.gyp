@@ -61,6 +61,7 @@
         'url_constants.h',
         'url_export.h',
         'url_file.h',
+        'url_idna_icu.cc',
         'url_parse_file.cc',
         'url_parse_internal.h',
         'url_util.cc',
