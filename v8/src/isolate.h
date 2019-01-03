@@ -95,6 +95,7 @@ class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
+class TracingCpuProfilerImpl;
 class UnicodeCache;
 
 template <StateTag Tag> class VMState;
@@ -1663,6 +1664,8 @@ class Isolate {
   size_t elements_deletion_counter_ = 0;
 
   std::unique_ptr<wasm::WasmEngine> wasm_engine_;
+
+  std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
 
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
