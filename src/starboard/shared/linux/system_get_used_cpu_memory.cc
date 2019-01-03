@@ -43,6 +43,10 @@
 int64_t SearchForVmRSSValue(char* buffer, size_t length) {
   // Search for the string ""VmRSS:".
   const char kSearchString[] = "\nVmRSS:";
+  if (length < sizeof(kSearchString)) {
+    SB_LOG(ERROR) << "Could not find 'VmRSS:' in /proc/self/status.";
+    return 0;
+  }
   enum State {
     // We are currently searching for kSearchString
     kSearchingForSearchString,
