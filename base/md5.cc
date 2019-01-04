@@ -252,9 +252,9 @@ void MD5Final(MD5Digest* digest, MD5Context* context) {
 
   /* Append length in bits and transform */
   SbMemoryCopy(&ctx->in[14 * sizeof(ctx->bits[0])], &ctx->bits[0],
-         sizeof(ctx->bits[0]));
+               sizeof(ctx->bits[0]));
   SbMemoryCopy(&ctx->in[15 * sizeof(ctx->bits[1])], &ctx->bits[1],
-         sizeof(ctx->bits[1]));
+               sizeof(ctx->bits[1]));
 
   MD5Transform(ctx->buf, reinterpret_cast<uint32_t*>(ctx->in));
   byteReverse(reinterpret_cast<uint8_t*>(ctx->buf), 4);

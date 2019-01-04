@@ -317,7 +317,8 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
   char* realloc_ptr = static_cast<char*>(SbMemoryAllocate(10));
   SbStringCopyUnsafe(realloc_ptr, "foobar");
   void* old_realloc_ptr = realloc_ptr;
-  SbMemoryReallocate_ptr = static_cast<char*>(SbMemoryReallocate(SbMemoryReallocate_ptr, 73));
+  SbMemoryReallocate_ptr =
+      static_cast<char*>(SbMemoryReallocate(SbMemoryReallocate_ptr, 73));
   ASSERT_GE(reallocs_intercepted_by_size[73], 1u);
   ASSERT_GE(reallocs_intercepted_by_addr[Hash(old_realloc_ptr)], 1u);
   ASSERT_EQ(0, strcmp(realloc_ptr, "foobar"));

@@ -206,7 +206,8 @@ TlsVectorEntry* ConstructTlsVector() {
 
   // Allocate an array to store our data.
   TlsVectorEntry* tls_data = new TlsVectorEntry[kThreadLocalStorageSize];
-  SbMemoryCopy(tls_data, stack_allocated_tls_data, sizeof(stack_allocated_tls_data));
+  SbMemoryCopy(tls_data, stack_allocated_tls_data,
+               sizeof(stack_allocated_tls_data));
   PlatformThreadLocalStorage::SetTLSValue(key, tls_data);
   return tls_data;
 }
@@ -234,7 +235,8 @@ void OnThreadExitInternal(TlsVectorEntry* tls_data) {
   // we have called all g_tls_metadata destructors. (i.e., don't even call
   // delete[] after we're done with destructors.)
   TlsVectorEntry stack_allocated_tls_data[kThreadLocalStorageSize];
-  SbMemoryCopy(stack_allocated_tls_data, tls_data, sizeof(stack_allocated_tls_data));
+  SbMemoryCopy(stack_allocated_tls_data, tls_data,
+               sizeof(stack_allocated_tls_data));
   // Ensure that any re-entrant calls change the temp version.
   PlatformThreadLocalStorage::TLSKey key =
       reinterpret_cast<PlatformThreadLocalStorage::TLSKey>(

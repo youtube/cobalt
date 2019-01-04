@@ -82,7 +82,8 @@ std::string SysInfo::CPUModelName() {
     std::istringstream iss(contents);
     std::string line;
     while (std::getline(iss, line)) {
-      if (line.compare(0, SbStringGetLength(kCpuModelPrefix), kCpuModelPrefix) == 0) {
+      if (line.compare(0, SbStringGetLength(kCpuModelPrefix),
+                       kCpuModelPrefix) == 0) {
         size_t pos = line.find(": ");
         return line.substr(pos + 2);
       }

@@ -805,7 +805,7 @@ TEST(ValuesTest, BinaryValue) {
             reinterpret_cast<const char*>(binary->GetBlob().data()));
   ASSERT_EQ(42U, binary->GetBlob().size());
   ASSERT_EQ(0, SbMemoryCompare(stack_buffer, binary->GetBlob().data(),
-                      binary->GetBlob().size()));
+                               binary->GetBlob().size()));
 }
 
 TEST(ValuesTest, StringValue) {

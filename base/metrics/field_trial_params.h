@@ -5,6 +5,8 @@
 #ifndef BASE_METRICS_FIELD_TRIAL_PARAMS_H_
 #define BASE_METRICS_FIELD_TRIAL_PARAMS_H_
 
+#if !defined(STARBOARD)
+
 #include <map>
 #include <string>
 
@@ -254,5 +256,7 @@ struct FeatureParam<Enum, true> {
 };
 
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_METRICS_FIELD_TRIAL_PARAMS_H_

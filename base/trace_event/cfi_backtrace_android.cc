@@ -224,7 +224,7 @@ size_t CFIBacktraceAndroid::Unwind(uintptr_t pc,
     // PC_prev = * (SP_prev - ra_offset).
     sp = sp + cfi.cfa_offset;
     SbMemoryCopy(&pc, reinterpret_cast<uintptr_t*>(sp - cfi.ra_offset),
-           sizeof(uintptr_t));
+                 sizeof(uintptr_t));
   }
   return depth;
 }

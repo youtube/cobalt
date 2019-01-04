@@ -396,7 +396,8 @@ TEST_F(ActivityAnalyzerTest, GlobalUserDataTest) {
   EXPECT_EQ(sizeof(string1), snapshot.at("ref").GetReference().size());
   ASSERT_TRUE(ContainsKey(snapshot, "sref"));
   EXPECT_EQ(string2, snapshot.at("sref").GetStringReference().data());
-  EXPECT_EQ(SbStringGetLength(string2), snapshot.at("sref").GetStringReference().size());
+  EXPECT_EQ(SbStringGetLength(string2),
+            snapshot.at("sref").GetStringReference().size());
 }
 
 TEST_F(ActivityAnalyzerTest, GlobalModulesTest) {
