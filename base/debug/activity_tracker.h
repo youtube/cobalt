@@ -36,8 +36,6 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_local_storage.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 struct PendingTask;
@@ -1366,5 +1364,4 @@ class BASE_EXPORT ScopedProcessWaitActivity
 }  // namespace debug
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_DEBUG_ACTIVITY_TRACKER_H_

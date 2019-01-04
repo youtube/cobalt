@@ -25,7 +25,9 @@ namespace trace_event {
 
 namespace {
 
-size_t GetAllocLength(const char* str) { return str ? SbStringGetLength(str) + 1 : 0; }
+size_t GetAllocLength(const char* str) {
+  return str ? SbStringGetLength(str) + 1 : 0;
+}
 
 // Copies |*member| into |*buffer|, sets |*member| to point to this new
 // location, and then advances |*buffer| by the amount written.

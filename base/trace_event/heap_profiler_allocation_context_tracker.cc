@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <iterator>
 
-#include "starboard/types.h"
 #include "starboard/string.h"
+#include "starboard/types.h"
 
 #include "base/atomicops.h"
 #include "base/debug/debugging_buildflags.h"
@@ -72,7 +72,7 @@ const char* GetAndLeakThreadName() {
 
   // Use tid if we don't have a thread name.
   SbStringFormatF(name, sizeof(name), "%lu",
-           static_cast<unsigned long>(PlatformThread::CurrentId()));
+                  static_cast<unsigned long>(PlatformThread::CurrentId()));
   return SbStringDuplicate(name);
 }
 

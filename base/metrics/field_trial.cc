@@ -4,6 +4,8 @@
 
 #include "base/metrics/field_trial.h"
 
+#if !defined(STARBOARD)
+
 #include <algorithm>
 #include <utility>
 
@@ -1528,3 +1530,4 @@ FieldTrialList::RegistrationMap FieldTrialList::GetRegisteredTrials() {
 }
 
 }  // namespace base
+#endif  // !defined(STARBOARD)

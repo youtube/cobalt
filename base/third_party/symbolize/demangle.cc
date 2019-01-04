@@ -34,8 +34,8 @@
 //
 // Note that we only have partial C++0x support yet.
 
-#include <stdio.h>  // for NULL
 #include "demangle.h"
+#include <stdio.h>  // for NULL
 #include "starboard/types.h"
 
 _START_GOOGLE_NAMESPACE_

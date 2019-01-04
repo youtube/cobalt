@@ -222,7 +222,8 @@ void ProcessBacktrace(void* const* trace,
 void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
-  ignore_result(HANDLE_EINTR(write(STDERR_FILENO, output, SbStringGetLength(output))));
+  ignore_result(
+      HANDLE_EINTR(write(STDERR_FILENO, output, SbStringGetLength(output))));
 }
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {

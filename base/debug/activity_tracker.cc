@@ -32,7 +32,6 @@
 namespace base {
 namespace debug {
 
-#if !defined(STARBOARD)
 namespace {
 
 // The minimum depth a stack should support.
@@ -957,12 +956,12 @@ bool ThreadActivityTracker::CreateSnapshot(Snapshot* output_snapshot) const {
     if (count > 0) {
       // Copy the existing contents. Memcpy is used for speed.
       SbMemoryCopy(&output_snapshot->activity_stack[0], stack_,
-             count * sizeof(Activity));
+                   count * sizeof(Activity));
     }
 
     // Capture the last exception.
     SbMemoryCopy(&output_snapshot->last_exception, &header_->last_exception,
-           sizeof(Activity));
+                 sizeof(Activity));
 
     // TODO(bcwhite): Snapshot other things here.
 
@@ -1267,7 +1266,7 @@ void GlobalActivityTracker::CreateWithAllocator(
   global_tracker->CreateTrackerForCurrentThread();
 }
 
-#if !defined(OS_NACL)
+#if !defined(OS_NACL) && !defined(STARBOARD)
 // static
 bool GlobalActivityTracker::CreateWithFile(const FilePath& file_path,
                                            size_t size,
@@ -1306,6 +1305,7 @@ bool GlobalActivityTracker::CreateWithLocalMemory(size_t size,
   return true;
 }
 
+#if !defined(STARBOARD)
 // static
 bool GlobalActivityTracker::CreateWithSharedMemory(
     std::unique_ptr<SharedMemory> shm,
@@ -1335,6 +1335,7 @@ bool GlobalActivityTracker::CreateWithSharedMemoryHandle(
     return false;
   return CreateWithSharedMemory(std::move(shm), id, name, stack_depth);
 }
+#endif
 
 // static
 void GlobalActivityTracker::SetForTesting(
@@ -1697,11 +1698,13 @@ GlobalActivityTracker::GlobalActivityTracker(
   // Note that this process has launched.
   SetProcessPhase(PROCESS_LAUNCHED);
 
+#if !defined(STARBOARD)
   // Fetch and record all activated field trials.
   FieldTrial::ActiveGroups active_groups;
   FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
   for (auto& group : active_groups)
     RecordFieldTrial(group.trial_name, group.group_name);
+#endif
 }
 
 GlobalActivityTracker::~GlobalActivityTracker() {
@@ -1819,7 +1822,7 @@ ScopedThreadJoinActivity::ScopedThreadJoinActivity(
           ActivityData::ForThread(*thread),
           /*lock_allowed=*/true) {}
 
-#if !defined(OS_NACL) && !defined(OS_IOS)
+#if !defined(OS_NACL) && !defined(OS_IOS) && !defined(STARBOARD)
 ScopedProcessWaitActivity::ScopedProcessWaitActivity(
     const void* program_counter,
     const base::Process* process)
@@ -1831,6 +1834,5 @@ ScopedProcessWaitActivity::ScopedProcessWaitActivity(
           /*lock_allowed=*/true) {}
 #endif
 
-#endif  // !defined(STARBOARD)
 }  // namespace debug
 }  // namespace base

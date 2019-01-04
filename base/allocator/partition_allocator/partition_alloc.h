@@ -433,8 +433,9 @@ template <size_t N>
 class SizeSpecificPartitionAllocator {
  public:
   SizeSpecificPartitionAllocator() {
-    SbMemorySet(actual_buckets_, 0,
-           sizeof(internal::PartitionBucket) * base::size(actual_buckets_));
+    SbMemorySet(
+        actual_buckets_, 0,
+        sizeof(internal::PartitionBucket) * base::size(actual_buckets_));
   }
   ~SizeSpecificPartitionAllocator() = default;
   static const size_t kMaxAllocation = N - kAllocationGranularity;

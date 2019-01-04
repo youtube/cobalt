@@ -262,7 +262,8 @@ Pickle::Pickle(const Pickle& other)
       capacity_after_header_(0),
       write_offset_(other.write_offset_) {
   Resize(other.header_->payload_size);
-  SbMemoryCopy(header_, other.header_, header_size_ + other.header_->payload_size);
+  SbMemoryCopy(header_, other.header_,
+               header_size_ + other.header_->payload_size);
 }
 
 Pickle::~Pickle() {
@@ -285,7 +286,7 @@ Pickle& Pickle::operator=(const Pickle& other) {
   }
   Resize(other.header_->payload_size);
   SbMemoryCopy(header_, other.header_,
-         other.header_size_ + other.header_->payload_size);
+               other.header_size_ + other.header_->payload_size);
   write_offset_ = other.write_offset_;
   return *this;
 }
@@ -420,7 +421,8 @@ inline void* Pickle::ClaimUninitializedBytesInternal(size_t length) {
   }
 
   char* write = mutable_payload() + write_offset_;
-  SbMemorySet(write + length, 0, data_len - length);  // Always initialize padding
+  SbMemorySet(write + length, 0,
+              data_len - length);  // Always initialize padding
   header_->payload_size = static_cast<uint32_t>(new_size);
   write_offset_ = new_size;
   return write;

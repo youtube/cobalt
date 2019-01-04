@@ -140,7 +140,7 @@ TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
 }
 
 TEST(ToolsSanityTest, MAYBE_AccessesToMallocMemory) {
-  char *foo = reinterpret_cast<char*>(SbMemoryAllocate(10));
+  char* foo = reinterpret_cast<char*>(SbMemoryAllocate(10));
   MakeSomeErrors(foo, 10);
   SbMemoryFree(foo);
   // Use after free.
