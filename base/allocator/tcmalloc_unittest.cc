@@ -96,7 +96,8 @@ bool IsLowMemoryDevice() {
 TEST(TCMallocTest, Malloc) {
   // Try allocating data with a bunch of alignments and sizes
   for (int size = 1; size < 1048576; size *= 2) {
-    unsigned char* ptr = reinterpret_cast<unsigned char*>(SbMemoryAllocate(size));
+    unsigned char* ptr =
+        reinterpret_cast<unsigned char*>(SbMemoryAllocate(size));
     // Should be 2 byte aligned
     EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & 1);
     Fill(ptr, size);
@@ -147,7 +148,8 @@ TEST(TCMallocTest, ReallocSmallDelta) {
 TEST(TCMallocTest, Realloc) {
   for (int src_size = 0; src_size >= 0; src_size = NextSize(src_size)) {
     for (int dst_size = 0; dst_size >= 0; dst_size = NextSize(dst_size)) {
-      unsigned char* src = reinterpret_cast<unsigned char*>(SbMemoryAllocate(src_size));
+      unsigned char* src =
+          reinterpret_cast<unsigned char*>(SbMemoryAllocate(src_size));
       Fill(src, src_size);
       unsigned char* dst =
           reinterpret_cast<unsigned char*>(SbMemoryReallocate(src, dst_size));

@@ -122,6 +122,15 @@ const PlatformThreadId kInvalidThreadId(0);
 // Valid values for priority of Thread::Options and SimpleThread::Options, and
 // SetCurrentThreadPriority(), listed in increasing order of importance.
 enum class ThreadPriority : int {
+#if defined(STARBOARD)
+  DEFAULT = kSbThreadNoPriority,
+  LOWEST = kSbThreadPriorityLowest,
+  BACKGROUND = kSbThreadPriorityLow,
+  NORMAL = kSbThreadPriorityNormal,
+  DISPLAY = kSbThreadPriorityHigh,
+  HIGHEST = kSbThreadPriorityHighest,
+  REALTIME_AUDIO = kSbThreadPriorityRealTime,  // Could be equal to HIGHEST.
+#else
   // Suitable for threads that shouldn't disrupt high priority work.
   BACKGROUND,
   // Default priority level.
@@ -130,6 +139,7 @@ enum class ThreadPriority : int {
   DISPLAY,
   // Suitable for low-latency, glitch-resistant audio.
   REALTIME_AUDIO,
+#endif
 };
 
 // A namespace for low-level thread functions.

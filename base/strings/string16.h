@@ -58,9 +58,13 @@ typedef uint16_t char16;
 // char16 versions of the functions required by string16_char_traits; these
 // are based on the wide character functions of similar names ("w" or "wcs"
 // instead of "c16").
-BASE_EXPORT int c16SbMemoryCompare(const char16* s1, const char16* s2, size_t n);
+BASE_EXPORT int c16SbMemoryCompare(const char16* s1,
+                                   const char16* s2,
+                                   size_t n);
 BASE_EXPORT size_t c16len(const char16* s);
-BASE_EXPORT const char16* c16SbMemoryFindByte(const char16* s, char16 c, size_t n);
+BASE_EXPORT const char16* c16SbMemoryFindByte(const char16* s,
+                                              char16 c,
+                                              size_t n);
 BASE_EXPORT char16* c16SbMemoryMove(char16* s1, const char16* s2, size_t n);
 BASE_EXPORT char16* c16SbMemoryCopy(char16* s1, const char16* s2, size_t n);
 BASE_EXPORT char16* c16SbMemorySet(char16* s, char16 c, size_t n);

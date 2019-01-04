@@ -77,7 +77,6 @@ bool CreateThread(size_t stack_size,
 inline SbThreadPriority toSbPriority(ThreadPriority priority) {
   return static_cast<SbThreadPriority>(priority);
 }
-
 }  // namespace
 
 // static

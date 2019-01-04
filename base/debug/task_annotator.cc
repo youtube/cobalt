@@ -60,9 +60,7 @@ void TaskAnnotator::WillQueueTask(const char* queue_function,
 
 void TaskAnnotator::RunTask(const char* queue_function,
                             PendingTask* pending_task) {
-#if !defined(STARBOARD)
   ScopedTaskRunActivity task_activity(*pending_task);
-#endif  // !defined(STARBOARD)
 
   if (queue_function) {
     TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("toplevel.flow"),

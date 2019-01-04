@@ -74,8 +74,9 @@ TEST(ProcessMemoryTest, MacTerminateOnHeapCorruption) {
 #elif defined(ADDRESS_SANITIZER)
   // AddressSanitizer replaces malloc() and prints a different error message on
   // heap corruption.
-  ASSERT_DEATH(SbMemoryFree(buf), "attempting SbMemoryFree on address which "
-      "was not malloc\\(\\)-ed");
+  ASSERT_DEATH(SbMemoryFree(buf),
+               "attempting SbMemoryFree on address which "
+               "was not malloc\\(\\)-ed");
 #else
   ADD_FAILURE() << "This test is not supported in this build configuration.";
 #endif

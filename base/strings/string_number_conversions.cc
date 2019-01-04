@@ -436,8 +436,7 @@ bool StringToDouble(const std::string& input, double* output) {
   //    expected end given the string's stated length to correctly catch cases
   //    where the string contains embedded NUL characters.
   //  - If the first character is a space, there was leading whitespace
-  return errno == 0 &&
-         !input.empty() &&
+  return errno == 0 && !input.empty() &&
          input.c_str() + input.length() == endptr &&
          !SbCharacterIsSpace(input[0]);
 }

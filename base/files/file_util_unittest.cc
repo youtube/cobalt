@@ -126,7 +126,8 @@ bool SetReparsePoint(HANDLE source, const FilePath& target_path) {
   REPARSE_DATA_BUFFER* data = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
 
   data->ReparseTag = 0xa0000003;
-  SbMemoryCopy(data->MountPointReparseBuffer.PathBuffer, target, size_target + 2);
+  SbMemoryCopy(data->MountPointReparseBuffer.PathBuffer, target,
+               size_target + 2);
 
   data->MountPointReparseBuffer.SubstituteNameLength = size_target;
   data->MountPointReparseBuffer.PrintNameOffset = size_target + 2;
@@ -2892,7 +2893,8 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
   CHECK_NE(-1, fd);
   size_t written = 0;
   while (written < SbStringGetLength(kTestData)) {
-    ssize_t res = write(fd, kTestData + written, SbStringGetLength(kTestData) - written);
+    ssize_t res =
+        write(fd, kTestData + written, SbStringGetLength(kTestData) - written);
     if (res == -1)
       break;
     written += res;
@@ -3054,7 +3056,8 @@ MULTIPROCESS_TEST_MAIN(ChildMain) {
   EXPECT_TRUE(ConnectNamedPipe(ph, NULL));
 
   DWORD written;
-  EXPECT_TRUE(::WriteFile(ph, kTestData, SbStringGetLength(kTestData), &written, NULL));
+  EXPECT_TRUE(
+      ::WriteFile(ph, kTestData, SbStringGetLength(kTestData), &written, NULL));
   EXPECT_EQ(SbStringGetLength(kTestData), written);
   CloseHandle(ph);
   return 0;
