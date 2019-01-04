@@ -72,9 +72,9 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
     file1.read(buffer1, BUFFER_SIZE);
     file2.read(buffer2, BUFFER_SIZE);
 
-    if ((file1.eof() != file2.eof()) ||
-        (file1.gcount() != file2.gcount()) ||
-        (SbMemoryCompare(buffer1, buffer2, static_cast<size_t>(file1.gcount())))) {
+    if ((file1.eof() != file2.eof()) || (file1.gcount() != file2.gcount()) ||
+        (SbMemoryCompare(buffer1, buffer2,
+                         static_cast<size_t>(file1.gcount())))) {
       file1.close();
       file2.close();
       return false;

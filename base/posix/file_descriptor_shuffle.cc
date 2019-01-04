@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <ostream>
 
-#include "base/posix/eintr_wrapper.h"
 #include "base/logging.h"
+#include "base/posix/eintr_wrapper.h"
 #include "starboard/types.h"
 
 namespace base {

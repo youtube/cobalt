@@ -18,9 +18,7 @@ namespace base {
 // std::unique_ptr<int, base::FreeDeleter> foo_ptr(
 //     static_cast<int*>(malloc(sizeof(int))));
 struct FreeDeleter {
-  inline void operator()(void* ptr) const {
-    SbMemoryFree(ptr);
-  }
+  inline void operator()(void* ptr) const { SbMemoryFree(ptr); }
 };
 
 }  // namespace base

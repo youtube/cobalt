@@ -177,40 +177,42 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
  * @param replystruct the name of the RPC reply structure
  * @see EVRPC_HEADER()
  */
-#define EVRPC_GENERATE(rpcname, reqstruct, rplystruct) \
-int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
-    struct reqstruct *request, struct rplystruct *reply, \
-    void (*cb)(struct evrpc_status *, \
-	struct reqstruct *, struct rplystruct *, void *cbarg),	\
-    void *cbarg) { \
-	struct evrpc_status status;				    \
-	struct evrpc_request_wrapper *ctx;			    \
-	ctx = (struct evrpc_request_wrapper *) \
-	    SbMemoryAllocate(sizeof(struct evrpc_request_wrapper));	    \
-	if (ctx == NULL)					    \
-		goto error;					    \
-	ctx->pool = pool;					    \
-	ctx->evcon = NULL;					    \
-	ctx->name = strdup(#rpcname);				    \
-	if (ctx->name == NULL) {				    \
-		SbMemoryFree(ctx);					    \
-		goto error;					    \
-	}							    \
-	ctx->cb = (void (*)(struct evrpc_status *, \
-		void *, void *, void *))cb;			    \
-	ctx->cb_arg = cbarg;					    \
-	ctx->request = (void *)request;				    \
-	ctx->reply = (void *)reply;				    \
-	ctx->request_marshal = (void (*)(struct evbuffer *, void *))reqstruct##_marshal; \
-	ctx->reply_clear = (void (*)(void *))rplystruct##_clear;    \
-	ctx->reply_unmarshal = (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal; \
-	return (evrpc_make_request(ctx));			    \
-error:								    \
-	SbMemorySet(&status, 0, sizeof(status));			    \
-	status.error = EVRPC_STATUS_ERR_UNSTARTED;		    \
-	(*(cb))(&status, request, reply, cbarg);		    \
-	return (-1);						    \
-}
+#define EVRPC_GENERATE(rpcname, reqstruct, rplystruct)                        \
+  int evrpc_send_request_##rpcname(                                           \
+      struct evrpc_pool* pool, struct reqstruct* request,                     \
+      struct rplystruct* reply,                                               \
+      void (*cb)(struct evrpc_status*, struct reqstruct*, struct rplystruct*, \
+                 void* cbarg),                                                \
+      void* cbarg) {                                                          \
+    struct evrpc_status status;                                               \
+    struct evrpc_request_wrapper* ctx;                                        \
+    ctx = (struct evrpc_request_wrapper*)SbMemoryAllocate(                    \
+        sizeof(struct evrpc_request_wrapper));                                \
+    if (ctx == NULL)                                                          \
+      goto error;                                                             \
+    ctx->pool = pool;                                                         \
+    ctx->evcon = NULL;                                                        \
+    ctx->name = strdup(#rpcname);                                             \
+    if (ctx->name == NULL) {                                                  \
+      SbMemoryFree(ctx);                                                      \
+      goto error;                                                             \
+    }                                                                         \
+    ctx->cb = (void (*)(struct evrpc_status*, void*, void*, void*))cb;        \
+    ctx->cb_arg = cbarg;                                                      \
+    ctx->request = (void*)request;                                            \
+    ctx->reply = (void*)reply;                                                \
+    ctx->request_marshal =                                                    \
+        (void (*)(struct evbuffer*, void*))reqstruct##_marshal;               \
+    ctx->reply_clear = (void (*)(void*))rplystruct##_clear;                   \
+    ctx->reply_unmarshal =                                                    \
+        (int (*)(void*, struct evbuffer*))rplystruct##_unmarshal;             \
+    return (evrpc_make_request(ctx));                                         \
+  error:                                                                      \
+    SbMemorySet(&status, 0, sizeof(status));                                  \
+    status.error = EVRPC_STATUS_ERR_UNSTARTED;                                \
+    (*(cb))(&status, request, reply, cbarg);                                  \
+    return (-1);                                                              \
+  }
 
 /** Provides access to the HTTP request object underlying an RPC
  *

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/utf_string_conversions.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
-#include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
@@ -102,8 +102,7 @@ TEST(UTFStringConversionsTest, ConvertUTF8ToWide) {
     std::wstring converted;
     EXPECT_EQ(convert_cases[i].success,
               UTF8ToWide(convert_cases[i].utf8,
-                         SbStringGetLength(convert_cases[i].utf8),
-                         &converted));
+                         SbStringGetLength(convert_cases[i].utf8), &converted));
     std::wstring expected(convert_cases[i].wide);
     EXPECT_EQ(expected, converted);
   }
@@ -199,7 +198,7 @@ TEST(UTFStringConversionsTest, ConvertMultiString) {
   };
   string16 multistring16;
   SbMemoryCopy(WriteInto(&multistring16, arraysize(multi16)), multi16,
-                   sizeof(multi16));
+               sizeof(multi16));
   EXPECT_EQ(arraysize(multi16) - 1, multistring16.length());
   std::string expected;
   SbMemoryCopy(WriteInto(&expected, arraysize(multi)), multi, sizeof(multi));

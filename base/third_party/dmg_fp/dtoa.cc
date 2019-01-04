@@ -602,7 +602,7 @@ Bfree
 #ifdef FREE
 			FREE((void*)v);
 #else
-			SbMemoryFree((void*)v);
+                  SbMemoryFree((void*)v);
 #endif
 		else {
 			ACQUIRE_DTOA_LOCK(0);
@@ -613,15 +613,15 @@ Bfree
 		}
 	}
 
-#define Bcopy(x,y) SbMemoryCopy((char *)&x->sign, (char *)&y->sign, \
-y->wds*sizeof(Long) + 2*sizeof(int))
+#define Bcopy(x, y)                              \
+  SbMemoryCopy((char*)&x->sign, (char*)&y->sign, \
+               y->wds * sizeof(Long) + 2 * sizeof(int))
 
- static Bigint *
-multadd
+        static Bigint* multadd
 #ifdef KR_headers
-	(b, m, a) Bigint *b; int m, a;
+            (b, m, a) Bigint* b; int m, a;
 #else
-	(Bigint *b, int m, int a)	/* multiply by m and add a */
+            (Bigint* b, int m, int a) /* multiply by m and add a */
 #endif
 {
 	int i, wds;
@@ -1815,10 +1815,11 @@ gethex( CONST char **sp, U *rvp, int rounding, int sign)
 	static unsigned char *decimalpoint_cache;
 	if (!(s0 = decimalpoint_cache)) {
 		s0 = (unsigned char*)localeconv()->decimal_point;
-		if ((decimalpoint_cache = (unsigned char*)
-				MALLOC(SbStringGetLength((CONST char*)s0) + 1))) {
-			SbStringCopyUnsafe((char*)decimalpoint_cache, (CONST char*)s0);
-			s0 = decimalpoint_cache;
+                if ((decimalpoint_cache = (unsigned char*)MALLOC(
+                         SbStringGetLength((CONST char*)s0) + 1))) {
+                  SbStringCopyUnsafe((char*)decimalpoint_cache,
+                                     (CONST char*)s0);
+                  s0 = decimalpoint_cache;
 			}
 		}
 	decimalpoint = s0;

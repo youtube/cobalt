@@ -15,7 +15,7 @@
 #include "base/process/process_handle.h"
 
 namespace {
-kStarboardFakeProcessId = 1;
+base::ProcessId kStarboardFakeProcessId = 1;
 }
 
 namespace base {

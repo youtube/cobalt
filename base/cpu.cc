@@ -115,10 +115,14 @@ std::string* CpuInfoBrand() {
     std::istringstream iss(contents);
     std::string line;
     while (std::getline(iss, line)) {
-      if (line.compare(0, SbStringGetLength(kModelNamePrefix), kModelNamePrefix) == 0)
-        return new std::string(line.substr(SbStringGetLength(kModelNamePrefix)));
-      if (line.compare(0, SbStringGetLength(kProcessorPrefix), kProcessorPrefix) == 0)
-        return new std::string(line.substr(SbStringGetLength(kProcessorPrefix)));
+      if (line.compare(0, SbStringGetLength(kModelNamePrefix),
+                       kModelNamePrefix) == 0)
+        return new std::string(
+            line.substr(SbStringGetLength(kModelNamePrefix)));
+      if (line.compare(0, SbStringGetLength(kProcessorPrefix),
+                       kProcessorPrefix) == 0)
+        return new std::string(
+            line.substr(SbStringGetLength(kProcessorPrefix)));
     }
 
     return new std::string();

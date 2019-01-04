@@ -461,13 +461,13 @@ class LineReader {
   char *FindLineFeed() {
 #if defined(STARBOARD)
     // STARBOARD does not have an equivalent of memchr that returns void*.
-    unsigned char *p = (unsigned char*)bol_;
+    unsigned char* p = (unsigned char*)bol_;
     size_t n = eod_ - bol_;
-    while( n-- )
-        if( *p != (unsigned char)'\n' )
-            p++;
-        else
-            return reinterpret_cast<char *>(p);
+    while (n--)
+      if (*p != (unsigned char)'\n')
+        p++;
+      else
+        return reinterpret_cast<char*>(p);
     return NULL;
 #else
     return reinterpret_cast<char *>(memchr(bol_, '\n', eod_ - bol_));
