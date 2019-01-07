@@ -65,10 +65,10 @@ js::jit::DeallocateExecutableMemory(void* addr, size_t bytes, size_t pageSize)
     MOZ_ASSERT(bytes % pageSize == 0);
 #if SB_HAS(MMAP)
     mozilla::DebugOnly<bool> result = SbMemoryUnmap(addr, bytes);
+    MOZ_ASSERT(result);
 #else  // SB_HAS(MMAP)
     SB_NOTIMPLEMENTED();
 #endif  // SB_HAS(MMAP)
-    MOZ_ASSERT(result);
 }
 
 ExecutablePool::Allocation
