@@ -113,6 +113,12 @@ class URL_EXPORT SchemeHostPort {
   SchemeHostPort& operator=(const SchemeHostPort&) = default;
   SchemeHostPort(SchemeHostPort&&) = default;
   SchemeHostPort& operator=(SchemeHostPort&&) = default;
+#if defined(STARBOARD)
+  // Cobalt's compiler can not generate operator== by default yet.
+  bool operator==(const SchemeHostPort& rhs) const {
+    return scheme_ == rhs.scheme_ && host_ == rhs.host_ && port_ == rhs.port_;
+  }
+#endif
 
   ~SchemeHostPort();
 
