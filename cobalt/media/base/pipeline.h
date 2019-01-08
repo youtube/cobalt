@@ -106,17 +106,26 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // It is an error to call this method after the pipeline has already started.
   virtual void Start(Demuxer* demuxer,
                      const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-#if SB_HAS(PLAYER_WITH_URL)
-                     const OnEncryptedMediaInitDataEncounteredCB&
-                         encrypted_media_init_data_encountered_cb,
-                     const std::string& source_url,
-#endif  // SB_HAS(PLAYER_WITH_URL)
                      const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
                      const base::Closure& output_mode_change_cb,
                      const base::Closure& content_size_change_cb) = 0;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  // Build a pipeline with an url-base player.
+  virtual void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+                     const OnEncryptedMediaInitDataEncounteredCB&
+                         encrypted_media_init_data_encountered_cb,
+                     const std::string& source_url,
+                     const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
+                     const PipelineStatusCB& seek_cb,
+                     const BufferingStateCB& buffering_state_cb,
+                     const base::Closure& duration_change_cb,
+                     const base::Closure& output_mode_change_cb,
+                     const base::Closure& content_size_change_cb) = 0;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
