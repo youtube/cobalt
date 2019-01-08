@@ -114,11 +114,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
 #if SB_HAS(PLAYER_WITH_URL)
   void LoadUrl(const GURL& url) override;
-#else   // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   void LoadMediaSource() override;
   void LoadProgressive(const GURL& url,
                        scoped_ptr<BufferedDataSource> data_source) override;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+
   void CancelLoad() override;
 
   // Playback controls.
@@ -201,9 +201,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Finishes starting the pipeline due to a call to load().
 #if SB_HAS(PLAYER_WITH_URL)
   void StartPipeline(const GURL& url);
-#else   // SB_HAS(PLAYER_WITH_URL)
-  void StartPipeline(Demuxer* demuxer);
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  void StartPipeline(Demuxer* demuxer);
 
   // Helpers that set the network/ready state and notifies the client if
   // they've changed.

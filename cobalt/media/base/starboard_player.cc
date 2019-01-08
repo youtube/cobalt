@@ -81,7 +81,6 @@ void StarboardPlayer::CallbackHelper::ResetPlayer() {
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const std::string& url, SbWindow window, Host* host,
@@ -100,7 +99,8 @@ StarboardPlayer::StarboardPlayer(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       on_encrypted_media_init_data_encountered_cb_(
           on_encrypted_media_init_data_encountered_cb),
-      video_frame_provider_(video_frame_provider) {
+      video_frame_provider_(video_frame_provider),
+      is_url_based_(true) {
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
 
@@ -113,8 +113,8 @@ StarboardPlayer::StarboardPlayer(
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
-#else   // SB_HAS(PLAYER_WITH_URL)
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const AudioDecoderConfig& audio_config,
@@ -133,7 +133,12 @@ StarboardPlayer::StarboardPlayer(
       host_(host),
       set_bounds_helper_(set_bounds_helper),
       allow_resume_after_suspend_(allow_resume_after_suspend),
-      video_frame_provider_(video_frame_provider) {
+      video_frame_provider_(video_frame_provider)
+#if SB_HAS(PLAYER_WITH_URL)
+      ,
+      is_url_based_(false)
+#endif  // SB_HAS(PLAYER_WITH_URL)
+{
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
@@ -150,7 +155,6 @@ StarboardPlayer::StarboardPlayer(
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
 StarboardPlayer::~StarboardPlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -173,32 +177,13 @@ void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
   frame_height_ = frame_height;
 }
 
-void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
-  DCHECK(message_loop_->BelongsToCurrentThread());
-
-  DCHECK(frame_width);
-  DCHECK(frame_height);
-  DCHECK(SbPlayerIsValid(player_));
-
-#if SB_API_VERSION < 10
-  SbPlayerInfo out_player_info;
-  SbPlayerGetInfo(player_, &out_player_info);
-#else   // SB_API_VERSION < 10
-  SbPlayerInfo2 out_player_info;
-  SbPlayerGetInfo2(player_, &out_player_info);
-#endif  // SB_API_VERSION < 10
-  frame_width_ = out_player_info.frame_width;
-  frame_height_ = out_player_info.frame_height;
-
-  *frame_width = frame_width_;
-  *frame_height = frame_height_;
-}
-
-#if !SB_HAS(PLAYER_WITH_URL)
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                                   const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
   DCHECK(buffer);
+#if SB_HAS(PLAYER_WITH_URL)
+  DCHECK(!is_url_based_);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   if (allow_resume_after_suspend_) {
     decoder_buffer_cache_.AddBuffer(type, buffer);
@@ -211,7 +196,6 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   }
   WriteBufferInternal(type, buffer);
 }
-#endif  // !SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
@@ -329,6 +313,7 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 #else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
+
   if (media_time) {
     *media_time =
         base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
@@ -343,38 +328,15 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
-                              uint32* video_frames_dropped,
-                              base::TimeDelta* media_time,
-                              base::TimeDelta* buffer_start_time,
-                              base::TimeDelta* buffer_length_time,
-                              int* frame_width, int* frame_height) {
-  DCHECK(video_frames_decoded || video_frames_dropped || media_time);
-
-  base::AutoLock auto_lock(lock_);
-  if (state_ == kSuspended) {
-    if (video_frames_decoded) {
-      *video_frames_decoded = cached_video_frames_decoded_;
-    }
-    if (video_frames_dropped) {
-      *video_frames_dropped = cached_video_frames_dropped_;
-    }
-    if (media_time) {
-      *media_time = preroll_timestamp_;
-    }
-    return;
-  }
-
+void StarboardPlayer::GetUrlPlayerBufferedTimeRanges(
+    base::TimeDelta* buffer_start_time, base::TimeDelta* buffer_length_time) {
+  DCHECK(buffer_start_time || buffer_length_time);
+  DCHECK(is_url_based_);
   DCHECK(SbPlayerIsValid(player_));
 
-  SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player_, &info);
   SbUrlPlayerExtraInfo url_player_info;
   SbUrlPlayerGetExtraInfo(player_, &url_player_info);
-  if (media_time) {
-    *media_time =
-        base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
-  }
+
   if (buffer_start_time) {
     *buffer_start_time = base::TimeDelta::FromMicroseconds(
         url_player_info.buffer_start_timestamp);
@@ -383,39 +345,33 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
     *buffer_length_time =
         base::TimeDelta::FromMicroseconds(url_player_info.buffer_duration);
   }
+}
 
-  if (video_frames_decoded) {
-    *video_frames_decoded = info.total_video_frames;
-  }
-  if (video_frames_dropped) {
-    *video_frames_dropped = info.dropped_video_frames;
-  }
-  if (frame_width) {
-    *frame_width = info.frame_width;
-  }
-  if (frame_height) {
-    *frame_height = info.frame_height;
-  }
+void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
+  DCHECK(frame_width);
+  DCHECK(frame_height);
+  DCHECK(SbPlayerIsValid(player_));
+  DCHECK(is_url_based_);
+
+  SbPlayerInfo2 out_player_info;
+  SbPlayerGetInfo2(player_, &out_player_info);
+
+  frame_width_ = out_player_info.frame_width;
+  frame_height_ = out_player_info.frame_height;
+
+  *frame_width = frame_width_;
+  *frame_height = frame_height_;
 }
 
 base::TimeDelta StarboardPlayer::GetDuration() {
-  base::AutoLock auto_lock(lock_);
+  DCHECK(is_url_based_);
+
   if (state_ == kSuspended) {
     return base::TimeDelta();
   }
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < 10
-  SbPlayerInfo info;
-  SbPlayerGetInfo(player_, &info);
-  if (info.duration_pts == SB_PLAYER_NO_DURATION) {
-    // URL-based player may not have loaded asset yet, so map no duration to 0.
-    return base::TimeDelta();
-  }
-  return base::TimeDelta::FromMicroseconds(
-      SB_MEDIA_TIME_TO_SB_TIME(info.duration_pts));
-#else   // SB_API_VERSION < 10
   SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
   if (info.duration == SB_PLAYER_NO_DURATION) {
@@ -423,28 +379,25 @@ base::TimeDelta StarboardPlayer::GetDuration() {
     return base::TimeDelta();
   }
   return base::TimeDelta::FromMicroseconds(info.duration);
-#endif  // SB_API_VERSION < 10
 }
 
 base::TimeDelta StarboardPlayer::GetStartDate() {
-  base::AutoLock auto_lock(lock_);
+  DCHECK(is_url_based_);
+
   if (state_ == kSuspended) {
     return base::TimeDelta();
   }
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < 10
-  SbPlayerInfo info = {};
-  SbPlayerGetInfo(player_, &info);
-#else   // SB_API_VERSION < 10
-  SbPlayerInfo2 info = {};
+  SbPlayerInfo2 info;
   SbPlayerGetInfo2(player_, &info);
-#endif  // SB_API_VERSION < 10
   return base::TimeDelta::FromMicroseconds(info.start_date);
 }
 
 void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
+  DCHECK(is_url_based_);
+
   drm_system_ = drm_system;
   SbUrlPlayerSetDrmSystem(player_, drm_system);
 }
@@ -464,21 +417,10 @@ void StarboardPlayer::Suspend() {
 
   base::AutoLock auto_lock(lock_);
 
-  state_ = kSuspended;
+  this->GetInfo(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
+                &preroll_timestamp_);
 
-#if SB_API_VERSION < 10
-  SbPlayerInfo info;
-  SbPlayerGetInfo(player_, &info);
-  preroll_timestamp_ = base::TimeDelta::FromMicroseconds(
-      SB_MEDIA_TIME_TO_SB_TIME(info.current_media_pts));
-#else   // SB_API_VERSION < 10
-  SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player_, &info);
-  preroll_timestamp_ =
-      base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
-#endif  // SB_API_VERSION < 10
-  cached_video_frames_decoded_ = info.total_video_frames;
-  cached_video_frames_dropped_ = info.dropped_video_frames;
+  state_ = kSuspended;
 
   set_bounds_helper_->SetPlayer(NULL);
   video_frame_provider_->SetOutputMode(VideoFrameProvider::kOutputModeInvalid);
@@ -501,9 +443,13 @@ void StarboardPlayer::Resume() {
   decoder_buffer_cache_.StartResuming();
 
 #if SB_HAS(PLAYER_WITH_URL)
-  CreateUrlPlayer(url_);
-  if (SbDrmSystemIsValid(drm_system_)) {
-    SbUrlPlayerSetDrmSystem(player_, drm_system_);
+  if (is_url_based_) {
+    CreateUrlPlayer(url_);
+    if (SbDrmSystemIsValid(drm_system_)) {
+      SbUrlPlayerSetDrmSystem(player_, drm_system_);
+    }
+  } else {
+    CreatePlayer();
   }
 #else   // SB_HAS(PLAYER_WITH_URL)
   CreatePlayer();
@@ -533,7 +479,6 @@ VideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
 }  // namespace
 
 #if SB_HAS(PLAYER_WITH_URL)
-
 // static
 void StarboardPlayer::EncryptedMediaInitDataEncounteredCB(
     SbPlayer player, void* context, const char* init_data_type,
@@ -571,7 +516,7 @@ void StarboardPlayer::CreateUrlPlayer(const std::string& url) {
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
 }
-#else  // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -623,6 +568,9 @@ void StarboardPlayer::CreatePlayer() {
 
 void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
   DCHECK(state_ != kSuspended);
+#if SB_HAS(PLAYER_WITH_URL)
+  DCHECK(!is_url_based_);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   const scoped_refptr<DecoderBuffer>& buffer =
       decoder_buffer_cache_.GetBuffer(type);
@@ -636,6 +584,10 @@ void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
 
 void StarboardPlayer::WriteBufferInternal(
     DemuxerStream::Type type, const scoped_refptr<DecoderBuffer>& buffer) {
+#if SB_HAS(PLAYER_WITH_URL)
+  DCHECK(!is_url_based_);
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
   if (buffer->end_of_stream()) {
     SbPlayerWriteEndOfStream(player_, DemuxerStreamTypeToSbMediaType(type));
     return;
@@ -695,7 +647,6 @@ void StarboardPlayer::WriteBufferInternal(
   SbPlayerWriteSample2(player_, sample_type, &sample_info, 1);
 #endif  // SB_API_VERSION < 10
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
   return SbPlayerGetCurrentFrame(player_);
@@ -737,9 +688,9 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
 void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
                                       SbPlayerDecoderState state, int ticket) {
-// TODO: Remove decoder status related function on a broader scope when
-//       PLAYER_WITH_URL is defined.
-#if !SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
+  DCHECK(!is_url_based_);
+#endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (player_ != player || ticket != ticket_) {
@@ -771,7 +722,6 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   }
 
   host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
-#endif  // !SB_HAS(PLAYER_WITH_URL)
 }
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
@@ -819,6 +769,9 @@ void StarboardPlayer::OnPlayerError(SbPlayer player, SbPlayerError error,
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 
 void StarboardPlayer::OnDeallocateSample(const void* sample_buffer) {
+#if SB_HAS(PLAYER_WITH_URL)
+  DCHECK(!is_url_based_);
+#endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
@@ -903,7 +856,7 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbUrlPlayerOutputMode(
 
   return output_mode;
 }
-#else  // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
@@ -934,6 +887,5 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 
   return output_mode;
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
 }  // namespace media
 }  // namespace cobalt

@@ -93,11 +93,10 @@ class WebMediaPlayer {
 
 #if SB_HAS(PLAYER_WITH_URL)
   virtual void LoadUrl(const GURL& url) = 0;
-#else   // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   virtual void LoadMediaSource() = 0;
   virtual void LoadProgressive(const GURL& url,
                                scoped_ptr<BufferedDataSource> data_source) = 0;
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
   virtual void CancelLoad() = 0;
 
