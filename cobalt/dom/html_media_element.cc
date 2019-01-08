@@ -103,7 +103,6 @@ struct HTMLMediaElementCountLog {
 base::LazyInstance<HTMLMediaElementCountLog> html_media_element_count_log =
     LAZY_INSTANCE_INITIALIZER;
 
-#if !SB_HAS(PLAYER_WITH_URL)
 loader::RequestMode GetRequestMode(
     const base::optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
@@ -120,17 +119,25 @@ loader::RequestMode GetRequestMode(
   // "no-cors" request mode.
   return loader::kNoCORSMode;
 }
+
+#if SB_HAS(PLAYER_WITH_URL)
+bool ResourceNeedsUrlPlayer(const GURL& resource_url) {
+  if (resource_url.SchemeIs("data")) {
+    return true;
+  }
+  // Check if resource_url is an hls url. Hls url must contain "hls_variant"
+  return resource_url.spec().find("hls_variant") != std::string::npos;
+}
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
                   const loader::Origin& origin) {
 #if SB_HAS(PLAYER_WITH_URL)
-  UNREFERENCED_PARAMETER(request_mode);
-  UNREFERENCED_PARAMETER(resource_url);
-  UNREFERENCED_PARAMETER(origin);
-  return true;
-#else   // SB_HAS(PLAYER_WITH_URL)
+  if (ResourceNeedsUrlPlayer(resource_url)) {
+    return true;
+  }
+#endif  // SB_HAS(PLAYER_WITH_URL)
   if (resource_url.SchemeIs("blob")) {
     // Blob resources come from application and is same-origin.
     return true;
@@ -145,7 +152,6 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
     return true;
   }
   return false;
-#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
@@ -1031,10 +1037,14 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (url.is_empty()) {
     return;
   }
+
 #if SB_HAS(PLAYER_WITH_URL)
-  // TODO: Investigate if we have to support csp and sop for url player.
-  player_->LoadUrl(url);
-#else   // SB_HAS(PLAYER_WITH_URL)
+  if (ResourceNeedsUrlPlayer(url)) {
+    // TODO: Investigate if we have to support csp and sop for url player.
+    player_->LoadUrl(url);
+    return;
+  }
+#endif  // SB_HAS(PLAYER_WITH_URL)
   if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
@@ -1050,7 +1060,6 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
             request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, data_source.Pass());
   }
-#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
@@ -1280,7 +1289,7 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
     duration_ = player_->GetDuration();
 #if SB_HAS(PLAYER_WITH_URL)
     start_date_ = player_->GetStartDate();
-#endif
+#endif  // SB_HAS(PLAYER_WITH_URL)
     ScheduleOwnEvent(base::Tokens::durationchange());
     ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }

@@ -45,9 +45,7 @@ class StarboardPlayer {
  public:
   class Host {
    public:
-#if !SB_HAS(PLAYER_WITH_URL)
     virtual void OnNeedData(DemuxerStream::Type type) = 0;
-#endif  // !SB_HAS(PLAYER_WITH_URL)
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
 #if SB_HAS(PLAYER_ERROR_MESSAGE)
     virtual void OnPlayerError(SbPlayerError error,
@@ -61,7 +59,7 @@ class StarboardPlayer {
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
-
+  // Create a StarboardPlayer with url-based player.
   StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                   const std::string& url, SbWindow window, Host* host,
                   SbPlayerSetBoundsHelper* set_bounds_helper,
@@ -70,7 +68,8 @@ class StarboardPlayer {
                   const OnEncryptedMediaInitDataEncounteredCB&
                       encrypted_media_init_data_encountered_cb,
                   VideoFrameProvider* const video_frame_provider);
-#else   // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
+  // Create a StarboardPlayer with normal player
   StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                   const AudioDecoderConfig& audio_config,
                   const VideoDecoderConfig& video_config, SbWindow window,
@@ -79,19 +78,15 @@ class StarboardPlayer {
                   bool allow_resume_after_suspend,
                   bool prefer_decode_to_texture,
                   VideoFrameProvider* const video_frame_provider);
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
   ~StarboardPlayer();
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
   void UpdateVideoResolution(int frame_width, int frame_height);
-  void GetVideoResolution(int* frame_width, int* frame_height);
 
-#if !SB_HAS(PLAYER_WITH_URL)
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
-#endif  // !SB_HAS(PLAYER_WITH_URL)
 
   void SetBounds(int z_index, const gfx::Rect& rect);
 
@@ -104,11 +99,9 @@ class StarboardPlayer {
                base::TimeDelta* media_time);
 
 #if SB_HAS(PLAYER_WITH_URL)
-  void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
-               base::TimeDelta* media_time, base::TimeDelta* buffer_start_time,
-               base::TimeDelta* buffer_length_time, int* frame_width,
-               int* frame_height);
-
+  void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,
+                                      base::TimeDelta* buffer_length_time);
+  void GetVideoResolution(int* frame_width, int* frame_height);
   base::TimeDelta GetDuration();
   base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
@@ -134,6 +127,7 @@ class StarboardPlayer {
     explicit CallbackHelper(StarboardPlayer* player);
 
     void ClearDecoderBufferCache();
+
     void OnDecoderStatus(SbPlayer player, SbMediaType type,
                          SbPlayerDecoderState state, int ticket);
     void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
@@ -163,14 +157,17 @@ class StarboardPlayer {
   OnEncryptedMediaInitDataEncounteredCB
       on_encrypted_media_init_data_encountered_cb_;
 
+  static void EncryptedMediaInitDataEncounteredCB(
+      SbPlayer player, void* context, const char* init_data_type,
+      const unsigned char* init_data, unsigned int init_data_length);
+
   void CreateUrlPlayer(const std::string& url);
-#else   // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
   void WriteNextBufferFromCache(DemuxerStream::Type type);
   void WriteBufferInternal(DemuxerStream::Type type,
                            const scoped_refptr<DecoderBuffer>& buffer);
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
   void UpdateBounds_Locked();
 
@@ -197,24 +194,19 @@ class StarboardPlayer {
                                  const void* sample_buffer);
 
 #if SB_HAS(PLAYER_WITH_URL)
-  // TODO: Combine two compute output mode functions into one.
-  // Returns the output mode that should be used for the URL player.
   static SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(
       bool prefer_decode_to_texture);
-
-  static void EncryptedMediaInitDataEncounteredCB(
-      SbPlayer player, void* context, const char* init_data_type,
-      const unsigned char* init_data, unsigned int init_data_length);
-#else   // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   // Returns the output mode that should be used for a video with the given
   // specifications.
   static SbPlayerOutputMode ComputeSbPlayerOutputMode(
       SbMediaVideoCodec codec, SbDrmSystem drm_system,
       bool prefer_decode_to_texture);
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
   // The following variables are initialized in the ctor and never changed.
+#if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
+#endif  // SB_HAS(PLAYER_WITH_URL)
   const scoped_refptr<base::MessageLoopProxy> message_loop_;
   scoped_refptr<CallbackHelper> callback_helper_;
   AudioDecoderConfig audio_config_;
@@ -254,6 +246,10 @@ class StarboardPlayer {
   SbPlayerOutputMode output_mode_;
 
   VideoFrameProvider* const video_frame_provider_;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  const bool is_url_based_;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 };
 
 }  // namespace media
