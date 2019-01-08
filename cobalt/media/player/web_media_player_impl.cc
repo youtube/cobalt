@@ -212,7 +212,6 @@ URLSchemeForHistogram URLScheme(const GURL& url) {
 }  // anonymous namespace
 
 #if SB_HAS(PLAYER_WITH_URL)
-
 void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadUrl");
   DCHECK_EQ(main_loop_, MessageLoop::current());
@@ -232,8 +231,7 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
 
   StartPipeline(url);
 }
-
-#else  // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void WebMediaPlayerImpl::LoadMediaSource() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadMediaSource");
@@ -288,8 +286,6 @@ void WebMediaPlayerImpl::LoadProgressive(
   state_.is_progressive = true;
   StartPipeline(progressive_demuxer_.get());
 }
-
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void WebMediaPlayerImpl::CancelLoad() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
@@ -474,7 +470,7 @@ base::Time WebMediaPlayerImpl::GetStartDate() const {
 
   return base::Time::FromSbTime(start_date.InMicroseconds());
 }
-#endif  // SB_HAS(PLAYER_WITH(URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 float WebMediaPlayerImpl::GetCurrentTime() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
@@ -778,7 +774,7 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
 
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
-      NULL, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
       url.spec(), BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
@@ -789,7 +785,7 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
-#else  // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::StartPipeline");
 
@@ -798,7 +794,6 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
-      // SB_HAS(PLAYER_WITH_URL)
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
@@ -807,7 +802,6 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
