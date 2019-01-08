@@ -1,6 +1,8 @@
 2-transition-ends-on-display-none
 2-transition-ends-on-display-none-for-pseudoelement
 2-transition-ends-on-display-none-from-ancestor
+2-transition-for-inheritable-property-from-ancestor-should-occur
+2-transition-for-not-inheritable-property-from-ancestor-should-not-occur
 2-transition-start-during-display-none-does-not-transition
 2-transition-start-during-display-none-does-not-transition-from-ancestor
 2-transition-started-on-display-none-pseudoelement-does-not-dcheck
