@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
@@ -38,6 +39,8 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() {
+  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
+      BlockingType::MAY_BLOCK);
 #if !defined(NDEBUG)
   user_lock_->CheckHeldAndUnmark();
 #endif
@@ -50,6 +53,8 @@ void ConditionVariable::Wait() {
 }
 
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
+  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
+      BlockingType::MAY_BLOCK);
   SbTime duration = max_time.ToSbTime();
 
 #if !defined(NDEBUG)
