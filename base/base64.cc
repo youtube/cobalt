@@ -26,8 +26,13 @@ bool Base64Decode(const StringPiece& input, std::string* output) {
 
   // does not null terminate result since result is binary data!
   size_t input_size = input.size();
-  size_t output_size = modp_b64_decode(&(temp[0]), input.data(), input_size);
+  int output_size = modp_b64_decode(&(temp[0]), input.data(), input_size);
+#if defined(STARBOARD)
+  // Cobalt has a slightly different modp_b64 version.
+  if (output_size < 0)
+#else
   if (output_size == MODP_B64_ERROR)
+#endif
     return false;
 
   temp.resize(output_size);

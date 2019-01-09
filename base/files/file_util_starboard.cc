@@ -26,6 +26,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -428,8 +429,15 @@ bool HasFileBeenModifiedSince(const FileEnumerator::FileInfo &file_info,
 }
 
 bool GetCurrentDirectory(FilePath* dir) {
-  // getcwd can return ENOENT, which implies it checks against the disk.
-  AssertBlockingAllowed();
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+
+  // Not supported on Starboard.
+  NOTREACHED();
+  return false;
+}
+
+bool SetCurrentDirectory(const FilePath& path) {
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
 
   // Not supported on Starboard.
   NOTREACHED();
@@ -438,8 +446,8 @@ bool GetCurrentDirectory(FilePath* dir) {
 
 FilePath MakeAbsoluteFilePath(const FilePath& input) {
   AssertBlockingAllowed();
-  // Absolute paths are not supported in Starboard.
-  NOTREACHED();
+  // Only absolute paths are supported in Starboard.
+  DCHECK(input.IsAbsolute());
   return input;
 }
 

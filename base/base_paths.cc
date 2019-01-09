@@ -33,8 +33,9 @@ bool PathProvider(int key, FilePath* result) {
       return true;
     case DIR_TEST_DATA: {
       FilePath test_data_path;
-      if (!PathService::Get(DIR_SOURCE_ROOT, &test_data_path))
+      if (!PathService::Get(DIR_MODULE, &test_data_path))
         return false;
+      test_data_path = test_data_path.Append(FILE_PATH_LITERAL("test"));
       test_data_path = test_data_path.Append(FILE_PATH_LITERAL("base"));
       test_data_path = test_data_path.Append(FILE_PATH_LITERAL("test"));
       test_data_path = test_data_path.Append(FILE_PATH_LITERAL("data"));
