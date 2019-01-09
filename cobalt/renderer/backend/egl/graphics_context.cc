@@ -140,8 +140,8 @@ bool GraphicsContextEGL::ComputeReadPixelsNeedVerticalFlip() {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
     Blit(texture, 0, 0, kDummyTextureWidth, kDummyTextureHeight);
-    GL_CALL(glDeleteTextures(1, &texture));
     GL_CALL(glFinish());
+    GL_CALL(glDeleteTextures(1, &texture));
   }
 
   // Now read back the texture data using glReadPixels().
