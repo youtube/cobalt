@@ -152,6 +152,11 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
 
   while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
     if (contents) {
+      size_t bytes_to_add = std::min(len, max_size - size);
+      if (size + bytes_to_add > contents->max_size()) {
+          read_status = false;
+          break;
+      }
       contents->append(buf, std::min(len, max_size - size));
     }
 
@@ -163,6 +168,9 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     size += len;
   }
 
+  if (contents){
+    contents->resize(contents->size());
+  }
   read_status = read_status && file.IsValid();
   return read_status;
 #else

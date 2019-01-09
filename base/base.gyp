@@ -932,17 +932,16 @@
         'test_support_base',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
-      'actions': [
-        {
-          'action_name': 'copy_test_data',
-          'variables': {
-            'input_files': [
-              'test/data',
-            ],
-            'output_dir': 'base/test',
-          },
-          'includes': [ '../cobalt/build/copy_test_data.gypi' ],
-        },
+      'conditions': [
+          ['cobalt_copy_test_data == 1', {
+            'variables': {
+              'content_test_input_files': [
+                '<(DEPTH)/base/test/data',
+              ],
+              'content_test_output_subdir': 'base/test',
+            },
+            'includes': [ '../starboard/build/copy_test_data.gypi' ],
+          }],
       ],
       'msvs_disabled_warnings': [
         # forcing value to bool 'true' or 'false' (performance warning)
@@ -1006,6 +1005,8 @@
         'test/mock_devices_changed_observer.h',
         'test/mock_log.cc',
         'test/mock_log.h',
+        'test/null_task_runner.cc',
+        'test/null_task_runner.h',
         'test/power_monitor_test_base.cc',
         'test/power_monitor_test_base.h',
         'test/scoped_feature_list.cc',

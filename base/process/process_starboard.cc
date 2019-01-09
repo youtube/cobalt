@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdlib>
+
 #include "base/process/process_handle.h"
+#include "base/process/process.h"
 
 namespace {
 base::ProcessId kStarboardFakeProcessId = 1;
@@ -22,6 +25,11 @@ namespace base {
 
 ProcessId GetCurrentProcId() {
   return kStarboardFakeProcessId;
+}
+
+// static
+void Process::TerminateCurrentProcessImmediately(int exit_code) {
+    std::_Exit(exit_code);
 }
 
 }  // namespace base
