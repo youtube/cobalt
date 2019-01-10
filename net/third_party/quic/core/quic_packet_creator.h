@@ -49,7 +49,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     virtual ~DebugDelegate() {}
 
     // Called when a frame has been added to the current packet.
-    virtual void OnFrameAddedToPacket(const QuicFrame& frame) {}
+    virtual void OnFrameAddedToPacket(const QuicFrame& /*frame*/) {}
   };
 
   QuicPacketCreator(QuicConnectionId connection_id,

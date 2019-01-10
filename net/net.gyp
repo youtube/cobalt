@@ -210,6 +210,22 @@
         'der/parser.h',
         'der/tag.cc',
         'der/tag.h',
+
+        # dial is a legacy component we kept from old Chromium net.
+        # TODO[johnx]: enable Cobalt's dial service.
+        # 'dial/dial_http_server.cc',
+        # 'dial/dial_http_server.h',
+        # 'dial/dial_service.cc',
+        # 'dial/dial_service.h',
+        # 'dial/dial_service_handler.h',
+        # 'dial/dial_system_config.cc',
+        # 'dial/dial_system_config.h',
+        # 'dial/dial_system_config_starboard.cc',
+        # 'dial/dial_udp_server.cc',
+        # 'dial/dial_udp_server.h',
+        # 'dial/dial_udp_socket_factory.cc',
+        # 'dial/dial_udp_socket_factory.h',
+
         'extras/preload_data/decoder.cc',
         'extras/preload_data/decoder.h',
         'http/http_auth_challenge_tokenizer.cc',
@@ -1868,6 +1884,13 @@
         'der/parse_values_unittest.cc',
         'der/parser_unittest.cc',
 
+        # dial is a legacy component we kept from old Chromium net.
+        # TODO[johnx]: enable Cobalt's dial service.
+        # 'dial/dial_http_server_unittest.cc',
+        # 'dial/dial_service_unittest.cc',
+        # 'dial/dial_test_helpers.h',
+        # 'dial/dial_udp_server_unittests.cc',
+
         # 'disk_cache/backend_cleanup_tracker_unittest.cc',
         # 'disk_cache/backend_unittest.cc',
         # 'disk_cache/blockfile/addr_unittest.cc',
@@ -1995,9 +2018,6 @@
         'proxy_resolution/pac_file_decider_unittest.cc',
         'proxy_resolution/pac_file_fetcher_impl_unittest.cc',
         'proxy_resolution/proxy_bypass_rules_unittest.cc',
-        'proxy_resolution/proxy_config_service_android_unittest.cc',
-        'proxy_resolution/proxy_config_service_linux_unittest.cc',
-        'proxy_resolution/proxy_config_service_win_unittest.cc',
         'proxy_resolution/proxy_config_unittest.cc',
         'proxy_resolution/proxy_info_unittest.cc',
         'proxy_resolution/proxy_list_unittest.cc',
