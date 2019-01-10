@@ -12,6 +12,7 @@ from __future__ import print_function
 import argparse
 import json
 import os
+import platform
 import subprocess
 import sys
 import requests
@@ -81,7 +82,8 @@ def _RunGitCommandReturnExitCode(gitargs, **kwargs):
 
 
 def main():
-  dev_null = open("/dev/null", "w")
+  dev_null_filename = "nul" if platform.system() == "Windows" else "/dev/null"
+  dev_null = open(dev_null_filename, "w")
   arg_parser = argparse.ArgumentParser(
       description="Syncs to a given Cobalt build id")
   arg_parser.add_argument("buildid", nargs=1)
