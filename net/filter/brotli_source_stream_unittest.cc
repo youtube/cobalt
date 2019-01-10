@@ -38,7 +38,6 @@ class BrotliSourceStreamTest : public PlatformTest {
     data_dir = data_dir.AppendASCII("net");
     data_dir = data_dir.AppendASCII("data");
     data_dir = data_dir.AppendASCII("filter_unittests");
-    DLOG(INFO) << data_dir.value();
 
     // Read data from the original file into buffer.
     base::FilePath file_path;

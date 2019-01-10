@@ -84,7 +84,8 @@ class NET_EXPORT_PRIVATE WebSocketDeflateParameters {
   // |bits| must be valid as a max_window_bits value.
   void SetServerMaxWindowBits(int bits) {
     DCHECK(IsValidWindowBits(bits));
-    server_max_window_bits_ = WindowBits(bits, true, true);
+    server_max_window_bits_ =
+        WindowBits(static_cast<int16_t>(bits), true, true);
   }
   void SetClientMaxWindowBits() {
     client_max_window_bits_ = WindowBits(0, true, false);
@@ -92,7 +93,8 @@ class NET_EXPORT_PRIVATE WebSocketDeflateParameters {
   // |bits| must be valid as a max_window_bits value.
   void SetClientMaxWindowBits(int bits) {
     DCHECK(IsValidWindowBits(bits));
-    client_max_window_bits_ = WindowBits(bits, true, true);
+    client_max_window_bits_ =
+        WindowBits(static_cast<int16_t>(bits), true, true);
   }
 
   int PermissiveServerMaxWindowBits() const {

@@ -107,7 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
       const QuicSocketAddress& peer_address) override;
   void OnCanWrite() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
-  void OnConnectionMigration(AddressChangeType type) override {}
+  void OnConnectionMigration(AddressChangeType /*type*/) override {}
   // Deletes streams that are safe to be deleted now that it's safe to do so (no
   // other operations are being done on the streams at this time).
   void PostProcessAfterData() override;
