@@ -19,6 +19,7 @@
 #ifndef STARBOARD_THREAD_H_
 #define STARBOARD_THREAD_H_
 
+#include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/thread_types.h"
 #include "starboard/time.h"
@@ -258,6 +259,83 @@ SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
 static SB_C_INLINE bool SbThreadIsCurrent(SbThread thread) {
   return SbThreadGetCurrent() == thread;
 }
+
+#if SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
+
+// Private structure representing the context of a frozen thread.
+typedef struct SbThreadContextPrivate SbThreadContextPrivate;
+
+// A handle to the context of a frozen thread.
+typedef SbThreadContextPrivate* SbThreadContext;
+
+// Well-defined value for an invalid thread context.
+#define kSbThreadContextInvalid ((SbThreadContext)NULL)
+
+// Returns whether the given thread context is valid.
+static SB_C_INLINE bool SbThreadContextIsValid(SbThreadContext context) {
+  return context != kSbThreadContextInvalid;
+}
+
+typedef enum SbThreadContextProperty {
+  // Pointer to the current instruction (aka program counter).
+  kSbThreadContextInstructionPointer,
+
+  // Pointer to the top of the stack.
+  kSbThreadContextStackPointer,
+
+  // Pointer to the the current stack frame.
+  kSbThreadContextFramePointer,
+} SbThreadContextProperty;
+
+// Gets the specified pointer-type |property| from the specified |context|.
+// Returns |true| if successful and |out_value| has been modified, otherwise
+// returns |false| and |out_value| is not modified.
+SB_EXPORT bool SbThreadContextGetPointer(SbThreadContext context,
+                                         SbThreadContextProperty property,
+                                         void** out_value);
+
+// Private structure representing a thread sampler.
+typedef struct SbThreadSamplerPrivate SbThreadSamplerPrivate;
+
+// A handle to a thread sampler.
+typedef SbThreadSamplerPrivate* SbThreadSampler;
+
+// Well-defined value for an invalid thread sampler.
+#define kSbThreadSamplerInvalid ((SbThreadSampler)NULL)
+
+// Returns whether the given thread sampler is valid.
+static SB_C_INLINE bool SbThreadSamplerIsValid(SbThreadSampler sampler) {
+  return sampler != kSbThreadSamplerInvalid;
+}
+
+// Whether the current platform supports thread sampling. The result of this
+// function must not change over the course of the program, which means that the
+// results of this function may be cached indefinitely. If this returns false,
+// |SbThreadSamplerCreate| will return an invalid sampler.
+SB_EXPORT bool SbThreadSamplerIsSupported();
+
+// Creates a new thread sampler for the specified |thread|.
+//
+// If successful, this function returns the newly created handle.
+// If unsuccessful, this function returns |kSbThreadSamplerInvalid|.
+SB_EXPORT SbThreadSampler SbThreadSamplerCreate(SbThread thread);
+
+// Destroys the |sampler| and frees whatever resources it was using.
+SB_EXPORT void SbThreadSamplerDestroy(SbThreadSampler sampler);
+
+// Suspends execution of the thread that |sampler| was created for.
+//
+// If successful, this function returns a |SbThreadContext| for the frozen
+// thread, from which properties may be read while the thread remains frozen.
+// If unsuccessful, this function returns |kSbThreadContextInvalid|.
+SB_EXPORT
+SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler);
+
+// Resumes execution of the thread that |sampler| was created for. This
+// invalidates the context returned from |SbThreadSamplerFreeze|.
+SB_EXPORT bool SbThreadSamplerThaw(SbThreadSampler sampler);
+
+#endif  // SB_API_VERSION >= SB_THREAD_SAMPLER_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"

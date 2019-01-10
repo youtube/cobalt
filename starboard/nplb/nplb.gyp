@@ -251,6 +251,7 @@
         'thread_is_equal_test.cc',
         'thread_join_test.cc',
         'thread_local_value_test.cc',
+        'thread_sampler_test.cc',
         'thread_set_name_test.cc',
         'thread_sleep_test.cc',
         'thread_test.cc',

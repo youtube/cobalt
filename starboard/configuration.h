@@ -107,6 +107,9 @@
 // Add a new SbPlayerError enum kSbPlayerErrorMax in player.h.
 #define SB_HAS_PLAYER_ERROR_MAX_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add support for SbThreadSampler and SbThreadContext to support profiling.
+#define SB_THREAD_SAMPLER_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
