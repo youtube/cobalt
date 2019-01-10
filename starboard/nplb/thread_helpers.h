@@ -181,6 +181,8 @@ class AbstractTestThread {
     }
   }
 
+  SbThread GetThread() { return thread_; }
+
  private:
   static void* ThreadEntryPoint(void* ptr) {
     AbstractTestThread* this_ptr = static_cast<AbstractTestThread*>(ptr);
