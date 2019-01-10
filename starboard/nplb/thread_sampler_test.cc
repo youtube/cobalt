@@ -162,7 +162,11 @@ TEST(ThreadSamplerTest, SunnyDayThreadContextPointers) {
   void* fp = nullptr;
   EXPECT_TRUE(
       SbThreadContextGetPointer(ctx, kSbThreadContextFramePointer, &fp));
-  EXPECT_NE(nullptr, fp);
+  // X86-64 PSABI allows the frame pointer not to be stored in a register
+  // because the compiled code can find the frame indexed on the stack, so we
+  // may get a null FP if that's what happens to be in the register instead.
+  // https://github.com/hjl-tools/x86-psABI/wiki/X86-psABI (see "stack frame")
+  // EXPECT_NE(nullptr, fp);
 
   EXPECT_TRUE(SbThreadSamplerThaw(sampler));
   SbThreadSamplerDestroy(sampler);
