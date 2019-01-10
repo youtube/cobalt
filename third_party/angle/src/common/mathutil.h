@@ -16,7 +16,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#if defined(STARBOARD)
+#include <common/third_party/numerics/base/numerics/safe_math.h>
+#else
 #include <base/numerics/safe_math.h>
+#endif
 
 #include "common/debug.h"
 #include "common/platform.h"
