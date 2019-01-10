@@ -8,7 +8,11 @@
 
 #include "libANGLE/validationES3.h"
 
+#if defined(STARBOARD)
+#include "common/third_party/numerics/base/numerics/safe_conversions.h"
+#else
 #include "base/numerics/safe_conversions.h"
+#endif
 #include "common/mathutil.h"
 #include "common/utilities.h"
 #include "libANGLE/Context.h"
