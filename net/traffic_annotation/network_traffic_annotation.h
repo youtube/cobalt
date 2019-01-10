@@ -85,7 +85,7 @@ struct PartialNetworkTrafficAnnotationTag {
 template <size_t N1, size_t N2>
 constexpr NetworkTrafficAnnotationTag DefineNetworkTrafficAnnotation(
     const char (&unique_id)[N1],
-    const char (&proto)[N2]) {
+    const char (&)[N2]) {
   return NetworkTrafficAnnotationTag(
       {COMPUTE_NETWORK_TRAFFIC_ANNOTATION_ID_HASH(unique_id)});
 }
@@ -110,7 +110,7 @@ template <size_t N1, size_t N2, size_t N3>
 constexpr PartialNetworkTrafficAnnotationTag
 DefinePartialNetworkTrafficAnnotation(const char (&unique_id)[N1],
                                       const char (&completing_id)[N2],
-                                      const char (&proto)[N3]) {
+                                      const char (&)[N3]) {
 #if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
   return PartialNetworkTrafficAnnotationTag(
       {COMPUTE_NETWORK_TRAFFIC_ANNOTATION_ID_HASH(unique_id),
@@ -129,7 +129,7 @@ template <size_t N1, size_t N2>
 NetworkTrafficAnnotationTag CompleteNetworkTrafficAnnotation(
     const char (&unique_id)[N1],
     const PartialNetworkTrafficAnnotationTag& partial_annotation,
-    const char (&proto)[N2]) {
+    const char (&)[N2]) {
 #if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
   DCHECK(partial_annotation.completing_id_hash_code ==
              COMPUTE_NETWORK_TRAFFIC_ANNOTATION_ID_HASH(unique_id) ||
@@ -148,9 +148,9 @@ NetworkTrafficAnnotationTag CompleteNetworkTrafficAnnotation(
 template <size_t N1, size_t N2, size_t N3>
 NetworkTrafficAnnotationTag BranchedCompleteNetworkTrafficAnnotation(
     const char (&unique_id)[N1],
-    const char (&group_id)[N2],
+    const char (&)[N2],
     const PartialNetworkTrafficAnnotationTag& partial_annotation,
-    const char (&proto)[N3]) {
+    const char (&)[N3]) {
 #if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
   DCHECK(partial_annotation.completing_id_hash_code ==
              COMPUTE_NETWORK_TRAFFIC_ANNOTATION_ID_HASH(unique_id) ||

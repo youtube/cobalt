@@ -20,8 +20,8 @@ class NET_EXPORT ProxyConfigServiceFixed : public ProxyConfigService {
   ~ProxyConfigServiceFixed() override;
 
   // ProxyConfigService methods:
-  void AddObserver(Observer* observer) override {}
-  void RemoveObserver(Observer* observer) override {}
+  void AddObserver(Observer*) override {}
+  void RemoveObserver(Observer*) override {}
   ConfigAvailability GetLatestProxyConfig(
       ProxyConfigWithAnnotation* config) override;
 

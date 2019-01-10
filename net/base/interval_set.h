@@ -808,7 +808,7 @@ bool IntervalSet<T>::Valid() const {
 }
 
 template <typename T>
-inline std::ostream& operator<<(std::ostream& out, const IntervalSet<T>& seq) {
+inline std::ostream& operator<<(std::ostream& out, const IntervalSet<T>&) {
 // TODO(rtenneti): Implement << method of IntervalSet.
 #if 0
   util::gtl::LogRangeToStream(out, seq.begin(), seq.end(),
