@@ -197,6 +197,9 @@ typedef enum SbSystemCapabilityId {
   // incorrect.
   kSbSystemCapabilitySetsInputTimestamp,
 #endif
+
+  // ATTENTION: Do not add more to this enum. Instead add an "IsSupported"
+  // function in the relevant module.
 } SbSystemCapabilityId;
 
 // Enumeration of possible values for the |type| parameter passed to  the
