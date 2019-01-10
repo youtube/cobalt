@@ -26,6 +26,8 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
 #define VPX_CODEC_DISABLE_COMPAT 1
@@ -36,7 +38,8 @@ namespace starboard {
 namespace shared {
 namespace vpx {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder {
+class VideoDecoder : public starboard::player::filter::VideoDecoder,
+                     private starboard::player::JobQueue::JobOwner {
  public:
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
@@ -59,37 +62,15 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
       CpuVideoFrame;
 
-  enum EventType {
-    kInvalid,
-    kReset,
-    kWriteInputBuffer,
-    kWriteEndOfStream,
-  };
-
-  struct Event {
-    EventType type;
-    // |input_buffer| is only used when |type| is kWriteInputBuffer.
-    scoped_refptr<InputBuffer> input_buffer;
-
-    explicit Event(EventType type = kInvalid) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
-    }
-
-    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
-        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
-  };
-
-  static void* ThreadEntryPoint(void* context);
-  void DecoderThreadFunc();
-
   void ReportError(const std::string& error_message);
 
-  // The following three functions are only called on the decoder thread except
+  // The following four functions are only called on the decoder thread except
   // that TeardownCodec() can also be called on other threads when the decoder
   // thread is not running.
   void InitializeCodec();
   void TeardownCodec();
   void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
+  void DecodeEndOfStream();
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
@@ -100,8 +81,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
 
-  Queue<Event> queue_;
-
   int current_frame_width_;
   int current_frame_height_;
   scoped_ptr<vpx_codec_ctx> context_;
@@ -110,7 +89,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   bool error_occured_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_;
+  scoped_ptr<starboard::player::JobThread> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;
