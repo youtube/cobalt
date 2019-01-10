@@ -309,6 +309,12 @@
       '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
       '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
       '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_context_get_pointer.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_sampler_create.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_sampler_destroy.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_sampler_freeze.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_sampler_is_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/thread_sampler_thaw.cc',
       '<(DEPTH)/starboard/shared/stub/window_get_diagonal_size_in_inches.cc',
     ],
     'starboard_platform_dependencies': [
