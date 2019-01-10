@@ -8,9 +8,16 @@
 #include <limits>
 #include <type_traits>
 
+#if defined(STARBOARD)
+// Cobalt might also include the real base that can have conflicts here.
+#include "common/third_party/numerics/base/numerics/safe_conversions.h"
+#include "common/third_party/numerics/base/numerics/safe_math.h"
+#else
 #include "base/compiler_specific.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
+#endif
+
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

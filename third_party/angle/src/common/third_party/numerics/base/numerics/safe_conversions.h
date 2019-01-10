@@ -10,8 +10,13 @@
 #include <limits>
 #include <type_traits>
 
+#if defined(STARBOARD)
+#include "common/third_party/numerics/base/numerics_logging.h"
+#include "common/third_party/numerics/base/numerics/safe_conversions_impl.h"
+#else
 #include "base/numerics_logging.h"
 #include "base/numerics/safe_conversions_impl.h"
+#endif
 
 namespace base
 {
