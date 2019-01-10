@@ -64,8 +64,8 @@ int WebSocketDeflateStream::ReadFrames(
     CompletionOnceCallback callback) {
   read_callback_ = std::move(callback);
   int result = stream_->ReadFrames(
-      frames, base::BindOnce(&WebSocketDeflateStream::OnReadComplete,
-                             base::Unretained(this), base::Unretained(frames)));
+      frames, base::Bind(&WebSocketDeflateStream::OnReadComplete,
+                         base::Unretained(this), base::Unretained(frames)));
   if (result < 0)
     return result;
   DCHECK_EQ(OK, result);

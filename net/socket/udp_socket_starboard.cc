@@ -88,7 +88,7 @@ int UDPSocketStarboard::Open(AddressFamily address_family) {
 void UDPSocketStarboard::Close() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (!is_connected())
+  if (socket_ == kSbSocketInvalid)
     return;
 
   // Zero out any pending read/write callback state.

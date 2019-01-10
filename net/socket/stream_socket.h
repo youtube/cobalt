@@ -183,7 +183,7 @@ class NET_EXPORT StreamSocket : public Socket {
   // Dumps memory allocation stats into |stats|. |stats| can be assumed as being
   // default initialized upon entry. Implementations should override fields in
   // |stats|. Default implementation does nothing.
-  virtual void DumpMemoryStats(SocketMemoryStats* stats) const {}
+  virtual void DumpMemoryStats(SocketMemoryStats* /*stats*/) const {}
 
   // Apply |tag| to this socket. If socket isn't yet connected, tag will be
   // applied when socket is later connected. If Connect() fails or socket

@@ -12328,6 +12328,7 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacks) {
     EXPECT_EQ("GET /cachetime HTTP/1.1\r\n", raw_req_headers.request_line());
     EXPECT_EQ(raw_resp_headers.get(), r->response_headers());
   }
+#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
   {
     std::unique_ptr<URLRequest> r(context.CreateRequest(
         url, DEFAULT_PRIORITY, &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
@@ -12341,10 +12342,9 @@ TEST_F(URLRequestTestHTTP, HeadersCallbacks) {
         }));
     r->Start();
     delegate.RunUntilComplete();
-#if !defined(HTTP_CACHE_DISABLED_FOR_STARBOARD)
     EXPECT_TRUE(r->was_cached());
-#endif
   }
+#endif
 }
 
 TEST_F(URLRequestTestHTTP, HeadersCallbacksWithRedirect) {

@@ -328,8 +328,8 @@ class NET_EXPORT HostResolver {
   virtual void SetNoIPv6OnWifi(bool no_ipv6_on_wifi);
   virtual bool GetNoIPv6OnWifi();
 
-  virtual void SetRequestContext(URLRequestContext* request_context) {}
-  virtual void AddDnsOverHttpsServer(std::string spec, bool use_post) {}
+  virtual void SetRequestContext(URLRequestContext* /*request_context*/) {}
+  virtual void AddDnsOverHttpsServer(std::string /*spec*/, bool /*use_post*/) {}
   virtual void ClearDnsOverHttpsServers() {}
 
   // Returns the currently configured DNS over HTTPS servers. Returns nullptr if
