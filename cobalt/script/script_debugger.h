@@ -16,8 +16,10 @@
 #define COBALT_SCRIPT_SCRIPT_DEBUGGER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/values.h"
 #include "cobalt/script/call_frame.h"
 #include "cobalt/script/source_provider.h"
 
@@ -49,6 +51,15 @@ class ScriptDebugger {
 
     // Called when a debugging protocol event occurs.
     virtual void OnScriptDebuggerEvent(const std::string& event) = 0;
+  };
+
+  // Receives trace events from the JS engine in the JSON Trace Event Format.
+  // https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU
+  class TraceDelegate {
+   public:
+    virtual ~TraceDelegate() {}
+    virtual void AppendTraceEvent(const std::string& trace_event_json) = 0;
+    virtual void FlushTraceEvents() = 0;
   };
 
   // Possible pause on exceptions states.
@@ -86,6 +97,11 @@ class ScriptDebugger {
   // For engines like V8 that directly handle protocol commands.
   virtual bool CanDispatchProtocolMethod(const std::string& method) = 0;
   virtual void DispatchProtocolMessage(const std::string& message) = 0;
+
+  // For performance tracing of JavaScript methods.
+  virtual void StartTracing(const std::vector<std::string>& categories,
+                            TraceDelegate* trace_delegate) = 0;
+  virtual void StopTracing() = 0;
 
   // Code execution control. Implementations may use
   // |Delegate::OnScriptDebuggerPause| to have the delegate handle the
