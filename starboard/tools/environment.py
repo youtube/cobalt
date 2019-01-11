@@ -66,7 +66,7 @@ PATHS = [
 # present in the list already.
 for new_path in PATHS:
   if new_path not in sys.path:
-    sys.path.append(new_path)
+    sys.path.insert(0, new_path)
 
 # Saved in global state so we only ever search for it once.
 _CONFIG_PATH = None
