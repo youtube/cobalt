@@ -38,10 +38,10 @@ class LibxmlXMLParserWrapper : LibxmlParserWrapper {
       const scoped_refptr<dom::Node>& reference_node,
       const int dom_max_element_depth,
       const base::SourceLocation& input_location,
-      const base::Callback<void(const std::string&)>& error_callback)
+      const loader::Decoder::OnCompleteFunction& load_complete_callback)
       : LibxmlParserWrapper(xml_document, parent_node, reference_node,
                             dom_max_element_depth, input_location,
-                            error_callback),
+                            load_complete_callback),
         xml_parser_context_(NULL) {}
   ~LibxmlXMLParserWrapper() override;
 

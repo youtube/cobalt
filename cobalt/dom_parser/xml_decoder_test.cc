@@ -15,6 +15,7 @@
 #include "cobalt/dom_parser/xml_decoder.h"
 
 #include "base/callback.h"
+#include "base/optional.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/cdata_section.h"
 #include "cobalt/dom/element.h"
@@ -30,9 +31,10 @@ namespace dom_parser {
 
 const int kDOMMaxElementDepth = 32;
 
-class MockErrorCallback : public base::Callback<void(const std::string&)> {
+class MockErrorCallback
+    : public base::Callback<void(const base::optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const std::string&));
+  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
 };
 
 class XMLDecoderTest : public ::testing::Test {

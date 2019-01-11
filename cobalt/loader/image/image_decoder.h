@@ -44,15 +44,18 @@ class ImageDecoder : public Decoder {
     kImageTypeWebP,
   };
 
-  typedef base::Callback<void(const scoped_refptr<Image>&)> SuccessCallback;
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
+  typedef base::Callback<void(const scoped_refptr<Image>&)>
+      ImageAvailableCallback;
 
-  ImageDecoder(render_tree::ResourceProvider* resource_provider,
-               const SuccessCallback& success_callback,
-               const ErrorCallback& error_callback);
-  ImageDecoder(render_tree::ResourceProvider* resource_provider,
-               const SuccessCallback& success_callback,
-               const ErrorCallback& error_callback, ImageType image_type);
+  ImageDecoder(
+      render_tree::ResourceProvider* resource_provider,
+      const ImageAvailableCallback& image_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback);
+  ImageDecoder(
+      render_tree::ResourceProvider* resource_provider,
+      const ImageAvailableCallback& image_available_callback,
+      ImageType image_type,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback);
 
   // From Decoder.
   LoadResponseType OnResponseStarted(
@@ -94,9 +97,9 @@ class ImageDecoder : public Decoder {
                                  size_t* consumed_size);
 
   render_tree::ResourceProvider* resource_provider_;
-  const SuccessCallback success_callback_;
-  const ErrorCallback error_callback_;
+  const ImageAvailableCallback image_available_callback_;
   ImageType image_type_;
+  const loader::Decoder::OnCompleteFunction load_complete_callback_;
   scoped_ptr<ImageDataDecoder> decoder_;
   SignatureCache signature_cache_;
   State state_;

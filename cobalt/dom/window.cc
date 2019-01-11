@@ -113,7 +113,7 @@ Window::Window(
     const std::string& user_agent, const std::string& language,
     const std::string& font_language_script,
     const base::Callback<void(const GURL&)> navigation_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback,
     network_bridge::CookieJar* cookie_jar,
     const network_bridge::PostSender& post_sender,
     csp::CSPHeaderPolicy require_csp, CspEnforcementType csp_enforcement_mode,
@@ -208,19 +208,19 @@ Window::Window(
   // loading begins.
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, this, fetcher_factory,
-                            url, dom_parser, error_callback));
+                            url, dom_parser, load_complete_callback));
 }
 
 void Window::StartDocumentLoad(
     loader::FetcherFactory* fetcher_factory, const GURL& url,
     Parser* dom_parser,
-    const base::Callback<void(const std::string&)>& error_callback) {
-  document_loader_.reset(
-      new loader::Loader(base::Bind(&loader::FetcherFactory::CreateFetcher,
-                                    base::Unretained(fetcher_factory), url),
-                         dom_parser->ParseDocumentAsync(
-                             document_, base::SourceLocation(url.spec(), 1, 1)),
-                         error_callback));
+    const loader::Decoder::OnCompleteFunction& load_complete_callback) {
+  document_loader_.reset(new loader::Loader(
+      base::Bind(&loader::FetcherFactory::CreateFetcher,
+                 base::Unretained(fetcher_factory), url),
+      base::Bind(&Parser::ParseDocumentAsync, base::Unretained(dom_parser),
+                 document_, base::SourceLocation(url.spec(), 1, 1)),
+      load_complete_callback));
 }
 
 scoped_refptr<base::Clock> Window::MakePerformanceClock(ClockType clock_type) {

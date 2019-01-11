@@ -26,6 +26,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/sync_loader.h"
 #include "cobalt/loader/text_decoder.h"
@@ -310,9 +311,10 @@ void HTMLScriptElement::Prepare() {
               document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin()),
           base::Bind(&loader::TextDecoder::Create,
-                     base::Bind(&HTMLScriptElement::OnSyncLoadingDone,
-                                base::Unretained(this))),
-          base::Bind(&HTMLScriptElement::OnSyncLoadingError,
+                     base::Bind(&HTMLScriptElement::OnSyncContentProduced,
+                                base::Unretained(this)),
+                     loader::Decoder::OnCompleteFunction()),
+          base::Bind(&HTMLScriptElement::OnSyncLoadingComplete,
                      base::Unretained(this)));
 
       if (is_sync_load_successful_) {
@@ -357,9 +359,9 @@ void HTMLScriptElement::Prepare() {
                     ->loader_factory()
                     ->CreateScriptLoader(
                         url_, origin, csp_callback,
-                        base::Bind(&HTMLScriptElement::OnLoadingDone,
+                        base::Bind(&HTMLScriptElement::OnContentProduced,
                                    base::Unretained(this)),
-                        base::Bind(&HTMLScriptElement::OnLoadingError,
+                        base::Bind(&HTMLScriptElement::OnLoadingComplete,
                                    base::Unretained(this)))
                     .Pass();
     } break;
@@ -388,9 +390,9 @@ void HTMLScriptElement::Prepare() {
                     ->loader_factory()
                     ->CreateScriptLoader(
                         url_, origin, csp_callback,
-                        base::Bind(&HTMLScriptElement::OnLoadingDone,
+                        base::Bind(&HTMLScriptElement::OnContentProduced,
                                    base::Unretained(this)),
-                        base::Bind(&HTMLScriptElement::OnLoadingError,
+                        base::Bind(&HTMLScriptElement::OnLoadingComplete,
                                    base::Unretained(this)))
                     .Pass();
     } break;
@@ -417,27 +419,30 @@ void HTMLScriptElement::Prepare() {
   }
 }
 
-void HTMLScriptElement::OnSyncLoadingDone(const loader::Origin& last_url_origin,
-                                          scoped_ptr<std::string> content) {
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingDone()");
+void HTMLScriptElement::OnSyncContentProduced(
+    const loader::Origin& last_url_origin, scoped_ptr<std::string> content) {
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncContentProduced()");
   fetched_last_url_origin_ = last_url_origin;
   content_ = content.Pass();
   is_sync_load_successful_ = true;
 }
 
-void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingError()");
-  LOG(ERROR) << error;
+void HTMLScriptElement::OnSyncLoadingComplete(
+    const base::optional<std::string>& error) {
+  if (!error) return;
+
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingComplete()");
+  LOG(ERROR) << *error;
 }
 
-// Algorithm for OnLoadingDone:
+// Algorithm for OnContentProduced:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
-void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
-                                      scoped_ptr<std::string> content) {
+void HTMLScriptElement::OnContentProduced(const loader::Origin& last_url_origin,
+                                          scoped_ptr<std::string> content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(load_option_ == 4 || load_option_ == 5);
   DCHECK(content);
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnContentProduced()");
   if (!document_) {
     AllowGCAfterLoadComplete();
     return;
@@ -531,19 +536,22 @@ void HTMLScriptElement::OnLoadingDone(const loader::Origin& last_url_origin,
       FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
 }
 
-// Algorithm for OnLoadingError:
+// Algorithm for OnLoadingComplete:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
-void HTMLScriptElement::OnLoadingError(const std::string& error) {
+void HTMLScriptElement::OnLoadingComplete(
+    const base::optional<std::string>& error) {
+  if (!error) return;
+
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(load_option_ == 4 || load_option_ == 5);
-  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingError()");
+  TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingComplete()");
 
   if (!document_) {
     AllowGCAfterLoadComplete();
     return;
   }
 
-  LOG(ERROR) << error;
+  LOG(ERROR) << *error;
 
   // Executing the script block must just consist of firing a simple event
   // named error at the element.

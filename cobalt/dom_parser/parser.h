@@ -19,8 +19,10 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "base/optional.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/loader/decoder.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -29,19 +31,19 @@ class Parser : public dom::Parser {
  public:
   Parser()
       : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
-        ALLOW_THIS_IN_INITIALIZER_LIST(error_callback_(
-            base::Bind(&Parser::ErrorCallback, base::Unretained(this)))),
+        ALLOW_THIS_IN_INITIALIZER_LIST(load_complete_callback_(
+            base::Bind(&Parser::LoadCompleteCallback, base::Unretained(this)))),
         require_csp_(csp::kCSPRequired) {}
   explicit Parser(
-      const base::Callback<void(const std::string&)>& error_callback)
+      const loader::Decoder::OnCompleteFunction& load_complete_callback)
       : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
-        error_callback_(error_callback),
+        load_complete_callback_(load_complete_callback),
         require_csp_(csp::kCSPRequired) {}
   Parser(const int dom_max_element_depth,
-         const base::Callback<void(const std::string&)>& error_callback,
+         const loader::Decoder::OnCompleteFunction& load_complete_callback,
          csp::CSPHeaderPolicy require_csp)
       : dom_max_element_depth_(dom_max_element_depth),
-        error_callback_(error_callback),
+        load_complete_callback_(load_complete_callback),
         require_csp_(require_csp) {}
   ~Parser() override {}
 
@@ -70,7 +72,9 @@ class Parser : public dom::Parser {
 
   scoped_ptr<loader::Decoder> ParseDocumentAsync(
       const scoped_refptr<dom::Document>& document,
-      const base::SourceLocation& input_location) override;
+      const base::SourceLocation& input_location,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback)
+      override;
 
   scoped_ptr<loader::Decoder> ParseXMLDocumentAsync(
       const scoped_refptr<dom::XMLDocument>& xml_document,
@@ -80,9 +84,9 @@ class Parser : public dom::Parser {
   static const int kDefaultDOMMaxElementDepth = 32;
 
   const int dom_max_element_depth_;
-  const base::Callback<void(const std::string&)> error_callback_;
+  const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
-  void ErrorCallback(const std::string& error);
+  void LoadCompleteCallback(const base::optional<std::string>& error);
 
   // Cobalt user can specify if they want to forbid Cobalt rendering without csp
   // headers.

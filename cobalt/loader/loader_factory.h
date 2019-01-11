@@ -45,37 +45,39 @@ class LoaderFactory {
   scoped_ptr<Loader> CreateImageLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
-      const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::ErrorCallback& error_callback);
+      const image::ImageDecoder::ImageAvailableCallback&
+          image_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a render_tree::Typeface.
   scoped_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const Origin& orgin,
       const csp::SecurityCallback& url_security_callback,
-      const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::ErrorCallback& error_callback);
+      const font::TypefaceDecoder::TypefaceAvailableCallback&
+          typeface_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a Mesh.
   scoped_ptr<Loader> CreateMeshLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
-      const mesh::MeshDecoder::SuccessCallback& success_callback,
-      const mesh::MeshDecoder::ErrorCallback& error_callback);
+      const mesh::MeshDecoder::MeshAvailableCallback& mesh_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a Javascript resource.
   scoped_ptr<Loader> CreateScriptLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
-      const TextDecoder::SuccessCallback& success_callback,
-      const Loader::OnErrorFunction& loader_error_callback);
+      const TextDecoder::TextAvailableCallback& script_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback);
 
   // Creates a loader that fetches and decodes a link resources.
   scoped_ptr<Loader> CreateLinkLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
       const loader::RequestMode cors_mode,
-      const TextDecoder::SuccessCallback& success_callback,
-      const Loader::OnErrorFunction& loader_error_callback);
+      const TextDecoder::TextAvailableCallback& link_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.

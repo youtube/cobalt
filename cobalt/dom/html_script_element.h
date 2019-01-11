@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
@@ -95,13 +96,13 @@ class HTMLScriptElement : public HTMLElement {
   //
   void Prepare();
 
-  void OnSyncLoadingDone(const loader::Origin& last_url_origin,
-                         scoped_ptr<std::string> content);
-  void OnSyncLoadingError(const std::string& error);
+  void OnSyncContentProduced(const loader::Origin& last_url_origin,
+                             scoped_ptr<std::string> content);
+  void OnSyncLoadingComplete(const base::optional<std::string>& error);
 
-  void OnLoadingDone(const loader::Origin& last_url_origin,
-                     scoped_ptr<std::string> content);
-  void OnLoadingError(const std::string& error);
+  void OnContentProduced(const loader::Origin& last_url_origin,
+                         scoped_ptr<std::string> content);
+  void OnLoadingComplete(const base::optional<std::string>& error);
 
   void ExecuteExternal();
   void ExecuteInternal();

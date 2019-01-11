@@ -24,6 +24,7 @@
 #include "base/debug/trace_event.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "base/time.h"

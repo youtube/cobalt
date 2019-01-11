@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -47,9 +48,10 @@ using cobalt::script::testing::FakeScriptValue;
 namespace cobalt {
 namespace dom {
 
-class MockErrorCallback : public base::Callback<void(const std::string&)> {
+class MockLoadCompleteCallback
+    : public base::Callback<void(const base::optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const std::string&));
+  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
 };
 
 namespace {
@@ -59,7 +61,7 @@ class ErrorEventTest : public ::testing::Test {
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         environment_settings_(new script::EnvironmentSettings),
         css_parser_(css_parser::Parser::Create()),
-        dom_parser_(new dom_parser::Parser(mock_error_callback_)),
+        dom_parser_(new dom_parser::Parser(mock_load_complete_callback_)),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         loader_factory_(new loader::LoaderFactory(
             fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
@@ -75,8 +77,8 @@ class ErrorEventTest : public ::testing::Test {
         NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL, NULL,
         NULL, NULL, global_environment_->script_value_factory(), NULL, NULL,
         url_, "", "en-US", "en", base::Callback<void(const GURL&)>(),
-        base::Bind(&MockErrorCallback::Run,
-                   base::Unretained(&mock_error_callback_)),
+        base::Bind(&MockLoadCompleteCallback::Run,
+                   base::Unretained(&mock_load_complete_callback_)),
         NULL, network_bridge::PostSender(), csp::kCSPRequired,
         kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
@@ -97,7 +99,7 @@ class ErrorEventTest : public ::testing::Test {
   scoped_ptr<script::JavaScriptEngine> engine_;
   const scoped_ptr<script::EnvironmentSettings> environment_settings_;
   scoped_refptr<script::GlobalEnvironment> global_environment_;
-  MockErrorCallback mock_error_callback_;
+  MockLoadCompleteCallback mock_load_complete_callback_;
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
