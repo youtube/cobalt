@@ -78,7 +78,8 @@ class Parser {
   // executed.
   virtual scoped_ptr<loader::Decoder> ParseDocumentAsync(
       const scoped_refptr<Document>& document,
-      const base::SourceLocation& input_location) = 0;
+      const base::SourceLocation& input_location,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback) = 0;
 
   // Parses an XML document asynchronously, returns the decoder that can be
   // used in the parsing.

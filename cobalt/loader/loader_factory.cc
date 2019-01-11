@@ -43,18 +43,21 @@ LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
 scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const image::ImageDecoder::SuccessCallback& success_callback,
-    const image::ImageDecoder::ErrorCallback& error_callback) {
+    const image::ImageDecoder::ImageAvailableCallback& image_available_callback,
+    const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
+
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin),
-      scoped_ptr<Decoder>(new image::ThreadedImageDecoderProxy(
-          resource_provider_, success_callback, error_callback,
-          load_thread_.message_loop())),
-      error_callback,
+      fetcher_creator,
+      base::Bind(&image::ThreadedImageDecoderProxy::Create, resource_provider_,
+                 image_available_callback, load_thread_.message_loop()),
+      load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
+
   OnLoaderCreated(loader.get());
   return loader.Pass();
 }
@@ -62,18 +65,22 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
 scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const font::TypefaceDecoder::SuccessCallback& success_callback,
-    const font::TypefaceDecoder::ErrorCallback& error_callback) {
+    const font::TypefaceDecoder::TypefaceAvailableCallback&
+        typeface_available_callback,
+    const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
+      url, url_security_callback, kCORSModeSameOriginCredentials, origin);
+
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback,
-                         kCORSModeSameOriginCredentials, origin),
-      scoped_ptr<Decoder>(new font::TypefaceDecoder(
-          resource_provider_, success_callback, error_callback)),
-      error_callback,
+      fetcher_creator,
+      base::Bind(&font::TypefaceDecoder::Create, resource_provider_,
+                 typeface_available_callback),
+      load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
+
   OnLoaderCreated(loader.get());
   return loader.Pass();
 }
@@ -82,17 +89,21 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const mesh::MeshDecoder::SuccessCallback& success_callback,
-    const mesh::MeshDecoder::ErrorCallback& error_callback) {
+    const mesh::MeshDecoder::MeshAvailableCallback& mesh_available_callback,
+    const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
+
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin),
-      scoped_ptr<Decoder>(new mesh::MeshDecoder(
-          resource_provider_, success_callback, error_callback)),
-      error_callback,
+      fetcher_creator,
+      base::Bind(&mesh::MeshDecoder::Create, resource_provider_,
+                 mesh_available_callback),
+      load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
+
   OnLoaderCreated(loader.get());
   return loader.Pass();
 }
@@ -101,18 +112,17 @@ scoped_ptr<Loader> LoaderFactory::CreateLinkLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
     const loader::RequestMode cors_mode,
-    const TextDecoder::SuccessCallback& success_callback,
-    const Loader::OnErrorFunction& loader_error_callback) {
+    const TextDecoder::TextAvailableCallback& link_available_callback,
+    const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
-
-  scoped_ptr<loader::Decoder> decoder(
-      new loader::TextDecoder(success_callback));
 
   Loader::FetcherCreator fetcher_creator =
       MakeFetcherCreator(url, url_security_callback, cors_mode, origin);
-  scoped_ptr<Loader> loader(new Loader(
-      fetcher_creator, decoder.Pass(), loader_error_callback,
 
+  scoped_ptr<Loader> loader(new Loader(
+      fetcher_creator,
+      base::Bind(&loader::TextDecoder::Create, link_available_callback),
+      load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
 
@@ -123,18 +133,17 @@ scoped_ptr<Loader> LoaderFactory::CreateLinkLoader(
 scoped_ptr<Loader> LoaderFactory::CreateScriptLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const TextDecoder::SuccessCallback& success_callback,
-    const Loader::OnErrorFunction& loader_error_callback) {
+    const TextDecoder::TextAvailableCallback& script_available_callback,
+    const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
-
-  scoped_ptr<loader::Decoder> decoder(
-      new loader::TextDecoder(success_callback));
 
   Loader::FetcherCreator fetcher_creator =
       MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin);
-  scoped_ptr<Loader> loader(new Loader(
-      fetcher_creator, decoder.Pass(), loader_error_callback,
 
+  scoped_ptr<Loader> loader(new Loader(
+      fetcher_creator,
+      base::Bind(&loader::TextDecoder::Create, script_available_callback),
+      load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
 

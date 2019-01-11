@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/callback.h"
+#include "base/optional.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/typeface.h"
@@ -33,12 +34,17 @@ namespace font {
 class TypefaceDecoder : public Decoder {
  public:
   typedef base::Callback<void(const scoped_refptr<render_tree::Typeface>&)>
-      SuccessCallback;
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
+      TypefaceAvailableCallback;
 
-  TypefaceDecoder(render_tree::ResourceProvider* resource_provider,
-                  const SuccessCallback& success_callback,
-                  const ErrorCallback& error_callback);
+  // This function is used for binding a callback to create a TypefaceDecoder.
+  static scoped_ptr<Decoder> Create(
+      render_tree::ResourceProvider* resource_provider,
+      const TypefaceAvailableCallback& typeface_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback) {
+    return scoped_ptr<Decoder>(new TypefaceDecoder(resource_provider,
+                                                   typeface_available_callback,
+                                                   load_complete_callback));
+  }
 
   // From Decoder.
   void DecodeChunk(const char* data, size_t size) override;
@@ -47,11 +53,16 @@ class TypefaceDecoder : public Decoder {
   void Resume(render_tree::ResourceProvider* resource_provider) override;
 
  private:
+  TypefaceDecoder(
+      render_tree::ResourceProvider* resource_provider,
+      const TypefaceAvailableCallback& typeface_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback);
+
   void ReleaseRawData();
 
   render_tree::ResourceProvider* resource_provider_;
-  const SuccessCallback success_callback_;
-  const ErrorCallback error_callback_;
+  const TypefaceAvailableCallback typeface_available_callback_;
+  const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
   scoped_ptr<render_tree::ResourceProvider::RawTypefaceDataVector> raw_data_;
   bool is_raw_data_too_large_;

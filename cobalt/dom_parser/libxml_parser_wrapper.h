@@ -82,13 +82,13 @@ class LibxmlParserWrapper {
       const scoped_refptr<dom::Node>& reference_node,
       const int dom_max_element_depth,
       const base::SourceLocation& first_chunk_location,
-      const base::Callback<void(const std::string&)>& error_callback)
+      const loader::Decoder::OnCompleteFunction& load_complete_callback)
       : document_(document),
         parent_node_(parent_node),
         reference_node_(reference_node),
         dom_max_element_depth_(dom_max_element_depth),
         first_chunk_location_(first_chunk_location),
-        error_callback_(error_callback),
+        load_complete_callback_(load_complete_callback),
         depth_limit_exceeded_(false),
         max_severity_(kNoIssue),
         total_input_size_(0) {}
@@ -128,8 +128,8 @@ class LibxmlParserWrapper {
   const base::SourceLocation& first_chunk_location() {
     return first_chunk_location_;
   }
-  const base::Callback<void(const std::string&)>& error_callback() {
-    return error_callback_;
+  const loader::Decoder::OnCompleteFunction& load_complete_callback() {
+    return load_complete_callback_;
   }
 
   const std::stack<scoped_refptr<dom::Node> >& node_stack() {
@@ -150,7 +150,7 @@ class LibxmlParserWrapper {
   // depth deeper than this will be discarded.
   const int dom_max_element_depth_;
   const base::SourceLocation first_chunk_location_;
-  const base::Callback<void(const std::string&)> error_callback_;
+  const loader::Decoder::OnCompleteFunction& load_complete_callback_;
 
   bool depth_limit_exceeded_;
   IssueSeverity max_severity_;

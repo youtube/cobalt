@@ -1212,7 +1212,7 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
   dom_parser::XMLDecoder xml_decoder(
       xml_document, xml_document, NULL, settings_->max_dom_element_depth(),
       base::SourceLocation("[object XMLHttpRequest]", 1, 1), base::Closure(),
-      base::Bind(&XMLHttpRequest::XMLDecoderErrorCallback,
+      base::Bind(&XMLHttpRequest::XMLDecoderLoadCompleteCallback,
                  base::Unretained(this)));
   has_xml_decoder_error_ = false;
   xml_decoder.DecodeChunk(response_body_.string().c_str(),
@@ -1228,8 +1228,9 @@ scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
   return xml_document;
 }
 
-void XMLHttpRequest::XMLDecoderErrorCallback(const std::string&) {
-  has_xml_decoder_error_ = true;
+void XMLHttpRequest::XMLDecoderLoadCompleteCallback(
+    const base::optional<std::string>& error) {
+  if (error) has_xml_decoder_error_ = true;
 }
 
 }  // namespace xhr

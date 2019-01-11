@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/dom/html_element.h"
@@ -74,9 +75,9 @@ class HTMLLinkElement : public HTMLElement {
   // From the spec: HTMLLinkElement.
   void Obtain();
 
-  void OnLoadingDone(const loader::Origin& last_url_origin,
-                     scoped_ptr<std::string> content);
-  void OnLoadingError(const std::string& error);
+  void OnContentProduced(const loader::Origin& last_url_origin,
+                         scoped_ptr<std::string> content);
+  void OnLoadingComplete(const base::optional<std::string>& error);
   void OnSplashscreenLoaded(Document* document, const std::string& content);
   void OnStylesheetLoaded(Document* document, const std::string& content);
   void ReleaseLoader();

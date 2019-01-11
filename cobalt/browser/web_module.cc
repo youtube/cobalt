@@ -279,8 +279,8 @@ class WebModule::Impl {
     return global_environment_;
   }
 
-  void OnError(const std::string& error) {
-    error_callback_.Run(window_->location()->url(), error);
+  void OnLoadComplete(const base::optional<std::string>& error) {
+    if (error) error_callback_.Run(window_->location()->url(), *error);
   }
 
   // Report an error encountered while running JS.
@@ -501,7 +501,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   dom_parser_.reset(new dom_parser::Parser(
       kDOMMaxElementDepth,
-      base::Bind(&WebModule::Impl::OnError, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
       data.options.require_csp));
   DCHECK(dom_parser_);
 
@@ -644,7 +644,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
           ? base::GetSystemLanguageScript()
           : data.options.font_language_script_override,
       data.options.navigation_callback,
-      base::Bind(&WebModule::Impl::OnError, base::Unretained(this)),
+      base::Bind(&WebModule::Impl::OnLoadComplete, base::Unretained(this)),
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
       data.options.require_csp, data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),

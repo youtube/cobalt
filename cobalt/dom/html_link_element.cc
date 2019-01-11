@@ -179,22 +179,23 @@ void HTMLLinkElement::Obtain() {
                               ? document->location()->GetOriginAsObject()
                               : loader::Origin();
 
-  loader_ = html_element_context()->loader_factory()
-                ->CreateLinkLoader(
-                    absolute_url_, origin, csp_callback, request_mode_,
-                    base::Bind(&HTMLLinkElement::OnLoadingDone,
-                               base::Unretained(this)),
-                    base::Bind(&HTMLLinkElement::OnLoadingError,
-                               base::Unretained(this)))
-                .Pass();
+  loader_ =
+      html_element_context()
+          ->loader_factory()
+          ->CreateLinkLoader(absolute_url_, origin, csp_callback, request_mode_,
+                             base::Bind(&HTMLLinkElement::OnContentProduced,
+                                        base::Unretained(this)),
+                             base::Bind(&HTMLLinkElement::OnLoadingComplete,
+                                        base::Unretained(this)))
+          .Pass();
 }
 
-void HTMLLinkElement::OnLoadingDone(const loader::Origin& last_url_origin,
-                                    scoped_ptr<std::string> content) {
+void HTMLLinkElement::OnContentProduced(const loader::Origin& last_url_origin,
+                                        scoped_ptr<std::string> content) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(content);
   TRACK_MEMORY_SCOPE("DOM");
-  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
+  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnContentProduced()");
 
   // Get resource's final destination url from loader.
   fetched_last_url_origin_ = last_url_origin;
@@ -223,16 +224,19 @@ void HTMLLinkElement::OnLoadingDone(const loader::Origin& last_url_origin,
     // complete.
     document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
-
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 }
 
-void HTMLLinkElement::OnLoadingError(const std::string& error) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingError()");
+void HTMLLinkElement::OnLoadingComplete(
+    const base::optional<std::string>& error) {
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 
-  LOG(ERROR) << error;
+  if (!error) return;
+
+  DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingComplete()");
+
+  LOG(ERROR) << *error;
 
   // Once the attempts to obtain the resource and its critical subresources are
   // complete, the user agent must, if the loads were successful, queue a task
@@ -249,9 +253,6 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
     // complete.
     node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
   }
-
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 }
 
 void HTMLLinkElement::OnSplashscreenLoaded(Document* document,

@@ -243,7 +243,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void PrepareForNewRequest();
 
   scoped_refptr<dom::Document> GetDocumentResponseEntityBody();
-  void XMLDecoderErrorCallback(const std::string& error);
+  void XMLDecoderLoadCompleteCallback(
+      const base::optional<std::string>& status);
   void CORSPreflightErrorCallback();
   void CORSPreflightSuccessCallback();
 
