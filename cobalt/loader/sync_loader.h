@@ -20,6 +20,7 @@
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
+#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/loader/decoder.h"
@@ -35,7 +36,8 @@ void LoadSynchronously(
     MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
     base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<scoped_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const std::string&)> error_callback);
+    base::Callback<void(const base::optional<std::string>&)>
+        load_complete_callback);
 
 }  // namespace loader
 }  // namespace cobalt

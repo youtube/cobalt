@@ -224,8 +224,9 @@ void LibxmlParserWrapper::OnEndDocument() {
     node_stack_.pop();
   }
 
-  if (!node_stack_.empty() && !error_callback_.is_null()) {
-    error_callback_.Run("Node stack not empty at end of document.");
+  if (!node_stack_.empty() && !load_complete_callback_.is_null()) {
+    load_complete_callback_.Run(
+        std::string("Node stack not empty at end of document."));
   }
 
   if (IsFullDocument()) {
@@ -267,8 +268,9 @@ void LibxmlParserWrapper::OnEndElement(const std::string& name) {
       return;
     }
   }
-  if (node_stack_.empty() && !error_callback_.is_null()) {
-    error_callback_.Run("Node stack empty when encountering end tag.");
+  if (node_stack_.empty() && !load_complete_callback_.is_null()) {
+    load_complete_callback_.Run(
+        std::string("Node stack empty when encountering end tag."));
   }
 }
 
@@ -310,8 +312,8 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
                  << (severity == kWarning ? "Warning: " : "Error: ") << message;
   } else if (severity == LibxmlParserWrapper::kFatal) {
     LOG(ERROR) << "Libxml Fatal Error: " << message;
-    if (!error_callback_.is_null()) {
-      error_callback_.Run(message);
+    if (!load_complete_callback_.is_null()) {
+      load_complete_callback_.Run(message);
     }
   } else {
     NOTREACHED();

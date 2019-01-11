@@ -28,15 +28,16 @@ HTMLDecoder::HTMLDecoder(
     const scoped_refptr<dom::Node>& reference_node,
     const int dom_max_element_depth, const base::SourceLocation& input_location,
     const base::Closure& done_callback,
-    const base::Callback<void(const std::string&)>& error_callback,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback,
     const bool should_run_scripts, const csp::CSPHeaderPolicy require_csp)
     : libxml_html_parser_wrapper_(new LibxmlHTMLParserWrapper(
           document, parent_node, reference_node, dom_max_element_depth,
-          input_location, error_callback, should_run_scripts)),
+          input_location, load_complete_callback, should_run_scripts)),
       document_(document),
       done_callback_(done_callback),
       should_run_scripts_(should_run_scripts),
-      require_csp_(require_csp) {}
+      require_csp_(require_csp),
+      load_complete_callback_(load_complete_callback) {}
 
 HTMLDecoder::~HTMLDecoder() {}
 
@@ -79,6 +80,9 @@ void HTMLDecoder::DecodeChunk(const char* data, size_t size) {
 void HTMLDecoder::Finish() {
   DCHECK(thread_checker_.CalledOnValidThread());
   libxml_html_parser_wrapper_->Finish();
+  if (!load_complete_callback_.is_null()) {
+    load_complete_callback_.Run(base::nullopt);
+  }
   if (!done_callback_.is_null()) {
     done_callback_.Run();
   }

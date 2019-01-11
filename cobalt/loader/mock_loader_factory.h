@@ -35,16 +35,17 @@ class MockLoaderFactory {
                loader::Loader*(
                    const GURL& url, const Origin&,
                    const csp::SecurityCallback& url_security_callback,
-                   const image::ImageDecoder::SuccessCallback& success_callback,
-                   const image::ImageDecoder::ErrorCallback& error_callback));
+                   const image::ImageDecoder::ImageAvailableCallback&
+                       image_available_callback,
+                   const Loader::OnCompleteFunction& load_complete_callback));
 
-  MOCK_METHOD5(
-      CreateTypefaceLoaderMock,
-      loader::Loader*(
-          const GURL& url, const Origin&,
-          const csp::SecurityCallback& url_security_callback,
-          const font::TypefaceDecoder::SuccessCallback& success_callback,
-          const font::TypefaceDecoder::ErrorCallback& error_callback));
+  MOCK_METHOD5(CreateTypefaceLoaderMock,
+               loader::Loader*(
+                   const GURL& url, const Origin&,
+                   const csp::SecurityCallback& url_security_callback,
+                   const font::TypefaceDecoder::TypefaceAvailableCallback&
+                       typeface_available_callback,
+                   const Loader::OnCompleteFunction& load_complete_callback));
 
   // This workaround is required since scoped_ptr has no copy constructor.
   // see:
@@ -52,19 +53,23 @@ class MockLoaderFactory {
   scoped_ptr<Loader> CreateImageLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
-      const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::ErrorCallback& error_callback) {
+      const image::ImageDecoder::ImageAvailableCallback&
+          image_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback) {
     return scoped_ptr<Loader>(CreateImageLoaderMock(
-        url, origin, url_security_callback, success_callback, error_callback));
+        url, origin, url_security_callback, image_available_callback,
+        load_complete_callback));
   }
 
   scoped_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const Origin& origin,
       const csp::SecurityCallback& url_security_callback,
-      const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::ErrorCallback& error_callback) {
+      const font::TypefaceDecoder::TypefaceAvailableCallback&
+          typeface_available_callback,
+      const Loader::OnCompleteFunction& load_complete_callback) {
     return scoped_ptr<Loader>(CreateTypefaceLoaderMock(
-        url, origin, url_security_callback, success_callback, error_callback));
+        url, origin, url_security_callback, typeface_available_callback,
+        load_complete_callback));
   }
 
   MOCK_METHOD0(Suspend, void());

@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -47,7 +48,8 @@ class StubWindow {
           scoped_ptr<script::EnvironmentSettings>())
       : message_loop_(MessageLoop::TYPE_DEFAULT),
         css_parser_(css_parser::Parser::Create()),
-        dom_parser_(new dom_parser::Parser(base::Bind(&StubErrorCallback))),
+        dom_parser_(
+            new dom_parser::Parser(base::Bind(&StubLoadCompleteCallback))),
         fetcher_factory_(new loader::FetcherFactory(NULL)),
         loader_factory_(new loader::LoaderFactory(
             fetcher_factory_.get(), NULL, base::kThreadPriority_Default)),
@@ -63,8 +65,9 @@ class StubWindow {
         &local_storage_database_, NULL, NULL, NULL, NULL,
         global_environment_->script_value_factory(), NULL,
         dom_stat_tracker_.get(), url_, "", "en-US", "en",
-        base::Callback<void(const GURL&)>(), base::Bind(&StubErrorCallback),
-        NULL, network_bridge::PostSender(), csp::kCSPRequired,
+        base::Callback<void(const GURL&)>(),
+        base::Bind(&StubLoadCompleteCallback), NULL,
+        network_bridge::PostSender(), csp::kCSPRequired,
         dom::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         dom::Window::CloseCallback() /* window_close */,
@@ -95,7 +98,8 @@ class StubWindow {
   ~StubWindow() { window_->DestroyTimers(); }
 
  private:
-  static void StubErrorCallback(const std::string& /*error*/) {}
+  static void StubLoadCompleteCallback(
+      const base::optional<std::string>& /*error*/) {}
 
   MessageLoop message_loop_;
   scoped_ptr<css_parser::Parser> css_parser_;

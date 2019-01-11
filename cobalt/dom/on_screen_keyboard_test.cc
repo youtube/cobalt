@@ -17,6 +17,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/css_parser/parser.h"
@@ -42,9 +43,10 @@ using testing::Mock;
 namespace cobalt {
 namespace dom {
 
-class MockErrorCallback : public base::Callback<void(const std::string&)> {
+class MockErrorCallback
+    : public base::Callback<void(const base::optional<std::string>&)> {
  public:
-  MOCK_METHOD1(Run, void(const std::string&));
+  MOCK_METHOD1(Run, void(const base::optional<std::string>&));
 };
 
 class OnScreenKeyboardMockBridge : public OnScreenKeyboardBridge {

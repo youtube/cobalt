@@ -53,8 +53,9 @@ void PostToMessageLoopChecked(
 
 ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
     render_tree::ResourceProvider* resource_provider,
-    const SuccessCallback& success_callback,
-    const ErrorCallback& error_callback, MessageLoop* load_message_loop)
+    const ImageAvailableCallback& image_available_callback,
+    MessageLoop* load_message_loop,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
@@ -62,11 +63,14 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
       result_message_loop_(MessageLoop::current()),
       image_decoder_(new ImageDecoder(
           resource_provider,
+          base::Bind(&PostToMessageLoopChecked<ImageAvailableCallback,
+                                               scoped_refptr<Image>>,
+                     weak_this_, image_available_callback,
+                     result_message_loop_),
           base::Bind(
-              &PostToMessageLoopChecked<SuccessCallback, scoped_refptr<Image> >,
-              weak_this_, success_callback, result_message_loop_),
-          base::Bind(&PostToMessageLoopChecked<ErrorCallback, std::string>,
-                     weak_this_, error_callback, result_message_loop_))) {
+              &PostToMessageLoopChecked<loader::Decoder::OnCompleteFunction,
+                                        base::optional<std::string>>,
+              weak_this_, load_complete_callback, result_message_loop_))) {
   DCHECK(load_message_loop_);
   DCHECK(result_message_loop_);
   DCHECK(image_decoder_);
