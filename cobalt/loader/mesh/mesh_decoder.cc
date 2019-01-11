@@ -193,15 +193,16 @@ MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
 
 }  // namespace
 
-MeshDecoder::MeshDecoder(render_tree::ResourceProvider* resource_provider,
-                         const SuccessCallback& success_callback,
-                         const ErrorCallback& error_callback)
+MeshDecoder::MeshDecoder(
+    render_tree::ResourceProvider* resource_provider,
+    const MeshAvailableCallback& mesh_available_callback,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
-      success_callback_(success_callback),
-      error_callback_(error_callback),
+      mesh_available_callback_(mesh_available_callback),
+      load_complete_callback_(load_complete_callback),
       is_suspended_(!resource_provider_) {
-  DCHECK(!success_callback_.is_null());
-  DCHECK(!error_callback_.is_null());
+  DCHECK(!mesh_available_callback_.is_null());
+  DCHECK(!load_complete_callback.is_null());
 }
 
 void MeshDecoder::DecodeChunk(const char* data, size_t size) {
@@ -230,14 +231,16 @@ void MeshDecoder::Finish() {
   }
 
   if (!resource_provider_) {
-    error_callback_.Run("No resource provider was passed to the MeshDecoder.");
+    load_complete_callback_.Run(
+        std::string("No resource provider was passed to the MeshDecoder."));
     return;
   }
 
   if (raw_data_->size() <= 4) {
     // Mesh projection boxes cannot be empty, since they carry at least the
     // version and flags.
-    error_callback_.Run("MeshDecoder passed an empty buffer, cannot decode.");
+    load_complete_callback_.Run(
+        std::string("MeshDecoder passed an empty buffer, cannot decode."));
     return;
   }
 
@@ -246,10 +249,14 @@ void MeshDecoder::Finish() {
       MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
           resource_provider_, 0, 0, &raw_data_->at(4), raw_data_->size() - 4);
   if (mesh_projection) {
-    success_callback_.Run(mesh_projection);
+    // TODO: Update clients to expect load complete to come last and prevent
+    // destruction of loader until then.
+    load_complete_callback_.Run(base::nullopt);
+    mesh_available_callback_.Run(mesh_projection);
   } else {
-    // Error must hace occured in MeshDecoderSink::Decode.
-    error_callback_.Run("MeshDecoder passed an invalid mesh projection box.");
+    // Error must have occured in MeshDecoderSink::Decode.
+    load_complete_callback_.Run(
+        std::string("MeshDecoder passed an invalid mesh projection box."));
   }
 }
 

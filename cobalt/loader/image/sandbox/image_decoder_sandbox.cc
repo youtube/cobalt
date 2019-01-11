@@ -43,8 +43,8 @@ struct ImageDecoderCallback {
     image = value;
   }
 
-  void ErrorCallback(const std::string& error_message) {
-    LOG(ERROR) << error_message;
+  void LoadCompleteCallback(const base::optional<std::string>& error) {
+    if (error) LOG(ERROR) << *error;
   }
 
   scoped_refptr<loader::image::Image> image;
@@ -98,11 +98,12 @@ void DecodeImages(ResourceProvider* resource_provider, const char* extension) {
     std::vector<uint8> image_data = GetFileContent(paths[i]);
 
     base::Time start = base::Time::Now();
-    scoped_ptr<Decoder> image_decoder(new ImageDecoder(
-        resource_provider, base::Bind(&ImageDecoderCallback::SuccessCallback,
-                                      base::Unretained(&image_decoder_result)),
-        base::Bind(&ImageDecoderCallback::ErrorCallback,
-                   base::Unretained(&image_decoder_result))));
+    scoped_ptr<Decoder> image_decoder(
+        new ImageDecoder(resource_provider,
+                         base::Bind(&ImageDecoderCallback::SuccessCallback,
+                                    base::Unretained(&image_decoder_result)),
+                         base::Bind(&ImageDecoderCallback::LoadCompleteCallback,
+                                    base::Unretained(&image_decoder_result))));
 
     image_decoder->DecodeChunk(reinterpret_cast<char*>(&image_data[0]),
                                image_data.size());

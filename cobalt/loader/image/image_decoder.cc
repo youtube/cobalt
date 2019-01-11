@@ -65,26 +65,28 @@ ImageDecoder::ImageType DetermineImageType(const uint8* header) {
 
 }  // namespace
 
-ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
-                           const SuccessCallback& success_callback,
-                           const ErrorCallback& error_callback)
+ImageDecoder::ImageDecoder(
+    render_tree::ResourceProvider* resource_provider,
+    const ImageAvailableCallback& image_available_callback,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
-      success_callback_(success_callback),
-      error_callback_(error_callback),
+      image_available_callback_(image_available_callback),
       image_type_(kImageTypeInvalid),
+      load_complete_callback_(load_complete_callback),
       state_(resource_provider_ ? kWaitingForHeader : kSuspended),
       is_deletion_pending_(false) {
   signature_cache_.position = 0;
 }
 
-ImageDecoder::ImageDecoder(render_tree::ResourceProvider* resource_provider,
-                           const SuccessCallback& success_callback,
-                           const ErrorCallback& error_callback,
-                           ImageType image_type)
+ImageDecoder::ImageDecoder(
+    render_tree::ResourceProvider* resource_provider,
+    const ImageAvailableCallback& image_available_callback,
+    ImageType image_type,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
-      success_callback_(success_callback),
-      error_callback_(error_callback),
+      image_available_callback_(image_available_callback),
       image_type_(image_type),
+      load_complete_callback_(load_complete_callback),
       state_(resource_provider_ ? kWaitingForHeader : kSuspended),
       is_deletion_pending_(false) {
   signature_cache_.position = 0;
@@ -157,29 +159,33 @@ void ImageDecoder::Finish() {
     case kDecoding:
       DCHECK(decoder_);
       if (auto image = decoder_->FinishAndMaybeReturnImage()) {
-        success_callback_.Run(image);
+        // TODO: Update clients to expect load complete to come last and prevent
+        // destruction of loader until then.
+        load_complete_callback_.Run(base::nullopt);
+        image_available_callback_.Run(image);
       } else {
-        error_callback_.Run(decoder_->GetTypeString() +
-                            " failed to decode image.");
+        load_complete_callback_.Run(std::string(decoder_->GetTypeString() +
+                                                " failed to decode image."));
       }
       break;
     case kWaitingForHeader:
       if (signature_cache_.position == 0) {
         // no image is available.
-        error_callback_.Run(error_message_);
+        load_complete_callback_.Run(error_message_);
       } else {
-        error_callback_.Run("No enough image data for header.");
+        load_complete_callback_.Run(
+            std::string("No enough image data for header."));
       }
       break;
     case kUnsupportedImageFormat:
-      error_callback_.Run("Unsupported image format.");
+      load_complete_callback_.Run(std::string("Unsupported image format."));
       break;
     case kSuspended:
       DLOG(WARNING) << __FUNCTION__ << "[" << this << "] while suspended.";
       break;
     case kNotApplicable:
       // no image is available.
-      error_callback_.Run(error_message_);
+      load_complete_callback_.Run(error_message_);
       break;
   }
 }

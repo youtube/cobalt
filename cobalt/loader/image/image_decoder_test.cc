@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -40,7 +41,8 @@ namespace {
 struct MockImageDecoderCallback {
   void SuccessCallback(const scoped_refptr<Image>& value) { image = value; }
 
-  MOCK_METHOD1(ErrorCallback, void(const std::string& message));
+  MOCK_METHOD1(LoadCompleteCallback,
+               void(const base::optional<std::string>& message));
 
   scoped_refptr<Image> image;
 };
@@ -62,7 +64,7 @@ class MockImageDecoder : public Decoder {
 
   scoped_refptr<Image> image();
 
-  void ExpectCallWithError(const std::string& message);
+  void ExpectCallWithError(const base::optional<std::string>& error);
 
  protected:
   ::testing::StrictMock<MockImageDecoderCallback> image_decoder_callback_;
@@ -71,12 +73,12 @@ class MockImageDecoder : public Decoder {
 };
 
 MockImageDecoder::MockImageDecoder() {
-  image_decoder_.reset(
-      new ImageDecoder(&resource_provider_,
-                       base::Bind(&MockImageDecoderCallback::SuccessCallback,
-                                  base::Unretained(&image_decoder_callback_)),
-                       base::Bind(&MockImageDecoderCallback::ErrorCallback,
-                                  base::Unretained(&image_decoder_callback_))));
+  image_decoder_.reset(new ImageDecoder(
+      &resource_provider_,
+      base::Bind(&MockImageDecoderCallback::SuccessCallback,
+                 base::Unretained(&image_decoder_callback_)),
+      base::Bind(&MockImageDecoderCallback::LoadCompleteCallback,
+                 base::Unretained(&image_decoder_callback_))));
 }
 
 LoadResponseType MockImageDecoder::OnResponseStarted(
@@ -101,8 +103,9 @@ scoped_refptr<Image> MockImageDecoder::image() {
   return image_decoder_callback_.image;
 }
 
-void MockImageDecoder::ExpectCallWithError(const std::string& message) {
-  EXPECT_CALL(image_decoder_callback_, ErrorCallback(message));
+void MockImageDecoder::ExpectCallWithError(
+    const base::optional<std::string>& error) {
+  EXPECT_CALL(image_decoder_callback_, LoadCompleteCallback(error));
 }
 
 FilePath GetTestImagePath(const char* file_name) {
@@ -230,7 +233,7 @@ std::vector<uint8> GetImageData(const FilePath& file_path) {
 TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
   MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(
-      "No content returned, but expected some.");
+      std::string("No content returned, but expected some."));
 
   const char kImageWithContentLength0Headers[] = {
       "HTTP/1.1 200 OK\0"
@@ -253,8 +256,8 @@ TEST(ImageDecoderTest, DecodeImageWithContentLength0) {
 
 TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithError(
-      "No content returned, but expected some. Not an image mime type.");
+  image_decoder.ExpectCallWithError(std::string(
+      "No content returned, but expected some. Not an image mime type."));
 
   const char kHTMLWithContentLength0Headers[] = {
       "HTTP/1.1 200 OK\0"
@@ -277,7 +280,7 @@ TEST(ImageDecoderTest, DecodeNonImageTypeWithContentLength0) {
 
 TEST(ImageDecoderTest, DecodeNonImageType) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithError("Not an image mime type.");
+  image_decoder.ExpectCallWithError(std::string("Not an image mime type."));
 
   const char kHTMLHeaders[] = {
       "HTTP/1.1 200 OK\0"
@@ -302,7 +305,7 @@ TEST(ImageDecoderTest, DecodeNonImageType) {
 
 TEST(ImageDecoderTest, DecodeNoContentType) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithError("Not an image mime type.");
+  image_decoder.ExpectCallWithError(std::string("Not an image mime type."));
 
   const char kHTMLHeaders[] = {
       "HTTP/1.1 200 OK\0"
@@ -327,7 +330,7 @@ TEST(ImageDecoderTest, DecodeNoContentType) {
 TEST(ImageDecoderTest, DecodeImageWithNoContent) {
   MockImageDecoder image_decoder;
   image_decoder.ExpectCallWithError(
-      "No content returned. Not an image mime type.");
+      std::string("No content returned. Not an image mime type."));
 
   const char kHTMLWithNoContentHeaders[] = {
       "HTTP/1.1 204 No Content\0"
@@ -350,7 +353,8 @@ TEST(ImageDecoderTest, DecodeImageWithNoContent) {
 
 TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithError("No enough image data for header.");
+  image_decoder.ExpectCallWithError(
+      std::string("No enough image data for header."));
 
   const char kPartialWebPHeader[] = {"RIFF"};
   image_decoder.DecodeChunk(kPartialWebPHeader, sizeof(kPartialWebPHeader));
@@ -361,7 +365,8 @@ TEST(ImageDecoderTest, DecodeImageWithLessThanHeaderBytes) {
 
 TEST(ImageDecoderTest, FailedToDecodeImage) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithError("PNGImageDecoder failed to decode image.");
+  image_decoder.ExpectCallWithError(
+      std::string("PNGImageDecoder failed to decode image."));
 
   const char kPartialPNGImage[] = {
       "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A\x00\x00\x00\x0D\x49\x48\x44\x52\x00\x00"
@@ -374,7 +379,7 @@ TEST(ImageDecoderTest, FailedToDecodeImage) {
 
 TEST(ImageDecoderTest, UnsupportedImageFormat) {
   MockImageDecoder image_decoder;
-  image_decoder.ExpectCallWithError("Unsupported image format.");
+  image_decoder.ExpectCallWithError(std::string("Unsupported image format."));
 
   const char kPartialICOImage[] = {
       "\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00"};
@@ -387,6 +392,7 @@ TEST(ImageDecoderTest, UnsupportedImageFormat) {
 // Test that we can properly decode the PNG image.
 TEST(ImageDecoderTest, DecodePNGImage) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("non_interlaced_png.png"));
@@ -420,6 +426,7 @@ TEST(ImageDecoderTest, DecodePNGImage) {
 // Test that we can properly decode the PNG image with multiple chunks.
 TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("non_interlaced_png.png"));
@@ -457,6 +464,7 @@ TEST(ImageDecoderTest, DecodePNGImageWithMultipleChunks) {
 // Test that we can properly decode the the interlaced PNG.
 TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("interlaced_png.png"));
@@ -490,6 +498,7 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImage) {
 // Test that we can properly decode the interlaced PNG with multiple chunks.
 TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("interlaced_png.png"));
@@ -527,6 +536,7 @@ TEST(ImageDecoderTest, DecodeInterlacedPNGImageWithMultipleChunks) {
 // Test that we can properly decode the JPEG image.
 TEST(ImageDecoderTest, DecodeJPEGImage) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("baseline_jpeg.jpg"));
@@ -552,6 +562,7 @@ TEST(ImageDecoderTest, DecodeJPEGImage) {
 // Test that we can properly decode the JPEG image with multiple chunks.
 TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("baseline_jpeg.jpg"));
@@ -581,6 +592,7 @@ TEST(ImageDecoderTest, DecodeJPEGImageWithMultipleChunks) {
 // Test that we can properly decode the progressive JPEG image.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("progressive_jpeg.jpg"));
@@ -607,6 +619,7 @@ TEST(ImageDecoderTest, DecodeProgressiveJPEGImage) {
 // Test that we can properly decode the progressive JPEG with multiple chunks.
 TEST(ImageDecoderTest, DecodeProgressiveJPEGImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("progressive_jpeg.jpg"));
@@ -703,6 +716,7 @@ TEST(ImageDecoderTest,
 // Test that we can properly decode the WEBP image.
 TEST(ImageDecoderTest, DecodeWEBPImage) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("webp_image.webp"));
@@ -735,6 +749,7 @@ TEST(ImageDecoderTest, DecodeWEBPImage) {
 // Test that we can properly decode the WEBP image with multiple chunks.
 TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("webp_image.webp"));
@@ -770,6 +785,7 @@ TEST(ImageDecoderTest, DecodeWEBPImageWithMultipleChunks) {
 // Test that we can properly decode animated WEBP image.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("vsauce_sm.webp"));
@@ -798,6 +814,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
 // Test that we can properly decode animated WEBP image in multiple chunks.
 TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
   MockImageDecoder image_decoder;
+  image_decoder.ExpectCallWithError(base::nullopt);
 
   std::vector<uint8> image_data =
       GetImageData(GetTestImagePath("vsauce_sm.webp"));

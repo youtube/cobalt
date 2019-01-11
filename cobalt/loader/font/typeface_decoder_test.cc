@@ -39,7 +39,8 @@ struct MockTypefaceDecoderCallback {
     typeface = value;
   }
 
-  MOCK_METHOD1(ErrorCallback, void(const std::string& message));
+  MOCK_METHOD1(OnCompleteFunction,
+               void(const base::optional<std::string>& error));
 
   scoped_refptr<render_tree::Typeface> typeface;
 };
@@ -57,7 +58,7 @@ class MockTypefaceDecoder : public Decoder {
 
   scoped_refptr<render_tree::Typeface> Typeface();
 
-  void ExpectCallWithError(const std::string& message);
+  void ExpectOnCompleteWithError(const base::optional<std::string>& error);
 
  protected:
   ::testing::StrictMock<MockTypefaceDecoderCallback> typeface_decoder_callback_;
@@ -66,12 +67,12 @@ class MockTypefaceDecoder : public Decoder {
 };
 
 MockTypefaceDecoder::MockTypefaceDecoder() {
-  typeface_decoder_.reset(new TypefaceDecoder(
+  typeface_decoder_ = TypefaceDecoder::Create(
       &resource_provider_,
       base::Bind(&MockTypefaceDecoderCallback::SuccessCallback,
                  base::Unretained(&typeface_decoder_callback_)),
-      base::Bind(&MockTypefaceDecoderCallback::ErrorCallback,
-                 base::Unretained(&typeface_decoder_callback_))));
+      base::Bind(&MockTypefaceDecoderCallback::OnCompleteFunction,
+                 base::Unretained(&typeface_decoder_callback_)));
 }
 
 void MockTypefaceDecoder::DecodeChunk(const char* data, size_t size) {
@@ -91,8 +92,9 @@ scoped_refptr<render_tree::Typeface> MockTypefaceDecoder::Typeface() {
   return typeface_decoder_callback_.typeface;
 }
 
-void MockTypefaceDecoder::ExpectCallWithError(const std::string& message) {
-  EXPECT_CALL(typeface_decoder_callback_, ErrorCallback(message));
+void MockTypefaceDecoder::ExpectOnCompleteWithError(
+    const base::optional<std::string>& error) {
+  EXPECT_CALL(typeface_decoder_callback_, OnCompleteFunction(error));
 }
 
 FilePath GetTestTypefacePath(const char* file_name) {
@@ -129,6 +131,7 @@ std::vector<uint8> GetTypefaceData(const FilePath& file_path) {
 // Test that we can decode a ttf typeface received in one chunk.
 TEST(TypefaceDecoderTest, DecodeTtfTypeface) {
   MockTypefaceDecoder typeface_decoder;
+  typeface_decoder.ExpectOnCompleteWithError(base::nullopt);
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kTtfTestTypeface));
@@ -142,6 +145,7 @@ TEST(TypefaceDecoderTest, DecodeTtfTypeface) {
 // Test that we can decode a ttf typeface received in multiple chunks.
 TEST(TypefaceDecoderTest, DecodeTtfTypefaceWithMultipleChunks) {
   MockTypefaceDecoder typeface_decoder;
+  typeface_decoder.ExpectOnCompleteWithError(base::nullopt);
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kTtfTestTypeface));
@@ -160,6 +164,7 @@ TEST(TypefaceDecoderTest, DecodeTtfTypefaceWithMultipleChunks) {
 // Test that we can decode a woff typeface received in one chunk.
 TEST(TypefaceDecoderTest, DecodeWoffTypeface) {
   MockTypefaceDecoder typeface_decoder;
+  typeface_decoder.ExpectOnCompleteWithError(base::nullopt);
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kWoffTestTypeface));
@@ -173,6 +178,7 @@ TEST(TypefaceDecoderTest, DecodeWoffTypeface) {
 // Test that we can decode a woff typeface received in multiple chunks.
 TEST(TypefaceDecoderTest, DecodeWoffTypefaceWithMultipleChunks) {
   MockTypefaceDecoder typeface_decoder;
+  typeface_decoder.ExpectOnCompleteWithError(base::nullopt);
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kWoffTestTypeface));
@@ -191,6 +197,7 @@ TEST(TypefaceDecoderTest, DecodeWoffTypefaceWithMultipleChunks) {
 // Test that we can decode a woff2 typeface received in one chunk.
 TEST(TypefaceDecoderTest, DecodeWoff2Typeface) {
   MockTypefaceDecoder typeface_decoder;
+  typeface_decoder.ExpectOnCompleteWithError(base::nullopt);
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kWoff2TestTypeface));
@@ -204,6 +211,7 @@ TEST(TypefaceDecoderTest, DecodeWoff2Typeface) {
 // Test that we can decode a woff2 typeface received in multiple chunks.
 TEST(TypefaceDecoderTest, DecodeWoff2TypefaceWithMultipleChunks) {
   MockTypefaceDecoder typeface_decoder;
+  typeface_decoder.ExpectOnCompleteWithError(base::nullopt);
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kWoff2TestTypeface));
@@ -224,7 +232,8 @@ TEST(TypefaceDecoderTest, DecodeWoff2TypefaceWithMultipleChunks) {
 // or return a typeface.
 TEST(TypefaceDecoderTest, DecodeTooLargeTypeface) {
   MockTypefaceDecoder typeface_decoder;
-  typeface_decoder.ExpectCallWithError("Raw typeface data size too large");
+  typeface_decoder.ExpectOnCompleteWithError(
+      std::string("Raw typeface data size too large"));
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kTtfTestTypeface));
@@ -240,7 +249,8 @@ TEST(TypefaceDecoderTest, DecodeTooLargeTypeface) {
 // is handled gracefully and does not crash or return a typeface.
 TEST(TypefaceDecoderTest, DecodeTooLargeTypefaceWithMultipleChunks) {
   MockTypefaceDecoder typeface_decoder;
-  typeface_decoder.ExpectCallWithError("Raw typeface data size too large");
+  typeface_decoder.ExpectOnCompleteWithError(
+      std::string("Raw typeface data size too large"));
 
   std::vector<uint8> typeface_data =
       GetTypefaceData(GetTestTypefacePath(kTtfTestTypeface));
