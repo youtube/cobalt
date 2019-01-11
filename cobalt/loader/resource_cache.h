@@ -26,6 +26,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
+#include "base/optional.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
@@ -70,7 +71,8 @@ class CachedResource
   typedef base::Callback<scoped_ptr<Loader>(
       const GURL&, const Origin&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const std::string&)>&)> CreateLoaderFunction;
+      const base::Callback<void(const base::optional<std::string>&)>&)>
+      CreateLoaderFunction;
 
   // This class can be used to attach success or error callbacks to
   // CachedResource objects that are executed when the resource finishes
@@ -146,7 +148,7 @@ class CachedResource
   // Notify that the resource is loaded successfully.
   void OnLoadingSuccess(const scoped_refptr<ResourceType>& resource);
   // Notify the loading error.
-  void OnLoadingError(const std::string& error);
+  void OnLoadingError(const base::optional<std::string>& error);
 
   // Called by |CachedResourceLoadedCallbackHandler|.
   CallbackListIterator AddCallback(CallbackType type,
@@ -335,7 +337,8 @@ void CachedResource<CacheType>::OnLoadingSuccess(
 }
 
 template <typename CacheType>
-void CachedResource<CacheType>::OnLoadingError(const std::string& error) {
+void CachedResource<CacheType>::OnLoadingError(
+    const base::optional<std::string>& error) {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
 
   LOG(WARNING) << " Error while loading '" << url_ << "': " << error;

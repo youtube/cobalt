@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/message_loop.h"
+#include "base/optional.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
@@ -38,9 +39,10 @@ using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
-class MockErrorCallback : public base::Callback<void(const std::string&)> {
+class MockErrorCallback
+    : public base::Callback<void(const base::optional<std::string> &)> {
  public:
-  MOCK_METHOD1(Run, void(const std::string&));
+  MOCK_METHOD1(Run, void(const base::optional<std::string> &));
 };
 
 class WindowTest : public ::testing::Test {

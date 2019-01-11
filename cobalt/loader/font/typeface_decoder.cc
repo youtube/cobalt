@@ -20,15 +20,15 @@ namespace font {
 
 TypefaceDecoder::TypefaceDecoder(
     render_tree::ResourceProvider* resource_provider,
-    const SuccessCallback& success_callback,
-    const ErrorCallback& error_callback)
+    const TypefaceAvailableCallback& typeface_available_callback,
+    const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : resource_provider_(resource_provider),
-      success_callback_(success_callback),
-      error_callback_(error_callback),
+      typeface_available_callback_(typeface_available_callback),
+      load_complete_callback_(load_complete_callback),
       is_raw_data_too_large_(false),
       is_suspended_(!resource_provider_) {
-  DCHECK(!success_callback_.is_null());
-  DCHECK(!error_callback_.is_null());
+  DCHECK(!typeface_available_callback_.is_null());
+  DCHECK(!load_complete_callback.is_null());
 }
 
 void TypefaceDecoder::DecodeChunk(const char* data, size_t size) {
@@ -70,7 +70,8 @@ void TypefaceDecoder::Finish() {
   }
 
   if (is_raw_data_too_large_) {
-    error_callback_.Run("Raw typeface data size too large");
+    load_complete_callback_.Run(
+        std::string("Raw typeface data size too large"));
     return;
   }
 
@@ -80,9 +81,10 @@ void TypefaceDecoder::Finish() {
                                                     &error_string);
 
   if (decoded_typeface) {
-    success_callback_.Run(decoded_typeface);
+    load_complete_callback_.Run(base::nullopt);
+    typeface_available_callback_.Run(decoded_typeface);
   } else {
-    error_callback_.Run(error_string);
+    load_complete_callback_.Run(std::string(error_string));
   }
 }
 

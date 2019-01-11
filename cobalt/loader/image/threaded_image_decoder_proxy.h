@@ -36,15 +36,22 @@ namespace image {
 // work.
 class ThreadedImageDecoderProxy : public Decoder {
  public:
-  typedef base::Callback<void(const scoped_refptr<Image>&)> SuccessCallback;
-  typedef base::Callback<void(const std::string&)> ErrorCallback;
-
-  ThreadedImageDecoderProxy(render_tree::ResourceProvider* resource_provider,
-                            const SuccessCallback& success_callback,
-                            const ErrorCallback& error_callback,
-                            MessageLoop* load_message_loop_);
+  typedef base::Callback<void(const scoped_refptr<Image>&)>
+      ImageAvailableCallback;
 
   ~ThreadedImageDecoderProxy();
+
+  // This function is used for binding a callback to create a
+  // ThreadedImageDecoderProxy.
+  static scoped_ptr<Decoder> Create(
+      render_tree::ResourceProvider* resource_provider,
+      const ImageAvailableCallback& image_available_callback,
+      MessageLoop* load_message_loop_,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback) {
+    return scoped_ptr<Decoder>(new ThreadedImageDecoderProxy(
+        resource_provider, image_available_callback, load_message_loop_,
+        load_complete_callback));
+  }
 
   // From the Decoder interface.
   LoadResponseType OnResponseStarted(
@@ -57,6 +64,12 @@ class ThreadedImageDecoderProxy : public Decoder {
   void Resume(render_tree::ResourceProvider* resource_provider) override;
 
  private:
+  ThreadedImageDecoderProxy(
+      render_tree::ResourceProvider* resource_provider,
+      const ImageAvailableCallback& image_available_callback,
+      MessageLoop* load_message_loop_,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback);
+
   base::WeakPtrFactory<ThreadedImageDecoderProxy> weak_ptr_factory_;
   base::WeakPtr<ThreadedImageDecoderProxy> weak_this_;
 

@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -31,6 +32,9 @@ class Fetcher;
 
 class Decoder {
  public:
+  typedef base::Callback<void(const base::optional<std::string>&)>
+      OnCompleteFunction;
+
   Decoder() {}
   virtual ~Decoder() {}
 

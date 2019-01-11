@@ -35,17 +35,17 @@ namespace loader {
 class TextDecoder : public Decoder {
  public:
   typedef base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
-      SuccessCallback;
+      TextAvailableCallback;
 
-  explicit TextDecoder(const SuccessCallback& done_callback)
-      : done_callback_(done_callback), suspended_(false) {}
   ~TextDecoder() override {}
 
   // This function is used for binding callback for creating TextDecoder.
   static scoped_ptr<Decoder> Create(
-      base::Callback<void(const loader::Origin&, scoped_ptr<std::string>)>
-          done_callback) {
-    return scoped_ptr<Decoder>(new TextDecoder(done_callback));
+      const TextAvailableCallback& text_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback =
+          loader::Decoder::OnCompleteFunction()) {
+    return scoped_ptr<Decoder>(
+        new TextDecoder(text_available_callback, load_complete_callback));
   }
 
   // From Decoder.
@@ -82,7 +82,10 @@ class TextDecoder : public Decoder {
     if (!text_) {
       text_.reset(new std::string);
     }
-    done_callback_.Run(last_url_origin_, text_.Pass());
+    if (!load_complete_callback_.is_null()) {
+      load_complete_callback_.Run(base::nullopt);
+    }
+    text_available_callback_.Run(last_url_origin_, text_.Pass());
   }
   bool Suspend() override {
     suspended_ = true;
@@ -97,8 +100,16 @@ class TextDecoder : public Decoder {
   }
 
  private:
+  explicit TextDecoder(
+      const TextAvailableCallback& text_available_callback,
+      const loader::Decoder::OnCompleteFunction& load_complete_callback)
+      : text_available_callback_(text_available_callback),
+        load_complete_callback_(load_complete_callback),
+        suspended_(false) {}
+
   base::ThreadChecker thread_checker_;
-  SuccessCallback done_callback_;
+  TextAvailableCallback text_available_callback_;
+  loader::Decoder::OnCompleteFunction load_complete_callback_;
   loader::Origin last_url_origin_;
   scoped_ptr<std::string> text_;
   bool suspended_;

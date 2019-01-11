@@ -43,7 +43,8 @@ class LoaderOnThread {
   void Start(
       base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
       base::Callback<scoped_ptr<Decoder>()> decoder_creator,
-      base::Callback<void(const std::string&)> error_callback);
+      base::Callback<void(const base::optional<std::string>&)>
+          load_complete_callback);
   void End();
 
   void SignalStartDone() { start_waitable_event_.Signal(); }
@@ -76,10 +77,11 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
  public:
   FetcherToDecoderAdapter(
       LoaderOnThread* loader_on_thread, Decoder* decoder,
-      base::Callback<void(const std::string&)> error_callback)
+      base::Callback<void(const base::optional<std::string>&)>
+          load_complete_callback)
       : loader_on_thread_(loader_on_thread),
         decoder_(decoder),
-        error_callback_(error_callback) {}
+        load_complete_callback_(load_complete_callback) {}
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
@@ -94,23 +96,25 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(fetcher);
-    error_callback_.Run(error);
+    load_complete_callback_.Run(error);
     loader_on_thread_->SignalStartDone();
   }
 
  private:
   LoaderOnThread* loader_on_thread_;
   Decoder* decoder_;
-  base::Callback<void(const std::string&)> error_callback_;
+  base::Callback<void(const base::optional<std::string>&)>
+      load_complete_callback_;
 };
 
 void LoaderOnThread::Start(
     base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<scoped_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const std::string&)> error_callback) {
+    base::Callback<void(const base::optional<std::string>&)>
+        load_complete_callback) {
   decoder_ = decoder_creator.Run();
-  fetcher_to_decoder_adaptor_.reset(
-      new FetcherToDecoderAdapter(this, decoder_.get(), error_callback));
+  fetcher_to_decoder_adaptor_.reset(new FetcherToDecoderAdapter(
+      this, decoder_.get(), load_complete_callback));
   fetcher_ = fetcher_creator.Run(fetcher_to_decoder_adaptor_.get());
 }
 
@@ -131,17 +135,18 @@ void LoadSynchronously(
     MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
     base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<scoped_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const std::string&)> error_callback) {
+    base::Callback<void(const base::optional<std::string>&)>
+        load_complete_callback) {
   TRACE_EVENT0("cobalt::loader", "LoadSynchronously()");
   DCHECK(message_loop);
-  DCHECK(!error_callback.is_null());
+  DCHECK(!load_complete_callback.is_null());
 
   LoaderOnThread loader_on_thread;
 
   message_loop->PostTask(
       FROM_HERE,
       base::Bind(&LoaderOnThread::Start, base::Unretained(&loader_on_thread),
-                 fetcher_creator, decoder_creator, error_callback));
+                 fetcher_creator, decoder_creator, load_complete_callback));
   loader_on_thread.WaitForStart(interrupt_trigger);
 
   message_loop->PostTask(
