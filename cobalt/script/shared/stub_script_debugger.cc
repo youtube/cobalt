@@ -38,6 +38,12 @@ class StubScriptDebugger : public ScriptDebugger {
     NOTIMPLEMENTED();
   }
 
+  void StartTracing(const std::vector<std::string>& categories,
+                    TraceDelegate* trace_delegate) {
+    NOTIMPLEMENTED();
+  }
+  void StopTracing() override { NOTIMPLEMENTED(); }
+
   void Pause() override { NOTIMPLEMENTED(); }
   void Resume() override { NOTIMPLEMENTED(); }
   void SetBreakpoint(const std::string& script_id, int line_number,

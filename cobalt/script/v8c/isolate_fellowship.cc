@@ -20,6 +20,7 @@
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "starboard/file.h"
 
 namespace cobalt {
@@ -43,7 +44,6 @@ const char* kV8CommandLineFlags[] = {"--optimize_for_size",
 #endif
 };
 
-
 // Configure v8's global command line flag options for Cobalt.
 // It can be called more than once, but make sure it is called before any
 // v8 instance is created.
@@ -58,8 +58,10 @@ void V8FlagsInit() {
 IsolateFellowship::IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::IsolateFellowship");
   // TODO: Initialize V8 ICU stuff here as well.
-  platform = new CobaltPlatform(
-      std::unique_ptr<v8::Platform>(v8::platform::CreateDefaultPlatform()));
+  platform = new CobaltPlatform(v8::platform::NewDefaultPlatform(
+      0 /*thread_pool_size*/, v8::platform::IdleTaskSupport::kDisabled,
+      v8::platform::InProcessStackDumping::kEnabled,
+      std::unique_ptr<v8::TracingController>(new V8cTracingController())));
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
   array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
