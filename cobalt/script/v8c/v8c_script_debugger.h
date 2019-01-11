@@ -15,6 +15,7 @@
 #define COBALT_SCRIPT_V8C_V8C_SCRIPT_DEBUGGER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/logging.h"
 #include "cobalt/script/script_debugger.h"
@@ -39,6 +40,10 @@ class V8cScriptDebugger : public ScriptDebugger,
 
   bool CanDispatchProtocolMethod(const std::string& method) override;
   void DispatchProtocolMessage(const std::string& message) override;
+
+  void StartTracing(const std::vector<std::string>& categories,
+                    TraceDelegate* trace_delegate) override;
+  void StopTracing() override;
 
   void Pause() override { NOTIMPLEMENTED(); }
   void Resume() override { NOTIMPLEMENTED(); }
