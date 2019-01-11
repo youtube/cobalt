@@ -60,6 +60,8 @@
         'v8c_script_value_factory.h',
         'v8c_source_code.cc',
         'v8c_source_code.h',
+        'v8c_tracing_controller.cc',
+        'v8c_tracing_controller.h',
         'v8c_typed_arrays.cc',
         'v8c_typed_arrays.h',
         'v8c_user_object_holder.h',

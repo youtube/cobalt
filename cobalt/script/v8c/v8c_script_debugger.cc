@@ -20,6 +20,8 @@
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/v8c_tracing_controller.h"
+#include "v8/include/libplatform/v8-tracing.h"
 #include "v8/include/v8-inspector.h"
 
 namespace cobalt {
@@ -29,6 +31,12 @@ namespace v8c {
 namespace {
 constexpr int kContextGroupId = 1;
 constexpr char kContextName[] = "Cobalt";
+
+V8cTracingController* GetTracingController() {
+  return base::polymorphic_downcast<V8cTracingController*>(
+      IsolateFellowship::GetInstance()->platform->GetTracingController());
+}
+
 }  // namespace
 
 V8cScriptDebugger::V8cScriptDebugger(
@@ -78,6 +86,19 @@ void V8cScriptDebugger::DispatchProtocolMessage(const std::string& message) {
   DCHECK(inspector_session_);
   inspector_session_->dispatchProtocolMessage(v8_inspector::StringView(
       reinterpret_cast<const uint8_t*>(message.c_str()), message.length()));
+}
+
+void V8cScriptDebugger::StartTracing(const std::vector<std::string>& categories,
+                                     TraceDelegate* trace_delegate) {
+  V8cTracingController* tracing_controller = GetTracingController();
+  CHECK(tracing_controller);
+  tracing_controller->StartTracing(categories, trace_delegate);
+}
+
+void V8cScriptDebugger::StopTracing() {
+  V8cTracingController* tracing_controller = GetTracingController();
+  CHECK(tracing_controller);
+  tracing_controller->StopTracing();
 }
 
 // v8_inspector::V8InspectorClient implementation.
