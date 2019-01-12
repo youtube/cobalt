@@ -114,6 +114,9 @@ void DebugModule::BuildInternal(const ConstructionData& data,
                                   page_render_layer.Pass(),
                                   data.resource_provider));
 
+  tracing_agent_.reset(
+      new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
+
   script_debugger_->Attach();
 
   if (created) {
