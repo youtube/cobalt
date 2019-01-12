@@ -46,6 +46,8 @@
         'backend/runtime_agent.h',
         'backend/script_debugger_agent.cc',
         'backend/script_debugger_agent.h',
+        'backend/tracing_agent.cc',
+        'backend/tracing_agent.h',
         'command.h',
         'console/debug_hub.cc',
         'console/debug_hub.h',

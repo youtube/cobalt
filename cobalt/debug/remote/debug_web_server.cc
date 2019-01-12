@@ -291,7 +291,8 @@ void DebugWebServer::OnDebugClientEvent(
 
   JSONObject event(new base::DictionaryValue());
   event->SetString(kMethodField, method);
-  JSONObject params = JSONParse(json_params.value());
+  JSONObject params;
+  if (json_params) params = JSONParse(json_params.value());
   // |params| may be NULL if event does not use them.
   if (params) {
     event->Set(kParamsField, params.release());
