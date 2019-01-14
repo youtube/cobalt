@@ -84,7 +84,8 @@ typedef PlatformTest PathServiceTest;
 TEST_F(PathServiceTest, Get) {
   for (int key = PATH_START + 1; key < PATH_END; ++key) {
 #if defined(STARBOARD)
-    if (key == DIR_CURRENT || key == DIR_USER_DESKTOP || key == DIR_SOURCE_ROOT) {
+    if (key == DIR_CURRENT || key == DIR_USER_DESKTOP ||
+        key == DIR_SOURCE_ROOT) {
       continue;
     }
 #else
