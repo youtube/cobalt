@@ -83,6 +83,15 @@ header available.
 
 Whether the current platform has 64-bit atomic operations.
 
+### SB_HAS_AC3_AUDIO_API_VERSION ###
+
+Add support for audio in ac3.
+
+### SB_HAS_AV1_VERSION ###
+
+Replace kSbMediaVideoCodecVp10 by kSbMediaVideoCodecAv1. kSbMediaVideoCodecVp10
+in media.h is replaced by kSbMediaVideoCodecAv1.
+
 ### SB_HAS_DRM_KEY_STATUSES ###
 
 Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above as
@@ -103,6 +112,30 @@ Specifies whether this platform has any kind of supported graphics system.
 ### SB_HAS_QUIRK(SB_FEATURE) ###
 
 Determines at compile-time whether this platform has a quirk.
+
+### SB_HAS_SCREEN_DIAGONAL_API_VERSION ###
+
+Adds support for allowing the platform to override its screen diagonal length
+via SbWindowGetDiagonalSizeInInches().
+
+### SB_HAS_STARTUP_URL_SIGNING_VERSION ###
+
+Add support for startup url signing by adding
+kSbSystemPropertyCertificationScope and
+kSbSystemPropertyBase64EncodedCertificationSecret system property enums to
+system.h.
+
+### SB_HAS_STD_UNORDERED_HASH_API_VERSION ###
+
+Add support for using C++11 standard unordered maps and sets. By setting
+SB_HAS_STD_UNORDERED_HASH to 1, a platform can be configured to use C++11
+standard hash table implementations, specifically, using: . std::unordered_map<>
+for base::hash_map<>, and . std::unordered_multimap<> for base::hash_multimap<>,
+and . std::unordered_set<> for base::hash_set<>, and . std::unordered_multiset<>
+for base::hash_multiset<>. When SB_HAS_STD_UNORDERED_HASH is used, it is no
+longer necessary to specify SB_HAS_LONG_LONG_HASH, SB_HAS_STRING_HASH,
+SB_HAS_HASH_USING, SB_HAS_HASH_VALUE, SB_HAS_HASH_WARNING, SB_HASH_MAP_INCLUDE,
+SB_HASH_NAMESPACE, or SB_HASH_SET_INCLUDE.
 
 ### SB_INT64_C(x) ###
 
@@ -125,10 +158,12 @@ Macro for hinting that an expression is likely to be true.
 The maximum API version allowed by this version of the Starboard headers,
 inclusive.
 
-### SB_MICROPHONE_LABEL_API_VERSION ###
+### SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION ###
 
-Adds string label to SbMicrophoneInfo . This should indicate the friendly name
-of the microphone type.
+Add SbMediaTransferId* argument `eotf` to SbMediaIsVideoSupported, so the
+platform may indicate support of resolution, bitrate, fps, and codec conditioned
+on eotf. Also, remove the function SbMediaIsTransferCharacteristicsSupported
+which is no longer necessary.
 
 ### SB_MINIMUM_API_VERSION ###
 

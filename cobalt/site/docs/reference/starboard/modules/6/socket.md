@@ -54,12 +54,14 @@ always an error.
 
     The operation is blocked on I/O. Either try again "later," or be very clever
     and wait on it with a SbSocketWaiter.
+*   `kSbSocketErrorConnectionReset`
+
+    This socket error is generated when the connection is reset unexpectedly and
+    the connection is now invalid. This might happen for example if an read
+    packet has the "TCP RST" bit set.
 *   `kSbSocketErrorFailed`
 
-    The operation failed for some reason.
-
-    TODO: It's unclear if we actually care about why, so leaving the rest of
-    this enumeration blank until it becomes clear that we do.
+    The operation failed for some other reason not specified above.
 
 ### SbSocketProtocol ###
 

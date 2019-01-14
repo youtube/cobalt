@@ -56,7 +56,7 @@ Raspberry Pi.
 
         ``` 
         rsync -avzh --safe-links \
-              --delete-after pi@$RASPI_ADDR:/{opt,lib,usr}
+              --delete-after pi@$RASPI_ADDR:/{opt,lib,usr} \
               --exclude="lib/firmware" --exclude="lib/modules" \
               --include="usr/lib" --include="usr/include" \
               --include="usr/local/include" --include="usr/local/lib" \

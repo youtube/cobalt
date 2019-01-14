@@ -10,7 +10,7 @@ interfaces.
 
 ### kSbMediaTimeSecond ###
 
-One second in SbMediaTime (90KHz ticks).
+TODO: remove entirely. One second in SbMediaTime (90KHz ticks).
 
 ## Enums ##
 
@@ -22,6 +22,7 @@ Types of audio elementary streams that can be supported.
 
 *   `kSbMediaAudioCodecNone`
 *   `kSbMediaAudioCodecAac`
+*   `kSbMediaAudioCodecAc3`
 *   `kSbMediaAudioCodecOpus`
 *   `kSbMediaAudioCodecVorbis`
 
@@ -83,7 +84,7 @@ Possible audio sample types.
 
 #### Values ####
 
-*   `kSbMediaAudioSampleTypeInt16`
+*   `kSbMediaAudioSampleTypeInt16Deprecated`
 *   `kSbMediaAudioSampleTypeFloat32`
 
 ### SbMediaRangeId ###
@@ -151,7 +152,7 @@ Types of video elementary streams that could be supported.
 *   `kSbMediaVideoCodecMpeg2`
 *   `kSbMediaVideoCodecTheora`
 *   `kSbMediaVideoCodecVc1`
-*   `kSbMediaVideoCodecVp10`
+*   `kSbMediaVideoCodecAv1`
 *   `kSbMediaVideoCodecVp8`
 *   `kSbMediaVideoCodecVp9`
 
