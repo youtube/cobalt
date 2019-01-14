@@ -199,16 +199,16 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
 *   `kSbKeyMouse5`
 *   `kSbKeyGamepad1`
 
-    Xbox A, PS O or X (depending on region), WiiU B
+    Xbox A, PS O or X (depending on region), Switch A
 *   `kSbKeyGamepad2`
 
-    Xbox B, PS X or O (depending on region), WiiU A key
+    Xbox B, PS X or O (depending on region), Switch B
 *   `kSbKeyGamepad3`
 
-    Xbox X, PS square, WiiU Y
+    Xbox X, PS square, Switch X
 *   `kSbKeyGamepad4`
 
-    Xbox Y, PS triangle, WiiU X
+    Xbox Y, PS triangle, Switch Y
 *   `kSbKeyGamepadLeftBumper`
 
     Pretty much every gamepad has bumpers at the top front of the controller,

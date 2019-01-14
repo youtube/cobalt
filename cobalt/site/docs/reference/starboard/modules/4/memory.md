@@ -36,6 +36,9 @@ the mapped memory can be used.
 #### Values ####
 
 *   `kSbMemoryMapProtectRead`
+
+    No flags set: Reserves virtual address space. SbMemoryProtect() can later
+    make it accessible.
 *   `kSbMemoryMapProtectWrite`
 *   `kSbMemoryMapProtectExec`
 *   `kSbMemoryMapProtectReadWrite`
@@ -332,8 +335,12 @@ failure. `NULL` is a valid return value.
 
 `size_bytes`: The amount of physical memory pages to be allocated. `flags`: The
 bitwise OR of the protection flags for the mapped memory as specified in
-`SbMemoryMapFlags`. `name`: A value that appears in the debugger on some
-platforms. The value can be up to 32 bytes.
+`SbMemoryMapFlags`. Allocating executable memory is not allowed and will fail.
+If executable memory is needed, map non-executable memory first and then switch
+access to executable using SbMemoryProtect. When kSbMemoryMapProtectReserved is
+used, the address space will not be accessible and, if possible, the platform
+should not count it against any memory budget. `name`: A value that appears in
+the debugger on some platforms. The value can be up to 32 bytes.
 
 #### Declaration ####
 

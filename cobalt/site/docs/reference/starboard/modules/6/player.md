@@ -15,7 +15,7 @@ with kSbPlayerStateInitialized.
 
 ### SB_PLAYER_NO_DURATION ###
 
-The value to pass into SbPlayerCreate's `duration_ptr` argument for cases where
+The value to pass into SbPlayerCreate's `duration_pts` argument for cases where
 the duration is unknown, such as for live streams.
 
 ### kSbPlayerInvalid ###
@@ -69,11 +69,6 @@ An indicator of the general playback state.
 *   `kSbPlayerStateDestroyed`
 
     The player has been destroyed, and will send no more callbacks.
-*   `kSbPlayerStateError`
-
-    The player encountered an error. It expects an SbPlayerDestroy() call to
-    tear down the player. Calls to other functions may be ignored and callbacks
-    may not be triggered.
 
 ## Typedefs ##
 
@@ -96,7 +91,7 @@ with `sample_buffer` points to the the first buffer.
 #### Definition ####
 
 ```
-typedef void(* SbPlayerDeallocateSampleFunc)(SbPlayer player, void *context, const void *sample_buffer)
+typedef void(* SbPlayerDeallocateSampleFunc) (SbPlayer player, void *context, const void *sample_buffer)
 ```
 
 ### SbPlayerDecoderStatusFunc ###
@@ -116,7 +111,7 @@ status again after such call to notify its user to continue writing more frames.
 #### Definition ####
 
 ```
-typedef void(* SbPlayerDecoderStatusFunc)(SbPlayer player, void *context, SbMediaType type, SbPlayerDecoderState state, int ticket)
+typedef void(* SbPlayerDecoderStatusFunc) (SbPlayer player, void *context, SbMediaType type, SbPlayerDecoderState state, int ticket)
 ```
 
 ### SbPlayerEncryptedMediaInitDataEncounteredCB ###
@@ -129,7 +124,20 @@ is the initialization data, and `init_data_length` is the length of the data.
 #### Definition ####
 
 ```
-typedef void(* SbPlayerEncryptedMediaInitDataEncounteredCB)(SbPlayer player, void *context, const char *init_data_type, const unsigned char *init_data, unsigned int init_data_length)
+typedef void(* SbPlayerEncryptedMediaInitDataEncounteredCB) (SbPlayer player, void *context, const char *init_data_type, const unsigned char *init_data, unsigned int init_data_length)
+```
+
+### SbPlayerErrorFunc ###
+
+Callback for player errors, that may set a `message`. `error`: indicates the
+error code. `message`: provides specific informative diagnostic message about
+the error condition encountered. It is ok for the message to be an empty string
+or NULL if no information is available.
+
+#### Definition ####
+
+```
+typedef void(* SbPlayerErrorFunc) (SbPlayer player, void *context, SbPlayerError error, const char *message)
 ```
 
 ### SbPlayerStatusFunc ###
@@ -141,7 +149,7 @@ from within this callback.
 #### Definition ####
 
 ```
-typedef void(* SbPlayerStatusFunc)(SbPlayer player, void *context, SbPlayerState state, int ticket)
+typedef void(* SbPlayerStatusFunc) (SbPlayer player, void *context, SbPlayerState state, int ticket)
 ```
 
 ## Structs ##
@@ -160,6 +168,10 @@ Information about the current media playback state.
 
     The known duration of the currently playing media stream, in 90KHz ticks
     (PTS).
+*   `SbTime start_date`
+
+    The result of getStartDate for the currently playing media stream, in
+    microseconds since the epoch of January 1, 1601 UTC.
 *   `int frame_width`
 
     The width of the currently displayed frame, in pixels, or 0 if not provided
@@ -202,6 +214,30 @@ Information about the current media playback state.
     The known duration of the currently playing media buffer, in 90KHz ticks
     (PTS).
 
+### SbPlayerSampleInfo ###
+
+Information about the samples to be written into SbPlayerWriteSample2.
+
+#### Members ####
+
+*   `const void * buffer`
+
+    Points to the buffer containing the sample data.
+*   `int buffer_size`
+
+    Size of the data pointed to by `buffer`.
+*   `SbTime timestamp`
+
+    The timestamp of the sample in SbTime.
+*   `constSbMediaVideoSampleInfo* video_sample_info`
+
+    Information about a video sample. This value is required for video samples.
+    Otherwise, it must be `NULL`.
+*   `constSbDrmSampleInfo* drm_info`
+
+    The DRM system related info for the media sample. This value is required for
+    encrypted samples. Otherwise, it must be `NULL`.
+
 ## Functions ##
 
 ### SbPlayerCreateWithUrl ###
@@ -222,7 +258,7 @@ when encrypted media initial data is encountered.
 #### Declaration ####
 
 ```
-SbPlayer SbPlayerCreateWithUrl(const char *url, SbWindow window, SbMediaTime duration_pts, SbPlayerStatusFunc player_status_func, SbPlayerEncryptedMediaInitDataEncounteredCB encrypted_media_init_data_encountered_cb, void *context)
+SbPlayer SbPlayerCreateWithUrl(const char *url, SbWindow window, SbMediaTime duration_pts, SbPlayerStatusFunc player_status_func, SbPlayerEncryptedMediaInitDataEncounteredCB encrypted_media_init_data_encountered_cb, SbPlayerErrorFunc player_error_func, void *context)
 ```
 
 ### SbPlayerDestroy ###
@@ -293,42 +329,6 @@ given `output_mode`.
 
 ```
 bool SbPlayerOutputModeSupportedWithUrl(SbPlayerOutputMode output_mode)
-```
-
-### SbPlayerSeek ###
-
-Tells the player to freeze playback (if playback has already started), reset or
-flush the decoder pipeline, and go back to the Prerolling state. The player
-should restart playback once it can display the frame at `seek_to_pts`, or the
-closest it can get. (Some players can only seek to I-Frames, for example.)
-
-*   Seek must be called before samples are sent when starting playback for the
-    first time, or the client never receives the
-    `kSbPlayerDecoderStateNeedsData` signal.
-
-*   A call to seek may interrupt another seek.
-
-*   After this function is called, the client should not send any more audio or
-    video samples until `SbPlayerDecoderStatusFunc` is called back with
-    `kSbPlayerDecoderStateNeedsData` for each required media type.
-    `SbPlayerDecoderStatusFunc` is the `decoder_status_func` callback function
-    that was specified when the player was created (SbPlayerCreate).
-
-`player`: The SbPlayer in which the seek operation is being performed.
-`seek_to_pts`: The frame at which playback should begin. `ticket`: A user-
-supplied unique ID that is be passed to all subsequent
-`SbPlayerDecoderStatusFunc` calls. (That is the `decoder_status_func` callback
-function specified when calling SbPlayerCreate.)
-
-The `ticket` value is used to filter calls that may have been in flight when
-SbPlayerSeek was called. To be very specific, once SbPlayerSeek has been called
-with ticket X, a client should ignore all `SbPlayerDecoderStatusFunc` calls that
-do not pass in ticket X.
-
-#### Declaration ####
-
-```
-void SbPlayerSeek(SbPlayer player, SbMediaTime seek_to_pts, int ticket)
 ```
 
 ### SbPlayerSetBounds ###
@@ -448,8 +448,8 @@ be at least one, or the call will be ignored. `sample_pts`: The timestamp of the
 sample in 90KHz ticks (PTS). Note that samples MAY be written "slightly" out of
 order. `video_sample_info`: Information about a video sample. This value is
 required if `sample_type` is `kSbMediaTypeVideo`. Otherwise, it must be `NULL`.
-`sample_drm_info`: The DRM system for the media sample. This value is required
-for encrypted samples. Otherwise, it must be `NULL`.
+`sample_drm_info`: The DRM system related info for the media sample. This value
+is required for encrypted samples. Otherwise, it must be `NULL`.
 
 #### Declaration ####
 

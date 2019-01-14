@@ -93,7 +93,7 @@ data passed in from the calling thread.
 #### Definition ####
 
 ```
-typedef void*(* SbThreadEntryPoint)(void *context)
+typedef void*(* SbThreadEntryPoint) (void *context)
 ```
 
 ### SbThreadId ###
@@ -113,7 +113,7 @@ Function pointer type for Thread-Local destructors.
 #### Definition ####
 
 ```
-typedef void(* SbThreadLocalDestructor)(void *value)
+typedef void(* SbThreadLocalDestructor) (void *value)
 ```
 
 ### SbThreadLocalKey ###

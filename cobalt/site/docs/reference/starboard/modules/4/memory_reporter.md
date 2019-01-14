@@ -15,7 +15,7 @@ operator new calls SbMemoryAllocate which will delegate to this callback.
 #### Definition ####
 
 ```
-typedef void(* SbMemoryReporterOnAlloc)(void *context, const void *memory, size_t size)
+typedef void(* SbMemoryReporterOnAlloc) (void *context, const void *memory, size_t size)
 ```
 
 ### SbMemoryReporterOnDealloc ###
@@ -26,7 +26,7 @@ operator delete calls SbMemoryDeallocate which will delegate to this callback.
 #### Definition ####
 
 ```
-typedef void(* SbMemoryReporterOnDealloc)(void *context, const void *memory)
+typedef void(* SbMemoryReporterOnDealloc) (void *context, const void *memory)
 ```
 
 ### SbMemoryReporterOnMapMemory ###
@@ -36,7 +36,7 @@ A function to report a memory mapping from SbMemoryMap().
 #### Definition ####
 
 ```
-typedef void(* SbMemoryReporterOnMapMemory)(void *context, const void *memory, size_t size)
+typedef void(* SbMemoryReporterOnMapMemory) (void *context, const void *memory, size_t size)
 ```
 
 ### SbMemoryReporterOnUnMapMemory ###
@@ -46,7 +46,7 @@ A function to report a memory unmapping from SbMemoryUnmap().
 #### Definition ####
 
 ```
-typedef void(* SbMemoryReporterOnUnMapMemory)(void *context, const void *memory, size_t size)
+typedef void(* SbMemoryReporterOnUnMapMemory) (void *context, const void *memory, size_t size)
 ```
 
 ## Structs ##
