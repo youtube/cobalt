@@ -82,7 +82,7 @@ occurred speech recognition error.
 #### Definition ####
 
 ```
-typedef void(* SbSpeechRecognizerErrorFunction)(void *context, SbSpeechRecognizerError error)
+typedef void(* SbSpeechRecognizerErrorFunction) (void *context, SbSpeechRecognizerError error)
 ```
 
 ### SbSpeechRecognizerResultsFunction ###
@@ -94,7 +94,7 @@ indicates if the `results` is final.
 #### Definition ####
 
 ```
-typedef void(* SbSpeechRecognizerResultsFunction)(void *context, SbSpeechResult *results, int results_size, bool is_final)
+typedef void(* SbSpeechRecognizerResultsFunction) (void *context, SbSpeechResult *results, int results_size, bool is_final)
 ```
 
 ### SbSpeechRecognizerSpeechDetectedFunction ###
@@ -106,7 +106,7 @@ speaking.
 #### Definition ####
 
 ```
-typedef void(* SbSpeechRecognizerSpeechDetectedFunction)(void *context, bool detected)
+typedef void(* SbSpeechRecognizerSpeechDetectedFunction) (void *context, bool detected)
 ```
 
 ## Structs ##
