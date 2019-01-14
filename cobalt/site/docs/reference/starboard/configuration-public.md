@@ -27,10 +27,10 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_2_CORES`**<br><br>Whether the current platform is expected to have exactly 2 cores.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_4_CORES`**<br><br>Whether the current platform is expected to have exactly 4 cores.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_6_CORES`**<br><br>Whether the current platform is expected to have exactly 6 cores.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_THREAD_PRIORITY_SUPPORT`**<br><br>Whether the current platform supports thread priorities.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_CROSS_CORE_SCHEDULER`**<br><br>Whether the current platform's thread scheduler will automatically balance threads between cores, as opposed to systems where threads will only ever run on the specifically pinned core.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES`**<br><br>Some platforms will not align variables on the stack with an alignment greater than 16 bytes. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED`**<br><br>Some platforms do not have thread affinity support. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
+| **`SB_HAS_QUIRK_GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ`**<br><br>Some platforms the mapped GL buffer memory is slow to read from.  Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
 
 
 ## Compiler Configuration
@@ -60,6 +60,7 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
+| **`SB_HAS_STD_UNORDERED_HASH`**<br><br>Do not use <unordered_map> and <unordered_set> for the hash table types.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_LONG_LONG_HASH`**<br><br>GCC/Clang doesn't define a long long hash function, except for Android and Game consoles.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_STRING_HASH`**<br><br>GCC/Clang doesn't define a string hash function, except for Game Consoles.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_HASH_USING`**<br><br>Desktop Linux needs a using statement for the hash functions.<br><br>The default value in the Stub implementation is `0` |
@@ -84,7 +85,9 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_FILE_SEP_STRING`**<br><br>The string form of SB_FILE_SEP_CHAR.<br><br>The default value in the Stub implementation is `"/"` |
 | **`SB_FILE_ALT_SEP_STRING`**<br><br>The string form of SB_FILE_ALT_SEP_CHAR.<br><br>The default value in the Stub implementation is `"/"` |
 | **`SB_PATH_SEP_STRING`**<br><br>The string form of SB_PATH_SEP_CHAR.<br><br>The default value in the Stub implementation is `":"` |
+| **`SB_HAS_QUIRK_FILESYSTEM_ZERO_FILEINFO_TIME`**<br><br>Some operating systems constantly return zero values for creation, access and modification time for files and directories. When this quirk is defined, we need to ignore corresponded time values in applications as well as take this fact into account in unit tests.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME`**<br><br>On some platforms the file system stores access times at a coarser granularity than other times. When this quirk is defined, we assume the access time is of 1 day precision.<br><br>By default, this property is undefined. |
+| **`SB_HAS_QUIRK_HASH_FILE_NAME`**<br><br>On some platforms the file system cannot access extremely long file names. We do not need this feature on stub.<br><br>By default, this property is undefined. |
 
 
 ## Graphics Configuration
@@ -99,17 +102,28 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_VIRTUAL_REALITY`**<br><br>The default value in the Stub implementation is `1` |
 
 
+## I/O Configuration
+
+| Properties |
+| :--- |
+| **`SB_HAS_MICROPHONE`**<br><br>Whether the current platform has microphone supported.<br><br>The default value in the Stub implementation is `1` |
+| **`SB_HAS_ON_SCREEN_KEYBOARD`**<br><br>Whether the current platform implements the on screen keyboard interface.<br><br>The default value in the Stub implementation is `0` |
+| **`SB_HAS_SPEECH_RECOGNIZER`**<br><br>Whether the current platform has speech recognizer.<br><br>The default value in the Stub implementation is `1` |
+| **`SB_HAS_SPEECH_SYNTHESIS`**<br><br>Whether the current platform has speech synthesis.<br><br>The default value in the Stub implementation is `1` |
+
+
 ## Media Configuration
 
 | Properties |
 | :--- |
+| **`SB_HAS_PLAYER_WITH_URL`**<br><br>Whether the current platform uses a media player that relies on a URL.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_QUIRK_SEEK_TO_KEYFRAME`**<br><br>After a seek is triggerred, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.<br><br>By default, this property is undefined. |
-| **`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES`**<br><br>The implementation is allowed to support `kSbMediaAudioSampleTypeInt16` only when this macro is defined. |
+| **`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES`**<br><br>The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only when this macro is defined.<br><br>By default, this property is undefined. |
 | **`SB_HAS_QUIRK_NO_FFS`**<br><br>dlmalloc will use the ffs intrinsic if available.  Platforms on which this is not available should define the following quirk.<br><br>By default, this property is undefined. |
 | **`SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND`**<br><br>The maximum audio bitrate the platform can decode.  The following value equals to 5M bytes per seconds which is more than enough for compressed audio.<br><br>The default value in the Stub implementation is `(40 * 1024 * 1024)` |
 | **`SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND`**<br><br>The maximum video bitrate the platform can decode.  The following value equals to 25M bytes per seconds which is more than enough for compressed video.<br><br>The default value in the Stub implementation is `(200 * 1024 * 1024)` |
 | **`SB_HAS_MEDIA_WEBM_VP9_SUPPORT`**<br><br>Specifies whether this platform has webm/vp9 support.  This should be set to non-zero on platforms with webm/vp9 support.<br><br>The default value in the Stub implementation is `0` |
-| **`SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING`**<br><br>Specifies whether this platform updates audio frames asynchronously.  In such case an extra parameter will be added to `SbAudioSinkConsumeFramesFunc()` to indicate the absolute time that the consumed audio frames are reported.<br><br>The default value in the Stub implementation is `0` |
+| **`SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING`**<br><br>Specifies whether this platform updates audio frames asynchronously.  In such case an extra parameter will be added to |SbAudioSinkConsumeFramesFunc| to indicate the absolute time that the consumed audio frames are reported. Check document for |SbAudioSinkConsumeFramesFunc| in audio_sink.h for more details.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MEDIA_THREAD_STACK_SIZE`**<br><br>Specifies the stack size for threads created inside media stack.  Set to 0 to use the default thread stack size.  Set to non-zero to explicitly set the stack size for media stack threads.<br><br>The default value in the Stub implementation is `0U` |
 
 
@@ -146,13 +160,11 @@ title: "Starboard Configuration Reference Guide"
 | **`SB_HAS_STDDEF_H`**<br><br>Whether the current platform provides the standard header stddef.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_STDINT_H`**<br><br>Whether the current platform provides the standard header stdint.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_INTTYPES_H`**<br><br>Whether the current platform provides the standard header inttypes.h.<br><br>The default value in the Stub implementation is `1` |
+| **`SB_HAS_SYS_TYPES_H`**<br><br>Whether the current platform provides the standard header sys/types.h.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_HAS_WCHAR_H`**<br><br>Whether the current platform provides the standard header wchar.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_LIMITS_H`**<br><br>Whether the current platform provides the standard header limits.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_FLOAT_H`**<br><br>Whether the current platform provides the standard header float.h.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_SSIZE_T`**<br><br>Whether the current platform provides ssize_t.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_MICROPHONE`**<br><br>Whether the current platform has microphone supported.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_SPEECH_RECOGNIZER`**<br><br>Whether the current platform has speech recognizer.<br><br>The default value in the Stub implementation is `1` |
-| **`SB_HAS_SPEECH_SYNTHESIS`**<br><br>Whether the current platform has speech synthesis.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UTF32`**<br><br>Type detection for wchar_t.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UTF16`**<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UNSIGNED`**<br><br>Chrome only defines these two if ARMEL or MIPSEL are defined. Chrome has an exclusion for iOS here, we should too when we support iOS.<br><br>The default value in the Stub implementation is `1` |
@@ -165,9 +177,10 @@ title: "Starboard Configuration Reference Guide"
 
 | Properties |
 | :--- |
+| **`SB_HAS_THREAD_PRIORITY_SUPPORT`**<br><br>Whether the current platform supports thread priorities.<br><br>The default value in the Stub implementation is `0` |
 | **`SB_MAX_THREADS`**<br><br>Defines the maximum number of simultaneous threads for this platform. Some platforms require sharing thread handles with other kinds of system handles, like mutexes, so we want to keep this managable.<br><br>The default value in the Stub implementation is `90` |
 | **`SB_MAX_THREAD_LOCAL_KEYS`**<br><br>The maximum number of thread local storage keys supported by this platform.<br><br>The default value in the Stub implementation is `512` |
-| **`SB_MAX_THREAD_NAME_LENGTH`**<br><br>The maximum length of the name for a thread, including the NULL-terminator.<br><br>The default value in the Stub implementation is `16;` |
+| **`SB_MAX_THREAD_NAME_LENGTH`**<br><br>The maximum length of the name for a thread, including the NULL-terminator.<br><br>The default value in the Stub implementation is `16` |
 
 
 ## Timing API
