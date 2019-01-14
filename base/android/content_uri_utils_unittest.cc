@@ -17,6 +17,9 @@ TEST(ContentUriUtilsTest, ContentUriMimeTest) {
   // Get the test image path.
   FilePath data_dir;
   ASSERT_TRUE(PathService::Get(DIR_TEST_DATA, &data_dir));
+  data_dir = data_dir.Append(FILE_PATH_LITERAL("base"));
+  data_dir = data_dir.Append(FILE_PATH_LITERAL("test"));
+  data_dir = data_dir.Append(FILE_PATH_LITERAL("data"));
   data_dir = data_dir.AppendASCII("file_util");
   ASSERT_TRUE(PathExists(data_dir));
   FilePath image_file = data_dir.Append(FILE_PATH_LITERAL("red.png"));
