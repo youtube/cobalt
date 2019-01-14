@@ -22,9 +22,6 @@
       color: rgb(0,0,0);
       width: 207px;
     }
-    .span-text {
-      font-weight: bold;
-    }
     .transition-color {
       color: rgb(255,0,0);
       transition: color 1s linear;
@@ -34,7 +31,7 @@
 <body>
   <div class="div-container">
     <span id="containing-span" class="span-container">
-      <span class="span-text">child text</span>
+      child text
     </span>
   </div>
 
@@ -60,7 +57,7 @@
         window.testRunner.DoNonMeasuredLayout();
 
         // Run the transition completely and then measure the result.
-        window.testRunner.AdvanceClockByMs(1000);
+        window.testRunner.AdvanceClockByMs(500);
         window.testRunner.notifyDone();
       }
     });
