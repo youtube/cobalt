@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: storage.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: storage.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,341 +762,172 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines a user-based Storage API. This is a simple, all-at-once BLOB storage
-and retrieval API that is intended for robust long-term, per-user storage.
-Some platforms have different mechanisms for this kind of storage, so this
-API exists to allow a client application to access this kind of storage.<br>
-Note that there can be only one storage record per user and, thus, a maximum
-of one open storage record can exist for each user. Attempting to open a
-second record for a user will result in undefined behavior.<br>
-These APIs are NOT expected to be thread-safe, so either call them from a
-single thread, or perform proper synchronization around all calls.</p>
+        <p>Defines a user-based Storage API. This is a simple, all-at-once BLOB storage and
+retrieval API that is intended for robust long-term, per-user storage. Some
+platforms have different mechanisms for this kind of storage, so this API exists
+to allow a client application to access this kind of storage.</p>
 
-<h2 id="structs">Structs</h2>
+<p>Note that there can be only one storage record per user and, thus, a maximum of
+one open storage record can exist for each user. Attempting to open a second
+record for a user will result in undefined behavior.</p>
 
-<h3 id="sbstoragerecordprivate">SbStorageRecordPrivate</h3>
+<p>These APIs are NOT expected to be thread-safe, so either call them from a single
+thread, or perform proper synchronization around all calls.</p>
 
-<p>Private structure representing a single storage record.</p>
+<h2 id="macros">Macros</h2>
 
+<h3 id="ksbstorageinvalidrecord">kSbStorageInvalidRecord</h3>
+
+<p>Well-defined value for an invalid storage record handle.</p>
+
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbstoragerecord">SbStorageRecord</h3>
+
+<p>A handle to an open storage record.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbStorageRecordPrivate* SbStorageRecord
+</code></pre></div>
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbstoragecloserecord">SbStorageCloseRecord</h3>
 
-<p><strong>Description</strong></p>
+<p>Closes <code class="prettyprint">record</code>, synchronously ensuring that all written data is flushed. This
+function performs blocking I/O on the calling thread.</p>
 
-<p>Closes <code class="prettyprint">record</code>, synchronously ensuring that all written data is flushed.
-This function performs blocking I/O on the calling thread.<br>
-The return value indicates whether the operation succeeded. Storage writes
-should be as atomic as possible, so the record should either be fully
-written or deleted (or, even better, untouched).</p>
+<p>The return value indicates whether the operation succeeded. Storage writes
+should be as atomic as possible, so the record should either be fully written or
+deleted (or, even better, untouched).</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">record</code>: The storage record to close. <code class="prettyprint">record</code> is invalid after this point, and
+subsequent calls referring to <code class="prettyprint">record</code> will fail.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStorageCloseRecord-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStorageCloseRecord-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStorageCloseRecord-declaration">
-<pre>
-SB_EXPORT bool SbStorageCloseRecord(SbStorageRecord record);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStorageCloseRecord-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/storage.h&quot;
-
-bool SbStorageCloseRecord(SbStorageRecord /*record*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbStorageCloseRecord(SbStorageRecord record)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbStorageRecord</code><br>        <code>record</code></td>
-    <td>The storage record to close. <code>record</code> is invalid after this point,
-and subsequent calls referring to <code>record</code> will fail.</td>
-  </tr>
-</table>
-
 <h3 id="sbstoragedeleterecord">SbStorageDeleteRecord</h3>
 
-<p><strong>Description</strong></p>
+<p>Deletes the <code class="prettyprint">SbStorageRecord</code> for <code class="prettyprint">user</code> named <code class="prettyprint">name</code>. The return value
+indicates whether the record existed and was successfully deleted. If the record
+did not exist or could not be deleted, the function returns <code class="prettyprint">false</code>.</p>
 
-<p>Deletes the <code class="prettyprint">SbStorageRecord</code> for the specified user. The return value
-indicates whether the record existed and was successfully deleted. If the
-record did not exist or could not be deleted, the function returns <code class="prettyprint">false</code>.<br>
-This function must not be called while the user&#39;s storage record is open.
-This function performs blocking I/O on the calling thread.</p>
+<p>If <code class="prettyprint">name</code> is NULL, deletes the default storage record for the user, like what
+would have been deleted with the previous version of SbStorageDeleteRecord.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function must not be called while the user&#39;s storage record is open. This
+function performs blocking I/O on the calling thread.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStorageDeleteRecord-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStorageDeleteRecord-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStorageDeleteRecord-declaration">
-<pre>
-SB_EXPORT bool SbStorageDeleteRecord(SbUser user);
-</pre>
-</div>
+<p><code class="prettyprint">user</code>: The user for whom the record will be deleted. <code class="prettyprint">name</code>: The filesystem-
+safe name of the record to open.</p>
 
-<p><div class="mdl-tabs__panel" id="SbStorageDeleteRecord-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/storage.h&quot;
-
-bool SbStorageDeleteRecord(SbUser /*user*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbStorageDeleteRecord(SbUser user, const char *name)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbUser</code><br>        <code>user</code></td>
-    <td>The user for whom the record is deleted.</td>
-  </tr>
-</table>
-
 <h3 id="sbstoragegetrecordsize">SbStorageGetRecordSize</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns the size of <code class="prettyprint">record</code>, or <code class="prettyprint">-1</code> if there is an error. This function
 performs blocking I/O on the calling thread.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">record</code>: The record to retrieve the size of.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStorageGetRecordSize-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStorageGetRecordSize-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStorageGetRecordSize-declaration">
-<pre>
-SB_EXPORT int64_t SbStorageGetRecordSize(SbStorageRecord record);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStorageGetRecordSize-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/storage.h&quot;
-
-int64_t SbStorageGetRecordSize(SbStorageRecord /*record*/) {
-  return -1;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int64_t SbStorageGetRecordSize(SbStorageRecord record)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbStorageRecord</code><br>        <code>record</code></td>
-    <td>The record to retrieve the size of.</td>
-  </tr>
-</table>
-
 <h3 id="sbstorageisvalidrecord">SbStorageIsValidRecord</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given storage record handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbStorageIsValidRecord(SbStorageRecord record) {
-  return record != kSbStorageInvalidRecord;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbStorageIsValidRecord(SbStorageRecord record)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbStorageRecord</code><br>
-        <code>record</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbstorageopenrecord">SbStorageOpenRecord</h3>
 
-<p><strong>Description</strong></p>
+<p>Opens and returns the SbStorageRecord for <code class="prettyprint">user</code> named <code class="prettyprint">name</code>, blocking I/O on
+the calling thread until the open is completed. If <code class="prettyprint">user</code> is not a valid
+<code class="prettyprint">SbUser</code>, the function returns <code class="prettyprint">kSbStorageInvalidRecord</code>. Will return an
+<code class="prettyprint">SbStorageRecord</code> of size zero if the record does not yet exist. Opening an
+already-open <code class="prettyprint">SbStorageRecord</code> has undefined behavior.</p>
 
-<p>Opens and returns a SbStorageRecord for <code class="prettyprint">user</code>, blocking I/O on the calling
-thread until it returns. If <code class="prettyprint">user</code> is not a valid <code class="prettyprint">SbUser</code>, the function
-returns <code class="prettyprint">kSbStorageInvalidRecord</code>.</p>
+<p>If <code class="prettyprint">name</code> is NULL, opens the default storage record for the user, like what
+would have been saved with the previous version of SbStorageOpenRecord.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">user</code>: The user for which the storage record will be opened. <code class="prettyprint">name</code>: The
+filesystem-safe name of the record to open.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStorageOpenRecord-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStorageOpenRecord-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStorageOpenRecord-declaration">
-<pre>
-SB_EXPORT SbStorageRecord SbStorageOpenRecord(SbUser user);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStorageOpenRecord-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/storage.h&quot;
-
-SbStorageRecord SbStorageOpenRecord(SbUser /*user*/) {
-  return kSbStorageInvalidRecord;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbStorageRecord SbStorageOpenRecord(SbUser user, const char *name)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbUser</code><br>        <code>user</code></td>
-    <td>The user for which the storage record is opened.</td>
-  </tr>
-</table>
-
 <h3 id="sbstoragereadrecord">SbStorageReadRecord</h3>
 
-<p><strong>Description</strong></p>
+<p>Reads up to <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">record</code>, starting at the beginning of the
+record. The function returns the actual number of bytes read, which must be &lt;=
+<code class="prettyprint">data_size</code>. The function returns <code class="prettyprint">-1</code> in the event of an error. This function
+makes a best-effort to read the entire record, and it performs blocking I/O on
+the calling thread until the entire record is read or an error is encountered.</p>
 
-<p>Reads up to <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">record</code>, starting at the beginning of
-the record. The function returns the actual number of bytes read, which
-must be &lt;= <code class="prettyprint">data_size</code>. The function returns <code class="prettyprint">-1</code> in the event of an error.
-This function makes a best-effort to read the entire record, and it performs
-blocking I/O on the calling thread until the entire record is read or an
-error is encountered.</p>
+<p><code class="prettyprint">record</code>: The record to be read. <code class="prettyprint">out_data</code>: The data read from the record.
+<code class="prettyprint">data_size</code>: The amount of data, in bytes, to read.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStorageReadRecord-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStorageReadRecord-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStorageReadRecord-declaration">
-<pre>
-SB_EXPORT int64_t SbStorageReadRecord(SbStorageRecord record,
-                                      char* out_data,
-                                      int64_t data_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStorageReadRecord-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/storage.h&quot;
-
-int64_t SbStorageReadRecord(SbStorageRecord /*record*/,
-                            char* /*out_data*/,
-                            int64_t /*data_size*/) {
-  return -1;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int64_t SbStorageReadRecord(SbStorageRecord record, char *out_data, int64_t data_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbStorageRecord</code><br>        <code>record</code></td>
-    <td>The record to be read.</td>
-  </tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_data</code></td>
-    <td>The data read from the record.</td>
-  </tr>
-  <tr>
-    <td><code>int64_t</code><br>        <code>data_size</code></td>
-    <td>The amount of data, in bytes, to read.</td>
-  </tr>
-</table>
-
 <h3 id="sbstoragewriterecord">SbStorageWriteRecord</h3>
 
-<p><strong>Description</strong></p>
+<p>Replaces the data in <code class="prettyprint">record</code> with <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">data</code>. This function
+always deletes any previous data in that record. The return value indicates
+whether the write succeeded. This function makes a best-effort to write the
+entire record, and it may perform blocking I/O on the calling thread until the
+entire record is written or an error is encountered.</p>
 
-<p>Replaces the data in <code class="prettyprint">record</code> with <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">data</code>. This
-function always deletes any previous data in that record. The return value
-indicates whether the write succeeded. This function makes a best-effort
-to read the entire record, and it performs performs blocking I/O on the
-calling thread until the entire record is read or an error is encountered.</p>
+<p>While <code class="prettyprint">SbStorageWriteRecord()</code> may defer the persistence,
+<code class="prettyprint">SbStorageReadRecord()</code> is expected to work as expected immediately afterwards,
+even without a call to <code class="prettyprint">SbStorageCloseRecord()</code>. The data should be persisted
+after a short time, even if there is an unexpected process termination before
+<code class="prettyprint">SbStorageCloseRecord()</code> is called.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">record</code>: The record to be written to. <code class="prettyprint">data</code>: The data to write to the record.
+<code class="prettyprint">data_size</code>: The amount of <code class="prettyprint">data</code>, in bytes, to write to the record. Thus, if
+<code class="prettyprint">data_size</code> is smaller than the total size of <code class="prettyprint">data</code>, only part of <code class="prettyprint">data</code> is
+written to the record.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStorageWriteRecord-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStorageWriteRecord-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStorageWriteRecord-declaration">
-<pre>
-SB_EXPORT bool SbStorageWriteRecord(SbStorageRecord record,
-                                    const char* data,
-                                    int64_t data_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStorageWriteRecord-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/storage.h&quot;
-
-bool SbStorageWriteRecord(SbStorageRecord /*record*/,
-                          const char* /*data*/,
-                          int64_t /*data_size*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbStorageWriteRecord(SbStorageRecord record, const char *data, int64_t data_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbStorageRecord</code><br>        <code>record</code></td>
-    <td>The record to be written to.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>data</code></td>
-    <td>The data to write to the record.</td>
-  </tr>
-  <tr>
-    <td><code>int64_t</code><br>        <code>data_size</code></td>
-    <td>The amount of <code>data</code>, in bytes, to write to the record. Thus,
-if <code>data_size</code> is smaller than the total size of <code>data</code>, only part of
-<code>data</code> is written to the record.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1083,11 +948,10 @@ if <code>data_size</code> is smaller than the total size of <code>data</code>, o
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1109,29 +973,35 @@ if <code>data_size</code> is smaller than the total size of <code>data</code>, o
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/storage.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

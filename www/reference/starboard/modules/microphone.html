@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: microphone.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: microphone.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,38 +762,71 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines functions for microphone creation, control, audio data fetching,
-and destruction. This module supports multiple calls to |SbMicrophoneOpen|
-and |SbMicrophoneClose|, and the implementation should handle multiple calls
-to one of those functions on the same microphone. For example, your
-implementation should handle cases where |SbMicrophoneOpen| is called twice
-on the same microphone without a call to |SbMicrophoneClose| in between.<br>
-This API is not thread-safe and must be called from a single thread.<br>
-How to use this API:
-<ol><li>Call |SbMicrophoneGetAvailableInfos| to get a list of available microphone
-information.
-</li><li>Create a supported microphone, using |SbMicrophoneCreate|, with enough
-buffer size and sample rate. Use |SbMicrophoneIsSampleRateSupported| to
-verify the sample rate.
-</li><li>Use |SbMicrophoneOpen| to open the microphone port and start recording
-audio data.
-</li><li>Periodically read out the data from microphone with |SbMicrophoneRead|.
-</li><li>Call |SbMicrophoneClose| to close the microphone port and stop recording
-audio data.
-</li><li>Destroy the microphone with |SbMicrophoneDestroy|.</li></ol></p>
+        <p>Defines functions for microphone creation, control, audio data fetching, and
+destruction. This module supports multiple calls to <code class="prettyprint">SbMicrophoneOpen</code> and
+<code class="prettyprint">SbMicrophoneClose</code>, and the implementation should handle multiple calls to one
+of those functions on the same microphone. For example, your implementation
+should handle cases where <code class="prettyprint">SbMicrophoneOpen</code> is called twice on the same
+microphone without a call to <code class="prettyprint">SbMicrophoneClose</code> in between.</p>
+
+<p>This API is not thread-safe and must be called from a single thread.</p>
+
+<p>How to use this API:</p>
+
+<ol>
+<li><p>Call <code class="prettyprint">SbMicrophoneGetAvailableInfos</code> to get a list of available microphone
+information.</p></li>
+<li><p>Create a supported microphone, using <code class="prettyprint">SbMicrophoneCreate</code>, with enough
+buffer size and sample rate. Use <code class="prettyprint">SbMicrophoneIsSampleRateSupported</code> to
+verify the sample rate.</p></li>
+<li><p>Use <code class="prettyprint">SbMicrophoneOpen</code> to open the microphone port and start recording audio
+data.</p></li>
+<li><p>Periodically read out the data from microphone with <code class="prettyprint">SbMicrophoneRead</code>.</p></li>
+<li><p>Call <code class="prettyprint">SbMicrophoneClose</code> to close the microphone port and stop recording
+audio data.</p></li>
+<li><p>Destroy the microphone with <code class="prettyprint">SbMicrophoneDestroy</code>.</p></li>
+</ol>
+
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbmicrophoneidinvalid">kSbMicrophoneIdInvalid</h3>
+
+<p>Well-defined value for an invalid microphone ID handle.</p>
+
+<h3 id="ksbmicrophoneinvalid">kSbMicrophoneInvalid</h3>
+
+<p>Well-defined value for an invalid microphone handle.</p>
 
 <h2 id="enums">Enums</h2>
 
@@ -767,469 +834,194 @@ audio data.
 
 <p>All possible microphone types.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbMicrophoneCamera</code> - Built-in microphone in camera.</li>
-<li>  <code class="prettyprint">kSbMicrophoneUSBHeadset</code> - Microphone in the headset that can be a wired or wireless USB headset.</li>
-<li>  <code class="prettyprint">kSbMicrophoneVRHeadset</code> - Microphone in the VR headset.</li>
-<li>  <code class="prettyprint">kSBMicrophoneAnalogHeadset</code> - Microphone in the analog headset.</li>
-<li>  <code class="prettyprint">kSbMicrophoneUnknown</code> - Unknown microphone type. The microphone could be different than the otherenum descriptions or could fall under one of those descriptions.</li>
+<li><p><code class="prettyprint">kSbMicrophoneCamera</code></p>
+
+<p>Built-in microphone in camera.</p></li>
+<li><p><code class="prettyprint">kSbMicrophoneUSBHeadset</code></p>
+
+<p>Microphone in the headset that can be a wired or wireless USB headset.</p></li>
+<li><p><code class="prettyprint">kSbMicrophoneVRHeadset</code></p>
+
+<p>Microphone in the VR headset.</p></li>
+<li><p><code class="prettyprint">kSBMicrophoneAnalogHeadset</code></p>
+
+<p>Microphone in the analog headset.</p></li>
+<li><p><code class="prettyprint">kSbMicrophoneUnknown</code></p>
+
+<p>Unknown microphone type. The microphone could be different than the other
+enum descriptions or could fall under one of those descriptions.</p></li>
 </ul>
 
-<h2 id="structs">Structs</h2>
-
-<h3 id="sbmicrophoneid">SbMicrophoneId</h3>
-
-<p>An opaque handle to an implementation-private structure that represents a
-microphone ID.</p>
-
-<h3 id="sbmicrophoneinfo">SbMicrophoneInfo</h3>
-
-<p>Microphone information.</p>
-
-<p><strong>Members</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>SbMicrophoneId</code><br>        <code>id</code></td>    <td>Microphone id.</td>  </tr>
-  <tr>
-    <td><code>SbMicrophoneType</code><br>        <code>type</code></td>    <td>Microphone type.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>max_sample_rate_hz</code></td>    <td>The microphone's maximum supported sampling rate.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>min_read_size</code></td>    <td>The minimum read size required for each read from microphone.</td>  </tr>
-</table>
+<h2 id="typedefs">Typedefs</h2>
 
 <h3 id="sbmicrophone">SbMicrophone</h3>
 
 <p>An opaque handle to an implementation-private structure that represents a
 microphone.</p>
 
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef struct SbMicrophonePrivate* SbMicrophone
+</code></pre></div>
+<h3 id="sbmicrophoneid">SbMicrophoneId</h3>
+
+<p>An opaque handle to an implementation-private structure that represents a
+microphone ID.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef struct SbMicrophoneIdPrivate* SbMicrophoneId
+</code></pre></div>
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbmicrophoneinfo">SbMicrophoneInfo</h3>
+
+<p>Microphone information.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li><p><code class="prettyprint">SbMicrophoneId id</code></p>
+
+<p>Microphone id.</p></li>
+<li><p><code class="prettyprint">SbMicrophoneType type</code></p>
+
+<p>Microphone type.</p></li>
+<li><p><code class="prettyprint">int max_sample_rate_hz</code></p>
+
+<p>The microphone&#39;s maximum supported sampling rate.</p></li>
+<li><p><code class="prettyprint">int min_read_size</code></p>
+
+<p>The minimum read size required for each read from microphone.</p></li>
+<li><p><code class="prettyprint">char label</code></p>
+
+<p>Name of the microphone. Can be empty. This should indicate the friendly name
+of the microphone type. For example, &quot;Headset Microphone&quot;. The string must
+be null terminated.</p></li>
+</ul>
+
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbmicrophoneclose">SbMicrophoneClose</h3>
 
-<p><strong>Description</strong></p>
+<p>Closes the microphone port, stops recording audio on <code class="prettyprint">microphone</code>, and clears
+the unread buffer if it is not empty. If the microphone has already been
+stopped, this call is ignored. The return value indicates whether the microphone
+is closed.</p>
 
-<p>Closes the microphone port, stops recording audio on <code class="prettyprint">microphone</code>, and
-clears the unread buffer if it is not empty. If the microphone has already
-been stopped, this call is ignored. The return value indicates whether the
-microphone is closed.</p>
+<p><code class="prettyprint">microphone</code>: The microphone to close.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneClose-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneClose-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneClose-declaration">
-<pre>
-SB_EXPORT bool SbMicrophoneClose(SbMicrophone microphone);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMicrophoneClose-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-bool SbMicrophoneClose(SbMicrophone microphone) {
-  return false;
-}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbMicrophoneClose(SbMicrophone microphone)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophone</code><br>        <code>microphone</code></td>
-    <td>The microphone to close.</td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophonecreate">SbMicrophoneCreate</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates a microphone with the specified ID, audio sample rate, and cached audio
+buffer size. Starboard only requires support for creating one microphone at a
+time, and implementations may return an error if a second microphone is created
+before the first is destroyed.</p>
 
-<p>Creates a microphone with the specified ID, audio sample rate, and cached
-audio buffer size. Starboard only requires support for creating one
-microphone at a time, and implementations may return an error if a second
-microphone is created before the first is destroyed.<br>
-The function returns the newly created SbMicrophone object. However, if you
-try to create a microphone that has already been initialized, if the sample
-rate is unavailable, or if the buffer size is invalid, the function should
-return <code class="prettyprint">kSbMicrophoneInvalid</code>.</p>
+<p>The function returns the newly created SbMicrophone object. However, if you try
+to create a microphone that has already been initialized, if the sample rate is
+unavailable, or if the buffer size is invalid, the function should return
+<code class="prettyprint">kSbMicrophoneInvalid</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">id</code>: The ID that will be assigned to the newly created SbMicrophone.
+<code class="prettyprint">sample_rate_in_hz</code>: The new microphone&#39;s audio sample rate in Hz.
+<code class="prettyprint">buffer_size_bytes</code>: The size of the buffer where signed 16-bit integer audio
+data is temporarily cached to during the capturing. The audio data is removed
+from the audio buffer if it has been read, and new audio data can be read from
+this buffer in smaller chunks than this size. This parameter must be set to a
+value greater than zero and the ideal size is <code class="prettyprint">2^n</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneCreate-declaration">
-<pre>
-SB_EXPORT SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
-                                          int sample_rate_in_hz,
-                                          int buffer_size_bytes);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMicrophoneCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
-                                int sample_rate_in_hz,
-                                int buffer_size) {
-  return kSbMicrophoneInvalid;
-}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbMicrophone SbMicrophoneCreate(SbMicrophoneId id, int sample_rate_in_hz, int buffer_size_bytes)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophoneId</code><br>        <code>id</code></td>
-    <td>The ID that will be assigned to the newly created SbMicrophone.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>sample_rate_in_hz</code></td>
-    <td>The new microphone's audio sample rate in Hz.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>buffer_size_bytes</code></td>
-    <td>The size of the buffer where signed 16-bit integer
-audio data is temporarily cached to during the capturing. The audio data
-is removed from the audio buffer if it has been read, and new audio data
-can be read from this buffer in smaller chunks than this size. This
-parameter must be set to a value greater than zero and the ideal size is
-<code>2^n</code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophonedestroy">SbMicrophoneDestroy</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Destroys a microphone. If the microphone is in started state, it is first
-stopped and then destroyed. Any data that has been recorded and not read
-is thrown away.</p>
+stopped and then destroyed. Any data that has been recorded and not read is
+thrown away.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneDestroy-declaration">
-<pre>
-SB_EXPORT void SbMicrophoneDestroy(SbMicrophone microphone);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMicrophoneDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-void SbMicrophoneDestroy(SbMicrophone microphone) {}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMicrophoneDestroy(SbMicrophone microphone)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophone</code><br>
-        <code>microphone</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophonegetavailable">SbMicrophoneGetAvailable</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Retrieves all currently available microphone information and stores it in
-<code class="prettyprint">out_info_array</code>. The return value is the number of the available
-microphones. If the number of available microphones is larger than
-<code class="prettyprint">info_array_size</code>, then <code class="prettyprint">out_info_array</code> is filled up with as many available
-microphones as possible and the actual number of available microphones is
-returned. A negative return value indicates that an internal error occurred.</p>
+<code class="prettyprint">out_info_array</code>. The return value is the number of the available microphones.
+If the number of available microphones is larger than <code class="prettyprint">info_array_size</code>, then
+<code class="prettyprint">out_info_array</code> is filled up with as many available microphones as possible and
+the actual number of available microphones is returned. A negative return value
+indicates that an internal error occurred.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_info_array</code>: All currently available information about the microphone is
+placed into this output parameter. <code class="prettyprint">info_array_size</code>: The size of
+<code class="prettyprint">out_info_array</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneGetAvailable-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneGetAvailable-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneGetAvailable-declaration">
-<pre>
-SB_EXPORT int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
-                                       int info_array_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMicrophoneGetAvailable-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
-                             int info_array_size) {
-  return 0;
-}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbMicrophoneGetAvailable(SbMicrophoneInfo *out_info_array, int info_array_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophoneInfo*</code><br>        <code>out_info_array</code></td>
-    <td>All currently available information about the microphone
-is placed into this output parameter.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>info_array_size</code></td>
-    <td>The size of <code>out_info_array</code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophoneidisvalid">SbMicrophoneIdIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether the given microphone ID is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbMicrophoneIdIsValid(SbMicrophoneId id) {
-  return id != kSbMicrophoneIdInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbMicrophoneIdIsValid(SbMicrophoneId id)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophoneId</code><br>
-        <code>id</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophoneissampleratesupported">SbMicrophoneIsSampleRateSupported</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether the microphone supports the sample rate.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneIsSampleRateSupported-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneIsSampleRateSupported-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneIsSampleRateSupported-declaration">
-<pre>
-SB_EXPORT bool SbMicrophoneIsSampleRateSupported(SbMicrophoneId id,
-                                                 int sample_rate_in_hz);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMicrophoneIsSampleRateSupported-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-bool SbMicrophoneIsSampleRateSupported(SbMicrophoneId id,
-                                       int sample_rate_in_hz) {
-  return false;
-}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbMicrophoneIsSampleRateSupported(SbMicrophoneId id, int sample_rate_in_hz)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophoneId</code><br>
-        <code>id</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>sample_rate_in_hz</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophoneisvalid">SbMicrophoneIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether the given microphone is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbMicrophoneIsValid(SbMicrophone microphone) {
-  return microphone != kSbMicrophoneInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbMicrophoneIsValid(SbMicrophone microphone)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophone</code><br>
-        <code>microphone</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophoneopen">SbMicrophoneOpen</h3>
 
-<p><strong>Description</strong></p>
+<p>Opens the microphone port and starts recording audio on <code class="prettyprint">microphone</code>.</p>
 
-<p>Opens the microphone port and starts recording audio on <code class="prettyprint">microphone</code>.<br>
-Once started, the client needs to periodically call <code class="prettyprint">SbMicrophoneRead</code> to
+<p>Once started, the client needs to periodically call <code class="prettyprint">SbMicrophoneRead</code> to
 receive the audio data. If the microphone has already been started, this call
-clears the unread buffer. The return value indicates whether the microphone
-is open.</p>
+clears the unread buffer. The return value indicates whether the microphone is
+open. <code class="prettyprint">microphone</code>: The microphone that will be opened and will start recording
+audio.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneOpen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneOpen-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneOpen-declaration">
-<pre>
-SB_EXPORT bool SbMicrophoneOpen(SbMicrophone microphone);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMicrophoneOpen-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-bool SbMicrophoneOpen(SbMicrophone microphone) {
-  return false;
-}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbMicrophoneOpen(SbMicrophone microphone)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophone</code><br>        <code>microphone</code></td>
-    <td>The microphone that will be opened and will start recording
-audio.</td>
-  </tr>
-</table>
-
 <h3 id="sbmicrophoneread">SbMicrophoneRead</h3>
 
-<p><strong>Description</strong></p>
+<p>Retrieves the recorded audio data from the microphone and writes that data to
+<code class="prettyprint">out_audio_data</code>.</p>
 
-<p>Retrieves the recorded audio data from the microphone and writes that data
-to <code class="prettyprint">out_audio_data</code>.<br>
-The return value is zero or the positive number of bytes that were read.
-Neither the return value nor <code class="prettyprint">audio_data_size</code> exceeds the buffer size.
-A negative return value indicates that an error occurred.<br>
-This function should be called frequently. Otherwise, the microphone only
-buffers <code class="prettyprint">buffer_size</code> bytes as configured in <code class="prettyprint">SbMicrophoneCreate</code> and the
-new audio data is thrown out. No audio data is read from a stopped
-microphone.</p>
+<p>The return value is zero or the positive number of bytes that were read. Neither
+the return value nor <code class="prettyprint">audio_data_size</code> exceeds the buffer size. A negative
+return value indicates that an error occurred.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function should be called frequently. Otherwise, the microphone only
+buffers <code class="prettyprint">buffer_size</code> bytes as configured in <code class="prettyprint">SbMicrophoneCreate</code> and the new
+audio data is thrown out. No audio data is read from a stopped microphone.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMicrophoneRead-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMicrophoneRead-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMicrophoneRead-declaration">
-<pre>
-SB_EXPORT int SbMicrophoneRead(SbMicrophone microphone,
-                               void* out_audio_data,
-                               int audio_data_size);
-</pre>
-</div>
+<p><code class="prettyprint">microphone</code>: The microphone from which to retrieve recorded audio data.
+<code class="prettyprint">out_audio_data</code>: The buffer to which the retrieved data will be written.
+<code class="prettyprint">audio_data_size</code>: The number of requested bytes. If <code class="prettyprint">audio_data_size</code> is
+smaller than <code class="prettyprint">min_read_size</code> of <code class="prettyprint">SbMicrophoneInfo</code>, the extra audio data that
+has already been read from the device is discarded.</p>
 
-<p><div class="mdl-tabs__panel" id="SbMicrophoneRead-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/microphone.h&quot;
-
-#if SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
-
-int SbMicrophoneRead(SbMicrophone microphone,
-                     void* out_audio_data,
-                     int audio_data_size) {
-  return -1;
-}
-
-#endif  // SB_HAS(MICROPHONE) &amp;&amp; SB_VERSION(2)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbMicrophoneRead(SbMicrophone microphone, void *out_audio_data, int audio_data_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMicrophone</code><br>        <code>microphone</code></td>
-    <td>The microphone from which to retrieve recorded audio data.</td>
-  </tr>
-  <tr>
-    <td><code>void*</code><br>        <code>out_audio_data</code></td>
-    <td>The buffer to which the retrieved data will be written.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>audio_data_size</code></td>
-    <td>The number of requested bytes. If <code>audio_data_size</code> is
-smaller than <code>min_read_size</code> of <code>SbMicrophoneInfo</code>, the extra audio data
-that has already been read from the device is discarded.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1250,11 +1042,10 @@ that has already been read from the device is discarded.</td>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1276,29 +1067,35 @@ that has already been read from the device is discarded.</td>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/microphone.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

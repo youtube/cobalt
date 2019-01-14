@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: types.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: types.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,274 +762,51 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Provides a suite of standard types that should be universally available on
-all platforms, specifically focused on explicitly-sized integer types and
-booleans. This module also includes some related ubiquitous definitions like
-limits of the explicitly-sized integer types, and standard pointer and int32
-sentinel values.</p>
+        <p>Provides a suite of standard types that should be universally available on all
+platforms, specifically focused on explicitly-sized integer types and booleans.
+This module also includes some related ubiquitous definitions like limits of the
+explicitly-sized integer types, and standard pointer and int32 sentinel values.</p>
 
 <h2 id="macros">Macros</h2>
 
-<div id="macro-documentation-section">
+<h3 id="ksbinvalidint">kSbInvalidInt</h3>
 
-<h3 id="dbl_mant_dig" class="small-h3">DBL_MANT_DIG</h3>
-
-<h3 id="int_max" class="small-h3">INT_MAX</h3>
-
-<h3 id="int_min" class="small-h3">INT_MIN</h3>
-
-<h3 id="long_max" class="small-h3">LONG_MAX</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="long_min" class="small-h3">LONG_MIN</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="null" class="small-h3">NULL</h3>
-
-Simulate stddef.h for platforms that don't provide it.
-
-<h3 id="uint_max" class="small-h3">UINT_MAX</h3>
-
-Assume int is 32-bits until we find a platform for which that fails.
-
-</div>
-
-<h2 id="functions">Functions</h2>
-
-<h3 id="ksbint16max">kSbInt16Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint16min">kSbInt16Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int16_t kSbInt16Min = ((int16_t)0x8000);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int16_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint32max">kSbInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint64max">kSbInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint64min">kSbInt64Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint8max">kSbInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Max = ((int8_t)0x7F);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbint8min">kSbInt8Min</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const int8_t kSbInt8Min = ((int8_t)0x80);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((int8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint16max">kSbUInt16Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
-#define kSbInt32Min ((int32_t)0x80000000)
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint16_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint32max">kSbUInt32Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint32_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint64max">kSbUInt64Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// A value that represents an int that is probably invalid.
-#define kSbInvalidInt kSbInt32Min
-#if !SB_HAS(FLOAT_H)
-#endif
-// --- Standard Include Emulation Audits ---------------------------------------
-#if !defined(UINT_MAX) || !defined(INT_MIN) || !defined(INT_MAX) || \
-    !defined(LONG_MIN) || !defined(LONG_MAX)
-#error &quot;limits.h or emulation did not provide a needed limit macro.&quot;
-#endif
-#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
-    (LONG_MIN + 1 == LONG_MAX - 1)
-// This should always evaluate to false, but ensures that the limits macros can
-// be used arithmetically in the preprocessor.
-#endif
-#if !defined(PRId32)
-#error &quot;inttypes.h should provide the portable formatting macros.&quot;
-#endif
-// --- Standard Type Audits ----------------------------------------------------
-#if SB_IS(WCHAR_T_UTF16)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 2,
-                  SB_IS_WCHAR_T_UTF16_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_UTF32)
-SB_COMPILE_ASSERT(sizeof(wchar_t) == 4,
-                  SB_IS_WCHAR_T_UTF32_is_inconsistent_with_sizeof_wchar_t);
-#endif
-#if SB_IS(WCHAR_T_SIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &lt; 0,
-                  SB_IS_WCHAR_T_SIGNED_is_defined_incorrectly);
-#endif
-#if SB_IS(WCHAR_T_UNSIGNED)
-SB_COMPILE_ASSERT((wchar_t)(-1) &gt; 0,
-                  SB_IS_WCHAR_T_UNSIGNED_is_defined_incorrectly);
-#endif
-#ifdef __cplusplus
-}  // extern &quot;C&quot;
-#endif
-#endif  // STARBOARD_TYPES_H_
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint64_t</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="ksbuint8max">kSbUInt8Max</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>=</code><br>
-        <code>((uint8_t</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>A value that represents an int that is probably invalid.</p>
 
         
+          
+            
           
         
       </div>
@@ -1016,11 +827,10 @@ SB_COMPILE_ASSERT((wchar_t)(-1) &gt; 0,
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1042,29 +852,35 @@ SB_COMPILE_ASSERT((wchar_t)(-1) &gt; 0,
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/types.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

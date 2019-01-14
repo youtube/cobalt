@@ -117,7 +117,6 @@ $(document).ready(function() {
     // If an element matches the target link hash and the target host and
     // page match the current host and page, scroll to the element.
     if (!$(this).hasClass('mdl-tabs__tab')) {
-      //console.log(this);
       checkLinkBeforeScroll(this);
     }
   });
@@ -130,7 +129,6 @@ $(document).ready(function() {
       addClass('expand-container');
 
   var url = window.location.origin + window.location.pathname;
-  var backup_url = window.location.origin + '/cobalt' + window.location.pathname;
   /** Highlight the active document in left nav
    * closest expandable to active item, contains header + item list -- e.g.:
    * <li class="expand-container">
@@ -165,10 +163,6 @@ $(document).ready(function() {
   highlightActive.call($('#sidebar a').filter(function() {
     if (this.href + 'index.md' == url) {
       return this.href + 'index.md' == url;
-    } else if (this.href + 'index.md' == backup_url) {
-      return this.href + 'index.md' == backup_url;
-    } else if (this.href == backup_url) {
-      return this.href == backup_url;
     }
     return this.href == url;
   }));
@@ -222,13 +216,6 @@ $(document).ready(function() {
 
   /** Prettyprint code blocks */
   $('pre').addClass("prettyprint");
-  
-  if (window.location.hostname.indexOf('cobalt.foo') !== -1) { 
-    $('a').each(function() {
-      var href = this.href;
-      this.href = href.replace(/foo\/cobalt/, 'foo');
-    });
-  }
 });
 
 

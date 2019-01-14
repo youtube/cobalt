@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: once.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: once.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,96 +762,72 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Onces represent initializations that should only ever happen once per
-process, in a thread-safe way.</p>
+        <p>Onces represent initializations that should only ever happen once per process,
+in a thread-safe way.</p>
 
-<h2 id="macros">Macros</h2>
+<h2 id="typedefs">Typedefs</h2>
 
-<div id="macro-documentation-section">
+<h3 id="sbonceinitroutine">SbOnceInitRoutine</h3>
 
-<h3 id="sb_once_initialize_function" class="small-h3">SB_ONCE_INITIALIZE_FUNCTION</h3>
+<p>Function pointer type for methods that can be called via the SbOnce() system.</p>
 
-Defines a function that will initialize the indicated type once and return
-it. This initialization is thread safe if the type being created is side
-effect free.<br>
-These macros CAN ONLY BE USED IN A CC file, never in a header file.<br>
-Example (in cc file):
-SB_ONCE_INITIALIZE_FUNCTION(MyClass, GetOrCreateMyClass)
-..
-MyClass* instance = GetOrCreateMyClass();
-MyClass* instance2 = GetOrCreateMyClass();
-DCHECK_EQ(instance, instance2);
-
-</div>
-
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbOnceInitRoutine) (void)
+</code></pre></div>
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbonce">SbOnce</h3>
 
-<p><strong>Description</strong></p>
+<p>Thread-safely runs <code class="prettyprint">init_routine</code> only once.</p>
 
-<p>Thread-safely runs <code class="prettyprint">init_routine</code> only once.
-<ul><li>If this <code class="prettyprint">once_control</code> has not run a function yet, this function runs
-<code class="prettyprint">init_routine</code> in a thread-safe way and then returns <code class="prettyprint">true</code>.
-</li><li>If <code>SbOnce()</code> was called with <code class="prettyprint">once_control</code> before, the function returns
-<code class="prettyprint">true</code> immediately.
-</li><li>If <code class="prettyprint">once_control</code> or <code class="prettyprint">init_routine</code> is invalid, the function returns
-<code class="prettyprint">false</code>.</li></ul></p>
+<ul>
+<li><p>If this <code class="prettyprint">once_control</code> has not run a function yet, this function runs
+<code class="prettyprint">init_routine</code> in a thread-safe way and then returns <code class="prettyprint">true</code>.</p></li>
+<li><p>If SbOnce() was called with <code class="prettyprint">once_control</code> before, the function returns
+<code class="prettyprint">true</code> immediately.</p></li>
+<li><p>If <code class="prettyprint">once_control</code> or <code class="prettyprint">init_routine</code> is invalid, the function returns
+<code class="prettyprint">false</code>.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbOnce-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbOnce-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbOnce-declaration">
-<pre>
-SB_EXPORT bool SbOnce(SbOnceControl* once_control,
-                      SbOnceInitRoutine init_routine);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbOnce-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/once.h&quot;
-
-bool SbOnce(SbOnceControl* /*once_control*/,
-            SbOnceInitRoutine /*init_routine*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbOnce(SbOnceControl *once_control, SbOnceInitRoutine init_routine)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbOnceControl*</code><br>
-        <code>once_control</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbOnceInitRoutine</code><br>
-        <code>init_routine</code></td>
-    <td> </td>
-  </tr>
-</table>
-
+        
+          
+            
+          
+        
       </div>
     </div>
   </div>
@@ -836,11 +846,10 @@ bool SbOnce(SbOnceControl* /*once_control*/,
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -862,29 +871,35 @@ bool SbOnce(SbOnceControl* /*once_control*/,
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/once.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

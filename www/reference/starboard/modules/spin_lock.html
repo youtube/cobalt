@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: spin_lock.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: spin_lock.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,24 +762,43 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines a C++-only spin-lock implementation, built entirely on top of
-Starboard atomics and threads. It can be safely used by both clients and
-implementations.</p>
+        <p>Defines a C++-only spin-lock implementation, built entirely on top of Starboard
+atomics and threads. It can be safely used by both clients and implementations.</p>
 
         
+          
+            
           
         
       </div>
@@ -766,11 +819,10 @@ implementations.</p>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -792,29 +844,35 @@ implementations.</p>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/spin_lock.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: condition_variable.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: condition_variable.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -749,319 +801,99 @@
 
 <p>Enumeration of possible results from waiting on a condvar.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbConditionVariableSignaled</code> - The wait completed because the condition variable was signaled.</li>
-<li>  <code class="prettyprint">kSbConditionVariableTimedOut</code> - The wait completed because it timed out, and was not signaled.</li>
-<li>  <code class="prettyprint">kSbConditionVariableFailed</code> - The wait failed, either because a parameter wasn&#39;t valid, or the conditionvariable has already been destroyed, or something similar.</li>
+<li><p><code class="prettyprint">kSbConditionVariableSignaled</code></p>
+
+<p>The wait completed because the condition variable was signaled.</p></li>
+<li><p><code class="prettyprint">kSbConditionVariableTimedOut</code></p>
+
+<p>The wait completed because it timed out, and was not signaled.</p></li>
+<li><p><code class="prettyprint">kSbConditionVariableFailed</code></p>
+
+<p>The wait failed, either because a parameter wasn&#39;t valid, or the condition
+variable has already been destroyed, or something similar.</p></li>
 </ul>
 
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbconditionvariablebroadcast">SbConditionVariableBroadcast</h3>
 
-<p><strong>Description</strong></p>
+<p>Broadcasts to all current waiters of <code class="prettyprint">condition</code> to stop waiting. This function
+wakes all of the threads waiting on <code class="prettyprint">condition</code> while SbConditionVariableSignal
+wakes a single thread.</p>
 
-<p>Broadcasts to all current waiters of <code class="prettyprint">condition</code> to stop waiting. This
-function wakes all of the threads waiting on <code class="prettyprint">condition</code> while
-SbConditionVariableSignal wakes a single thread.</p>
+<p><code class="prettyprint">condition</code>: The condition that should no longer be waited for.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbConditionVariableBroadcast-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbConditionVariableBroadcast-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbConditionVariableBroadcast-declaration">
-<pre>
-SB_EXPORT bool SbConditionVariableBroadcast(SbConditionVariable* condition);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbConditionVariableBroadcast-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/condition_variable.h&quot;
-
-bool SbConditionVariableBroadcast(SbConditionVariable* /*condition*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbConditionVariableBroadcast(SbConditionVariable *condition)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariable*</code><br>        <code>condition</code></td>
-    <td>The condition that should no longer be waited for.</td>
-  </tr>
-</table>
-
 <h3 id="sbconditionvariablecreate">SbConditionVariableCreate</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Creates a new condition variable to work with <code class="prettyprint">opt_mutex</code>, which may be null,
-placing the newly created condition variable in <code class="prettyprint">out_condition</code>.<br>
-The return value indicates whether the condition variable could be created.</p>
+placing the newly created condition variable in <code class="prettyprint">out_condition</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>The return value indicates whether the condition variable could be created.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbConditionVariableCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbConditionVariableCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbConditionVariableCreate-declaration">
-<pre>
-SB_EXPORT bool SbConditionVariableCreate(SbConditionVariable* out_condition,
-                                         SbMutex* opt_mutex);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbConditionVariableCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/condition_variable.h&quot;
-
-bool SbConditionVariableCreate(SbConditionVariable* /*out_condition*/,
-                               SbMutex* /*opt_mutex*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbConditionVariableCreate(SbConditionVariable *out_condition, SbMutex *opt_mutex)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariable*</code><br>
-        <code>out_condition</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbMutex*</code><br>
-        <code>opt_mutex</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbconditionvariabledestroy">SbConditionVariableDestroy</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys the specified SbConditionVariable. The return value indicates whether
+the destruction was successful. The behavior is undefined if other threads are
+currently waiting on this condition variable.</p>
 
-<p>Destroys the specified SbConditionVariable. The return value indicates
-whether the destruction was successful. The behavior is undefined if other
-threads are currently waiting on this condition variable.</p>
+<p><code class="prettyprint">condition</code>: The SbConditionVariable to be destroyed. This invalidates the
+condition variable.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbConditionVariableDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbConditionVariableDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbConditionVariableDestroy-declaration">
-<pre>
-SB_EXPORT bool SbConditionVariableDestroy(SbConditionVariable* condition);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbConditionVariableDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/condition_variable.h&quot;
-
-bool SbConditionVariableDestroy(SbConditionVariable* /*condition*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbConditionVariableDestroy(SbConditionVariable *condition)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariable*</code><br>        <code>condition</code></td>
-    <td>The SbConditionVariable to be destroyed. This invalidates the
-condition variable.</td>
-  </tr>
-</table>
-
 <h3 id="sbconditionvariableissignaled">SbConditionVariableIsSignaled</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given result is a success.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbConditionVariableIsSignaled(
-    SbConditionVariableResult result) {
-  return result == kSbConditionVariableSignaled;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbConditionVariableIsSignaled(SbConditionVariableResult result)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariableResult</code><br>
-        <code>result</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbconditionvariablesignal">SbConditionVariableSignal</h3>
 
-<p><strong>Description</strong></p>
+<p>Signals the next waiter of <code class="prettyprint">condition</code> to stop waiting. This function wakes a
+single thread waiting on <code class="prettyprint">condition</code> while SbConditionVariableBroadcast wakes
+all threads waiting on it.</p>
 
-<p>Signals the next waiter of <code class="prettyprint">condition</code> to stop waiting. This function wakes
-a single thread waiting on <code class="prettyprint">condition</code> while <code><a href="#sbconditionvariablebroadcast">SbConditionVariableBroadcast</a></code>
-wakes all threads waiting on it.</p>
+<p><code class="prettyprint">condition</code>: The condition that the waiter should stop waiting for.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbConditionVariableSignal-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbConditionVariableSignal-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbConditionVariableSignal-declaration">
-<pre>
-SB_EXPORT bool SbConditionVariableSignal(SbConditionVariable* condition);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbConditionVariableSignal-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/condition_variable.h&quot;
-
-bool SbConditionVariableSignal(SbConditionVariable* /*condition*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbConditionVariableSignal(SbConditionVariable *condition)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariable*</code><br>        <code>condition</code></td>
-    <td>The condition that the waiter should stop waiting for.</td>
-  </tr>
-</table>
-
 <h3 id="sbconditionvariablewait">SbConditionVariableWait</h3>
 
-<p><strong>Description</strong></p>
+<p>Waits for <code class="prettyprint">condition</code>, releasing the held lock <code class="prettyprint">mutex</code>, blocking indefinitely,
+and returning the result. Behavior is undefined if <code class="prettyprint">mutex</code> is not held.</p>
 
-<p>Waits for <code class="prettyprint">condition</code>, releasing the held lock <code class="prettyprint">mutex</code>, blocking
-indefinitely, and returning the result. Behavior is undefined if <code class="prettyprint">mutex</code> is
-not held.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbConditionVariableWait-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbConditionVariableWait-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbConditionVariableWait-declaration">
-<pre>
-SB_EXPORT SbConditionVariableResult
-SbConditionVariableWait(SbConditionVariable* condition, SbMutex* mutex);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbConditionVariableWait-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/condition_variable.h&quot;
-
-SbConditionVariableResult SbConditionVariableWait(
-    SbConditionVariable* /*condition*/,
-    SbMutex* /*mutex*/) {
-  return kSbConditionVariableFailed;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbConditionVariableResult SbConditionVariableWait(SbConditionVariable *condition, SbMutex *mutex)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariable*</code><br>
-        <code>condition</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbMutex*</code><br>
-        <code>mutex</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbconditionvariablewaittimed">SbConditionVariableWaitTimed</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Waits for <code class="prettyprint">condition</code>, releasing the held lock <code class="prettyprint">mutex</code>, blocking up to
-<code class="prettyprint">timeout_duration</code>, and returning the acquisition result. Behavior is
-undefined if <code class="prettyprint">mutex</code> is not held.</p>
+<code class="prettyprint">timeout_duration</code>, and returning the acquisition result. Behavior is undefined
+if <code class="prettyprint">mutex</code> is not held.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">timeout_duration</code>: The maximum amount of time that function should wait for
+<code class="prettyprint">condition</code>. If the <code class="prettyprint">timeout_duration</code> value is less than or equal to zero, the
+function returns as quickly as possible with a kSbConditionVariableTimedOut
+result.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbConditionVariableWaitTimed-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbConditionVariableWaitTimed-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbConditionVariableWaitTimed-declaration">
-<pre>
-SB_EXPORT SbConditionVariableResult
-SbConditionVariableWaitTimed(SbConditionVariable* condition,
-                             SbMutex* mutex,
-                             SbTime timeout_duration);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbConditionVariableWaitTimed-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/condition_variable.h&quot;
-
-SbConditionVariableResult SbConditionVariableWaitTimed(
-    SbConditionVariable* /*condition*/,
-    SbMutex* /*mutex*/,
-    SbTime /*timeout*/) {
-  return kSbConditionVariableFailed;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbConditionVariableResult SbConditionVariableWaitTimed(SbConditionVariable *condition, SbMutex *mutex, SbTime timeout_duration)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbConditionVariable*</code><br>        <code>condition</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbMutex*</code><br>        <code>mutex</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbTime</code><br>        <code>timeout_duration</code></td>
-    <td>The maximum amount of time that function should wait
-for <code>condition</code>. If the <code>timeout_duration</code> value is less than or equal to
-zero, the function returns as quickly as possible with a
-kSbConditionVariableTimedOut result.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1082,11 +914,10 @@ kSbConditionVariableTimedOut result.</td>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1108,29 +939,35 @@ kSbConditionVariableTimedOut result.</td>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/condition_variable.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

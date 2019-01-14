@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: audio_sink.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: audio_sink.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,373 +795,124 @@
       <div id="content">
         <p>Provides an interface to output raw audio data.</p>
 
-<h2 id="structs">Structs</h2>
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbaudiosinkinvalid">kSbAudioSinkInvalid</h3>
+
+<p>Well-defined value for an invalid audio sink.</p>
+
+<h2 id="typedefs">Typedefs</h2>
 
 <h3 id="sbaudiosink">SbAudioSink</h3>
 
-<p>An opaque handle to an implementation-private structure representing an
-audio sink.</p>
+<p>An opaque handle to an implementation-private structure representing an audio
+sink.</p>
 
-<h2 id="functions">Functions</h2>
-
-<h3 id="sbaudiosinkcreate">SbAudioSinkCreate</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Creates an audio sink for the specified <code class="prettyprint">channels</code> and
-<code class="prettyprint">sampling_frequency_hz</code>, acquires all resources needed to operate the
-audio sink, and returns an opaque handle to the audio sink.<br>
-If the particular platform doesn&#39;t support the requested audio sink, the
-function returns kSbAudioSinkInvalid without calling any of the callbacks.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkCreate-declaration">
-<pre>
-SB_EXPORT SbAudioSink
-SbAudioSinkCreate(int channels,
-                  int sampling_frequency_hz,
-                  SbMediaAudioSampleType audio_sample_type,
-                  SbMediaAudioFrameStorageType audio_frame_storage_type,
-                  SbAudioSinkFrameBuffers frame_buffers,
-                  int frames_per_channel,
-                  SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-                  SbAudioSinkConsumeFramesFunc consume_frames_func,
-                  void* context);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-SbAudioSink SbAudioSinkCreate(
-    int channels,
-    int sampling_frequency_hz,
-    SbMediaAudioSampleType audio_sample_type,
-    SbMediaAudioFrameStorageType audio_frame_storage_type,
-    SbAudioSinkFrameBuffers frame_buffers,
-    int frames_per_channel,
-    SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
-    SbAudioSinkConsumeFramesFunc consume_frames_func,
-    void* context) {
-  return kSbAudioSinkInvalid;
-}
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef struct SbAudioSinkPrivate* SbAudioSink
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbaudiosinkconsumeframesfunc">SbAudioSinkConsumeFramesFunc</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Callback used to report frames consumed. The consumed frames will be removed
+from the source frame buffer to free space for new audio frames.When
+<code class="prettyprint">frames_consumed</code> is updated asynchnously and the last time that it has been
+updated is known, it can be passed in <code class="prettyprint">frames_consumed_at</code> so the audio time
+calculating can be more accurate.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>channels</code></td>
-    <td>The number of audio channels, such as left and right channels
-in stereo audio.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>sampling_frequency_hz</code></td>
-    <td>The sample frequency of the audio data being
-streamed. For example, 22,000 Hz means 22,000 sample elements represents
-one second of audio data.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaAudioSampleType</code><br>        <code>audio_sample_type</code></td>
-    <td>The type of each sample of the audio data --
-<code>int16</code>, <code>float32</code>, etc.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaAudioFrameStorageType</code><br>        <code>audio_frame_storage_type</code></td>
-    <td>Indicates whether frames are interleaved or
-planar.</td>
-  </tr>
-  <tr>
-    <td><code>SbAudioSinkFrameBuffers</code><br>        <code>frame_buffers</code></td>
-    <td>An array of pointers to sample data.
-<ul><li>If the sink is operating in interleaved mode, the array contains only
-one element, which is an array containing (<code>frames_per_channel</code> *
-<code>channels</code>) samples.
-</li><li>If the sink is operating in planar mode, the number of elements in the
-array is the same as <code>channels</code>, and each element is an array of
-<code>frames_per_channel</code> samples. The caller has to ensure that
-<code>frame_buffers</code> is valid until <code><a href="#sbaudiosinkdestroy">SbAudioSinkDestroy</a></code> is called.</li></ul></td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>frames_per_channel</code></td>
-    <td>The size of the frame buffers, in units of the
-number of samples per channel. The frame, in this case, represents a
-group of samples at the same media time, one for each channel.</td>
-  </tr>
-  <tr>
-    <td><code>SbAudioSinkUpdateSourceStatusFunc</code><br>        <code>update_source_status_func</code></td>
-    <td>The audio sink calls this function on an
-internal thread to query the status of the source. The value cannot be NULL.  A function that the audio sink starts to call
-immediately after <code>SbAudioSinkCreate</code> is called, even before it returns.
-The caller has to ensure that the callback functions above return
-meaningful values in this case.</td>
-  </tr>
-  <tr>
-    <td><code>SbAudioSinkConsumeFramesFunc</code><br>        <code>consume_frames_func</code></td>
-    <td>The audio sink calls this function on an internal
-thread to report consumed frames. The value cannot be NULL.</td>
-  </tr>
-  <tr>
-    <td><code>void*</code><br>        <code>context</code></td>
-    <td>A value that is passed back to all callbacks and is generally
-used to point at a class or struct that contains state associated with the
-audio sink.</td>
-  </tr>
-</table>
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbAudioSinkConsumeFramesFunc) (int frames_consumed, SbTime frames_consumed_at, void *context)
+</code></pre></div>
+<h3 id="sbaudiosinkframebuffers">SbAudioSinkFrameBuffers</h3>
+
+<p>An array of frame buffers. For interleaved audio streams, there will be only one
+element in the array. For planar audio streams, the number of elements in the
+array equal to the number of channels.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void** SbAudioSinkFrameBuffers
+</code></pre></div>
+<h3 id="sbaudiosinkupdatesourcestatusfunc">SbAudioSinkUpdateSourceStatusFunc</h3>
+
+<p>Callback being called periodically to retrieve the status of the audio source.
+The first two output parameters indicating the filling level of the audio frame
+buffer passed to SbAudioSinkCreate as <code class="prettyprint">frame_buffers</code>. As <code class="prettyprint">frame_buffers</code> is a
+circular buffer, <code class="prettyprint">offset_in_frames</code> can be used to calculate the number of
+continuous frames towards the end of the buffer. The audio sink can play the
+frames only when <code class="prettyprint">is_playing</code> is true. It should pause the playback when
+<code class="prettyprint">is_playing</code> is false. The audio sink may cache certain amount of audio frames
+before start playback. It will start playback immediately when <code class="prettyprint">is_eos_reached</code>
+is true even if the amount of cached audio frames are not enough as no more
+frames will be appended into the buffer when <code class="prettyprint">is_eos_reached</code> is true. It is
+possible for a host to set <code class="prettyprint">is_eos_reached</code> to false after setting it to true,
+usually this is caused by a seek. All parameters except <code class="prettyprint">context</code> cannot be
+NULL. Note that this function only reports the status of the source, it doesn&#39;t
+remove audio data from the source frame buffer.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbAudioSinkUpdateSourceStatusFunc) (int *frames_in_buffer, int *offset_in_frames, bool *is_playing, bool *is_eos_reached, void *context)
+</code></pre></div>
+<h2 id="functions">Functions</h2>
 
 <h3 id="sbaudiosinkdestroy">SbAudioSinkDestroy</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys <code class="prettyprint">audio_sink</code>, freeing all associated resources. Before returning, the
+function waits until all callbacks that are in progress have finished. After the
+function returns, no further calls are made callbacks passed into
+SbAudioSinkCreate. In addition, you can not pass <code class="prettyprint">audio_sink</code> to any other
+SbAudioSink functions after SbAudioSinkDestroy has been called on it.</p>
 
-<p>Destroys <code class="prettyprint">audio_sink</code>, freeing all associated resources. Before
-returning, the function waits until all callbacks that are in progress
-have finished. After the function returns, no further calls are made
-callbacks passed into <code><a href="#sbaudiosinkcreate">SbAudioSinkCreate</a></code>. In addition, you can not pass
-<code class="prettyprint">audio_sink</code> to any other SbAudioSink functions after <code>SbAudioSinkDestroy</code>
-has been called on it.<br>
-This function can be called on any thread. However, it cannot be called
-within any of the callbacks passed into <code><a href="#sbaudiosinkcreate">SbAudioSinkCreate</a></code>.</p>
+<p>This function can be called on any thread. However, it cannot be called within
+any of the callbacks passed into SbAudioSinkCreate.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">audio_sink</code>: The audio sink to destroy.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkDestroy-declaration">
-<pre>
-SB_EXPORT void SbAudioSinkDestroy(SbAudioSink audio_sink);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-void SbAudioSinkDestroy(SbAudioSink /*audio_sink*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbAudioSinkDestroy(SbAudioSink audio_sink)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbAudioSink</code><br>        <code>audio_sink</code></td>
-    <td>The audio sink to destroy.</td>
-  </tr>
-</table>
-
 <h3 id="sbaudiosinkgetmaxchannels">SbAudioSinkGetMaxChannels</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the maximum number of channels supported on the platform. For example,
+the number would be <code class="prettyprint">2</code> if the platform only supports stereo.</p>
 
-<p>Returns the maximum number of channels supported on the platform. For
-example, the number would be <code class="prettyprint">2</code> if the platform only supports stereo.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkGetMaxChannels-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkGetMaxChannels-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkGetMaxChannels-declaration">
-<pre>
-SB_EXPORT int SbAudioSinkGetMaxChannels();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkGetMaxChannels-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-int SbAudioSinkGetMaxChannels() {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbAudioSinkGetMaxChannels()
 </code></pre></div>
-<p></div>
-</div></p>
-
 <h3 id="sbaudiosinkgetnearestsupportedsamplefrequency">SbAudioSinkGetNearestSupportedSampleFrequency</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the supported sample rate closest to <code class="prettyprint">sampling_frequency_hz</code>. On
+platforms that don&#39;t support all sample rates, it is the caller&#39;s responsibility
+to resample the audio frames into the supported sample rate returned by this
+function.</p>
 
-<p>Returns the supported sample rate closest to <code class="prettyprint">sampling_frequency_hz</code>.
-On platforms that don&#39;t support all sample rates, it is the caller&#39;s
-responsibility to resample the audio frames into the supported sample rate
-returned by this function.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkGetNearestSupportedSampleFrequency-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkGetNearestSupportedSampleFrequency-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkGetNearestSupportedSampleFrequency-declaration">
-<pre>
-SB_EXPORT int SbAudioSinkGetNearestSupportedSampleFrequency(
-    int sampling_frequency_hz);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkGetNearestSupportedSampleFrequency-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-int SbAudioSinkGetNearestSupportedSampleFrequency(
-    int /*sampling_frequency_hz*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbAudioSinkGetNearestSupportedSampleFrequency(int sampling_frequency_hz)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>sampling_frequency_hz</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbaudiosinkisaudioframestoragetypesupported">SbAudioSinkIsAudioFrameStorageTypeSupported</h3>
 
-<p><strong>Description</strong></p>
+<p>Indicates whether <code class="prettyprint">audio_frame_storage_type</code> is supported on this platform.</p>
 
-<p>Indicates whether <code class="prettyprint">audio_frame_storage_type</code> is supported on this
-platform.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkIsAudioFrameStorageTypeSupported-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkIsAudioFrameStorageTypeSupported-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkIsAudioFrameStorageTypeSupported-declaration">
-<pre>
-SB_EXPORT bool SbAudioSinkIsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkIsAudioFrameStorageTypeSupported-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-bool SbAudioSinkIsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbAudioSinkIsAudioFrameStorageTypeSupported(SbMediaAudioFrameStorageType audio_frame_storage_type)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMediaAudioFrameStorageType</code><br>
-        <code>audio_frame_storage_type</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbaudiosinkisaudiosampletypesupported">SbAudioSinkIsAudioSampleTypeSupported</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether <code class="prettyprint">audio_sample_type</code> is supported on this platform.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkIsAudioSampleTypeSupported-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkIsAudioSampleTypeSupported-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkIsAudioSampleTypeSupported-declaration">
-<pre>
-SB_EXPORT bool SbAudioSinkIsAudioSampleTypeSupported(
-    SbMediaAudioSampleType audio_sample_type);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkIsAudioSampleTypeSupported-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-bool SbAudioSinkIsAudioSampleTypeSupported(
-    SbMediaAudioSampleType /*audio_sample_type*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbAudioSinkIsAudioSampleTypeSupported(SbMediaAudioSampleType audio_sample_type)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbMediaAudioSampleType</code><br>
-        <code>audio_sample_type</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbaudiosinkisvalid">SbAudioSinkIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether the given audio sink handle is valid.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">audio_sink</code>: The audio sink handle to check.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbAudioSinkIsValid-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbAudioSinkIsValid-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbAudioSinkIsValid-declaration">
-<pre>
-SB_EXPORT bool SbAudioSinkIsValid(SbAudioSink audio_sink);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbAudioSinkIsValid-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/audio_sink.h&quot;
-
-bool SbAudioSinkIsValid(SbAudioSink /*audio_sink*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbAudioSinkIsValid(SbAudioSink audio_sink)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbAudioSink</code><br>        <code>audio_sink</code></td>
-    <td>The audio sink handle to check.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1130,11 +933,10 @@ bool SbAudioSinkIsValid(SbAudioSink /*audio_sink*/) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1156,29 +958,35 @@ bool SbAudioSinkIsValid(SbAudioSink /*audio_sink*/) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/audio_sink.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

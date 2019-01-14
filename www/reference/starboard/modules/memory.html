@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: memory.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: memory.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,1107 +762,417 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines functions for memory allocation, alignment, copying, and comparing.<br></p>
+        <p>Defines functions for memory allocation, alignment, copying, and comparing.</p>
 
-<h4 id="porters">Porters</h4>
+<h2 id="porters">Porters</h2>
 
-<p>All of the &quot;Unchecked&quot; and &quot;Free&quot; functions must be implemented, but they
-should not be called directly. The Starboard platform wraps them with extra
-accounting under certain circumstances.<br></p>
+<p>All of the &quot;Unchecked&quot; and &quot;Free&quot; functions must be implemented, but they should
+not be called directly. The Starboard platform wraps them with extra accounting
+under certain circumstances.</p>
 
-<h4 id="porters-and-cobalt-developers">Porters and Cobalt developers</h4>
+<h2 id="porters-and-application-developers">Porters and Application Developers</h2>
 
 <p>Nobody should call the &quot;Checked&quot;, &quot;Unchecked&quot; or &quot;Free&quot; functions directly
 because that evades Starboard&#39;s memory tracking. In both port implementations
-and Cobalt code, you should always call SbMemoryAllocate and
-SbMemoryDeallocate rather than SbMemoryAllocateUnchecked and SbMemoryFree.<br>
-<ul><li>The &quot;checked&quot; functions are SbMemoryAllocateChecked(),
-SbMemoryReallocateChecked(), and SbMemoryAllocateAlignedChecked().
-</li><li>The &quot;unchecked&quot; functions are SbMemoryAllocateUnchecked(),
-SbMemoryReallocateUnchecked(), and SbMemoryAllocateAlignedUnchecked().
-</li><li>The &quot;free&quot; functions are SbMemoryFree() and SbMemoryFreeAligned().</li></ul></p>
+and Starboard client application code, you should always call SbMemoryAllocate
+and SbMemoryDeallocate rather than SbMemoryAllocateUnchecked and SbMemoryFree.</p>
+
+<ul>
+<li><p>The &quot;checked&quot; functions are SbMemoryAllocateChecked(),
+SbMemoryReallocateChecked(), and SbMemoryAllocateAlignedChecked().</p></li>
+<li><p>The &quot;unchecked&quot; functions are SbMemoryAllocateUnchecked(),
+SbMemoryReallocateUnchecked(), and SbMemoryAllocateAlignedUnchecked().</p></li>
+<li><p>The &quot;free&quot; functions are SbMemoryFree() and SbMemoryFreeAligned().</p></li>
+</ul>
 
 <h2 id="enums">Enums</h2>
 
 <h3 id="sbmemorymapflags">SbMemoryMapFlags</h3>
 
-<p>The bitwise OR of these flags should be passed to SbMemoryMap to indicate
-how the mapped memory can be used.</p>
+<p>The bitwise OR of these flags should be passed to SbMemoryMap to indicate how
+the mapped memory can be used.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbMemoryMapProtectRead</code> - Mapped memory can be read.</li>
-<li>  <code class="prettyprint">kSbMemoryMapProtectWrite</code> - Mapped memory can be written to.</li>
-<li>  <code class="prettyprint">kSbMemoryMapProtectExec</code> - Mapped memory can be executed.</li>
-<li>  <code class="prettyprint">kSbMemoryMapProtectRead</code></li>
+<li><p><code class="prettyprint">kSbMemoryMapProtectReserved</code></p>
+
+<p>No flags set: Reserves virtual address space. SbMemoryProtect() can later
+make it accessible.</p></li>
+<li><p><code class="prettyprint">kSbMemoryMapProtectRead</code></p></li>
+<li><p><code class="prettyprint">kSbMemoryMapProtectWrite</code></p></li>
+<li><p><code class="prettyprint">kSbMemoryMapProtectExec</code></p></li>
+<li><p><code class="prettyprint">kSbMemoryMapProtectReadWrite</code></p></li>
 </ul>
-
-<h2 id="macros">Macros</h2>
-
-<div id="macro-documentation-section">
-
-<h3 id="sb_memory_map_failed" class="small-h3">SB_MEMORY_MAP_FAILED</h3>
-
-</div>
 
 <h2 id="functions">Functions</h2>
 
-<h3 id="sbabortifallocationfailed">SbAbortIfAllocationFailed</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
-                                                        void* address) {
-  if (SB_UNLIKELY(requested_bytes &gt; 0 &amp;&amp; address == NULL)) {
-    // Will abort the program if no debugger is attached.
-    SbSystemBreakIntoDebugger();
-  }
-}
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>requested_bytes</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>address</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryaligntopagesize">SbMemoryAlignToPageSize</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Rounds <code class="prettyprint">size</code> up to SB_MEMORY_PAGE_SIZE.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE size_t SbMemoryAlignToPageSize(size_t size) {
-  return (size + SB_MEMORY_PAGE_SIZE - 1) &amp; ~(SB_MEMORY_PAGE_SIZE - 1);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static size_t SbMemoryAlignToPageSize(size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryallocate">SbMemoryAllocate</h3>
 
-<p><strong>Description</strong></p>
+<p>Allocates and returns a chunk of memory of at least <code class="prettyprint">size</code> bytes. This function
+should be called from the client codebase. It is intended to be a drop-in
+replacement for <code class="prettyprint">malloc</code>.</p>
 
-<p>Allocates and returns a chunk of memory of at least <code class="prettyprint">size</code> bytes. This
-function should be called from the Cobalt codebase. It is intended to
-be a drop-in replacement for <code class="prettyprint">malloc</code>.<br>
-Note that this function returns <code class="prettyprint">NULL</code> if it is unable to allocate the
-memory.</p>
+<p>Note that this function returns <code class="prettyprint">NULL</code> if it is unable to allocate the memory.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void* SbMemoryAllocate(size_t size);
+<p><code class="prettyprint">size</code>: The amount of memory to be allocated. If <code class="prettyprint">size</code> is 0, the function may
+return <code class="prettyprint">NULL</code> or it may return a unique pointer value that can be passed to
+SbMemoryDeallocate.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocate(size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>size</code></td>
-    <td>The amount of memory to be allocated. If <code>size</code> is 0, the function
-may return <code>NULL</code> or it may return a unique pointer value that can be
-passed to <code><a href="#sbmemorydeallocate">SbMemoryDeallocate</a></code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryallocatealigned">SbMemoryAllocateAligned</h3>
 
-<p><strong>Description</strong></p>
+<p>Allocates and returns a chunk of memory of at least <code class="prettyprint">size</code> bytes, aligned to
+<code class="prettyprint">alignment</code>. This function should be called from the client codebase. It is
+meant to be a drop-in replacement for <code class="prettyprint">memalign</code>.</p>
 
-<p>Allocates and returns a chunk of memory of at least <code class="prettyprint">size</code> bytes, aligned
-to <code class="prettyprint">alignment</code>. This function should be called from the Cobalt codebase.
-It is meant to be a drop-in replacement for <code class="prettyprint">memalign</code>.<br>
-The function returns <code class="prettyprint">NULL</code> if it cannot allocate the memory. In addition,
-the function&#39;s behavior is undefined if <code class="prettyprint">alignment</code> is not a power of two.</p>
+<p>The function returns <code class="prettyprint">NULL</code> if it cannot allocate the memory. In addition, the
+function&#39;s behavior is undefined if <code class="prettyprint">alignment</code> is not a power of two.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void* SbMemoryAllocateAligned(size_t alignment, size_t size);
+<p><code class="prettyprint">alignment</code>: The way that data is arranged and accessed in memory. The value
+must be a power of two. <code class="prettyprint">size</code>: The size of the memory to be allocated. If
+<code class="prettyprint">size</code> is <code class="prettyprint">0</code>, the function may return <code class="prettyprint">NULL</code> or it may return a unique aligned
+pointer value that can be passed to SbMemoryDeallocateAligned.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocateAligned(size_t alignment, size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>alignment</code></td>
-    <td>The way that data is arranged and accessed in memory. The value
-must be a power of two.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>size</code></td>
-    <td>The size of the memory to be allocated. If <code>size</code> is <code>0</code>, the
-function may return <code>NULL</code> or it may return a unique aligned pointer value
-that can be passed to <code><a href="#sbmemorydeallocate">SbMemoryDeallocate</a></code>Aligned.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryallocatealignedchecked">SbMemoryAllocateAlignedChecked</h3>
 
-<p><strong>Description</strong></p>
+<p>Same as SbMemoryAllocateAlignedUnchecked, but will abort() in the case of an
+allocation failure.</p>
 
-<p>Same as <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>AlignedUnchecked, but will abort() in the case of an
-allocation failure.<br>
-DO NOT CALL. Call <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>Aligned(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">    SB_EXPORT void* SbMemoryAllocateAlignedChecked(size_t alignment,
-                                                   size_t size));
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocateAlignedChecked(size_t alignment, size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>alignment</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryallocatealignedunchecked">SbMemoryAllocateAlignedUnchecked</h3>
 
-<p><strong>Description</strong></p>
+<p>This is the implementation of SbMemoryAllocateAligned that must be provided by
+Starboard ports.</p>
 
-<p>This is the implementation of <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>Aligned that must be
-provided by Starboard ports.<br>
-DO NOT CALL. Call <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>Aligned(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryAllocateAlignedUnchecked-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryAllocateAlignedUnchecked-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryAllocateAlignedUnchecked-declaration">
-<pre>
-    SB_EXPORT void* SbMemoryAllocateAlignedUnchecked(size_t alignment,
-                                                     size_t size));
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryAllocateAlignedUnchecked-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemoryAllocateAlignedUnchecked(size_t /*alignment*/, size_t /*size*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocateAlignedUnchecked(size_t alignment, size_t size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>alignment</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryallocatechecked">SbMemoryAllocateChecked</h3>
 
-<p><strong>Description</strong></p>
+<p>Same as SbMemoryAllocateUnchecked, but will abort() in the case of an allocation
+failure.</p>
 
-<p>Same as <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>Unchecked, but will abort() in the case of an
-allocation failure.<br>
-DO NOT CALL. Call <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryAllocate(...) instead.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">    SB_EXPORT void* SbMemoryAllocateChecked(size_t size));
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocateChecked(size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbmemoryallocatenoreport">SbMemoryAllocateNoReport</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Same as SbMemoryAllocate() but will not report memory to the tracker. Avoid
+using this unless absolutely necessary.</p>
 
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocateNoReport(size_t size)
+</code></pre></div>
 <h3 id="sbmemoryallocateunchecked">SbMemoryAllocateUnchecked</h3>
 
-<p><strong>Description</strong></p>
+<p>This is the implementation of SbMemoryAllocate that must be provided by
+Starboard ports.</p>
 
-<p>This is the implementation of <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code> that must be
-provided by Starboard ports.<br>
-DO NOT CALL. Call <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryAllocate(...) instead.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryAllocateUnchecked-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryAllocateUnchecked-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryAllocateUnchecked-declaration">
-<pre>
-    SB_EXPORT void* SbMemoryAllocateUnchecked(size_t size));
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryAllocateUnchecked-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemoryAllocateUnchecked(size_t /*size*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryAllocateUnchecked(size_t size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemorycalloc">SbMemoryCalloc</h3>
 
-<p><strong>Description</strong></p>
+<p>A wrapper that implements a drop-in replacement for <code class="prettyprint">calloc</code>, which is used in
+some packages.</p>
 
-<p>A wrapper that implements a drop-in replacement for <code class="prettyprint">calloc</code>, which is used
-in some packages.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
-  size_t total = count * size;
-  void* result = SbMemoryAllocate(total);
-  if (result) {
-    SbMemorySet(result, 0, total);
-  }
-  return result;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static void* SbMemoryCalloc(size_t count, size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>count</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemorycompare">SbMemoryCompare</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Compares the contents of the first <code class="prettyprint">count</code> bytes of <code class="prettyprint">buffer1</code> and <code class="prettyprint">buffer2</code>.
-This function returns:
-<ul><li><code class="prettyprint">-1</code> if <code class="prettyprint">buffer1</code> is &quot;less-than&quot; <code class="prettyprint">buffer2</code>
-</li><li><code class="prettyprint">0</code> if <code class="prettyprint">buffer1</code> and <code class="prettyprint">buffer2</code> are equal
-</li><li><code class="prettyprint">1</code> if <code class="prettyprint">buffer1</code> is &quot;greater-than&quot; <code class="prettyprint">buffer2</code>.</li></ul>
-This function is meant to be a drop-in replacement for <code class="prettyprint">memcmp</code>.</p>
+This function returns:</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<ul>
+<li><p><code class="prettyprint">-1</code> if <code class="prettyprint">buffer1</code> is &quot;less-than&quot; <code class="prettyprint">buffer2</code></p></li>
+<li><p><code class="prettyprint">0</code> if <code class="prettyprint">buffer1</code> and <code class="prettyprint">buffer2</code> are equal</p></li>
+<li><p><code class="prettyprint">1</code> if <code class="prettyprint">buffer1</code> is &quot;greater-than&quot; <code class="prettyprint">buffer2</code>.</p></li>
+</ul>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryCompare-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryCompare-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryCompare-declaration">
-<pre>
-SB_EXPORT int SbMemoryCompare(const void* buffer1,
-                              const void* buffer2,
-                              size_t count);
-</pre>
-</div>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">memcmp</code>.</p>
 
-<p><div class="mdl-tabs__panel" id="SbMemoryCompare-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
+<p><code class="prettyprint">buffer1</code>: The first buffer to be compared. <code class="prettyprint">buffer2</code>: The second buffer to be
+compared. <code class="prettyprint">count</code>: The number of bytes to be compared.</p>
 
-int SbMemoryCompare(const void* /*buffer1*/, const void* /*buffer2*/,
-                    size_t /*count*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbMemoryCompare(const void *buffer1, const void *buffer2, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const void*</code><br>        <code>buffer1</code></td>
-    <td>The first buffer to be compared.</td>
-  </tr>
-  <tr>
-    <td><code>const void*</code><br>        <code>buffer2</code></td>
-    <td>The second buffer to be compared.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of bytes to be compared.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemorycopy">SbMemoryCopy</h3>
 
-<p><strong>Description</strong></p>
+<p>Copies <code class="prettyprint">count</code> sequential bytes from <code class="prettyprint">source</code> to <code class="prettyprint">destination</code>, without support
+for the <code class="prettyprint">source</code> and <code class="prettyprint">destination</code> regions overlapping. This function is meant
+to be a drop-in replacement for <code class="prettyprint">memcpy</code>.</p>
 
-<p>Copies <code class="prettyprint">count</code> sequential bytes from <code class="prettyprint">source</code> to <code class="prettyprint">destination</code>, without
-support for the <code class="prettyprint">source</code> and <code class="prettyprint">destination</code> regions overlapping. This
-function is meant to be a drop-in replacement for <code class="prettyprint">memcpy</code>.<br>
-The function&#39;s behavior is undefined if <code class="prettyprint">destination</code> or <code class="prettyprint">source</code> are NULL,
-and the function is a no-op if <code class="prettyprint">count</code> is 0. The return value is
-<code class="prettyprint">destination</code>.</p>
+<p>The function&#39;s behavior is undefined if <code class="prettyprint">destination</code> or <code class="prettyprint">source</code> are NULL, and
+the function is a no-op if <code class="prettyprint">count</code> is 0. The return value is <code class="prettyprint">destination</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">destination</code>: The destination of the copied memory. <code class="prettyprint">source</code>: The source of the
+copied memory. <code class="prettyprint">count</code>: The number of sequential bytes to be copied.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryCopy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryCopy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryCopy-declaration">
-<pre>
-SB_EXPORT void* SbMemoryCopy(void* destination,
-                             const void* source,
-                             size_t count);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryCopy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemoryCopy(void* /*destination*/, const void* /*source*/,
-                   size_t /*count*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryCopy(void *destination, const void *source, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>        <code>destination</code></td>
-    <td>The destination of the copied memory.</td>
-  </tr>
-  <tr>
-    <td><code>const void*</code><br>        <code>source</code></td>
-    <td>The source of the copied memory.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of sequential bytes to be copied.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemorydeallocate">SbMemoryDeallocate</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Frees a previously allocated chunk of memory. If <code class="prettyprint">memory</code> is NULL, then the
-operation is a no-op. This function should be called from the Cobalt
-codebase. It is meant to be a drop-in replacement for <code class="prettyprint">free</code>.</p>
+operation is a no-op. This function should be called from the client codebase.
+It is meant to be a drop-in replacement for <code class="prettyprint">free</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void SbMemoryDeallocate(void* memory);
+<p><code class="prettyprint">memory</code>: The chunk of memory to be freed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryDeallocate(void *memory)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>        <code>memory</code></td>
-    <td>The chunk of memory to be freed.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemorydeallocatealigned">SbMemoryDeallocateAligned</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void SbMemoryDeallocateAligned(void* memory);
+<p><code class="prettyprint">memory</code>: The chunk of memory to be freed. If <code class="prettyprint">memory</code> is NULL, then the
+function is a no-op.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryDeallocateAligned(void *memory)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbmemorydeallocatenoreport">SbMemoryDeallocateNoReport</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>        <code>memory</code></td>
-    <td>The chunk of memory to be freed. If <code>memory</code> is NULL, then the
-function is a no-op.</td>
-  </tr>
-</table>
+<p>Same as SbMemoryDeallocate() but will not report memory deallocation to the
+tracker. This function must be matched with SbMemoryAllocateNoReport().</p>
 
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryDeallocateNoReport(void *memory)
+</code></pre></div>
 <h3 id="sbmemoryfindbyte">SbMemoryFindByte</h3>
 
-<p><strong>Description</strong></p>
+<p>Finds the lower 8-bits of <code class="prettyprint">value</code> in the first <code class="prettyprint">count</code> bytes of <code class="prettyprint">buffer</code> and
+returns either a pointer to the first found occurrence or <code class="prettyprint">NULL</code> if the value is
+not found. This function is meant to be a drop-in replacement for <code class="prettyprint">memchr</code>.</p>
 
-<p>Finds the lower 8-bits of <code class="prettyprint">value</code> in the first <code class="prettyprint">count</code> bytes of <code class="prettyprint">buffer</code>
-and returns either a pointer to the first found occurrence or <code class="prettyprint">NULL</code> if
-the value is not found. This function is meant to be a drop-in replacement
-for <code class="prettyprint">memchr</code>.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryFindByte-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryFindByte-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryFindByte-declaration">
-<pre>
-SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
-                                       int value,
-                                       size_t count);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryFindByte-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-const void* SbMemoryFindByte(const void* /*buffer*/, int /*value*/,
-                             size_t /*count*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">const void* SbMemoryFindByte(const void *buffer, int value, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const void*</code><br>
-        <code>buffer</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>count</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryflush">SbMemoryFlush</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Flushes any data in the given virtual address range that is cached locally in
 the current processor core to physical memory, ensuring that data and
 instruction caches are cleared. This is required to be called on executable
 memory that has been written to and might be executed in the future.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryFlush-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryFlush-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryFlush-declaration">
-<pre>
-SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryFlush-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void SbMemoryFlush(void* /*virtual_address*/, int64_t /*size_bytes*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryFlush(void *virtual_address, int64_t size_bytes)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>virtual_address</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int64_t</code><br>
-        <code>size_bytes</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryfree">SbMemoryFree</h3>
 
-<p><strong>Description</strong></p>
+<p>This is the implementation of SbMemoryDeallocate that must be provided by
+Starboard ports.</p>
 
-<p>This is the implementation of <code><a href="#sbmemorydeallocate">SbMemoryDeallocate</a></code> that must be provided by
-Starboard ports.<br>
-DO NOT CALL. Call <code><a href="#sbmemorydeallocate">SbMemoryDeallocate</a></code>(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryDeallocate(...) instead.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryFree-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryFree-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryFree-declaration">
-<pre>
-    SB_EXPORT void SbMemoryFree(void* memory));
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryFree-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void SbMemoryFree(void* /*memory*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryFree(void *memory)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>memory</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryfreealigned">SbMemoryFreeAligned</h3>
 
-<p><strong>Description</strong></p>
+<p>This is the implementation of SbMemoryFreeAligned that must be provided by
+Starboard ports.</p>
 
-<p>This is the implementation of <code>SbMemoryFreeAligned</code> that must be provided by
-Starboard ports.<br>
-DO NOT CALL. Call <code><a href="#sbmemorydeallocate">SbMemoryDeallocate</a></code>Aligned(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryDeallocateAligned(...) instead.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryFreeAligned-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryFreeAligned-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryFreeAligned-declaration">
-<pre>
-    SB_EXPORT void SbMemoryFreeAligned(void* memory));
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryFreeAligned-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void SbMemoryFreeAligned(void* /*memory*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryFreeAligned(void *memory)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>memory</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemorygetstackbounds">SbMemoryGetStackBounds</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Gets the stack bounds for the current thread.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_high</code>: The highest addressable byte + 1 for the current thread. <code class="prettyprint">out_low</code>:
+The lowest addressable byte for the current thread.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryGetStackBounds-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryGetStackBounds-stub" class="mdl-tabs__tab">stub</a>
-    <a href="#SbMemoryGetStackBounds-bsd" class="mdl-tabs__tab">bsd</a>
-    <a href="#SbMemoryGetStackBounds-linux" class="mdl-tabs__tab">linux</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryGetStackBounds-declaration">
-<pre>
-SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryGetStackBounds-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void SbMemoryGetStackBounds(void** /*out_high*/, void** /*out_low*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbMemoryGetStackBounds(void **out_high, void **out_low)
 </code></pre></div>
-<p></div>
-  <div class="mdl-tabs__panel" id="SbMemoryGetStackBounds-bsd"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-#include &lt;pthread.h&gt;
-#include &lt;pthread_np.h&gt;
-
-void SbMemoryGetStackBounds(void** out_high, void** out_low) {
-  pthread_attr_t attr;
-  pthread_attr_init(&amp;attr);
-  pthread_attr_get_np(pthread_self(), &amp;attr);
-
-  void* stack_address;
-  size_t stack_size;
-  pthread_attr_getstack(&amp;attr, &amp;stack_address, &amp;stack_size);
-  *out_high = static_cast&lt;uint8_t*&gt;(stack_address) + stack_size;
-  *out_low = stack_address;
-
-  pthread_attr_destroy(&amp;attr);
-}
-</code></pre></div>
-<p></div>
-  <div class="mdl-tabs__panel" id="SbMemoryGetStackBounds-linux"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-#include &lt;pthread.h&gt;
-
-#include &quot;starboard/log.h&quot;
-
-void SbMemoryGetStackBounds(void** out_high, void** out_low) {
-  void* stackBase = 0;
-  size_t stackSize = 0;
-
-  pthread_t thread = pthread_self();
-  pthread_attr_t sattr;
-  pthread_attr_init(&amp;sattr);
-  pthread_getattr_np(thread, &amp;sattr);
-  int rc = pthread_attr_getstack(&amp;sattr, &amp;stackBase, &amp;stackSize);
-  SB_DCHECK(rc == 0);
-  SB_DCHECK(stackBase);
-  pthread_attr_destroy(&amp;sattr);
-  *out_high = static_cast&lt;char*&gt;(stackBase) + stackSize;
-  *out_low = stackBase;
-}
-</code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void**</code><br>        <code>out_high</code></td>
-    <td>The highest addressable byte + 1 for the current thread.</td>
-  </tr>
-  <tr>
-    <td><code>void**</code><br>        <code>out_low</code></td>
-    <td>The lowest addressable byte for the current thread.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryisaligned">SbMemoryIsAligned</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Checks whether <code class="prettyprint">memory</code> is aligned to <code class="prettyprint">alignment</code> bytes.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
-                                                size_t alignment) {
-  return ((uintptr_t)memory) % alignment == 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbMemoryIsAligned(const void *memory, size_t alignment)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbmemoryiszero">SbMemoryIsZero</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const void*</code><br>
-        <code>memory</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>alignment</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Returns true if the first <code class="prettyprint">count</code> bytes of <code class="prettyprint">buffer</code> are set to zero.</p>
 
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbMemoryIsZero(const void *buffer, size_t count)
+</code></pre></div>
 <h3 id="sbmemorymap">SbMemoryMap</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Allocates <code class="prettyprint">size_bytes</code> worth of physical memory pages and maps them into an
 available virtual region. This function returns <code class="prettyprint">SB_MEMORY_MAP_FAILED</code> on
 failure. <code class="prettyprint">NULL</code> is a valid return value.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">size_bytes</code>: The amount of physical memory pages to be allocated. <code class="prettyprint">flags</code>: The
+bitwise OR of the protection flags for the mapped memory as specified in
+<code class="prettyprint">SbMemoryMapFlags</code>. Allocating executable memory is not allowed and will fail.
+If executable memory is needed, map non-executable memory first and then switch
+access to executable using SbMemoryProtect. When kSbMemoryMapProtectReserved is
+used, the address space will not be accessible and, if possible, the platform
+should not count it against any memory budget. <code class="prettyprint">name</code>: A value that appears in
+the debugger on some platforms. The value can be up to 32 bytes.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryMap-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryMap-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryMap-declaration">
-<pre>
-SB_EXPORT void* SbMemoryMap(int64_t size_bytes, int flags, const char* name);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryMap-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemoryMap(int64_t /*size_bytes*/, int /*flags*/, const char* /*name*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryMap(int64_t size_bytes, int flags, const char *name)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>int64_t</code><br>        <code>size_bytes</code></td>
-    <td>The amount of physical memory pages to be allocated.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>flags</code></td>
-    <td>The bitwise OR of the protection flags for the mapped memory
-as specified in <code>SbMemoryMapFlags</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>name</code></td>
-    <td>A value that appears in the debugger on some platforms. The value
-can be up to 32 bytes.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemorymove">SbMemoryMove</h3>
 
-<p><strong>Description</strong></p>
+<p>Copies <code class="prettyprint">count</code> sequential bytes from <code class="prettyprint">source</code> to <code class="prettyprint">destination</code>, with support for
+the <code class="prettyprint">source</code> and <code class="prettyprint">destination</code> regions overlapping. This function is meant to be
+a drop-in replacement for <code class="prettyprint">memmove</code>.</p>
 
-<p>Copies <code class="prettyprint">count</code> sequential bytes from <code class="prettyprint">source</code> to <code class="prettyprint">destination</code>, with support
-for the <code class="prettyprint">source</code> and <code class="prettyprint">destination</code> regions overlapping. This function is
-meant to be a drop-in replacement for <code class="prettyprint">memmove</code>.<br>
-The function&#39;s behavior is undefined if <code class="prettyprint">destination</code> or <code class="prettyprint">source</code> are NULL,
-and the function is a no-op if <code class="prettyprint">count</code> is 0. The return value is
-<code class="prettyprint">destination</code>.</p>
+<p>The function&#39;s behavior is undefined if <code class="prettyprint">destination</code> or <code class="prettyprint">source</code> are NULL, and
+the function is a no-op if <code class="prettyprint">count</code> is 0. The return value is <code class="prettyprint">destination</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">destination</code>: The destination of the copied memory. <code class="prettyprint">source</code>: The source of the
+copied memory. <code class="prettyprint">count</code>: The number of sequential bytes to be copied.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryMove-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryMove-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryMove-declaration">
-<pre>
-SB_EXPORT void* SbMemoryMove(void* destination,
-                             const void* source,
-                             size_t count);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryMove-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemoryMove(void* /*destination*/, const void* /*source*/,
-                   size_t /*count*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryMove(void *destination, const void *source, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbmemoryprotect">SbMemoryProtect</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Change the protection of <code class="prettyprint">size_bytes</code> of memory regions, starting from
+<code class="prettyprint">virtual_address</code>, to <code class="prettyprint">flags</code>, returning <code class="prettyprint">true</code> on success.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>        <code>destination</code></td>
-    <td>The destination of the copied memory.</td>
-  </tr>
-  <tr>
-    <td><code>const void*</code><br>        <code>source</code></td>
-    <td>The source of the copied memory.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of sequential bytes to be copied.</td>
-  </tr>
-</table>
-
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbMemoryProtect(void *virtual_address, int64_t size_bytes, int flags)
+</code></pre></div>
 <h3 id="sbmemoryreallocate">SbMemoryReallocate</h3>
 
-<p><strong>Description</strong></p>
+<p>Attempts to resize <code class="prettyprint">memory</code> to be at least <code class="prettyprint">size</code> bytes, without touching the
+contents of memory.</p>
 
-<p>Attempts to resize <code class="prettyprint">memory</code> to be at least <code class="prettyprint">size</code> bytes, without touching
-the contents of memory.
-<ul><li>If the function cannot perform the fast resize, it allocates a new chunk
-of memory, copies the contents over, and frees the previous chunk,
-returning a pointer to the new chunk.
-</li><li>If the function cannot perform the slow resize, it returns <code class="prettyprint">NULL</code>,
-leaving the given memory chunk unchanged.</li></ul>
-This function should be called from the Cobalt codebase. It is meant
-to be a drop-in replacement for <code class="prettyprint">realloc</code>.</p>
+<ul>
+<li><p>If the function cannot perform the fast resize, it allocates a new chunk of
+memory, copies the contents over, and frees the previous chunk, returning a
+pointer to the new chunk.</p></li>
+<li><p>If the function cannot perform the slow resize, it returns <code class="prettyprint">NULL</code>, leaving
+the given memory chunk unchanged.</p></li>
+</ul>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void* SbMemoryReallocate(void* memory, size_t size);
+<p>This function should be called from the client codebase. It is meant to be a
+drop-in replacement for <code class="prettyprint">realloc</code>.</p>
+
+<p><code class="prettyprint">memory</code>: The chunk of memory to be resized. <code class="prettyprint">memory</code> may be NULL, in which case
+it behaves exactly like SbMemoryAllocateUnchecked. <code class="prettyprint">size</code>: The size to which
+<code class="prettyprint">memory</code> will be resized. If <code class="prettyprint">size</code> is <code class="prettyprint">0</code>, the function may return <code class="prettyprint">NULL</code> or it
+may return a unique pointer value that can be passed to SbMemoryDeallocate.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryReallocate(void *memory, size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>        <code>memory</code></td>
-    <td>The chunk of memory to be resized. <code>memory</code> may be NULL, in which
-case it behaves exactly like <code><a href="#sbmemoryallocate">SbMemoryAllocate</a></code>Unchecked.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>size</code></td>
-    <td>The size to which <code>memory</code> will be resized. If <code>size</code> is <code>0</code>,
-the function may return <code>NULL</code> or it may return a unique pointer value
-that can be passed to <code><a href="#sbmemorydeallocate">SbMemoryDeallocate</a></code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryreallocatechecked">SbMemoryReallocateChecked</h3>
 
-<p><strong>Description</strong></p>
+<p>Same as SbMemoryReallocateUnchecked, but will abort() in the case of an
+allocation failure.</p>
 
-<p>Same as <code><a href="#sbmemoryreallocate">SbMemoryReallocate</a></code>Unchecked, but will abort() in the case of an
-allocation failure.<br>
-DO NOT CALL. Call <code><a href="#sbmemoryreallocate">SbMemoryReallocate</a></code>(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryReallocate(...) instead.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">    SB_EXPORT void* SbMemoryReallocateChecked(void* memory, size_t size));
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryReallocateChecked(void *memory, size_t size)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>memory</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryreallocateunchecked">SbMemoryReallocateUnchecked</h3>
 
-<p><strong>Description</strong></p>
+<p>This is the implementation of SbMemoryReallocate that must be provided by
+Starboard ports.</p>
 
-<p>This is the implementation of <code><a href="#sbmemoryreallocate">SbMemoryReallocate</a></code> that must be
-provided by Starboard ports.<br>
-DO NOT CALL. Call <code><a href="#sbmemoryreallocate">SbMemoryReallocate</a></code>(...) instead.</p>
+<p>DO NOT CALL. Call SbMemoryReallocate(...) instead.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryReallocateUnchecked-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryReallocateUnchecked-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryReallocateUnchecked-declaration">
-<pre>
-    SB_EXPORT void* SbMemoryReallocateUnchecked(void* memory, size_t size));
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryReallocateUnchecked-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemoryReallocateUnchecked(void* /*memory*/, size_t /*size*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemoryReallocateUnchecked(void *memory, size_t size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>memory</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>size</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryset">SbMemorySet</h3>
 
-<p><strong>Description</strong></p>
+<p>Fills <code class="prettyprint">count</code> sequential bytes starting at <code class="prettyprint">destination</code>, with the unsigned char
+coercion of <code class="prettyprint">byte_value</code>. This function is meant to be a drop-in replacement for
+<code class="prettyprint">memset</code>.</p>
 
-<p>Fills <code class="prettyprint">count</code> sequential bytes starting at <code class="prettyprint">destination</code>, with the unsigned
-char coercion of <code class="prettyprint">byte_value</code>. This function is meant to be a drop-in
-replacement for <code class="prettyprint">memset</code>.<br>
-The function&#39;s behavior is undefined if <code class="prettyprint">destination</code> is NULL, and the
-function is a no-op if <code class="prettyprint">count</code> is 0. The return value is <code class="prettyprint">destination</code>.</p>
+<p>The function&#39;s behavior is undefined if <code class="prettyprint">destination</code> is NULL, and the function
+is a no-op if <code class="prettyprint">count</code> is 0. The return value is <code class="prettyprint">destination</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">destination</code>: The destination of the copied memory. <code class="prettyprint">count</code>: The number of
+sequential bytes to be set.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemorySet-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemorySet-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemorySet-declaration">
-<pre>
-SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemorySet-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-void* SbMemorySet(void* /*destination*/, int /*byte_value*/, size_t /*count*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbMemorySet(void *destination, int byte_value, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>        <code>destination</code></td>
-    <td>The destination of the copied memory.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>byte_value</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of sequential bytes to be set.</td>
-  </tr>
-</table>
-
 <h3 id="sbmemoryunmap">SbMemoryUnmap</h3>
 
-<p><strong>Description</strong></p>
+<p>Unmap <code class="prettyprint">size_bytes</code> of physical pages starting from <code class="prettyprint">virtual_address</code>, returning
+<code class="prettyprint">true</code> on success. After this function completes, [virtual_address,
+virtual_address + size_bytes) will not be read/writable. This function can unmap
+multiple contiguous regions that were mapped with separate calls to
+SbMemoryMap(). For example, if one call to <code class="prettyprint">SbMemoryMap(0x1000)</code> returns
+<code class="prettyprint">(void*)0xA000</code>, and another call to <code class="prettyprint">SbMemoryMap(0x1000)</code> returns
+<code class="prettyprint">(void*)0xB000</code>, <code class="prettyprint">SbMemoryUnmap(0xA000, 0x2000)</code> should free both regions.</p>
 
-<p>Unmap <code class="prettyprint">size_bytes</code> of physical pages starting from <code class="prettyprint">virtual_address</code>,
-returning <code class="prettyprint">true</code> on success. After this function completes,
-[virtual_address, virtual_address + size_bytes) will not be read/writable.
-This function can unmap multiple contiguous regions that were mapped with
-separate calls to <code><a href="#sbmemorymap">SbMemoryMap()</a></code>. For example, if one call to
-<code class="prettyprint">SbMemoryMap(0x1000)</code> returns <code class="prettyprint">(void*)0xA000</code>, and another call to
-<code class="prettyprint">SbMemoryMap(0x1000)</code> returns <code class="prettyprint">(void*)0xB000</code>,
-<code class="prettyprint">SbMemoryUnmap(0xA000, 0x2000)</code> should free both regions.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbMemoryUnmap-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbMemoryUnmap-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbMemoryUnmap-declaration">
-<pre>
-SB_EXPORT bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbMemoryUnmap-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/memory.h&quot;
-
-bool SbMemoryUnmap(void* /*virtual_address*/, int64_t /*size_bytes*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbMemoryUnmap(void *virtual_address, int64_t size_bytes)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>void*</code><br>
-        <code>virtual_address</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int64_t</code><br>
-        <code>size_bytes</code></td>
-    <td> </td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1849,11 +1193,10 @@ bool SbMemoryUnmap(void* /*virtual_address*/, int64_t /*size_bytes*/) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1875,29 +1218,35 @@ bool SbMemoryUnmap(void* /*virtual_address*/, int64_t /*size_bytes*/) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/memory.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

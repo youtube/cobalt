@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: string.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: string.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -747,1364 +799,418 @@
 
 <h3 id="sbstringatoi">SbStringAToI</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Parses a string into a base-10 integer. This is a shorthand replacement for
 <code class="prettyprint">atoi</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE int SbStringAToI(const char* value) {
-  // NOLINTNEXTLINE(readability/casting)
-  return (int)SbStringParseSignedInteger(value, NULL, 10);
-}
+<p><code class="prettyprint">value</code>: The string to be converted.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static int SbStringAToI(const char *value)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>value</code></td>
-    <td>The string to be converted.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringatol">SbStringAToL</h3>
 
-<p><strong>Description</strong></p>
+<p>Parses a string into a base-10, long integer. This is a shorthand replacement
+for <code class="prettyprint">atol</code>.</p>
 
-<p>Parses a string into a base-10, long integer. This is a shorthand
-replacement for <code class="prettyprint">atol</code>.</p>
+<p><code class="prettyprint">value</code>: The string to be converted. NOLINTNEXTLINE(runtime/int)</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE long SbStringAToL(const char* value) {
-  // NOLINTNEXTLINE(readability/casting)
-  return SbStringParseSignedInteger(value, NULL, 10);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static long SbStringAToL(const char *value)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>value</code></td>
-    <td>The string to be converted.
-NOLINTNEXTLINE(runtime/int)</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcompare">SbStringCompare</h3>
 
-<p><strong>Description</strong></p>
+<p>Compares the first <code class="prettyprint">count</code> characters of two 8-bit character strings. The return
+value is:</p>
 
-<p>Compares the first <code class="prettyprint">count</code> characters of two 8-bit character strings.
-The return value is:
-<ul><li><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.
-</li><li><code class="prettyprint">0</code> if the two strings are equal.
-</li><li><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</li></ul>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strncmp</code>.</p>
+<ul>
+<li><p><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.</p></li>
+<li><p><code class="prettyprint">0</code> if the two strings are equal.</p></li>
+<li><p><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strncmp</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCompare-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCompare-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCompare-declaration">
-<pre>
-SB_EXPORT int SbStringCompare(const char* string1,
-                              const char* string2,
-                              size_t count);
-</pre>
-</div>
+<p><code class="prettyprint">string1</code>: The first 8-bit character string to compare. <code class="prettyprint">string2</code>: The second
+8-bit character string to compare. <code class="prettyprint">count</code>: The number of characters to compare.</p>
 
-<p><div class="mdl-tabs__panel" id="SbStringCompare-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCompare(const char* /*string1*/,
-                    const char* /*string2*/,
-                    size_t /*count*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCompare(const char *string1, const char *string2, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string1</code></td>
-    <td>The first 8-bit character string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string2</code></td>
-    <td>The second 8-bit character string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of characters to compare.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcompareall">SbStringCompareAll</h3>
 
-<p><strong>Description</strong></p>
+<p>Compares two entire 8-bit character strings. The return value is:</p>
 
-<p>Compares two entire 8-bit character strings. The return value is:
-<ul><li><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.
-</li><li><code class="prettyprint">0</code> if the two strings are equal.
-</li><li><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</li></ul>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strcmp</code>.</p>
+<ul>
+<li><p><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.</p></li>
+<li><p><code class="prettyprint">0</code> if the two strings are equal.</p></li>
+<li><p><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strcmp</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCompareAll-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCompareAll-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCompareAll-declaration">
-<pre>
-SB_EXPORT int SbStringCompareAll(const char* string1, const char* string2);
-</pre>
-</div>
+<p><code class="prettyprint">string1</code>: The first 8-bit character string to compare. <code class="prettyprint">string2</code>: The second
+8-bit character string to compare.</p>
 
-<p><div class="mdl-tabs__panel" id="SbStringCompareAll-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCompareAll(const char* /*string1*/, const char* /*string2*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCompareAll(const char *string1, const char *string2)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string1</code></td>
-    <td>The first 8-bit character string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string2</code></td>
-    <td>The second 8-bit character string to compare.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcomparenocase">SbStringCompareNoCase</h3>
 
-<p><strong>Description</strong></p>
+<p>Compares two strings, ignoring differences in case. The return value is:</p>
 
-<p>Compares two strings, ignoring differences in case. The return value is:
-<ul><li><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.
-</li><li><code class="prettyprint">0</code> if the two strings are equal.
-</li><li><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</li></ul>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strcasecmp</code>.</p>
+<ul>
+<li><p><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.</p></li>
+<li><p><code class="prettyprint">0</code> if the two strings are equal.</p></li>
+<li><p><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strcasecmp</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCompareNoCase-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCompareNoCase-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCompareNoCase-declaration">
-<pre>
-SB_EXPORT int SbStringCompareNoCase(const char* string1, const char* string2);
-</pre>
-</div>
+<p><code class="prettyprint">string1</code>: The first string to compare. <code class="prettyprint">string2</code>: The second string to compare.</p>
 
-<p><div class="mdl-tabs__panel" id="SbStringCompareNoCase-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCompareNoCase(const char* /*string1*/, const char* /*string2*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCompareNoCase(const char *string1, const char *string2)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string1</code></td>
-    <td>The first string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string2</code></td>
-    <td>The second string to compare.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcomparenocasen">SbStringCompareNoCaseN</h3>
 
-<p><strong>Description</strong></p>
+<p>Compares the first <code class="prettyprint">count</code> characters of two strings, ignoring differences in
+case. The return value is:</p>
 
-<p>Compares the first <code class="prettyprint">count</code> characters of two strings, ignoring differences
-in case. The return value is:
-<ul><li><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.
-</li><li><code class="prettyprint">0</code> if the two strings are equal.
-</li><li><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</li></ul>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strncasecmp</code>.</p>
+<ul>
+<li><p><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.</p></li>
+<li><p><code class="prettyprint">0</code> if the two strings are equal.</p></li>
+<li><p><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strncasecmp</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCompareNoCaseN-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCompareNoCaseN-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCompareNoCaseN-declaration">
-<pre>
-SB_EXPORT int SbStringCompareNoCaseN(const char* string1,
-                                     const char* string2,
-                                     size_t count);
-</pre>
-</div>
+<p><code class="prettyprint">string1</code>: The first string to compare. <code class="prettyprint">string2</code>: The second string to compare.
+<code class="prettyprint">count</code>: The number of characters to compare.</p>
 
-<p><div class="mdl-tabs__panel" id="SbStringCompareNoCaseN-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCompareNoCaseN(const char* /*string1*/,
-                           const char* /*string2*/,
-                           size_t /*count*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCompareNoCaseN(const char *string1, const char *string2, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string1</code></td>
-    <td>The first string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>string2</code></td>
-    <td>The second string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of characters to compare.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcomparewide">SbStringCompareWide</h3>
 
-<p><strong>Description</strong></p>
+<p>Compares the first <code class="prettyprint">count</code> characters of two 16-bit character strings. The
+return value is:</p>
 
-<p>Compares the first <code class="prettyprint">count</code> characters of two 16-bit character strings.
-The return value is:
-<ul><li><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.
-</li><li><code class="prettyprint">0</code> if the two strings are equal.
-</li><li><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</li></ul>
-This function is meant to be a drop-in replacement for <code class="prettyprint">wcsncmp</code>.</p>
+<ul>
+<li><p><code class="prettyprint">&lt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically lower than <code class="prettyprint">string2</code>.</p></li>
+<li><p><code class="prettyprint">0</code> if the two strings are equal.</p></li>
+<li><p><code class="prettyprint">&gt; 0</code> if <code class="prettyprint">string1</code> is ASCII-betically higher than <code class="prettyprint">string2</code>.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">wcsncmp</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCompareWide-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCompareWide-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCompareWide-declaration">
-<pre>
-SB_EXPORT int SbStringCompareWide(const wchar_t* string1,
-                                  const wchar_t* string2,
-                                  size_t count);
-</pre>
-</div>
+<p><code class="prettyprint">string1</code>: The first 16-bit character string to compare.weird <code class="prettyprint">string2</code>: The
+second 16-bit character string to compare. <code class="prettyprint">count</code>: The number of characters to
+compare.</p>
 
-<p><div class="mdl-tabs__panel" id="SbStringCompareWide-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCompareWide(const wchar_t* /*string1*/,
-                        const wchar_t* /*string2*/,
-                        size_t /*count*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCompareWide(const wchar_t *string1, const wchar_t *string2, size_t count)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>string1</code></td>
-    <td>The first 16-bit character string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>string2</code></td>
-    <td>The second 16-bit character string to compare.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>count</code></td>
-    <td>The number of characters to compare.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringconcat">SbStringConcat</h3>
 
-<p><strong>Description</strong></p>
+<p>Appends <code class="prettyprint">source</code> to <code class="prettyprint">out_destination</code> as long as <code class="prettyprint">out_destination</code> has enough
+storage space to hold the concatenated string.</p>
 
-<p>Appends <code class="prettyprint">source</code> to <code class="prettyprint">out_destination</code> as long as <code class="prettyprint">out_destination</code> has
-enough storage space to hold the concatenated string.<br>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strlcat</code>. Also note
-that this function&#39;s signature is NOT compatible with <code class="prettyprint">strncat</code>.</p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strlcat</code>. Also note that
+this function&#39;s signature is NOT compatible with <code class="prettyprint">strncat</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_destination</code>: The string to which the <code class="prettyprint">source</code> string is appended.
+<code class="prettyprint">source</code>: The string to be appended to the destination string.
+<code class="prettyprint">destination_size</code>: The amount of storage space available for the concatenated
+string.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringConcat-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringConcat-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringConcat-declaration">
-<pre>
-SB_EXPORT int SbStringConcat(char* out_destination,
-                             const char* source,
-                             int destination_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringConcat-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringConcat(char* /*out_destination*/,
-                   const char* /*source*/,
-                   int /*destination_size*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringConcat(char *out_destination, const char *source, int destination_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_destination</code></td>
-    <td>The string to which the <code>source</code> string is appended.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>source</code></td>
-    <td>The string to be appended to the destination string.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>destination_size</code></td>
-    <td>The amount of storage space available for the
-concatenated string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringconcatunsafe">SbStringConcatUnsafe</h3>
 
-<p><strong>Description</strong></p>
-
-<p>An inline wrapper for an unsafe <code><a href="#sbstringconcat">SbStringConcat</a></code> that assumes that the
+<p>An inline wrapper for an unsafe SbStringConcat that assumes that the
 <code class="prettyprint">out_destination</code> provides enough storage space for the concatenated string.
 Note that this function&#39;s signature is NOT compatible with <code class="prettyprint">strcat</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE int SbStringConcatUnsafe(char* out_destination,
-                                            const char* source) {
-  return SbStringConcat(out_destination, source, INT_MAX);
-}
+<p><code class="prettyprint">out_destination</code>: The string to which the <code class="prettyprint">source</code> string is appended.
+<code class="prettyprint">source</code>: The string to be appended to the destination string.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static int SbStringConcatUnsafe(char *out_destination, const char *source)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_destination</code></td>
-    <td>The string to which the <code>source</code> string is appended.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>source</code></td>
-    <td>The string to be appended to the destination string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringconcatwide">SbStringConcatWide</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Identical to SbStringCat, but for wide characters.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_destination</code>: The string to which the <code class="prettyprint">source</code> string is appended.
+<code class="prettyprint">source</code>: The string to be appended to the destination string.
+<code class="prettyprint">destination_size</code>: The amount of storage space available for the concatenated
+string.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringConcatWide-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringConcatWide-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringConcatWide-declaration">
-<pre>
-SB_EXPORT int SbStringConcatWide(wchar_t* out_destination,
-                                 const wchar_t* source,
-                                 int destination_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringConcatWide-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringConcatWide(wchar_t* /*out_destination*/,
-                       const wchar_t* /*source*/,
-                       int /*destination_size*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringConcatWide(wchar_t *out_destination, const wchar_t *source, int destination_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>wchar_t*</code><br>        <code>out_destination</code></td>
-    <td>The string to which the <code>source</code> string is appended.</td>
-  </tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>source</code></td>
-    <td>The string to be appended to the destination string.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>destination_size</code></td>
-    <td>The amount of storage space available for the
-concatenated string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcopy">SbStringCopy</h3>
 
-<p><strong>Description</strong></p>
+<p>Copies as much of a <code class="prettyprint">source</code> string as possible and null-terminates it, given
+that <code class="prettyprint">destination_size</code> characters of storage are available. This function is
+meant to be a drop-in replacement for <code class="prettyprint">strlcpy</code>.</p>
 
-<p>Copies as much of a <code class="prettyprint">source</code> string as possible and null-terminates it,
-given that <code class="prettyprint">destination_size</code> characters of storage are available. This
-function is meant to be a drop-in replacement for <code class="prettyprint">strlcpy</code>.<br>
-The return value specifies the length of <code class="prettyprint">source</code>.</p>
+<p>The return value specifies the length of <code class="prettyprint">source</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_destination</code>: The location to which the string is copied. <code class="prettyprint">source</code>: The
+string to be copied. <code class="prettyprint">destination_size</code>: The amount of the source string to
+copy.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCopy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCopy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCopy-declaration">
-<pre>
-SB_EXPORT int SbStringCopy(char* out_destination,
-                           const char* source,
-                           int destination_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringCopy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCopy(char* /*out_destination*/,
-                 const char* /*source*/,
-                 int /*destination_size*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCopy(char *out_destination, const char *source, int destination_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_destination</code></td>
-    <td>The location to which the string is copied.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>source</code></td>
-    <td>The string to be copied.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>destination_size</code></td>
-    <td>The amount of the source string to copy.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcopyunsafe">SbStringCopyUnsafe</h3>
 
-<p><strong>Description</strong></p>
+<p>An inline wrapper for an unsafe SbStringCopy that assumes that the destination
+provides enough storage space for the entire string. The return value is a
+pointer to the destination string. This function is meant to be a drop-in
+replacement for <code class="prettyprint">strcpy</code>.</p>
 
-<p>An inline wrapper for an unsafe <code><a href="#sbstringcopy">SbStringCopy</a></code> that assumes that the
-destination provides enough storage space for the entire string. The return
-value is a pointer to the destination string. This function is meant to be
-a drop-in replacement for <code class="prettyprint">strcpy</code>.</p>
+<p><code class="prettyprint">out_destination</code>: The location to which the string is copied. <code class="prettyprint">source</code>: The
+string to be copied.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE char* SbStringCopyUnsafe(char* out_destination,
-                                            const char* source) {
-  SbStringCopy(out_destination, source, INT_MAX);
-  return out_destination;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static char* SbStringCopyUnsafe(char *out_destination, const char *source)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_destination</code></td>
-    <td>The location to which the string is copied.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>source</code></td>
-    <td>The string to be copied.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringcopywide">SbStringCopyWide</h3>
 
-<p><strong>Description</strong></p>
+<p>Identical to SbStringCopy, but for wide characters.</p>
 
-<p>Identical to <code><a href="#sbstringcopy">SbStringCopy</a></code>, but for wide characters.</p>
+<p><code class="prettyprint">out_destination</code>: The location to which the string is copied. <code class="prettyprint">source</code>: The
+string to be copied. <code class="prettyprint">destination_size</code>: The amount of the source string to
+copy.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringCopyWide-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringCopyWide-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringCopyWide-declaration">
-<pre>
-SB_EXPORT int SbStringCopyWide(wchar_t* out_destination,
-                               const wchar_t* source,
-                               int destination_size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringCopyWide-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringCopyWide(wchar_t* /*out_destination*/,
-                     const wchar_t* /*source*/,
-                     int /*destination_size*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringCopyWide(wchar_t *out_destination, const wchar_t *source, int destination_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>wchar_t*</code><br>        <code>out_destination</code></td>
-    <td>The location to which the string is copied.</td>
-  </tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>source</code></td>
-    <td>The string to be copied.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>destination_size</code></td>
-    <td>The amount of the source string to copy.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringduplicate">SbStringDuplicate</h3>
 
-<p><strong>Description</strong></p>
-
-<p>Copies <code class="prettyprint">source</code> into a buffer that is allocated by this function and that
-can be freed with SbMemoryDeallocate. This function is meant to be a drop-in
+<p>Copies <code class="prettyprint">source</code> into a buffer that is allocated by this function and that can be
+freed with SbMemoryDeallocate. This function is meant to be a drop-in
 replacement for <code class="prettyprint">strdup</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">source</code>: The string to be copied.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringDuplicate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringDuplicate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringDuplicate-declaration">
-<pre>
-SB_EXPORT char* SbStringDuplicate(const char* source);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringDuplicate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-char* SbStringDuplicate(const char* /*source*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">char* SbStringDuplicate(const char *source)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>source</code></td>
-    <td>The string to be copied.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringfindcharacter">SbStringFindCharacter</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Finds the first occurrence of a <code class="prettyprint">character</code> in <code class="prettyprint">str</code>. The return value is a
-pointer to the found character in the given string or <code class="prettyprint">NULL</code> if the
-character is not found. Note that this function&#39;s signature does NOT match
-that of the <code class="prettyprint">strchr</code> function.</p>
+pointer to the found character in the given string or <code class="prettyprint">NULL</code> if the character is
+not found. Note that this function&#39;s signature does NOT match that of the
+<code class="prettyprint">strchr</code> function.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">str</code>: The string to search for the character. <code class="prettyprint">character</code>: The character to
+find in the string.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringFindCharacter-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringFindCharacter-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringFindCharacter-declaration">
-<pre>
-SB_EXPORT const char* SbStringFindCharacter(const char* str, char character);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringFindCharacter-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-const char* SbStringFindCharacter(const char* /*str*/, char /*character*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">const char* SbStringFindCharacter(const char *str, char character)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>str</code></td>
-    <td>The string to search for the character.</td>
-  </tr>
-  <tr>
-    <td><code>char</code><br>        <code>character</code></td>
-    <td>The character to find in the string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringfindlastcharacter">SbStringFindLastCharacter</h3>
 
-<p><strong>Description</strong></p>
+<p>Finds the last occurrence of a specified character in a string. The return value
+is a pointer to the found character in the given string or <code class="prettyprint">NULL</code> if the
+character is not found. Note that this function&#39;s signature does NOT match that
+of the <code class="prettyprint">strrchr</code> function.</p>
 
-<p>Finds the last occurrence of a specified character in a string.
-The return value is a pointer to the found character in the given string or
-<code class="prettyprint">NULL</code> if the character is not found. Note that this function&#39;s signature
-does NOT match that of the <code class="prettyprint">strrchr</code> function.</p>
+<p><code class="prettyprint">str</code>: The string to search for the character. <code class="prettyprint">character</code>: The character to
+find in the string.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringFindLastCharacter-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringFindLastCharacter-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringFindLastCharacter-declaration">
-<pre>
-SB_EXPORT const char* SbStringFindLastCharacter(const char* str,
-                                                char character);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringFindLastCharacter-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-const char* SbStringFindLastCharacter(const char* /*str*/, char /*character*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">const char* SbStringFindLastCharacter(const char *str, char character)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>str</code></td>
-    <td>The string to search for the character.</td>
-  </tr>
-  <tr>
-    <td><code>char</code><br>        <code>character</code></td>
-    <td>The character to find in the string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringfindstring">SbStringFindString</h3>
 
-<p><strong>Description</strong></p>
+<p>Finds the first occurrence of <code class="prettyprint">str2</code> in <code class="prettyprint">str1</code>. The return value is a pointer to
+the beginning of the found string or <code class="prettyprint">NULL</code> if the string is not found. This
+function is meant to be a drop-in replacement for <code class="prettyprint">strstr</code>.</p>
 
-<p>Finds the first occurrence of <code class="prettyprint">str2</code> in <code class="prettyprint">str1</code>. The return value is a
-pointer to the beginning of the found string or <code class="prettyprint">NULL</code> if the string is
-not found. This function is meant to be a drop-in replacement for <code class="prettyprint">strstr</code>.</p>
+<p><code class="prettyprint">str1</code>: The string in which to search for the presence of <code class="prettyprint">str2</code>. <code class="prettyprint">str2</code>: The
+string to locate in <code class="prettyprint">str1</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringFindString-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringFindString-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringFindString-declaration">
-<pre>
-SB_EXPORT const char* SbStringFindString(const char* str1, const char* str2);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringFindString-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-const char* SbStringFindString(const char* /*str1*/, const char* /*str2*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">const char* SbStringFindString(const char *str1, const char *str2)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>str1</code></td>
-    <td>The string in which to search for the presence of <code>str2</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>str2</code></td>
-    <td>The string to locate in <code>str1</code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringformat">SbStringFormat</h3>
 
-<p><strong>Description</strong></p>
+<p>Produces a string formatted with <code class="prettyprint">format</code> and <code class="prettyprint">arguments</code>, placing as much of
+the result that will fit into <code class="prettyprint">out_buffer</code>. The return value specifies the
+number of characters that the format would produce if <code class="prettyprint">buffer_size</code> were
+infinite.</p>
 
-<p>Produces a string formatted with <code class="prettyprint">format</code> and <code class="prettyprint">arguments</code>, placing as much
-of the result that will fit into <code class="prettyprint">out_buffer</code>. The return value specifies
-the number of characters that the format would produce if <code class="prettyprint">buffer_size</code> were
-infinite.<br>
-This function is meant to be a drop-in replacement for <code class="prettyprint">vsnprintf</code>.</p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">vsnprintf</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_buffer</code>: The location where the formatted string is stored. <code class="prettyprint">buffer_size</code>:
+The size of <code class="prettyprint">out_buffer</code>. <code class="prettyprint">format</code>: A string that specifies how the data should
+be formatted. <code class="prettyprint">arguments</code>: Variable arguments used in the string.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringFormat-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringFormat-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringFormat-declaration">
-<pre>
-SB_EXPORT int SbStringFormat(char* out_buffer,
-                             size_t buffer_size,
-                             const char* format,
-                             va_list arguments) SB_PRINTF_FORMAT(3, 0);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringFormat-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringFormat(char* /*out_buffer*/,
-                   size_t /*buffer_size*/,
-                   const char* /*format*/,
-                   va_list /*arguments*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringFormat(char *out_buffer, size_t buffer_size, const char *format, va_list arguments) SB_PRINTF_FORMAT(3
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_buffer</code></td>
-    <td>The location where the formatted string is stored.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>buffer_size</code></td>
-    <td>The size of <code>out_buffer</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>format</code></td>
-    <td>A string that specifies how the data should be formatted.</td>
-  </tr>
-  <tr>
-    <td><code>va_list</code><br>        <code>arguments</code></td>
-    <td>Variable arguments used in the string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringformatf">SbStringFormatF</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE int SbStringFormatF(char* out_buffer,
-                                       size_t buffer_size,
-                                       const char* format,
-                                       ...) {
-  va_list arguments;
-  va_start(arguments, format);
-  int result = SbStringFormat(out_buffer, buffer_size, format, arguments);
-  va_end(arguments);
-  return result;
-}
+<p>An inline wrapper of SbStringFormat that converts from ellipsis to va_args. This
+function is meant to be a drop-in replacement for <code class="prettyprint">snprintf</code>.</p>
+
+<p><code class="prettyprint">out_buffer</code>: The location where the formatted string is stored. <code class="prettyprint">buffer_size</code>:
+The size of <code class="prettyprint">out_buffer</code>. <code class="prettyprint">format</code>: A string that specifies how the data should
+be formatted. <code class="prettyprint">...</code>: Arguments used in the string.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int static int static int SbStringFormatF(char *out_buffer, size_t buffer_size, const char *format,...) SB_PRINTF_FORMAT(3
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>
-        <code>out_buffer</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>
-        <code>buffer_size</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code></code><br>
-        <code>...</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbstringformatunsafef">SbStringFormatUnsafeF</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
-                                             const char* format,
-                                             ...) {
-  va_list arguments;
-  va_start(arguments, format);
-  int result = SbStringFormat(out_buffer, UINT_MAX, format, arguments);
-  va_end(arguments);
-  return result;
-}
+<p>An inline wrapper of SbStringFormat that is meant to be a drop-in replacement
+for the unsafe but commonly used <code class="prettyprint">sprintf</code>.</p>
+
+<p><code class="prettyprint">out_buffer</code>: The location where the formatted string is stored. <code class="prettyprint">format</code>: A
+string that specifies how the data should be formatted. <code class="prettyprint">...</code>: Arguments used in
+the string.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static int static int SbStringFormatUnsafeF(char *out_buffer, const char *format,...) SB_PRINTF_FORMAT(2
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>char*</code><br>
-        <code>out_buffer</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code></code><br>
-        <code>...</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbstringformatwide">SbStringFormatWide</h3>
 
-<p><strong>Description</strong></p>
+<p>This function is identical to SbStringFormat, but is for wide characters. It is
+meant to be a drop-in replacement for <code class="prettyprint">vswprintf</code>.</p>
 
-<p>This function is identical to <code><a href="#sbstringformat">SbStringFormat</a></code>, but is for wide characters.
-It is meant to be a drop-in replacement for <code class="prettyprint">vswprintf</code>.</p>
+<p><code class="prettyprint">out_buffer</code>: The location where the formatted string is stored. <code class="prettyprint">buffer_size</code>:
+The size of <code class="prettyprint">out_buffer</code>. <code class="prettyprint">format</code>: A string that specifies how the data should
+be formatted. <code class="prettyprint">arguments</code>: Variable arguments used in the string.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringFormatWide-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringFormatWide-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringFormatWide-declaration">
-<pre>
-SB_EXPORT int SbStringFormatWide(wchar_t* out_buffer,
-                                 size_t buffer_size,
-                                 const wchar_t* format,
-                                 va_list arguments);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringFormatWide-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringFormatWide(wchar_t* /*out_buffer*/,
-                       size_t /*buffer_size*/,
-                       const wchar_t* /*format*/,
-                       va_list /*arguments*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringFormatWide(wchar_t *out_buffer, size_t buffer_size, const wchar_t *format, va_list arguments)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>wchar_t*</code><br>        <code>out_buffer</code></td>
-    <td>The location where the formatted string is stored.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>buffer_size</code></td>
-    <td>The size of <code>out_buffer</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>format</code></td>
-    <td>A string that specifies how the data should be formatted.</td>
-  </tr>
-  <tr>
-    <td><code>va_list</code><br>        <code>arguments</code></td>
-    <td>Variable arguments used in the string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringformatwidef">SbStringFormatWideF</h3>
 
-<p><strong>Description</strong></p>
-
-<p>An inline wrapper of <code><a href="#sbstringformat">SbStringFormat</a></code>Wide that converts from ellipsis to
+<p>An inline wrapper of SbStringFormatWide that converts from ellipsis to
 <code class="prettyprint">va_args</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
-                                           size_t buffer_size,
-                                           const wchar_t* format,
-                                           ...) {
-  va_list arguments;
-  va_start(arguments, format);
-  int result = SbStringFormatWide(out_buffer, buffer_size, format, arguments);
-  va_end(arguments);
-  return result;
-}
+<p><code class="prettyprint">out_buffer</code>: The location where the formatted string is stored. <code class="prettyprint">buffer_size</code>:
+The size of <code class="prettyprint">out_buffer</code>. <code class="prettyprint">format</code>: A string that specifies how the data should
+be formatted. <code class="prettyprint">...</code>: Arguments used in the string.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static int SbStringFormatWideF(wchar_t *out_buffer, size_t buffer_size, const wchar_t *format,...)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>wchar_t*</code><br>        <code>out_buffer</code></td>
-    <td>The location where the formatted string is stored.</td>
-  </tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>buffer_size</code></td>
-    <td>The size of <code>out_buffer</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>format</code></td>
-    <td>A string that specifies how the data should be formatted.</td>
-  </tr>
-  <tr>
-    <td><code></code><br>        <code>...</code></td>
-    <td>Arguments used in the string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringgetlength">SbStringGetLength</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns the length, in characters, of <code class="prettyprint">str</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">str</code>: A zero-terminated ASCII string.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringGetLength-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringGetLength-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringGetLength-declaration">
-<pre>
-SB_EXPORT size_t SbStringGetLength(const char* str);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringGetLength-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-size_t SbStringGetLength(const char* /*str*/) {
-  return static_cast&lt;size_t&gt;(0);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">size_t SbStringGetLength(const char *str)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>str</code></td>
-    <td>A zero-terminated ASCII string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringgetlengthwide">SbStringGetLengthWide</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the length of a wide character string. (This function is the same as
+SbStringGetLength, but for a string comprised of wide characters.) This function
+assumes that there are no multi-element characters.</p>
 
-<p>Returns the length of a wide character string. (This function is the same
-as <code><a href="#sbstringgetlength">SbStringGetLength</a></code>, but for a string comprised of wide characters.) This
-function assumes that there are no multi-element characters.</p>
+<p><code class="prettyprint">str</code>: A zero-terminated ASCII string.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringGetLengthWide-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringGetLengthWide-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringGetLengthWide-declaration">
-<pre>
-SB_EXPORT size_t SbStringGetLengthWide(const wchar_t* str);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringGetLengthWide-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-size_t SbStringGetLengthWide(const wchar_t* /*str*/) {
-  return static_cast&lt;size_t&gt;(0);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">size_t SbStringGetLengthWide(const wchar_t *str)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const wchar_t*</code><br>        <code>str</code></td>
-    <td>A zero-terminated ASCII string.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringparsedouble">SbStringParseDouble</h3>
 
-<p><strong>Description</strong></p>
+<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code> into
+a double.</p>
 
-<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code>
-into a double.<br>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strtod</code>, except
-that it is explicitly declared to return a double.</p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strtod</code>, except that it
+is explicitly declared to return a double.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">start</code>: The string that begins with the number to be converted. <code class="prettyprint">out_end</code>: If
+provided, the function places a pointer to the end of the consumed portion of
+the string into <code class="prettyprint">out_end</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringParseDouble-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringParseDouble-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringParseDouble-declaration">
-<pre>
-SB_EXPORT double SbStringParseDouble(const char* start, char** out_end);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringParseDouble-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-double SbStringParseDouble(const char* start, char** out_end) {
-  if (out_end != NULL)
-    *out_end = NULL;
-  return 0.0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">double SbStringParseDouble(const char *start, char **out_end)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>start</code></td>
-    <td>The string that begins with the number to be converted.</td>
-  </tr>
-  <tr>
-    <td><code>char**</code><br>        <code>out_end</code></td>
-    <td>If provided, the function places a pointer to the end of the
-consumed portion of the string into <code>out_end</code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringparsesignedinteger">SbStringParseSignedInteger</h3>
 
-<p><strong>Description</strong></p>
+<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code> into
+a signed integer in the given <code class="prettyprint">base</code>. This function is meant to be a drop-in
+replacement for <code class="prettyprint">strtol</code>.</p>
 
-<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code>
-into a signed integer in the given <code class="prettyprint">base</code>. This function is meant to be a
-drop-in replacement for <code class="prettyprint">strtol</code>.</p>
+<p><code class="prettyprint">start</code>: The string that begins with the number to be converted. <code class="prettyprint">out_end</code>: If
+provided, the function places a pointer to the end of the consumed portion of
+the string into <code class="prettyprint">out_end</code>. <code class="prettyprint">base</code>: The base into which the number will be
+converted. The value must be between <code class="prettyprint">2</code> and <code class="prettyprint">36</code>, inclusive.
+NOLINTNEXTLINE(runtime/int)</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringParseSignedInteger-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringParseSignedInteger-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringParseSignedInteger-declaration">
-<pre>
-SB_EXPORT long SbStringParseSignedInteger(const char* start,
-                                          char** out_end,
-                                          int base);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringParseSignedInteger-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-// NOLINTNEXTLINE(runtime/int)
-long SbStringParseSignedInteger(const char* /*start*/,
-                                char** /*out_end*/,
-                                int /*base*/) {
-  return 0L;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">long SbStringParseSignedInteger(const char *start, char **out_end, int base)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>start</code></td>
-    <td>The string that begins with the number to be converted.</td>
-  </tr>
-  <tr>
-    <td><code>char**</code><br>        <code>out_end</code></td>
-    <td>If provided, the function places a pointer to the end of the
-consumed portion of the string into <code>out_end</code>.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>base</code></td>
-    <td>The base into which the number will be converted. The value must
-be between <code>2</code> and <code>36</code>, inclusive.
-NOLINTNEXTLINE(runtime/int)</td>
-  </tr>
-</table>
-
 <h3 id="sbstringparseuint64">SbStringParseUInt64</h3>
 
-<p><strong>Description</strong></p>
+<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code> into
+an unsigned 64-bit integer in the given <code class="prettyprint">base</code>.</p>
 
-<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code>
-into an unsigned 64-bit integer in the given <code class="prettyprint">base</code>.<br>
-This function is meant to be a drop-in replacement for <code class="prettyprint">strtoull</code>, except
-that it is explicitly declared to return <code class="prettyprint">uint64_t</code>.</p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">strtoull</code>, except that
+it is explicitly declared to return <code class="prettyprint">uint64_t</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT uint64_t SbStringParseUInt64(const char* start,
-                                       char** out_end,
-                                       int base);
+<p><code class="prettyprint">start</code>: The string that begins with the number to be converted. <code class="prettyprint">out_end</code>: If
+provided, the function places a pointer to the end of the consumed portion of
+the string into <code class="prettyprint">out_end</code>. <code class="prettyprint">base</code>: The base into which the number will be
+converted. The value must be between <code class="prettyprint">2</code> and <code class="prettyprint">36</code>, inclusive.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">uint64_t SbStringParseUInt64(const char *start, char **out_end, int base)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>start</code></td>
-    <td>The string that begins with the number to be converted.</td>
-  </tr>
-  <tr>
-    <td><code>char**</code><br>        <code>out_end</code></td>
-    <td>If provided, the function places a pointer to the end of the
-consumed portion of the string into <code>out_end</code>.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>base</code></td>
-    <td>The base into which the number will be converted. The value must
-be between <code>2</code> and <code>36</code>, inclusive.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringparseunsignedinteger">SbStringParseUnsignedInteger</h3>
 
-<p><strong>Description</strong></p>
+<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code> into
+an unsigned integer in the given <code class="prettyprint">base</code>. This function is meant to be a drop-in
+replacement for <code class="prettyprint">strtoul</code>.</p>
 
-<p>Extracts a string that represents an integer from the beginning of <code class="prettyprint">start</code>
-into an unsigned integer in the given <code class="prettyprint">base</code>.
-This function is meant to be a drop-in replacement for <code class="prettyprint">strtoul</code>.</p>
+<p><code class="prettyprint">start</code>: The string that begins with the number to be converted. <code class="prettyprint">out_end</code>: If
+provided, the function places a pointer to the end of the consumed portion of
+the string into <code class="prettyprint">out_end</code>. <code class="prettyprint">base</code>: The base into which the number will be
+converted. The value must be between <code class="prettyprint">2</code> and <code class="prettyprint">36</code>, inclusive.
+NOLINTNEXTLINE(runtime/int)</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringParseUnsignedInteger-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringParseUnsignedInteger-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringParseUnsignedInteger-declaration">
-<pre>
-SB_EXPORT unsigned long SbStringParseUnsignedInteger(const char* start,
-                                                     char** out_end,
-                                                     int base);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringParseUnsignedInteger-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-// NOLINTNEXTLINE(runtime/int)
-unsigned long SbStringParseUnsignedInteger(const char* /*start*/,
-                                           char** /*out_end*/,
-                                           int /*base*/) {
-  return 0UL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">unsigned long SbStringParseUnsignedInteger(const char *start, char **out_end, int base)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>start</code></td>
-    <td>The string that begins with the number to be converted.</td>
-  </tr>
-  <tr>
-    <td><code>char**</code><br>        <code>out_end</code></td>
-    <td>If provided, the function places a pointer to the end of the
-consumed portion of the string into <code>out_end</code>.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>base</code></td>
-    <td>The base into which the number will be converted. The value must
-be between <code>2</code> and <code>36</code>, inclusive.
-NOLINTNEXTLINE(runtime/int)</td>
-  </tr>
-</table>
-
 <h3 id="sbstringscan">SbStringScan</h3>
 
-<p><strong>Description</strong></p>
+<p>Scans <code class="prettyprint">buffer</code> for <code class="prettyprint">pattern</code>, placing the extracted values in <code class="prettyprint">arguments</code>. The
+return value specifies the number of successfully matched items, which may be
+<code class="prettyprint">0</code>.</p>
 
-<p>Scans <code class="prettyprint">buffer</code> for <code class="prettyprint">pattern</code>, placing the extracted values in <code class="prettyprint">arguments</code>.
-The return value specifies the number of successfully matched items, which
-may be <code class="prettyprint">0</code>.<br>
-This function is meant to be a drop-in replacement for <code class="prettyprint">vsscanf</code>.</p>
+<p>This function is meant to be a drop-in replacement for <code class="prettyprint">vsscanf</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">buffer</code>: The string to scan for the pattern. <code class="prettyprint">pattern</code>: The string to search
+for in <code class="prettyprint">buffer</code>. <code class="prettyprint">arguments</code>: Values matching <code class="prettyprint">pattern</code> that were extracted from
+<code class="prettyprint">buffer</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbStringScan-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbStringScan-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbStringScan-declaration">
-<pre>
-SB_EXPORT int SbStringScan(const char* buffer,
-                           const char* pattern,
-                           va_list arguments);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbStringScan-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/string.h&quot;
-
-int SbStringScan(const char* /*buffer*/,
-                 const char* /*pattern*/,
-                 va_list /*arguments*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbStringScan(const char *buffer, const char *pattern, va_list arguments)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>buffer</code></td>
-    <td>The string to scan for the pattern.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>pattern</code></td>
-    <td>The string to search for in <code>buffer</code>.</td>
-  </tr>
-  <tr>
-    <td><code>va_list</code><br>        <code>arguments</code></td>
-    <td>Values matching <code>pattern</code> that were extracted from <code>buffer</code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbstringscanf">SbStringScanF</h3>
 
-<p><strong>Description</strong></p>
+<p>An inline wrapper of SbStringScan that converts from ellipsis to <code class="prettyprint">va_args</code>. This
+function is meant to be a drop-in replacement for <code class="prettyprint">sscanf</code>. <code class="prettyprint">buffer</code>: The string
+to scan for the pattern. <code class="prettyprint">pattern</code>: The string to search for in <code class="prettyprint">buffer</code>. <code class="prettyprint">...</code>:
+Values matching <code class="prettyprint">pattern</code> that were extracted from <code class="prettyprint">buffer</code>.</p>
 
-<p>An inline wrapper of <code><a href="#sbstringscan">SbStringScan</a></code> that converts from ellipsis to <code class="prettyprint">va_args</code>.
-This function is meant to be a drop-in replacement for <code class="prettyprint">sscanf</code>.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE int SbStringScanF(const char* buffer,
-                                     const char* pattern,
-                                     ...) {
-  va_list arguments;
-  va_start(arguments, pattern);
-  int result = SbStringScan(buffer, pattern, arguments);
-  va_end(arguments);
-  return result;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static int SbStringScanF(const char *buffer, const char *pattern,...)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>buffer</code></td>
-    <td>The string to scan for the pattern.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>pattern</code></td>
-    <td>The string to search for in <code>buffer</code>.</td>
-  </tr>
-  <tr>
-    <td><code></code><br>        <code>...</code></td>
-    <td>Values matching <code>pattern</code> that were extracted from <code>buffer</code>.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -2125,11 +1231,10 @@ This function is meant to be a drop-in replacement for <code class="prettyprint"
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -2151,29 +1256,35 @@ This function is meant to be a drop-in replacement for <code class="prettyprint"
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/string.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

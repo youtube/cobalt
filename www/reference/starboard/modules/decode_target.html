@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: decode_target.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: decode_target.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,459 +762,375 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>A target for decoding image and video data into. This corresponds roughly to
-an EGLImage, but that extension may not be fully supported on all GL
-platforms. SbDecodeTarget supports multi-plane targets. We need a mechanism
-for SbBlitter as well, and this is able to more-or-less unify the two.<br>
-An SbDecodeTarget can be passed into any function which decodes video or
-image data. This allows the application to allocate fast graphics memory, and
-have decoding done directly into this memory, avoiding unnecessary memory
-copies, and also avoiding pushing data between CPU and GPU memory
-unnecessarily.<br></p>
+        <p>A target for decoding image and video data into. This corresponds roughly to an
+EGLImage, but that extension may not be fully supported on all GL platforms.
+SbDecodeTarget supports multi-plane targets. The SbBlitter API is supported as
+well, and this is able to more-or-less unify the two.</p>
 
-<h4 id="sbdecodetargetformat">SbDecodeTargetFormat</h4>
+<p>An SbDecodeTarget can be passed into any function which decodes video or image
+data. This allows the application to allocate fast graphics memory, and have
+decoding done directly into this memory, avoiding unnecessary memory copies, and
+also avoiding pushing data between CPU and GPU memory unnecessarily.</p>
+
+<h2 id="sbdecodetargetformat">SbDecodeTargetFormat</h2>
 
 <p>SbDecodeTargets support several different formats that can be used to decode
-into and render from. Some formats may be easier to decode into, and others
-may be easier to render. Some may take less memory. Each decoder needs to
-support the SbDecodeTargetFormat passed into it, or the decode will produce
-an error. Each decoder provides a way to check if a given
-SbDecodeTargetFormat is supported by that decoder.<br></p>
+into and render from. Some formats may be easier to decode into, and others may
+be easier to render. Some may take less memory. Each decoder needs to support
+the SbDecodeTargetFormat passed into it, or the decode will produce an error.
+Each decoder provides a way to check if a given SbDecodeTargetFormat is
+supported by that decoder.</p>
 
-<h4 id="sbdecodetargetprovider">SbDecodeTargetProvider</h4>
+<h2 id="sbdecodetargetgraphicscontextprovider">SbDecodeTargetGraphicsContextProvider</h2>
 
 <p>Some components may need to acquire SbDecodeTargets compatible with a certain
 rendering context, which may need to be created on a particular thread. The
-SbDecodeTargetProvider is a way for the primary rendering context to provide
-an interface that can create SbDecodeTargets on demand by other system.<br>
-The primary usage is likely to be the the SbPlayer implementation on some
-platforms.<br></p>
+SbDecodeTargetGraphicsContextProvider are passed in to the Starboard
+implementation from the application and provide information about the rendering
+context that will be used to render the SbDecodeTarget objects. For GLES
+renderers, it also provides functionality to enable the Starboard implementation
+to run arbitrary code on the application&#39;s renderer thread with the renderer&#39;s
+EGLContext held current. This may be useful if your SbDecodeTarget creation code
+needs to execute GLES commands like, for example, glGenTextures().</p>
 
-<h4 id="sbdecodetarget-example">SbDecodeTarget Example</h4>
+<p>The primary usage is likely to be the the SbPlayer implementation on some
+platforms.</p>
 
-<p>Let&#39;s say there&#39;s an image decoder for .foo files:<br>
-bool SbImageDecodeFooSupportsFormat(SbDecodeTargetFormat format);
-SbDecodeTarget SbImageDecodeFoo(void* data, int data_size,
-SbDecodeTargetFormat format);<br>
-First, the client should enumerate which SbDecodeTargetFormats are supported
-by that decoder.<br>
-SbDecodeTargetFormat kPreferredFormats[] = {
-kSbDecodeTargetFormat3PlaneYUVI420,
-kSbDecodeTargetFormat1PlaneRGBA,
-kSbDecodeTargetFormat1PlaneBGRA,
-};<br>
+<h2 id="sbdecodetarget-example">SbDecodeTarget Example</h2>
+
+<p>Let&#39;s say that we are an application and we would like to use the interface
+defined in starboard/image.h to decode an imaginary &quot;image/foo&quot; image type.</p>
+
+<p>First, the application should enumerate which SbDecodeTargetFormats are
+supported by that decoder.</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbDecodeTargetFormat kPreferredFormats[] = {
+    kSbDecodeTargetFormat3PlaneYUVI420,
+    kSbDecodeTargetFormat1PlaneRGBA,
+    kSbDecodeTargetFormat1PlaneBGRA,
+};
+
 SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
 for (int i = 0; i &lt; SB_ARRAY_SIZE_INT(kPreferredFormats); ++i) {
-if (SbImageDecodeFooSupportsFormat(kPreferredFormats[i])) {
-format = kPreferredFormats[i];
-break;
+  if (SbImageIsDecodeSupported(&quot;image/foo&quot;, kPreferredFormats[i])) {
+    format = kPreferredFormats[i];
+    break;
+  }
 }
-}<br>
-Now that the client has a format, it can create a decode target that it
+</code></pre></div>
+<p>Now that the application has a format, it can create a decode target that it
 will use to decode the .foo file into. Let&#39;s assume format is
-kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform.
-Also, we won&#39;t do any error checking, to keep things even simpler.<br>
-SbDecodeTarget target = SbImageDecodeFoo(encoded_foo_data,
-encoded_foo_data_size, format);<br>
+kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform. Also, we
+won&#39;t do any error checking, to keep things even simpler.</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbDecodeTarget target = SbImageDecode(
+    context_provider, encoded_foo_data, encoded_foo_data_size,
+    &quot;image/foo&quot;, format);
+
 // If the decode works, you can get the texture out and render it.
+SbDecodeTargetInfo info;
+SbMemorySet(&amp;info, 0, sizeof(info));
+SbDecodeTargetGetInfo(target, &amp;info);
 GLuint texture =
-SbDecodeTargetGetPlane(target, kSbDecodeTargetPlaneRGBA);<br></p>
+    info.planes[kSbDecodeTargetPlaneRGBA].texture;
+</code></pre></div>
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbdecodetargetinvalid">kSbDecodeTargetInvalid</h3>
+
+<p>Well-defined value for an invalid decode target handle.</p>
 
 <h2 id="enums">Enums</h2>
 
 <h3 id="sbdecodetargetformat">SbDecodeTargetFormat</h3>
 
-<p>The list of all possible decoder target formats. An SbDecodeTarget consists
-of one or more planes of data, each plane corresponding with a surface. For
-some formats, different planes will be different sizes for the same
-dimensions.<br>
-NOTE: For enumeration entries with an alpha component, the alpha will always
-be premultiplied unless otherwise explicitly specified.</p>
+<p>The list of all possible decoder target formats. An SbDecodeTarget consists of
+one or more planes of data, each plane corresponding with a surface. For some
+formats, different planes will be different sizes for the same dimensions.</p>
 
-<p><strong>Values</strong></p>
+<p>NOTE: For enumeration entries with an alpha component, the alpha will always be
+premultiplied unless otherwise explicitly specified.</p>
+
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbDecodeTargetFormat1PlaneRGBA</code> - A decoder target format consisting of a single RGBA plane, in that channelorder.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetFormat1PlaneBGRA</code> - A decoder target format consisting of a single BGRA plane, in that channelorder.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetFormat2PlaneYUVNV12</code> - A decoder target format consisting of Y and interleaved UV planes, in thatplane and channel order.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetFormat3PlaneYUVI420</code> - A decoder target format consisting of Y, U, and V planes, in that order.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetFormatInvalid</code> - An invalid decode target format.</li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormat1PlaneRGBA</code></p>
+
+<p>A decoder target format consisting of a single RGBA plane, in that channel
+order.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormat1PlaneBGRA</code></p>
+
+<p>A decoder target format consisting of a single BGRA plane, in that channel
+order.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormat2PlaneYUVNV12</code></p>
+
+<p>A decoder target format consisting of Y and interleaved UV planes, in that
+plane and channel order.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormat3PlaneYUVI420</code></p>
+
+<p>A decoder target format consisting of Y, U, and V planes, in that order.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormat3Plane10BitYUVI420</code></p>
+
+<p>A decoder target format consisting of 10bit Y, U, and V planes, in that
+order.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormat1PlaneUYVY</code></p>
+
+<p>A decoder target format consisting of a single plane with pixels layed out
+in the format UYVY. Since there are two Y values per sample, but only one U
+value and only one V value, horizontally the Y resolution is twice the size
+of both the U and V resolutions. Vertically, they Y, U and V all have the
+same resolution. This is a YUV 422 format. When using this format with GL
+platforms, it is expected that the underlying texture will be set to the
+GL_RGBA format, and the width of the texture will be equal to the number of
+UYVY tuples per row (e.g. the u/v width resolution). Content region
+left/right should be specified in u/v width resolution.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetFormatInvalid</code></p>
+
+<p>An invalid decode target format.</p></li>
 </ul>
 
 <h3 id="sbdecodetargetplane">SbDecodeTargetPlane</h3>
 
 <p>All the planes supported by SbDecodeTarget.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbDecodeTargetPlaneRGBA</code> - The RGBA plane for the RGBA format.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetPlaneBGRA</code> - The BGRA plane for the BGRA format.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetPlaneY</code> - The Y plane for multi-plane YUV formats.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetPlaneUV</code> - The UV plane for 2-plane YUV formats.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetPlaneU</code> - The U plane for 3-plane YUV formats.</li>
-<li>  <code class="prettyprint">kSbDecodeTargetPlaneV</code> - The V plane for 3-plane YUV formats.</li>
+<li><p><code class="prettyprint">kSbDecodeTargetPlaneRGBA</code></p>
+
+<p>The RGBA plane for the RGBA format.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetPlaneBGRA</code></p>
+
+<p>The BGRA plane for the BGRA format.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetPlaneY</code></p>
+
+<p>The Y plane for multi-plane YUV formats.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetPlaneUV</code></p>
+
+<p>The UV plane for 2-plane YUV formats.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetPlaneU</code></p>
+
+<p>The U plane for 3-plane YUV formats.</p></li>
+<li><p><code class="prettyprint">kSbDecodeTargetPlaneV</code></p>
+
+<p>The V plane for 3-plane YUV formats.</p></li>
 </ul>
 
-<h2 id="structs">Structs</h2>
-
-<h3 id="sbdecodetargetprivate">SbDecodeTargetPrivate</h3>
-
-<p>Private structure representing a target for image data decoding.</p>
-
-<h3 id="sbdecodetargetprovider">SbDecodeTargetProvider</h3>
-
-<p>An object that can acquire and release SbDecodeTarget instances.</p>
-
-<p><strong>Members</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>SbDecodeTargetAcquireFunction</code><br>        <code>acquire</code></td>    <td>The function to acquire a new SbDecodeTarget from the provider.</td>  </tr>
-  <tr>
-    <td><code>SbDecodeTargetReleaseFunction</code><br>        <code>release</code></td>    <td>The function to release an acquired SbDecodeTarget back to the provider.</td>  </tr>
-</table>
-
-<h2 id="functions">Functions</h2>
+<h2 id="typedefs">Typedefs</h2>
 
 <h3 id="sbdecodetarget">SbDecodeTarget</h3>
 
-<p><strong>Description</strong></p>
+<p>A handle to a target for image data decoding.</p>
 
-<p>Inline convenience function to acquire an <code>SbDecodeTarget</code> of type <code class="prettyprint">format</code>,
-<code class="prettyprint">width</code>, and <code class="prettyprint">height</code> from <code class="prettyprint">provider</code>.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE SbDecodeTarget
-SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider* provider,
-                                  SbDecodeTargetFormat format,
-                                  int width,
-                                  int height) {
-  return provider-&gt;acquire(provider-&gt;context, format, width, height);
-}
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbDecodeTargetPrivate* SbDecodeTarget
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbdecodetargetglescontextrunner">SbDecodeTargetGlesContextRunner</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider*</code><br>
-        <code>provider</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbDecodeTargetFormat</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>width</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>height</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Signature for a function provided by the application to the Starboard
+implementation that will let the Starboard implementation run arbitrary code on
+the application&#39;s renderer thread with the application&#39;s EGLContext held
+current.</p>
 
-<h3 id="sbdecodetargetcreate">SbDecodeTargetCreate</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Creates a new EGL/GLES2-compatible <code><a href="#sbdecodetarget">SbDecodeTarget</a></code> from one or more <code class="prettyprint">planes</code>
-owned by <code class="prettyprint">context</code>, created from <code class="prettyprint">display</code>. Must be called from a thread
-where <code class="prettyprint">context</code> is current.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(EGLDisplay display,
-                                              EGLContext context,
-                                              SbDecodeTargetFormat format,
-                                              GLuint* planes);
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbDecodeTargetGlesContextRunner) (struct SbDecodeTargetGraphicsContextProvider *graphics_context_provider, SbDecodeTargetGlesContextRunnerTarget target_function, void *target_function_context)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbdecodetargetglescontextrunnertarget">SbDecodeTargetGlesContextRunnerTarget</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>EGLDisplay</code><br>        <code>display</code></td>
-    <td>The EGLDisplay being targeted.</td>
-  </tr>
-  <tr>
-    <td><code>EGLContext</code><br>        <code>context</code></td>
-    <td>The EGLContext used for this operation, or EGL_NO_CONTEXT if a
-context is not required.</td>
-  </tr>
-  <tr>
-    <td><code>SbDecodeTargetFormat</code><br>        <code>format</code></td>
-    <td>The format of the decode target being created.</td>
-  </tr>
-  <tr>
-    <td><code>GLuint*</code><br>        <code>planes</code></td>
-    <td>An array of GLES Texture handles to be bundled into an
-SbDecodeTarget. Must not be NULL. Is expected to have the same number of
-entries as the number of planes for <code>format</code>, in the order and size expected
-by that format.</td>
-  </tr>
-</table>
+<p>Signature for a Starboard implementaion function that is to be run by a
+SbDecodeTargetGlesContextRunner callback.</p>
 
-<h3 id="sbdecodetargetdestroy">SbDecodeTargetDestroy</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Destroys the given <code><a href="#sbdecodetarget">SbDecodeTarget</a></code>. Note that calling this function does NOT
-destroy the associated surfaces with it, in order to accommodate the case
-in which it is desirable for the lifetime of the surface to outlive the
-SbDecodeTarget that contains it. If the surfaces should be destroyed along
-with the <code><a href="#sbdecodetarget">SbDecodeTarget</a></code>, then they should be extracted with
-<code class="prettyprint">SbDecodeTargetGetPlane</code> and destroyed manually by the client.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDecodeTargetDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDecodeTargetDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDecodeTargetDestroy-declaration">
-<pre>
-SB_EXPORT void SbDecodeTargetDestroy(SbDecodeTarget decode_target);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDecodeTargetDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/decode_target.h&quot;
-
-void SbDecodeTargetDestroy(SbDecodeTarget /*decode_target*/) {}
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbDecodeTargetGlesContextRunnerTarget) (void *gles_context_runner_target_context)
 </code></pre></div>
-<p></div>
-</div></p>
+<h2 id="structs">Structs</h2>
 
-<p><strong>Parameters</strong></p>
+<h3 id="sbdecodetargetgraphicscontextprovider">SbDecodeTargetGraphicsContextProvider</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTarget</code><br>
-        <code>decode_target</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>In general, the SbDecodeTargetGraphicsContextProvider structure provides
+information about the graphics context that will be used to render
+SbDecodeTargets. Some Starboard implementations may need to have references to
+some graphics objects when creating/destroying resources used by SbDecodeTarget.
+References to SbDecodeTargetGraphicsContextProvider objects should be provided
+to all Starboard functions that might create SbDecodeTargets (e.g.
+SbImageDecode()).</p>
 
-<h3 id="sbdecodetargetgetformat">SbDecodeTargetGetFormat</h3>
+<h4 id="members">Members</h4>
 
-<p><strong>Description</strong></p>
+<ul>
+<li><p><code class="prettyprint">SbBlitterDevice device</code></p>
 
-<p>Gets the format that <code class="prettyprint">decode_target</code> was created with.</p>
+<p>The SbBlitterDevice object that will be used to render any produced
+SbDecodeTargets.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<h3 id="sbdecodetargetinfo">SbDecodeTargetInfo</h3>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDecodeTargetGetFormat-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDecodeTargetGetFormat-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDecodeTargetGetFormat-declaration">
-<pre>
-SB_EXPORT SbDecodeTargetFormat
-SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
-</pre>
-</div>
+<p>Contains all information about a decode target, including all of its planes.
+This can be queried via calls to SbDecodeTargetGetInfo().</p>
 
-<p><div class="mdl-tabs__panel" id="SbDecodeTargetGetFormat-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/decode_target.h&quot;
+<h4 id="members">Members</h4>
 
-SbDecodeTargetFormat SbDecodeTargetGetFormat(SbDecodeTarget /*decode_target*/) {
-  return kSbDecodeTargetFormatInvalid;
-}
+<ul>
+<li><p><code class="prettyprint">SbDecodeTargetFormat format</code></p>
+
+<p>The decode target format, which would dictate how many planes can be
+expected in <code class="prettyprint">planes</code>.</p></li>
+<li><p><code class="prettyprint">bool is_opaque</code></p>
+
+<p>Specifies whether the decode target is opaque. The underlying source of this
+value is expected to be properly maintained by the Starboard implementation.
+So, for example, if an opaque only image type were decoded into an
+SbDecodeTarget, then the implementation would configure things in such a way
+that this value is set to true. By opaque, it is meant that all alpha values
+are guaranteed to be 255, if the decode target is of a format that has alpha
+values. If the decode target is of a format that does not have alpha values,
+then this value should be set to true. Applications may rely on this value
+in order to implement certain optimizations such as occlusion culling.</p></li>
+<li><p><code class="prettyprint">int width</code></p>
+
+<p>The width of the image represented by this decode target.</p></li>
+<li><p><code class="prettyprint">int height</code></p>
+
+<p>The height of the image represented by this decode target.</p></li>
+<li><p><code class="prettyprint">SbDecodeTargetInfoPlane planes</code></p>
+
+<p>The image planes (e.g. kSbDecodeTargetPlaneRGBA, or {kSbDecodeTargetPlaneY,
+kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV} associated with this decode
+target.</p></li>
+</ul>
+
+<h3 id="sbdecodetargetinfocontentregion">SbDecodeTargetInfoContentRegion</h3>
+
+<p>Defines a rectangular content region within a SbDecodeTargetInfoPlane structure.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li>  <code class="prettyprint">int left</code></li>
+<li>  <code class="prettyprint">int top</code></li>
+<li>  <code class="prettyprint">int right</code></li>
+<li>  <code class="prettyprint">int bottom</code></li>
+</ul>
+
+<h3 id="sbdecodetargetinfoplane">SbDecodeTargetInfoPlane</h3>
+
+<p>Defines an image plane within a SbDecodeTargetInfo object.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li><p><code class="prettyprint">SbBlitterSurface surface</code></p>
+
+<p>A handle to the Blitter surface that can be used for rendering.</p></li>
+<li><p><code class="prettyprint">int width</code></p>
+
+<p>The width of the texture/surface for this particular plane.</p></li>
+<li><p><code class="prettyprint">int height</code></p>
+
+<p>The height of the texture/surface for this particular plane.</p></li>
+<li><p><code class="prettyprint">SbDecodeTargetInfoContentRegion content_region</code></p>
+
+<p>The following properties specify a rectangle indicating a region within the
+texture/surface that contains valid image data. The top-left corner is (0,
+0) and increases to the right and to the bottom. The units specified by
+these parameters are number of pixels. The range for left/right is [0,
+width], and for top/bottom it is [0, height].</p></li>
+</ul>
+
+<h2 id="functions">Functions</h2>
+
+<h3 id="privatedecodetargetreleaser">PrivateDecodeTargetReleaser</h3>
+
+<p>This function is just an implementation detail of
+SbDecodeTargetReleaseInGlesContext() and should not be called directly.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static void PrivateDecodeTargetReleaser(void *context)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbdecodetargetgetinfo">SbDecodeTargetGetInfo</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Writes all information about <code class="prettyprint">decode_target</code> into <code class="prettyprint">out_info</code>. Returns false if
+the provided <code class="prettyprint">out_info</code> structure is not zero initialized.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTarget</code><br>
-        <code>decode_target</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbdecodetargetgetplane">SbDecodeTargetGetPlane</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Stub function for when graphics aren&#39;t enabled.  There is no concept of a
-plane, and <code class="prettyprint">NULL</code> is always returned.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void* SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                                                SbDecodeTargetPlane plane) {
-  SB_UNREFERENCED_PARAMETER(decode_target);
-  SB_UNREFERENCED_PARAMETER(plane);
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target, SbDecodeTargetInfo *out_info)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTarget</code><br>
-        <code>decode_target</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbDecodeTargetPlane</code><br>
-        <code>plane</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbdecodetargetisformatvalid">SbDecodeTargetIsFormatValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether a given format is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
-    SbDecodeTargetFormat format) {
-  return format != kSbDecodeTargetFormatInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbDecodeTargetIsFormatValid(SbDecodeTargetFormat format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTargetFormat</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbdecodetargetisopaque">SbDecodeTargetIsOpaque</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Gets whether <code class="prettyprint">decode_target</code> is opaque or not.  The underlying source of
-this value is expected to be properly maintained by the Starboard
-implementation.  So, for example, if an opaque only image type were decoded
-into an <code><a href="#sbdecodetarget">SbDecodeTarget</a></code>, then the implementation would configure things in
-such a way that this function would return true.  By opaque, it is meant
-that all alpha values are guaranteed to be 255, if <code class="prettyprint">decode_target</code> is of a
-format that has alpha values.  If <code class="prettyprint">decode_target</code> is of a format that does
-not have alpha values, then this function should return <code class="prettyprint">true</code>.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDecodeTargetIsOpaque-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDecodeTargetIsOpaque-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDecodeTargetIsOpaque-declaration">
-<pre>
-SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDecodeTargetIsOpaque-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/configuration.h&quot;
-#include &quot;starboard/decode_target.h&quot;
-
-#if !(SB_VERSION(3) &amp;&amp; SB_HAS(GRAPHICS))
-#error &quot;SbDecodeTargetIsOpaque requires SB_VERSION(3) and SB_HAS(GRAPHICS).&quot;
-#endif
-
-bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target) {
-  return false;
-}
-</code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTarget</code><br>
-        <code>decode_target</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbdecodetargetisvalid">SbDecodeTargetIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given file handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbDecodeTargetIsValid(SbDecodeTarget handle) {
-  return handle != kSbDecodeTargetInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbDecodeTargetIsValid(SbDecodeTarget handle)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbdecodetargetrelease">SbDecodeTargetRelease</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTarget</code><br>
-        <code>handle</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Returns ownership of <code class="prettyprint">decode_target</code> to the Starboard implementation. This
+function will likely result in the destruction of the SbDecodeTarget and all its
+associated surfaces, though in some cases, platforms may simply adjust a
+reference count. In the case where SB_HAS(GLES2), this function must be called
+on a thread with the context</p>
 
-<h3 id="sbdecodetargetreleasetoprovider">SbDecodeTargetReleaseToProvider</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Inline convenience function to release <code class="prettyprint">decode_target</code> back to <code class="prettyprint">provider</code>.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
-    SbDecodeTargetProvider* provider,
-    SbDecodeTarget decode_target) {
-  provider-&gt;release(provider-&gt;context, decode_target);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbDecodeTargetRelease(SbDecodeTarget decode_target)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbdecodetargetreleaseinglescontext">SbDecodeTargetReleaseInGlesContext</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDecodeTargetProvider*</code><br>
-        <code>provider</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbDecodeTarget</code><br>
-        <code>decode_target</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Helper function that is possibly useful to Starboard implementations that will
+release a decode target on the thread with the GLES context current.</p>
 
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbDecodeTargetReleaseInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTarget decode_target)
+</code></pre></div>
+<h3 id="sbdecodetargetruninglescontext">SbDecodeTargetRunInGlesContext</h3>
+
+<p>Inline convenience function to run an arbitrary
+SbDecodeTargetGlesContextRunnerTarget function through a
+SbDecodeTargetGraphicsContextProvider . This is intended to be called by
+Starboard implementations, if it is necessary.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)
+</code></pre></div>
         
+          
+            
           
         
       </div>
@@ -1201,11 +1151,10 @@ bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1227,29 +1176,35 @@ bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/decode_target.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

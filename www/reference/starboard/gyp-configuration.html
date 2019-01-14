@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard: gyp_configuration Reference Guide</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard: gyp_configuration Reference Guide"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -750,137 +802,295 @@
 <td style="text-align: left"><strong><code class="prettyprint">abort_on_allocation_failure</code></strong><br><br> Halt execution on failure to allocate memory.<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">actual_target_arch</code></strong><br><br> The &quot;real&quot; target_arch that is used to select the correct delegate source. other than Windows<br><br>The default value is <code class="prettyprint">&#39;&lt;(target_arch)&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">clang_use_chrome_plugins</code></strong><br><br> Prevents common.gypi from running a bash script which is not required to compile Cobalt.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">build_snapshot_app_stats</code></strong><br><br> Some platforms have difficulty linking snapshot_app_stats<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">cobalt</code></strong><br><br> Whether Cobalt is being built.<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_code</code></strong><br><br> Similarly to chromium_code, marks the projects that are created by the Cobalt team and thus are held to the highest standards of code health.<br><br>The default value is <code class="prettyprint">0</code>.</td>
-</tr>
-<tr>
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_config</code></strong><br><br> Contains the current build configuration.<br><br>The default value is <code class="prettyprint">&#39;gold&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_enable_jit</code></strong><br><br> Enable jit by default. It can be set to 0 to run in interpreter-only mode. Setting this to 1 on a platform or engine for which there is no JIT implementation is a no-op.<br><br>The default value is <code class="prettyprint">1</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_egl_swap_interval</code></strong><br><br> Cobalt will call eglSwapInterval() and specify this value before calling eglSwapBuffers() each frame.<br><br>The default value is <code class="prettyprint">1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_enable_lib</code></strong><br><br> Enables embedding Cobalt as a shared library within another app. This requires a &#39;lib&#39; starboard implementation for the corresponding platform.<br><br>The default value is <code class="prettyprint">&#39;&lt;(sb_enable_lib)&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_fastbuild</code></strong><br><br> Contains the current build configuration.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package</code></strong><br><br> Contains the current font package selection.  This can be used to trade font quality, coverage, and latency with smaller font package size. See content/fonts/README.md for more details.<br><br>The default value is <code class="prettyprint">&#39;unlimited&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package</code></strong><br><br> Contains the current font package selection.  This can be used to trade font quality, coverage, and latency for different font package sizes. The font package can be one of the following options:<ul><li><code>standard</code> - The default package. It includes all sans-serif, serif, and FCC fonts, non-CJK fallback fonts in both &#39;normal&#39; and &#39;bold&#39; weights, &#39;normal&#39; weight CJK (&#39;bold&#39; weight CJK is synthesized from it), historic script fonts, and color emojis. This package is ~38.3MB.<li><code>limited</code> - A significantly smaller package than &#39;standard&#39;. This package removes all but &#39;normal&#39; and &#39;bold&#39; weighted sans-serif and serif, removes the FCC fonts (which must be provided by the system or downloaded from the web), replaces standard CJK with low quality CJK, removes historic script fonts, and replaces colored emojis with uncolored ones. Because low quality CJK cannot synthesize bold, bold glyphs are unavailable in Chinese, Japanese and Korean. This package is ~8.3MB.<li><code>minimal</code> - The smallest possible font package. It only includes Roboto&#39;s Basic Latin characters. Everything else must be provided by the system or downloaded from the web. This package is ~40.0KB.</li></ul> NOTE: When bold is needed, but unavailable, it is typically synthesized, resulting in lower quality glyphs than those generated directly from a bold font. However, this does not occur with low quality CJK, which is not high enough quality to synthesize. Its glyphs always have a &#39;normal&#39; weight.<br><br>The default value is <code class="prettyprint">&#39;standard&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">cobalt_minimum_frame_time_in_milliseconds</code></strong><br><br> Allow throttling of the frame rate. This is expressed in terms of milliseconds and can be a floating point number. Keep in mind that swapping frames may take some additional processing time, so it may be better to specify a lower delay. For example, &#39;33&#39; instead of &#39;33.33&#39; for 30 Hz refresh.<br><br>The default value is <code class="prettyprint">&#39;0&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_color_emoji</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_emoji</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_historic</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_lang_cjk</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_lang_cjk_low_quality</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_lang_non_cjk</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_fallback_symbols</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_named_fcc_fonts</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_named_sans_serif</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_font_package_override_named_serif</code></strong><br><br> Font package overrides can be used to modify the files included within the selected package. The following values are available: -1 -- The package value for the specified category is not overridden. 0 -- The package value is overridden and no fonts for the specified category are included. 1 -- The package value is overridden and fonts from the specified category with a weight of &#39;normal&#39; and a style of &#39;normal&#39; are included. 2 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or bold&#39; and a style of &#39;normal&#39; are included. 3 -- The package value is overridden and fonts from the specified category with a weight of either &#39;normal&#39; or &#39;bold&#39; and a style of either &#39;normal&#39; or &#39;italic&#39; are included. 4 -- The package value is overridden and all available fonts from the specified category are included. This may include additional weights beyond &#39;normal&#39; and &#39;bold&#39;. See content/fonts/README.md for details on the specific values used by each of the packages use for the various font categories.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_gc_zeal</code></strong><br><br> Can be set to enable zealous garbage collection, if</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_alignment</code></strong><br><br> The media buffer will be allocated using the following alignment.  Set this to a larger value may increase the memory consumption of media buffers.<br><br>The default value is <code class="prettyprint">1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_allocation_unit</code></strong><br><br> When the media stack needs more memory to store media buffers, it will allocate extra memory in units of</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_initial_capacity</code></strong><br><br> The amount of memory that will be used to store media buffers allocated during system startup.  To allocate a large chunk at startup helps with reducing fragmentation and can avoid failures to allocate incrementally. This can be set to 0.<br><br>The default value is <code class="prettyprint">21 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_max_capacity_1080p</code></strong><br><br> The maximum amount of memory that will be used to store media buffers when video resolution is no larger than 1080p. This must be larger than sum of 1080p video budget and non-video budget.<br><br>The default value is <code class="prettyprint">36 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_max_capacity_4k</code></strong><br><br> The maximum amount of memory that will be used to store media buffers when video resolution is 4k. If 0, then memory can grow without bound. This must be larger than sum of 4k video budget and non-video budget.<br><br>The default value is <code class="prettyprint">100 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_non_video_budget</code></strong><br><br> Specifies the maximum amount of memory used by audio or text buffers of media source before triggering a garbage collection.  A large value will cause more memory being used by audio buffers but will also make JavaScript app less likely to re-download audio data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value is <code class="prettyprint">5 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_padding</code></strong><br><br> Extra bytes allocated at the end of a media buffer to ensure that the buffer can be use optimally by specific instructions like SIMD.  Set to 0 to remove any padding.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_pool_allocate_on_demand</code></strong><br><br> When either</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_progressive_budget</code></strong><br><br> The memory used when playing mp4 videos that is not in DASH format.  The resolution of such videos shouldn&#39;t go beyond 1080p.  Its value should be less than the sum of &#39;cobalt_media_buffer_non_video_budget&#39; and &#39;cobalt_media_buffer_video_budget_1080p&#39; but not less than 8 MB.<br><br>The default value is <code class="prettyprint">12 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_storage_type</code></strong><br><br> This can be set to &quot;memory&quot; or &quot;file&quot;.  When it is set to &quot;memory&quot;, the media buffers will be stored in main memory allocated by SbMemory functions.  When it is set to &quot;file&quot;, the media buffers will be stored in a temporary file in the system cache folder acquired by calling SbSystemGetPath() with &quot;kSbSystemPathCacheDirectory&quot;.  Note that when its value is &quot;file&quot; the media stack will still allocate memory to cache the the buffers in use.<br><br>The default value is <code class="prettyprint">&#39;memory&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_video_budget_1080p</code></strong><br><br> Specifies the maximum amount of memory used by video buffers of media source before triggering a garbage collection when the video resolution is lower than 1080p (1920x1080).  A large value will cause more memory being used by video buffers but will also make JavaScript app less likely to re-download video data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value is <code class="prettyprint">16 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_buffer_video_budget_4k</code></strong><br><br> Specifies the maximum amount of memory used by video buffers of media source before triggering a garbage collection when the video resolution is lower than 4k (3840x2160).  A large value will cause more memory being used by video buffers but will also make JavaScript app less likely to re-download video data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value is <code class="prettyprint">60 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_source_2016</code></strong><br><br> Use media source extension implementation that is conformed to the Candidate Recommendation of July 5th 2016.<br><br>The default value is <code class="prettyprint">&#39;&lt;(cobalt_media_source_2016)&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_media_source_garbage_collection_duration_threshold_in_seconds</code></strong><br><br> Specifies the duration threshold of media source garbage collection.  When the accumulated duration in a source buffer exceeds this value, the media source implementation will try to eject existing buffers from the cache. This is usually triggered when the video being played has a simple content and the encoded data is small.  In such case this can limit how much is allocated for the book keeping data of the media buffers and avoid OOM of system heap. This should be set to 170 for most of the platforms.  But it can be further reduced on systems with extremely low memory.<br><br>The default value is <code class="prettyprint">170</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_minimum_frame_time_in_milliseconds</code></strong><br><br> Allow throttling of the frame rate. This is expressed in terms of milliseconds and can be a floating point number. Keep in mind that swapping frames may take some additional processing time, so it may be better to specify a lower delay. For example, &#39;33&#39; instead of &#39;33.33&#39; for 30 Hz refresh.<br><br>The default value is <code class="prettyprint">&#39;16.0&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_platform_dependencies</code></strong><br><br> List of platform-specific targets that get compiled into cobalt.<br><br>The default value is <code class="prettyprint">[]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_splash_screen_file</code></strong><br><br> The path to a splash screen to copy into content/data/web which can be accessed via a file URL starting with &quot;file:///cobalt/browser/splash_screen/&quot;. If &#39;&#39;, no file is copied.<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_user_on_exit_strategy</code></strong><br><br> This variable defines what Cobalt&#39;s preferred strategy should be for handling internally triggered application exit requests (e.g. the user chooses to back out of the application).<ul><li><code>stop</code> - The application should call SbSystemRequestStop() on exit, resulting in a complete shutdown of the application.<li><code>suspend</code> - The application should call SbSystemRequestSuspend() on exit, resulting in the application being &quot;minimized&quot;.<li><code>noexit</code> - The application should never allow the user to trigger an exit, this will be managed by the system.<br><br>The default value is <code class="prettyprint">&#39;stop&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_v8_buildtime_snapshot</code></strong><br><br> Set to &quot;true&quot; to enable v8 snapshot generation at Cobalt build time.<br><br>The default value is <code class="prettyprint">&#39;&lt;(cobalt_v8_buildtime_snapshot)&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">cobalt_version</code></strong><br><br> Build version number.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_&lt;config&gt;</code></strong><br><br> Specifies compiler or linker flags by build configuration. Platform-specific .gypi includes and .gyp targets can use them to add additional flags.The following configurations are supported: <ul><li><code>[default]</code></li><li><code>c_debug</code></li><li><code>c_devel</code></li><li><code>c_gold</code></li><li><code>c_host</code></li><li><code>c_qa</code></li><li><code>cc_debug</code></li><li><code>cc_devel</code></li><li><code>cc_gold</code></li><li><code>cc_host</code></li><li><code>cc_qa</code></li><li><code>debug</code></li><li><code>devel</code></li><li><code>gold</code></li><li><code>host</code></li><li><code>qa</ul></td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_webapi_extension_generated_header_idl_files</code></strong><br><br> We need to define some variables inside of an inner &#39;variables&#39; scope so that they can be referenced by other outer variables here.  Also, it allows for the specification of default values that get referenced by a top level scope.<br><br>The default value is <code class="prettyprint">[]</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">default_renderer_options_dependency</code></strong><br><br> Modify this value to adjust the default rasterizer setting for your platform.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">cobalt_webapi_extension_source_idl_files</code></strong><br><br> We need to define some variables inside of an inner &#39;variables&#39; scope so that they can be referenced by other outer variables here.  Also, it allows for the specification of default values that get referenced by a top level scope.<br><br>The default value is <code class="prettyprint">[]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">compiler_flags_&lt;config&gt;</code></strong><br><br>The following configurations are supported: <ul><li><code>[default]</code></li><li><code>c_debug</code></li><li><code>c_devel</code></li><li><code>c_gold</code></li><li><code>c_host</code></li><li><code>c_qa</code></li><li><code>cc_debug</code></li><li><code>cc_devel</code></li><li><code>cc_gold</code></li><li><code>cc_host</code></li><li><code>cc_qa</code></li><li><code>debug</code></li><li><code>devel</code></li><li><code>gold</code></li><li><code>host</code></li><li><code>qa</ul></td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">custom_media_session_client</code></strong><br><br> Set to 1 to enable a custom MediaSessionClient.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">default_renderer_options_dependency</code></strong><br><br> Override this value to adjust the default rasterizer setting for your platform.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">defines_debug</code></strong><br><br> and linker_executable_flags_(config) to distinguish the flags for SharedLibraryLinker and ExecutableLinker.<br><br>The default value is <code class="prettyprint">[]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">defines_devel</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">defines_gold</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">defines_host</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">defines_qa</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">enable_account_manager</code></strong><br><br> Set to 1 to enable H5vccAccountManager.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
+<td style="text-align: left"><strong><code class="prettyprint">enable_configure_request_job_factory</code></strong><br><br> Set to 1 to enable setting Interceptors on the URLRequestJobFactory<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">enable_crash_log</code></strong><br><br> Set to 1 to enable H5vccCrashLog.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">enable_map_to_mesh</code></strong><br><br> Enable support for the map to mesh filter, which is primarily used to implement spherical video playback.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
 <td style="text-align: left"><strong><code class="prettyprint">enable_spdy</code></strong><br><br> Set to 1 to compile with SPDY support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">final_executable_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">enable_sso</code></strong><br><br> Set to 1 to enable H5vccSSO (Single Sign On).<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">enable_xhr_header_filtering</code></strong><br><br> Set to 1 to enable filtering of HTTP headers before sending.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">fallback_splash_screen_url</code></strong><br><br> The URL of default build time splash screen - see cobalt/doc/splash_screen.md for information about this.<br><br>The default value is <code class="prettyprint">&#39;none&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">final_executable_type</code></strong><br><br> The variables allow changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">gl_type</code></strong><br><br> The source of EGL and GLES headers and libraries. Valid values (case and everything sensitive!):<ul><li><code>none</code> - No EGL + GLES implementation is available on this platform.<li><code>system_gles3</code> - Use the system implementation of EGL + GLES3. The headers and libraries must be on the system include and link paths.<li><code>system_gles2</code> - Use the system implementation of EGL + GLES2. The headers and libraries must be on the system include and link paths.<li><code>glimp</code> - Cobalt&#39;s own EGL + GLES2 implementation. This requires a valid Glimp implementation for the platform.<li><code>angle</code> - A DirectX-to-OpenGL adaptation layer. This requires a valid ANGLE implementation for the platform.</li></ul> Choosing an unsupported value will result in a GYP error: &quot;cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found&quot;<br><br>The default value is <code class="prettyprint">&#39;system_gles2&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">gtest_target_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">gtest_target_type</code></strong><br><br> The variables allow changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;executable&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">host_os</code></strong><br><br> Contains the name of the hosting OS. The value is defined by gyp_cobalt.<br><br>The default value is <code class="prettyprint">&#39;win&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">host_os</code></strong><br><br> Contains the name of the hosting OS. The value is defined by the gyp wrapper script.<br><br>The default value is <code class="prettyprint">&#39;win&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">image_cache_capacity_multiplier_when_playing_video</code></strong><br><br> Modifying this value to be non-1.0f will result in the image cache capacity being cleared and then temporarily reduced for the duration that a video is playing.  This can be useful for some platforms if they are particularly constrained for (GPU) memory during video playback.  When playing a video, the image cache is reduced to: image_cache_size_in_bytes * image_cache_capacity_multiplier_when_playing_video.<br><br>The default value is <code class="prettyprint">&#39;1.0f&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">image_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the image cache which manages image surfaces downloaded from a web page.  While it depends on the platform, often (and ideally) these images are cached within GPU memory.<br><br>The default value is <code class="prettyprint">64 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">image_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the image cache, which manages image surfaces downloaded from a web page.  While it depends on the platform, often (and ideally) these images are cached within GPU memory. Set to -1 to automatically calculate the value at runtime, based on features like windows dimensions and the value of SbSystemGetTotalGPUMemory().<br><br>The default value is <code class="prettyprint">-1</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">in_app_dial</code></strong><br><br> Set to 1 to build with DIAL support.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">lbshell_root</code></strong><br><br> Needed for backwards compatibility with lbshell code.<br><br>The default value is <code class="prettyprint">&#39;&lt;(DEPTH)/lbshell&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">linker_flags_&lt;config&gt;</code></strong><br><br>The following configurations are supported: <ul><li><code>[default]</code></li><li><code>debug</code></li><li><code>devel</code></li><li><code>gold</code></li><li><code>host</code></li><li><code>qa</ul></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">linker_flags_&lt;config&gt;</code></strong><br><br> Specifies compiler or linker flags by build configuration. Platform-specific .gypi includes and .gyp targets can use them to add additional flags.The following configurations are supported: <ul><li><code>[default]</code></li><li><code>debug</code></li><li><code>devel</code></li><li><code>gold</code></li><li><code>host</code></li><li><code>qa</ul></td>
+<td style="text-align: left"><strong><code class="prettyprint">local_font_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the local font cache, which manages all fonts loaded from local files. Newly encountered sections of font files are lazily loaded into the cache, enabling subsequent requests to the same file sections to be handled via direct memory access. Once the limit is reached, further requests are handled via file stream. Setting the value to 0 disables memory caching and causes all font file accesses to be done using file streams.<br><br>The default value is <code class="prettyprint">16 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">linux_use_tcmalloc</code></strong><br><br> Cobalt doesn&#39;t currently support tcmalloc.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">max_cobalt_cpu_usage</code></strong><br><br> Max Cobalt CPU usage specifies that the cobalt program should keep it&#39;s size below the specified size. A value of -1 causes this value to be assumed from the starboard API function: SbSystemGetTotalCPUMemory().<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">max_cobalt_gpu_usage</code></strong><br><br> Max Cobalt GPU usage specifies that the cobalt program should keep it&#39;s size below the specified size. A value of -1 causes this value to be assumed from the starboard API function: SbSystemGetTotalGPUMemory().<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">mesh_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the mesh cache. Each mesh is held compressed in main memory, to be inflated into a GPU buffer when needed for projection. When set to &#39;auto&#39;, will be adjusted according to whether the enable_map_to_mesh is true or not.  If enable_map_to_mesh is false, then the mesh cache size will be set to 0.<br><br>The default value is <code class="prettyprint">&#39;auto&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">mozjs_garbage_collection_threshold_in_bytes</code></strong><br><br> Determines the size of garbage collection threshold. After this many bytes have been allocated, the SpiderMonkey garbage collector will run. Lowering this has been found to reduce performance and decrease JavaScript memory usage. For example, we have measured on at least one platform that performance becomes 7% worse on average in certain cases when adjusting this number from 8MB to 1MB.<br><br>The default value is <code class="prettyprint">8 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">offscreen_target_cache_size_in_bytes</code></strong><br><br> Determines the amount of GPU memory the offscreen target atlases will use. This is specific to the direct-GLES rasterizer and caches any render tree nodes which require skia for rendering. Two atlases will be allocated from this memory or multiple atlases of the frame size if the limit allows. It is recommended that enough memory be reserved for two RGBA atlases about a quarter of the frame size.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">path_to_yasm</code></strong><br><br> Where yasm can be found on the target device.<br><br>The default value is <code class="prettyprint">&quot;yasm&quot;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">platform_libraries</code></strong><br><br>The default value is <code class="prettyprint">[]</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">posix_emulation_target_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">rasterizer_type</code></strong><br><br> Defines what kind of rasterizer will be used.  This can be adjusted to force a stub graphics implementation or software graphics implementation. It can be one of the following options:<ul><li><code>direct-gles</code> - Uses a light wrapper over OpenGL ES to handle most draw elements. This will fall back to the skia hardware rasterizer for some render tree node types, but is generally faster on the CPU and GPU. This can handle 360 rendering.<li><code>hardware</code> - As much hardware acceleration of graphics commands as possible. This uses skia to wrap OpenGL ES commands. Required for 360 rendering.<li><code>software</code> - Perform most rasterization using the CPU and only interact with the GPU to send the final image to the output window.<li><code>stub</code> - Stub graphics rasterization.  A rasterizer object will still be available and valid, but it will do nothing.<br><br>The default value is <code class="prettyprint">&#39;direct-gles&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">rasterizer_type</code></strong><br><br> Defines what kind of rasterizer will be used.  This can be adjusted to force a stub graphics implementation or software graphics implementation. It can be one of the following options:<ul><li><code>hardware</code> - As much hardware acceleration of graphics commands as possible. Required for 360 rendering.<li><code>software</code> - Perform most rasterization using the CPU and only interact with the GPU to send the final image to the output window.<li><code>stub</code> - Stub graphics rasterization.  A rasterizer object will still be available and valid, but it will do nothing.<br><br>The default value is <code class="prettyprint">&#39;hardware&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">reduce_cpu_memory_by</code></strong><br><br> When specified this value will reduce the cpu memory consumption by the specified amount. -1 disables the value. When this value is specified then max_cobalt_cpu_usage will not be used in memory_constrainer, but will still be used for triggering a warning if the engine consumes more memory than this value specifies.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">remote_typeface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the remote typefaces cache which manages all typefaces downloaded from a web page.<br><br>The default value is <code class="prettyprint">5 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">reduce_gpu_memory_by</code></strong><br><br> When specified this value will reduce the gpu memory consumption by the specified amount. -1 disables the value. When this value is specified then max_cobalt_gpu_usage will not be used in memory_constrainer, but will still be used for triggering a warning if the engine consumes more memory than this value specifies.<br><br>The default value is <code class="prettyprint">-1</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_has_deploy_step</code></strong><br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">remote_font_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the remote font cache, which manages all fonts downloaded from a web page.<br><br>The default value is <code class="prettyprint">4 * 1024 * 1024</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">render_dirty_region_only</code></strong><br><br> If set to 1, will enable support for rendering only the regions of the display that are modified due to animations, instead of re-rendering the entire scene each frame.  This feature can reduce startup time where usually there is a small loading spinner animating on the screen.  On GLES renderers, Cobalt will attempt to implement this support by using eglSurfaceAttrib(..., EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED), otherwise the dirty region will be silently disabled.  On Blitter API platforms, if this is enabled, we explicitly create an extra offscreen full-size intermediate surface to render into.  Note that some GLES driver implementations may internally allocate an extra full screen surface to support this feature, and many have been noticed to not properly support this functionality (but they report that they do), and for these reasons this value is defaulted to 0.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">sb_disable_microphone_idl</code></strong><br><br> When this is set to true, the web bindings for the microphone are disabled<br><br>The default value is <code class="prettyprint">0</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">sb_enable_lib</code></strong><br><br> Enables embedding Cobalt as a shared library within another app. This requires a &#39;lib&#39; starboard implementation for the corresponding platform.<br><br>The default value is <code class="prettyprint">&#39;&lt;(sb_enable_lib)&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">sb_filter_based_player</code></strong><br><br> Used to indicate that the player is filter based.<br><br>The default value is <code class="prettyprint">1</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">sb_libevent_method</code></strong><br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to &#39;poll&#39; if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is <code class="prettyprint">&#39;epoll&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_media_platform</code></strong><br><br> Used by cobalt/media/media.gyp to pick a proper media platform.<br><br>The default value is <code class="prettyprint">&#39;starboard&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">sb_media_platform</code></strong><br><br> Used to pick a proper media platform.<br><br>The default value is <code class="prettyprint">&#39;starboard&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">sb_target_platform</code></strong><br><br> The target platform id as a string, like &#39;ps3&#39;, &#39;ps4&#39;, etc..<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">sb_pedantic_warnings</code></strong><br><br> Enabling this variable enables pedantic levels of warnings for the current toolchain.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">scratch_surface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the scratch surface cache.  The scratch surface cache facilitates the reuse of temporary offscreen surfaces within a single frame.  This setting is only relevant when using the hardware-accelerated Skia rasterizer.<br><br>The default value is <code class="prettyprint">7 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">sb_static_contents_output_base_dir</code></strong><br><br> Directory path to static contents.<br><br>The default value is <code class="prettyprint">&#39;&lt;(sb_static_contents_output_base_dir)&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">sb_static_contents_output_data_dir</code></strong><br><br> Directory path to static contents&#39; data.<br><br>The default value is <code class="prettyprint">&#39;&lt;(sb_static_contents_output_data_dir)&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">sb_target_platform</code></strong><br><br> The target platform id as a string, like &#39;linux-x64x11&#39;, &#39;win32&#39;, etc..<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">scratch_surface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the scratch surface cache.  The scratch surface cache facilitates the reuse of temporary offscreen surfaces within a single frame.  This setting is only relevant when using the hardware-accelerated Skia rasterizer.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">skia_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the skia cache.  The Skia cache is maintained within Skia and is used to cache the results of complicated effects such as shadows, so that Skia draw calls that are used repeatedly across frames can be cached into surfaces.  This setting is only relevant when using the hardware-accelerated Skia rasterizer (e.g. as opposed to the Blitter API).<br><br>The default value is <code class="prettyprint">4 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_height</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays.<br><br>The default value is <code class="prettyprint">&#39;2048&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_height</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays. The negative default values indicates to the engine that these settings should be automatically set.<br><br>The default value is <code class="prettyprint">&#39;-1&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_width</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays.<br><br>The default value is <code class="prettyprint">&#39;2048&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">skia_glyph_atlas_width</code></strong><br><br> Determines the size in pixels of the glyph atlas where rendered glyphs are cached. The resulting memory usage is 2 bytes of GPU memory per pixel. When a value is used that is too small, thrashing may occur that will result in visible stutter. Such thrashing is more likely to occur when CJK language glyphs are rendered and when the size of the glyphs in pixels is larger, such as for higher resolution displays. The negative default values indicates to the engine that these settings should be automatically set.<br><br>The default value is <code class="prettyprint">&#39;-1&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">software_surface_cache_size_in_bytes</code></strong><br><br> Only relevant if you are using the Blitter API. Determines the capacity of the software surface cache, which is used to cache all surfaces that are rendered via a software rasterizer to avoid re-rendering them.<br><br>The default value is <code class="prettyprint">10 * 1024 * 1024</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">software_surface_cache_size_in_bytes</code></strong><br><br> Only relevant if you are using the Blitter API. Determines the capacity of the software surface cache, which is used to cache all surfaces that are rendered via a software rasterizer to avoid re-rendering them.<br><br>The default value is <code class="prettyprint">8 * 1024 * 1024</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">starboard_path</code></strong><br><br> The relative path from src/ to the directory containing the starboard_platform.gyp file.  It is currently set to &#39;starboard/&lt;(target_arch)&#39; to make semi-starboard platforms work.<br><br>The default value is <code class="prettyprint">&#39;starboard/&lt;(target_arch)&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">surface_cache_size_in_bytes</code></strong><br><br> Determines the capacity of the surface cache.  The surface cache tracks which render tree nodes are being re-used across frames and stores the nodes that are most CPU-expensive to render into surfaces.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">starboard_path</code></strong><br><br> The relative path from src/ to the directory containing the starboard_platform.gyp file.  It is currently set to &#39;starboard/&lt;(target_arch)&#39; to make semi-starboard platforms work. moved to starboard.<br><br>The default value is <code class="prettyprint">&#39;starboard/&lt;(target_arch)&#39;</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">target_os</code></strong><br><br> The operating system of the target, separate from the target_arch. In many cases, an &#39;unknown&#39; value is fine, but, if set to &#39;linux&#39;, then we can assume some things, and it&#39;ll save us some configuration time.<br><br>The default value is <code class="prettyprint">&#39;unknown&#39;</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">use_official_google_api_keys</code></strong><br><br> Disable a check that looks for an official google api key.<br><br>The default value is <code class="prettyprint">0</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">tizen_os</code></strong><br><br> Temporary indicator for Tizen - should eventually move to feature defines.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">webkit_target_type</code></strong><br><br> Allows changing of the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is <code class="prettyprint">&#39;static_library&#39;</code>.</td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">werror</code></strong><br><br> Disables treat warnings as errors.<br><br>The default value is <code class="prettyprint">&#39;&#39;</code>.</td>
+<td style="text-align: left"><strong><code class="prettyprint">yasm_exists</code></strong><br><br> Enables the yasm compiler to be used to compile .asm files.<br><br>The default value is <code class="prettyprint">0</code>.</td>
 </tr>
 </tbody></table>
 
         
+          
+            
           
         
       </div>
@@ -901,11 +1111,10 @@
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -927,29 +1136,35 @@
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/gyp-configuration.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

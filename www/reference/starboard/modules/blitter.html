@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: blitter.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: blitter.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,1506 +762,818 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>The Blitter API provides support for issuing simple blit-style draw
-commands to either an offscreen surface or to a Starboard SbWindow object.
-Blitter is jargon that means &quot;BLock Transfer,&quot; which might be abbreviated
-as BLT and, hence, the word &quot;blit.&quot;<br>
-This API is designed to allow implementations make use of GPU hardware
-acceleration, if it is available.  Draw commands exist for solid-color
-rectangles and rasterization/blitting of rectangular images onto
-rectangular target patches.<br></p>
+        <p>The Blitter API provides support for issuing simple blit-style draw commands to
+either an offscreen surface or to a Starboard <code class="prettyprint">SbWindow</code> object. Blitter is
+jargon that means &quot;BLock Transfer,&quot; which might be abbreviated as BLT and,
+hence, the word &quot;blit.&quot;</p>
 
-<h4 id="threading-concerns">Threading Concerns</h4>
+<p>This API is designed to allow implementations make use of GPU hardware
+acceleration, if it is available. Draw commands exist for solid-color rectangles
+and rasterization/blitting of rectangular images onto rectangular target
+patches.</p>
+
+<h2 id="threading-concerns">Threading Concerns</h2>
 
 <p>Note that in general the Blitter API is not thread safe, except for all
-SbBlitterDevice-related functions.  All functions that are not required to
+<code class="prettyprint">SbBlitterDevice</code>-related functions. All functions that are not required to
 internally ensure any thread safety guarantees are prefaced with a comment
-indicating that they are not thread safe.
-Functions which claim to not be thread safe can still be used from multiple
-threads, but manual synchronization must be performed in order to ensure
-their parameters are not referenced at the same time on another thread by
-another function.
-Examples:
-<ul><li>Multiple threads should not issue commands to the same SbBlitterContext
-object unless they are manually synchronized.
-</li><li>Multiple threads should not issue draw calls to the same render target,
-even if the draw calls are made within separate contexts.  In this case,
-be sure to manually synchronize through the use of syncrhonization
-primitives and use of the SbBlitterFlushContext() command.
-</li><li>Multiple threads can operate on the swap chain, but they must perform
-manual synchronization.</li></ul></p>
+indicating that they are not thread safe.</p>
+
+<p>Functions which claim to not be thread safe can still be used from multiple
+threads, but manual synchronization must be performed in order to ensure their
+parameters are not referenced at the same time on another thread by another
+function.</p>
+
+<h3 id="examples">Examples</h3>
+
+<ul>
+<li><p>Multiple threads should not issue commands to the same <code class="prettyprint">SbBlitterContext</code>
+object unless they are manually synchronized.</p></li>
+<li><p>Multiple threads should not issue draw calls to the same render target, even
+if the draw calls are made within separate contexts. In this case, be sure
+to manually synchronize through the use of syncrhonization primitives and
+use of the <code class="prettyprint">SbBlitterFlushContext()</code> command.</p></li>
+<li><p>Multiple threads can operate on the swap chain, but they must perform manual
+synchronization.</p></li>
+</ul>
 
 <h2 id="enums">Enums</h2>
 
 <h3 id="sbblitterpixeldataformat">SbBlitterPixelDataFormat</h3>
 
 <p>Defines the set of pixel formats that can be used with the Blitter API
-SbBlitterPixelData objects.  Note that not all of these formats are
-guaranteed to be supported by a particular device, so before using these
-formats in pixel data creation commands, it should be checked that they are
-supported first (e.g. via SbBlitterIsPixelFormatSupportedByPixelData()).
-SbBlitterPixelDataFormat specifies specific orderings of the color channels,
-and when doing so, byte-order is used, e.g. &quot;RGBA&quot; implies that a value for
-red is stored in the byte with the lowest memory address.  All pixel values
-are assumed to be in premultiplied alpha format.</p>
+<code class="prettyprint">SbBlitterPixelData</code> objects. Note that not all of these formats are guaranteed
+to be supported by a particular device, so before using these formats in pixel
+data creation commands, it should be checked that they are supported first (e.g.
+via <code class="prettyprint">SbBlitterIsPixelFormatSupportedByPixelData()</code>). <code class="prettyprint">SbBlitterPixelDataFormat</code>
+specifies specific orderings of the color channels, and when doing so, byte-
+order is used, e.g. &quot;RGBA&quot; implies that a value for red is stored in the byte
+with the lowest memory address. All pixel values are assumed to be in
+premultiplied alpha format.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbBlitterPixelDataFormatARGB8</code> - 32-bit pixels with 8-bits per channel, the alpha component in the byte with the lowest address and blue in the byte with the highest address.</li>
-<li>  <code class="prettyprint">kSbBlitterPixelDataFormatBGRA8</code> - 32-bit pixels with 8-bits per channel, the blue component in the byte with the lowest address and alpha in the byte with the highest address.</li>
-<li>  <code class="prettyprint">kSbBlitterPixelDataFormatRGBA8</code> - 32-bit pixels with 8-bits per channel, the red component in the byte with the lowest address and alpha in the byte with the highest address.</li>
-<li>  <code class="prettyprint">kSbBlitterPixelDataFormatA8</code> - 8-bit pixels that contain only a single alpha channel.  When rendered, surfaces in this format will have (R, G, B) values of (255, 255, 255).</li>
-<li>  <code class="prettyprint">kSbBlitterNumPixelDataFormats</code> - Constant that indicates how many unique pixel formats Starboard supports.</li>
-<li>  <code class="prettyprint">kSbBlitterInvalidPixelDataFormat</code></li>
+<li><p><code class="prettyprint">kSbBlitterPixelDataFormatARGB8</code></p>
+
+<p>32-bit pixels with 8-bits per channel, the alpha component in the byte with
+the lowest address and blue in the byte with the highest address.</p></li>
+<li><p><code class="prettyprint">kSbBlitterPixelDataFormatBGRA8</code></p>
+
+<p>32-bit pixels with 8-bits per channel, the blue component in the byte with
+the lowest address and alpha in the byte with the highest address.</p></li>
+<li><p><code class="prettyprint">kSbBlitterPixelDataFormatRGBA8</code></p>
+
+<p>32-bit pixels with 8-bits per channel, the red component in the byte with
+the lowest address and alpha in the byte with the highest address.</p></li>
+<li><p><code class="prettyprint">kSbBlitterPixelDataFormatA8</code></p>
+
+<p>8-bit pixels that contain only a single alpha channel. When rendered,
+surfaces in this format will have <code class="prettyprint">(R, G, B)</code> values of <code class="prettyprint">(255, 255, 255)</code>.</p></li>
+<li><p><code class="prettyprint">kSbBlitterNumPixelDataFormats</code></p>
+
+<p>Constant that indicates how many unique pixel formats Starboard supports.</p></li>
+<li><p><code class="prettyprint">kSbBlitterInvalidPixelDataFormat</code></p></li>
 </ul>
 
 <h3 id="sbblittersurfaceformat">SbBlitterSurfaceFormat</h3>
 
-<p>Enumeration that describes the color format of surfaces.  Note that
-SbBlitterSurfaceFormat does not differentiate between permutations of the
-color channel ordering (e.g. RGBA vs ARGB) since client code will never be
-able to access surface pixels directly.  This is the main difference between
-SbBlitterPixelDataFormat, which does explicitly dictate an ordering.</p>
+<p>Enumeration that describes the color format of surfaces. Note that
+<code class="prettyprint">SbBlitterSurfaceFormat</code> does not differentiate between permutations of the
+color channel ordering (e.g. RGBA vs ARGB) since client code will never be able
+to access surface pixels directly. This is the main difference between
+<code class="prettyprint">SbBlitterPixelDataFormat</code>, which does explicitly dictate an ordering.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbBlitterSurfaceFormatRGBA8</code> - 32-bit RGBA color, with 8 bits per channel.</li>
-<li>  <code class="prettyprint">kSbBlitterSurfaceFormatA8</code> - 8-bit alpha-only color.</li>
-<li>  <code class="prettyprint">kSbBlitterNumSurfaceFormats</code> - Constant that indicates how many unique surface formats Starboard supports.</li>
-<li>  <code class="prettyprint">kSbBlitterInvalidSurfaceFormat</code></li>
+<li><p><code class="prettyprint">kSbBlitterSurfaceFormatRGBA8</code></p>
+
+<p>32-bit RGBA color, with 8 bits per channel.</p></li>
+<li><p><code class="prettyprint">kSbBlitterSurfaceFormatA8</code></p>
+
+<p>8-bit alpha-only color.</p></li>
+<li><p><code class="prettyprint">kSbBlitterNumSurfaceFormats</code></p>
+
+<p>Constant that indicates how many unique surface formats Starboard supports.</p></li>
+<li><p><code class="prettyprint">kSbBlitterInvalidSurfaceFormat</code></p></li>
 </ul>
 
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbblittercolor">SbBlitterColor</h3>
+
+<p>A simple 32-bit color representation that is a parameter to many Blitter
+functions.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef uint32_t SbBlitterColor
+</code></pre></div>
 <h2 id="structs">Structs</h2>
-
-<h3 id="sbblittercontextprivate">SbBlitterContextPrivate</h3>
-
-<p>SbBlitterContext objects represent a stateful communications channel with
-a device.  All state changes and draw calls are made through a specific
-SbBlitterContext object.  Every draw call made on a SbBlitterContext is
-submitted to the device with the SbBlitterContext&#39;s current state applied
-to it.<br>
-Draw calls may be submitted to the device as they are made on the
-SbBlitterContext. However, they are not guaranteed to be submitted until
-the SbBlitterContext object is flushed. That is, until you call
-SbBlitterFlushContext, you are not guaranteed that any API calls you have
-made have been received or acted on by the graphics device.</p>
-
-<h3 id="sbblitterdeviceprivate">SbBlitterDevicePrivate</h3>
-
-<p>A SbBlitterDevice object represents a process&#39; connection to a blitter
-device, such as a GPU.  It is through this device that all subsequent Blitter
-API functionality can be accessed.</p>
-
-<h3 id="sbblitterpixeldataprivate">SbBlitterPixelDataPrivate</h3>
-
-<p>A SbBlitterPixelData object represents a buffer of pixels stored in
-CPU-accessible memory.  In order to upload pixel data from the CPU to the
-GPU, clients should first create a SbBlitterPixelData object, fill in
-the pixel data, and then re-submit the filled in SbBlitterPixelData
-object to the Blitter API in order to obtain a SbBlitterSurface object that
-can be referenced by draw calls.</p>
 
 <h3 id="sbblitterrect">SbBlitterRect</h3>
 
-<p>Defines a rectangle via a point (x, y) and a size, (width, height).
-This structure is used as a parameter type in various blit calls.</p>
+<p>Defines a rectangle via a point <code class="prettyprint">(x, y)</code> and a size <code class="prettyprint">(width, height)</code>. This
+structure is used as a parameter type in various blit calls.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>x</code></td>    <td></td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>y</code></td>    <td></td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>width</code></td>    <td></td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>height</code></td>    <td></td>  </tr>
-</table>
-
-<h3 id="sbblitterrendertargetprivate">SbBlitterRenderTargetPrivate</h3>
-
-<p>A SbBlitterRenderTarget may be obtained from either a SbBlitterSwapChain
-if it represents a primary display output, or through a SbBlitterSurface
-if it represents an offscreen rendering target.  A SbBlitterRenderTarget
-must be specified within a SbBlitterContext before making a draw call.</p>
+<ul>
+<li>  <code class="prettyprint">int x</code></li>
+<li>  <code class="prettyprint">int y</code></li>
+<li>  <code class="prettyprint">int width</code></li>
+<li>  <code class="prettyprint">int height</code></li>
+</ul>
 
 <h3 id="sbblittersurfaceinfo">SbBlitterSurfaceInfo</h3>
 
-<p>SbBlitterSurfaceInfo collects information about surfaces that can be queried
+<p><code class="prettyprint">SbBlitterSurfaceInfo</code> collects information about surfaces that can be queried
 from them at any time.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>width</code></td>    <td></td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>height</code></td>    <td></td>  </tr>
-  <tr>
-    <td><code>SbBlitterSurfaceFormat</code><br>        <code>format</code></td>    <td></td>  </tr>
-</table>
-
-<h3 id="sbblittersurfaceprivate">SbBlitterSurfacePrivate</h3>
-
-<p>A SbBlitterSurface object represents a device-side surface of pixel data that
-can be used as either the source or the target of device draw calls.
-Note that depending on how the surface is created, it may not be able to
-offer the ability to obtain a SbBlitterRenderTarget. SbBlitterSurface objects
-may be populated by data either by the CPU via SbBlitterPixelData objects, or
-via the device by using this SbBlitterSurface&#39;s SbBlitterRenderTarget object
-as the target of draw calls.</p>
-
-<h3 id="sbblitterswapchainprivate">SbBlitterSwapChainPrivate</h3>
-
-<p>A SbBlitterSwapChain represents the (potentially back buffered) output
-display device.  A SbBlitterRenderTarget can be retrieved from a
-SbBlitterSwapChain, providing a target for draw commands.  The
-SbBlitterSwapChain object also exposes the ability to flip back buffers.</p>
+<ul>
+<li>  <code class="prettyprint">int width</code></li>
+<li>  <code class="prettyprint">int height</code></li>
+<li>  <code class="prettyprint">SbBlitterSurfaceFormat format</code></li>
+</ul>
 
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbblitterafromcolor">SbBlitterAFromColor</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE uint8_t SbBlitterAFromColor(SbBlitterColor color) {
-  return (color &amp; 0x000000FF) &gt;&gt; 0;
-}
+<p>Extract alpha from a <code class="prettyprint">SbBlitterColor</code> object.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static uint8_t SbBlitterAFromColor(SbBlitterColor color)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterColor</code><br>
-        <code>color</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterbfromcolor">SbBlitterBFromColor</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE uint8_t SbBlitterBFromColor(SbBlitterColor color) {
-  return (color &amp; 0x0000FF00) &gt;&gt; 8;
-}
+<p>Extract blue from a <code class="prettyprint">SbBlitterColor</code> object.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static uint8_t SbBlitterBFromColor(SbBlitterColor color)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterColor</code><br>
-        <code>color</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterblitrecttorect">SbBlitterBlitRectToRect</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Issues a draw call on <code class="prettyprint">context</code> that blits the area of <code class="prettyprint">source_surface</code>
-specified by <code class="prettyprint">src_rect</code> to <code class="prettyprint">context</code>&#39;s current render target at <code class="prettyprint">dst_rect</code>.
-The source rectangle must lie within the dimensions of <code class="prettyprint">source_surface</code>.
-Note that the <code class="prettyprint">source_surface</code>&#39;s alpha is modulated by <code class="prettyprint">opacity</code> before
-being drawn. For <code class="prettyprint">opacity</code>, a value of 0 implies complete invisibility,
-and a value of 255 implies complete opacity.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the draw call succeeded.</p>
+specified by <code class="prettyprint">src_rect</code> to <code class="prettyprint">context</code>&#39;s current render target at <code class="prettyprint">dst_rect</code>. The
+source rectangle must lie within the dimensions of <code class="prettyprint">source_surface</code>. Note that
+the <code class="prettyprint">source_surface</code>&#39;s alpha is modulated by <code class="prettyprint">opacity</code> before being drawn. For
+<code class="prettyprint">opacity</code>, a value of 0 implies complete invisibility, and a value of 255
+implies complete opacity.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterBlitRectToRect(SbBlitterContext context,
-                                       SbBlitterSurface source_surface,
-                                       SbBlitterRect src_rect,
-                                       SbBlitterRect dst_rect);
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the draw call succeeded.</p>
+
+<p><code class="prettyprint">src_rect</code>: The area to be block transferred (blitted).</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterBlitRectToRect(SbBlitterContext context, SbBlitterSurface source_surface, SbBlitterRect src_rect, SbBlitterRect dst_rect)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>        <code>source_surface</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbBlitterRect</code><br>        <code>src_rect</code></td>
-    <td>The area to be block transferred (blitted).</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterRect</code><br>        <code>dst_rect</code></td>
-    <td> </td>  </tr>
-</table>
-
 <h3 id="sbblitterblitrecttorecttiled">SbBlitterBlitRectToRectTiled</h3>
 
-<p><strong>Description</strong></p>
+<p>This function functions identically to SbBlitterBlitRectToRect(), except it
+permits values of <code class="prettyprint">src_rect</code> outside the dimensions of <code class="prettyprint">source_surface</code>. In
+those regions, the pixel data from <code class="prettyprint">source_surface</code> will be wrapped. Negative
+values for <code class="prettyprint">src_rect.x</code> and <code class="prettyprint">src_rect.y</code> are allowed.</p>
 
-<p>This function functions identically to <code><a href="#sbblitterblitrecttorect">SbBlitterBlitRectToRect()</a></code>, except
-it permits values of <code class="prettyprint">src_rect</code> outside the dimensions of <code class="prettyprint">source_surface</code>.
-In those regions, the pixel data from <code class="prettyprint">source_surface</code> will be wrapped.
-Negative values for <code class="prettyprint">src_rect.x</code> and <code class="prettyprint">src_rect.y</code> are allowed.<br>
-The output is all stretched to fit inside of <code class="prettyprint">dst_rect</code>.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the draw call succeeded.</p>
+<p>The output is all stretched to fit inside of <code class="prettyprint">dst_rect</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterBlitRectToRectTiled(SbBlitterContext context,
-                                            SbBlitterSurface source_surface,
-                                            SbBlitterRect src_rect,
-                                            SbBlitterRect dst_rect);
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the draw call succeeded.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterBlitRectToRectTiled(SbBlitterContext context, SbBlitterSurface source_surface, SbBlitterRect src_rect, SbBlitterRect dst_rect)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>
-        <code>context</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>
-        <code>source_surface</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterRect</code><br>
-        <code>src_rect</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterRect</code><br>
-        <code>dst_rect</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterblitrectstorects">SbBlitterBlitRectsToRects</h3>
 
-<p><strong>Description</strong></p>
-
-<p>This function achieves the same effect as calling <code><a href="#sbblitterblitrecttorect">SbBlitterBlitRectToRect()</a></code>
+<p>This function achieves the same effect as calling <code class="prettyprint">SbBlitterBlitRectToRect()</code>
 <code class="prettyprint">num_rects</code> times with each of the <code class="prettyprint">num_rects</code> values of <code class="prettyprint">src_rects</code> and
-<code class="prettyprint">dst_rects</code>. This function allows for greater efficiency than looped calls
-to <code><a href="#sbblitterblitrecttorect">SbBlitterBlitRectToRect()</a></code>.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the draw call succeeded.</p>
+<code class="prettyprint">dst_rects</code>. This function allows for greater efficiency than looped calls to
+<code class="prettyprint">SbBlitterBlitRectToRect()</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterBlitRectsToRects(SbBlitterContext context,
-                                         SbBlitterSurface source_surface,
-                                         const SbBlitterRect* src_rects,
-                                         const SbBlitterRect* dst_rects,
-                                         int num_rects);
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the draw call succeeded.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterBlitRectsToRects(SbBlitterContext context, SbBlitterSurface source_surface, const SbBlitterRect *src_rects, const SbBlitterRect *dst_rects, int num_rects)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>
-        <code>context</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>
-        <code>source_surface</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>const SbBlitterRect*</code><br>
-        <code>src_rects</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>const SbBlitterRect*</code><br>
-        <code>dst_rects</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>num_rects</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterbytesperpixelforformat">SbBlitterBytesPerPixelForFormat</h3>
 
-<p><strong>Description</strong></p>
+<p>A convenience function to return the number of bytes per pixel for a given pixel
+format.</p>
 
-<p>A convenience function to return the number of bytes per pixel for a given
-pixel format.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE int SbBlitterBytesPerPixelForFormat(
-    SbBlitterPixelDataFormat format) {
-  switch (format) {
-    case kSbBlitterPixelDataFormatARGB8:
-      return 4;
-    case kSbBlitterPixelDataFormatBGRA8:
-      return 4;
-    case kSbBlitterPixelDataFormatRGBA8:
-      return 4;
-    case kSbBlitterPixelDataFormatA8:
-      return 1;
-    default:
-      return 0;
-  }
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static int SbBlitterBytesPerPixelForFormat(SbBlitterPixelDataFormat format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterPixelDataFormat</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittercolorfromrgba">SbBlitterColorFromRGBA</h3>
 
-<p><strong>Description</strong></p>
+<p>A convenience function to create a <code class="prettyprint">SbBlitterColor</code> object from separate 8-bit
+RGBA components.</p>
 
-<p>A convenience function to create a SbBlitterColor object from separate
-8-bit RGBA components.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE SbBlitterColor SbBlitterColorFromRGBA(uint8_t r,
-                                                               uint8_t g,
-                                                               uint8_t b,
-                                                               uint8_t a) {
-  return (r &lt;&lt; 24) | (g &lt;&lt; 16) | (b &lt;&lt; 8) | a;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbBlitterColor SbBlitterColorFromRGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>uint8_t</code><br>
-        <code>r</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>uint8_t</code><br>
-        <code>g</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>uint8_t</code><br>
-        <code>b</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>uint8_t</code><br>
-        <code>a</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittercreatecontext">SbBlitterCreateContext</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates an <code class="prettyprint">SbBlitterContext</code> object on <code class="prettyprint">device</code>. The returned context can be
+used to set up draw state and issue draw calls.</p>
 
-<p>Creates an SbBlitterContext object on <code class="prettyprint">device</code>. The returned context can be
-used to set up draw state and issue draw calls.<br>
-Note that there is a limit on the number of contexts that can exist
-simultaneously, which can be queried by calling <code><a href="#sbblittergetmaxcontexts">SbBlitterGetMaxContexts()</a></code>.
-(The limit is often <code class="prettyprint">1</code>.)<br>
-SbBlitterContext objects keep track of draw state between a series of draw
-calls. Please refer to the SbBlitterContext() definition for more
-information about contexts.<br>
-This function is thread-safe.<br>
-This function returns kSbBlitterInvalidContext upon failure. Note that the
-function fails if it has already been used to create the maximum number
-of contexts.</p>
+<p>Note that there is a limit on the number of contexts that can exist
+simultaneously, which can be queried by calling <code class="prettyprint">SbBlitterGetMaxContexts()</code>.
+(The limit is often <code class="prettyprint">1</code>.)</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device);
+<p><code class="prettyprint">SbBlitterContext</code> objects keep track of draw state between a series of draw
+calls. Please refer to the <code class="prettyprint">SbBlitterContext()</code> definition for more information
+about contexts.</p>
+
+<p>This function is thread-safe.</p>
+
+<p>This function returns <code class="prettyprint">kSbBlitterInvalidContext</code> upon failure. Note that the
+function fails if it has already been used to create the maximum number of
+contexts.</p>
+
+<p><code class="prettyprint">device</code>: The <code class="prettyprint">SbBlitterDevice</code> for which the <code class="prettyprint">SbBlitterContext</code> object is
+created.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterContext SbBlitterCreateContext(SbBlitterDevice device)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>        <code>device</code></td>
-    <td>The SbBlitterDevice for which the SbBlitterContext object is
-created.</td>
-  </tr>
-</table>
-
 <h3 id="sbblittercreatedefaultdevice">SbBlitterCreateDefaultDevice</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates and returns an <code class="prettyprint">SbBlitterDevice</code> based on the Blitter API
+implementation&#39;s decision of which device should be the default. The returned
+<code class="prettyprint">SbBlitterDevice</code> represents a connection to a device (like a GPU).</p>
 
-<p>Creates and returns an SbBlitterDevice based on the Blitter API
-implementation&#39;s decision of which device should be the default. The
-returned SbBlitterDevice represents a connection to a device (like a GPU).<br>
-On many platforms there is always one single obvious choice for a device
-to use, and that is the one that this function will return. For example,
-if this is called on a platform that has a single GPU, this call should
-return an object that represents that GPU. On a platform that has no GPU,
-an object representing a software CPU implementation may be returned.<br>
-Only one default device can exist within a process at a time.
-This function is thread-safe.
-Returns kSbBlitterInvalidDevice on failure.</p>
+<p>On many platforms there is always one single obvious choice for a device to use,
+and that is the one that this function will return. For example, if this is
+called on a platform that has a single GPU, this call should return an object
+that represents that GPU. On a platform that has no GPU, an object representing
+a software CPU implementation may be returned.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterDevice SbBlitterCreateDefaultDevice();
+<p>Only one default device can exist within a process at a time. This function is
+thread-safe.</p>
+
+<p>Returns <code class="prettyprint">kSbBlitterInvalidDevice</code> on failure.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterDevice SbBlitterCreateDefaultDevice()
 </code></pre></div>
 <h3 id="sbblittercreatepixeldata">SbBlitterCreatePixelData</h3>
 
-<p><strong>Description</strong></p>
+<p>Allocates an <code class="prettyprint">SbBlitterPixelData</code> object through <code class="prettyprint">device</code> with <code class="prettyprint">width</code>, <code class="prettyprint">height</code>
+and <code class="prettyprint">pixel_format</code>. <code class="prettyprint">pixel_format</code> must be supported by <code class="prettyprint">device</code> (see
+<code class="prettyprint">SbBlitterIsPixelFormatSupportedByPixelData()</code>).</p>
 
-<p>Allocates an SbBlitterPixelData object through <code class="prettyprint">device</code> with <code class="prettyprint">width</code>,
-<code class="prettyprint">height</code> and <code class="prettyprint">pixel_format</code>. <code class="prettyprint">pixel_format</code> must be supported by <code class="prettyprint">device</code>
-(see <code><a href="#sbblitterispixelformatsupportedbypixeldata">SbBlitterIsPixelFormatSupportedByPixelData()</a></code>). This function is
-thread-safe.<br>
-Calling this function results in the allocation of CPU-accessible
-(though perhaps blitter-device-resident) memory to store pixel data
-of the requested size/format. An SbBlitterPixelData object should
-eventually be passed either into a call to
-SbBlitterCreateSurfaceFromPixelData() or into a call to
-SbBlitterDestroyPixelData().<br>
-Returns kSbBlitterInvalidPixelData upon failure.</p>
+<p>This function is thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterPixelData
-SbBlitterCreatePixelData(SbBlitterDevice device,
-                         int width,
-                         int height,
-                         SbBlitterPixelDataFormat pixel_format);
+<p>Calling this function results in the allocation of CPU-accessible (though
+perhaps blitter-device-resident) memory to store pixel data of the requested
+size/format. An <code class="prettyprint">SbBlitterPixelData</code> object should eventually be passed either
+into a call to <code class="prettyprint">SbBlitterCreateSurfaceFromPixelData()</code> or into a call to
+<code class="prettyprint">SbBlitterDestroyPixelData()</code>.</p>
+
+<p>Returns <code class="prettyprint">kSbBlitterInvalidPixelData</code> upon failure.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterPixelData SbBlitterCreatePixelData(SbBlitterDevice device, int width, int height, SbBlitterPixelDataFormat pixel_format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>
-        <code>device</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>width</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>height</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterPixelDataFormat</code><br>
-        <code>pixel_format</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittercreaterendertargetsurface">SbBlitterCreateRenderTargetSurface</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates a new surface with undefined pixel data on <code class="prettyprint">device</code> with the specified
+<code class="prettyprint">width</code>, <code class="prettyprint">height</code> and <code class="prettyprint">surface_format</code>. One can set the pixel data on the
+resulting surface by getting its associated SbBlitterRenderTarget object and
+then calling <code class="prettyprint">SbBlitterGetRenderTargetFromSurface()</code>.</p>
 
-<p>Creates a new surface with undefined pixel data on <code class="prettyprint">device</code> with the
-specified <code class="prettyprint">width</code>, <code class="prettyprint">height</code> and <code class="prettyprint">surface_format</code>. One can set the pixel data
-on the resulting surface by getting its associated SbBlitterRenderTarget
-object and then calling <code><a href="#sbblittergetrendertargetfromsurface">SbBlitterGetRenderTargetFromSurface()</a></code>.<br>
-This function is thread-safe.<br>
-Returns kSbBlitterInvalidSurface upon failure.</p>
+<p>This function is thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterSurface
-SbBlitterCreateRenderTargetSurface(SbBlitterDevice device,
-                                   int width,
-                                   int height,
-                                   SbBlitterSurfaceFormat surface_format);
+<p>Returns <code class="prettyprint">kSbBlitterInvalidSurface</code> upon failure.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterSurface SbBlitterCreateRenderTargetSurface(SbBlitterDevice device, int width, int height, SbBlitterSurfaceFormat surface_format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>
-        <code>device</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>width</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>height</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterSurfaceFormat</code><br>
-        <code>surface_format</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittercreatesurfacefrompixeldata">SbBlitterCreateSurfaceFromPixelData</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates an <code class="prettyprint">SbBlitterSurface</code> object on <code class="prettyprint">device</code>. Note that <code class="prettyprint">device</code> must match
+the device that was used to create the <code class="prettyprint">SbBlitterPixelData</code> object provided via
+the <code class="prettyprint">pixel_data</code> parameter.</p>
 
-<p>Creates an SbBlitterSurface object on <code class="prettyprint">device</code>. Note that <code class="prettyprint">device</code> must
-match the device that was used to create the SbBlitterPixelData object
-provided via the <code class="prettyprint">pixel_data</code> parameter.<br>
-This function also destroys the input <code class="prettyprint">pixel_data</code> object. As a result,
-<code class="prettyprint">pixel_data</code> should not be accessed again after a call to this function.<br>
-The returned object cannot be used as a render target (e.g. calling
-SbBlitterGetRenderTargetFromSurface() on it will return
-SbBlitterInvalidRenderTarget).<br>
-This function is thread-safe with respect to <code class="prettyprint">device</code>, but <code class="prettyprint">pixel_data</code>
-should not be modified on another thread while this function is called.<br>
-Returns kSbBlitterInvalidSurface in the event of an error.</p>
+<p>This function also destroys the input <code class="prettyprint">pixel_data</code> object. As a result,
+<code class="prettyprint">pixel_data</code> should not be accessed again after a call to this function.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterSurface
-SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device,
-                                    SbBlitterPixelData pixel_data);
+<p>The returned object cannot be used as a render target (e.g. calling
+<code class="prettyprint">SbBlitterGetRenderTargetFromSurface()</code> on it will return
+<code class="prettyprint">kSbBlitterInvalidRenderTarget</code>).</p>
+
+<p>This function is thread-safe with respect to <code class="prettyprint">device</code>, but <code class="prettyprint">pixel_data</code> should
+not be modified on another thread while this function is called.</p>
+
+<p>Returns <code class="prettyprint">kSbBlitterInvalidSurface</code> in the event of an error.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterSurface SbBlitterCreateSurfaceFromPixelData(SbBlitterDevice device, SbBlitterPixelData pixel_data)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>
-        <code>device</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterPixelData</code><br>
-        <code>pixel_data</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittercreateswapchainfromwindow">SbBlitterCreateSwapChainFromWindow</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates and returns an <code class="prettyprint">SbBlitterSwapChain</code> that can then be used to send
+graphics to the display. This function links <code class="prettyprint">device</code> to <code class="prettyprint">window</code>&#39;s output, and
+drawing to the returned swap chain will result in <code class="prettyprint">device</code> being used to render
+to <code class="prettyprint">window</code>.</p>
 
-<p>Creates and returns an SbBlitterSwapChain that can then be used to send
-graphics to the display. This function links <code class="prettyprint">device</code> to <code class="prettyprint">window</code>&#39;s output,
-and drawing to the returned swap chain will result in <code class="prettyprint">device</code> being used
-to render to <code class="prettyprint">window</code>.<br>
-This function must be called from the thread that called SbWindowCreate()
-to create <code class="prettyprint">window</code>.<br>
-Returns kSbBlitterInvalidSwapChain on failure.</p>
+<p>This function must be called from the thread that called <code class="prettyprint">SbWindowCreate()</code> to
+create <code class="prettyprint">window</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterSwapChain
-SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device, SbWindow window);
+<p>Returns <code class="prettyprint">kSbBlitterInvalidSwapChain</code> on failure.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterSwapChain SbBlitterCreateSwapChainFromWindow(SbBlitterDevice device, SbWindow window)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>
-        <code>device</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbWindow</code><br>
-        <code>window</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterdestroycontext">SbBlitterDestroyContext</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys the specified <code class="prettyprint">context</code>, freeing all its resources.</p>
 
-<p>Destroys the specified <code class="prettyprint">context</code>, freeing all its resources. This function
-is not thread-safe.<br>
-The return value indicates whether the destruction succeeded.</p>
+<p>This function is not thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterDestroyContext(SbBlitterContext context);
+<p>The return value indicates whether the destruction succeeded.</p>
+
+<p><code class="prettyprint">context</code>: The object to be destroyed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterDestroyContext(SbBlitterContext context)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td>The object to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterdestroydevice">SbBlitterDestroyDevice</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys <code class="prettyprint">device</code>, cleaning up all resources associated with it. This function
+is thread-safe, but it should not be called if <code class="prettyprint">device</code> is still being accessed
+elsewhere.</p>
 
-<p>Destroys <code class="prettyprint">device</code>, cleaning up all resources associated with it.
-This function is thread-safe, but it should not be called if <code class="prettyprint">device</code> is
-still being accessed elsewhere.<br>
-The return value indicates whether the destruction succeeded.</p>
+<p>The return value indicates whether the destruction succeeded.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterDestroyDevice(SbBlitterDevice device);
+<p><code class="prettyprint">device</code>: The SbBlitterDevice object to be destroyed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterDestroyDevice(SbBlitterDevice device)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>        <code>device</code></td>
-    <td>The SbBlitterDevice object to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterdestroypixeldata">SbBlitterDestroyPixelData</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys <code class="prettyprint">pixel_data</code>. Note that this function does not need to be called and
+should not be called if <code class="prettyprint">SbBlitterCreateSurfaceFromPixelData()</code> has been called
+on <code class="prettyprint">pixel_data</code> before.</p>
 
-<p>Destroys <code class="prettyprint">pixel_data</code>. Note that this function does not need to be called
-and should not be called if <code><a href="#sbblittercreatesurfacefrompixeldata">SbBlitterCreateSurfaceFromPixelData()</a></code> has been
-called on <code class="prettyprint">pixel_data</code> before. This function is thread-safe.<br>
-The return value indicates whether the destruction succeeded.</p>
+<p>This function is thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data);
+<p>The return value indicates whether the destruction succeeded.</p>
+
+<p><code class="prettyprint">pixel_data</code>: The object to be destroyed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterDestroyPixelData(SbBlitterPixelData pixel_data)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterPixelData</code><br>        <code>pixel_data</code></td>
-    <td>The object to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterdestroysurface">SbBlitterDestroySurface</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys the <code class="prettyprint">surface</code> object, cleaning up all resources associated with it.</p>
 
-<p>Destroys the <code class="prettyprint">surface</code> object, cleaning up all resources associated with it.
-This function is not thread safe.<br>
-The return value indicates whether the destruction succeeded.</p>
+<p>This function is not thread safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterDestroySurface(SbBlitterSurface surface);
+<p>The return value indicates whether the destruction succeeded.</p>
+
+<p><code class="prettyprint">surface</code>: The object to be destroyed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterDestroySurface(SbBlitterSurface surface)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>        <code>surface</code></td>
-    <td>The object to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterdestroyswapchain">SbBlitterDestroySwapChain</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys <code class="prettyprint">swap_chain</code>, cleaning up all resources associated with it. This
+function is not thread-safe and must be called on the same thread that called
+<code class="prettyprint">SbBlitterCreateSwapChainFromWindow()</code>.</p>
 
-<p>Destroys <code class="prettyprint">swap_chain</code>, cleaning up all resources associated with it.
-This function is not thread-safe and must be called on the same thread
-that called <code><a href="#sbblittercreateswapchainfromwindow">SbBlitterCreateSwapChainFromWindow()</a></code>.<br>
-The return value indicates whether the destruction succeeded.</p>
+<p>The return value indicates whether the destruction succeeded.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain);
+<p><code class="prettyprint">swap_chain</code>: The SbBlitterSwapChain to be destroyed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterDestroySwapChain(SbBlitterSwapChain swap_chain)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSwapChain</code><br>        <code>swap_chain</code></td>
-    <td>The SbBlitterSwapChain to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterdownloadsurfacepixels">SbBlitterDownloadSurfacePixels</h3>
 
-<p><strong>Description</strong></p>
+<p>Downloads <code class="prettyprint">surface</code> pixel data into CPU memory pointed to by <code class="prettyprint">out_pixel_data</code>,
+formatted according to the requested <code class="prettyprint">pixel_format</code> and the requested
+<code class="prettyprint">pitch_in_bytes</code>. Before calling this function, you can call
+<code class="prettyprint">SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels()</code> to confirm that
+<code class="prettyprint">pixel_format</code> is, in fact, valid for <code class="prettyprint">surface</code>.</p>
 
-<p>Downloads <code class="prettyprint">surface</code> pixel data into CPU memory pointed to by
-<code class="prettyprint">out_pixel_data</code>, formatted according to the requested <code class="prettyprint">pixel_format</code> and
-the requested <code class="prettyprint">pitch_in_bytes</code>. Before calling this function, you can call
-SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels() to confirm that
-<code class="prettyprint">pixel_format</code> is, in fact, valid for <code class="prettyprint">surface</code>.<br>
-When this function is called, it first waits for all previously flushed
-graphics commands to be executed by the device before downloading the data.
-Since this function waits for the pipeline to empty, it should be used
-sparingly, such as within in debug or test environments.<br>
-The return value indicates whether the pixel data was downloaded
-successfully.<br>
-The returned alpha format is premultiplied.<br>
-This function is not thread-safe.</p>
+<p>When this function is called, it first waits for all previously flushed graphics
+commands to be executed by the device before downloading the data. Since this
+function waits for the pipeline to empty, it should be used sparingly, such as
+within in debug or test environments.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterDownloadSurfacePixels(
-    SbBlitterSurface surface,
-    SbBlitterPixelDataFormat pixel_format,
-    int pitch_in_bytes,
-    void* out_pixel_data);
+<p>The return value indicates whether the pixel data was downloaded successfully.</p>
+
+<p>The returned alpha format is premultiplied.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p><code class="prettyprint">out_pixel_data</code>: A pointer to a region of memory with a size of surface_height
+* <code class="prettyprint">pitch_in_bytes</code> bytes.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterDownloadSurfacePixels(SbBlitterSurface surface, SbBlitterPixelDataFormat pixel_format, int pitch_in_bytes, void *out_pixel_data)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>        <code>surface</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbBlitterPixelDataFormat</code><br>        <code>pixel_format</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>pitch_in_bytes</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>void*</code><br>        <code>out_pixel_data</code></td>
-    <td>A pointer to a region of memory with a size of
-surface_height * <code>pitch_in_bytes</code> bytes.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterfillrect">SbBlitterFillRect</h3>
 
-<p><strong>Description</strong></p>
+<p>Issues a draw call on <code class="prettyprint">context</code> that fills the specified rectangle <code class="prettyprint">rect</code>. The
+rectangle&#39;s color is determined by the last call to <code class="prettyprint">SbBlitterSetColor()</code>.</p>
 
-<p>Issues a draw call on <code class="prettyprint">context</code> that fills the specified rectangle <code class="prettyprint">rect</code>.
-The rectangle&#39;s color is determined by the last call to <code><a href="#sbblittersetcolor">SbBlitterSetColor()</a></code>.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the draw call succeeded.</p>
+<p>This function is not thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect);
+<p>The return value indicates whether the draw call succeeded.</p>
+
+<p><code class="prettyprint">context</code>: The context on which the draw call will operate. <code class="prettyprint">rect</code>: The
+rectangle to be filled.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterFillRect(SbBlitterContext context, SbBlitterRect rect)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td>The context on which the draw call will operate.</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterRect</code><br>        <code>rect</code></td>
-    <td>The rectangle to be filled.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterflipswapchain">SbBlitterFlipSwapChain</h3>
 
-<p><strong>Description</strong></p>
+<p>Flips the <code class="prettyprint">swap_chain</code> by making the buffer previously accessible to draw
+commands via <code class="prettyprint">SbBlitterGetRenderTargetFromSwapChain()</code> visible on the display,
+while another buffer in an initially undefined state is set up as the new draw
+command target. Note that you do not need to call
+<code class="prettyprint">SbBlitterGetRenderTargetFromSwapChain()</code> again after flipping, the swap chain&#39;s
+render target always refers to its current back buffer.</p>
 
-<p>Flips the <code class="prettyprint">swap_chain</code> by making the buffer previously accessible to
-draw commands via <code><a href="#sbblittergetrendertargetfromswapchain">SbBlitterGetRenderTargetFromSwapChain()</a></code> visible on the
-display, while another buffer in an initially undefined state is set up
-as the new draw command target. Note that you do not need to call
-SbBlitterGetRenderTargetFromSwapChain() again after flipping, the swap
-chain&#39;s render target always refers to its current back buffer.<br>
-This function stalls the calling thread until the next vertical refresh.
-In addition, to ensure consistency with the Starboard Player API when
-rendering punch-out video, calls to SbPlayerSetBounds() do not take effect
-until this method is called.<br>
-The return value indicates whether the flip succeeded.<br>
-This function is not thread-safe.</p>
+<p>This function stalls the calling thread until the next vertical refresh. In
+addition, to ensure consistency with the Starboard Player API when rendering
+punch-out video, calls to <code class="prettyprint">SbPlayerSetBounds()</code> do not take effect until this
+method is called.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain);
+<p>The return value indicates whether the flip succeeded.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p><code class="prettyprint">swap_chain</code>: The SbBlitterSwapChain to be flipped.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterFlipSwapChain(SbBlitterSwapChain swap_chain)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSwapChain</code><br>        <code>swap_chain</code></td>
-    <td>The SbBlitterSwapChain to be flipped.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterflushcontext">SbBlitterFlushContext</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Flushes all draw calls previously issued to <code class="prettyprint">context</code>. Calling this function
-guarantees that the device processes all draw calls issued to this point on
-this <code class="prettyprint">context</code> before processing any subsequent draw calls on any context.<br>
-Before calling <code><a href="#sbblitterflipswapchain">SbBlitterFlipSwapChain()</a></code>, it is often prudent to call this
-function to ensure that all draw calls are submitted before the flip occurs.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the flush succeeded.</p>
+guarantees that the device processes all draw calls issued to this point on this
+<code class="prettyprint">context</code> before processing any subsequent draw calls on any context.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterFlushContext(SbBlitterContext context);
+<p>Before calling <code class="prettyprint">SbBlitterFlipSwapChain()</code>, it is often prudent to call this
+function to ensure that all draw calls are submitted before the flip occurs.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the flush succeeded.</p>
+
+<p><code class="prettyprint">context</code>: The context for which draw calls are being flushed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterFlushContext(SbBlitterContext context)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td>The context for which draw calls are being flushed.</td>
-  </tr>
-</table>
-
 <h3 id="sbblittergfromcolor">SbBlitterGFromColor</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE uint8_t SbBlitterGFromColor(SbBlitterColor color) {
-  return (color &amp; 0x00FF0000) &gt;&gt; 16;
-}
+<p>Extract green from a <code class="prettyprint">SbBlitterColor</code> object.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static uint8_t SbBlitterGFromColor(SbBlitterColor color)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterColor</code><br>
-        <code>color</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittergetmaxcontexts">SbBlitterGetMaxContexts</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the maximum number of contexts that <code class="prettyprint">device</code> can support in parallel.
+Note that devices often support only a single context.</p>
 
-<p>Returns the maximum number of contexts that <code class="prettyprint">device</code> can support in
-parallel. Note that devices often support only a single context.<br>
-This function is thread-safe.<br>
-This function returns <code class="prettyprint">-1</code> upon failure.</p>
+<p>This function is thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT int SbBlitterGetMaxContexts(SbBlitterDevice device);
+<p>This function returns <code class="prettyprint">-1</code> upon failure.</p>
+
+<p><code class="prettyprint">device</code>: The SbBlitterDevice for which the maximum number of contexts is
+returned.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbBlitterGetMaxContexts(SbBlitterDevice device)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>        <code>device</code></td>
-    <td>The SbBlitterDevice for which the maximum number of contexts is
-returned.</td>
-  </tr>
-</table>
-
 <h3 id="sbblittergetpixeldatapitchinbytes">SbBlitterGetPixelDataPitchInBytes</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Retrieves the pitch (in bytes) for <code class="prettyprint">pixel_data</code>. This indicates the number of
-bytes per row of pixel data in the image. This function is not thread-safe.<br>
-Returns <code class="prettyprint">-1</code> in the event of an error.</p>
+bytes per row of pixel data in the image.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT int SbBlitterGetPixelDataPitchInBytes(SbBlitterPixelData pixel_data);
+<p>This function is not thread-safe.</p>
+
+<p>Returns <code class="prettyprint">-1</code> in the event of an error.</p>
+
+<p><code class="prettyprint">pixel_data</code>: The object for which you are retrieving the pitch.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbBlitterGetPixelDataPitchInBytes(SbBlitterPixelData pixel_data)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterPixelData</code><br>        <code>pixel_data</code></td>
-    <td>The object for which you are retrieving the pitch.</td>
-  </tr>
-</table>
-
 <h3 id="sbblittergetpixeldatapointer">SbBlitterGetPixelDataPointer</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Retrieves a CPU-accessible pointer to the pixel data represented by
-<code class="prettyprint">pixel_data</code>. This pixel data can be modified by the CPU to initialize it
-on the CPU before calling <code><a href="#sbblittercreatesurfacefrompixeldata">SbBlitterCreateSurfaceFromPixelData()</a></code>.<br>
-Note that the pointer returned here is valid as long as <code class="prettyprint">pixel_data</code> is
-valid, which means it is valid until either
-SbBlitterCreateSurfaceFromPixelData() or <code><a href="#sbblitterdestroypixeldata">SbBlitterDestroyPixelData()</a></code> is
-called.<br>
-This function is not thread-safe.<br>
-Returns <code class="prettyprint">NULL</code> in the event of an error.</p>
+<code class="prettyprint">pixel_data</code>. This pixel data can be modified by the CPU to initialize it on the
+CPU before calling <code class="prettyprint">SbBlitterCreateSurfaceFromPixelData()</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void* SbBlitterGetPixelDataPointer(SbBlitterPixelData pixel_data);
+<p>Note that the pointer returned here is valid as long as <code class="prettyprint">pixel_data</code> is valid,
+which means it is valid until either <code class="prettyprint">SbBlitterCreateSurfaceFromPixelData()</code> or
+<code class="prettyprint">SbBlitterDestroyPixelData()</code> is called.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>Returns <code class="prettyprint">NULL</code> in the event of an error.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbBlitterGetPixelDataPointer(SbBlitterPixelData pixel_data)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterPixelData</code><br>
-        <code>pixel_data</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittergetrendertargetfromsurface">SbBlitterGetRenderTargetFromSurface</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the <code class="prettyprint">SbBlitterRenderTarget</code> object owned by <code class="prettyprint">surface</code>. The returned
+object can be used as a target for draw calls.</p>
 
-<p>Returns the SbBlitterRenderTarget object owned by <code class="prettyprint">surface</code>.  The returned
-object can be used as a target for draw calls.<br>
-This function returns kSbBlitterInvalidRenderTarget if <code class="prettyprint">surface</code> is not
-able to provide a render target or on any other error.<br>
-This function is not thread-safe.</p>
+<p>This function returns <code class="prettyprint">kSbBlitterInvalidRenderTarget</code> if <code class="prettyprint">surface</code> is not able
+to provide a render target or on any other error.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterRenderTarget
-SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface);
+<p>This function is not thread-safe.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterRenderTarget SbBlitterGetRenderTargetFromSurface(SbBlitterSurface surface)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>
-        <code>surface</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittergetrendertargetfromswapchain">SbBlitterGetRenderTargetFromSwapChain</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the <code class="prettyprint">SbBlitterRenderTarget</code> object that is owned by <code class="prettyprint">swap_chain</code>. The
+returned object can be used to provide a target to blitter draw calls that draw
+directly to the display buffer. This function is not thread-safe.</p>
 
-<p>Returns the <code class="prettyprint">SbBlitterRenderTarget</code> object that is owned by <code class="prettyprint">swap_chain</code>.
-The returned object can be used to provide a target to blitter draw calls
-that draw directly to the display buffer. This function is not thread-safe.<br>
-Returns kSbBlitterInvalidRenderTarget on failure.</p>
+<p>Returns <code class="prettyprint">kSbBlitterInvalidRenderTarget</code> on failure.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbBlitterRenderTarget
-SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain);
+<p><code class="prettyprint">swap_chain</code>: The SbBlitterSwapChain for which the target object is being
+retrieved.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbBlitterRenderTarget SbBlitterGetRenderTargetFromSwapChain(SbBlitterSwapChain swap_chain)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSwapChain</code><br>        <code>swap_chain</code></td>
-    <td>The SbBlitterSwapChain for which the target object is being
-retrieved.</td>
-  </tr>
-</table>
-
 <h3 id="sbblittergetsurfaceinfo">SbBlitterGetSurfaceInfo</h3>
 
-<p><strong>Description</strong></p>
+<p>Retrieves an <code class="prettyprint">SbBlitterSurfaceInfo</code> structure, which describes immutable
+parameters of the <code class="prettyprint">surface</code>, such as its width, height and pixel format. The
+results are set on the output parameter <code class="prettyprint">surface_info</code>, which cannot be <code class="prettyprint">NULL</code>.</p>
 
-<p>Retrieves an SbBlitterSurfaceInfo structure, which describes immutable
-parameters of the <code class="prettyprint">surface</code>, such as its width, height and pixel format.
-The results are set on the output parameter <code class="prettyprint">surface_info</code>, which cannot
-be NULL.<br>
-The return value indicates whether the information was retrieved
-successfully.<br>
-This function is not thread-safe.</p>
+<p>The return value indicates whether the information was retrieved successfully.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface,
-                                       SbBlitterSurfaceInfo* surface_info);
+<p>This function is not thread-safe.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterGetSurfaceInfo(SbBlitterSurface surface, SbBlitterSurfaceInfo *surface_info)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>
-        <code>surface</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterSurfaceInfo*</code><br>
-        <code>surface_info</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitteriscontextvalid">SbBlitterIsContextValid</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbBlitterIsContextValid(
-    SbBlitterContext context) {
-  return context != kSbBlitterInvalidContext;
-}
+<p>Checks whether a blitter context is invalid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbBlitterIsContextValid(SbBlitterContext context)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>
-        <code>context</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterisdevicevalid">SbBlitterIsDeviceValid</h3>
 
-<p><strong>Description</strong></p>
+<p>Checks whether a blitter device is invalid.</p>
 
-<p>Helper functions to check whether or not a blitter object is invalid.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbBlitterIsDeviceValid(SbBlitterDevice device) {
-  return device != kSbBlitterInvalidDevice;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbBlitterIsDeviceValid(SbBlitterDevice device)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>
-        <code>device</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterispixeldatavalid">SbBlitterIsPixelDataValid</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbBlitterIsPixelDataValid(
-    SbBlitterPixelData pixel_data) {
-  return pixel_data != kSbBlitterInvalidPixelData;
-}
+<p>Checks whether a pixel data object is invalid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbBlitterIsPixelDataValid(SbBlitterPixelData pixel_data)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterPixelData</code><br>
-        <code>pixel_data</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterispixelformatsupportedbydownloadsurfacepixels">SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels</h3>
 
-<p><strong>Description</strong></p>
+<p>Indicates whether the combination of parameter values is valid for calls to
+<code class="prettyprint">SbBlitterDownloadSurfacePixels()</code>.</p>
 
-<p>Indicates whether the combination of parameter values is valid for calls
-to <code><a href="#sbblitterdownloadsurfacepixels">SbBlitterDownloadSurfacePixels()</a></code>.<br>
-This function is not thread-safe.</p>
+<p>This function is not thread-safe.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(
-    SbBlitterSurface surface,
-    SbBlitterPixelDataFormat pixel_format);
+<p><code class="prettyprint">surface</code>: The surface being checked. <code class="prettyprint">pixel_format</code>: The pixel format that
+would be used on the surface.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterIsPixelFormatSupportedByDownloadSurfacePixels(SbBlitterSurface surface, SbBlitterPixelDataFormat pixel_format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>        <code>surface</code></td>
-    <td>The surface being checked.</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterPixelDataFormat</code><br>        <code>pixel_format</code></td>
-    <td>The pixel format that would be used on the surface.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterispixelformatsupportedbypixeldata">SbBlitterIsPixelFormatSupportedByPixelData</h3>
 
-<p><strong>Description</strong></p>
+<p>Indicates whether <code class="prettyprint">device</code> supports calls to <code class="prettyprint">SbBlitterCreatePixelData</code> with the
+specified <code class="prettyprint">pixel_format</code>. This function is thread-safe.</p>
 
-<p>Indicates whether <code class="prettyprint">device</code> supports calls to <code><a href="#sbblittercreatepixeldata">SbBlitterCreatePixelData</a></code>
-with the specified <code class="prettyprint">pixel_format</code>. This function is thread-safe.</p>
+<p><code class="prettyprint">device</code>: The device for which compatibility is being checked. <code class="prettyprint">pixel_format</code>:
+The SbBlitterPixelDataFormat for which compatibility is being checked.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterIsPixelFormatSupportedByPixelData(
-    SbBlitterDevice device,
-    SbBlitterPixelDataFormat pixel_format);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterIsPixelFormatSupportedByPixelData(SbBlitterDevice device, SbBlitterPixelDataFormat pixel_format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>        <code>device</code></td>
-    <td>The device for which compatibility is being checked.</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterPixelDataFormat</code><br>        <code>pixel_format</code></td>
-    <td>The SbBlitterPixelDataFormat for which compatibility is
-being checked.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterisrendertargetvalid">SbBlitterIsRenderTargetValid</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbBlitterIsRenderTargetValid(
-    SbBlitterRenderTarget render_target) {
-  return render_target != kSbBlitterInvalidRenderTarget;
-}
+<p>Checks whether a render target is invalid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbBlitterIsRenderTargetValid(SbBlitterRenderTarget render_target)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterRenderTarget</code><br>
-        <code>render_target</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterissurfaceformatsupportedbyrendertargetsurface">SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Indicates whether the <code class="prettyprint">device</code> supports calls to
-SbBlitterCreateRenderTargetSurface() with <code class="prettyprint">surface_format</code>.<br>
-This function is thread-safe.</p>
+<code class="prettyprint">SbBlitterCreateRenderTargetSurface()</code> with <code class="prettyprint">surface_format</code>.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(
-    SbBlitterDevice device,
-    SbBlitterSurfaceFormat surface_format);
+<p>This function is thread-safe.</p>
+
+<p><code class="prettyprint">device</code>: The device being checked for compatibility. <code class="prettyprint">surface_format</code>: The
+surface format being checked for compatibility.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterIsSurfaceFormatSupportedByRenderTargetSurface(SbBlitterDevice device, SbBlitterSurfaceFormat surface_format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterDevice</code><br>        <code>device</code></td>
-    <td>The device being checked for compatibility.</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterSurfaceFormat</code><br>        <code>surface_format</code></td>
-    <td>The surface format being checked for compatibility.</td>
-  </tr>
-</table>
-
 <h3 id="sbblitterissurfacevalid">SbBlitterIsSurfaceValid</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbBlitterIsSurfaceValid(
-    SbBlitterSurface surface) {
-  return surface != kSbBlitterInvalidSurface;
-}
+<p>Checks whether a surface is invalid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbBlitterIsSurfaceValid(SbBlitterSurface surface)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSurface</code><br>
-        <code>surface</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblitterisswapchainvalid">SbBlitterIsSwapChainValid</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbBlitterIsSwapChainValid(
-    SbBlitterSwapChain swap_chain) {
-  return swap_chain != kSbBlitterInvalidSwapChain;
-}
+<p>Checks whether a swap chain is invalid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbBlitterIsSwapChainValid(SbBlitterSwapChain swap_chain)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterSwapChain</code><br>
-        <code>swap_chain</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbblittermakerect">SbBlitterMakeRect</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Convenience function to setup a rectangle with the specified parameters.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE SbBlitterRect SbBlitterMakeRect(int x,
-                                                         int y,
-                                                         int width,
-                                                         int height) {
-  SbBlitterRect rect;
-  rect.x = x;
-  rect.y = y;
-  rect.width = width;
-  rect.height = height;
-  return rect;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbBlitterRect SbBlitterMakeRect(int x, int y, int width, int height)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>x</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>y</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>width</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>
-        <code>height</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbblitterrfromcolor">SbBlitterRFromColor</h3>
-
-<p><strong>Description</strong></p>
-
-<p>The following helper functions can be used to extract specific color
-components from a SbBlitterColor object.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE uint8_t SbBlitterRFromColor(SbBlitterColor color) {
-  return (color &amp; 0xFF000000) &gt;&gt; 24;
-}
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterColor</code><br>
-        <code>color</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbblittersetblending">SbBlitterSetBlending</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets the blending state for the specified <code class="prettyprint">context</code>. By default, blending
-is disabled on a SbBlitterContext.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the blending state was set successfully.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterSetBlending(SbBlitterContext context, bool blending);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td>The context for which the blending state is being set.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>blending</code></td>
-    <td>The blending state for the <code>context</code>.
-If <code>blending</code> is <code>true</code>, the source alpha of subsequent draw calls
-is used to blend with the destination color. In particular,
-(<code>Fc = Sc * Sa + Dc * (1 - Sa)</code>), where:
-<ul><li><code>Fc</code> is the final color.
-</li><li><code>Sc</code> is the source color.
-</li><li><code>Sa</code> is the source alpha.
-</li><li><code>Dc</code> is the destination color.
-If <code>blending</code> is <code>false</code>, the source color and source alpha overwrite
-the destination color and alpha.</td>
-  </tr>
-</table>
-
-<h3 id="sbblittersetcolor">SbBlitterSetColor</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets the context&#39;s current color.  The current color&#39;s default value is
-<code class="prettyprint">SbBlitterColorFromRGBA(255, 255, 255 255)</code>.<br>
-The current color affects the fill rectangle&#39;s color in calls to
-SbBlitterFillRect(). If <code><a href="#sbblittersetmodulateblitswithcolor">SbBlitterSetModulateBlitsWithColor()</a></code> has been called
-to enable blit color modulation, the source blit surface pixel color is also
-modulated by the color before being output.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the color was set successfully.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterSetColor(SbBlitterContext context,
-                                 SbBlitterColor color);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td>The context for which the color is being set.</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterColor</code><br>        <code>color</code></td>
-    <td>The context's new color, specified in unpremultiplied alpha format.</td>
-  </tr>
-</table>
-
-<h3 id="sbblittersetmodulateblitswithcolor">SbBlitterSetModulateBlitsWithColor</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets whether or not blit calls should have their source pixels modulated by
-the current color, which is set using <code><a href="#sbblittersetcolor">SbBlitterSetColor()</a></code>, before being
-output. This function can apply opacity to blit calls, color alpha-only
-surfaces, and apply other effects.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the state was set successfully.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterSetModulateBlitsWithColor(
-    SbBlitterContext context,
-    bool modulate_blits_with_color);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>modulate_blits_with_color</code></td>
-    <td>Indicates whether to modulate source pixels
-in blit calls.</td>
-  </tr>
-</table>
-
-<h3 id="sbblittersetrendertarget">SbBlitterSetRenderTarget</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets up <code class="prettyprint">render_target</code> as the render target that all subsequent draw calls
-made on <code class="prettyprint">context</code> will use.<br>
-This function is not thread-safe.<br>
-The return value indicates whether the render target was set successfully.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterSetRenderTarget(SbBlitterContext context,
-                                        SbBlitterRenderTarget render_target);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>        <code>context</code></td>
-    <td>The object for which the render target is being set.</td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterRenderTarget</code><br>        <code>render_target</code></td>
-    <td>The target that the <code>context</code> should use for draw calls.</td>
-  </tr>
-</table>
-
-<h3 id="sbblittersetscissor">SbBlitterSetScissor</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets the scissor rectangle, which dictates a visibility area that affects
-all draw calls. Only pixels within the scissor rectangle are rendered, and
-all drawing outside of that area is clipped.<br>
-When <code><a href="#sbblittersetrendertarget">SbBlitterSetRenderTarget()</a></code> is called, that function automatically sets
-the scissor rectangle to the size of the specified render target. If a
-scissor rectangle is specified outside of the extents of the current render
-target bounds, it will be intersected with the render target bounds.<br>
-This function is not thread-safe.<br>
-Returns whether the scissor was successfully set. It returns an error if
-it is called before a render target has been specified for the context.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbBlitterSetScissor(SbBlitterContext context,
-                                   SbBlitterRect rect);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterContext</code><br>
-        <code>context</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbBlitterRect</code><br>
-        <code>rect</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbblittersurfaceformat">SbBlitterSurfaceFormat</h3>
-
-<p><strong>Description</strong></p>
+<h3 id="sbblitterpixeldataformattosurfaceformat">SbBlitterPixelDataFormatToSurfaceFormat</h3>
 
 <p>This function maps SbBlitterPixelDataFormat values to their corresponding
-SbBlitterSurfaceFormat value.  Note that many SbBlitterPixelDataFormats
-correspond to the same <code>SbBlitterSurfaceFormat</code>, so this function is not
-invertible.  When creating a SbBlitterSurface object from a
-SbBlitterPixelData object, the SbBlitterSurface&#39;s format will be computed
-from the SbBlitterPixelData object by using this function.</p>
+<code class="prettyprint">SbBlitterSurfaceFormat</code> value. Note that many <code class="prettyprint">SbBlitterPixelDataFormat</code>s
+correspond to the same <code class="prettyprint">SbBlitterSurfaceFormat</code>, so this function is not
+invertible. When creating a <code class="prettyprint">SbBlitterSurface</code> object from a
+<code class="prettyprint">SbBlitterPixelData</code> object, the <code class="prettyprint">SbBlitterSurface</code>&#39;s format will be computed
+from the <code class="prettyprint">SbBlitterPixelData</code> object by using this function.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE SbBlitterSurfaceFormat
-SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat pixel_format) {
-  switch (pixel_format) {
-    case kSbBlitterPixelDataFormatARGB8:
-      return kSbBlitterSurfaceFormatRGBA8;
-    case kSbBlitterPixelDataFormatBGRA8:
-      return kSbBlitterSurfaceFormatRGBA8;
-    case kSbBlitterPixelDataFormatRGBA8:
-      return kSbBlitterSurfaceFormatRGBA8;
-    case kSbBlitterPixelDataFormatA8:
-      return kSbBlitterSurfaceFormatA8;
-    default:
-      return kSbBlitterInvalidSurfaceFormat;
-  }
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbBlitterSurfaceFormat SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat pixel_format)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbblitterrfromcolor">SbBlitterRFromColor</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat</code><br>
-        <code>pixel_format</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Extract red from a <code class="prettyprint">SbBlitterColor</code> object.</p>
 
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static uint8_t SbBlitterRFromColor(SbBlitterColor color)
+</code></pre></div>
+<h3 id="sbblittersetblending">SbBlitterSetBlending</h3>
+
+<p>Sets the blending state for the specified <code class="prettyprint">context</code>. By default, blending is
+disabled on a <code class="prettyprint">SbBlitterContext</code>.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the blending state was set successfully.</p>
+
+<p><code class="prettyprint">context</code>: The context for which the blending state is being set.</p>
+
+<p><code class="prettyprint">blending</code>: The blending state for the <code class="prettyprint">context</code>. If <code class="prettyprint">blending</code> is <code class="prettyprint">true</code>, the
+source alpha of subsequent draw calls is used to blend with the destination
+color. In particular,</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Fc = Sc * Sa + Dc * (1 - Sa)
+</code></pre></div>
+<p>where:</p>
+
+<ul>
+<li><p><code class="prettyprint">Fc</code> is the final color.</p></li>
+<li><p><code class="prettyprint">Sc</code> is the source color.</p></li>
+<li><p><code class="prettyprint">Sa</code> is the source alpha.</p></li>
+<li><p><code class="prettyprint">Dc</code> is the destination color.</p></li>
+</ul>
+
+<p>If <code class="prettyprint">blending</code> is <code class="prettyprint">false</code>, the source color and source alpha overwrite the
+destination color and alpha.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterSetBlending(SbBlitterContext context, bool blending)
+</code></pre></div>
+<h3 id="sbblittersetcolor">SbBlitterSetColor</h3>
+
+<p>Sets the context&#39;s current color. The current color&#39;s default value is
+<code class="prettyprint">SbBlitterColorFromRGBA(255, 255, 255 255)</code>.</p>
+
+<p>The current color affects the fill rectangle&#39;s color in calls to
+<code class="prettyprint">SbBlitterFillRect()</code>. If <code class="prettyprint">SbBlitterSetModulateBlitsWithColor()</code> has been called
+to enable blit color modulation, the source blit surface pixel color is also
+modulated by the color before being output.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the color was set successfully.</p>
+
+<p><code class="prettyprint">context</code>: The context for which the color is being set. <code class="prettyprint">color</code>: The context&#39;s
+new color, specified in unpremultiplied alpha format.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterSetColor(SbBlitterContext context, SbBlitterColor color)
+</code></pre></div>
+<h3 id="sbblittersetmodulateblitswithcolor">SbBlitterSetModulateBlitsWithColor</h3>
+
+<p>Sets whether or not blit calls should have their source pixels modulated by the
+current color, which is set using <code class="prettyprint">SbBlitterSetColor()</code>, before being output.
+This function can apply opacity to blit calls, color alpha-only surfaces, and
+apply other effects.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the state was set successfully.</p>
+
+<p><code class="prettyprint">modulate_blits_with_color</code>: Indicates whether to modulate source pixels in blit
+calls.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterSetModulateBlitsWithColor(SbBlitterContext context, bool modulate_blits_with_color)
+</code></pre></div>
+<h3 id="sbblittersetrendertarget">SbBlitterSetRenderTarget</h3>
+
+<p>Sets up <code class="prettyprint">render_target</code> as the render target that all subsequent draw calls made
+on <code class="prettyprint">context</code> will use.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>The return value indicates whether the render target was set successfully.</p>
+
+<p><code class="prettyprint">context</code>: The object for which the render target is being set. <code class="prettyprint">render_target</code>:
+The target that the <code class="prettyprint">context</code> should use for draw calls.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterSetRenderTarget(SbBlitterContext context, SbBlitterRenderTarget render_target)
+</code></pre></div>
+<h3 id="sbblittersetscissor">SbBlitterSetScissor</h3>
+
+<p>Sets the scissor rectangle, which dictates a visibility area that affects all
+draw calls. Only pixels within the scissor rectangle are rendered, and all
+drawing outside of that area is clipped.</p>
+
+<p>When <code class="prettyprint">SbBlitterSetRenderTarget()</code> is called, that function automatically sets
+the scissor rectangle to the size of the specified render target. If a scissor
+rectangle is specified outside of the extents of the current render target
+bounds, it will be intersected with the render target bounds.</p>
+
+<p>This function is not thread-safe.</p>
+
+<p>Returns whether the scissor was successfully set. It returns an error if it is
+called before a render target has been specified for the context.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbBlitterSetScissor(SbBlitterContext context, SbBlitterRect rect)
+</code></pre></div>
         
+          
+            
           
         
       </div>
@@ -2248,11 +1594,10 @@ SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat pixel_format) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -2274,29 +1619,35 @@ SbBlitterPixelDataFormatToSurfaceFormat(SbBlitterPixelDataFormat pixel_format) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/blitter.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: log.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: log.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -747,10 +799,10 @@
 
 <h3 id="sblogpriority">SbLogPriority</h3>
 
-<p>The priority at which a message should be logged. The platform may be
-configured to filter logs by priority, or render them differently.</p>
+<p>The priority at which a message should be logged. The platform may be configured
+to filter logs by priority, or render them differently.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
 <li>  <code class="prettyprint">kSbLogPriorityUnknown</code></li>
@@ -760,456 +812,97 @@ configured to filter logs by priority, or render them differently.</p>
 <li>  <code class="prettyprint">kSbLogPriorityFatal</code></li>
 </ul>
 
-<h2 id="macros">Macros</h2>
-
-<div id="macro-documentation-section">
-
-<h3 id="sb_check" class="small-h3">SB_CHECK</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_dcheck" class="small-h3">SB_DCHECK</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_dlog" class="small-h3">SB_DLOG</h3>
-
-<h3 id="sb_dlog_if" class="small-h3">SB_DLOG_IF</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_dlog_is_on" class="small-h3">SB_DLOG_IS_ON</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_dstack" class="small-h3">SB_DSTACK</h3>
-
-<h3 id="sb_eat_stream_parameters" class="small-h3">SB_EAT_STREAM_PARAMETERS</h3>
-
-<h3 id="sb_lazy_stream" class="small-h3">SB_LAZY_STREAM</h3>
-
-<h3 id="sb_log" class="small-h3">SB_LOG</h3>
-
-<h3 id="sb_logging_is_official_build" class="small-h3">SB_LOGGING_IS_OFFICIAL_BUILD</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_log_if" class="small-h3">SB_LOG_IF</h3>
-
-<h3 id="sb_log_is_on" class="small-h3">SB_LOG_IS_ON</h3>
-
-<h3 id="sb_log_message_0" class="small-h3">SB_LOG_MESSAGE_0</h3>
-
-Compatibility with base/logging.h which defines ERROR to be 0 to workaround
-some system header defines that do the same thing.
-
-<h3 id="sb_log_message_error" class="small-h3">SB_LOG_MESSAGE_ERROR</h3>
-
-<h3 id="sb_log_message_fatal" class="small-h3">SB_LOG_MESSAGE_FATAL</h3>
-
-<h3 id="sb_log_message_info" class="small-h3">SB_LOG_MESSAGE_INFO</h3>
-
-<h3 id="sb_log_message_warning" class="small-h3">SB_LOG_MESSAGE_WARNING</h3>
-
-<h3 id="sb_log_stream" class="small-h3">SB_LOG_STREAM</h3>
-
-<h3 id="sb_notimplemented" class="small-h3">SB_NOTIMPLEMENTED</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_notimplemented_in" class="small-h3">SB_NOTIMPLEMENTED_IN</h3>
-
-<h3 id="sb_notimplemented_msg" class="small-h3">SB_NOTIMPLEMENTED_MSG</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_notimplemented_policy" class="small-h3">SB_NOTIMPLEMENTED_POLICY</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_notreached" class="small-h3">SB_NOTREACHED</h3>
-
-Note that this macro's definition varies depending on the values of one or more other variables.
-
-<h3 id="sb_stack" class="small-h3">SB_STACK</h3>
-
-<h3 id="sb_stack_if" class="small-h3">SB_STACK_IF</h3>
-
-</div>
-
 <h2 id="functions">Functions</h2>
 
-<h3 id="break">Break</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void Break();
-</code></pre></div>
-<h3 id="getminloglevel">GetMinLogLevel</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbLogPriority GetMinLogLevel();
-</code></pre></div>
 <h3 id="sblog">SbLog</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Writes <code class="prettyprint">message</code> to the platform&#39;s debug output log.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">priority</code>: The SbLogPriority at which the message should be logged. Note that
+passing <code class="prettyprint">kSbLogPriorityFatal</code> does not terminate the program. Such a policy must
+be enforced at the application level. In fact, <code class="prettyprint">priority</code> may be completely
+ignored on many platforms. <code class="prettyprint">message</code>: The message to be logged. No formatting is
+required to be done on the value, including newline termination. That said,
+platforms can adjust the message to be more suitable for their output method by
+wrapping the text, stripping unprintable characters, etc.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLog-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLog-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLog-declaration">
-<pre>
-SB_EXPORT void SbLog(SbLogPriority priority, const char* message);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLog-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-void SbLog(SbLogPriority /*priority*/, const char* /*message*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbLog(SbLogPriority priority, const char *message)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbLogPriority</code><br>        <code>priority</code></td>
-    <td>The <code>SbLog</code>Priority at which the message should be logged. Note
-that passing <code>kSbLogPriorityFatal</code> does not terminate the program. Such a
-policy must be enforced at the application level. In fact, <code>priority</code> may
-be completely ignored on many platforms.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>message</code></td>
-    <td>The message to be logged. No formatting is required to be done
-on the value, including newline termination. That said, platforms can
-adjust the message to be more suitable for their output method by
-wrapping the text, stripping unprintable characters, etc.</td>
-  </tr>
-</table>
-
 <h3 id="sblogflush">SbLogFlush</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Flushes the log buffer on some platforms.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLogFlush-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLogFlush-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLogFlush-declaration">
-<pre>
-SB_EXPORT void SbLogFlush();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLogFlush-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-void SbLogFlush() {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbLogFlush()
 </code></pre></div>
-<p></div>
-</div></p>
-
 <h3 id="sblogformat">SbLogFormat</h3>
 
-<p><strong>Description</strong></p>
+<p>A log output method that additionally performs a string format on the data being
+logged.</p>
 
-<p>A log output method that additionally performs a string format on the
-data being logged.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLogFormat-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLogFormat-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLogFormat-declaration">
-<pre>
-SB_EXPORT void SbLogFormat(const char* format, va_list args)
-    SB_PRINTF_FORMAT(1, 0);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLogFormat-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-void SbLogFormat(const char* /*format*/, va_list /*arguments*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbLogFormat(const char *format, va_list args) SB_PRINTF_FORMAT(1
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>va_list</code><br>
-        <code>args</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sblogformatf">SbLogFormatF</h3>
 
-<p><strong>Description</strong></p>
+<p>Inline wrapper of SbLogFormat that converts from ellipsis to va_args.</p>
 
-<p>Inline wrapper of <code><a href="#sblog">SbLog</a></code>Format that converts from ellipsis to va_args.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void SbLogFormatF(const char* format, ...)
-    SB_PRINTF_FORMAT(1, 2);
-void SbLogFormatF(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  SbLogFormat(format, args);
-  va_end(args);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void static void void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code></code><br>
-        <code>...</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sblogistty">SbLogIsTty</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether the log output goes to a TTY or is being redirected.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLogIsTty-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLogIsTty-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLogIsTty-declaration">
-<pre>
-SB_EXPORT bool SbLogIsTty();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLogIsTty-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-bool SbLogIsTty() {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbLogIsTty()
 </code></pre></div>
-<p></div>
-</div></p>
-
 <h3 id="sblograw">SbLogRaw</h3>
 
-<p><strong>Description</strong></p>
+<p>A bare-bones log output method that is async-signal-safe, i.e. safe to call from
+an asynchronous signal handler (e.g. a <code class="prettyprint">SIGSEGV</code> handler). It should not do any
+additional formatting.</p>
 
-<p>A bare-bones log output method that is async-signal-safe, i.e. safe to call
-from an asynchronous signal handler (e.g. a <code class="prettyprint">SIGSEGV</code> handler). It should not
-do any additional formatting.</p>
+<p><code class="prettyprint">message</code>: The message to be logged.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLogRaw-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLogRaw-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLogRaw-declaration">
-<pre>
-SB_EXPORT void SbLogRaw(const char* message);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLogRaw-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-void SbLogRaw(const char* /*message*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbLogRaw(const char *message)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>message</code></td>
-    <td>The message to be logged.</td>
-  </tr>
-</table>
-
 <h3 id="sblograwdumpstack">SbLogRawDumpStack</h3>
 
-<p><strong>Description</strong></p>
+<p>Dumps the stack of the current thread to the log in an async-signal-safe manner,
+i.e. safe to call from an asynchronous signal handler (e.g. a <code class="prettyprint">SIGSEGV</code>
+handler). Does not include SbLogRawDumpStack itself.</p>
 
-<p>Dumps the stack of the current thread to the log in an async-signal-safe
-manner, i.e. safe to call from an asynchronous signal handler (e.g. a
-<code class="prettyprint">SIGSEGV</code> handler). Does not include <code>SbLogRawDumpStack</code> itself.</p>
+<p><code class="prettyprint">frames_to_skip</code>: The number of frames to skip from the top of the stack when
+dumping the current thread to the log. This parameter lets you remove noise from
+helper functions that might end up on top of every stack dump so that the stack
+dump is just the relevant function stack where the problem occurred.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLogRawDumpStack-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLogRawDumpStack-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLogRawDumpStack-declaration">
-<pre>
-SB_EXPORT void SbLogRawDumpStack(int frames_to_skip);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLogRawDumpStack-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-void SbLogRawDumpStack(int /*frames_to_skip*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbLogRawDumpStack(int frames_to_skip)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>frames_to_skip</code></td>
-    <td>The number of frames to skip from the top of the stack
-when dumping the current thread to the log. This parameter lets you remove
-noise from helper functions that might end up on top of every stack dump
-so that the stack dump is just the relevant function stack where the
-problem occurred.</td>
-  </tr>
-</table>
-
 <h3 id="sblograwformat">SbLogRawFormat</h3>
 
-<p><strong>Description</strong></p>
+<p>A formatted log output method that is async-signal-safe, i.e. safe to call from
+an asynchronous signal handler (e.g. a <code class="prettyprint">SIGSEGV</code> handler).</p>
 
-<p>A formatted log output method that is async-signal-safe, i.e. safe to call
-from an asynchronous signal handler (e.g. a <code class="prettyprint">SIGSEGV</code> handler).</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbLogRawFormat-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbLogRawFormat-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbLogRawFormat-declaration">
-<pre>
-SB_EXPORT void SbLogRawFormat(const char* format, va_list args)
-    SB_PRINTF_FORMAT(1, 0);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbLogRawFormat-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/log.h&quot;
-
-void SbLogRawFormat(const char* /*format*/, va_list /*arguments*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbLogRawFormat(const char *format, va_list args) SB_PRINTF_FORMAT(1
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>va_list</code><br>
-        <code>args</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sblograwformatf">SbLogRawFormatF</h3>
 
-<p><strong>Description</strong></p>
+<p>Inline wrapper of SbLogFormat to convert from ellipsis to va_args.</p>
 
-<p>Inline wrapper of <code><a href="#sblog">SbLog</a></code>Format to convert from ellipsis to va_args.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE void SbLogRawFormatF(const char* format, ...)
-    SB_PRINTF_FORMAT(1, 2);
-void SbLogRawFormatF(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  SbLogRawFormat(format, args);
-  va_end(args);
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void static void void SbLogRawFormatF(const char *format,...) SB_PRINTF_FORMAT(1
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>format</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code></code><br>
-        <code>...</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="setminloglevel">SetMinLogLevel</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void SetMinLogLevel(SbLogPriority level);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbLogPriority</code><br>
-        <code>level</code></td>
-    <td> </td>
-  </tr>
-</table>
-
+        
+          
+            
+          
+        
       </div>
     </div>
   </div>
@@ -1228,11 +921,10 @@ void SbLogRawFormatF(const char* format, ...) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1254,29 +946,35 @@ void SbLogRawFormatF(const char* format, ...) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/log.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

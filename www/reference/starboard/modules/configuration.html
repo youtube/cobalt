@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: configuration.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: configuration.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,231 +762,270 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Provides a description of the current platform in lurid detail so that
-common code never needs to actually know what the current operating system
-and architecture are.<br>
-It is both very pragmatic and canonical in that if any application code
-finds itself needing to make a platform decision, it should always define
-a Starboard Configuration feature instead. This implies the continued
-existence of very narrowly-defined configuration features, but it retains
-porting control in Starboard.</p>
+        <p>Provides a description of the current platform in lurid detail so that common
+code never needs to actually know what the current operating system and
+architecture are.</p>
+
+<p>It is both very pragmatic and canonical in that if any application code finds
+itself needing to make a platform decision, it should always define a Starboard
+Configuration feature instead. This implies the continued existence of very
+narrowly-defined configuration features, but it retains porting control in
+Starboard.</p>
 
 <h2 id="macros">Macros</h2>
 
-<div id="macro-documentation-section">
+<h3 id="sb_alignas-byte_alignment">SB_ALIGNAS(byte_alignment)</h3>
 
-<h3 id="sb_array_size" class="small-h3">SB_ARRAY_SIZE</h3>
+<p>Specifies the alignment for a class, struct, union, enum, class/struct field, or
+stack variable.</p>
 
-A constant expression that evaluates to the size_t size of a statically-sized
-array.
+<h3 id="sb_alignof-type">SB_ALIGNOF(type)</h3>
 
-<h3 id="sb_array_size_int" class="small-h3">SB_ARRAY_SIZE_INT</h3>
+<p>Returns the alignment reqiured for any instance of the type indicated by <code class="prettyprint">type</code>.</p>
 
-A constant expression that evaluates to the int size of a statically-sized
-array.
+<h3 id="sb_array_size-array">SB_ARRAY_SIZE(array)</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>A constant expression that evaluates to the size_t size of a statically-sized
+array.</p>
 
-<h3 id="sb_can" class="small-h3">SB_CAN</h3>
+<h3 id="sb_array_size_int-array">SB_ARRAY_SIZE_INT(array)</h3>
 
-Determines a compile-time capability of the system.
+<p>A constant expression that evaluates to the int size of a statically-sized
+array.</p>
 
-<h3 id="sb_can_media_use_starboard_pipeline" class="small-h3">SB_CAN_MEDIA_USE_STARBOARD_PIPELINE</h3>
+<h3 id="sb_can-sb_feature">SB_CAN(SB_FEATURE)</h3>
 
-Specifies whether the starboard media pipeline components (SbPlayerPipeline
-and StarboardDecryptor) are used.  Set to 0 means they are not used.
+<p>Determines a compile-time capability of the system.</p>
 
-<h3 id="sb_compile_assert" class="small-h3">SB_COMPILE_ASSERT</h3>
+<h3 id="sb_can_media_use_starboard_pipeline">SB_CAN_MEDIA_USE_STARBOARD_PIPELINE</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>Specifies whether the starboard media pipeline components (SbPlayerPipeline and
+StarboardDecryptor) are used. Set to 0 means they are not used.</p>
 
-<h3 id="sb_deprecated" class="small-h3">SB_DEPRECATED</h3>
+<h3 id="sb_compile_assert-expr-msg">SB_COMPILE_ASSERT(expr, msg)</h3>
 
-SB_DEPRECATED(int Foo(int bar));
-Annotates the function as deprecated, which will trigger a compiler
-warning when referenced.
+<p>Will cause a compiler error with <code class="prettyprint">msg</code> if <code class="prettyprint">expr</code> is false. <code class="prettyprint">msg</code> must be a valid
+identifier, and must be a unique type in the scope of the declaration.</p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h3 id="sb_deprecated-func">SB_DEPRECATED(FUNC)</h3>
 
-<h3 id="sb_deprecated_external" class="small-h3">SB_DEPRECATED_EXTERNAL</h3>
+<p>SB_DEPRECATED(int Foo(int bar)); Annotates the function as deprecated, which
+will trigger a compiler warning when referenced.</p>
 
-SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for
-external clients, but not deprecated for starboard.
+<h3 id="sb_deprecated_external-func">SB_DEPRECATED_EXTERNAL(FUNC)</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for external
+clients, but not deprecated for starboard.</p>
 
-<h3 id="sb_disallow_copy_and_assign" class="small-h3">SB_DISALLOW_COPY_AND_ASSIGN</h3>
+<h3 id="sb_disallow_copy_and_assign-typename">SB_DISALLOW_COPY_AND_ASSIGN(TypeName)</h3>
 
-A macro to disallow the copy constructor and operator= functions
-This should be used in the private: declarations for a class
+<p>A macro to disallow the copy constructor and operator= functions This should be
+used in the private: declarations for a class</p>
 
-<h3 id="sb_experimental_api_version" class="small-h3">SB_EXPERIMENTAL_API_VERSION</h3>
+<h3 id="sb_experimental_api_version">SB_EXPERIMENTAL_API_VERSION</h3>
 
-The API version that is currently open for changes, and therefore is not
-stable or frozen. Production-oriented ports should avoid declaring that they
-implement the experimental Starboard API version.
+<p>The API version that is currently open for changes, and therefore is not stable
+or frozen. Production-oriented ports should avoid declaring that they implement
+the experimental Starboard API version.</p>
 
-<h3 id="sb_has" class="small-h3">SB_HAS</h3>
+<h3 id="sb_function">SB_FUNCTION</h3>
 
-Determines at compile-time whether this platform has a standard feature or
-header available.
+<p>Whether we use <strong>PRETTY_FUNCTION</strong> PRETTY_FUNCTION or <strong>FUNCTION</strong> FUNCTION for
+logging.</p>
 
-<h3 id="sb_has_64_bit_atomics" class="small-h3">SB_HAS_64_BIT_ATOMICS</h3>
+<h3 id="sb_has-sb_feature">SB_HAS(SB_FEATURE)</h3>
 
-Whether the current platform has 64-bit atomic operations.
+<p>Determines at compile-time whether this platform has a standard feature or
+header available.</p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h3 id="sb_has_64_bit_atomics">SB_HAS_64_BIT_ATOMICS</h3>
 
-<h3 id="sb_has_gles2" class="small-h3">SB_HAS_GLES2</h3>
+<p>Whether the current platform has 64-bit atomic operations.</p>
 
-Specifies whether this platform has a performant OpenGL ES 2 implementation,
-which allows client applications to use GL rendering paths.  Derived from
-the gyp variable 'gl_type' which indicates what kind of GL implementation
-is available.
+<h3 id="sb_has_ac3_audio_api_version">SB_HAS_AC3_AUDIO_API_VERSION</h3>
 
-<h3 id="sb_has_graphics" class="small-h3">SB_HAS_GRAPHICS</h3>
+<p>Add support for audio in ac3.</p>
 
-Specifies whether this platform has any kind of supported graphics system.
+<h3 id="sb_has_av1_version">SB_HAS_AV1_VERSION</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>Replace kSbMediaVideoCodecVp10 by kSbMediaVideoCodecAv1. kSbMediaVideoCodecVp10
+in media.h is replaced by kSbMediaVideoCodecAv1.</p>
 
-<h3 id="sb_has_quirk" class="small-h3">SB_HAS_QUIRK</h3>
+<h3 id="sb_has_drm_key_statuses">SB_HAS_DRM_KEY_STATUSES</h3>
 
-Determines at compile-time whether this platform has a quirk.
+<p>Legal values for SB_PREFERRED_RGBA_BYTE_ORDER are defined in this file above as
+SB_PREFERRED_RGBA_BYTE_ORDER_*. If your platform uses GLES, you should set this
+to SB_PREFERRED_RGBA_BYTE_ORDER_RGBA.</p>
 
-<h3 id="sb_int64_c" class="small-h3">SB_INT64_C</h3>
+<h3 id="sb_has_gles2">SB_HAS_GLES2</h3>
 
-Declare numeric literals of specific 64-bit types.
+<p>Specifies whether this platform has a performant OpenGL ES 2 implementation,
+which allows client applications to use GL rendering paths. Derived from the gyp
+variable <code class="prettyprint">gl_type</code> gl_type which indicates what kind of GL implementation is
+available.</p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h3 id="sb_has_graphics">SB_HAS_GRAPHICS</h3>
 
-<h3 id="sb_is" class="small-h3">SB_IS</h3>
+<p>Specifies whether this platform has any kind of supported graphics system.</p>
 
-Determines at compile-time an inherent aspect of this platform.
+<h3 id="sb_has_quirk-sb_feature">SB_HAS_QUIRK(SB_FEATURE)</h3>
 
-<h3 id="sb_is_compiler_gcc" class="small-h3">SB_IS_COMPILER_GCC</h3>
+<p>Determines at compile-time whether this platform has a quirk.</p>
 
-<h3 id="sb_is_compiler_msvc" class="small-h3">SB_IS_COMPILER_MSVC</h3>
+<h3 id="sb_has_screen_diagonal_api_version">SB_HAS_SCREEN_DIAGONAL_API_VERSION</h3>
 
-<h3 id="sb_is_little_endian" class="small-h3">SB_IS_LITTLE_ENDIAN</h3>
+<p>Adds support for allowing the platform to override its screen diagonal length
+via SbWindowGetDiagonalSizeInInches().</p>
 
-Whether the current platform is little endian.
+<h3 id="sb_has_startup_url_signing_version">SB_HAS_STARTUP_URL_SIGNING_VERSION</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>Add support for startup url signing by adding
+kSbSystemPropertyCertificationScope and
+kSbSystemPropertyBase64EncodedCertificationSecret system property enums to
+system.h.</p>
 
-<h3 id="sb_likely" class="small-h3">SB_LIKELY</h3>
+<h3 id="sb_has_std_unordered_hash_api_version">SB_HAS_STD_UNORDERED_HASH_API_VERSION</h3>
 
-Macro for hinting that an expression is likely to be true.
+<p>Add support for using C++11 standard unordered maps and sets. By setting
+SB_HAS_STD_UNORDERED_HASH to 1, a platform can be configured to use C++11
+standard hash table implementations, specifically, using: . std::unordered_map&lt;&gt;
+for base::hash_map&lt;&gt;, and . std::unordered_multimap&lt;&gt; for base::hash_multimap&lt;&gt;,
+and . std::unordered_set&lt;&gt; for base::hash_set&lt;&gt;, and . std::unordered_multiset&lt;&gt;
+for base::hash_multiset&lt;&gt;. When SB_HAS_STD_UNORDERED_HASH is used, it is no
+longer necessary to specify SB_HAS_LONG_LONG_HASH, SB_HAS_STRING_HASH,
+SB_HAS_HASH_USING, SB_HAS_HASH_VALUE, SB_HAS_HASH_WARNING, SB_HASH_MAP_INCLUDE,
+SB_HASH_NAMESPACE, or SB_HASH_SET_INCLUDE.</p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h3 id="sb_int64_c-x">SB_INT64_C(x)</h3>
 
-<h3 id="sb_maximum_api_version" class="small-h3">SB_MAXIMUM_API_VERSION</h3>
+<p>Declare numeric literals of signed 64-bit type.</p>
 
-The maximum API version allowed by this version of the Starboard headers,
-inclusive.
+<h3 id="sb_is-sb_feature">SB_IS(SB_FEATURE)</h3>
 
-<h3 id="sb_minimum_api_version" class="small-h3">SB_MINIMUM_API_VERSION</h3>
+<p>Determines at compile-time an inherent aspect of this platform.</p>
 
-The minimum API version allowed by this version of the Starboard headers,
-inclusive.
+<h3 id="sb_is_little_endian">SB_IS_LITTLE_ENDIAN</h3>
 
-<h3 id="sb_override" class="small-h3">SB_OVERRIDE</h3>
+<p>Whether the current platform is little endian.</p>
 
-Declares a function as overriding a virtual function on compilers that
-support it.
+<h3 id="sb_likely-x">SB_LIKELY(x)</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>Macro for hinting that an expression is likely to be true.</p>
 
-<h3 id="sb_preferred_rgba_byte_order_argb" class="small-h3">SB_PREFERRED_RGBA_BYTE_ORDER_ARGB</h3>
+<h3 id="sb_maximum_api_version">SB_MAXIMUM_API_VERSION</h3>
 
-An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
-variable.  Setting this up properly means avoiding slow color swizzles when
-passing pixel data from one library to another.  Note that these definitions
-are in byte-order and so are endianness-independent.
+<p>The maximum API version allowed by this version of the Starboard headers,
+inclusive.</p>
 
-<h3 id="sb_preferred_rgba_byte_order_bgra" class="small-h3">SB_PREFERRED_RGBA_BYTE_ORDER_BGRA</h3>
+<h3 id="sb_media_eotf_check_support_version">SB_MEDIA_EOTF_CHECK_SUPPORT_VERSION</h3>
 
-An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
-variable.  Setting this up properly means avoiding slow color swizzles when
-passing pixel data from one library to another.  Note that these definitions
-are in byte-order and so are endianness-independent.
+<p>Add SbMediaTransferId* argument <code class="prettyprint">eotf</code> to SbMediaIsVideoSupported, so the
+platform may indicate support of resolution, bitrate, fps, and codec conditioned
+on eotf. Also, remove the function SbMediaIsTransferCharacteristicsSupported
+which is no longer necessary.</p>
 
-<h3 id="sb_preferred_rgba_byte_order_rgba" class="small-h3">SB_PREFERRED_RGBA_BYTE_ORDER_RGBA</h3>
+<h3 id="sb_minimum_api_version">SB_MINIMUM_API_VERSION</h3>
 
-An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
-variable.  Setting this up properly means avoiding slow color swizzles when
-passing pixel data from one library to another.  Note that these definitions
-are in byte-order and so are endianness-independent.
+<p>The minimum API version allowed by this version of the Starboard headers,
+inclusive.</p>
 
-<h3 id="sb_printf_format" class="small-h3">SB_PRINTF_FORMAT</h3>
+<h3 id="sb_noreturn">SB_NORETURN</h3>
 
-Tells the compiler a function is using a printf-style format string.
-`format_param` is the one-based index of the format string parameter;
-`dots_param` is the one-based index of the "..." parameter.
-For v*printf functions (which take a va_list), pass 0 for dots_param.
-(This is undocumented but matches what the system C headers do.)
-(Partially taken from base/compiler_specific.h)
+<p>Macro to annotate a function as noreturn, which signals to the compiler that the
+function cannot return.</p>
 
-<h3 id="sb_restrict" class="small-h3">SB_RESTRICT</h3>
+<h3 id="sb_override">SB_OVERRIDE</h3>
 
-Makes a pointer-typed parameter restricted so that the compiler can make
-certain optimizations because it knows the pointers are unique.
+<p>Declares a function as overriding a virtual function on compilers that support
+it.</p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h3 id="sb_preferred_rgba_byte_order_rgba">SB_PREFERRED_RGBA_BYTE_ORDER_RGBA</h3>
 
-<h3 id="sb_stringify" class="small-h3">SB_STRINGIFY</h3>
+<p>An enumeration of values for the SB_PREFERRED_RGBA_BYTE_ORDER configuration
+variable. Setting this up properly means avoiding slow color swizzles when
+passing pixel data from one library to another. Note that these definitions are
+in byte-order and so are endianness-independent.</p>
 
-Standard CPP trick to stringify an evaluated macro definition.
+<h3 id="sb_printf_format-format_param-dots_param">SB_PRINTF_FORMAT(format_param, dots_param)</h3>
 
-<h3 id="sb_stringify2" class="small-h3">SB_STRINGIFY2</h3>
+<p>Tells the compiler a function is using a printf-style format string.
+<code class="prettyprint">format_param</code> is the one-based index of the format string parameter;
+<code class="prettyprint">dots_param</code> is the one-based index of the &quot;...&quot; parameter. For v*printf
+functions (which take a va_list), pass 0 for dots_param. (This is undocumented
+but matches what the system C headers do.) (Partially taken from
+base/compiler_specific.h)</p>
 
-Standard CPP trick to stringify an evaluated macro definition.
+<h3 id="sb_release_candidate_api_version">SB_RELEASE_CANDIDATE_API_VERSION</h3>
 
-<h3 id="sb_uint64_c" class="small-h3">SB_UINT64_C</h3>
+<p>The next API version to be frozen, but is still subject to emergency changes. It
+is reasonable to base a port on the Release Candidate API version, but be aware
+that small incompatible changes may still be made to it. The following will be
+uncommented when an API version is a release candidate.</p>
 
-Declare numeric literals of specific 64-bit types.
+<h3 id="sb_restrict">SB_RESTRICT</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>Include the platform-specific configuration. This macro is set by GYP in
+starboard_base_target.gypi and passed in on the command line for all targets and
+all configurations.Makes a pointer-typed parameter restricted so that the
+compiler can make certain optimizations because it knows the pointers are
+unique.</p>
 
-<h3 id="sb_unlikely" class="small-h3">SB_UNLIKELY</h3>
+<h3 id="sb_stringify-x">SB_STRINGIFY(x)</h3>
 
-Macro for hinting that an expression is likely to be false.
+<p>Standard CPP trick to stringify an evaluated macro definition.</p>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<h3 id="sb_uint64_c-x">SB_UINT64_C(x)</h3>
 
-<h3 id="sb_unreferenced_parameter" class="small-h3">SB_UNREFERENCED_PARAMETER</h3>
+<p>Declare numeric literals of unsigned 64-bit type.</p>
 
-Trivially references a parameter that is otherwise unreferenced, preventing a
-compiler warning on some platforms.
+<h3 id="sb_unlikely-x">SB_UNLIKELY(x)</h3>
 
-Note that this macro's definition varies depending on the values of one or more other variables.
+<p>Macro for hinting that an expression is likely to be false.</p>
 
-<h3 id="sb_version" class="small-h3">SB_VERSION</h3>
+<h3 id="sb_unreferenced_parameter-x">SB_UNREFERENCED_PARAMETER(x)</h3>
 
-Determines at compile-time if this platform implements a given Starboard API
-version number (or above).
+<p>Trivially references a parameter that is otherwise unreferenced, preventing a
+compiler warning on some platforms.</p>
 
-<h3 id="sb_warn_unused_result" class="small-h3">SB_WARN_UNUSED_RESULT</h3>
+<h3 id="sb_warn_unused_result">SB_WARN_UNUSED_RESULT</h3>
 
-Causes the annotated (at the end) function to generate a warning if the
-result is not accessed.
-
-</div>
+<p>Causes the annotated (at the end) function to generate a warning if the result
+is not accessed.</p>
 
         
+          
+            
           
         
       </div>
@@ -973,11 +1046,10 @@ result is not accessed.
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -999,29 +1071,35 @@ result is not accessed.
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/configuration.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

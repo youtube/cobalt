@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: speech_synthesis.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: speech_synthesis.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,157 +762,71 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>A basic text-to-speech API intended to be used for audio accessibilty.<br>
-Implementations of this API should audibly play back text to assist
-users in non-visual navigation of the application.<br>
-Note that these functions do not have to be thread-safe. They must
-only be called from a single application thread.</p>
+        <p>A basic text-to-speech API intended to be used for audio accessibilty.</p>
+
+<p>Implementations of this API should audibly play back text to assist users in
+non-visual navigation of the application.</p>
+
+<p>Note that these functions do not have to be thread-safe. They must only be
+called from a single application thread.</p>
 
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbspeechsynthesiscancel">SbSpeechSynthesisCancel</h3>
 
-<p><strong>Description</strong></p>
+<p>Cancels all speaking and queued speech synthesis audio. Must return immediately.</p>
 
-<p>Cancels all speaking and queued speech synthesis audio. Must
-return immediately.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSpeechSynthesisCancel-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSpeechSynthesisCancel-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSpeechSynthesisCancel-declaration">
-<pre>
-SB_EXPORT void SbSpeechSynthesisCancel();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSpeechSynthesisCancel-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/speech_synthesis.h&quot;
-
-#if !SB_HAS(SPEECH_SYNTHESIS) &amp;&amp; SB_VERSION(3)
-#error If speech synthesis not enabled on this platform, please exclude it\
-       from the build
-#endif
-
-void SbSpeechSynthesisCancel() {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbSpeechSynthesisCancel()
 </code></pre></div>
-<p></div>
-</div></p>
-
-<h3 id="sbspeechsynthesissetlanguage">SbSpeechSynthesisSetLanguage</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets a language for speech synthesis.<br>
-Must be called before any other function in this module,
-or subsequent calls are allowed to fail silently.<br>
-<code class="prettyprint">lang</code> should be a BCP 47 language string, eg &quot;en-US&quot;.
-Return true if language is supported, false if not.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSpeechSynthesisSetLanguage-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSpeechSynthesisSetLanguage-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSpeechSynthesisSetLanguage-declaration">
-<pre>
-SB_EXPORT bool SbSpeechSynthesisSetLanguage(const char* lang);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSpeechSynthesisSetLanguage-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/speech_synthesis.h&quot;
-
-#if !SB_HAS(SPEECH_SYNTHESIS) &amp;&amp; SB_VERSION(3)
-#error If speech synthesis not enabled on this platform, please exclude it\
-       from the build
-#endif
-
-bool SbSpeechSynthesisSetLanguage(const char* lang) {
-  return false;
-}
-</code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>lang</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbspeechsynthesisspeak">SbSpeechSynthesisSpeak</h3>
 
-<p><strong>Description</strong></p>
+<p>Enqueues <code class="prettyprint">text</code>, a UTF-8 string, to be spoken. Returns immediately.</p>
 
-<p>Enqueues <code class="prettyprint">text</code>, a UTF-8 string, to be spoken the currently
-selected language. Returns immediately.<br>
-If audio from previous <code>SbSpeechSynthesisSpeak()</code> invocations is still
-processing, the current speaking should continue and this new
-text should be queued to play when the previous utterances are complete.</p>
+<p>Spoken language for the text should be the same as the locale returned by
+SbSystemGetLocaleId().</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>If audio from previous SbSpeechSynthesisSpeak() invocations is still processing,
+the current speaking should continue and this new text should be queued to play
+when the previous utterances are complete.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSpeechSynthesisSpeak-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSpeechSynthesisSpeak-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSpeechSynthesisSpeak-declaration">
-<pre>
-SB_EXPORT void SbSpeechSynthesisSpeak(const char* text);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSpeechSynthesisSpeak-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/speech_synthesis.h&quot;
-
-#if !SB_HAS(SPEECH_SYNTHESIS) &amp;&amp; SB_VERSION(3)
-#error If speech synthesis not enabled on this platform, please exclude it\
-       from the build
-#endif
-
-void SbSpeechSynthesisSpeak(const char* text) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbSpeechSynthesisSpeak(const char *text)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>
-        <code>text</code></td>
-    <td> </td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -899,11 +847,10 @@ void SbSpeechSynthesisSpeak(const char* text) {}
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -925,29 +872,35 @@ void SbSpeechSynthesisSpeak(const char* text) {}
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/speech_synthesis.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

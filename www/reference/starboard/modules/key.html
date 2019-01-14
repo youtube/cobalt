@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: key.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: key.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -748,231 +800,277 @@
 <h3 id="sbkey">SbKey</h3>
 
 <p>A standard set of key codes, ordered by value, that represent each possible
-input key across all kinds of devices. Starboard uses the semi-standard
-Windows virtual key codes documented at:
-<a href="https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx">https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx</a></p>
+input key across all kinds of devices. Starboard uses the semi-standard Windows
+virtual key codes documented at: <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx">https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx</a></p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
 <li>  <code class="prettyprint">kSbKeyUnknown</code></li>
 <li>  <code class="prettyprint">kSbKeyCancel</code></li>
 <li>  <code class="prettyprint">kSbKeyBackspace</code></li>
-<li>  <code class="prettyprint">kSbKeyBack</code> - You probably want kSbKeyEscape for a semantic &quot;back&quot;.</li>
-<li>  <code class="prettyprint">kSbKeyTab</code></li>
-<li>  <code class="prettyprint">kSbKeyBacktab</code></li>
-<li>  <code class="prettyprint">kSbKeyClear</code></li>
-<li>  <code class="prettyprint">kSbKeyReturn</code> - Return/Enter key</li>
-<li>  <code class="prettyprint">kSbKeyShift</code></li>
-<li>  <code class="prettyprint">kSbKeyControl</code></li>
-<li>  <code class="prettyprint">kSbKeyMenu</code> - Alt key</li>
-<li>  <code class="prettyprint">kSbKeyPause</code></li>
-<li>  <code class="prettyprint">kSbKeyCapital</code></li>
-<li>  <code class="prettyprint">kSbKeyKana</code></li>
-<li>  <code class="prettyprint">kSbKeyHangul</code></li>
-<li>  <code class="prettyprint">kSbKeyJunja</code></li>
-<li>  <code class="prettyprint">kSbKeyFinal</code></li>
-<li>  <code class="prettyprint">kSbKeyHanja</code></li>
-<li>  <code class="prettyprint">kSbKeyKanji</code></li>
-<li>  <code class="prettyprint">kSbKeyEscape</code></li>
-<li>  <code class="prettyprint">kSbKeyConvert</code></li>
-<li>  <code class="prettyprint">kSbKeyNonconvert</code></li>
-<li>  <code class="prettyprint">kSbKeyAccept</code></li>
-<li>  <code class="prettyprint">kSbKeyModechange</code></li>
-<li>  <code class="prettyprint">kSbKeySpace</code></li>
-<li>  <code class="prettyprint">kSbKeyPrior</code></li>
-<li>  <code class="prettyprint">kSbKeyNext</code></li>
-<li>  <code class="prettyprint">kSbKeyEnd</code></li>
-<li>  <code class="prettyprint">kSbKeyHome</code></li>
-<li>  <code class="prettyprint">kSbKeyLeft</code></li>
-<li>  <code class="prettyprint">kSbKeyUp</code></li>
-<li>  <code class="prettyprint">kSbKeyRight</code></li>
-<li>  <code class="prettyprint">kSbKeyDown</code></li>
-<li>  <code class="prettyprint">kSbKeySelect</code></li>
-<li>  <code class="prettyprint">kSbKeyPrint</code></li>
-<li>  <code class="prettyprint">kSbKeyExecute</code></li>
-<li>  <code class="prettyprint">kSbKeySnapshot</code></li>
-<li>  <code class="prettyprint">kSbKeyInsert</code></li>
-<li>  <code class="prettyprint">kSbKeyDelete</code></li>
-<li>  <code class="prettyprint">kSbKeyHelp</code></li>
-<li>  <code class="prettyprint">kSbKey0</code></li>
-<li>  <code class="prettyprint">kSbKey1</code></li>
-<li>  <code class="prettyprint">kSbKey2</code></li>
-<li>  <code class="prettyprint">kSbKey3</code></li>
-<li>  <code class="prettyprint">kSbKey4</code></li>
-<li>  <code class="prettyprint">kSbKey5</code></li>
-<li>  <code class="prettyprint">kSbKey6</code></li>
-<li>  <code class="prettyprint">kSbKey7</code></li>
-<li>  <code class="prettyprint">kSbKey8</code></li>
-<li>  <code class="prettyprint">kSbKey9</code></li>
-<li>  <code class="prettyprint">kSbKeyA</code></li>
-<li>  <code class="prettyprint">kSbKeyB</code></li>
-<li>  <code class="prettyprint">kSbKeyC</code></li>
-<li>  <code class="prettyprint">kSbKeyD</code></li>
-<li>  <code class="prettyprint">kSbKeyE</code></li>
-<li>  <code class="prettyprint">kSbKeyF</code></li>
-<li>  <code class="prettyprint">kSbKeyG</code></li>
-<li>  <code class="prettyprint">kSbKeyH</code></li>
-<li>  <code class="prettyprint">kSbKeyI</code></li>
-<li>  <code class="prettyprint">kSbKeyJ</code></li>
-<li>  <code class="prettyprint">kSbKeyK</code></li>
-<li>  <code class="prettyprint">kSbKeyL</code></li>
-<li>  <code class="prettyprint">kSbKeyM</code></li>
-<li>  <code class="prettyprint">kSbKeyN</code></li>
-<li>  <code class="prettyprint">kSbKeyO</code></li>
-<li>  <code class="prettyprint">kSbKeyP</code></li>
-<li>  <code class="prettyprint">kSbKeyQ</code></li>
-<li>  <code class="prettyprint">kSbKeyR</code></li>
-<li>  <code class="prettyprint">kSbKeyS</code></li>
-<li>  <code class="prettyprint">kSbKeyT</code></li>
-<li>  <code class="prettyprint">kSbKeyU</code></li>
-<li>  <code class="prettyprint">kSbKeyV</code></li>
-<li>  <code class="prettyprint">kSbKeyW</code></li>
-<li>  <code class="prettyprint">kSbKeyX</code></li>
-<li>  <code class="prettyprint">kSbKeyY</code></li>
-<li>  <code class="prettyprint">kSbKeyZ</code></li>
-<li>  <code class="prettyprint">kSbKeyLwin</code></li>
-<li>  <code class="prettyprint">kSbKeyCommand</code> - Provide the Mac name for convenience.</li>
-<li>  <code class="prettyprint">kSbKeyRwin</code></li>
-<li>  <code class="prettyprint">kSbKeyApps</code></li>
-<li>  <code class="prettyprint">kSbKeySleep</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad0</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad1</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad2</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad3</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad4</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad5</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad6</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad7</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad8</code></li>
-<li>  <code class="prettyprint">kSbKeyNumpad9</code></li>
-<li>  <code class="prettyprint">kSbKeyMultiply</code></li>
-<li>  <code class="prettyprint">kSbKeyAdd</code></li>
-<li>  <code class="prettyprint">kSbKeySeparator</code></li>
-<li>  <code class="prettyprint">kSbKeySubtract</code></li>
-<li>  <code class="prettyprint">kSbKeyDecimal</code></li>
-<li>  <code class="prettyprint">kSbKeyDivide</code></li>
-<li>  <code class="prettyprint">kSbKeyF1</code></li>
-<li>  <code class="prettyprint">kSbKeyF2</code></li>
-<li>  <code class="prettyprint">kSbKeyF3</code></li>
-<li>  <code class="prettyprint">kSbKeyF4</code></li>
-<li>  <code class="prettyprint">kSbKeyF5</code></li>
-<li>  <code class="prettyprint">kSbKeyF6</code></li>
-<li>  <code class="prettyprint">kSbKeyF7</code></li>
-<li>  <code class="prettyprint">kSbKeyF8</code></li>
-<li>  <code class="prettyprint">kSbKeyF9</code></li>
-<li>  <code class="prettyprint">kSbKeyF10</code></li>
-<li>  <code class="prettyprint">kSbKeyF11</code></li>
-<li>  <code class="prettyprint">kSbKeyF12</code></li>
-<li>  <code class="prettyprint">kSbKeyF13</code></li>
-<li>  <code class="prettyprint">kSbKeyF14</code></li>
-<li>  <code class="prettyprint">kSbKeyF15</code></li>
-<li>  <code class="prettyprint">kSbKeyF16</code></li>
-<li>  <code class="prettyprint">kSbKeyF17</code></li>
-<li>  <code class="prettyprint">kSbKeyF18</code></li>
-<li>  <code class="prettyprint">kSbKeyF19</code></li>
-<li>  <code class="prettyprint">kSbKeyF20</code></li>
-<li>  <code class="prettyprint">kSbKeyF21</code></li>
-<li>  <code class="prettyprint">kSbKeyF22</code></li>
-<li>  <code class="prettyprint">kSbKeyF23</code></li>
-<li>  <code class="prettyprint">kSbKeyF24</code></li>
-<li>  <code class="prettyprint">kSbKeyNumlock</code></li>
-<li>  <code class="prettyprint">kSbKeyScroll</code></li>
-<li>  <code class="prettyprint">kSbKeyWlan</code></li>
-<li>  <code class="prettyprint">kSbKeyPower</code></li>
-<li>  <code class="prettyprint">kSbKeyLshift</code></li>
-<li>  <code class="prettyprint">kSbKeyRshift</code></li>
-<li>  <code class="prettyprint">kSbKeyLcontrol</code></li>
-<li>  <code class="prettyprint">kSbKeyRcontrol</code></li>
-<li>  <code class="prettyprint">kSbKeyLmenu</code></li>
-<li>  <code class="prettyprint">kSbKeyRmenu</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserBack</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserForward</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserRefresh</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserStop</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserSearch</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserFavorites</code></li>
-<li>  <code class="prettyprint">kSbKeyBrowserHome</code></li>
-<li>  <code class="prettyprint">kSbKeyVolumeMute</code></li>
-<li>  <code class="prettyprint">kSbKeyVolumeDown</code></li>
-<li>  <code class="prettyprint">kSbKeyVolumeUp</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaNextTrack</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaPrevTrack</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaStop</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaPlayPause</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaLaunchMail</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaLaunchMediaSelect</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaLaunchApp1</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaLaunchApp2</code></li>
-<li>  <code class="prettyprint">kSbKeyOem1</code></li>
-<li>  <code class="prettyprint">kSbKeyOemPlus</code></li>
-<li>  <code class="prettyprint">kSbKeyOemComma</code></li>
-<li>  <code class="prettyprint">kSbKeyOemMinus</code></li>
-<li>  <code class="prettyprint">kSbKeyOemPeriod</code></li>
-<li>  <code class="prettyprint">kSbKeyOem2</code></li>
-<li>  <code class="prettyprint">kSbKeyOem3</code></li>
-<li>  <code class="prettyprint">kSbKeyBrightnessDown</code></li>
-<li>  <code class="prettyprint">kSbKeyBrightnessUp</code></li>
-<li>  <code class="prettyprint">kSbKeyKbdBrightnessDown</code></li>
-<li>  <code class="prettyprint">kSbKeyOem4</code></li>
-<li>  <code class="prettyprint">kSbKeyOem5</code></li>
-<li>  <code class="prettyprint">kSbKeyOem6</code></li>
-<li>  <code class="prettyprint">kSbKeyOem7</code></li>
-<li>  <code class="prettyprint">kSbKeyOem8</code></li>
-<li>  <code class="prettyprint">kSbKeyOem102</code></li>
-<li>  <code class="prettyprint">kSbKeyKbdBrightnessUp</code></li>
-<li>  <code class="prettyprint">kSbKeyDbeSbcschar</code></li>
-<li>  <code class="prettyprint">kSbKeyDbeDbcschar</code></li>
-<li>  <code class="prettyprint">kSbKeyPlay</code></li>
-<li>  <code class="prettyprint">kSbKeyMediaRewind</code> - Some media keys that are used around the industry.</li>
-<li>  <code class="prettyprint">kSbKeyMediaFastForward</code></li>
-<li>  <code class="prettyprint">kSbKeyMouse1</code> - Mouse buttons, starting with the left mouse button.</li>
-<li>  <code class="prettyprint">kSbKeyMouse2</code></li>
-<li>  <code class="prettyprint">kSbKeyMouse3</code></li>
-<li>  <code class="prettyprint">kSbKeyMouse4</code></li>
-<li>  <code class="prettyprint">kSbKeyMouse5</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepad1</code> - Xbox A, PS O or X (depending on region), WiiU B</li>
-<li>  <code class="prettyprint">kSbKeyGamepad2</code> - Xbox B, PS X or O (depending on region), WiiU A key</li>
-<li>  <code class="prettyprint">kSbKeyGamepad3</code> - Xbox X, PS square, WiiU Y</li>
-<li>  <code class="prettyprint">kSbKeyGamepad4</code> - Xbox Y, PS triangle, WiiU X</li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftBumper</code> - Pretty much every gamepad has bumpers at the top front of the controller,and triggers at the bottom front of the controller.</li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightBumper</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftTrigger</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightTrigger</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepad5</code> - Xbox 360 Back, XB1 minimize, PS and WiiU Select</li>
-<li>  <code class="prettyprint">kSbKeyGamepad6</code> - Xbox 360 Play, XB1 Menu, PS and WiiU Start</li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftStick</code> - This refers to pressing the left stick like a button.</li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightStick</code> - This refers to pressing the right stick like a button.</li>
-<li>  <code class="prettyprint">kSbKeyGamepadDPadUp</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadDPadDown</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadDPadLeft</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadDPadRight</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadSystem</code> - The system key in the middle of the gamepad, if it exists.</li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftStickUp</code> - Codes for thumbstick to virtual dpad conversions.</li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftStickDown</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftStickLeft</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadLeftStickRight</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightStickUp</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightStickDown</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightStickLeft</code></li>
-<li>  <code class="prettyprint">kSbKeyGamepadRightStickRight</code></li>
-</ul>
+<li>  <code class="prettyprint">kSbKeyBack</code></li>
+<li><p><code class="prettyprint">kSbKeyTab</code></p>
 
-<h3 id="sbkeylocation">SbKeyLocation</h3>
+<p>semantic &quot;back&quot;.</p></li>
+<li><p><code class="prettyprint">kSbKeyBacktab</code></p></li>
+<li><p><code class="prettyprint">kSbKeyClear</code></p></li>
+<li><p><code class="prettyprint">kSbKeyReturn</code></p></li>
+<li><p><code class="prettyprint">kSbKeyShift</code></p></li>
+<li><p><code class="prettyprint">kSbKeyControl</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMenu</code></p></li>
+<li><p><code class="prettyprint">kSbKeyPause</code></p></li>
+<li><p><code class="prettyprint">kSbKeyCapital</code></p></li>
+<li><p><code class="prettyprint">kSbKeyKana</code></p></li>
+<li><p><code class="prettyprint">kSbKeyHangul</code></p></li>
+<li><p><code class="prettyprint">kSbKeyJunja</code></p></li>
+<li><p><code class="prettyprint">kSbKeyFinal</code></p></li>
+<li><p><code class="prettyprint">kSbKeyHanja</code></p></li>
+<li><p><code class="prettyprint">kSbKeyKanji</code></p></li>
+<li><p><code class="prettyprint">kSbKeyEscape</code></p></li>
+<li><p><code class="prettyprint">kSbKeyConvert</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNonconvert</code></p></li>
+<li><p><code class="prettyprint">kSbKeyAccept</code></p></li>
+<li><p><code class="prettyprint">kSbKeyModechange</code></p></li>
+<li><p><code class="prettyprint">kSbKeySpace</code></p></li>
+<li><p><code class="prettyprint">kSbKeyPrior</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNext</code></p></li>
+<li><p><code class="prettyprint">kSbKeyEnd</code></p></li>
+<li><p><code class="prettyprint">kSbKeyHome</code></p></li>
+<li><p><code class="prettyprint">kSbKeyLeft</code></p></li>
+<li><p><code class="prettyprint">kSbKeyUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyRight</code></p></li>
+<li><p><code class="prettyprint">kSbKeyDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeySelect</code></p></li>
+<li><p><code class="prettyprint">kSbKeyPrint</code></p></li>
+<li><p><code class="prettyprint">kSbKeyExecute</code></p></li>
+<li><p><code class="prettyprint">kSbKeySnapshot</code></p></li>
+<li><p><code class="prettyprint">kSbKeyInsert</code></p></li>
+<li><p><code class="prettyprint">kSbKeyDelete</code></p></li>
+<li><p><code class="prettyprint">kSbKeyHelp</code></p></li>
+<li><p><code class="prettyprint">kSbKey0</code></p></li>
+<li><p><code class="prettyprint">kSbKey1</code></p></li>
+<li><p><code class="prettyprint">kSbKey2</code></p></li>
+<li><p><code class="prettyprint">kSbKey3</code></p></li>
+<li><p><code class="prettyprint">kSbKey4</code></p></li>
+<li><p><code class="prettyprint">kSbKey5</code></p></li>
+<li><p><code class="prettyprint">kSbKey6</code></p></li>
+<li><p><code class="prettyprint">kSbKey7</code></p></li>
+<li><p><code class="prettyprint">kSbKey8</code></p></li>
+<li><p><code class="prettyprint">kSbKey9</code></p></li>
+<li><p><code class="prettyprint">kSbKeyA</code></p></li>
+<li><p><code class="prettyprint">kSbKeyB</code></p></li>
+<li><p><code class="prettyprint">kSbKeyC</code></p></li>
+<li><p><code class="prettyprint">kSbKeyD</code></p></li>
+<li><p><code class="prettyprint">kSbKeyE</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF</code></p></li>
+<li><p><code class="prettyprint">kSbKeyG</code></p></li>
+<li><p><code class="prettyprint">kSbKeyH</code></p></li>
+<li><p><code class="prettyprint">kSbKeyI</code></p></li>
+<li><p><code class="prettyprint">kSbKeyJ</code></p></li>
+<li><p><code class="prettyprint">kSbKeyK</code></p></li>
+<li><p><code class="prettyprint">kSbKeyL</code></p></li>
+<li><p><code class="prettyprint">kSbKeyM</code></p></li>
+<li><p><code class="prettyprint">kSbKeyN</code></p></li>
+<li><p><code class="prettyprint">kSbKeyO</code></p></li>
+<li><p><code class="prettyprint">kSbKeyP</code></p></li>
+<li><p><code class="prettyprint">kSbKeyQ</code></p></li>
+<li><p><code class="prettyprint">kSbKeyR</code></p></li>
+<li><p><code class="prettyprint">kSbKeyS</code></p></li>
+<li><p><code class="prettyprint">kSbKeyT</code></p></li>
+<li><p><code class="prettyprint">kSbKeyU</code></p></li>
+<li><p><code class="prettyprint">kSbKeyV</code></p></li>
+<li><p><code class="prettyprint">kSbKeyW</code></p></li>
+<li><p><code class="prettyprint">kSbKeyX</code></p></li>
+<li><p><code class="prettyprint">kSbKeyY</code></p></li>
+<li><p><code class="prettyprint">kSbKeyZ</code></p></li>
+<li><p><code class="prettyprint">kSbKeyLwin</code></p></li>
+<li><p><code class="prettyprint">kSbKeyCommand</code></p></li>
+<li><p><code class="prettyprint">kSbKeyRwin</code></p></li>
+<li><p><code class="prettyprint">kSbKeyApps</code></p></li>
+<li><p><code class="prettyprint">kSbKeySleep</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad0</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad1</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad2</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad3</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad4</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad5</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad6</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad7</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad8</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumpad9</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMultiply</code></p></li>
+<li><p><code class="prettyprint">kSbKeyAdd</code></p></li>
+<li><p><code class="prettyprint">kSbKeySeparator</code></p></li>
+<li><p><code class="prettyprint">kSbKeySubtract</code></p></li>
+<li><p><code class="prettyprint">kSbKeyDecimal</code></p></li>
+<li><p><code class="prettyprint">kSbKeyDivide</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF1</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF2</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF3</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF4</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF5</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF6</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF7</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF8</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF9</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF10</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF11</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF12</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF13</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF14</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF15</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF16</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF17</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF18</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF19</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF20</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF21</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF22</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF23</code></p></li>
+<li><p><code class="prettyprint">kSbKeyF24</code></p></li>
+<li><p><code class="prettyprint">kSbKeyNumlock</code></p></li>
+<li><p><code class="prettyprint">kSbKeyScroll</code></p></li>
+<li><p><code class="prettyprint">kSbKeyWlan</code></p></li>
+<li><p><code class="prettyprint">kSbKeyPower</code></p></li>
+<li><p><code class="prettyprint">kSbKeyLshift</code></p></li>
+<li><p><code class="prettyprint">kSbKeyRshift</code></p></li>
+<li><p><code class="prettyprint">kSbKeyLcontrol</code></p></li>
+<li><p><code class="prettyprint">kSbKeyRcontrol</code></p></li>
+<li><p><code class="prettyprint">kSbKeyLmenu</code></p></li>
+<li><p><code class="prettyprint">kSbKeyRmenu</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserBack</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserForward</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserRefresh</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserStop</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserSearch</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserFavorites</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrowserHome</code></p></li>
+<li><p><code class="prettyprint">kSbKeyVolumeMute</code></p></li>
+<li><p><code class="prettyprint">kSbKeyVolumeDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeyVolumeUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaNextTrack</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaPrevTrack</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaStop</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaPlayPause</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaLaunchMail</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaLaunchMediaSelect</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaLaunchApp1</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaLaunchApp2</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem1</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOemPlus</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOemComma</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOemMinus</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOemPeriod</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem2</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem3</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrightnessDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBrightnessUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyKbdBrightnessDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem4</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem5</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem6</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem7</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem8</code></p></li>
+<li><p><code class="prettyprint">kSbKeyOem102</code></p></li>
+<li><p><code class="prettyprint">kSbKeyKbdBrightnessUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyDbeSbcschar</code></p></li>
+<li><p><code class="prettyprint">kSbKeyDbeDbcschar</code></p></li>
+<li><p><code class="prettyprint">kSbKeyPlay</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMediaRewind</code></p>
 
-<p><strong>Values</strong></p>
+<p>Other supported CEA 2014 keys.</p></li>
+<li><p><code class="prettyprint">kSbKeyMediaFastForward</code></p></li>
+<li><p><code class="prettyprint">kSbKeyRed</code></p>
 
-<ul>
-<li>  <code class="prettyprint">kSbKeyLocationUnspecified</code></li>
-<li>  <code class="prettyprint">kSbKeyLocationLeft</code></li>
-<li>  <code class="prettyprint">kSbKeyLocationRight</code></li>
+<p>Key codes from the DTV Application Software Environment, <a href="http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf">http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf</a></p></li>
+<li><p><code class="prettyprint">kSbKeyGreen</code></p></li>
+<li><p><code class="prettyprint">kSbKeyYellow</code></p></li>
+<li><p><code class="prettyprint">kSbKeyBlue</code></p></li>
+<li><p><code class="prettyprint">kSbKeyChannelUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyChannelDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeySubtitle</code></p></li>
+<li><p><code class="prettyprint">kSbKeyClosedCaption</code></p></li>
+<li><p><code class="prettyprint">kSbKeyInfo</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGuide</code></p></li>
+<li><p><code class="prettyprint">kSbKeyLast</code></p>
+
+<p>Key codes from OCAP, <a href="https://apps.cablelabs.com/specification/opencable-application-platform-ocap/">https://apps.cablelabs.com/specification/opencable-application-platform-ocap/</a></p></li>
+<li><p><code class="prettyprint">kSbKeyPreviousChannel</code></p></li>
+<li><p><code class="prettyprint">kSbKeyInstantReplay</code></p>
+
+<p>Also from OCAP</p></li>
+<li><p><code class="prettyprint">kSbKeyLaunchThisApplication</code></p>
+
+<p>A button that will directly launch the current application.</p></li>
+<li><p><code class="prettyprint">kSbKeyMediaAudioTrack</code></p>
+
+<p>A button that will switch between different available audio tracks.</p></li>
+<li><p><code class="prettyprint">kSbKeyMicrophone</code></p>
+
+<p>A button that will trigger voice input.</p></li>
+<li><p><code class="prettyprint">kSbKeyMouse1</code></p>
+
+<p>Mouse buttons, starting with the left mouse button.</p></li>
+<li><p><code class="prettyprint">kSbKeyMouse2</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMouse3</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMouse4</code></p></li>
+<li><p><code class="prettyprint">kSbKeyMouse5</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepad1</code></p>
+
+<p>Xbox A, PS O or X (depending on region), Switch A</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepad2</code></p>
+
+<p>Xbox B, PS X or O (depending on region), Switch B</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepad3</code></p>
+
+<p>Xbox X, PS square, Switch X</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepad4</code></p>
+
+<p>Xbox Y, PS triangle, Switch Y</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftBumper</code></p>
+
+<p>Pretty much every gamepad has bumpers at the top front of the controller,
+and triggers at the bottom front of the controller.</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightBumper</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftTrigger</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightTrigger</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepad5</code></p>
+
+<p>Xbox 360 Back, XB1 minimize, PS and WiiU Select</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepad6</code></p>
+
+<p>Xbox 360 Play, XB1 Menu, PS and WiiU Start</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftStick</code></p>
+
+<p>This refers to pressing the left stick like a button.</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightStick</code></p>
+
+<p>This refers to pressing the right stick like a button.</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadDPadUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadDPadDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadDPadLeft</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadDPadRight</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadSystem</code></p>
+
+<p>The system key in the middle of the gamepad, if it exists.</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftStickUp</code></p>
+
+<p>Codes for thumbstick to virtual dpad conversions.</p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftStickDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftStickLeft</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadLeftStickRight</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightStickUp</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightStickDown</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightStickLeft</code></p></li>
+<li><p><code class="prettyprint">kSbKeyGamepadRightStickRight</code></p></li>
 </ul>
 
 <h3 id="sbkeymodifiers">SbKeyModifiers</h3>
 
 <p>Bit-mask of key modifiers.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
 <li>  <code class="prettyprint">kSbKeyModifiersNone</code></li>
@@ -980,9 +1078,16 @@ Windows virtual key codes documented at:
 <li>  <code class="prettyprint">kSbKeyModifiersCtrl</code></li>
 <li>  <code class="prettyprint">kSbKeyModifiersMeta</code></li>
 <li>  <code class="prettyprint">kSbKeyModifiersShift</code></li>
+<li>  <code class="prettyprint">kSbKeyModifiersPointerButtonLeft</code></li>
+<li>  <code class="prettyprint">kSbKeyModifiersPointerButtonRight</code></li>
+<li>  <code class="prettyprint">kSbKeyModifiersPointerButtonMiddle</code></li>
+<li>  <code class="prettyprint">kSbKeyModifiersPointerButtonBack</code></li>
+<li>  <code class="prettyprint">kSbKeyModifiersPointerButtonForward</code></li>
 </ul>
 
         
+          
+            
           
         
       </div>
@@ -1003,11 +1108,10 @@ Windows virtual key codes documented at:
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1029,29 +1133,35 @@ Windows virtual key codes documented at:
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/key.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

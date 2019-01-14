@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: time_zone.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: time_zone.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,98 +795,41 @@
       <div id="content">
         <p>Provides access to the system time zone information.</p>
 
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbtimezone">SbTimeZone</h3>
+
+<p>The number of minutes west of the Greenwich Prime Meridian, NOT including
+Daylight Savings Time adjustments.</p>
+
+<p>For example: PST/PDT is 480 minutes (28800 seconds, 8 hours).</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef int SbTimeZone
+</code></pre></div>
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbtimezonegetcurrent">SbTimeZoneGetCurrent</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Gets the system&#39;s current SbTimeZone in minutes.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbTimeZoneGetCurrent-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbTimeZoneGetCurrent-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbTimeZoneGetCurrent-declaration">
-<pre>
-SB_EXPORT SbTimeZone SbTimeZoneGetCurrent();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbTimeZoneGetCurrent-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/time_zone.h&quot;
-
-SbTimeZone SbTimeZoneGetCurrent() {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbTimeZone SbTimeZoneGetCurrent()
 </code></pre></div>
-<p></div>
-</div></p>
-
-<h3 id="sbtimezonegetdstname">SbTimeZoneGetDstName</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Gets the three-letter code of the current timezone in Daylight Savings Time,
-regardless of current DST status. (e.g. &quot;PDT&quot;)</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbTimeZoneGetDstName-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbTimeZoneGetDstName-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbTimeZoneGetDstName-declaration">
-<pre>
-SB_EXPORT const char* SbTimeZoneGetDstName();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbTimeZoneGetDstName-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/time_zone.h&quot;
-
-const char* SbTimeZoneGetDstName() {
-  return &quot;GMT&quot;;
-}
-</code></pre></div>
-<p></div>
-</div></p>
-
 <h3 id="sbtimezonegetname">SbTimeZoneGetName</h3>
 
-<p><strong>Description</strong></p>
+<p>Gets a string representation of the current timezone. Note that the string
+representation can either be standard or daylight saving time. The output can be
+of the form: 1) A three-letter abbreviation such as &quot;PST&quot; or &quot;PDT&quot; (preferred).
+2) A time zone identifier such as &quot;America/Los_Angeles&quot; 3) An un-abbreviated
+name such as &quot;Pacific Standard Time&quot;.</p>
 
-<p>Gets the three-letter code of the current timezone in standard time,
-regardless of current Daylight Savings Time status. (e.g. &quot;PST&quot;)</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbTimeZoneGetName-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbTimeZoneGetName-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbTimeZoneGetName-declaration">
-<pre>
-SB_EXPORT const char* SbTimeZoneGetName();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbTimeZoneGetName-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/time_zone.h&quot;
-
-const char* SbTimeZoneGetName() {
-  return &quot;GMT&quot;;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">const char* SbTimeZoneGetName()
 </code></pre></div>
-<p></div>
-</div></p>
-
         
+          
+            
           
         
       </div>
@@ -855,11 +850,10 @@ const char* SbTimeZoneGetName() {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -881,29 +875,35 @@ const char* SbTimeZoneGetName() {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/time_zone.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

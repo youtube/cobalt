@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: user.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: user.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,25 +762,49 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines a user management API. This module defines functions only for
-managing signed-in users. Platforms that do not have users must still
-implement this API, always reporting a single user that is current and
-signed in.<br>
-These APIs are NOT expected to be thread-safe, so either call them from a
-single thread, or perform proper synchronization around all calls.</p>
+        <p>Defines a user management API. This module defines functions only for managing
+signed-in users. Platforms that do not have users must still implement this API,
+always reporting a single user that is current and signed in.</p>
+
+<p>These APIs are NOT expected to be thread-safe, so either call them from a single
+thread, or perform proper synchronization around all calls.</p>
+
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbuserinvalid">kSbUserInvalid</h3>
+
+<p>Well-defined value for an invalid user.</p>
 
 <h2 id="enums">Enums</h2>
 
@@ -754,237 +812,104 @@ single thread, or perform proper synchronization around all calls.</p>
 
 <p>A set of string properties that can be queried on a user.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbUserPropertyAvatarUrl</code> - The URL to the avatar for a user. Avatars are not provided on all platforms.</li>
-<li>  <code class="prettyprint">kSbUserPropertyHomeDirectory</code> - The path to a user&#39;s home directory, if supported on this platform.</li>
-<li>  <code class="prettyprint">kSbUserPropertyUserName</code> - The username of a user, which may be the same as the User ID, or it may befriendlier.</li>
-<li>  <code class="prettyprint">kSbUserPropertyUserId</code> - A unique user ID of a user.</li>
+<li><p><code class="prettyprint">kSbUserPropertyAvatarUrl</code></p>
+
+<p>The URL to the avatar for a user. Avatars are not provided on all platforms.</p></li>
+<li><p><code class="prettyprint">kSbUserPropertyHomeDirectory</code></p>
+
+<p>The path to a user&#39;s home directory, if supported on this platform.</p></li>
+<li><p><code class="prettyprint">kSbUserPropertyUserName</code></p>
+
+<p>The username of a user, which may be the same as the User ID, or it may be
+friendlier.</p></li>
+<li><p><code class="prettyprint">kSbUserPropertyUserId</code></p>
+
+<p>A unique user ID of a user.</p></li>
 </ul>
 
-<h2 id="structs">Structs</h2>
+<h2 id="typedefs">Typedefs</h2>
 
-<h3 id="sbuserapplicationtokenresults">SbUserApplicationTokenResults</h3>
+<h3 id="sbuser">SbUser</h3>
 
-<p>Information about an application-specific authorization token.</p>
+<p>A handle to a user.</p>
 
-<p><strong>Members</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>size_t</code><br>        <code>token_buffer_size</code></td>    <td>The size of the buffer pointed to by <code>token_buffer</code>. Call
-SbUserMaxAuthenticationTokenSizeInBytes() to get an appropriate size.
-<code>token_buffer_size</code> must be set to a value greater than zero.</td>  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>has_expiry</code></td>    <td>If true, <code>expiry</code> will be set. If false, the token never expires.</td>  </tr>
-  <tr>
-    <td><code>SbTime</code><br>        <code>expiry</code></td>    <td>The absolute time that this token expires. It is valid to use the value of
-<code>expiry</code> only if <code>has_expiry</code> is true.</td>  </tr>
-</table>
-
-<h3 id="sbuserprivate">SbUserPrivate</h3>
-
-<p>Private structure representing a device user.</p>
-
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbUserPrivate* SbUser
+</code></pre></div>
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbusergetcurrent">SbUserGetCurrent</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Gets the current primary user, if one exists. This is the user that is
-determined, in a platform-specific way, to be the primary user controlling
-the application. For example, the determination might be made because that
-user launched the app, though it should be made using whatever criteria are
-appropriate for the platform.<br>
-It is expected that there will be a unique SbUser per signed-in user, and
-that the referenced objects will persist for the lifetime of the app.</p>
+determined, in a platform-specific way, to be the primary user controlling the
+application. For example, the determination might be made because that user
+launched the app, though it should be made using whatever criteria are
+appropriate for the platform.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>It is expected that there will be a unique SbUser per signed-in user, and that
+the referenced objects will persist for the lifetime of the app.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbUserGetCurrent-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbUserGetCurrent-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbUserGetCurrent-declaration">
-<pre>
-SB_EXPORT SbUser SbUserGetCurrent();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbUserGetCurrent-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/user.h&quot;
-
-SbUser SbUserGetCurrent() {
-  return kSbUserInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbUser SbUserGetCurrent()
 </code></pre></div>
-<p></div>
-</div></p>
-
 <h3 id="sbusergetproperty">SbUserGetProperty</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Retrieves the value of <code class="prettyprint">property_id</code> for <code class="prettyprint">user</code> and places it in <code class="prettyprint">out_value</code>.
-The function returns:
-<ul><li><code class="prettyprint">true</code> if the property value is retrieved successfully
-</li><li><code class="prettyprint">false</code> if <code class="prettyprint">user</code> is invalid; if <code class="prettyprint">property_id</code> isn&#39;t recognized, supported,
-or set for <code class="prettyprint">user</code>; or if <code class="prettyprint">value_size</code> is too small.</li></ul></p>
+The function returns:</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<ul>
+<li><p><code class="prettyprint">true</code> if the property value is retrieved successfully</p></li>
+<li><p><code class="prettyprint">false</code> if <code class="prettyprint">user</code> is invalid; if <code class="prettyprint">property_id</code> isn&#39;t recognized, supported,
+or set for <code class="prettyprint">user</code>; or if <code class="prettyprint">value_size</code> is too small.</p></li>
+</ul>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbUserGetProperty-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbUserGetProperty-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbUserGetProperty-declaration">
-<pre>
-SB_EXPORT bool SbUserGetProperty(SbUser user,
-                                 SbUserPropertyId property_id,
-                                 char* out_value,
-                                 int value_size);
-</pre>
-</div>
+<p><code class="prettyprint">user</code>: The user for which property size data is being retrieved. <code class="prettyprint">property_id</code>:
+The property for which the data is requested. <code class="prettyprint">out_value</code>: The retrieved
+property value. <code class="prettyprint">value_size</code>: The size of the retrieved property value.</p>
 
-<p><div class="mdl-tabs__panel" id="SbUserGetProperty-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/user.h&quot;
-
-int SbUserGetPropertySize(SbUser /*user*/, SbUserPropertyId /*property_id*/) {
-  return 0;
-}
-
-bool SbUserGetProperty(SbUser /*user*/,
-                       SbUserPropertyId /*property_id*/,
-                       char* /*out_value*/,
-                       int /*value_size*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbUserGetProperty(SbUser user, SbUserPropertyId property_id, char *out_value, int value_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbUser</code><br>        <code>user</code></td>
-    <td>The user for which property size data is being retrieved.</td>
-  </tr>
-  <tr>
-    <td><code>SbUserPropertyId</code><br>        <code>property_id</code></td>
-    <td>The property for which the data is requested.</td>
-  </tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_value</code></td>
-    <td>The retrieved property value.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>value_size</code></td>
-    <td>The size of the retrieved property value.</td>
-  </tr>
-</table>
-
 <h3 id="sbusergetpropertysize">SbUserGetPropertySize</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Returns the size of the value of <code class="prettyprint">property_id</code> for <code class="prettyprint">user</code>, INCLUDING the
-terminating null character. The function returns <code class="prettyprint">0</code> if <code class="prettyprint">user</code> is invalid
-or if <code class="prettyprint">property_id</code> is not recognized, supported, or set for the user.</p>
+terminating null character. The function returns <code class="prettyprint">0</code> if <code class="prettyprint">user</code> is invalid or if
+<code class="prettyprint">property_id</code> is not recognized, supported, or set for the user.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id);
+<p><code class="prettyprint">user</code>: The user for which property size data is being retrieved. <code class="prettyprint">property_id</code>:
+The property for which the data is requested.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbUser</code><br>        <code>user</code></td>
-    <td>The user for which property size data is being retrieved.</td>
-  </tr>
-  <tr>
-    <td><code>SbUserPropertyId</code><br>        <code>property_id</code></td>
-    <td>The property for which the data is requested.</td>
-  </tr>
-</table>
-
 <h3 id="sbusergetsignedin">SbUserGetSignedIn</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Gets a list of up to <code class="prettyprint">users_size</code> signed-in users and places the results in
-<code class="prettyprint">out_users</code>. The return value identifies the actual number of signed-in
-users, which may be greater or less than <code class="prettyprint">users_size</code>.<br>
-It is expected that there will be a unique <code class="prettyprint">SbUser</code> per signed-in user and
-that the referenced objects will persist for the lifetime of the app.</p>
+<code class="prettyprint">out_users</code>. The return value identifies the actual number of signed-in users,
+which may be greater or less than <code class="prettyprint">users_size</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>It is expected that there will be a unique <code class="prettyprint">SbUser</code> per signed-in user and that
+the referenced objects will persist for the lifetime of the app.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbUserGetSignedIn-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbUserGetSignedIn-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbUserGetSignedIn-declaration">
-<pre>
-SB_EXPORT int SbUserGetSignedIn(SbUser* out_users, int users_size);
-</pre>
-</div>
+<p><code class="prettyprint">out_users</code>: Handles for the retrieved users. <code class="prettyprint">users_size</code>: The maximum number
+of signed-in users to retrieve.</p>
 
-<p><div class="mdl-tabs__panel" id="SbUserGetSignedIn-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/user.h&quot;
-
-int SbUserGetSignedIn(SbUser* /*out_users*/, int /*users_size*/) {
-  return 0;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbUserGetSignedIn(SbUser *out_users, int users_size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbUser*</code><br>        <code>out_users</code></td>
-    <td>Handles for the retrieved users.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>users_size</code></td>
-    <td>The maximum number of signed-in users to retrieve.</td>
-  </tr>
-</table>
-
 <h3 id="sbuserisvalid">SbUserIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given user handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbUserIsValid(SbUser user) {
-  return user != kSbUserInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbUserIsValid(SbUser user)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbUser</code><br>
-        <code>user</code></td>
-    <td> </td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1005,11 +930,10 @@ int SbUserGetSignedIn(SbUser* /*out_users*/, int /*users_size*/) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1031,29 +955,35 @@ int SbUserGetSignedIn(SbUser* /*out_users*/, int /*users_size*/) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/user.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

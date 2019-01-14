@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: memory_reporter.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: memory_reporter.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,48 +795,93 @@
       <div id="content">
         <p>Provides an interface for memory reporting.</p>
 
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbmemoryreporteronalloc">SbMemoryReporterOnAlloc</h3>
+
+<p>A function to report a memory allocation from SbMemoryAllocate(). Note that
+operator new calls SbMemoryAllocate which will delegate to this callback.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbMemoryReporterOnAlloc) (void *context, const void *memory, size_t size)
+</code></pre></div>
+<h3 id="sbmemoryreporterondealloc">SbMemoryReporterOnDealloc</h3>
+
+<p>A function to report a memory deallocation from SbMemoryDeallcoate(). Note that
+operator delete calls SbMemoryDeallocate which will delegate to this callback.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbMemoryReporterOnDealloc) (void *context, const void *memory)
+</code></pre></div>
+<h3 id="sbmemoryreporteronmapmemory">SbMemoryReporterOnMapMemory</h3>
+
+<p>A function to report a memory mapping from SbMemoryMap().</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbMemoryReporterOnMapMemory) (void *context, const void *memory, size_t size)
+</code></pre></div>
+<h3 id="sbmemoryreporteronunmapmemory">SbMemoryReporterOnUnMapMemory</h3>
+
+<p>A function to report a memory unmapping from SbMemoryUnmap().</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbMemoryReporterOnUnMapMemory) (void *context, const void *memory, size_t size)
+</code></pre></div>
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbmemoryreporter">SbMemoryReporter</h3>
+
+<p>SbMemoryReporter allows memory reporting via user-supplied functions. The void*
+context is passed to every call back. It&#39;s strongly recommended that C-Style
+struct initialization is used so that the arguments can be typed check by the
+compiler. For example, SbMemoryReporter mem_reporter = { MallocCallback, ....
+context };</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li><p><code class="prettyprint">SbMemoryReporterOnAlloc on_alloc_cb</code></p>
+
+<p>Callback to report allocations.</p></li>
+<li><p><code class="prettyprint">SbMemoryReporterOnDealloc on_dealloc_cb</code></p>
+
+<p>Callback to report deallocations.</p></li>
+<li><p><code class="prettyprint">SbMemoryReporterOnMapMemory on_mapmem_cb</code></p>
+
+<p>Callback to report memory map.</p></li>
+<li><p><code class="prettyprint">SbMemoryReporterOnUnMapMemory on_unmapmem_cb</code></p>
+
+<p>Callback to report memory unmap.</p></li>
+<li><p><code class="prettyprint">void * context</code></p>
+
+<p>Optional, is passed to callbacks as first argument.</p></li>
+</ul>
+
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbmemorysetreporter">SbMemorySetReporter</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Sets the MemoryReporter. Any previous memory reporter is unset. No lifetime
-management is done internally on input pointer.<br>
-Returns true if the memory reporter was set with no errors. If an error
-was reported then check the log for why it failed.<br>
-Note that other than a thread-barrier-write of the input pointer, there is
-no thread safety guarantees with this function due to performance
-considerations. It&#39;s recommended that this be called once during the
-lifetime of the program, or not at all. Do not delete the supplied pointer,
-ever.
-Example (Good):
-SbMemoryReporter* mem_reporter = new ...;
-SbMemorySetReporter(&amp;mem_reporter);
-...
-SbMemorySetReporter(NULL);  // allow value to leak.
-Example (Bad):
-SbMemoryReporter* mem_reporter = new ...;
-SbMemorySetReporter(&amp;mem_reporter);
-...
-SbMemorySetReporter(NULL);
-delete mem_reporter;        // May crash.</p>
+management is done internally on input pointer.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT bool SbMemorySetReporter(struct SbMemoryReporter* tracker);
+<p>Returns true if the memory reporter was set with no errors. If an error was
+reported then check the log for why it failed.</p>
+
+<p>Note that other than a thread-barrier-write of the input pointer, there is no
+thread safety guarantees with this function due to performance considerations.
+It&#39;s recommended that this be called once during the lifetime of the program, or
+not at all. Do not delete the supplied pointer, ever. Example (Good):
+SbMemoryReporter* mem_reporter = new ...; SbMemorySetReporter(&amp;mem_reporter);
+... SbMemorySetReporter(NULL); // allow value to leak. Example (Bad):
+SbMemoryReporter* mem_reporter = new ...; SbMemorySetReporter(&amp;mem_reporter);
+... SbMemorySetReporter(NULL); delete mem_reporter; // May crash.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbMemorySetReporter(struct SbMemoryReporter *tracker)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>struct SbMemoryReporter*</code><br>
-        <code>tracker</code></td>
-    <td> </td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -805,11 +902,10 @@ delete mem_reporter;        // May crash.</p>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -831,29 +927,35 @@ delete mem_reporter;        // May crash.</p>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/memory_reporter.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

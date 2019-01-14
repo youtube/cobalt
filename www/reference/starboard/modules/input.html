@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: input.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: input.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -747,37 +799,85 @@
 
 <h3 id="sbinputdevicetype">SbInputDeviceType</h3>
 
-<p>Identifies possible input subsystem types. The types of events that each
-device type produces correspond to <code class="prettyprint">SbInputEventType</code> values.</p>
+<p>Identifies possible input subsystem types. The types of events that each device
+type produces correspond to <code class="prettyprint">SbInputEventType</code> values.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbInputDeviceTypeGesture</code> - Input from a gesture-detection mechanism. Examples include Kinect, Wiimotes, LG Magic Remotes, etc...<br>Produces |Move|, |Grab|, |Ungrab|, |Press| and |Unpress| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeGamepad</code> - Input from a gamepad, following the layout provided in the W3C Web GamepadAPI. [<a href="https://www.w3.org/TR/gamepad/">https://www.w3.org/TR/gamepad/</a>]<br>Produces |Move|, |Press| and |Unpress| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeKeyboard</code> - Keyboard input from a traditional keyboard or game controller chatpad.<br>Produces |Press| and |Unpress| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeMicrophone</code> - Input from a microphone that would provide audio data to the caller, whomay then find some way to detect speech or other sounds within it. It mayhave processed or filtered the audio in some way before it arrives.<br>Produces |Audio| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeMouse</code> - Input from a traditional mouse.<br>Produces |Move|, |Press|, and |Unpress| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeRemote</code> - Input from a TV remote-control-style device.<br>Produces |Press| and |Unpress| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeSpeechCommand</code> - Input from a speech command analyzer, which is some hardware or softwarethat, given a set of known phrases, activates when one of the registeredphrases is heard.<br>Produces |Command| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeTouchScreen</code> - Input from a single- or multi-touchscreen.<br>Produces |Move|, |Press|, and |Unpress| events.</li>
-<li>  <code class="prettyprint">kSbInputDeviceTypeTouchPad</code> - Input from a touchpad that is not masquerading as a mouse.<br>Produces |Move|, |Press|, and |Unpress| events.</li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeGesture</code></p>
+
+<p>Input from a gesture-detection mechanism. Examples include Kinect, Wiimotes,
+etc...</p>
+
+<p>Produces <code class="prettyprint">Move</code>, <code class="prettyprint">Press</code> and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeGamepad</code></p>
+
+<p>Input from a gamepad, following the layout provided in the W3C Web Gamepad
+API. [ <a href="https://www.w3.org/TR/gamepad/">https://www.w3.org/TR/gamepad/</a> ]</p>
+
+<p>Produces <code class="prettyprint">Move</code>, <code class="prettyprint">Press</code> and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeKeyboard</code></p>
+
+<p>Keyboard input from a traditional keyboard or game controller chatpad.</p>
+
+<p>Produces <code class="prettyprint">Press</code> and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeMouse</code></p>
+
+<p>Input from a traditional mouse.</p>
+
+<p>Produces <code class="prettyprint">Move</code>, <code class="prettyprint">Press</code>, and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeRemote</code></p>
+
+<p>Input from a TV remote-control-style device.</p>
+
+<p>Produces <code class="prettyprint">Press</code> and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeTouchScreen</code></p>
+
+<p>Input from a single- or multi-touchscreen.</p>
+
+<p>Produces <code class="prettyprint">Move</code>, <code class="prettyprint">Press</code>, and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeTouchPad</code></p>
+
+<p>Input from a touchpad that is not masquerading as a mouse.</p>
+
+<p>Produces <code class="prettyprint">Move</code>, <code class="prettyprint">Press</code>, and <code class="prettyprint">Unpress</code> events.</p></li>
+<li><p><code class="prettyprint">kSbInputDeviceTypeOnScreenKeyboard</code></p>
+
+<p>Keyboard input from an on screen keyboard.</p>
+
+<p>Produces <code class="prettyprint">Input</code> events.</p></li>
 </ul>
 
 <h3 id="sbinputeventtype">SbInputEventType</h3>
 
 <p>The action that an input event represents.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbInputEventTypeAudio</code> - Receipt of Audio. Some audio data was received by the input microphone.</li>
-<li>  <code class="prettyprint">kSbInputEventTypeCommand</code> - Receipt of a command. A command was received from some semantic source,like a speech recognizer.</li>
-<li>  <code class="prettyprint">kSbInputEventTypeGrab</code> - Grab activation. This event type is deprecated.</li>
-<li>  <code class="prettyprint">kSbInputEventTypeMove</code> - Device Movement. In the case of |Mouse|, and perhaps |Gesture|, themovement tracks an absolute cursor position. In the case of |TouchPad|,only relative movements are provided.</li>
-<li>  <code class="prettyprint">kSbInputEventTypePress</code> - Key or button press activation. This could be a key on a keyboard, abutton on a mouse or game controller, a push from a touch screen, ora gesture. An |Unpress| event is subsequently delivered when the|Press| event terminates, such as when the key/button/finger is raised.Injecting repeat presses is up to the client.</li>
-<li>  <code class="prettyprint">kSbInputEventTypeUngrab</code> - Grab deactivation. This event type is deprecated.</li>
-<li>  <code class="prettyprint">kSbInputEventTypeUnpress</code> - Key or button deactivation. The counterpart to the |Press| event, thisevent is sent when the key or button being pressed is released.</li>
+<li><p><code class="prettyprint">kSbInputEventTypeMove</code></p>
+
+<p>Device Movement. In the case of <code class="prettyprint">Mouse</code>, and perhaps <code class="prettyprint">Gesture</code>, the movement
+tracks an absolute cursor position. In the case of <code class="prettyprint">TouchPad</code>, only relative
+movements are provided.</p></li>
+<li><p><code class="prettyprint">kSbInputEventTypePress</code></p>
+
+<p>Key or button press activation. This could be a key on a keyboard, a button
+on a mouse or game controller, a push from a touch screen, or a gesture. An
+<code class="prettyprint">Unpress</code> event is subsequently delivered when the <code class="prettyprint">Press</code> event terminates,
+such as when the key/button/finger is raised. Injecting repeat presses is up
+to the client.</p></li>
+<li><p><code class="prettyprint">kSbInputEventTypeUnpress</code></p>
+
+<p>Key or button deactivation. The counterpart to the <code class="prettyprint">Press</code> event, this event
+is sent when the key or button being pressed is released.</p></li>
+<li><p><code class="prettyprint">kSbInputEventTypeWheel</code></p>
+
+<p>Wheel movement. Provides relative movements of the <code class="prettyprint">Mouse</code> wheel.</p></li>
+<li><p><code class="prettyprint">kSbInputEventTypeInput</code></p>
+
+<p><a href="https://w3c.github.io/uievents/#event-type-input">https://w3c.github.io/uievents/#event-type-input</a></p></li>
 </ul>
 
 <h2 id="structs">Structs</h2>
@@ -786,55 +886,94 @@ device type produces correspond to <code class="prettyprint">SbInputEventType</c
 
 <p>Event data for <code class="prettyprint">kSbEventTypeInput</code> events.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>SbWindow</code><br>        <code>window</code></td>    <td>The window in which the input was generated.</td>  </tr>
-  <tr>
-    <td><code>SbInputEventType</code><br>        <code>type</code></td>    <td>The type of input event that this represents.</td>  </tr>
-  <tr>
-    <td><code>SbInputDeviceType</code><br>        <code>device_type</code></td>    <td>The type of device that generated this input event.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>device_id</code></td>    <td>An identifier that is unique among all connected devices.</td>  </tr>
-  <tr>
-    <td><code>SbKey</code><br>        <code>key</code></td>    <td>An identifier that indicates which keyboard key or mouse button was
-involved in this event, if any. All known keys for all devices are mapped
-to a single ID space, defined by the <code>SbKey</code> enum in <code>key.h</code>.</td>  </tr>
-  <tr>
-    <td><code>wchar_t</code><br>        <code>character</code></td>    <td>The character that corresponds to the key. For an external keyboard, this
-character also depends on the keyboard language. The value is <code>0</code> if there
-is no corresponding character.</td>  </tr>
-  <tr>
-    <td><code>SbKeyLocation</code><br>        <code>key_location</code></td>    <td>The location of the specified key, in cases where there are multiple
-instances of the button on the keyboard. For example, some keyboards
-have more than one "shift" key.</td>  </tr>
-  <tr>
-    <td><code>unsigned</code><br>        <code>int key_modifiers</code></td>    <td>Key modifiers (e.g. <code>Ctrl</code>, <code>Shift</code>) held down during this input event.</td>  </tr>
-  <tr>
-    <td><code>SbInputVector</code><br>        <code>position</code></td>    <td>The (x, y) coordinates of the persistent cursor controlled by this
-device. The value is <code>0</code> if this data is not applicable.</td>  </tr>
-  <tr>
-    <td><code>SbInputVector</code><br>        <code>delta</code></td>    <td>The relative motion vector of this input. The value is <code>0</code> if this data
-is not applicable.</td>  </tr>
-</table>
+<ul>
+<li><p><code class="prettyprint">SbTimeMonotonic timestamp</code></p>
+
+<p>The time that should be reported for this event. This is intended to
+facilitate calculation of time-sensitive information (e.g. velocity for
+kSbInputEventTypeMove). This may be set to 0 to have the relevant systems
+automatically set the timestamp. However, this may happen at a later time,
+so the relative time between events may not be preserved.</p></li>
+<li><p><code class="prettyprint">SbWindow window</code></p>
+
+<p>The window in which the input was generated.</p></li>
+<li><p><code class="prettyprint">SbInputEventType type</code></p>
+
+<p>The type of input event that this represents.</p></li>
+<li><p><code class="prettyprint">SbInputDeviceType device_type</code></p>
+
+<p>The type of device that generated this input event.</p></li>
+<li><p><code class="prettyprint">int device_id</code></p>
+
+<p>An identifier that is unique among all connected devices.</p></li>
+<li><p><code class="prettyprint">SbKey key</code></p>
+
+<p>An identifier that indicates which keyboard key or mouse button was involved
+in this event, if any. All known keys for all devices are mapped to a single
+ID space, defined by the <code class="prettyprint">SbKey</code> enum in <code class="prettyprint">key.h</code>.</p></li>
+<li><p><code class="prettyprint">wchar_t character</code></p>
+
+<p>The character that corresponds to the key. For an external keyboard, this
+character also depends on the keyboard language. The value is <code class="prettyprint">0</code> if there
+is no corresponding character.</p></li>
+<li><p><code class="prettyprint">SbKeyLocation key_location</code></p>
+
+<p>The location of the specified key, in cases where there are multiple
+instances of the button on the keyboard. For example, some keyboards have
+more than one &quot;shift&quot; key.</p></li>
+<li><p><code class="prettyprint">unsigned int key_modifiers</code></p>
+
+<p>Key modifiers (e.g. <code class="prettyprint">Ctrl</code>, <code class="prettyprint">Shift</code>) held down during this input event.</p></li>
+<li><p><code class="prettyprint">SbInputVector position</code></p>
+
+<p>The (x, y) coordinates of the persistent cursor controlled by this device.
+The value is <code class="prettyprint">0</code> if this data is not applicable. For events with type
+kSbInputEventTypeMove and device_type kSbInputDeviceTypeGamepad, this field
+is interpreted as a stick position with the range [-1, 1], with positive
+values for the down and right direction.</p></li>
+<li><p><code class="prettyprint">SbInputVector delta</code></p>
+
+<p>The relative motion vector of this input. The value is <code class="prettyprint">0</code> if this data is
+not applicable.</p></li>
+<li><p><code class="prettyprint">float pressure</code></p>
+
+<p>The normalized pressure of the pointer input in the range of [0,1], where 0
+and 1 represent the minimum and maximum pressure the hardware is capable of
+detecting, respectively. Use NaN for devices that do not report pressure.
+This value is used for input events with device type mouse or touch screen.</p></li>
+<li><p><code class="prettyprint">SbInputVector size</code></p>
+
+<p>The (width, height) of the contact geometry of the pointer. This defines the
+size of the area under the pointer position. If (NaN, NaN) is specified, the
+value (0,0) will be used. This value is used for input events with device
+type mouse or touch screen.</p></li>
+<li><p><code class="prettyprint">SbInputVector tilt</code></p>
+
+<p>The (x, y) angle in degrees, in the range of [-90, 90] of the pointer,
+relative to the z axis. Positive values are for tilt to the right (x), and
+towards the user (y). Use (NaN, NaN) for devices that do not report tilt.
+This value is used for input events with device type mouse or touch screen.</p></li>
+<li><p><code class="prettyprint">const char * input_text</code></p>
+
+<p>The text to input for events of type <code class="prettyprint">Input</code>.</p></li>
+</ul>
 
 <h3 id="sbinputvector">SbInputVector</h3>
 
 <p>A 2-dimensional vector used to represent points and motion vectors.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>x</code></td>    <td></td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>y</code></td>    <td></td>  </tr>
-</table>
+<ul>
+<li>  <code class="prettyprint">float x</code></li>
+<li>  <code class="prettyprint">float y</code></li>
+</ul>
 
         
+          
+            
           
         
       </div>
@@ -855,11 +994,10 @@ is not applicable.</td>  </tr>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -881,29 +1019,35 @@ is not applicable.</td>  </tr>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/input.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

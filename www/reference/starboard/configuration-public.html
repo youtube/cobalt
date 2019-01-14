@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Configuration Reference Guide</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Configuration Reference Guide"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,31 +762,37 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <h2 id="api-configuration">API Configuration</h2>
-
-<table><thead>
-<tr>
-<th style="text-align: left">Properties</th>
-</tr>
-</thead><tbody>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_API_VERSION</code></strong><br><br>The API version implemented by this platform.</td>
-  </tr>
-  </tbody></table>
-
         <h2 id="architecture-configuration">Architecture Configuration</h2>
 
 <table><thead>
@@ -821,10 +861,16 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_6_CORES</code></strong><br><br>Whether the current platform is expected to have exactly 6 cores.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_THREAD_PRIORITY_SUPPORT</code></strong><br><br>Whether the current platform supports thread priorities.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_CROSS_CORE_SCHEDULER</code></strong><br><br>Whether the current platform&#39;s thread scheduler will automatically balance threads between cores, as opposed to systems where threads will only ever run on the specifically pinned core.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_CROSS_CORE_SCHEDULER</code></strong><br><br>Whether the current platform&#39;s thread scheduler will automatically balance threads between cores, as opposed to systems where threads will only ever run on the specifically pinned core.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES</code></strong><br><br>Some platforms will not align variables on the stack with an alignment greater than 16 bytes. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED</code></strong><br><br>Some platforms do not have thread affinity support. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_GL_MAP_BUFFER_MEMORY_IS_SLOW_TO_READ</code></strong><br><br>Some platforms the mapped GL buffer memory is slow to read from.  Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined.</td>
 </tr>
 </tbody></table>
 
@@ -853,6 +899,9 @@
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_COMPILER_SAYS_GNUC_BUT_ISNT</code></strong><br><br>On some platforms the &#95;&#95;GNUC&#95;&#95; is defined even though parts of the functionality are missing. Setting this to non-zero allows disabling missing functionality encountered.<br><br>By default, this property is undefined.</td>
 </tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_HASFEATURE_NOT_DEFINED_BUT_IT_IS</code></strong><br><br>On some compilers, the frontend has a quirk such that #ifdef cannot correctly detect &#95;&#95;has_feature is defined, and an example error you get is:<br><br>By default, this property is undefined.</td>
+</tr>
 </tbody></table>
 
 <h2 id="decoder-only-params">Decoder-only Params</h2>
@@ -869,7 +918,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_VIDEO_FRAME_ALIGNMENT</code></strong><br><br>Specifies how video frame buffers must be aligned on this platform.<br><br>The default value in the Stub implementation is <code class="prettyprint">256U</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES</code></strong><br><br>The encoded video frames are compressed in different ways, their decoding time can vary a lot.  Occasionally a single frame can take longer time to decode than the average time per frame.  The player has to cache some frames to account for such inconsistency.  The number of frames being cached are controlled by the following two macros.  Specify the number of video frames to be cached before the playback starts. Note that set this value too large may increase the playback start delay.<br><br>The default value in the Stub implementation is <code class="prettyprint">4</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES</code></strong><br><br>The encoded video frames are compressed in different ways, so their decoding time can vary a lot.  Occasionally a single frame can take longer time to decode than the average time per frame.  The player has to cache some frames to account for such inconsistency.  The number of frames being cached are controlled by SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES and SB_MEDIA_MAXIMUM_VIDEO_FRAMES.  Specify the number of video frames to be cached before the playback starts. Note that setting this value too large may increase the playback start delay.<br><br>The default value in the Stub implementation is <code class="prettyprint">4</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAXIMUM_VIDEO_FRAMES</code></strong><br><br>Specify the number of video frames to be cached during playback.  A large value leads to more stable fps but also causes the app to use more memory.<br><br>The default value in the Stub implementation is <code class="prettyprint">12</code></td>
@@ -883,6 +932,9 @@
 <th style="text-align: left">Properties</th>
 </tr>
 </thead><tbody>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_STD_UNORDERED_HASH</code></strong><br><br>Do not use <unordered_map> and <unordered_set> for the hash table types.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+</tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_LONG_LONG_HASH</code></strong><br><br>GCC/Clang doesn&#39;t define a long long hash function, except for Android and Game consoles.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
@@ -947,7 +999,13 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_PATH_SEP_STRING</code></strong><br><br>The string form of SB_PATH_SEP_CHAR.<br><br>The default value in the Stub implementation is <code class="prettyprint">&quot;:&quot;</code></td>
 </tr>
 <tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_FILESYSTEM_ZERO_FILEINFO_TIME</code></strong><br><br>Some operating systems constantly return zero values for creation, access and modification time for files and directories. When this quirk is defined, we need to ignore corresponded time values in applications as well as take this fact into account in unit tests.<br><br>By default, this property is undefined.</td>
+</tr>
+<tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_FILESYSTEM_COARSE_ACCESS_TIME</code></strong><br><br>On some platforms the file system stores access times at a coarser granularity than other times. When this quirk is defined, we assume the access time is of 1 day precision.<br><br>By default, this property is undefined.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_HASH_FILE_NAME</code></strong><br><br>On some platforms the file system cannot access extremely long file names. We do not need this feature on stub.<br><br>By default, this property is undefined.</td>
 </tr>
 </tbody></table>
 
@@ -971,7 +1029,31 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_NV12_TEXTURE_SUPPORT</code></strong><br><br>Indicates whether or not the given platform supports rendering of NV12 textures. These textures typically originate from video decoders.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER</code></strong><br><br>Whether the current platform should frequently flip their display buffer. If this is not required (e.g. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to 0), then optimizations where the display buffer is not flipped if the scene hasn&#39;t changed are enabled.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER</code></strong><br><br>Whether the current platform should frequently flip its display buffer.  If this is not required (i.e. SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER is set to 0), then optimizations are enabled so the display buffer is not flipped if the scene hasn&#39;t changed.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_VIRTUAL_REALITY</code></strong><br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+</tr>
+</tbody></table>
+
+<h2 id="i-o-configuration">I/O Configuration</h2>
+
+<table><thead>
+<tr>
+<th style="text-align: left">Properties</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_MICROPHONE</code></strong><br><br>Whether the current platform has microphone supported.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_ON_SCREEN_KEYBOARD</code></strong><br><br>Whether the current platform implements the on screen keyboard interface.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_SPEECH_RECOGNIZER</code></strong><br><br>Whether the current platform has speech recognizer.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_SPEECH_SYNTHESIS</code></strong><br><br>Whether the current platform has speech synthesis.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 </tbody></table>
 
@@ -983,34 +1065,28 @@
 </tr>
 </thead><tbody>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_PLAYER</code></strong><br><br>Specifies whether this platform has support for a possibly-decrypting elementary stream player for at least H.264/AAC (and AES-128-CTR, if decrypting). A player is responsible for ingesting an audio and video elementary stream, optionally-encrypted, and ultimately producing synchronized audio/video. If a player is defined, it must choose one of the supported composition methods below.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_PLAYER_WITH_URL</code></strong><br><br>Whether the current platform uses a media player that relies on a URL.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_IS_PLAYER_PRODUCING_TEXTURE</code></strong><br><br>Specifies whether this platform&#39;s player will produce an OpenGL texture that the client must draw every frame with its graphics rendering. It may be that we get a texture handle, but cannot perform operations like GlReadPixels on it if it is DRM-protected.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_SEEK_TO_KEYFRAME</code></strong><br><br>After a seek is triggerred, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.<br><br>By default, this property is undefined.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_IS_PLAYER_COMPOSITED</code></strong><br><br>Specifies whether this platform&#39;s player is composited with a formal compositor, where the client must specify how video is to be composited into the graphicals scene.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES</code></strong><br><br>The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only when this macro is defined.<br><br>By default, this property is undefined.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_IS_PLAYER_PUNCHED_OUT</code></strong><br><br>Specifies whether this platform&#39;s player uses a &quot;punch-out&quot; model, where video is rendered to the far background, and the graphics plane is automatically composited on top of the video by the platform. The client must punch an alpha hole out of the graphics plane for video to show through.  In this case, changing the video bounds must be tightly synchronized between the player and the graphics plane.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_NO_FFS</code></strong><br><br>dlmalloc will use the ffs intrinsic if available.  Platforms on which this is not available should define the following quirk.<br><br>By default, this property is undefined.</td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_SEEK_TO_KEYFRAME</code></strong><br><br>After a seek is triggered, the default behavior is to append video frames from the last key frame before the seek time and append audio frames from the seek time because usually all audio frames are key frames.  On platforms that cannot decode video frames without displaying them, this will cause the video being played without audio for several seconds after seeking.  When the following macro is defined, the app will append audio frames start from the timestamp that is before the timestamp of the video key frame being appended.<br><br>By default, this property is undefined.</td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND</code></strong><br><br>The maximum audio bitrate the platform can decode.  The following value equals to 5M bytes per seconds which is more than enough for compressed audio.<br><br>The default value in the Stub implementation is <code class="prettyprint">(40 * 1024 * 1024)</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT</code></strong><br><br>Specifies the maximum amount of memory used by audio buffers of media source before triggering a garbage collection.  A large value will cause more memory being used by audio buffers but will also make JavaScript app less likely to re-download audio data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value in the Stub implementation is <code class="prettyprint">(3U * 1024U * 1024U)</code></td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT</code></strong><br><br>Specifies the maximum amount of memory used by video buffers of media source before triggering a garbage collection.  A large value will cause more memory being used by video buffers but will also make JavaScript app less likely to re-download video data.  Note that the JavaScript app may experience significant difficulty if this value is too low.<br><br>The default value in the Stub implementation is <code class="prettyprint">(16U * 1024U * 1024U)</code></td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAIN_BUFFER_BUDGET</code></strong><br><br>Specifies how much memory to reserve up-front for the main media buffer (usually resides inside the CPU memory) used by media source and demuxers. The main media buffer can work in one of the following two ways: <ol><li>If GPU buffer is used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is non-zero), the main buffer will be used as a cache so a media buffer will be copied from GPU memory to main memory before sending to the decoder for further processing.  In this case this macro should be set to a value that is large enough to hold all media buffers being decoded. </li><li>If GPU buffer is not used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is zero) all media buffers will reside in the main memory buffer.  In this case the macro should be set to a value that is greater than the sum of the above source buffer stream memory limits with extra room to take account of fragmentations and memory used by demuxers.</li></ol><br><br>The default value in the Stub implementation is <code class="prettyprint">(32U * 1024U * 1024U)</code></td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_GPU_BUFFER_BUDGET</code></strong><br><br>Specifies how much GPU memory to reserve up-front for media source buffers. This should only be set to non-zero on system with limited CPU memory and excess GPU memory so the app can store media buffer in GPU memory. SB_MEDIA_MAIN_BUFFER_BUDGET has to be set to a non-zero value to avoid media buffers being decoded when being stored in GPU.<br><br>The default value in the Stub implementation is <code class="prettyprint">0U</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND</code></strong><br><br>The maximum video bitrate the platform can decode.  The following value equals to 25M bytes per seconds which is more than enough for compressed video.<br><br>The default value in the Stub implementation is <code class="prettyprint">(200 * 1024 * 1024)</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_MEDIA_WEBM_VP9_SUPPORT</code></strong><br><br>Specifies whether this platform has webm/vp9 support.  This should be set to non-zero on platforms with webm/vp9 support.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_ASYNC_AUDIO_FRAMES_REPORTING</code></strong><br><br>Specifies whether this platform updates audio frames asynchronously.  In such case an extra parameter will be added to</td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_MEDIA_THREAD_STACK_SIZE</code></strong><br><br>Specifies the stack size for threads created inside media stack.  Set to 0 to use the default thread stack size.  Set to non-zero to explicitly set the stack size for media stack threads.<br><br>The default value in the Stub implementation is <code class="prettyprint">0U</code></td>
@@ -1090,6 +1166,9 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_INTTYPES_H</code></strong><br><br>Whether the current platform provides the standard header inttypes.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_SYS_TYPES_H</code></strong><br><br>Whether the current platform provides the standard header sys/types.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+</tr>
+<tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_WCHAR_H</code></strong><br><br>Whether the current platform provides the standard header wchar.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
@@ -1099,10 +1178,7 @@
 <td style="text-align: left"><strong><code class="prettyprint">SB_HAS_FLOAT_H</code></strong><br><br>Whether the current platform provides the standard header float.h.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_MICROPHONE</code></strong><br><br>Whether the current platform has microphone supported.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
-</tr>
-<tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_SPEECH_SYNTHESIS</code></strong><br><br>Whether the current platform has speech synthesis.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_SSIZE_T</code></strong><br><br>Whether the current platform provides ssize_t.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_IS_WCHAR_T_UTF32</code></strong><br><br>Type detection for wchar_t.<br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
@@ -1116,6 +1192,12 @@
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_IS_WCHAR_T_SIGNED</code></strong><br><br>The default value in the Stub implementation is <code class="prettyprint">1</code></td>
 </tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_MEMSET_IN_SYSTEM_HEADERS</code></strong><br><br>Some platforms have memset predefined in system headers. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined.</td>
+</tr>
+<tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_QUIRK_SOCKET_BSD_HEADERS</code></strong><br><br>This quirk is used to switch the headers included in starboard/shared/linux/socket_get_interface_address.cc for darwin system headers. It may be removed at some point in favor of a different solution.<br><br>By default, this property is undefined.</td>
+</tr>
 </tbody></table>
 
 <h2 id="thread-configuration">Thread Configuration</h2>
@@ -1126,13 +1208,16 @@
 </tr>
 </thead><tbody>
 <tr>
+<td style="text-align: left"><strong><code class="prettyprint">SB_HAS_THREAD_PRIORITY_SUPPORT</code></strong><br><br>Whether the current platform supports thread priorities.<br><br>The default value in the Stub implementation is <code class="prettyprint">0</code></td>
+</tr>
+<tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_MAX_THREADS</code></strong><br><br>Defines the maximum number of simultaneous threads for this platform. Some platforms require sharing thread handles with other kinds of system handles, like mutexes, so we want to keep this managable.<br><br>The default value in the Stub implementation is <code class="prettyprint">90</code></td>
 </tr>
 <tr>
 <td style="text-align: left"><strong><code class="prettyprint">SB_MAX_THREAD_LOCAL_KEYS</code></strong><br><br>The maximum number of thread local storage keys supported by this platform.<br><br>The default value in the Stub implementation is <code class="prettyprint">512</code></td>
 </tr>
 <tr>
-<td style="text-align: left"><strong><code class="prettyprint">SB_MAX_THREAD_NAME_LENGTH</code></strong><br><br>The maximum length of the name for a thread, including the NULL-terminator.<br><br>The default value in the Stub implementation is <code class="prettyprint">16;</code></td>
+<td style="text-align: left"><strong><code class="prettyprint">SB_MAX_THREAD_NAME_LENGTH</code></strong><br><br>The maximum length of the name for a thread, including the NULL-terminator.<br><br>The default value in the Stub implementation is <code class="prettyprint">16</code></td>
 </tr>
 </tbody></table>
 
@@ -1174,6 +1259,8 @@
 
         
           
+            
+          
         
       </div>
     </div>
@@ -1193,11 +1280,10 @@
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1219,29 +1305,35 @@
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/configuration-public.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

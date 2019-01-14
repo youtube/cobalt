@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="https://schema.org/WebPage">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Cobalt / Starboard Module Reference: thread.h</title>
+
+            <!-- Webfont -->
+    
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    
+
+
+    <!-- Material Design Lite -->
+    <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Bootstrap -->
+    <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Styles -->
+    <link rel="stylesheet" type="text/css" href="/css/site.css" />
+
+    <!-- Font Awesome icons -->
+    <link href="/assets/font-awesome-4.4.0/css/font-awesome.min.css"
+          rel="stylesheet"
+          type="text/css">
+    
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/assets/bootstrap/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+
+    <!-- material design lite -->
+    <script src="/assets/material-design-lite/material.min.js"></script>
+    
+    <!-- Include the common site javascript -->
+    <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
+
+
+    <!-- metadata -->
+    <meta name="og:title" content="Cobalt / Starboard Module Reference: thread.h"/>
+    <meta name="og:image" content="/images/cobalt-logo.png"/>
+    <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
+  </head>
+  <body class="docs" id="top_of_page">
+
+    <span id="toc-depth" data-toc-depth="h2,h3"></span>
+
+
+
+    <nav id="common-nav" class="navbar navbar-fixed-top inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      
+      <a class="navbar-brand" href="/">
+        <img class="logo" src="/images/cobalt-logo.png" alt="Cobalt">
+      </a>
+      
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right" id="standard-menu-links">
+        
+  
+    
+  
+  
+    
+      <li><a href="/starboard/porting.html">Porters</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      <li><a href="/development/setup-linux.html">Developers</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      <li><a href="/contributors/index.html">Contributors</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      
+        <li><a href="https://cobalt.googlesource.com/cobalt">Code Repo</a></li>
+      
+    
+  
+
+
+      </ul>
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="collapsed-left-menu">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu no-top-margin"><a href="/overview.html">Overview</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Porters</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/starboard/porting.html">Port Cobalt to your platform</a></li>
+              
+            
+              
+        <li><a href="/starboard/testing.html">Testing with NPLB</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+              
+            
+              
+        <li><a href="/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+              
+            
+              
+                <li><b>Starboard modules</b>
+                
+          <ul>
+                  
+                    
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/character.html">character.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/decode_target.html">decode_target.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/directory.html">directory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/double.html">double.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/drm.html">drm.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/event.html">event.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/export.html">export.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/file.html">file.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/image.html">image.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/input.html">input.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/key.html">key.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/log.html">log.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/media.html">media.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory.html">memory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory_reporter.html">memory_reporter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/microphone.html">microphone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/once.html">once.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/player.html">player.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/queue.html">queue.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket.html">socket.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_synthesis.html">speech_synthesis.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/storage.html">storage.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/string.html">string.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/system.html">system.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread.html">thread.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time.html">time.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/types.html">types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/user.html">user.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/window.html">window.h</a></li>
+                    
+                  
+          </ul>
+                
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Developers</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/setup-linux.html">Setup - Linux</a></li>
+              
+            
+              
+        <li><a href="/development/setup-raspi.html">Setup - RasPi</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/reference/supported-features.html">Cobalt support</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/contributors/index.html">Contributors</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
+
+
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container -->
+</nav>
+
+
+    
+<div id="masthead">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-11">
+        <h1>Starboard Module Reference: thread.h</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container">
+    <div class="row scroll-margin" id="toc-content-row">
+    <div class="col-md-2" id="leftCol">
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="sidebar">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu no-top-margin"><a href="/overview.html">Overview</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Porters</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/starboard/porting.html">Port Cobalt to your platform</a></li>
+              
+            
+              
+        <li><a href="/starboard/testing.html">Testing with NPLB</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+              
+            
+              
+        <li><a href="/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+              
+            
+              
+                <li><b>Starboard modules</b>
+                
+          <ul>
+                  
+                    
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/character.html">character.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/decode_target.html">decode_target.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/directory.html">directory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/double.html">double.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/drm.html">drm.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/event.html">event.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/export.html">export.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/file.html">file.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/image.html">image.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/input.html">input.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/key.html">key.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/log.html">log.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/media.html">media.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory.html">memory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory_reporter.html">memory_reporter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/microphone.html">microphone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/once.html">once.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/player.html">player.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/queue.html">queue.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket.html">socket.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_synthesis.html">speech_synthesis.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/storage.html">storage.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/string.html">string.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/system.html">system.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread.html">thread.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time.html">time.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/types.html">types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/user.html">user.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/window.html">window.h</a></li>
+                    
+                  
+          </ul>
+                
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Developers</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/setup-linux.html">Setup - Linux</a></li>
+              
+            
+              
+        <li><a href="/development/setup-raspi.html">Setup - RasPi</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/reference/supported-features.html">Cobalt support</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/contributors/index.html">Contributors</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
+
+
+      </ul>
+    </div>
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
+      <div class="nav nav-stacked" id="tocSidebar">
+        
+        <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
+        
+      </div>
+    </div>
+    <div class="col-md-7" id="centerCol">
+      <div id="content">
+        <p>Defines functionality related to thread creation and cleanup.</p>
+
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbthreadinvalidid">kSbThreadInvalidId</h3>
+
+<p>Well-defined constant value to mean &quot;no thread ID.&quot;</p>
+
+<h3 id="ksbthreadlocalkeyinvalid">kSbThreadLocalKeyInvalid</h3>
+
+<p>Well-defined constant value to mean &quot;no thread local key.&quot;</p>
+
+<h3 id="ksbthreadnoaffinity">kSbThreadNoAffinity</h3>
+
+<p>Well-defined constant value to mean &quot;no affinity.&quot;</p>
+
+<h2 id="enums">Enums</h2>
+
+<h3 id="sbthreadpriority">SbThreadPriority</h3>
+
+<p>A spectrum of thread priorities. Platforms map them appropriately to their own
+priority system. Note that scheduling is platform-specific, and what these
+priorities mean, if they mean anything at all, is also platform-specific.</p>
+
+<p>In particular, several of these priority values can map to the same priority on
+a given platform. The only guarantee is that each lower priority should be
+treated less-than-or-equal-to a higher priority.</p>
+
+<h4 id="values">Values</h4>
+
+<ul>
+<li><p><code class="prettyprint">kSbThreadPriorityLowest</code></p>
+
+<p>The lowest thread priority available on the current platform.</p></li>
+<li><p><code class="prettyprint">kSbThreadPriorityLow</code></p>
+
+<p>A lower-than-normal thread priority, if available on the current platform.</p></li>
+<li><p><code class="prettyprint">kSbThreadPriorityNormal</code></p>
+
+<p>Really, what is normal? You should spend time pondering that question more
+than you consider less-important things, but less than you think about more-
+important things.</p></li>
+<li><p><code class="prettyprint">kSbThreadPriorityHigh</code></p>
+
+<p>A higher-than-normal thread priority, if available on the current platform.</p></li>
+<li><p><code class="prettyprint">kSbThreadPriorityHighest</code></p>
+
+<p>The highest thread priority available on the current platform that isn&#39;t
+considered &quot;real-time&quot; or &quot;time-critical,&quot; if those terms have any meaning
+on the current platform.</p></li>
+<li><p><code class="prettyprint">kSbThreadPriorityRealTime</code></p>
+
+<p>If the platform provides any kind of real-time or time-critical scheduling,
+this priority will request that treatment. Real-time scheduling generally
+means that the thread will have more consistency in scheduling than non-
+real-time scheduled threads, often by being more deterministic in how
+threads run in relation to each other. But exactly how being real-time
+affects the thread scheduling is platform-specific.</p>
+
+<p>For platforms where that is not offered, or otherwise not meaningful, this
+will just be the highest priority available in the platform&#39;s scheme, which
+may be the same as kSbThreadPriorityHighest.</p></li>
+<li><p><code class="prettyprint">kSbThreadNoPriority</code></p>
+
+<p>Well-defined constant value to mean &quot;no priority.&quot; This means to use the
+default priority assignment method of that platform. This may mean to
+inherit the priority of the spawning thread, or it may mean a specific
+default priority, or it may mean something else, depending on the platform.</p></li>
+</ul>
+
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbthreadaffinity">SbThreadAffinity</h3>
+
+<p>Type for thread core affinity. This generally will be a single cpu (or core or
+hyperthread) identifier. Some platforms may not support affinity, and some may
+have specific rules about how it must be used.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef int32_t SbThreadAffinity
+</code></pre></div>
+<h3 id="sbthreadentrypoint">SbThreadEntryPoint</h3>
+
+<p>Function pointer type for SbThreadCreate. <code class="prettyprint">context</code> is a pointer-sized bit of
+data passed in from the calling thread.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void*(* SbThreadEntryPoint) (void *context)
+</code></pre></div>
+<h3 id="sbthreadid">SbThreadId</h3>
+
+<p>An ID type that is unique per thread.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef int32_t SbThreadId
+</code></pre></div>
+<h3 id="sbthreadlocaldestructor">SbThreadLocalDestructor</h3>
+
+<p>Function pointer type for Thread-Local destructors.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbThreadLocalDestructor) (void *value)
+</code></pre></div>
+<h3 id="sbthreadlocalkey">SbThreadLocalKey</h3>
+
+<p>A handle to a thread-local key.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbThreadLocalKeyPrivate* SbThreadLocalKey
+</code></pre></div>
+<h2 id="functions">Functions</h2>
+
+<h3 id="sbthreadcreate">SbThreadCreate</h3>
+
+<p>Creates a new thread, which starts immediately.</p>
+
+<ul>
+<li><p>If the function succeeds, the return value is a handle to the newly created
+thread.</p></li>
+<li><p>If the function fails, the return value is <code class="prettyprint">kSbThreadInvalid</code>.</p></li>
+</ul>
+
+<p><code class="prettyprint">stack_size</code>: The amount of memory reserved for the thread. Set the value to <code class="prettyprint">0</code>
+to indicate that the default stack size should be used. <code class="prettyprint">priority</code>: The thread&#39;s
+priority. This value can be set to <code class="prettyprint">kSbThreadNoPriority</code> to use the platform&#39;s
+default priority. As examples, it could be set to a fixed, standard priority or
+to a priority inherited from the thread that is calling SbThreadCreate(), or to
+something else. <code class="prettyprint">affinity</code>: The thread&#39;s affinity. This value can be set to
+<code class="prettyprint">kSbThreadNoAffinity</code> to use the platform&#39;s default affinity. <code class="prettyprint">joinable</code>:
+Indicates whether the thread can be joined (<code class="prettyprint">true</code>) or should start out
+&quot;detached&quot; (<code class="prettyprint">false</code>). Note that for joinable threads, when you are done with the
+thread handle, you must call <code class="prettyprint">SbThreadJoin</code> to release system resources
+associated with the thread. This is not necessary for detached threads, but
+detached threads cannot be joined. <code class="prettyprint">name</code>: A name used to identify the thread.
+This value is used mainly for debugging, it can be <code class="prettyprint">NULL</code>, and it might not be
+used in production builds. <code class="prettyprint">entry_point</code>: A pointer to a function that will be
+executed on the newly created thread. <code class="prettyprint">context</code>: This value will be passed to
+the <code class="prettyprint">entry_point</code> function.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbThread SbThreadCreate(int64_t stack_size, SbThreadPriority priority, SbThreadAffinity affinity, bool joinable, const char *name, SbThreadEntryPoint entry_point, void *context)
+</code></pre></div>
+<h3 id="sbthreadcreatelocalkey">SbThreadCreateLocalKey</h3>
+
+<p>Creates and returns a new, unique key for thread local data. If the function
+does not succeed, the function returns <code class="prettyprint">kSbThreadLocalKeyInvalid</code>.</p>
+
+<p>If <code class="prettyprint">destructor</code> is specified, it will be called in the owning thread, and only
+in the owning thread, when the thread exits. In that case, it is called on the
+local value associated with the key in the current thread as long as the local
+value is not NULL.</p>
+
+<p><code class="prettyprint">destructor</code>: A pointer to a function. The value may be NULL if no clean up is
+needed.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbThreadLocalKey SbThreadCreateLocalKey(SbThreadLocalDestructor destructor)
+</code></pre></div>
+<h3 id="sbthreaddestroylocalkey">SbThreadDestroyLocalKey</h3>
+
+<p>Destroys thread local data for the specified key. The function is a no-op if the
+key is invalid (kSbThreadLocalKeyInvalid`) or has already been destroyed. This
+function does NOT call the destructor on any stored values.</p>
+
+<p><code class="prettyprint">key</code>: The key for which to destroy thread local data.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbThreadDestroyLocalKey(SbThreadLocalKey key)
+</code></pre></div>
+<h3 id="sbthreaddetach">SbThreadDetach</h3>
+
+<p>Detaches <code class="prettyprint">thread</code>, which prevents it from being joined. This is sort of like a
+non-blocking join. This function is a no-op if the thread is already detached or
+if the thread is already being joined by another thread.</p>
+
+<p><code class="prettyprint">thread</code>: The thread to be detached.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbThreadDetach(SbThread thread)
+</code></pre></div>
+<h3 id="sbthreadgetcurrent">SbThreadGetCurrent</h3>
+
+<p>Returns the handle of the currently executing thread.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbThread SbThreadGetCurrent()
+</code></pre></div>
+<h3 id="sbthreadgetid">SbThreadGetId</h3>
+
+<p>Returns the Thread ID of the currently executing thread.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbThreadId SbThreadGetId()
+</code></pre></div>
+<h3 id="sbthreadgetlocalvalue">SbThreadGetLocalValue</h3>
+
+<p>Returns the pointer-sized value for <code class="prettyprint">key</code> in the currently executing thread&#39;s
+local storage. Returns <code class="prettyprint">NULL</code> if key is <code class="prettyprint">kSbThreadLocalKeyInvalid</code> or if the key
+has already been destroyed.</p>
+
+<p><code class="prettyprint">key</code>: The key for which to return the value.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbThreadGetLocalValue(SbThreadLocalKey key)
+</code></pre></div>
+<h3 id="sbthreadgetname">SbThreadGetName</h3>
+
+<p>Returns the debug name of the currently executing thread.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbThreadGetName(char *buffer, int buffer_size)
+</code></pre></div>
+<h3 id="sbthreadiscurrent">SbThreadIsCurrent</h3>
+
+<p>Returns whether <code class="prettyprint">thread</code> is the current thread.</p>
+
+<p><code class="prettyprint">thread</code>: The thread to check.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbThreadIsCurrent(SbThread thread)
+</code></pre></div>
+<h3 id="sbthreadisequal">SbThreadIsEqual</h3>
+
+<p>Indicates whether <code class="prettyprint">thread1</code> and <code class="prettyprint">thread2</code> refer to the same thread.</p>
+
+<p><code class="prettyprint">thread1</code>: The first thread to compare. <code class="prettyprint">thread2</code>: The second thread to compare.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbThreadIsEqual(SbThread thread1, SbThread thread2)
+</code></pre></div>
+<h3 id="sbthreadisvalid">SbThreadIsValid</h3>
+
+<p>Returns whether the given thread handle is valid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbThreadIsValid(SbThread thread)
+</code></pre></div>
+<h3 id="sbthreadisvalidaffinity">SbThreadIsValidAffinity</h3>
+
+<p>Returns whether the given thread affinity is valid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbThreadIsValidAffinity(SbThreadAffinity affinity)
+</code></pre></div>
+<h3 id="sbthreadisvalidid">SbThreadIsValidId</h3>
+
+<p>Returns whether the given thread ID is valid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbThreadIsValidId(SbThreadId id)
+</code></pre></div>
+<h3 id="sbthreadisvalidlocalkey">SbThreadIsValidLocalKey</h3>
+
+<p>Returns whether the given thread local variable key is valid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbThreadIsValidLocalKey(SbThreadLocalKey key)
+</code></pre></div>
+<h3 id="sbthreadisvalidpriority">SbThreadIsValidPriority</h3>
+
+<p>Returns whether the given thread priority is valid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbThreadIsValidPriority(SbThreadPriority priority)
+</code></pre></div>
+<h3 id="sbthreadjoin">SbThreadJoin</h3>
+
+<p>Joins the thread on which this function is called with joinable <code class="prettyprint">thread</code>. This
+function blocks the caller until the designated thread exits, and then cleans up
+that thread&#39;s resources. The cleanup process essentially detaches thread.</p>
+
+<p>The return value is <code class="prettyprint">true</code> if the function is successful and <code class="prettyprint">false</code> if <code class="prettyprint">thread</code>
+is invalid or detached.</p>
+
+<p>Each joinable thread can only be joined once and must be joined to be fully
+cleaned up. Once SbThreadJoin is called, the thread behaves as if it were
+detached to all threads other than the joining thread.</p>
+
+<p><code class="prettyprint">thread</code>: The thread to which the current thread will be joined. The <code class="prettyprint">thread</code>
+must have been created with SbThreadCreate. <code class="prettyprint">out_return</code>: If this is not <code class="prettyprint">NULL</code>,
+then the SbThreadJoin function populates it with the return value of the
+thread&#39;s <code class="prettyprint">main</code> function.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbThreadJoin(SbThread thread, void **out_return)
+</code></pre></div>
+<h3 id="sbthreadsetlocalvalue">SbThreadSetLocalValue</h3>
+
+<p>Sets the pointer-sized value for <code class="prettyprint">key</code> in the currently executing thread&#39;s local
+storage. The return value indicates whether <code class="prettyprint">key</code> is valid and has not already
+been destroyed.</p>
+
+<p><code class="prettyprint">key</code>: The key for which to set the key value. <code class="prettyprint">value</code>: The new pointer-sized
+key value.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbThreadSetLocalValue(SbThreadLocalKey key, void *value)
+</code></pre></div>
+<h3 id="sbthreadsetname">SbThreadSetName</h3>
+
+<p>Sets the debug name of the currently executing thread by copying the specified
+name string.</p>
+
+<p><code class="prettyprint">name</code>: The name to assign to the thread.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbThreadSetName(const char *name)
+</code></pre></div>
+<h3 id="sbthreadsleep">SbThreadSleep</h3>
+
+<p>Sleeps the currently executing thread.</p>
+
+<p><code class="prettyprint">duration</code>: The minimum amount of time, in microseconds, that the currently
+executing thread should sleep. The function is a no-op if this value is negative
+or <code class="prettyprint">0</code>.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbThreadSleep(SbTime duration)
+</code></pre></div>
+<h3 id="sbthreadyield">SbThreadYield</h3>
+
+<p>Yields the currently executing thread, so another thread has a chance to run.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbThreadYield()
+</code></pre></div>
+        
+          
+            
+          
+        
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+    
+      <footer>
+<div class="container">
+    <div class="row">
+      
+        <div class="col-md-5 column-left">
+          
+          
+            
+              
+  
+    <span class="copyright-text">© Google 2019</span>
+  
+
+
+            
+            
+            
+            
+            
+          
+        </div>
+      
+        <div class="col-md-2 column-middle">
+          
+          
+            
+            
+            
+            
+              
+  <img class="footer-logo" src="/images/cobalt-logo.png" alt="Cobalt"/>
+
+
+            
+            
+          
+        </div>
+      
+<!--
+          
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/6/thread.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
+    </div>
+</div>
+</footer>
+
+    
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
+
+    
+  </body>
+</html>

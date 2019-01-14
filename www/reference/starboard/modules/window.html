@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: window.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: window.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,301 +795,258 @@
       <div id="content">
         <p>Provides functionality to handle Window creation and management.</p>
 
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbeventonscreenkeyboardinvalidticket">kSbEventOnScreenKeyboardInvalidTicket</h3>
+
+<p>System-triggered OnScreenKeyboard events have ticket value
+kSbEventOnScreenKeyboardInvalidTicket.</p>
+
+<h3 id="ksbwindowinvalid">kSbWindowInvalid</h3>
+
+<p>Well-defined value for an invalid window handle.</p>
+
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbwindow">SbWindow</h3>
+
+<p>A handle to a window.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbWindowPrivate* SbWindow
+</code></pre></div>
 <h2 id="structs">Structs</h2>
 
 <h3 id="sbwindowoptions">SbWindowOptions</h3>
 
 <p>Options that can be requested at window creation time.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>SbWindowSize</code><br>        <code>size</code></td>    <td>The requested size of the new window. The value of <code>video_pixel_ratio</code> will
-not be used or looked at.</td>  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>windowed</code></td>    <td>Whether the new window should be windowed or not. If not, the requested
-size is really the requested resolution.</td>  </tr>
-  <tr>
-    <td><code>const</code><br>        <code>char* name</code></td>    <td>The name of the window to create.</td>  </tr>
-</table>
+<ul>
+<li><p><code class="prettyprint">SbWindowSize size</code></p>
 
-<h3 id="sbwindowprivate">SbWindowPrivate</h3>
+<p>The requested size of the new window. The value of <code class="prettyprint">video_pixel_ratio</code> will
+not be used or looked at.</p></li>
+<li><p><code class="prettyprint">bool windowed</code></p>
 
-<p>Private structure representing a system window.</p>
+<p>Whether the new window should be windowed or not. If not, the requested size
+is really the requested resolution.</p></li>
+<li><p><code class="prettyprint">const char * name</code></p>
+
+<p>The name of the window to create.</p></li>
+</ul>
+
+<h3 id="sbwindowrect">SbWindowRect</h3>
+
+<p>Defines a rectangle via a point <code class="prettyprint">(x, y)</code> and a size <code class="prettyprint">(width, height)</code>. This
+structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li>  <code class="prettyprint">float x</code></li>
+<li>  <code class="prettyprint">float y</code></li>
+<li>  <code class="prettyprint">float width</code></li>
+<li>  <code class="prettyprint">float height</code></li>
+</ul>
 
 <h3 id="sbwindowsize">SbWindowSize</h3>
 
-<p>The size of a window in graphics rendering coordinates. The width and height
-of a window should correspond to the size of the graphics surface used for
-drawing that would be created to back that window.</p>
+<p>The size of a window in graphics rendering coordinates. The width and height of
+a window should correspond to the size of the graphics surface used for drawing
+that would be created to back that window.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>width</code></td>    <td>The width of the window in graphics pixels.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>height</code></td>    <td>The height of the window in graphics pixels.</td>  </tr>
-  <tr>
-    <td><code>float</code><br>        <code>video_pixel_ratio</code></td>    <td>The ratio of video pixels to graphics pixels. This ratio must be applied
-equally to width and height, meaning the aspect ratio is maintained.<br>
-A value of 1.0f means the video resolution is the same as the graphics
-resolution. This is the most common case.<br>
-Values greater than 1.0f mean that the video resolution is higher (denser,
-larger) than the graphics resolution. This is a common case as devices
-often have more video decoding capabilities than graphics rendering
-capabilities (or memory, etc...).<br>
-Values less than 1.0f mean that the maximum video resolution is smaller
-than the graphics resolution.<br>
-A value of 0.0f means the ratio could not be determined, it should be
-assumed to be the same as the graphics resolution (i.e. 1.0f).</td>  </tr>
-</table>
+<ul>
+<li><p><code class="prettyprint">int width</code></p>
+
+<p>The width of the window in graphics pixels.</p></li>
+<li><p><code class="prettyprint">int height</code></p>
+
+<p>The height of the window in graphics pixels.</p></li>
+<li><p><code class="prettyprint">float video_pixel_ratio</code></p>
+
+<p>The ratio of video pixels to graphics pixels. This ratio must be applied
+equally to width and height, meaning the aspect ratio is maintained.</p>
+
+<p>A value of 1.0f means the video resolution is the same as the graphics
+resolution. This is the most common case.</p>
+
+<p>Values greater than 1.0f mean that the video resolution is higher (denser,
+larger) than the graphics resolution. This is a common case as devices often
+have more video decoding capabilities than graphics rendering capabilities
+(or memory, etc...).</p>
+
+<p>Values less than 1.0f mean that the maximum video resolution is smaller than
+the graphics resolution.</p>
+
+<p>A value of 0.0f means the ratio could not be determined, it should be
+assumed to be the same as the graphics resolution (i.e. 1.0f).</p></li>
+</ul>
 
 <h2 id="functions">Functions</h2>
 
+<h3 id="sbwindowbluronscreenkeyboard">SbWindowBlurOnScreenKeyboard</h3>
+
+<p>Blur the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardBlurred.
+kSbEventTypeOnScreenKeyboardBlurred has data <code class="prettyprint">ticket</code>. Calling
+SbWindowBlurOnScreenKeyboard() when the keyboard is already blurred is
+permitted. Calling SbWindowBlurOnScreenKeyboard while the on screen keyboard is
+not showing does nothing and does not fire any event.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket)
+</code></pre></div>
 <h3 id="sbwindowcreate">SbWindowCreate</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates and returns a new system window with the given <code class="prettyprint">options</code>, which may be
+<code class="prettyprint">NULL</code>. The function returns <code class="prettyprint">kSbWindowInvalid</code> if it cannot create the
+requested <code class="prettyprint">SbWindow</code> due to policy, unsatisfiable options, or any other reason.</p>
 
-<p>Creates and returns a new system window with the given <code class="prettyprint">options</code>, which may
-be <code class="prettyprint">NULL</code>. The function returns <code class="prettyprint">kSbWindowInvalid</code> if it cannot create the
-requested <code class="prettyprint">SbWindow</code> due to policy, unsatisfiable options, or any other
-reason.<br>
-If <code class="prettyprint">options</code> are not specified, this function uses all defaults, which must
-work on every platform. In general, it defaults to creating a fullscreen
-window at the highest 16:9 resolution possible. If the platform does not
-support fullscreen windows, then it creates a normal, windowed window.<br>
-Some devices are fullscreen-only, including many production targets for
+<p>If <code class="prettyprint">options</code> are not specified, this function uses all defaults, which must work
+on every platform. In general, it defaults to creating a fullscreen window at
+the highest 16:9 resolution possible. If the platform does not support
+fullscreen windows, then it creates a normal, windowed window.</p>
+
+<p>Some devices are fullscreen-only, including many production targets for
 Starboard. In those cases, only one SbWindow may be created, and it must be
-fullscreen. Additionally, in those cases, the requested size will actually
-be the requested resolution.<br>
-An SbWindow must be created to receive window-based events, like input
-events, even on fullscreen-only devices. These events are dispatched to
-the Starboard entry point.</p>
+fullscreen. Additionally, in those cases, the requested size will actually be
+the requested resolution.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>An SbWindow must be created to receive window-based events, like input events,
+even on fullscreen-only devices. These events are dispatched to the Starboard
+entry point.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbWindowCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbWindowCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbWindowCreate-declaration">
-<pre>
-SB_EXPORT SbWindow SbWindowCreate(const SbWindowOptions* options);
-</pre>
-</div>
+<p><code class="prettyprint">options</code>: Options that specify parameters for the window being created.</p>
 
-<p><div class="mdl-tabs__panel" id="SbWindowCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/window.h&quot;
-
-SbWindow SbWindowCreate(const SbWindowOptions* /*options*/) {
-  return kSbWindowInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbWindow SbWindowCreate(const SbWindowOptions *options)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const SbWindowOptions*</code><br>        <code>options</code></td>
-    <td>Options that specify parameters for the window being created.</td>
-  </tr>
-</table>
-
 <h3 id="sbwindowdestroy">SbWindowDestroy</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Destroys <code class="prettyprint">window</code>, reclaiming associated resources.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">window</code>: The <code class="prettyprint">SbWindow</code> to destroy.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbWindowDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbWindowDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbWindowDestroy-declaration">
-<pre>
-SB_EXPORT bool SbWindowDestroy(SbWindow window);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbWindowDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/window.h&quot;
-
-bool SbWindowDestroy(SbWindow /*window*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbWindowDestroy(SbWindow window)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbwindowfocusonscreenkeyboard">SbWindowFocusOnScreenKeyboard</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Focus the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardFocused.
+kSbEventTypeOnScreenKeyboardFocused has data <code class="prettyprint">ticket</code>. Calling
+SbWindowFocusOnScreenKeyboard() when the keyboard is already focused is
+permitted. Calling SbWindowFocusOnScreenKeyboard while the on screen keyboard is
+not showing does nothing and does not fire any event.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbWindow</code><br>        <code>window</code></td>
-    <td>The <code>SbWindow</code> to destroy.</td>
-  </tr>
-</table>
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket)
+</code></pre></div>
+<h3 id="sbwindowgetdiagonalsizeininches">SbWindowGetDiagonalSizeInInches</h3>
 
+<p>Gets the size of the diagonal between two opposing screen corners.</p>
+
+<p>A return value of 0 means that starboard does not know what the screen diagonal
+is.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">float SbWindowGetDiagonalSizeInInches(SbWindow window)
+</code></pre></div>
+<h3 id="sbwindowgetonscreenkeyboardboundingrect">SbWindowGetOnScreenKeyboardBoundingRect</h3>
+
+<p>Get the rectangle of the on screen keyboard in screen pixel coordinates. Return
+<code class="prettyprint">true</code> if successful. Return <code class="prettyprint">false</code> if the on screen keyboard is not showing.
+If the function returns <code class="prettyprint">false</code>, then <code class="prettyprint">rect</code> will not have been modified.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window, SbWindowRect *bounding_rect)
+</code></pre></div>
 <h3 id="sbwindowgetplatformhandle">SbWindowGetPlatformHandle</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Gets the platform-specific handle for <code class="prettyprint">window</code>, which can be passed as an
 EGLNativeWindowType to initialize EGL/GLES. This return value is entirely
 platform-specific, so there are no constraints about expected ranges.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">window</code>: The SbWindow to retrieve the platform handle for.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbWindowGetPlatformHandle-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbWindowGetPlatformHandle-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbWindowGetPlatformHandle-declaration">
-<pre>
-SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbWindowGetPlatformHandle-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/window.h&quot;
-
-void* SbWindowGetPlatformHandle(SbWindow /*window*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void* SbWindowGetPlatformHandle(SbWindow window)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbWindow</code><br>        <code>window</code></td>
-    <td>The SbWindow to retrieve the platform handle for.</td>
-  </tr>
-</table>
-
 <h3 id="sbwindowgetsize">SbWindowGetSize</h3>
 
-<p><strong>Description</strong></p>
+<p>Retrieves the dimensions of <code class="prettyprint">window</code> and sets <code class="prettyprint">size</code> accordingly. This function
+returns <code class="prettyprint">true</code> if it completes successfully. If the function returns <code class="prettyprint">false</code>,
+then <code class="prettyprint">size</code> will not have been modified.</p>
 
-<p>Retrieves the dimensions of <code class="prettyprint">window</code> and sets <code class="prettyprint">size</code> accordingly. This
-function returns <code class="prettyprint">true</code> if it completes successfully. If the function
-returns <code class="prettyprint">false</code>, then <code class="prettyprint">size</code> will not have been modified.</p>
+<p><code class="prettyprint">window</code>: The SbWindow to retrieve the size of. <code class="prettyprint">size</code>: The retrieved size.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbWindowGetSize-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbWindowGetSize-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbWindowGetSize-declaration">
-<pre>
-SB_EXPORT bool SbWindowGetSize(SbWindow window, SbWindowSize* size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbWindowGetSize-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/window.h&quot;
-
-bool SbWindowGetSize(SbWindow /*window*/, SbWindowSize* /*size*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbWindowGetSize(SbWindow window, SbWindowSize *size)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbwindowhideonscreenkeyboard">SbWindowHideOnScreenKeyboard</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Hide the on screen keyboard. Fire kSbEventTypeWindowSizeChange and
+kSbEventTypeOnScreenKeyboardHidden if necessary.
+kSbEventTypeOnScreenKeyboardHidden has data <code class="prettyprint">ticket</code>. Calling
+SbWindowHideOnScreenKeyboard() when the keyboard is already hidden is permitted.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbWindow</code><br>        <code>window</code></td>
-    <td>The SbWindow to retrieve the size of.</td>
-  </tr>
-  <tr>
-    <td><code>SbWindowSize*</code><br>        <code>size</code></td>
-    <td>The retrieved size.</td>
-  </tr>
-</table>
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket)
+</code></pre></div>
+<h3 id="sbwindowisonscreenkeyboardshown">SbWindowIsOnScreenKeyboardShown</h3>
 
+<p>Determine if the on screen keyboard is shown.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbWindowIsOnScreenKeyboardShown(SbWindow window)
+</code></pre></div>
 <h3 id="sbwindowisvalid">SbWindowIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given window handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbWindowIsValid(SbWindow window) {
-  return window != kSbWindowInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbWindowIsValid(SbWindow window)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbWindow</code><br>
-        <code>window</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbwindowsetdefaultoptions">SbWindowSetDefaultOptions</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Sets the default options for system windows.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">options</code>: The option values to use as default values. This object must not be
+<code class="prettyprint">NULL</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbWindowSetDefaultOptions-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbWindowSetDefaultOptions-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbWindowSetDefaultOptions-declaration">
-<pre>
-SB_EXPORT void SbWindowSetDefaultOptions(SbWindowOptions* options);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbWindowSetDefaultOptions-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/window.h&quot;
-
-void SbWindowSetDefaultOptions(SbWindowOptions* /*options*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbWindowSetDefaultOptions(SbWindowOptions *options)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbwindowsetonscreenkeyboardkeepfocus">SbWindowSetOnScreenKeyboardKeepFocus</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Notify the system that <code class="prettyprint">keepFocus</code> has been set for the OnScreenKeyboard.
+<code class="prettyprint">keepFocus</code> true indicates that the user may not navigate focus off of the
+OnScreenKeyboard via input; focus may only be moved via events sent by the app.
+<code class="prettyprint">keepFocus</code> false indicates that the user may navigate focus off of the
+OnScreenKeyboard via input. <code class="prettyprint">keepFocus</code> is initialized to false in the
+OnScreenKeyboard constructor.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbWindowOptions*</code><br>        <code>options</code></td>
-    <td>The option values to use as default values. This object must not
-be <code>NULL</code>.</td>
-  </tr>
-</table>
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus)
+</code></pre></div>
+<h3 id="sbwindowshowonscreenkeyboard">SbWindowShowOnScreenKeyboard</h3>
 
+<p>Show the on screen keyboard and populate the input with text <code class="prettyprint">input_text</code>. Fire
+kSbEventTypeWindowSizeChange and kSbEventTypeOnScreenKeyboardShown if necessary.
+kSbEventTypeOnScreenKeyboardShown has data <code class="prettyprint">ticket</code>. The passed in <code class="prettyprint">input_text</code>
+will never be NULL, but may be an empty string. Calling
+SbWindowShowOnScreenKeyboard() when the keyboard is already shown is permitted,
+and the input will be replaced with <code class="prettyprint">input_text</code>. Showing the on screen keyboard
+does not give it focus.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbWindowShowOnScreenKeyboard(SbWindow window, const char *input_text, int ticket)
+</code></pre></div>
         
+          
+            
           
         
       </div>
@@ -1058,11 +1067,10 @@ be <code>NULL</code>.</td>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1084,29 +1092,35 @@ be <code>NULL</code>.</td>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/window.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

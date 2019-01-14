@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: socket_waiter.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: socket_waiter.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,34 +762,61 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Allows a thread to wait on many sockets at once. The standard
-usage pattern would be for a single I/O thread to:
-<ol><li>Create its own SbSocketWaiter.
-</li><li>Wait on the SbSocketWaiter, indefinitely if no scheduled tasks, or timed
-if there are scheduled future tasks.
-</li><li>While waiting, the SbSocketWaiter will call back to service ready
-SbSockets.
-</li><li>Wake up, if signaled to do so.
-</li><li>If ready to exit, go to 7.
-</li><li>Add and remove SbSockets to and from the SbSocketWaiter, and go to 2.
-</li><li>Destroy its SbSocketWaiter and exit.</li></ol>
-If another thread wants to queue immediate or schedule future work on the I/O
+        <p>Allows a thread to wait on many sockets at once. The standard usage pattern
+would be for a single I/O thread to:</p>
+
+<ol>
+<li><p>Create its own SbSocketWaiter.</p></li>
+<li><p>Wait on the SbSocketWaiter, indefinitely if no scheduled tasks, or timed if
+there are scheduled future tasks.</p></li>
+<li><p>While waiting, the SbSocketWaiter will call back to service ready SbSockets.</p></li>
+<li><p>Wake up, if signaled to do so.</p></li>
+<li><p>If ready to exit, go to 7.</p></li>
+<li><p>Add and remove SbSockets to and from the SbSocketWaiter, and go to 2.</p></li>
+<li><p>Destroy its SbSocketWaiter and exit.</p></li>
+</ol>
+
+<p>If another thread wants to queue immediate or schedule future work on the I/O
 thread, it needs to call SbSocketWaiterWakeUp() on the SbSocketWaiter after
-queuing the work item, or the SbSocketWaiter is not otherwise guaranteed to
-wake up.</p>
+queuing the work item, or the SbSocketWaiter is not otherwise guaranteed to wake
+up.</p>
+
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbsocketwaiterinvalid">kSbSocketWaiterInvalid</h3>
+
+<p>Well-defined value for an invalid socket watcher handle.</p>
 
 <h2 id="enums">Enums</h2>
 
@@ -763,405 +824,181 @@ wake up.</p>
 
 <p>All the interests that a socket may register for on a waiter.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbSocketWaiterInterestNone</code> - No interests whatsoever.</li>
-<li>  <code class="prettyprint">kSbSocketWaiterInterestRead</code> - An interest in or readiness to read from a socket without blocking.</li>
-<li>  <code class="prettyprint">kSbSocketWaiterInterestWrite</code> - An interest in or readiness to write to a socket without blocking.</li>
+<li><p><code class="prettyprint">kSbSocketWaiterInterestNone</code></p>
+
+<p>No interests whatsoever.</p></li>
+<li><p><code class="prettyprint">kSbSocketWaiterInterestRead</code></p>
+
+<p>An interest in or readiness to read from a socket without blocking.</p></li>
+<li><p><code class="prettyprint">kSbSocketWaiterInterestWrite</code></p>
+
+<p>An interest in or readiness to write to a socket without blocking.</p></li>
 </ul>
 
 <h3 id="sbsocketwaiterresult">SbSocketWaiterResult</h3>
 
 <p>Possible reasons why a call to SbSocketWaiterWaitTimed returned.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbSocketWaiterResultInvalid</code> - The wait didn&#39;t block because the waiter was invalid.</li>
-<li>  <code class="prettyprint">kSbSocketWaiterResultTimedOut</code> - The wait stopped because the timeout expired.</li>
-<li>  <code class="prettyprint">kSbSocketWaiterResultWokenUp</code> - The wait stopped because a call to SbSocketWaiterWakeUp was consumed.</li>
+<li><p><code class="prettyprint">kSbSocketWaiterResultInvalid</code></p>
+
+<p>The wait didn&#39;t block because the waiter was invalid.</p></li>
+<li><p><code class="prettyprint">kSbSocketWaiterResultTimedOut</code></p>
+
+<p>The wait stopped because the timeout expired.</p></li>
+<li><p><code class="prettyprint">kSbSocketWaiterResultWokenUp</code></p>
+
+<p>The wait stopped because a call to SbSocketWaiterWakeUp was consumed.</p></li>
 </ul>
 
-<h2 id="structs">Structs</h2>
+<h2 id="typedefs">Typedefs</h2>
 
-<h3 id="sbsocketwaiterprivate">SbSocketWaiterPrivate</h3>
+<h3 id="sbsocketwaiter">SbSocketWaiter</h3>
 
-<p>Private structure representing a waiter that can wait for many sockets at
-once on a single thread.</p>
+<p>A handle to a socket waiter.</p>
 
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbSocketWaiterPrivate* SbSocketWaiter
+</code></pre></div>
+<h3 id="sbsocketwaitercallback">SbSocketWaiterCallback</h3>
+
+<p>Function pointer for socket waiter callbacks.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbSocketWaiterCallback) (SbSocketWaiter waiter, SbSocket socket, void *context, int ready_interests)
+</code></pre></div>
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbsocketwaiteradd">SbSocketWaiterAdd</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Adds a new socket to be waited on by the <code class="prettyprint">waiter</code> with a bitfield of
-<code class="prettyprint">interests</code>. This function should only be called on the thread that
-waits on this waiter.<br>
-If <code class="prettyprint">socket</code> is already registered with this or another waiter, the function
-does nothing and returns <code class="prettyprint">false</code>. The client must remove the socket and then
-add it back with the new <code class="prettyprint">interests</code>.<br>
-If <code class="prettyprint">socket</code> is already ready for one or more of the operations set in the
-<code class="prettyprint">interests</code> mask, then the callback will be called on the next call to
-either <code><a href="#sbsocketwaiterwait">SbSocketWaiterWait()</a></code> or <code><a href="#sbsocketwaiterwait">SbSocketWaiterWait</a></code>Timed().<br></li></ul></p>
+<code class="prettyprint">interests</code>. This function should only be called on the thread that waits on
+this waiter.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>If <code class="prettyprint">socket</code> is already registered with this or another waiter, the function does
+nothing and returns <code class="prettyprint">false</code>. The client must remove the socket and then add it
+back with the new <code class="prettyprint">interests</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterAdd-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterAdd-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterAdd-declaration">
-<pre>
-SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
-                                 SbSocket socket,
-                                 void* context,
-                                 SbSocketWaiterCallback callback,
-                                 int interests,
-                                 bool persistent);
-</pre>
-</div>
+<p>If <code class="prettyprint">socket</code> is already ready for one or more of the operations set in the
+<code class="prettyprint">interests</code> mask, then the callback will be called on the next call to either
+SbSocketWaiterWait() or SbSocketWaiterWaitTimed().</p>
 
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterAdd-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
+<p><code class="prettyprint">waiter</code>: An SbSocketWaiter that waits on the socket for the specified set of
+operations (<code class="prettyprint">interests</code>). <code class="prettyprint">socket</code>: The SbSocket on which the waiter waits.
+<code class="prettyprint">context</code>: <code class="prettyprint">callback</code>: The function that is called when the event fires. The
+<code class="prettyprint">waiter</code>, <code class="prettyprint">socket</code>, <code class="prettyprint">context</code> are all passed to the callback, along with a
+bitfield of <code class="prettyprint">interests</code> that the socket is actually ready for. <code class="prettyprint">interests</code>: A
+bitfield that identifies operations for which the socket is waiting.
+<code class="prettyprint">persistent</code>: Identifies the procedure that will be followed for removing the
+socket:</p>
 
-bool SbSocketWaiterAdd(SbSocketWaiter /*waiter*/,
-                       SbSocket /*socket*/,
-                       void* /*context*/,
-                       SbSocketWaiterCallback /*callback*/,
-                       int /*interests*/,
-                       bool /*persistent*/) {
-  return false;
-}
+<ul>
+<li><p>If <code class="prettyprint">persistent</code> is <code class="prettyprint">true</code>, then <code class="prettyprint">socket</code> stays registered with <code class="prettyprint">waiter</code>
+until SbSocketWaiterRemove() is called with <code class="prettyprint">waiter</code> and <code class="prettyprint">socket</code>.</p></li>
+<li><p>If <code class="prettyprint">persistent</code> is <code class="prettyprint">false</code>, then <code class="prettyprint">socket</code> is removed after the next call to
+<code class="prettyprint">callback</code>, even if not all registered <code class="prettyprint">interests</code> became ready.</p></li>
+</ul>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketWaiterAdd(SbSocketWaiter waiter, SbSocket socket, void *context, SbSocketWaiterCallback callback, int interests, bool persistent)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>        <code>waiter</code></td>
-    <td>An SbSocketWaiter that waits on the socket for the specified set
-of operations (<code>interests</code>).</td>
-  </tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket on which the waiter waits.</td>
-  </tr>
-  <tr>
-    <td><code>void*</code><br>        <code>context</code></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td><code>SbSocketWaiterCallback</code><br>        <code>callback</code></td>
-    <td>The function that is called when the event fires. The <code>waiter</code>,
-<code>socket</code>, <code>context</code> are all passed to the callback, along with a bitfield
-of <code>interests</code> that the socket is actually ready for.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>interests</code></td>
-    <td>A bitfield that identifies operations for which the socket is
-waiting.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>persistent</code></td>
-    <td>Identifies the procedure that will be followed for removing
-the socket:
-<ul><li>If <code>persistent</code> is <code>true</code>, then <code>socket</code> stays registered with <code>waiter</code>
-until <code><a href="#sbsocketwaiterremove">SbSocketWaiterRemove()</a></code> is called with <code>waiter</code> and <code>socket</code>.
-</li><li>If <code>persistent</code> is <code>false</code>, then <code>socket</code> is removed after the next call
-to <code>callback</code>, even if not all registered <code>interests</code> became ready.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketwaitercreate">SbSocketWaiterCreate</h3>
 
-<p><strong>Description</strong></p>
+<p>The results of two threads waiting on the same waiter is undefined and will not
+work. Except for the SbSocketWaiterWakeUp() function, SbSocketWaiters are not
+thread-safe and don&#39;t expect to be modified concurrently.</p>
 
-<p>The results of two threads waiting on the same waiter is undefined and will
-not work. Except for the <code><a href="#sbsocketwaiterwakeup">SbSocketWaiterWakeUp()</a></code> function, SbSocketWaiters
-are not thread-safe and don&#39;t expect to be modified concurrently.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterCreate-declaration">
-<pre>
-SB_EXPORT SbSocketWaiter SbSocketWaiterCreate();
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
-
-SbSocketWaiter SbSocketWaiterCreate() {
-  return kSbSocketWaiterInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketWaiter SbSocketWaiterCreate()
 </code></pre></div>
-<p></div>
-</div></p>
-
 <h3 id="sbsocketwaiterdestroy">SbSocketWaiterDestroy</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Destroys <code class="prettyprint">waiter</code> and removes all sockets still registered by way of
-SbSocketWaiterAdd. This function may be called on any thread as long as
-there is no risk of concurrent access to the waiter.</p>
+SbSocketWaiterAdd. This function may be called on any thread as long as there is
+no risk of concurrent access to the waiter.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">waiter</code>: The SbSocketWaiter to be destroyed.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterDestroy-declaration">
-<pre>
-SB_EXPORT bool SbSocketWaiterDestroy(SbSocketWaiter waiter);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
-
-bool SbSocketWaiterDestroy(SbSocketWaiter /*waiter*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketWaiterDestroy(SbSocketWaiter waiter)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>        <code>waiter</code></td>
-    <td>The SbSocketWaiter to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketwaiterisvalid">SbSocketWaiterIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given socket handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbSocketWaiterIsValid(SbSocketWaiter watcher) {
-  return watcher != kSbSocketWaiterInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbSocketWaiterIsValid(SbSocketWaiter watcher)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>
-        <code>watcher</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbsocketwaiterremove">SbSocketWaiterRemove</h3>
 
-<p><strong>Description</strong></p>
+<p>Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter. This
+function should only be called on the thread that waits on this waiter.</p>
 
-<p>Removes a socket, previously added with <code><a href="#sbsocketwaiteradd">SbSocketWaiterAdd()</a></code>, from a waiter.
-This function should only be called on the thread that waits on this waiter.<br>
-The return value indicates whether the waiter still waits on the socket.
-If <code class="prettyprint">socket</code> wasn&#39;t registered with <code class="prettyprint">waiter</code>, then the function is a no-op
-and returns <code class="prettyprint">true</code>.</p>
+<p>The return value indicates whether the waiter still waits on the socket. If
+<code class="prettyprint">socket</code> wasn&#39;t registered with <code class="prettyprint">waiter</code>, then the function is a no-op and
+returns <code class="prettyprint">true</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">waiter</code>: The waiter from which the socket is removed. <code class="prettyprint">socket</code>: The socket to
+remove from the waiter.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterRemove-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterRemove-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterRemove-declaration">
-<pre>
-SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterRemove-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
-
-bool SbSocketWaiterRemove(SbSocketWaiter /*waiter*/, SbSocket /*socket*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>        <code>waiter</code></td>
-    <td>The waiter from which the socket is removed.</td>
-  </tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The socket to remove from the waiter.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketwaiterwait">SbSocketWaiterWait</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Waits on all registered sockets, calling the registered callbacks if and when
-the corresponding sockets become ready for an interested operation. This
-version exits only after <code><a href="#sbsocketwaiterwakeup">SbSocketWaiterWakeUp()</a></code> is called. This function
-should only be called on the thread that waits on this waiter.</p>
+the corresponding sockets become ready for an interested operation. This version
+exits only after SbSocketWaiterWakeUp() is called. This function should only be
+called on the thread that waits on this waiter.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterWait-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterWait-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterWait-declaration">
-<pre>
-SB_EXPORT void SbSocketWaiterWait(SbSocketWaiter waiter);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterWait-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
-
-void SbSocketWaiterWait(SbSocketWaiter /*waiter*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbSocketWaiterWait(SbSocketWaiter waiter)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>
-        <code>waiter</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbsocketwaiterwaittimed">SbSocketWaiterWaitTimed</h3>
 
-<p><strong>Description</strong></p>
-
-<p>Behaves similarly to <code><a href="#sbsocketwaiterwait">SbSocketWaiterWait()</a></code>, but this function also causes
+<p>Behaves similarly to SbSocketWaiterWait(), but this function also causes
 <code class="prettyprint">waiter</code> to exit on its own after at least <code class="prettyprint">duration</code> has passed if
-SbSocketWaiterWakeUp() it not called by that time.<br>
-The return value indicates the reason that the socket waiter exited.
-This function should only be called on the thread that waits on this waiter.</p>
+SbSocketWaiterWakeUp() it not called by that time.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>The return value indicates the reason that the socket waiter exited. This
+function should only be called on the thread that waits on this waiter.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterWaitTimed-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterWaitTimed-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterWaitTimed-declaration">
-<pre>
-SB_EXPORT SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
-                                                       SbTime duration);
-</pre>
-</div>
+<p><code class="prettyprint">duration</code>: The minimum amount of time after which the socket waiter should exit
+if it is not woken up before then. As with SbThreadSleep() (see thread.h), this
+function may wait longer than <code class="prettyprint">duration</code>, such as if the timeout expires while a
+callback is being fired.</p>
 
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterWaitTimed-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
-
-SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter /*waiter*/,
-                                             SbTime /*duration*/) {
-  return kSbSocketWaiterResultInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter, SbTime duration)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>        <code>waiter</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbTime</code><br>        <code>duration</code></td>
-    <td>The minimum amount of time after which the socket waiter should
-exit if it is not woken up before then. As with SbThreadSleep() (see
-thread.h), this function may wait longer than <code>duration</code>, such as if the
-timeout expires while a callback is being fired.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketwaiterwakeup">SbSocketWaiterWakeUp</h3>
 
-<p><strong>Description</strong></p>
+<p>Wakes up <code class="prettyprint">waiter</code> once. This is the only thread-safe waiter function. It can can
+be called from a SbSocketWaiterCallback to wake up its own waiter, and it can
+also be called from another thread at any time. In either case, the waiter will
+exit the next wait gracefully, first completing any in-progress callback.</p>
 
-<p>Wakes up <code class="prettyprint">waiter</code> once. This is the only thread-safe waiter function.
-It can can be called from a SbSocketWaiterCallback to wake up its own waiter,
-and it can also be called from another thread at any time. In either case,
-the waiter will exit the next wait gracefully, first completing any
-in-progress callback.<br>
-Each time this function is called, it causes the waiter to wake up once,
+<p>Each time this function is called, it causes the waiter to wake up once,
 regardless of whether the waiter is currently waiting. If the waiter is not
-waiting, the function takes effect immediately the next time the waiter
-waits. The number of wake-ups accumulates, and the queue is only consumed
-as the waiter waits and then is subsequently woken up again. For example,
-if you call this function 7 times, then <code><a href="#sbsocketwaiterwait">SbSocketWaiterWait()</a></code> and WaitTimed()
-will not block the next 7 times they are called.</p>
+waiting, the function takes effect immediately the next time the waiter waits.
+The number of wake-ups accumulates, and the queue is only consumed as the waiter
+waits and then is subsequently woken up again. For example, if you call this
+function 7 times, then SbSocketWaiterWait() and WaitTimed() will not block the
+next 7 times they are called.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">waiter</code>: The socket waiter to be woken up.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketWaiterWakeUp-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketWaiterWakeUp-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketWaiterWakeUp-declaration">
-<pre>
-SB_EXPORT void SbSocketWaiterWakeUp(SbSocketWaiter waiter);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketWaiterWakeUp-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket_waiter.h&quot;
-
-void SbSocketWaiterWakeUp(SbSocketWaiter /*waiter*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbSocketWaiterWakeUp(SbSocketWaiter waiter)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketWaiter</code><br>        <code>waiter</code></td>
-    <td>The socket waiter to be woken up.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1182,11 +1019,10 @@ void SbSocketWaiterWakeUp(SbSocketWaiter /*waiter*/) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1208,29 +1044,35 @@ void SbSocketWaiterWakeUp(SbSocketWaiter /*waiter*/) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/socket_waiter.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

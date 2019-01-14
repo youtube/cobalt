@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: player.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: player.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,744 +795,447 @@
       <div id="content">
         <p>Defines an interface for controlling playback of media elementary streams.</p>
 
+<h2 id="macros">Macros</h2>
+
+<h3 id="sb_player_initial_ticket">SB_PLAYER_INITIAL_TICKET</h3>
+
+<p>The value of the initial ticket held by the player before the first seek. The
+player will use this ticket value to make the first call to SbPlayerStatusFunc
+with kSbPlayerStateInitialized.</p>
+
+<h3 id="sb_player_no_duration">SB_PLAYER_NO_DURATION</h3>
+
+<p>The value to pass into SbPlayerCreate&#39;s <code class="prettyprint">duration_pts</code> argument for cases where
+the duration is unknown, such as for live streams.</p>
+
+<h3 id="ksbplayerinvalid">kSbPlayerInvalid</h3>
+
+<p>Well-defined value for an invalid player.</p>
+
 <h2 id="enums">Enums</h2>
 
 <h3 id="sbplayerdecoderstate">SbPlayerDecoderState</h3>
 
 <p>An indicator of whether the decoder can accept more samples.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbPlayerDecoderStateNeedsData</code> - The decoder is asking for one more sample.</li>
-<li>  <code class="prettyprint">kSbPlayerDecoderStateBufferFull</code> - The decoder is not ready for any more samples, so do not send them.Note that this enum value has been deprecated and the SbPlayerimplementation should no longer use this value.</li>
-<li>  <code class="prettyprint">kSbPlayerDecoderStateDestroyed</code> - The player has been destroyed, and will send no more callbacks.</li>
+<li><p><code class="prettyprint">kSbPlayerDecoderStateNeedsData</code></p>
+
+<p>The decoder is asking for one more sample.</p></li>
+<li><p><code class="prettyprint">kSbPlayerDecoderStateBufferFull</code></p>
+
+<p>The decoder is not ready for any more samples, so do not send them. Note
+that this enum value has been deprecated and the SbPlayer implementation
+should no longer use this value.</p></li>
+<li><p><code class="prettyprint">kSbPlayerDecoderStateDestroyed</code></p>
+
+<p>The player has been destroyed, and will send no more callbacks.</p></li>
 </ul>
 
 <h3 id="sbplayerstate">SbPlayerState</h3>
 
 <p>An indicator of the general playback state.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbPlayerStateInitialized</code> - The player has just been initialized. It is expecting an SbPlayerSeek()call to enter the prerolling state.</li>
-<li>  <code class="prettyprint">kSbPlayerStatePrerolling</code> - The player is prerolling, collecting enough data to fill the pipelinebefore presentation starts. After the first preroll is completed, thereshould always be a video frame to render, even if the player goes back toPrerolling after a Seek.</li>
-<li>  <code class="prettyprint">kSbPlayerStatePresenting</code> - The player is presenting media, and it is either paused or activelyplaying in real-time. Note that the implementation should use thisstate to signal that the preroll has been finished.</li>
-<li>  <code class="prettyprint">kSbPlayerStateEndOfStream</code> - The player is presenting media, but it is paused at the end of the stream.</li>
-<li>  <code class="prettyprint">kSbPlayerStateDestroyed</code> - The player has been destroyed, and will send no more callbacks.</li>
-<li>  <code class="prettyprint">kSbPlayerStateError</code> - The player encountered an error. It expects an SbPlayerDestroy() callto tear down the player. Calls to other functions may be ignored andcallbacks may not be triggered.</li>
+<li><p><code class="prettyprint">kSbPlayerStateInitialized</code></p>
+
+<p>The player has just been initialized. It is expecting an SbPlayerSeek() call
+to enter the prerolling state.</p></li>
+<li><p><code class="prettyprint">kSbPlayerStatePrerolling</code></p>
+
+<p>The player is prerolling, collecting enough data to fill the pipeline before
+presentation starts. After the first preroll is completed, there should
+always be a video frame to render, even if the player goes back to
+Prerolling after a Seek.</p></li>
+<li><p><code class="prettyprint">kSbPlayerStatePresenting</code></p>
+
+<p>The player is presenting media, and it is either paused or actively playing
+in real-time. Note that the implementation should use this state to signal
+that the preroll has been finished.</p></li>
+<li><p><code class="prettyprint">kSbPlayerStateEndOfStream</code></p>
+
+<p>The player is presenting media, but it is paused at the end of the stream.</p></li>
+<li><p><code class="prettyprint">kSbPlayerStateDestroyed</code></p>
+
+<p>The player has been destroyed, and will send no more callbacks.</p></li>
 </ul>
 
-<h2 id="macros">Macros</h2>
-
-<div id="macro-documentation-section">
-
-<h3 id="sb_player_initial_ticket" class="small-h3">SB_PLAYER_INITIAL_TICKET</h3>
-
-The value of the initial ticket held by the player before the first seek.
-The player will use this ticket value to make the first call to
-SbPlayerStatusFunc with kSbPlayerStateInitialized.
-
-<h3 id="sb_player_no_duration" class="small-h3">SB_PLAYER_NO_DURATION</h3>
-
-The value to pass into SbPlayerCreate's `duration_ptr` argument for cases
-where the duration is unknown, such as for live streams.
-
-</div>
-
-<h2 id="structs">Structs</h2>
-
-<h3 id="sbplayerinfo">SbPlayerInfo</h3>
-
-<p>Information about the current media playback state.</p>
-
-<p><strong>Members</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>SbMediaTime</code><br>        <code>current_media_pts</code></td>    <td>The position of the playback head, as precisely as possible, in 90KHz ticks
-(PTS).</td>  </tr>
-  <tr>
-    <td><code>SbMediaTime</code><br>        <code>duration_pts</code></td>    <td>The known duration of the currently playing media stream, in 90KHz ticks
-(PTS).</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>frame_width</code></td>    <td>The width of the currently displayed frame, in pixels, or 0 if not provided
-by this player.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>frame_height</code></td>    <td>The height of the currently displayed frame, in pixels, or 0 if not
-provided by this player.</td>  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>is_paused</code></td>    <td>Whether playback is currently paused.</td>  </tr>
-  <tr>
-    <td><code>double</code><br>        <code>volume</code></td>    <td>The current player volume in [0, 1].</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>total_video_frames</code></td>    <td>The number of video frames sent to the player since the creation of the
-player.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>dropped_video_frames</code></td>    <td>The number of video frames decoded but not displayed since the creation of
-the player.</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>corrupted_video_frames</code></td>    <td>The number of video frames that failed to be decoded since the creation of
-the player.</td>  </tr>
-</table>
+<h2 id="typedefs">Typedefs</h2>
 
 <h3 id="sbplayer">SbPlayer</h3>
 
-<p>An opaque handle to an implementation-private structure representing a
-player.</p>
+<p>An opaque handle to an implementation-private structure representing a player.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef struct SbPlayerPrivate* SbPlayer
+</code></pre></div>
+<h3 id="sbplayerdeallocatesamplefunc">SbPlayerDeallocateSampleFunc</h3>
+
+<p>Callback to free the given sample buffer data. When more than one buffer are
+sent in SbPlayerWriteSample(), the implementation only has to call this callback
+with <code class="prettyprint">sample_buffer</code> points to the the first buffer.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbPlayerDeallocateSampleFunc) (SbPlayer player, void *context, const void *sample_buffer)
+</code></pre></div>
+<h3 id="sbplayerdecoderstatusfunc">SbPlayerDecoderStatusFunc</h3>
+
+<p>Callback for decoder status updates, called in response to a call to
+SbPlayerSeek() or SbPlayerWriteSample(). This callback will never be called
+until at least one call to SbPlayerSeek has occurred. <code class="prettyprint">ticket</code> will be set to
+the ticket passed into the last received call to SbPlayerSeek() at the time this
+callback was dispatched. This is to distinguish status callbacks for
+interrupting seeks. These callbacks will happen on a different thread than the
+calling thread, and it is not valid to call SbPlayer functions from within this
+callback. After an update with kSbPlayerDecoderStateNeedsData, the user of the
+player will make at most one call to SbPlayerWriteSample() or
+SbPlayerWriteEndOfStream(). The player implementation should update the decoder
+status again after such call to notify its user to continue writing more frames.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbPlayerDecoderStatusFunc) (SbPlayer player, void *context, SbMediaType type, SbPlayerDecoderState state, int ticket)
+</code></pre></div>
+<h3 id="sbplayerencryptedmediainitdataencounteredcb">SbPlayerEncryptedMediaInitDataEncounteredCB</h3>
+
+<p>Callback to queue an encrypted event for initialization data encountered in
+media data. <code class="prettyprint">init_data_type</code> should be a string matching one of the EME
+initialization data types : &quot;cenc&quot;, &quot;fairplay&quot;, &quot;keyids&quot;, or &quot;webm&quot;, <code class="prettyprint">init_data</code>
+is the initialization data, and <code class="prettyprint">init_data_length</code> is the length of the data.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbPlayerEncryptedMediaInitDataEncounteredCB) (SbPlayer player, void *context, const char *init_data_type, const unsigned char *init_data, unsigned int init_data_length)
+</code></pre></div>
+<h3 id="sbplayererrorfunc">SbPlayerErrorFunc</h3>
+
+<p>Callback for player errors, that may set a <code class="prettyprint">message</code>. <code class="prettyprint">error</code>: indicates the
+error code. <code class="prettyprint">message</code>: provides specific informative diagnostic message about
+the error condition encountered. It is ok for the message to be an empty string
+or NULL if no information is available.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbPlayerErrorFunc) (SbPlayer player, void *context, SbPlayerError error, const char *message)
+</code></pre></div>
+<h3 id="sbplayerstatusfunc">SbPlayerStatusFunc</h3>
+
+<p>Callback for player status updates. These callbacks will happen on a different
+thread than the calling thread, and it is not valid to call SbPlayer functions
+from within this callback.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbPlayerStatusFunc) (SbPlayer player, void *context, SbPlayerState state, int ticket)
+</code></pre></div>
+<h2 id="structs">Structs</h2>
+
+<h3 id="sbplayerinfo2">SbPlayerInfo2</h3>
+
+<p>Information about the current media playback state.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li><p><code class="prettyprint">SbTime current_media_timestamp</code></p>
+
+<p>The position of the playback head, as precisely as possible, in
+microseconds.</p></li>
+<li><p><code class="prettyprint">SbTime duration</code></p>
+
+<p>The known duration of the currently playing media stream, in microseconds.</p></li>
+<li><p><code class="prettyprint">SbTime start_date</code></p>
+
+<p>The result of getStartDate for the currently playing media stream, in
+microseconds since the epoch of January 1, 1601 UTC.</p></li>
+<li><p><code class="prettyprint">int frame_width</code></p>
+
+<p>The width of the currently displayed frame, in pixels, or 0 if not provided
+by this player.</p></li>
+<li><p><code class="prettyprint">int frame_height</code></p>
+
+<p>The height of the currently displayed frame, in pixels, or 0 if not provided
+by this player.</p></li>
+<li><p><code class="prettyprint">bool is_paused</code></p>
+
+<p>Whether playback is currently paused.</p></li>
+<li><p><code class="prettyprint">double volume</code></p>
+
+<p>The current player volume in [0, 1].</p></li>
+<li><p><code class="prettyprint">int total_video_frames</code></p>
+
+<p>The number of video frames sent to the player since the creation of the
+player.</p></li>
+<li><p><code class="prettyprint">int dropped_video_frames</code></p>
+
+<p>The number of video frames decoded but not displayed since the creation of
+the player.</p></li>
+<li><p><code class="prettyprint">int corrupted_video_frames</code></p>
+
+<p>The number of video frames that failed to be decoded since the creation of
+the player.</p></li>
+<li><p><code class="prettyprint">double playback_rate</code></p>
+
+<p>The rate of playback. The video is played back in a speed that is
+proportional to this. By default it is 1.0 which indicates that the playback
+is at normal speed. When it is greater than one, the video is played in a
+faster than normal speed. When it is less than one, the video is played in a
+slower than normal speed. Negative speeds are not supported.</p></li>
+<li><p><code class="prettyprint">SbTime buffer_start_timestamp</code></p>
+
+<p>The position of the buffer head, as precisely as possible, in microseconds.</p></li>
+<li><p><code class="prettyprint">SbTime buffer_duration</code></p>
+
+<p>The known duration of the currently playing media buffer, in microseconds.</p></li>
+</ul>
+
+<h3 id="sbplayersampleinfo">SbPlayerSampleInfo</h3>
+
+<p>Information about the samples to be written into SbPlayerWriteSample2.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li><p><code class="prettyprint">const void * buffer</code></p>
+
+<p>Points to the buffer containing the sample data.</p></li>
+<li><p><code class="prettyprint">int buffer_size</code></p>
+
+<p>Size of the data pointed to by <code class="prettyprint">buffer</code>.</p></li>
+<li><p><code class="prettyprint">SbTime timestamp</code></p>
+
+<p>The timestamp of the sample in SbTime.</p></li>
+<li><p><code class="prettyprint">constSbMediaVideoSampleInfo* video_sample_info</code></p>
+
+<p>Information about a video sample. This value is required for video samples.
+Otherwise, it must be <code class="prettyprint">NULL</code>.</p></li>
+<li><p><code class="prettyprint">constSbDrmSampleInfo* drm_info</code></p>
+
+<p>The DRM system related info for the media sample. This value is required for
+encrypted samples. Otherwise, it must be <code class="prettyprint">NULL</code>.</p></li>
+</ul>
 
 <h2 id="functions">Functions</h2>
 
-<h3 id="sbplayercreate">SbPlayerCreate</h3>
+<h3 id="sbplayercreatewithurl">SbPlayerCreateWithUrl</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates a URL-based SbPlayer that will be displayed on <code class="prettyprint">window</code> for the
+specified URL <code class="prettyprint">url</code>, acquiring all resources needed to operate it, and returning
+an opaque handle to it. The expectation is that a new player will be created and
+destroyed for every playback.</p>
 
-<p>Creates a player that will be displayed on <code class="prettyprint">window</code> for the specified
-<code class="prettyprint">video_codec</code> and <code class="prettyprint">audio_codec</code>, acquiring all resources needed to operate
-it, and returning an opaque handle to it. The expectation is that a new
-player will be created and destroyed for every playback.<br>
-This function returns the created player. Note the following:
-<ul><li>The associated decoder of the returned player should be assumed to not be
-in <code class="prettyprint">kSbPlayerDecoderStateNeedsData</code> until <code><a href="#sbplayerseek">SbPlayerSeek()</a></code> has been called
-on it.
-</li><li>It is expected either that the thread that calls <code>SbPlayerCreate</code> is the same
-thread that calls the other <code class="prettyprint">SbPlayer</code> functions for that player, or that
-there is a mutex guarding calls into each <code class="prettyprint">SbPlayer</code> instance.
-</li><li>If there is a platform limitation on how many players can coexist
-simultaneously, then calls made to this function that attempt to exceed
-that limit will return <code class="prettyprint">kSbPlayerInvalid</code>.</li></ul></p>
+<p>In many ways this function is similar to SbPlayerCreate, but it is missing the
+input arguments related to the configuration and format of the audio and video
+stream, as well as the DRM system. The DRM system for a player created with
+SbPlayerCreateWithUrl can be set after creation using SbPlayerSetDrmSystem.
+Because the DRM system is not available at the time of SbPlayerCreateWithUrl, it
+takes in a callback, <code class="prettyprint">encrypted_media_init_data_encountered_cb</code>, which is run
+when encrypted media initial data is encountered.If the callback is <code class="prettyprint">NULL</code>, then
+<code class="prettyprint">kSbPlayerInvalid</code> must be returned.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerCreate-declaration">
-<pre>
-SB_EXPORT SbPlayer SbPlayerCreate(
-    SbWindow window,
-    SbMediaVideoCodec video_codec,
-    SbMediaAudioCodec audio_codec,
-    SbMediaTime duration_pts,
-    SbDrmSystem drm_system,
-    const SbMediaAudioHeader* audio_header,
-    SbPlayerDeallocateSampleFunc sample_deallocate_func,
-    SbPlayerDecoderStatusFunc decoder_status_func,
-    SbPlayerStatusFunc player_status_func,
-    void* context
-#if SB_VERSION(3)
-    ,
-    SbDecodeTargetProvider* provider
-#endif  // SB_VERSION(3)
-    );</pre></div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-#if !SB_HAS(PLAYER)
-#error &quot;SbPlayerCreate requires SB_HAS(PLAYER).&quot;
-#endif
-
-SbPlayer SbPlayerCreate(SbWindow /*window*/,
-                        SbMediaVideoCodec /*video_codec*/,
-                        SbMediaAudioCodec /*audio_codec*/,
-                        SbMediaTime /*duration_pts*/,
-                        SbDrmSystem /*drm_system*/,
-                        const SbMediaAudioHeader* /*audio_header*/,
-                        SbPlayerDeallocateSampleFunc /*sample_deallocate_func*/,
-                        SbPlayerDecoderStatusFunc /*decoder_status_func*/,
-                        SbPlayerStatusFunc /*player_status_func*/,
-                        void* /*context*/
-#if SB_VERSION(3)
-                        ,
-                        SbDecodeTargetProvider* /*provider*/
-#endif
-                        ) {
-  return kSbPlayerInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbPlayer SbPlayerCreateWithUrl(const char *url, SbWindow window, SbPlayerStatusFunc player_status_func, SbPlayerEncryptedMediaInitDataEncounteredCB encrypted_media_init_data_encountered_cb, SbPlayerErrorFunc player_error_func, void *context)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbWindow</code><br>        <code>window</code></td>
-    <td>The window that will display the player. <code>window</code> can be
-<code>kSbWindowInvalid</code> for platforms where video is only displayed on a
-particular window that the underlying implementation already has access to.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaVideoCodec</code><br>        <code>video_codec</code></td>
-    <td>The video codec used for the player. If <code>video_codec</code> is
-<code>kSbMediaVideoCodecNone</code>, the player is an audio-only player. If
-<code>video_codec</code> is any other value, the player is an audio/video decoder.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaAudioCodec</code><br>        <code>audio_codec</code></td>
-    <td>The audio codec used for the player. The value should never
-be <code>kSbMediaAudioCodecNone</code>. In addition, the caller must provide a
-populated <code>audio_header</code> if the audio codec is <code>kSbMediaAudioCodecAac</code>.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaTime</code><br>        <code>duration_pts</code></td>
-    <td>The expected media duration in 90KHz ticks (PTS). It may be
-set to <code>SB_PLAYER_NO_DURATION</code> for live streams.</td>
-  </tr>
-  <tr>
-    <td><code>SbDrmSystem</code><br>        <code>drm_system</code></td>
-    <td>If the media stream has encrypted portions, then this
-parameter provides an appropriate DRM system, created with
-<code>SbDrmCreateSystem()</code>. If the stream does not have encrypted portions,
-then <code>drm_system</code> may be <code>kSbDrmSystemInvalid</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const SbMediaAudioHeader*</code><br>        <code>audio_header</code></td>
-    <td>Note that the caller must provide a populated <code>audio_header</code>
-if the audio codec is <code>kSbMediaAudioCodecAac</code>. Otherwise, <code>audio_header</code>
-can be NULL. See media.h for the format of the <code>SbMediaAudioHeader</code> struct.</td>
-  </tr>
-  <tr>
-    <td><code>SbPlayerDeallocateSampleFunc</code><br>        <code>sample_deallocate_func</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbPlayerDecoderStatusFunc</code><br>        <code>decoder_status_func</code></td>
-    <td>If not <code>NULL</code>, the decoder calls this function on an
-internal thread to provide an update on the decoder's status. No work
-should be done on this thread. Rather, it should just signal the client
-thread interacting with the decoder.</td>
-  </tr>
-  <tr>
-    <td><code>SbPlayerStatusFunc</code><br>        <code>player_status_func</code></td>
-    <td>If not <code>NULL</code>, the player calls this function on an
-internal thread to provide an update on the playback status. No work
-should be done on this thread. Rather, it should just signal the client
-thread interacting with the decoder.</td>
-  </tr>
-  <tr>
-    <td><code>void*</code><br>        <code>context</code></td>
-    <td>This is passed to all callbacks and is generally used to point
-at a class or struct that contains state associated with the player.</td>
-  </tr>
-</table>
-
 <h3 id="sbplayerdestroy">SbPlayerDestroy</h3>
 
-<p>Destroys <code class="prettyprint">player</code>, freeing all associated resources. Each callback must
-receive one more callback to say that the player was destroyed. Callbacks
-may be in-flight when <code>SbPlayerDestroy</code> is called, and should be ignored once
-this function is called.</p>
+<p>Destroys <code class="prettyprint">player</code>, freeing all associated resources. Each callback must receive
+one more callback to say that the player was destroyed. Callbacks may be in-
+flight when SbPlayerDestroy is called, and should be ignored once this function
+is called.</p>
 
 <p>It is not allowed to pass <code class="prettyprint">player</code> into any other <code class="prettyprint">SbPlayer</code> function once
-<code>SbPlayerDestroy</code> has been called on that player.</p>
+SbPlayerDestroy has been called on that player.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">player</code>: The player to be destroyed.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerDestroy-declaration">
-<pre>
-SB_EXPORT void SbPlayerDestroy(SbPlayer player);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerDestroy(SbPlayer /*player*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerDestroy(SbPlayer player)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbplayergetcurrentframe">SbPlayerGetCurrentFrame</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Given a player created with the kSbPlayerOutputModeDecodeToTexture output mode,
+it will return a SbDecodeTarget representing the current frame to be rasterized.
+On GLES systems, this function must be called on a thread with an EGLContext
+current, and specifically the EGLContext that will be used to eventually render
+the frame. If this function is called with a <code class="prettyprint">player</code> object that was created
+with an output mode other than kSbPlayerOutputModeDecodeToTexture,
+kSbDecodeTargetInvalid is returned.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>
-        <code>player</code></td>
-    <td>The player to be destroyed.</td>
-  </tr>
-</table>
-
-<h3 id="sbplayergetcompositionhandle">SbPlayerGetCompositionHandle</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Gets a handle that represents the player&#39;s video output, for the purpose of
-composing with <code class="prettyprint">SbCompositor</code>, which is currently undefined.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbPlayerCompositionHandle
-SbPlayerGetCompositionHandle(SbPlayer player);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbplayergetinfo2">SbPlayerGetInfo2</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player for which the video output handle is retrieved.</td>
-  </tr>
-</table>
+<p>Gets a snapshot of the current player state and writes it to <code class="prettyprint">out_player_info</code>.
+This function may be called very frequently and is expected to be inexpensive.</p>
 
-<h3 id="sbplayergetinfo">SbPlayerGetInfo</h3>
+<p><code class="prettyprint">player</code>: The player about which information is being retrieved.
+<code class="prettyprint">out_player_info</code>: The information retrieved for the player.</p>
 
-<p><strong>Description</strong></p>
-
-<p>Gets a snapshot of the current player state and writes it to
-<code class="prettyprint">out_player_info</code>. This function may be called very frequently and is
-expected to be inexpensive.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerGetInfo-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerGetInfo-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerGetInfo-declaration">
-<pre>
-SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerGetInfo-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerGetInfo(SbPlayer /*player*/, SbPlayerInfo* /*out_player_info*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2 *out_player_info2)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbplayergetmaximumnumberofsamplesperwrite">SbPlayerGetMaximumNumberOfSamplesPerWrite</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Writes a single sample of the given media type to <code class="prettyprint">player</code>&#39;s input stream. Its
+data may be passed in via more than one buffers. The lifetime of
+<code class="prettyprint">sample_buffers</code>, <code class="prettyprint">sample_buffer_sizes</code>, <code class="prettyprint">video_sample_info</code>, and
+<code class="prettyprint">sample_drm_info</code> (as well as member <code class="prettyprint">subsample_mapping</code> contained inside it)
+are not guaranteed past the call to SbPlayerWriteSample. That means that before
+returning, the implementation must synchronously copy any information it wants
+to retain from those structures.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player about which information is being retrieved.</td>
-  </tr>
-  <tr>
-    <td><code>SbPlayerInfo*</code><br>        <code>out_player_info</code></td>
-    <td>The information retrieved for the player.</td>
-  </tr>
-</table>
+<p><code class="prettyprint">player</code>: The player for which the number is retrieved. <code class="prettyprint">sample_type</code>: The type
+of sample for which the number is retrieved. See the <code class="prettyprint">SbMediaType</code> enum in
+media.h.</p>
 
-<h3 id="sbplayergettextureid">SbPlayerGetTextureId</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Gets an OpenGL texture ID that points to the player&#39;s video output frame at
-the time it was called. This function can be called once, and the texture ID
-will be appropriately remapped to the current video frame when it is drawn.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT uint32_t SbPlayerGetTextureId(SbPlayer player);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player, SbMediaType sample_type)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player for which the texture ID is retrieved.</td>
-  </tr>
-</table>
-
 <h3 id="sbplayerisvalid">SbPlayerIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given player handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
-  return player != kSbPlayerInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbPlayerIsValid(SbPlayer player)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbplayeroutputmodesupportedwithurl">SbPlayerOutputModeSupportedWithUrl</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>
-        <code>player</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Returns true if the given URL player output mode is supported by the platform.
+If this function returns true, it is okay to call SbPlayerCreate() with the
+given <code class="prettyprint">output_mode</code>.</p>
 
-<h3 id="sbplayerseek">SbPlayerSeek</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Tells the player to freeze playback (if playback has already started),
-reset or flush the decoder pipeline, and go back to the Prerolling state.
-The player should restart playback once it can display the frame at
-<code class="prettyprint">seek_to_pts</code>, or the closest it can get. (Some players can only seek to
-I-Frames, for example.)<br>
-<ul><li>Seek must be called before samples are sent when starting playback for
-the first time, or the client never receives the
-<code class="prettyprint">kSbPlayerDecoderStateNeedsData</code> signal.
-</li><li>A call to seek may interrupt another seek.
-</li><li>After this function is called, the client should not send any more audio
-or video samples until <code class="prettyprint">SbPlayerDecoderStatusFunc</code> is called back with
-<code class="prettyprint">kSbPlayerDecoderStateNeedsData</code> for each required media type.
-<code class="prettyprint">SbPlayerDecoderStatusFunc</code> is the <code class="prettyprint">decoder_status_func</code> callback function
-that was specified when the player was created (SbPlayerCreate).</li></ul><br>
-The <code class="prettyprint">ticket</code> value is used to filter calls that may have been in flight
-when <code>SbPlayerSeek</code> was called. To be very specific, once <code>SbPlayerSeek</code> has
-been called with ticket X, a client should ignore all
-<code class="prettyprint">SbPlayerDecoderStatusFunc</code> calls that do not pass in ticket X.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerSeek-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerSeek-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerSeek-declaration">
-<pre>
-SB_EXPORT void SbPlayerSeek(SbPlayer player,
-                            SbMediaTime seek_to_pts,
-                            int ticket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerSeek-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerSeek(SbPlayer /*player*/,
-                  SbMediaTime /*seek_to_pts*/,
-                  int /*ticket*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbPlayerOutputModeSupportedWithUrl(SbPlayerOutputMode output_mode)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The SbPlayer in which the seek operation is being performed.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaTime</code><br>        <code>seek_to_pts</code></td>
-    <td>The frame at which playback should begin.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>ticket</code></td>
-    <td>A user-supplied unique ID that is be passed to all subsequent
-<code>SbPlayerDecoderStatusFunc</code> calls. (That is the <code>decoder_status_func</code>
-callback function specified when calling <code><a href="#sbplayercreate">SbPlayerCreate</a></code>.)</td>
-  </tr>
-</table>
-
 <h3 id="sbplayersetbounds">SbPlayerSetBounds</h3>
 
-<p><strong>Description</strong></p>
+<p>Sets the player bounds to the given graphics plane coordinates. The changes do
+not take effect until the next graphics frame buffer swap. The default bounds
+for a player is the full screen. This function is only relevant when the
+<code class="prettyprint">player</code> is created with the kSbPlayerOutputModePunchOut output mode, and if
+this is not the case then this function call can be ignored.</p>
 
-<p>Sets the player bounds to the given graphics plane coordinates. The changes
-do not take effect until the next graphics frame buffer swap. The default
-bounds for a player is the full screen.<br>
-This function is called on every graphics frame that changes the video
-bounds. For example, if the video bounds are being animated, then this will
-be called at up to 60 Hz. Since the function could be called up to once per
-frame, implementors should take care to avoid related performance concerns
-with such frequent calls.</p>
+<p>This function is called on every graphics frame that changes the video bounds.
+For example, if the video bounds are being animated, then this will be called at
+up to 60 Hz. Since the function could be called up to once per frame,
+implementors should take care to avoid related performance concerns with such
+frequent calls.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">player</code>: The player that is being resized. <code class="prettyprint">z_index</code>: The z-index of the
+player. When the bounds of multiple players are overlapped, the one with larger
+z-index will be rendered on top of the ones with smaller z-index. <code class="prettyprint">x</code>: The
+x-coordinate of the upper-left corner of the player. <code class="prettyprint">y</code>: The y-coordinate of
+the upper-left corner of the player. <code class="prettyprint">width</code>: The width of the player, in
+pixels. <code class="prettyprint">height</code>: The height of the player, in pixels.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerSetBounds-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerSetBounds-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerSetBounds-declaration">
-<pre>
-SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
-                                 int x,
-                                 int y,
-                                 int width,
-                                 int height);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerSetBounds-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-#if SB_IS(PLAYER_PUNCHED_OUT)
-
-void SbPlayerSetBounds(SbPlayer /*player*/,
-                       int /*x*/,
-                       int /*y*/,
-                       int /*width*/,
-                       int /*height*/) {}
-
-#endif  // SB_IS(PLAYER_PUNCHED_OUT)
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerSetBounds(SbPlayer player, int z_index, int x, int y, int width, int height)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbplayersetdrmsystem">SbPlayerSetDrmSystem</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Sets the DRM system of a running URL-based SbPlayer created with
+SbPlayerCreateWithUrl. This may only be run once for a given SbPlayer.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player that is being resized.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>x</code></td>
-    <td>The x-coordinate of the upper-left corner of the player.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>y</code></td>
-    <td>The y-coordinate of the upper-left corner of the player.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>width</code></td>
-    <td>The width of the player, in pixels.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>height</code></td>
-    <td>The height of the player, in pixels.</td>
-  </tr>
-</table>
-
-<h3 id="sbplayersetpause">SbPlayerSetPause</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Pauses or unpauses the <code class="prettyprint">player</code>. If the <code class="prettyprint">player</code>&#39;s state is
-<code class="prettyprint">kPlayerStatePrerolling</code>, this function sets the initial pause state for
-the current seek target.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerSetPause-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerSetPause-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerSetPause-declaration">
-<pre>
-SB_EXPORT void SbPlayerSetPause(SbPlayer player, bool pause);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerSetPause-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerSetPause(SbPlayer /*player*/, bool /*pause*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerSetDrmSystem(SbPlayer player, SbDrmSystem drm_system)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbplayersetplaybackrate">SbPlayerSetPlaybackRate</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Set the playback rate of the <code class="prettyprint">player</code>. <code class="prettyprint">rate</code> is default to 1.0 which indicates
+the playback is at its original speed. A <code class="prettyprint">rate</code> greater than one will make the
+playback faster than its original speed. For example, when <code class="prettyprint">rate</code> is 2, the
+video will be played at twice the speed as its original speed. A <code class="prettyprint">rate</code> less
+than 1.0 will make the playback slower than its original speed. When <code class="prettyprint">rate</code> is
+0, the playback will be paused. The function returns true when the playback rate
+is set to <code class="prettyprint">playback_rate</code> or to a rate that is close to <code class="prettyprint">playback_rate</code> which
+the implementation supports. It returns false when the playback rate is
+unchanged, this can happen when <code class="prettyprint">playback_rate</code> is negative or if it is too high
+to support.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>
-        <code>player</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>
-        <code>pause</code></td>
-    <td> </td>
-  </tr>
-</table>
-
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate)
+</code></pre></div>
 <h3 id="sbplayersetvolume">SbPlayerSetVolume</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Sets the player&#39;s volume.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">player</code>: The player in which the volume is being adjusted. <code class="prettyprint">volume</code>: The new
+player volume. The value must be between <code class="prettyprint">0.0</code> and <code class="prettyprint">1.0</code>, inclusive. A value of
+<code class="prettyprint">0.0</code> means that the audio should be muted, and a value of <code class="prettyprint">1.0</code> means that it
+should be played at full volume.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerSetVolume-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerSetVolume-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerSetVolume-declaration">
-<pre>
-SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerSetVolume-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerSetVolume(SbPlayer /*player*/, double /*volume*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerSetVolume(SbPlayer player, double volume)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player in which the volume is being adjusted.</td>
-  </tr>
-  <tr>
-    <td><code>double</code><br>        <code>volume</code></td>
-    <td>The new player volume. The value must be between <code>0.0</code> and <code>1.0</code>,
-inclusive. A value of <code>0.0</code> means that the audio should be muted, and a
-value of <code>1.0</code> means that it should be played at full volume.</td>
-  </tr>
-</table>
-
 <h3 id="sbplayerwriteendofstream">SbPlayerWriteEndOfStream</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Writes a marker to <code class="prettyprint">player</code>&#39;s input stream of <code class="prettyprint">stream_type</code> indicating that
-there are no more samples for that media type for the remainder of this
-media stream. This marker is invalidated, along with the rest of the stream&#39;s
-contents, after a call to <code><a href="#sbplayerseek">SbPlayerSeek</a></code>.</p>
+there are no more samples for that media type for the remainder of this media
+stream. This marker is invalidated, along with the rest of the stream&#39;s
+contents, after a call to SbPlayerSeek.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">player</code>: The player to which the marker is written. <code class="prettyprint">stream_type</code>: The type of
+stream for which the marker is written.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerWriteEndOfStream-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerWriteEndOfStream-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerWriteEndOfStream-declaration">
-<pre>
-SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
-                                        SbMediaType stream_type);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerWriteEndOfStream-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerWriteEndOfStream(SbPlayer /*player*/,
-                              SbMediaType /*stream_type*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbplayerwritesample2">SbPlayerWriteSample2</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Writes a single sample of the given media type to <code class="prettyprint">player</code>&#39;s input stream. Its
+data may be passed in via more than one buffers. The lifetime of
+<code class="prettyprint">sample_buffers</code>, <code class="prettyprint">sample_buffer_sizes</code>, <code class="prettyprint">video_sample_info</code>, and
+<code class="prettyprint">sample_drm_info</code> (as well as member <code class="prettyprint">subsample_mapping</code> contained inside it)
+are not guaranteed past the call to SbPlayerWriteSample. That means that before
+returning, the implementation must synchronously copy any information it wants
+to retain from those structures.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player to which the marker is written.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaType</code><br>        <code>stream_type</code></td>
-    <td>The type of stream for which the marker is written.</td>
-  </tr>
-</table>
+<p><code class="prettyprint">player</code>: The player to which the sample is written. <code class="prettyprint">sample_type</code>: The type of
+sample being written. See the <code class="prettyprint">SbMediaType</code> enum in media.h. <code class="prettyprint">sample_buffers</code>: A
+pointer to an array of buffers with <code class="prettyprint">number_of_sample_buffers</code> elements that
+hold the data for this sample. The buffers are expected to be a portion of a
+bytestream of the codec type that the player was created with. The buffers
+should contain a sequence of whole NAL Units for video, or a complete audio
+frame. <code class="prettyprint">sample_buffers</code> cannot be assumed to live past the call into
+SbPlayerWriteSample(), so it must be copied if its content will be used after
+SbPlayerWriteSample() returns. <code class="prettyprint">sample_buffer_sizes</code>: A pointer to an array of
+sizes with <code class="prettyprint">number_of_sample_buffers</code> elements. Each of them specify the number
+of bytes in the corresponding buffer contained in <code class="prettyprint">sample_buffers</code>. None of them
+can be 0. <code class="prettyprint">sample_buffer_sizes</code> cannot be assumed to live past the call into
+SbPlayerWriteSample(), so it must be copied if its content will be used after
+SbPlayerWriteSample() returns. <code class="prettyprint">number_of_sample_buffers</code>: Specify the number of
+elements contained inside <code class="prettyprint">sample_buffers</code> and <code class="prettyprint">sample_buffer_sizes</code>. It has to
+be at least one, or the call will be ignored. <code class="prettyprint">sample_pts</code>: The timestamp of the
+sample in 90KHz ticks (PTS). Note that samples MAY be written &quot;slightly&quot; out of
+order. <code class="prettyprint">video_sample_info</code>: Information about a video sample. This value is
+required if <code class="prettyprint">sample_type</code> is <code class="prettyprint">kSbMediaTypeVideo</code>. Otherwise, it must be <code class="prettyprint">NULL</code>.
+<code class="prettyprint">sample_drm_info</code>: The DRM system related info for the media sample. This value
+is required for encrypted samples. Otherwise, it must be <code class="prettyprint">NULL</code>.Writes samples
+of the given media type to <code class="prettyprint">player</code>&#39;s input stream. The lifetime of
+<code class="prettyprint">sample_infos</code>, and the members of its elements like <code class="prettyprint">buffer</code>,
+<code class="prettyprint">video_sample_info</code>, and <code class="prettyprint">drm_info</code> (as well as member <code class="prettyprint">subsample_mapping</code>
+contained inside it) are not guaranteed past the call to SbPlayerWriteSample2.
+That means that before returning, the implementation must synchronously copy any
+information it wants to retain from those structures.</p>
 
-<h3 id="sbplayerwritesample">SbPlayerWriteSample</h3>
+<p><code class="prettyprint">player</code>: The player to which the sample is written. <code class="prettyprint">sample_type</code>: The type of
+sample being written. See the <code class="prettyprint">SbMediaType</code> enum in media.h. <code class="prettyprint">sample_infos</code>: A
+pointer to an array of SbPlayerSampleInfo with <code class="prettyprint">number_of_sample_infos</code>
+elements, each holds the data for an sample, i.e. a sequence of whole NAL Units
+for video, or a complete audio frame. <code class="prettyprint">sample_infos</code> cannot be assumed to live
+past the call into SbPlayerWriteSample2(), so it must be copied if its content
+will be used after SbPlayerWriteSample2() returns. <code class="prettyprint">number_of_sample_infos</code>:
+Specify the number of samples contained inside <code class="prettyprint">sample_infos</code>. It has to be at
+least one, and less than the return value of
+SbPlayerGetMaximumNumberOfSamplesPerWrite().</p>
 
-<p><strong>Description</strong></p>
-
-<p>Writes a sample of the given media type to <code class="prettyprint">player</code>&#39;s input stream. The
-lifetime of <code class="prettyprint">video_sample_info</code> and <code class="prettyprint">sample_drm_info</code> (as well as member
-<code class="prettyprint">subsample_mapping</code> contained inside it) are not guaranteed past the call
-to <code>SbPlayerWriteSample</code>. That means that before returning, the implementation
-must synchronously copy any information it wants to retain from those
-structures.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbPlayerWriteSample-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbPlayerWriteSample-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbPlayerWriteSample-declaration">
-<pre>
-SB_EXPORT void SbPlayerWriteSample(
-    SbPlayer player,
-    SbMediaType sample_type,
-    const void* sample_buffer,
-    int sample_buffer_size,
-    SbMediaTime sample_pts,
-    const SbMediaVideoSampleInfo* video_sample_info,
-    const SbDrmSampleInfo* sample_drm_info);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbPlayerWriteSample-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/player.h&quot;
-
-void SbPlayerWriteSample(SbPlayer /*player*/,
-                         SbMediaType /*sample_type*/,
-                         const void* /*sample_buffer*/,
-                         int /*sample_buffer_size*/,
-                         SbMediaTime /*sample_pts*/,
-                         const SbMediaVideoSampleInfo* /*video_sample_info*/,
-                         const SbDrmSampleInfo* /*sample_drm_info*/) {}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbPlayerWriteSample2(SbPlayer player, SbMediaType sample_type, const SbPlayerSampleInfo *sample_infos, int number_of_sample_infos)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbPlayer</code><br>        <code>player</code></td>
-    <td>The player to which the sample is written.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaType</code><br>        <code>sample_type</code></td>
-    <td>The type of sample being written. See the <code>SbMediaType</code>
-enum in media.h.</td>
-  </tr>
-  <tr>
-    <td><code>const void*</code><br>        <code>sample_buffer</code></td>
-    <td>A pointer to a buffer with the data for this sample. The
-buffer is expected to be a portion of a bytestream of the codec type that
-the player was created with. The buffer should contain a sequence of whole
-NAL Units for video, or a complete audio frame.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>sample_buffer_size</code></td>
-    <td>The number of bytes in the given sample.</td>
-  </tr>
-  <tr>
-    <td><code>SbMediaTime</code><br>        <code>sample_pts</code></td>
-    <td>The timestamp of the sample in 90KHz ticks (PTS). Note that
-samples MAY be written "slightly" out of order.</td>
-  </tr>
-  <tr>
-    <td><code>const SbMediaVideoSampleInfo*</code><br>        <code>video_sample_info</code></td>
-    <td>Information about a video sample. This value is
-required if <code>sample_type</code> is <code>kSbMediaTypeVideo</code>. Otherwise, it must be
-<code>NULL</code>.</td>
-  </tr>
-  <tr>
-    <td><code>const SbDrmSampleInfo*</code><br>        <code>sample_drm_info</code></td>
-    <td>The DRM system for the media sample. This value is
-required for encrypted samples. Otherwise, it must be <code>NULL</code>.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1501,11 +1256,10 @@ required for encrypted samples. Otherwise, it must be <code>NULL</code>.</td>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1527,29 +1281,35 @@ required for encrypted samples. Otherwise, it must be <code>NULL</code>.</td>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/player.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

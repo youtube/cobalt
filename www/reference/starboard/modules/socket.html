@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: socket.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: socket.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,31 +762,57 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines Starboard socket I/O functions. Starboard supports IPv4 and IPv6,
-TCP and UDP, server and client sockets. Some platforms may not support IPv6,
-some may not support listening sockets, and some may not support any kind
-of sockets at all (or only allow them in debug builds).<br>
-Starboard ONLY supports non-blocking socket I/O, so all sockets are
-non-blocking at creation time.<br>
-Note that, on some platforms, API calls on one end of a socket connection
-may not be instantaneously aware of manipulations on the socket at the other
-end of the connection, thus requiring use of either an SbSocketWaiter or
-spin-polling.<br>
-TODO: For platforms that do not support sockets at all, they must
-support at least a high-level HTTP client API (to be defined later).</p>
+        <p>Defines Starboard socket I/O functions. Starboard supports IPv4 and IPv6, TCP
+and UDP, server and client sockets. Some platforms may not support IPv6, some
+may not support listening sockets, and some may not support any kind of sockets
+at all (or only allow them in debug builds).</p>
+
+<p>Starboard ONLY supports non-blocking socket I/O, so all sockets are non-blocking
+at creation time.</p>
+
+<p>Note that, on some platforms, API calls on one end of a socket connection may
+not be instantaneously aware of manipulations on the socket at the other end of
+the connection, thus requiring use of either an SbSocketWaiter or spin-polling.</p>
+
+<p>TODO: For platforms that do not support sockets at all, they must support at
+least a high-level HTTP client API (to be defined later).</p>
+
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbsocketinvalid">kSbSocketInvalid</h3>
+
+<p>Well-defined value for an invalid socket handle.</p>
 
 <h2 id="enums">Enums</h2>
 
@@ -760,1300 +820,489 @@ support at least a high-level HTTP client API (to be defined later).</p>
 
 <p>All possible address types.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbSocketAddressTypeIpv4</code> - An IPv4 address, using only the first 4 entries of the address buffer.</li>
-<li>  <code class="prettyprint">kSbSocketAddressTypeIpv6</code> - An IPv6 address, which uses 16 entries of the address buffer.</li>
+<li><p><code class="prettyprint">kSbSocketAddressTypeIpv4</code></p>
+
+<p>An IPv4 address, using only the first 4 entries of the address buffer.</p></li>
+<li><p><code class="prettyprint">kSbSocketAddressTypeIpv6</code></p>
+
+<p>An IPv6 address, which uses 16 entries of the address buffer.</p></li>
 </ul>
 
 <h3 id="sbsocketerror">SbSocketError</h3>
 
-<p>Enumeration of all Starboard socket operation results. Despite the enum
-name, note that the value actually describes the outcome of an operation,
-which is not always an error.</p>
+<p>Enumeration of all Starboard socket operation results. Despite the enum name,
+note that the value actually describes the outcome of an operation, which is not
+always an error.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbSocketOk</code> - The operation succeeded.</li>
-<li>  <code class="prettyprint">kSbSocketPending</code> - The operation is blocked on I/O. Either try again &quot;later,&quot; or be veryclever and wait on it with a SbSocketWaiter.</li>
-<li>  <code class="prettyprint">kSbSocketErrorFailed</code> - The operation failed for some reason.<br>TODO: It&#39;s unclear if we actually care about why, so leaving the restof this enumeration blank until it becomes clear that we do.</li>
+<li><p><code class="prettyprint">kSbSocketOk</code></p>
+
+<p>The operation succeeded.</p></li>
+<li><p><code class="prettyprint">kSbSocketPending</code></p>
+
+<p>The operation is blocked on I/O. Either try again &quot;later,&quot; or be very clever
+and wait on it with a SbSocketWaiter.</p></li>
+<li><p><code class="prettyprint">kSbSocketErrorConnectionReset</code></p>
+
+<p>This socket error is generated when the connection is reset unexpectedly and
+the connection is now invalid. This might happen for example if an read
+packet has the &quot;TCP RST&quot; bit set.</p></li>
+<li><p><code class="prettyprint">kSbSocketErrorFailed</code></p>
+
+<p>The operation failed for some other reason not specified above.</p></li>
 </ul>
 
 <h3 id="sbsocketprotocol">SbSocketProtocol</h3>
 
 <p>All possible IP socket types.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbSocketProtocolTcp</code> - The TCP/IP protocol, a reliable, stateful, streaming protocol.</li>
-<li>  <code class="prettyprint">kSbSocketProtocolUdp</code> - The UDP/IP protocol, an unreliable, connectionless, discrete packet(datagram) protocol.</li>
+<li><p><code class="prettyprint">kSbSocketProtocolTcp</code></p>
+
+<p>The TCP/IP protocol, a reliable, stateful, streaming protocol.</p></li>
+<li><p><code class="prettyprint">kSbSocketProtocolUdp</code></p>
+
+<p>The UDP/IP protocol, an unreliable, connectionless, discrete packet
+(datagram) protocol.</p></li>
 </ul>
 
 <h3 id="sbsocketresolvefilter">SbSocketResolveFilter</h3>
 
 <p>Bits that can be set when calling SbSocketResolve to filter the results.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbSocketResolveFilterNone</code> - No filters, include everything.</li>
-<li>  <code class="prettyprint">kSbSocketResolveFilterIpv4</code> - Include Ipv4 addresses.</li>
-<li>  <code class="prettyprint">kSbSocketResolveFilterIpv6</code> - Include Ipv6 addresses.</li>
+<li><p><code class="prettyprint">kSbSocketResolveFilterNone</code></p>
+
+<p>No filters, include everything.</p></li>
+<li><p><code class="prettyprint">kSbSocketResolveFilterIpv4</code></p>
+
+<p>Include Ipv4 addresses.</p></li>
+<li><p><code class="prettyprint">kSbSocketResolveFilterIpv6</code></p>
+
+<p>Include Ipv6 addresses.</p></li>
 </ul>
 
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbsocket">SbSocket</h3>
+
+<p>A handle to a socket.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbSocketPrivate* SbSocket
+</code></pre></div>
 <h2 id="structs">Structs</h2>
 
 <h3 id="sbsocketaddress">SbSocketAddress</h3>
 
 <p>A representation of any possible supported address type.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>uint8_t</code><br>        <code>address[16]</code></td>    <td>The storage for the address. For IPv4, only the first 4 bytes make up the
+<ul>
+<li><p><code class="prettyprint">uint8_t address</code></p>
+
+<p>The storage for the address. For IPv4, only the first 4 bytes make up the
 address. For IPv6, the entire buffer of 16 bytes is meaningful. An address
-of all zeros means that the address is unspecified.</td>  </tr>
-  <tr>
-    <td><code>SbSocketAddressType</code><br>        <code>type</code></td>    <td>The type of address this represents (IPv4 vs IPv6).</td>  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>port</code></td>    <td>The port component of this socket address. If not specified, it will be
-zero, which is officially undefined.</td>  </tr>
-</table>
+of all zeros means that the address is unspecified.</p></li>
+<li><p><code class="prettyprint">SbSocketAddressType type</code></p>
 
-<h3 id="sbsocketprivate">SbSocketPrivate</h3>
+<p>The type of address this represents (IPv4 vs IPv6).</p></li>
+<li><p><code class="prettyprint">int port</code></p>
 
-<p>Private structure representing a socket, which may or may not be connected or
-listening.</p>
+<p>The port component of this socket address. If not specified, it will be
+zero, which is officially undefined.</p></li>
+</ul>
 
 <h3 id="sbsocketresolution">SbSocketResolution</h3>
 
 <p>The result of a host name resolution.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>address_count</code></td>    <td>The length of the <code>addresses</code> array.</td>  </tr>
-</table>
+<ul>
+<li><p><code class="prettyprint">SbSocketAddress* addresses</code></p>
+
+<p>An array of addresses associated with the host name.</p></li>
+<li><p><code class="prettyprint">int address_count</code></p>
+
+<p>The length of the <code class="prettyprint">addresses</code> array.</p></li>
+</ul>
 
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbsocketaccept">SbSocketAccept</h3>
 
-<p><strong>Description</strong></p>
+<p>Accepts a pending connection on <code class="prettyprint">socket</code> and returns a new SbSocket representing
+that connection. This function sets the error on <code class="prettyprint">socket</code> and returns
+<code class="prettyprint">kSbSocketInvalid</code> if it is unable to accept a new connection.</p>
 
-<p>Accepts a pending connection on <code class="prettyprint">socket</code> and returns a new SbSocket
-representing that connection. This function sets the error on <code class="prettyprint">socket</code>
-and returns <code class="prettyprint">kSbSocketInvalid</code> if it is unable to accept a new connection.</p>
+<p><code class="prettyprint">socket</code>: The SbSocket that is accepting a pending connection.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketAccept-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketAccept-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketAccept-declaration">
-<pre>
-SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketAccept-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocket SbSocketAccept(SbSocket /*socket*/) {
-  return kSbSocketInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocket SbSocketAccept(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket that is accepting a pending connection.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketbind">SbSocketBind</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Binds <code class="prettyprint">socket</code> to a specific local interface and port specified by
-<code class="prettyprint">local_address</code>. This function sets and returns the socket error if it
-is unable to bind to <code class="prettyprint">local_address</code>.<br></li></ul></p>
+<code class="prettyprint">local_address</code>. This function sets and returns the socket error if it is unable
+to bind to <code class="prettyprint">local_address</code>.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket to be bound to the local interface. <code class="prettyprint">local_address</code>: The
+local address to which the socket is to be bound. This value must not be <code class="prettyprint">NULL</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketBind-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketBind-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketBind-declaration">
-<pre>
-SB_EXPORT SbSocketError SbSocketBind(SbSocket socket,
-                                     const SbSocketAddress* local_address);
-</pre>
-</div>
+<ul>
+<li><p>Setting the local address to port <code class="prettyprint">0</code> (or not specifying a port) indicates
+that the function should choose a port for you.</p></li>
+<li><p>Setting the IP address to <code class="prettyprint">0.0.0.0</code> means that the socket should be bound to
+all interfaces.</p></li>
+</ul>
 
-<p><div class="mdl-tabs__panel" id="SbSocketBind-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocketError SbSocketBind(SbSocket /*socket*/,
-                           const SbSocketAddress* /*local_address*/) {
-  return kSbSocketErrorFailed;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketError SbSocketBind(SbSocket socket, const SbSocketAddress *local_address)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket to be bound to the local interface.</td>
-  </tr>
-  <tr>
-    <td><code>const SbSocketAddress*</code><br>        <code>local_address</code></td>
-    <td>The local address to which the socket is to be bound.
-This value must not be <code>NULL</code>.
-<ul><li>Setting the local address to port <code>0</code> (or not specifying a port) indicates
-that the function should choose a port for you.
-</li><li>Setting the IP address to <code>0.0.0.0</code> means that the socket should be bound
-to all interfaces.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketclearlasterror">SbSocketClearLastError</h3>
 
-<p><strong>Description</strong></p>
+<p>Clears the last error set on <code class="prettyprint">socket</code>. The return value indicates whether the
+socket error was cleared.</p>
 
-<p>Clears the last error set on <code class="prettyprint">socket</code>. The return value indicates whether
-the socket error was cleared.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketClearLastError-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketClearLastError-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketClearLastError-declaration">
-<pre>
-SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketClearLastError-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketClearLastError(SbSocket /*socket*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketClearLastError(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>
-        <code>socket</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbsocketconnect">SbSocketConnect</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Opens a connection of <code class="prettyprint">socket</code>&#39;s type to the host and port specified by
-<code class="prettyprint">address</code>. This function sets and returns the socket error if it is unable
-to connect to <code class="prettyprint">address</code>. (It returns <code class="prettyprint">kSbSocketOk</code> if it creates the
-connection successfully.)</p>
+<code class="prettyprint">address</code>. This function sets and returns the socket error if it is unable to
+connect to <code class="prettyprint">address</code>. (It returns <code class="prettyprint">kSbSocketOk</code> if it creates the connection
+successfully.)</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The type of connection that should be opened. <code class="prettyprint">address</code>: The host and
+port to which the socket should connect.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketConnect-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketConnect-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketConnect-declaration">
-<pre>
-SB_EXPORT SbSocketError SbSocketConnect(SbSocket socket,
-                                        const SbSocketAddress* address);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketConnect-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocketError SbSocketConnect(SbSocket /*socket*/,
-                              const SbSocketAddress* /*address*/) {
-  return kSbSocketErrorFailed;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress *address)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The type of connection that should be opened.</td>
-  </tr>
-  <tr>
-    <td><code>const SbSocketAddress*</code><br>        <code>address</code></td>
-    <td>The host and port to which the socket should connect.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketcreate">SbSocketCreate</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates a new non-blocking socket for protocol <code class="prettyprint">protocol</code> using address family
+<code class="prettyprint">address_type</code>.</p>
 
-<p>Creates a new non-blocking socket for protocol <code class="prettyprint">protocol</code> using address
-family <code class="prettyprint">address_type</code>.<br>
-<ul><li>If successful, this function returns the newly created handle.
-</li><li>If unsuccessful, this function returns <code class="prettyprint">kSbSocketInvalid</code> and also sets
-the last system error appropriately.</li></ul></p>
+<ul>
+<li><p>If successful, this function returns the newly created handle.</p></li>
+<li><p>If unsuccessful, this function returns <code class="prettyprint">kSbSocketInvalid</code> and also sets the
+last system error appropriately.</p></li>
+</ul>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">address_type</code>: The type of IP address to use for the socket. <code class="prettyprint">protocol</code>: The
+protocol to use for the socket.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketCreate-declaration">
-<pre>
-SB_EXPORT SbSocket SbSocketCreate(SbSocketAddressType address_type,
-                                  SbSocketProtocol protocol);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocket SbSocketCreate(SbSocketAddressType /*address_type*/,
-                        SbSocketProtocol /*protocol*/) {
-  return kSbSocketInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocket SbSocketCreate(SbSocketAddressType address_type, SbSocketProtocol protocol)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketAddressType</code><br>        <code>address_type</code></td>
-    <td>The type of IP address to use for the socket.</td>
-  </tr>
-  <tr>
-    <td><code>SbSocketProtocol</code><br>        <code>protocol</code></td>
-    <td>The protocol to use for the socket.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketdestroy">SbSocketDestroy</h3>
 
-<p><strong>Description</strong></p>
+<p>Destroys the <code class="prettyprint">socket</code> by flushing it, closing any connection that may be active
+on it, and reclaiming any resources associated with it, including any
+registration with an <code class="prettyprint">SbSocketWaiter</code>.</p>
 
-<p>Destroys the <code class="prettyprint">socket</code> by flushing it, closing any connection that may be
-active on it, and reclaiming any resources associated with it, including
-any registration with an <code class="prettyprint">SbSocketWaiter</code>.<br>
-The return value indicates whether the destruction was successful. However,
-even if this function returns <code class="prettyprint">false</code>, you should not be able to use the
-socket any more.</p>
+<p>The return value indicates whether the destruction was successful. However, even
+if this function returns <code class="prettyprint">false</code>, you should not be able to use the socket any
+more.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket to be destroyed.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketDestroy-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketDestroy-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketDestroy-declaration">
-<pre>
-SB_EXPORT bool SbSocketDestroy(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketDestroy-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketDestroy(SbSocket /*socket*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketDestroy(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket to be destroyed.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketfreeresolution">SbSocketFreeResolution</h3>
 
-<p><strong>Description</strong></p>
+<p>Frees a resolution allocated by SbSocketResolve.</p>
 
-<p>Frees a resolution allocated by <code><a href="#sbsocketresolve">SbSocketResolve</a></code>.</p>
+<p><code class="prettyprint">resolution</code>: The resolution to be freed.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketFreeResolution-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketFreeResolution-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketFreeResolution-declaration">
-<pre>
-SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketFreeResolution-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-void SbSocketFreeResolution(SbSocketResolution* /*resolution*/) {
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbSocketFreeResolution(SbSocketResolution *resolution)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbsocketgetinterfaceaddress">SbSocketGetInterfaceAddress</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Gets the source address and the netmask that would be used to connect to the
+destination. The netmask parameter is optional, and only populated if a non-NULL
+parameter is passed in. To determine which source IP will be used, the kernel
+takes into account the protocol, routes, destination ip, etc. The subnet mask,
+aka netmask, is used to find the routing prefix. In IPv6, this should be derived
+from the prefix value.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketResolution*</code><br>        <code>resolution</code></td>
-    <td>The resolution to be freed.</td>
-  </tr>
-</table>
+<p>Returns whether it was possible to determine the source address and the netmask
+(if non-NULL value is passed) to be used to connect to the destination. This
+function could fail if the destination is not reachable, if it an invalid
+address, etc.</p>
 
+<p><code class="prettyprint">destination</code>: The destination IP to be connected to. If IP addresses is not
+0.0.0.0 or ::, then temporary addresses may be returned.</p>
+
+<p>If the destination address is 0.0.0.0, and its <code class="prettyprint">type</code> is
+<code class="prettyprint">kSbSocketAddressTypeIpv4</code>, then any IPv4 local interface that is up and not a
+loopback interface is a valid return value.</p>
+
+<p>If the destination address is ::, and its <code class="prettyprint">type</code> is <code class="prettyprint">kSbSocketAddressTypeIpv6</code>
+then any IPv6 local interface that is up and not loopback or a link-local IP is
+a valid return value. However, in the case of IPv6, the address with the biggest
+scope must be returned. E.g., a globally scoped and routable IP is prefered over
+a unique local address (ULA). Also, the IP address that is returned must be
+permanent.</p>
+
+<p>If destination address is NULL, then any IP address that is valid for
+<code class="prettyprint">destination</code> set to 0.0.0.0 (IPv4) or :: (IPv6) can be returned.</p>
+
+<p><code class="prettyprint">out_source_address</code>: This function places the address of the local interface in
+this output variable. <code class="prettyprint">out_netmask</code>: This parameter is optional. If a non-NULL
+value is passed in, this function places the netmask associated with the source
+address in this output variable.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketGetInterfaceAddress(const SbSocketAddress *const destination, SbSocketAddress *out_source_address, SbSocketAddress *out_netmask)
+</code></pre></div>
 <h3 id="sbsocketgetlasterror">SbSocketGetLastError</h3>
 
-<p><strong>Description</strong></p>
+<p>Returns the last error set on <code class="prettyprint">socket</code>. If <code class="prettyprint">socket</code> is not valid, this function
+returns <code class="prettyprint">kSbSocketErrorFailed</code>.</p>
 
-<p>Returns the last error set on <code class="prettyprint">socket</code>. If <code class="prettyprint">socket</code> is not valid, this
-function returns <code class="prettyprint">kSbSocketErrorFailed</code>.</p>
+<p><code class="prettyprint">socket</code>: The SbSocket that the last error is returned for.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketGetLastError-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketGetLastError-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketGetLastError-declaration">
-<pre>
-SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketGetLastError-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocketError SbSocketGetLastError(SbSocket /*socket*/) {
-  return kSbSocketErrorFailed;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketError SbSocketGetLastError(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket that the last error is returned for.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketgetlocaladdress">SbSocketGetLocalAddress</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Gets the address that this socket is bound to locally, if the socket is
 connected. The return value indicates whether the address was retrieved
 successfully.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the local address is retrieved. <code class="prettyprint">out_address</code>:
+The SbSocket&#39;s local address.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketGetLocalAddress-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketGetLocalAddress-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketGetLocalAddress-declaration">
-<pre>
-SB_EXPORT bool SbSocketGetLocalAddress(SbSocket socket,
-                                       SbSocketAddress* out_address);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketGetLocalAddress-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketGetLocalAddress(SbSocket /*socket*/,
-                             SbSocketAddress* /*out_address*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress *out_address)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the local address is retrieved.</td>
-  </tr>
-  <tr>
-    <td><code>SbSocketAddress*</code><br>        <code>out_address</code></td>
-    <td>The SbSocket's local address.</td>
-  </tr>
-</table>
-
-<h3 id="sbsocketgetlocalinterfaceaddress">SbSocketGetLocalInterfaceAddress</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Gets the address of the local IPv4 network interface. The return value
-indicates whether the address was retrieved successfully.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketGetLocalInterfaceAddress-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketGetLocalInterfaceAddress-stub" class="mdl-tabs__tab">stub</a>
-    <a href="#SbSocketGetLocalInterfaceAddress-linux" class="mdl-tabs__tab">linux</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketGetLocalInterfaceAddress-declaration">
-<pre>
-SB_EXPORT bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketGetLocalInterfaceAddress-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* /*out_address*/) {
-  return false;
-}
-</code></pre></div>
-<p></div>
-  <div class="mdl-tabs__panel" id="SbSocketGetLocalInterfaceAddress-linux"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-#include &lt;arpa/inet.h&gt;
-#include &lt;ifaddrs.h&gt;
-
-#include &quot;starboard/log.h&quot;
-#include &quot;starboard/shared/posix/socket_internal.h&quot;
-
-namespace sbposix = starboard::shared::posix;
-
-bool SbSocketGetLocalInterfaceAddress(SbSocketAddress* out_address) {
-  if (!out_address) {
-    return false;
-  }
-
-  // Get a list of the local network interfaces.
-  struct ifaddrs* ifaddr;
-  if (getifaddrs(&amp;ifaddr) == -1) {
-    return false;
-  }
-
-  // Scan the returned interfaces for a non-loopback IPv4 interface.
-  for (struct ifaddrs* it = ifaddr; it != NULL; it = it-&gt;ifa_next) {
-    if (it-&gt;ifa_addr == NULL) {
-      continue;
-    }
-
-    // Filter out anything but IPv4.
-    if (it-&gt;ifa_addr-&gt;sa_family != AF_INET) {
-      continue;
-    }
-
-    // We know it is IPV4, so let&#39;s cast it over.
-    struct sockaddr_in* if_addr =
-        reinterpret_cast&lt;struct sockaddr_in*&gt;(it-&gt;ifa_addr);
-
-    // Filter out the loopback adapter.
-    if (if_addr-&gt;sin_addr.s_addr == htonl(INADDR_LOOPBACK)) {
-      continue;
-    }
-
-    // Copy the address to the destination.
-    sbposix::SockAddr sock_addr;
-    sock_addr.FromSockaddr(it-&gt;ifa_addr);
-    if (!sock_addr.ToSbSocketAddress(out_address)) {
-      continue;
-    }
-
-    freeifaddrs(ifaddr);
-    return true;
-  }
-
-  freeifaddrs(ifaddr);
-  return false;
-}
-</code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocketAddress*</code><br>        <code>out_address</code></td>
-    <td>The retrieved address. The address does not include loopback
-(or IPv6) addresses.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketisconnected">SbSocketIsConnected</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Indicates whether <code class="prettyprint">socket</code> is connected to anything. Invalid sockets are not
 connected.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket to be checked.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketIsConnected-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketIsConnected-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketIsConnected-declaration">
-<pre>
-SB_EXPORT bool SbSocketIsConnected(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketIsConnected-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketIsConnected(SbSocket /*socket*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketIsConnected(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket to be checked.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketisconnectedandidle">SbSocketIsConnectedAndIdle</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether <code class="prettyprint">socket</code> is connected to anything, and, if so, whether it is
 receiving any data.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket to be checked.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketIsConnectedAndIdle-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketIsConnectedAndIdle-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketIsConnectedAndIdle-declaration">
-<pre>
-SB_EXPORT bool SbSocketIsConnectedAndIdle(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketIsConnectedAndIdle-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketIsConnectedAndIdle(SbSocket /*socket*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketIsConnectedAndIdle(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket to be checked.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketisvalid">SbSocketIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given socket handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
-  return socket != kSbSocketInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbSocketIsValid(SbSocket socket)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>
-        <code>socket</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbsocketjoinmulticastgroup">SbSocketJoinMulticastGroup</h3>
 
-<p><strong>Description</strong></p>
+<p>Joins <code class="prettyprint">socket</code> to an IP multicast group identified by <code class="prettyprint">address</code>. The equivalent
+of IP_ADD_MEMBERSHIP. The return value indicates whether the socket was joined
+to the group successfully.</p>
 
-<p>Joins <code class="prettyprint">socket</code> to an IP multicast group identified by <code class="prettyprint">address</code>. The
-equivalent of IP_ADD_MEMBERSHIP. The return value indicates whether the
-socket was joined to the group successfully.</p>
+<p><code class="prettyprint">socket</code>: The SbSocket to be joined to the IP multicast group. <code class="prettyprint">address</code>: The
+location of the IP multicast group.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketJoinMulticastGroup-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketJoinMulticastGroup-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketJoinMulticastGroup-declaration">
-<pre>
-SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
-                                          const SbSocketAddress* address);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketJoinMulticastGroup-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketJoinMulticastGroup(SbSocket /*socket*/,
-                                const SbSocketAddress* /*address*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketJoinMulticastGroup(SbSocket socket, const SbSocketAddress *address)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket to be joined to the IP multicast group.</td>
-  </tr>
-  <tr>
-    <td><code>const SbSocketAddress*</code><br>        <code>address</code></td>
-    <td>The location of the IP multicast group.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketlisten">SbSocketListen</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Causes <code class="prettyprint">socket</code> to listen on the local address that <code class="prettyprint">socket</code> was previously
-bound to by <code><a href="#sbsocketbind">SbSocketBind</a></code>. This function sets and returns the socket error if
-it is unable to listen for some reason. (It returns <code class="prettyprint">kSbSocketOk</code> if it
-creates the connection successfully.)</p>
+bound to by SbSocketBind. This function sets and returns the socket error if it
+is unable to listen for some reason. (It returns <code class="prettyprint">kSbSocketOk</code> if it creates the
+connection successfully.)</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket on which the function operates.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketListen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketListen-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketListen-declaration">
-<pre>
-SB_EXPORT SbSocketError SbSocketListen(SbSocket socket);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketListen-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocketError SbSocketListen(SbSocket /*socket*/) {
-  return kSbSocketErrorFailed;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketError SbSocketListen(SbSocket socket)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket on which the function operates.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketreceivefrom">SbSocketReceiveFrom</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Reads up to <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">socket</code> into <code class="prettyprint">out_data</code> and places the
-source address of the packet in <code class="prettyprint">out_source</code> if out_source is not NULL.
-Returns the number of bytes read, or a negative number if there is an error,
-in which case <code><a href="#sbsocketgetlasterror">SbSocketGetLastError</a></code> can provide the precise error encountered.<br>
-Note that this function is NOT specified to make a best effort to read all
-data on all platforms, but it MAY still do so. It is specified to read
-however many bytes are available conveniently, meaning that it should avoid
-blocking until there is data. It can be run in a loop until
-SbSocketGetLastError returns <code class="prettyprint">kSbSocketPending</code> to make it a best-effort
-read (but still only up to not blocking, unless you want to spin).<br>
-The primary use of <code class="prettyprint">out_source</code> is to receive datagram packets from
-multiple sources on a UDP server socket. TCP has two endpoints connected
-persistently, so the address is unnecessary, but allowed.</p>
+source address of the packet in <code class="prettyprint">out_source</code> if out_source is not NULL. Returns
+the number of bytes read, or a negative number if there is an error, in which
+case SbSocketGetLastError can provide the precise error encountered.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>Note that this function is NOT specified to make a best effort to read all data
+on all platforms, but it MAY still do so. It is specified to read however many
+bytes are available conveniently, meaning that it should avoid blocking until
+there is data. It can be run in a loop until SbSocketGetLastError returns
+<code class="prettyprint">kSbSocketPending</code> to make it a best-effort read (but still only up to not
+blocking, unless you want to spin).</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketReceiveFrom-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketReceiveFrom-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketReceiveFrom-declaration">
-<pre>
-SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
-                                  char* out_data,
-                                  int data_size,
-                                  SbSocketAddress* out_source);
-</pre>
-</div>
+<p>The primary use of <code class="prettyprint">out_source</code> is to receive datagram packets from multiple
+sources on a UDP server socket. TCP has two endpoints connected persistently, so
+the address is unnecessary, but allowed.</p>
 
-<p><div class="mdl-tabs__panel" id="SbSocketReceiveFrom-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
+<p><code class="prettyprint">socket</code>: The SbSocket from which data is read. <code class="prettyprint">out_data</code>: The data read from
+the socket. <code class="prettyprint">data_size</code>: The number of bytes to read. <code class="prettyprint">out_source</code>: The source
+address of the packet.</p>
 
-int SbSocketReceiveFrom(SbSocket /*socket*/,
-                        char* /*out_data*/,
-                        int /*data_size*/,
-                        SbSocketAddress* /*out_source*/) {
-  return -1;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbSocketReceiveFrom(SbSocket socket, char *out_data, int data_size, SbSocketAddress *out_source)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket from which data is read.</td>
-  </tr>
-  <tr>
-    <td><code>char*</code><br>        <code>out_data</code></td>
-    <td>The data read from the socket.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>data_size</code></td>
-    <td>The number of bytes to read.</td>
-  </tr>
-  <tr>
-    <td><code>SbSocketAddress*</code><br>        <code>out_source</code></td>
-    <td>The source address of the packet.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketresolve">SbSocketResolve</h3>
 
-<p><strong>Description</strong></p>
+<p>Synchronously resolves <code class="prettyprint">hostname</code> into the returned SbSocketResolution , which
+must be freed with SbSocketFreeResolution. The function returns <code class="prettyprint">NULL</code> if it is
+unable to resolve <code class="prettyprint">hostname</code>.</p>
 
-<p>Synchronously resolves <code class="prettyprint">hostname</code> into the returned SbSocketResolution,
-which must be freed with <code><a href="#sbsocketfreeresolution">SbSocketFreeResolution</a></code>. The function returns
-<code class="prettyprint">NULL</code> if it is unable to resolve <code class="prettyprint">hostname</code>.</p>
+<p><code class="prettyprint">hostname</code>: The hostname to be resolved. <code class="prettyprint">filters</code>: A mask of
+SbSocketResolveFilter values used to filter the resolution. If <code class="prettyprint">filters</code> does
+not specify an IP address family filter, all address families are included.
+However, if one IP address family filter is specified, only that address family
+is included. The function ignores unrecognized filter bits.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketResolve-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketResolve-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketResolve-declaration">
-<pre>
-SB_EXPORT SbSocketResolution* SbSocketResolve(const char* hostname,
-                                              int filters);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketResolve-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-SbSocketResolution* SbSocketResolve(const char* /*hostname*/, int /*filters*/) {
-  return NULL;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbSocketResolution* SbSocketResolve(const char *hostname, int filters)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>hostname</code></td>
-    <td>The hostname to be resolved.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>filters</code></td>
-    <td>A mask of <code>SbSocketResolve</code>Filter values used to filter the
-resolution. If <code>filters</code> does not specify an IP address family filter,
-all address families are included. However, if one IP address family filter
-is specified, only that address family is included. The function ignores
-unrecognized filter bits.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketsendto">SbSocketSendTo</h3>
 
-<p><strong>Description</strong></p>
+<p>Writes up to <code class="prettyprint">data_size</code> bytes of <code class="prettyprint">data</code> to <code class="prettyprint">destination</code> via <code class="prettyprint">socket</code>. Returns
+the number of bytes written, or a negative number if there is an error, in which
+case <code class="prettyprint">SbSocketGetLastError</code> can provide the precise error encountered.</p>
 
-<p>Writes up to <code class="prettyprint">data_size</code> bytes of <code class="prettyprint">data</code> to <code class="prettyprint">destination</code> via
-<code class="prettyprint">socket</code>. Returns the number of bytes written, or a negative number if
-there is an error, in which case <code class="prettyprint">SbSocketGetLastError</code> can provide the
-precise error encountered.<br>
-Note that this function is NOT specified to make a best effort to write all
-data on all platforms, but it MAY still do so. It is specified to write
-however many bytes are available conveniently. It can be run in a loop
-until <code><a href="#sbsocketgetlasterror">SbSocketGetLastError</a></code> returns <code class="prettyprint">kSbSocketPending</code> to make it a
-best-effort write (but still only up to not blocking, unless you want to
-spin).<br>
-The primary use of <code class="prettyprint">destination</code> is to send datagram packets, which can
-go out to multiple sources from a single UDP server socket. TCP has two
-endpoints connected persistently, so setting <code class="prettyprint">destination</code> when sending
-to a TCP socket will cause an error.</p>
+<p>Note that this function is NOT specified to make a best effort to write all data
+on all platforms, but it MAY still do so. It is specified to write however many
+bytes are available conveniently. It can be run in a loop until
+SbSocketGetLastError returns <code class="prettyprint">kSbSocketPending</code> to make it a best-effort write
+(but still only up to not blocking, unless you want to spin).</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket to use to write data. <code class="prettyprint">data</code>: The data read from the
+socket. <code class="prettyprint">data_size</code>: The number of bytes of <code class="prettyprint">data</code> to write. <code class="prettyprint">destination</code>: The
+location to which data is written. This value must be <code class="prettyprint">NULL</code> for TCP
+connections, which can only have a single endpoint.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSendTo-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSendTo-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSendTo-declaration">
-<pre>
-SB_EXPORT int SbSocketSendTo(SbSocket socket,
-                             const char* data,
-                             int data_size,
-                             const SbSocketAddress* destination);
-</pre>
-</div>
+<p>The primary use of <code class="prettyprint">destination</code> is to send datagram packets, which can go out
+to multiple sources from a single UDP server socket. TCP has two endpoints
+connected persistently, so setting <code class="prettyprint">destination</code> when sending to a TCP socket
+will cause an error.</p>
 
-<p><div class="mdl-tabs__panel" id="SbSocketSendTo-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-int SbSocketSendTo(SbSocket /*socket*/,
-                   const char* /*data*/,
-                   int /*data_size*/,
-                   const SbSocketAddress* /*destination*/) {
-  return -1;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int SbSocketSendTo(SbSocket socket, const char *data, int data_size, const SbSocketAddress *destination)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket to use to write data.</td>
-  </tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>data</code></td>
-    <td>The data read from the socket.</td>
-  </tr>
-  <tr>
-    <td><code>int</code><br>        <code>data_size</code></td>
-    <td>The number of bytes of <code>data</code> to write.</td>
-  </tr>
-  <tr>
-    <td><code>const SbSocketAddress*</code><br>        <code>destination</code></td>
-    <td>The location to which data is written. This value must be
-<code>NULL</code> for TCP connections, which can only have a single endpoint.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketsetbroadcast">SbSocketSetBroadcast</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Sets the <code class="prettyprint">SO_BROADCAST</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The
-return value indicates whether the option was actually set.<br>
-This option is only meaningful for UDP sockets and allows the socket to
-send to the broadcast address.</p>
+return value indicates whether the option was actually set.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This option is only meaningful for UDP sockets and allows the socket to send to
+the broadcast address.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetBroadcast-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetBroadcast-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetBroadcast-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
-</pre>
-</div>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">value</code>: The new value for
+the option.</p>
 
-<p><div class="mdl-tabs__panel" id="SbSocketSetBroadcast-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetBroadcast(SbSocket /*socket*/, bool /*value*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetBroadcast(SbSocket socket, bool value)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>value</code></td>
-    <td>The new value for the option.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketsetreceivebuffersize">SbSocketSetReceiveBufferSize</h3>
 
-<p><strong>Description</strong></p>
+<p>Sets the <code class="prettyprint">SO_RCVBUF</code>, or equivalent, option to <code class="prettyprint">size</code> on <code class="prettyprint">socket</code>. The return
+value indicates whether the option was actually set.</p>
 
-<p>Sets the <code class="prettyprint">SO_RCVBUF</code>, or equivalent, option to <code class="prettyprint">size</code> on <code class="prettyprint">socket</code>. The
-return value indicates whether the option was actually set.</p>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">size</code>: The value for the
+option.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetReceiveBufferSize-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetReceiveBufferSize-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetReceiveBufferSize-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketSetReceiveBufferSize-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetReceiveBufferSize(SbSocket /*socket*/, int32_t /*size*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>int32_t</code><br>        <code>size</code></td>
-    <td>The value for the option.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketsetreuseaddress">SbSocketSetReuseAddress</h3>
 
-<p><strong>Description</strong></p>
-
-<p>Sets the <code class="prettyprint">SO_REUSEADDR</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>.
-The return value indicates whether the option was actually set.<br>
-This option allows a bound address to be reused if a socket isn&#39;t actively
-bound to it.</p>
-
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetReuseAddress-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetReuseAddress-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetReuseAddress-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketSetReuseAddress-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetReuseAddress(SbSocket /*socket*/, bool /*value*/) {
-  return false;
-}
-</code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>value</code></td>
-    <td>The new value for the option.</td>
-  </tr>
-</table>
-
-<h3 id="sbsocketsetsendbuffersize">SbSocketSetSendBufferSize</h3>
-
-<p><strong>Description</strong></p>
-
-<p>Sets the <code class="prettyprint">SO_SNDBUF</code>, or equivalent, option to <code class="prettyprint">size</code> on <code class="prettyprint">socket</code>. The
+<p>Sets the <code class="prettyprint">SO_REUSEADDR</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The
 return value indicates whether the option was actually set.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p>This option allows a bound address to be reused if a socket isn&#39;t actively bound
+to it.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetSendBufferSize-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetSendBufferSize-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetSendBufferSize-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size);
-</pre>
-</div>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">value</code>: The new value for
+the option.</p>
 
-<p><div class="mdl-tabs__panel" id="SbSocketSetSendBufferSize-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetSendBufferSize(SbSocket /*socket*/, int32_t /*size*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetReuseAddress(SbSocket socket, bool value)
 </code></pre></div>
-<p></div>
-</div></p>
+<h3 id="sbsocketsetsendbuffersize">SbSocketSetSendBufferSize</h3>
 
-<p><strong>Parameters</strong></p>
+<p>Sets the <code class="prettyprint">SO_SNDBUF</code>, or equivalent, option to <code class="prettyprint">size</code> on <code class="prettyprint">socket</code>. The return
+value indicates whether the option was actually set.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>int32_t</code><br>        <code>size</code></td>
-    <td>The value for the option.</td>
-  </tr>
-</table>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">size</code>: The value for the
+option.</p>
 
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size)
+</code></pre></div>
 <h3 id="sbsocketsettcpkeepalive">SbSocketSetTcpKeepAlive</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Sets the <code class="prettyprint">SO_KEEPALIVE</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The
 return value indicates whether the option was actually set.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">value</code>: If set to <code class="prettyprint">true</code>,
+then <code class="prettyprint">period</code> specifies the minimum time (SbTime) is always in microseconds)
+between keep-alive packets. If set to <code class="prettyprint">false</code>, <code class="prettyprint">period</code> is ignored. <code class="prettyprint">period</code>:
+The time between keep-alive packets. This value is only relevant if <code class="prettyprint">value</code> is
+<code class="prettyprint">true</code>.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetTcpKeepAlive-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetTcpKeepAlive-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetTcpKeepAlive-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
-                                       bool value,
-                                       SbTime period);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketSetTcpKeepAlive-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetTcpKeepAlive(SbSocket /*socket*/,
-                             bool /*value*/,
-                             SbTime /*period*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>value</code></td>
-    <td>If set to <code>true</code>, then <code>period</code> specifies the minimum time
-(SbTime) is always in microseconds) between keep-alive packets. If
-set to <code>false</code>, <code>period</code> is ignored.</td>
-  </tr>
-  <tr>
-    <td><code>SbTime</code><br>        <code>period</code></td>
-    <td>The time between keep-alive packets. This value is only relevant
-if <code>value</code> is <code>true</code>.</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketsettcpnodelay">SbSocketSetTcpNoDelay</h3>
 
-<p><strong>Description</strong></p>
+<p>Sets the <code class="prettyprint">TCP_NODELAY</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The return
+value indicates whether the option was actually set.</p>
 
-<p>Sets the <code class="prettyprint">TCP_NODELAY</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The
-return value indicates whether the option was actually set.<br>
-This function disables the Nagle algorithm for reducing the number of
-packets sent when converting from a stream to packets. Disabling Nagle
-generally puts the data for each Send call into its own packet, but does
-not guarantee that behavior.</p>
+<p>This function disables the Nagle algorithm for reducing the number of packets
+sent when converting from a stream to packets. Disabling Nagle generally puts
+the data for each Send call into its own packet, but does not guarantee that
+behavior.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">value</code>: Indicates whether
+the Nagle algorithm should be disabled (<code class="prettyprint">value</code>=<code class="prettyprint">true</code>).</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetTcpNoDelay-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetTcpNoDelay-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetTcpNoDelay-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketSetTcpNoDelay-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetTcpNoDelay(SbSocket /*socket*/, bool /*value*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetTcpNoDelay(SbSocket socket, bool value)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>value</code></td>
-    <td>Indicates whether the Nagle algorithm should be disabled
-(<code>value</code>=<code>true</code>).</td>
-  </tr>
-</table>
-
 <h3 id="sbsocketsettcpwindowscaling">SbSocketSetTcpWindowScaling</h3>
 
-<p><strong>Description</strong></p>
+<p>Sets the <code class="prettyprint">SO_WINSCALE</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The return
+value indicates whether the option was actually set.</p>
 
-<p>Sets the <code class="prettyprint">SO_WINSCALE</code>, or equivalent, option to <code class="prettyprint">value</code> on <code class="prettyprint">socket</code>. The
-return value indicates whether the option was actually set.</p>
+<p><code class="prettyprint">socket</code>: The SbSocket for which the option is set. <code class="prettyprint">value</code>: The value for the
+option.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbSocketSetTcpWindowScaling-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbSocketSetTcpWindowScaling-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbSocketSetTcpWindowScaling-declaration">
-<pre>
-SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbSocketSetTcpWindowScaling-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/socket.h&quot;
-
-bool SbSocketSetTcpWindowScaling(SbSocket /*socket*/, bool /*value*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbSocket</code><br>        <code>socket</code></td>
-    <td>The SbSocket for which the option is set.</td>
-  </tr>
-  <tr>
-    <td><code>bool</code><br>        <code>value</code></td>
-    <td>The value for the option.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -2074,11 +1323,10 @@ bool SbSocketSetTcpWindowScaling(SbSocket /*socket*/, bool /*value*/) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -2100,29 +1348,35 @@ bool SbSocketSetTcpWindowScaling(SbSocket /*socket*/, bool /*value*/) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/socket.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: event.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: event.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,219 +762,386 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
     <div class="col-md-7" id="centerCol">
       <div id="content">
-        <p>Defines the event system that wraps the Starboard main loop and entry point.<br></p>
+        <p>Defines the event system that wraps the Starboard main loop and entry point.</p>
 
-<h2 id="the-starboard-application-life-cycle">The Starboard Application life cycle</h2>
+<h2 id="the-starboard-application-lifecycle">The Starboard Application Lifecycle</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">    ---------- *
+   |           |
+   |        Preload
+   |           |
+   |           V
+ Start   [ PRELOADING ] ------------
+   |           |                    |
+   |         Start                  |
+   |           |                    |
+   |           V                    |
+    ----&gt; [ STARTED ] &lt;----         |
+               |           |        |
+             Pause       Unpause    |
+               |           |     Suspend
+               V           |        |
+    -----&gt; [ PAUSED ] -----         |
+   |           |                    |
+Resume      Suspend                 |
+   |           |                    |
+   |           V                    |
+    ---- [ SUSPENDED ] &lt;------------
+               |
+              Stop
+               |
+               V
+          [ STOPPED ]
+</code></pre></div>
+<p>The first event that a Starboard application receives is either <code class="prettyprint">Start</code>
+(<code class="prettyprint">kSbEventTypeStart</code>) or <code class="prettyprint">Preload</code> (<code class="prettyprint">kSbEventTypePreload</code>). <code class="prettyprint">Start</code> puts the
+application in the <code class="prettyprint">STARTED</code> state, whereas <code class="prettyprint">Preload</code> puts the application in
+the <code class="prettyprint">PRELOADING</code> state.</p>
 
-<p><pre>          *
-          |                      _________________________
-        Start                   |                         |
-          |                     |                       Resume
-          V                     V                         |
-     [ STARTED ] --Pause--&gt; [ PAUSED ] --Suspend--&gt; [ SUSPENDED ]
-          ^                     |                         |
-          |                  Unpause                     Stop
-          |_____________________|                         |
-                                                          V
-                                                     [ STOPPED ]</pre><br>
-The first event that a Starboard application receives is Start
-(kSbEventTypeStart). This puts the application in the |STARTED| state.
-The application is in the foreground and can expect to do all of the normal
-things it might want to do. Once in the |STARTED| state, it may receive a
-|Pause| event, putting the application into the |PAUSED| state.<br>
-In the |PAUSED| state, the application is still visible, but has lost
-focus, or it is partially obscured by a modal dialog, or it is on its way
-to being shut down. The application should pause activity in this state.
-In this state, it can receive |Unpause| to be brought back to the foreground
-state (|STARTED|), or |Suspend| to be pushed further in the background
-to the |SUSPENDED| state.<br>
-In the |SUSPENDED| state, the application is generally not visible. It
-should immediately release all graphics and video resources, and shut down
-all background activity (timers, rendering, etc). Additionally, the
-application should flush storage to ensure that if the application is
-killed, the storage will be up-to-date. The application may be killed at
-this point, but will ideally receive a |Stop| event for a more graceful
-shutdown.<br>
-Note that the application is always expected to transition through |PAUSED|
-to |SUSPENDED| before receiving |Stop| or being killed.</p>
+<p><code class="prettyprint">PRELOADING</code> can only happen as the first application state. In this state, the
+application should start and run as normal, but will not receive any input, and
+should not try to initialize graphics resources (via GL or <code class="prettyprint">SbBlitter</code>). In
+<code class="prettyprint">PRELOADING</code>, the application can receive <code class="prettyprint">Start</code> or <code class="prettyprint">Suspend</code> events. <code class="prettyprint">Start</code>
+will receive the same data that was passed into <code class="prettyprint">Preload</code>.</p>
+
+<p>In the <code class="prettyprint">STARTED</code> state, the application is in the foreground and can expect to
+do all of the normal things it might want to do. Once in the <code class="prettyprint">STARTED</code> state, it
+may receive a <code class="prettyprint">Pause</code> event, putting the application into the <code class="prettyprint">PAUSED</code> state.</p>
+
+<p>In the <code class="prettyprint">PAUSED</code> state, the application is still visible, but has lost focus, or
+it is partially obscured by a modal dialog, or it is on its way to being shut
+down. The application should pause activity in this state. In this state, it can
+receive <code class="prettyprint">Unpause</code> to be brought back to the foreground state (<code class="prettyprint">STARTED</code>), or
+<code class="prettyprint">Suspend</code> to be pushed further in the background to the <code class="prettyprint">SUSPENDED</code> state.</p>
+
+<p>In the <code class="prettyprint">SUSPENDED</code> state, the application is generally not visible. It should
+immediately release all graphics and video resources, and shut down all
+background activity (timers, rendering, etc). Additionally, the application
+should flush storage to ensure that if the application is killed, the storage
+will be up-to-date. The application may be killed at this point, but will
+ideally receive a <code class="prettyprint">Stop</code> event for a more graceful shutdown.</p>
+
+<p>Note that the application is always expected to transition through <code class="prettyprint">PAUSED</code> to
+<code class="prettyprint">SUSPENDED</code> before receiving <code class="prettyprint">Stop</code> or being killed.</p>
 
 <h2 id="enums">Enums</h2>
 
 <h3 id="sbeventtype">SbEventType</h3>
 
-<p>An enumeration of all possible event types dispatched directly by the
-system. Each event is accompanied by a void* data argument, and each event
-must define the type of the value pointed to by that data argument, if any.</p>
+<p>An enumeration of all possible event types dispatched directly by the system.
+Each event is accompanied by a void* data argument, and each event must define
+the type of the value pointed to by that data argument, if any.</p>
 
-<p><strong>Values</strong></p>
+<h4 id="values">Values</h4>
 
 <ul>
-<li>  <code class="prettyprint">kSbEventTypeStart</code> - The first event that an application receives on startup. Applications should perform initialization and prepare to react to subsequent events.Applications that wish to run and then exit must call SbSystemRequestStop()to terminate. This event will only be sent once for a given process launch.SbEventStartData is passed as the data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypePause</code> - A dialog will be raised or the application will otherwise be put into abackground-but-visible or partially-obscured state (PAUSED). Graphics andvideo resources will still be available, but the application should pauseforeground activity like animations and video playback. Can only bereceived after a Start event. The only events that should be dispatchedafter a Pause event are Unpause or Suspend. No data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeUnpause</code> - The application is returning to the foreground (STARTED) after having beenput in the PAUSED (e.g. partially-obscured) state. The application shouldunpause foreground activity like animations and video playback. Can only bereceived after a Pause or Resume event. No data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeSuspend</code> - The operating system will put the application into a Suspended state afterthis event is handled. The application is expected to stop periodicbackground work, release ALL graphics and video resources, and flush anypending SbStorage writes. Some platforms will terminate the application ifwork is done or resources are retained after suspension. Can only bereceived after a Pause event. The only events that should be dispatchedafter a Suspend event are Resume or Stop. On some platforms, the processmay also be killed after Suspend without a Stop event. No data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeResume</code> - The operating system has restored the application to the PAUSED state fromthe SUSPENDED state. This is the first event the application will receivecoming out of SUSPENDED, and it will only be received after a Suspendevent. The application will now be in the PAUSED state. No data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeStop</code> - The operating system will shut the application down entirely after thisevent is handled. Can only be recieved after a Suspend event, in theSUSPENDED state. No data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeInput</code> - A user input event, including keyboard, mouse, gesture, or something else.SbInputData (from input.h) is passed as the data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeUser</code> - A user change event, which means a new user signed-in or signed-out, or thecurrent user changed. No data argument, call SbUserGetSignedIn() andSbUserGetCurrent() to get the latest changes.</li>
-<li>  <code class="prettyprint">kSbEventTypeLink</code> - A navigational link has come from the system, and the application shouldconsider handling it by navigating to the corresponding applicationlocation. The data argument is an application-specific, null-terminatedstring.</li>
-<li>  <code class="prettyprint">kSbEventTypeVerticalSync</code> - The beginning of a vertical sync has been detected. This event is verytiming-sensitive, so as little work as possible should be done on the mainthread if the application wants to receive this event in a timely manner.No data argument.</li>
-<li>  <code class="prettyprint">kSbEventTypeNetworkDisconnect</code> - The platform has detected a network disconnection. The platform should makea best effort to send an event of this type when the network disconnects,but there are likely to be cases where the platform cannot detect thedisconnection (e.g. if the connection is via a powered hub which becomesdisconnected), so the current network state cannot always be inferred fromthe sequence of Connect/Disconnect events.</li>
-<li>  <code class="prettyprint">kSbEventTypeNetworkConnect</code> - The platform has detected a network connection. This event may be sent atapplication start-up, and should always be sent if the network reconnectssince a disconnection event was sent.</li>
-<li>  <code class="prettyprint">kSbEventTypeScheduled</code> - An event type reserved for scheduled callbacks. It will only be sent inresponse to an application call to SbEventSchedule(), and it will call thecallback directly, so SbEventHandle should never receive this eventdirectly. The data type is an internally-defined structure.</li>
+<li><p><code class="prettyprint">kSbEventTypePreload</code></p>
+
+<p>Applications should perform initialization and prepare to react to
+subsequent events, but must not initialize any graphics resources (through
+GL or SbBlitter). The intent of this event is to allow the application to do
+as much work as possible ahead of time, so that when the application is
+first brought to the foreground, it&#39;s as fast as a resume.</p>
+
+<p>The <code class="prettyprint">kSbEventTypeStart</code> event may be sent at any time, regardless of
+initialization state. Input events will not be sent in the <code class="prettyprint">PRELOADING</code>
+state. This event will only be sent once for a given process launch.
+SbEventStartData is passed as the data argument.</p>
+
+<p>The system may send <code class="prettyprint">kSbEventTypeSuspend</code> in <code class="prettyprint">PRELOADING</code> if it wants to
+push the app into a lower resource consumption state. Applications can alo
+call SbSystemRequestSuspend() when they are done preloading to request this.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeStart</code></p>
+
+<p>The first event that an application receives on startup when starting
+normally (i.e. not being preloaded). Applications should perform
+initialization, start running, and prepare to react to subsequent events.
+Applications that wish to run and then exit must call
+<code class="prettyprint">SbSystemRequestStop()</code> to terminate. This event will only be sent once for
+a given process launch. <code class="prettyprint">SbEventStartData</code> is passed as the data argument.
+In case of preload, the <code class="prettyprint">SbEventStartData</code> will be the same as what was
+passed to <code class="prettyprint">kSbEventTypePreload</code>.</p></li>
+<li><p><code class="prettyprint">kSbEventTypePause</code></p>
+
+<p>A dialog will be raised or the application will otherwise be put into a
+background-but-visible or partially-obscured state (PAUSED). Graphics and
+video resources will still be available, but the application should pause
+foreground activity like animations and video playback. Can only be received
+after a Start event. The only events that should be dispatched after a Pause
+event are Unpause or Suspend. No data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeUnpause</code></p>
+
+<p>The application is returning to the foreground (STARTED) after having been
+put in the PAUSED (e.g. partially-obscured) state. The application should
+unpause foreground activity like animations and video playback. Can only be
+received after a Pause or Resume event. No data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeSuspend</code></p>
+
+<p>The operating system will put the application into a Suspended state after
+this event is handled. The application is expected to stop periodic
+background work, release ALL graphics and video resources, and flush any
+pending SbStorage writes. Some platforms will terminate the application if
+work is done or resources are retained after suspension. Can only be
+received after a Pause event. The only events that should be dispatched
+after a Suspend event are Resume or Stop. On some platforms, the process may
+also be killed after Suspend without a Stop event. No data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeResume</code></p>
+
+<p>The operating system has restored the application to the PAUSED state from
+the SUSPENDED state. This is the first event the application will receive
+coming out of SUSPENDED, and it will only be received after a Suspend event.
+The application will now be in the PAUSED state. No data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeStop</code></p>
+
+<p>The operating system will shut the application down entirely after this
+event is handled. Can only be recieved after a Suspend event, in the
+SUSPENDED state. No data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeInput</code></p>
+
+<p>A user input event, including keyboard, mouse, gesture, or something else.
+SbInputData (from input.h) is passed as the data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeUser</code></p>
+
+<p>A user change event, which means a new user signed-in or signed-out, or the
+current user changed. No data argument, call SbUserGetSignedIn() and
+SbUserGetCurrent() to get the latest changes.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeLink</code></p>
+
+<p>A navigational link has come from the system, and the application should
+consider handling it by navigating to the corresponding application
+location. The data argument is an application-specific, null-terminated
+string.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeVerticalSync</code></p>
+
+<p>The beginning of a vertical sync has been detected. This event is very
+timing-sensitive, so as little work as possible should be done on the main
+thread if the application wants to receive this event in a timely manner. No
+data argument.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeNetworkDisconnect</code></p>
+
+<p>The platform has detected a network disconnection. The platform should make
+a best effort to send an event of this type when the network disconnects,
+but there are likely to be cases where the platform cannot detect the
+disconnection (e.g. if the connection is via a powered hub which becomes
+disconnected), so the current network state cannot always be inferred from
+the sequence of Connect/Disconnect events.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeNetworkConnect</code></p>
+
+<p>The platform has detected a network connection. This event may be sent at
+application start-up, and should always be sent if the network reconnects
+since a disconnection event was sent.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeScheduled</code></p>
+
+<p>An event type reserved for scheduled callbacks. It will only be sent in
+response to an application call to SbEventSchedule(), and it will call the
+callback directly, so SbEventHandle should never receive this event
+directly. The data type is an internally-defined structure.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeAccessiblitySettingsChanged</code></p>
+
+<p>The platform&#39;s accessibility settings have changed. The application should
+query the accessibility settings using the appropriate APIs to get the new
+settings. Note this excludes captions settings changes, which causes
+kSbEventTypeAccessibilityCaptionSettingsChanged to fire.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeLowMemory</code></p>
+
+<p>An optional event that platforms may send to indicate that the application
+may soon be terminated (or crash) due to low memory availability. The
+application may respond by reducing memory consumption by running a Garbage
+Collection, flushing caches, or something similar. There is no requirement
+to respond to or handle this event, it is only advisory.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeWindowSizeChanged</code></p>
+
+<p>The size or position of a SbWindow has changed. The data is
+SbEventWindowSizeChangedData .</p></li>
+<li><p><code class="prettyprint">kSbEventTypeOnScreenKeyboardShown</code></p>
+
+<p>The platform has shown the on screen keyboard. This event is triggered by
+the system or by the application&#39;s OnScreenKeyboard show method. The event
+has int data representing a ticket. The ticket is used by the application to
+mark individual calls to the show method as successfully completed. Events
+triggered by the application have tickets passed in via
+SbWindowShowOnScreenKeyboard. System-triggered events have ticket value
+kSbEventOnScreenKeyboardInvalidTicket.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeOnScreenKeyboardHidden</code></p>
+
+<p>The platform has hidden the on screen keyboard. This event is triggered by
+the system or by the application&#39;s OnScreenKeyboard hide method. The event
+has int data representing a ticket. The ticket is used by the application to
+mark individual calls to the hide method as successfully completed. Events
+triggered by the application have tickets passed in via
+SbWindowHideOnScreenKeyboard. System-triggered events have ticket value
+kSbEventOnScreenKeyboardInvalidTicket.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeOnScreenKeyboardFocused</code></p>
+
+<p>The platform has focused the on screen keyboard. This event is triggered by
+the system or by the application&#39;s OnScreenKeyboard focus method. The event
+has int data representing a ticket. The ticket is used by the application to
+mark individual calls to the focus method as successfully completed. Events
+triggered by the application have tickets passed in via
+SbWindowFocusOnScreenKeyboard. System-triggered events have ticket value
+kSbEventOnScreenKeyboardInvalidTicket.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeOnScreenKeyboardBlurred</code></p>
+
+<p>The platform has blurred the on screen keyboard. This event is triggered by
+the system or by the application&#39;s OnScreenKeyboard blur method. The event
+has int data representing a ticket. The ticket is used by the application to
+mark individual calls to the blur method as successfully completed. Events
+triggered by the application have tickets passed in via
+SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
+kSbEventOnScreenKeyboardInvalidTicket.</p></li>
+<li><p><code class="prettyprint">kSbEventTypeAccessibilityCaptionSettingsChanged</code></p>
+
+<p>One or more of the fields returned by SbAccessibilityGetCaptionSettings has
+changed.</p></li>
 </ul>
 
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbeventcallback">SbEventCallback</h3>
+
+<p>A function that can be called back from the main Starboard event pump.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbEventCallback) (void *context)
+</code></pre></div>
+<h3 id="sbeventdatadestructor">SbEventDataDestructor</h3>
+
+<p>A function that will cleanly destroy an event data instance of a specific type.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef void(* SbEventDataDestructor) (void *data)
+</code></pre></div>
+<h3 id="sbeventid">SbEventId</h3>
+
+<p>An ID that can be used to refer to a scheduled event.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef uint32_t SbEventId
+</code></pre></div>
 <h2 id="structs">Structs</h2>
 
 <h3 id="sbevent">SbEvent</h3>
 
 <p>Structure representing a Starboard event and its data.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>SbEventType</code><br>        <code>type</code></td>    <td></td>  </tr>
-</table>
+<ul>
+<li>  <code class="prettyprint">SbEventType type</code></li>
+<li>  <code class="prettyprint">void * data</code></li>
+</ul>
 
 <h3 id="sbeventstartdata">SbEventStartData</h3>
 
 <p>Event data for kSbEventTypeStart events.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>int</code><br>        <code>argument_count</code></td>    <td>The command-line argument count (argc).</td>  </tr>
-  <tr>
-    <td><code>const</code><br>        <code>char* link</code></td>    <td>The startup link, if any.</td>  </tr>
-</table>
+<ul>
+<li><p><code class="prettyprint">char ** argument_values</code></p>
+
+<p>The command-line argument values (argv).</p></li>
+<li><p><code class="prettyprint">int argument_count</code></p>
+
+<p>The command-line argument count (argc).</p></li>
+<li><p><code class="prettyprint">const char * link</code></p>
+
+<p>The startup link, if any.</p></li>
+</ul>
+
+<h3 id="sbeventwindowsizechangeddata">SbEventWindowSizeChangedData</h3>
+
+<p>Event data for kSbEventTypeWindowSizeChanged events.</p>
+
+<h4 id="members">Members</h4>
+
+<ul>
+<li>  <code class="prettyprint">SbWindow window</code></li>
+<li>  <code class="prettyprint">SbWindowSize size</code></li>
+</ul>
 
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbeventcancel">SbEventCancel</h3>
 
-<p><strong>Description</strong></p>
+<p>Cancels the specified <code class="prettyprint">event_id</code>. Note that this function is a no-op if the
+event already fired. This function can be safely called from any thread, but the
+only way to guarantee that the event does not run anyway is to call it from the
+main Starboard event loop thread.</p>
 
-<p>Cancels the specified <code class="prettyprint">event_id</code>. Note that this function is a no-op
-if the event already fired. This function can be safely called from any
-thread, but the only way to guarantee that the event does not run anyway
-is to call it from the main Starboard event loop thread.</p>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT void SbEventCancel(SbEventId event_id);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">void SbEventCancel(SbEventId event_id)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbEventId</code><br>
-        <code>event_id</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbeventhandle">SbEventHandle</h3>
 
-<p><strong>Description</strong></p>
+<p>The entry point that Starboard applications MUST implement. Any memory pointed
+at by <code class="prettyprint">event</code> or the <code class="prettyprint">data</code> field inside <code class="prettyprint">event</code> is owned by the system, and
+that memory is reclaimed after this function returns, so the implementation must
+copy this data to extend its life. This behavior should also be assumed of all
+fields within the <code class="prettyprint">data</code> object, unless otherwise explicitly specified.</p>
 
-<p>The entry point that Starboard applications MUST implement. Any memory
-pointed at by <code class="prettyprint">event</code> or the <code class="prettyprint">data</code> field inside <code class="prettyprint">event</code> is owned by the
-system, and that memory is reclaimed after this function returns, so the
-implementation must copy this data to extend its life. This behavior should
-also be assumed of all fields within the <code class="prettyprint">data</code> object, unless otherwise
-explicitly specified.<br>
-This function is only called from the main Starboard thread. There is no
+<p>This function is only called from the main Starboard thread. There is no
 specification about what other work might happen on this thread, so the
-application should generally do as little work as possible on this thread,
-and just dispatch it over to another thread.</p>
+application should generally do as little work as possible on this thread, and
+just dispatch it over to another thread.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_IMPORT void SbEventHandle(const SbEvent* event);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SB_IMPORT void SbEventHandle(const SbEvent *event)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const SbEvent*</code><br>
-        <code>event</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbeventisidvalid">SbEventIsIdValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given event handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE bool SbEventIsIdValid(SbEventId handle) {
-  return handle != kSbEventIdInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbEventIsIdValid(SbEventId handle)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbEventId</code><br>
-        <code>handle</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbeventschedule">SbEventSchedule</h3>
 
-<p><strong>Description</strong></p>
+<p>Schedules an event <code class="prettyprint">callback</code> into the main Starboard event loop. This function
+may be called from any thread, but <code class="prettyprint">callback</code> is always called from the main
+Starboard thread, queued with other pending events.</p>
 
-<p>Schedules an event <code class="prettyprint">callback</code> into the main Starboard event loop.
-This function may be called from any thread, but <code class="prettyprint">callback</code> is always
-called from the main Starboard thread, queued with other pending events.</p>
+<p><code class="prettyprint">callback</code>: The callback function to be called. <code class="prettyprint">context</code>: The context that is
+passed to the <code class="prettyprint">callback</code> function. <code class="prettyprint">delay</code>: The minimum number of microseconds
+to wait before calling the <code class="prettyprint">callback</code> function. Set <code class="prettyprint">delay</code> to <code class="prettyprint">0</code> to call the
+callback as soon as possible.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">SB_EXPORT SbEventId SbEventSchedule(SbEventCallback callback,
-                                    void* context,
-                                    SbTime delay);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbEventCallback</code><br>        <code>callback</code></td>
-    <td>The callback function to be called.</td>
-  </tr>
-  <tr>
-    <td><code>void*</code><br>        <code>context</code></td>
-    <td>The context that is passed to the <code>callback</code> function.</td>
-  </tr>
-  <tr>
-    <td><code>SbTime</code><br>        <code>delay</code></td>
-    <td>The minimum number of microseconds to wait before calling the
-<code>callback</code> function. Set <code>delay</code> to <code>0</code> to call the callback as soon as
-possible.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -961,11 +1162,10 @@ possible.</td>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -987,29 +1187,35 @@ possible.</td>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/event.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

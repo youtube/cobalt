@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="https://schema.org/WebPage">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Cobalt / Starboard Module Reference: storage.h</title>
+
+            <!-- Webfont -->
+    
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    
+
+
+    <!-- Material Design Lite -->
+    <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Bootstrap -->
+    <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Styles -->
+    <link rel="stylesheet" type="text/css" href="/css/site.css" />
+
+    <!-- Font Awesome icons -->
+    <link href="/assets/font-awesome-4.4.0/css/font-awesome.min.css"
+          rel="stylesheet"
+          type="text/css">
+    
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/assets/bootstrap/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+
+    <!-- material design lite -->
+    <script src="/assets/material-design-lite/material.min.js"></script>
+    
+    <!-- Include the common site javascript -->
+    <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
+
+
+    <!-- metadata -->
+    <meta name="og:title" content="Cobalt / Starboard Module Reference: storage.h"/>
+    <meta name="og:image" content="/images/cobalt-logo.png"/>
+    <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
+  </head>
+  <body class="docs" id="top_of_page">
+
+    <span id="toc-depth" data-toc-depth="h2,h3"></span>
+
+
+
+    <nav id="common-nav" class="navbar navbar-fixed-top inverse">
+  <div class="container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-1">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      
+      <a class="navbar-brand" href="/">
+        <img class="logo" src="/images/cobalt-logo.png" alt="Cobalt">
+      </a>
+      
+    </div>
+
+    <!-- Collect the nav links, forms, and other content for toggling -->
+    <div class="collapse navbar-collapse" id="navbar-collapse-1">
+      <ul class="nav navbar-nav navbar-right" id="standard-menu-links">
+        
+  
+    
+  
+  
+    
+      <li><a href="/starboard/porting.html">Porters</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      <li><a href="/development/setup-linux.html">Developers</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      <li><a href="/contributors/index.html">Contributors</a></li>
+    
+  
+
+  
+    
+  
+  
+    
+      
+        <li><a href="https://cobalt.googlesource.com/cobalt">Code Repo</a></li>
+      
+    
+  
+
+
+      </ul>
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="collapsed-left-menu">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu no-top-margin"><a href="/overview.html">Overview</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Porters</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/starboard/porting.html">Port Cobalt to your platform</a></li>
+              
+            
+              
+        <li><a href="/starboard/testing.html">Testing with NPLB</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+              
+            
+              
+        <li><a href="/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+              
+            
+              
+                <li><b>Starboard modules</b>
+                
+          <ul>
+                  
+                    
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/character.html">character.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/decode_target.html">decode_target.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/directory.html">directory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/double.html">double.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/drm.html">drm.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/event.html">event.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/export.html">export.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/file.html">file.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/image.html">image.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/input.html">input.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/key.html">key.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/log.html">log.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/media.html">media.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory.html">memory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory_reporter.html">memory_reporter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/microphone.html">microphone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/once.html">once.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/player.html">player.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/queue.html">queue.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket.html">socket.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_synthesis.html">speech_synthesis.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/storage.html">storage.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/string.html">string.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/system.html">system.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread.html">thread.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time.html">time.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/types.html">types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/user.html">user.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/window.html">window.h</a></li>
+                    
+                  
+          </ul>
+                
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Developers</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/setup-linux.html">Setup - Linux</a></li>
+              
+            
+              
+        <li><a href="/development/setup-raspi.html">Setup - RasPi</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/reference/supported-features.html">Cobalt support</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/contributors/index.html">Contributors</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
+
+
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
+      </ul>
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container -->
+</nav>
+
+
+    
+<div id="masthead">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-11">
+        <h1>Starboard Module Reference: storage.h</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container">
+    <div class="row scroll-margin" id="toc-content-row">
+    <div class="col-md-2" id="leftCol">
+      <ul class="nav nav-stacked mobile-left-nav-menu" id="sidebar">
+        
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu no-top-margin"><a href="/overview.html">Overview</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Porters</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/starboard/porting.html">Port Cobalt to your platform</a></li>
+              
+            
+              
+        <li><a href="/starboard/testing.html">Testing with NPLB</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/reference/starboard/configuration-public.html">configuration_public.h</a></li>
+              
+            
+              
+        <li><a href="/reference/starboard/gyp-configuration.html">gyp_configuration.gypi</a></li>
+              
+            
+              
+                <li><b>Starboard modules</b>
+                
+          <ul>
+                  
+                    
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/audio_sink.html">audio_sink.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/blitter.html">blitter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/byte_swap.html">byte_swap.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/character.html">character.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/condition_variable.html">condition_variable.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/decode_target.html">decode_target.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/directory.html">directory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/double.html">double.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/drm.html">drm.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/event.html">event.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/export.html">export.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/file.html">file.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/image.html">image.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/input.html">input.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/key.html">key.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/log.html">log.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/media.html">media.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory.html">memory.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/memory_reporter.html">memory_reporter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/microphone.html">microphone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/mutex.html">mutex.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/once.html">once.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/player.html">player.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/queue.html">queue.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket.html">socket.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_synthesis.html">speech_synthesis.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/spin_lock.html">spin_lock.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/storage.html">storage.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/string.html">string.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/system.html">system.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread.html">thread.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/thread_types.html">thread_types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time.html">time.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/time_zone.html">time_zone.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/types.html">types.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/user.html">user.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/window.html">window.h</a></li>
+                    
+                  
+          </ul>
+                
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+        
+          <h4 class="submenu">Developers</h4>
+        
+      
+  <ul class="content">
+      
+        
+    <li><b>Guides</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/setup-linux.html">Setup - Linux</a></li>
+              
+            
+              
+        <li><a href="/development/setup-raspi.html">Setup - RasPi</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+        
+    <li><b>Reference</b>
+          
+      <ul>
+            
+              
+        <li><a href="/development/reference/supported-features.html">Cobalt support</a></li>
+              
+            
+      </ul>
+    </li>
+          
+        
+      
+  </ul>
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/contributors/index.html">Contributors</a></h4>
+      
+    
+</li>
+  
+
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
+
+
+      </ul>
+    </div>
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
+      <div class="nav nav-stacked" id="tocSidebar">
+        
+        <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
+        
+      </div>
+    </div>
+    <div class="col-md-7" id="centerCol">
+      <div id="content">
+        <p>Defines a user-based Storage API. This is a simple, all-at-once BLOB storage and
+retrieval API that is intended for robust long-term, per-user storage. Some
+platforms have different mechanisms for this kind of storage, so this API exists
+to allow a client application to access this kind of storage.</p>
+
+<p>Note that there can be only one storage record per user and, thus, a maximum of
+one open storage record can exist for each user. Attempting to open a second
+record for a user will result in undefined behavior.</p>
+
+<p>These APIs are NOT expected to be thread-safe, so either call them from a single
+thread, or perform proper synchronization around all calls.</p>
+
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbstorageinvalidrecord">kSbStorageInvalidRecord</h3>
+
+<p>Well-defined value for an invalid storage record handle.</p>
+
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbstoragerecord">SbStorageRecord</h3>
+
+<p>A handle to an open storage record.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbStorageRecordPrivate* SbStorageRecord
+</code></pre></div>
+<h2 id="functions">Functions</h2>
+
+<h3 id="sbstoragecloserecord">SbStorageCloseRecord</h3>
+
+<p>Closes <code class="prettyprint">record</code>, synchronously ensuring that all written data is flushed. This
+function performs blocking I/O on the calling thread.</p>
+
+<p>The return value indicates whether the operation succeeded. Storage writes
+should be as atomic as possible, so the record should either be fully written or
+deleted (or, even better, untouched).</p>
+
+<p><code class="prettyprint">record</code>: The storage record to close. <code class="prettyprint">record</code> is invalid after this point, and
+subsequent calls referring to <code class="prettyprint">record</code> will fail.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbStorageCloseRecord(SbStorageRecord record)
+</code></pre></div>
+<h3 id="sbstoragedeleterecord">SbStorageDeleteRecord</h3>
+
+<p>Deletes the <code class="prettyprint">SbStorageRecord</code> for <code class="prettyprint">user</code> named <code class="prettyprint">name</code>. The return value
+indicates whether the record existed and was successfully deleted. If the record
+did not exist or could not be deleted, the function returns <code class="prettyprint">false</code>.</p>
+
+<p>If <code class="prettyprint">name</code> is NULL, deletes the default storage record for the user, like what
+would have been deleted with the previous version of SbStorageDeleteRecord.</p>
+
+<p>This function must not be called while the user&#39;s storage record is open. This
+function performs blocking I/O on the calling thread.</p>
+
+<p><code class="prettyprint">user</code>: The user for whom the record will be deleted. <code class="prettyprint">name</code>: The filesystem-
+safe name of the record to open.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbStorageDeleteRecord(SbUser user, const char *name)
+</code></pre></div>
+<h3 id="sbstoragegetrecordsize">SbStorageGetRecordSize</h3>
+
+<p>Returns the size of <code class="prettyprint">record</code>, or <code class="prettyprint">-1</code> if there is an error. This function
+performs blocking I/O on the calling thread.</p>
+
+<p><code class="prettyprint">record</code>: The record to retrieve the size of.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int64_t SbStorageGetRecordSize(SbStorageRecord record)
+</code></pre></div>
+<h3 id="sbstorageisvalidrecord">SbStorageIsValidRecord</h3>
+
+<p>Returns whether the given storage record handle is valid.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbStorageIsValidRecord(SbStorageRecord record)
+</code></pre></div>
+<h3 id="sbstorageopenrecord">SbStorageOpenRecord</h3>
+
+<p>Opens and returns the SbStorageRecord for <code class="prettyprint">user</code> named <code class="prettyprint">name</code>, blocking I/O on
+the calling thread until the open is completed. If <code class="prettyprint">user</code> is not a valid
+<code class="prettyprint">SbUser</code>, the function returns <code class="prettyprint">kSbStorageInvalidRecord</code>. Will return an
+<code class="prettyprint">SbStorageRecord</code> of size zero if the record does not yet exist. Opening an
+already-open <code class="prettyprint">SbStorageRecord</code> has undefined behavior.</p>
+
+<p>If <code class="prettyprint">name</code> is NULL, opens the default storage record for the user, like what
+would have been saved with the previous version of SbStorageOpenRecord.</p>
+
+<p><code class="prettyprint">user</code>: The user for which the storage record will be opened. <code class="prettyprint">name</code>: The
+filesystem-safe name of the record to open.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbStorageRecord SbStorageOpenRecord(SbUser user, const char *name)
+</code></pre></div>
+<h3 id="sbstoragereadrecord">SbStorageReadRecord</h3>
+
+<p>Reads up to <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">record</code>, starting at the beginning of the
+record. The function returns the actual number of bytes read, which must be &lt;=
+<code class="prettyprint">data_size</code>. The function returns <code class="prettyprint">-1</code> in the event of an error. This function
+makes a best-effort to read the entire record, and it performs blocking I/O on
+the calling thread until the entire record is read or an error is encountered.</p>
+
+<p><code class="prettyprint">record</code>: The record to be read. <code class="prettyprint">out_data</code>: The data read from the record.
+<code class="prettyprint">data_size</code>: The amount of data, in bytes, to read.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">int64_t SbStorageReadRecord(SbStorageRecord record, char *out_data, int64_t data_size)
+</code></pre></div>
+<h3 id="sbstoragewriterecord">SbStorageWriteRecord</h3>
+
+<p>Replaces the data in <code class="prettyprint">record</code> with <code class="prettyprint">data_size</code> bytes from <code class="prettyprint">data</code>. This function
+always deletes any previous data in that record. The return value indicates
+whether the write succeeded. This function makes a best-effort to write the
+entire record, and it may perform blocking I/O on the calling thread until the
+entire record is written or an error is encountered.</p>
+
+<p>While <code class="prettyprint">SbStorageWriteRecord()</code> may defer the persistence,
+<code class="prettyprint">SbStorageReadRecord()</code> is expected to work as expected immediately afterwards,
+even without a call to <code class="prettyprint">SbStorageCloseRecord()</code>. The data should be persisted
+after a short time, even if there is an unexpected process termination before
+<code class="prettyprint">SbStorageCloseRecord()</code> is called.</p>
+
+<p><code class="prettyprint">record</code>: The record to be written to. <code class="prettyprint">data</code>: The data to write to the record.
+<code class="prettyprint">data_size</code>: The amount of <code class="prettyprint">data</code>, in bytes, to write to the record. Thus, if
+<code class="prettyprint">data_size</code> is smaller than the total size of <code class="prettyprint">data</code>, only part of <code class="prettyprint">data</code> is
+written to the record.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbStorageWriteRecord(SbStorageRecord record, const char *data, int64_t data_size)
+</code></pre></div>
+        
+          
+            
+          
+        
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+    
+      <footer>
+<div class="container">
+    <div class="row">
+      
+        <div class="col-md-5 column-left">
+          
+          
+            
+              
+  
+    <span class="copyright-text">© Google 2019</span>
+  
+
+
+            
+            
+            
+            
+            
+          
+        </div>
+      
+        <div class="col-md-2 column-middle">
+          
+          
+            
+            
+            
+            
+              
+  <img class="footer-logo" src="/images/cobalt-logo.png" alt="Cobalt"/>
+
+
+            
+            
+          
+        </div>
+      
+<!--
+          
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/6/storage.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
+    </div>
+</div>
+</footer>
+
+    
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
+
+    
+  </body>
+</html>

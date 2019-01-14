@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: directory.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: directory.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,263 +795,105 @@
       <div id="content">
         <p>Provides directory listing functions.</p>
 
+<h2 id="macros">Macros</h2>
+
+<h3 id="ksbdirectoryinvalid">kSbDirectoryInvalid</h3>
+
+<p>Well-defined value for an invalid directory stream handle.</p>
+
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbdirectory">SbDirectory</h3>
+
+<p>A handle to an open directory stream.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef struct SbDirectoryPrivate* SbDirectory
+</code></pre></div>
 <h2 id="structs">Structs</h2>
 
 <h3 id="sbdirectoryentry">SbDirectoryEntry</h3>
 
 <p>Represents a directory entry.</p>
 
-<p><strong>Members</strong></p>
+<h4 id="members">Members</h4>
 
-<table class="responsive">
-  <tr><th colspan="2">Members</th></tr>
-  <tr>
-    <td><code>char</code><br>        <code>name[SB_FILE_MAX_NAME]</code></td>    <td>The name of this directory entry.</td>  </tr>
-</table>
+<ul>
+<li><p><code class="prettyprint">char name</code></p>
 
-<h3 id="sbdirectory">SbDirectory</h3>
-
-<p>A handle to an open directory stream.</p>
+<p>The name of this directory entry.</p></li>
+</ul>
 
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbdirectorycanopen">SbDirectoryCanOpen</h3>
 
-<p><strong>Description</strong></p>
+<p>Indicates whether SbDirectoryOpen is allowed for the given <code class="prettyprint">path</code>.</p>
 
-<p>Indicates whether <code><a href="#sbdirectoryopen">SbDirectoryOpen</a></code> is allowed for the given <code class="prettyprint">path</code>.</p>
+<p><code class="prettyprint">path</code>: The path to be checked.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDirectoryCanOpen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDirectoryCanOpen-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDirectoryCanOpen-declaration">
-<pre>
-SB_EXPORT bool SbDirectoryCanOpen(const char* path);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDirectoryCanOpen-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
-
-bool SbDirectoryCanOpen(const char* /*path*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbDirectoryCanOpen(const char *path)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>path</code></td>
-    <td>The path to be checked.</td>
-  </tr>
-</table>
-
 <h3 id="sbdirectoryclose">SbDirectoryClose</h3>
 
-<p><strong>Description</strong></p>
+<p>Closes an open directory stream handle. The return value indicates whether the
+directory was closed successfully.</p>
 
-<p>Closes an open directory stream handle. The return value indicates whether
-the directory was closed successfully.</p>
+<p><code class="prettyprint">directory</code>: The directory stream handle to close.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDirectoryClose-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDirectoryClose-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDirectoryClose-declaration">
-<pre>
-SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDirectoryClose-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
-
-bool SbDirectoryClose(SbDirectory /*directory*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbDirectoryClose(SbDirectory directory)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDirectory</code><br>        <code>directory</code></td>
-    <td>The directory stream handle to close.</td>
-  </tr>
-</table>
-
 <h3 id="sbdirectorycreate">SbDirectoryCreate</h3>
 
-<p><strong>Description</strong></p>
+<p>Creates the directory <code class="prettyprint">path</code>, assuming the parent directory already exists. This
+function returns <code class="prettyprint">true</code> if the directory now exists (even if it existed before)
+and returns <code class="prettyprint">false</code> if the directory does not exist.</p>
 
-<p>Creates the directory <code class="prettyprint">path</code>, assuming the parent directory already exists.
-This function returns <code class="prettyprint">true</code> if the directory now exists (even if it existed
-before) and returns <code class="prettyprint">false</code> if the directory does not exist.</p>
+<p><code class="prettyprint">path</code>: The path to be created.</p>
 
-<p><strong>Declaration and definitions</strong></p>
-
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDirectoryCreate-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDirectoryCreate-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDirectoryCreate-declaration">
-<pre>
-SB_EXPORT bool SbDirectoryCreate(const char* path);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDirectoryCreate-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
-
-bool SbDirectoryCreate(const char* /*path*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbDirectoryCreate(const char *path)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>path</code></td>
-    <td>The path to be created.</td>
-  </tr>
-</table>
-
 <h3 id="sbdirectorygetnext">SbDirectoryGetNext</h3>
 
-<p><strong>Description</strong></p>
+<p>Populates <code class="prettyprint">out_entry</code> with the next entry in the specified directory stream, and
+moves the stream forward by one entry.</p>
 
-<p>Populates <code class="prettyprint">out_entry</code> with the next entry in the specified directory stream,
-and moves the stream forward by one entry.<br>
-This function returns <code class="prettyprint">true</code> if there was a next directory, and <code class="prettyprint">false</code>
-at the end of the directory stream.</p>
+<p>This function returns <code class="prettyprint">true</code> if there was a next directory, and <code class="prettyprint">false</code> at the
+end of the directory stream.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">directory</code>: The directory stream from which to retrieve the next directory.
+<code class="prettyprint">out_entry</code>: The variable to be populated with the next directory entry.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDirectoryGetNext-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDirectoryGetNext-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDirectoryGetNext-declaration">
-<pre>
-SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
-                                  SbDirectoryEntry* out_entry);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDirectoryGetNext-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
-
-bool SbDirectoryGetNext(SbDirectory /*directory*/,
-                        SbDirectoryEntry* /*out_entry*/) {
-  return false;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bool SbDirectoryGetNext(SbDirectory directory, SbDirectoryEntry *out_entry)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDirectory</code><br>        <code>directory</code></td>
-    <td>The directory stream from which to retrieve the next directory.</td>
-  </tr>
-  <tr>
-    <td><code>SbDirectoryEntry*</code><br>        <code>out_entry</code></td>
-    <td>The variable to be populated with the next directory entry.</td>
-  </tr>
-</table>
-
 <h3 id="sbdirectoryisvalid">SbDirectoryIsValid</h3>
-
-<p><strong>Description</strong></p>
 
 <p>Returns whether the given directory stream handle is valid.</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
-  return directory != kSbDirectoryInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static bool SbDirectoryIsValid(SbDirectory directory)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbDirectory</code><br>
-        <code>directory</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbdirectoryopen">SbDirectoryOpen</h3>
 
-<p><strong>Description</strong></p>
-
 <p>Opens the given existing directory for listing. This function returns
-kSbDirectoryInvalidHandle if it is not successful.<br>
-If <code class="prettyprint">out_error</code> is provided by the caller, it will be set to the appropriate
+kSbDirectoryInvalidHandle if it is not successful.</p>
+
+<p>If <code class="prettyprint">out_error</code> is provided by the caller, it will be set to the appropriate
 SbFileError code on failure.</p>
 
-<p><strong>Declaration and definitions</strong></p>
+<p><code class="prettyprint">out_error</code>: An output parameter that, in case of an error, is set to the reason
+that the directory could not be opened.</p>
 
-<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-  <div class="mdl-tabs__tab-bar">
-    <a href="#SbDirectoryOpen-declaration" class="mdl-tabs__tab is-active">Declaration</a>
-    <a href="#SbDirectoryOpen-stub" class="mdl-tabs__tab">stub</a>
-  </div>
-  <div class="mdl-tabs__panel is-active" id="SbDirectoryOpen-declaration">
-<pre>
-SB_EXPORT SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error);
-</pre>
-</div>
-
-<p><div class="mdl-tabs__panel" id="SbDirectoryOpen-stub"></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">#include &quot;starboard/directory.h&quot;
-
-SbDirectory SbDirectoryOpen(const char* /*path*/, SbFileError* /*out_error*/) {
-  return kSbDirectoryInvalid;
-}
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">SbDirectory SbDirectoryOpen(const char *path, SbFileError *out_error)
 </code></pre></div>
-<p></div>
-</div></p>
-
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>const char*</code><br>        <code>path</code></td>
-    <td> </td>  </tr>
-  <tr>
-    <td><code>SbFileError*</code><br>        <code>out_error</code></td>
-    <td>An output parameter that, in case of an error, is set to the
-reason that the directory could not be opened.</td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1020,11 +914,10 @@ reason that the directory could not be opened.</td>
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1046,29 +939,35 @@ reason that the directory could not be opened.</td>
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/directory.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>

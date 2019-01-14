@@ -4,18 +4,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>Cobalt / Starboard Module Reference: atomic.h</title>
 
             <!-- Webfont -->
     
-    <link href='http://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Kavoon|Material+Icons' rel='stylesheet' type='text/css'>
     
 
 
     <!-- Material Design Lite -->
     <link href="/assets/material-design-lite/material.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    
+
     <!-- Bootstrap -->
     <link href="/assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -44,7 +45,7 @@
 
     <!-- material design lite -->
     <script src="/assets/material-design-lite/material.min.js"></script>
-
+    
     <!-- Include the common site javascript -->
     <script src="/js/common.js" type="text/javascript" charset="utf-8"></script>
 
@@ -53,7 +54,6 @@
     <meta name="og:title" content="Cobalt / Starboard Module Reference: atomic.h"/>
     <meta name="og:image" content="/images/cobalt-logo.png"/>
     <meta name="og:description" content="A high-performance, small-footprint platform that implements a subset of HTML5/CSS/JS to run applications, including the YouTube TV app."/>
-    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
   </head>
   <body class="docs" id="top_of_page">
 
@@ -182,6 +182,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -207,6 +211,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -291,6 +299,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -413,9 +425,19 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
-        
+        <li><a href="https://cobalt.googlesource.com/cobalt" id="collapsed-left-menu-repo-link"><i class="fa fa-github"></i> GitHub</a></li>
       </ul>
     </div><!-- /.navbar-collapse -->
   </div><!-- /.container -->
@@ -497,6 +519,10 @@
           <ul>
                   
                     
+                      <li><a href="/reference/starboard/modules/accessibility.html">accessibility.h</a></li>
+                    
+                  
+                    
                       <li><a href="/reference/starboard/modules/atomic.html">atomic.h</a></li>
                     
                   
@@ -522,6 +548,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/configuration.html">configuration.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/cryptography.html">cryptography.h</a></li>
                     
                   
                     
@@ -606,6 +636,10 @@
                   
                     
                       <li><a href="/reference/starboard/modules/socket_waiter.html">socket_waiter.h</a></li>
+                    
+                  
+                    
+                      <li><a href="/reference/starboard/modules/speech_recognizer.html">speech_recognizer.h</a></li>
                     
                   
                     
@@ -728,14 +762,32 @@
 </li>
   
 
+  
+<li class="expand-container" data-expander-target-search="relative">
+    
+      
+      
+<h4 class="no-submenu"><a href="/communication.html">Communication</a></h4>
+      
+    
+</li>
+  
 
 
       </ul>
     </div>
-    <div class="col-md-3 " id="rightCol">
+    <div class="col-md-3 show-share-buttons-bottom" id="rightCol">
       <div class="nav nav-stacked" id="tocSidebar">
         
         <div id="toc"></div>
+        
+          <div id="rightCol-share-buttons" class="share-buttons-bottom">
+            
+
+  
+
+
+          </div>
         
       </div>
     </div>
@@ -743,624 +795,89 @@
       <div id="content">
         <p>Defines a set of atomic integer operations that can be used as lightweight
 synchronization or as building blocks for heavier synchronization primitives.
-Their use is very subtle and requires detailed understanding of the behavior
-of supported architectures, so their direct use is not recommended except
-when rigorously deemed absolutely necessary for performance reasons.</p>
+Their use is very subtle and requires detailed understanding of the behavior of
+supported architectures, so their direct use is not recommended except when
+rigorously deemed absolutely necessary for performance reasons.</p>
 
+<h2 id="typedefs">Typedefs</h2>
+
+<h3 id="sbatomic64">SbAtomic64</h3>
+
+<p>64-bit atomic operations (only available on 64-bit processors).</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef int64_t SbAtomic64
+</code></pre></div>
+<h3 id="sbatomicptr">SbAtomicPtr</h3>
+
+<p>Pointer-sized atomic operations. Forwards to either 32-bit or 64-bit functions
+as appropriate.</p>
+
+<h4 id="definition">Definition</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">typedef SbAtomic64 SbAtomicPtr
+</code></pre></div>
 <h2 id="functions">Functions</h2>
 
 <h3 id="sbatomicacquire_compareandswap">SbAtomicAcquire_CompareAndSwap</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicAcquire_CompareAndSwap(volatile SbAtomic32* ptr,
-                                                 SbAtomic32 old_value,
-                                                 SbAtomic32 new_value);
+<p>These following lower-level operations are typically useful only to people
+implementing higher-level synchronization operations like spinlocks, mutexes,
+and condition-variables. They combine CompareAndSwap(), a load, or a store with
+appropriate memory-ordering instructions. &quot;Acquire&quot; operations ensure that no
+later memory access can be reordered ahead of the operation. &quot;Release&quot;
+operations ensure that no previous memory access can be reordered after the
+operation. &quot;Barrier&quot; operations have both &quot;Acquire&quot; and &quot;Release&quot; semantics. A
+SbAtomicMemoryBarrier() has &quot;Barrier&quot; semantics, but does no memory access.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicAcquire_CompareAndSwap(volatile SbAtomic32 *ptr, SbAtomic32 old_value, SbAtomic32 new_value)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>old_value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicacquire_compareandswap64">SbAtomicAcquire_CompareAndSwap64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicAcquire_CompareAndSwap64(volatile SbAtomic64* ptr,
-                                                   SbAtomic64 old_value,
-                                                   SbAtomic64 new_value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>old_value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicacquire_load">SbAtomicAcquire_Load</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicAcquire_Load(volatile const SbAtomic32* ptr);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile const SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicacquire_load64">SbAtomicAcquire_Load64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicAcquire_Load64(volatile const SbAtomic64* ptr);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile const SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicacquire_store">SbAtomicAcquire_Store</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicAcquire_Store(volatile SbAtomic32* ptr, SbAtomic32 value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicacquire_store64">SbAtomicAcquire_Store64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicAcquire_Store64(volatile SbAtomic64* ptr, SbAtomic64 value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbatomicbarrier_increment">SbAtomicBarrier_Increment</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicBarrier_Increment(volatile SbAtomic32* ptr,
-                                            SbAtomic32 increment);
-// These following lower-level operations are typically useful only to people
-// implementing higher-level synchronization operations like spinlocks, mutexes,
-// and condition-variables.  They combine CompareAndSwap(), a load, or a store
-// with appropriate memory-ordering instructions.  &quot;Acquire&quot; operations ensure
-// that no later memory access can be reordered ahead of the operation.
-// &quot;Release&quot; operations ensure that no previous memory access can be reordered
-// after the operation.  &quot;Barrier&quot; operations have both &quot;Acquire&quot; and &quot;Release&quot;
-// semantics.  A SbAtomicMemoryBarrier() has &quot;Barrier&quot; semantics, but does no
-// memory access.
-</code></pre></div>
-<p><strong>Parameters</strong></p>
+<p>Same as SbAtomicNoBarrier_Increment, but with a memory barrier.</p>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>increment</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicbarrier_increment64">SbAtomicBarrier_Increment64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicBarrier_Increment64(volatile SbAtomic64* ptr,
-                                              SbAtomic64 increment);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>increment</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicmemorybarrier">SbAtomicMemoryBarrier</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicMemoryBarrier();
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicBarrier_Increment(volatile SbAtomic32 *ptr, SbAtomic32 increment)
 </code></pre></div>
 <h3 id="sbatomicnobarrier_compareandswap">SbAtomicNoBarrier_CompareAndSwap</h3>
 
-<p><strong>Description</strong></p>
+<p>Atomically execute: result = *ptr; if (*ptr == old_value) *ptr = new_value;
+return result;</p>
 
-<p>Atomically execute:
-result = <em>ptr;
-if (<em>ptr == old_value)
-<em>ptr = new_value;
-return result;<br>
-I.e., replace &quot;</em>ptr&quot; with &quot;new_value&quot; if &quot;</em>ptr&quot; used to be &quot;old_value&quot;.
-Always return the old value of &quot;</em>ptr&quot;<br>
-This routine implies no memory barriers.</p>
+<p>I.e., replace &quot;<em>ptr&quot; with &quot;new_value&quot; if &quot;*ptr&quot; used to be &quot;old_value&quot;. Always
+return the old value of &quot;</em>ptr&quot;</p>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_CompareAndSwap(volatile SbAtomic32* ptr,
-                                                   SbAtomic32 old_value,
-                                                   SbAtomic32 new_value);
-// Atomically store new_value into *ptr, returning the previous value held in
-// *ptr.  This routine implies no memory barriers.
+<p>This routine implies no memory barriers.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_CompareAndSwap(volatile SbAtomic32 *ptr, SbAtomic32 old_value, SbAtomic32 new_value)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>old_value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicnobarrier_compareandswap64">SbAtomicNoBarrier_CompareAndSwap64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicNoBarrier_CompareAndSwap64(volatile SbAtomic64* ptr,
-                                                     SbAtomic64 old_value,
-                                                     SbAtomic64 new_value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>old_value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbatomicnobarrier_exchange">SbAtomicNoBarrier_Exchange</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_Exchange(volatile SbAtomic32* ptr,
-                                             SbAtomic32 new_value);
-// Atomically increment *ptr by &quot;increment&quot;.  Returns the new value of
-// *ptr with the increment applied.  This routine implies no memory barriers.
+<p>Atomically store new_value into *ptr, returning the previous value held in *ptr.
+This routine implies no memory barriers.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_Exchange(volatile SbAtomic32 *ptr, SbAtomic32 new_value)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicnobarrier_exchange64">SbAtomicNoBarrier_Exchange64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicNoBarrier_Exchange64(volatile SbAtomic64* ptr,
-                                               SbAtomic64 new_value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
 <h3 id="sbatomicnobarrier_increment">SbAtomicNoBarrier_Increment</h3>
 
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_Increment(volatile SbAtomic32* ptr,
-                                              SbAtomic32 increment);
-// Same as SbAtomicNoBarrier_Increment, but with a memory barrier.
+<p>Atomically increment *ptr by &quot;increment&quot;. Returns the new value of *ptr with the
+increment applied. This routine implies no memory barriers.</p>
+
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_Increment(volatile SbAtomic32 *ptr, SbAtomic32 increment)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
+<h3 id="sbatomicrelease_compareandswap8">SbAtomicRelease_CompareAndSwap8</h3>
 
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>increment</code></td>
-    <td> </td>
-  </tr>
-</table>
+<p>Overloaded functions for Atomic8.</p>
 
-<h3 id="sbatomicnobarrier_increment64">SbAtomicNoBarrier_Increment64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicNoBarrier_Increment64(volatile SbAtomic64* ptr,
-                                                SbAtomic64 increment);
+<h4 id="declaration">Declaration</h4>
+<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic8 SbAtomicRelease_CompareAndSwap8(volatile SbAtomic8 *ptr, SbAtomic8 old_value, SbAtomic8 new_value)
 </code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>increment</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicnobarrier_load">SbAtomicNoBarrier_Load</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicNoBarrier_Load(volatile const SbAtomic32* ptr);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile const SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicnobarrier_load64">SbAtomicNoBarrier_Load64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicNoBarrier_Load64(volatile const SbAtomic64* ptr);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile const SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicnobarrier_store">SbAtomicNoBarrier_Store</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicNoBarrier_Store(volatile SbAtomic32* ptr, SbAtomic32 value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicnobarrier_store64">SbAtomicNoBarrier_Store64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicNoBarrier_Store64(volatile SbAtomic64* ptr,
-                                      SbAtomic64 value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicptr">SbAtomicPtr</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE SbAtomicPtr
-SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
-#if SB_HAS(64_BIT_POINTERS)
-  return SbAtomicRelease_Load64(ptr);
-#else
-  return SbAtomicRelease_Load(ptr);
-#endif
-}
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicrelease_compareandswap">SbAtomicRelease_CompareAndSwap</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicRelease_CompareAndSwap(volatile SbAtomic32* ptr,
-                                                 SbAtomic32 old_value,
-                                                 SbAtomic32 new_value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>old_value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicrelease_compareandswap64">SbAtomicRelease_CompareAndSwap64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicRelease_CompareAndSwap64(volatile SbAtomic64* ptr,
-                                                   SbAtomic64 old_value,
-                                                   SbAtomic64 new_value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>old_value</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>new_value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicrelease_load">SbAtomicRelease_Load</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic32 SbAtomicRelease_Load(volatile const SbAtomic32* ptr);
-// 64-bit atomic operations (only available on 64-bit processors).
-#if SB_HAS(64_BIT_ATOMICS)
-typedef int64_t SbAtomic64;
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile const SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicrelease_load64">SbAtomicRelease_Load64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SbAtomic64 SbAtomicRelease_Load64(volatile const SbAtomic64* ptr);
-#endif  // SB_HAS(64_BIT_ATOMICS)
-// Pointer-sized atomic operations. Forwards to either 32-bit or 64-bit
-// functions as appropriate.
-typedef intptr_t SbAtomicPtr;
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile const SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicrelease_store">SbAtomicRelease_Store</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicRelease_Store(volatile SbAtomic32* ptr, SbAtomic32 value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic32*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic32</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="sbatomicrelease_store64">SbAtomicRelease_Store64</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static void SbAtomicRelease_Store64(volatile SbAtomic64* ptr, SbAtomic64 value);
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>volatile SbAtomic64*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomic64</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
-<h3 id="void">void</h3>
-
-<p><strong>Declaration</strong></p>
-<div class="highlight"><pre><code class="language-text" data-lang="text">static SB_C_FORCE_INLINE void
-SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
-#if SB_HAS(64_BIT_POINTERS)
-  return SbAtomicRelease_Store64(ptr, value);
-#else
-  return SbAtomicRelease_Store(ptr, value);
-#endif
-}
-</code></pre></div>
-<p><strong>Parameters</strong></p>
-
-<table class="responsive">
-  <tr><th colspan="2">Parameters</th></tr>
-  <tr>
-    <td><code>SbAtomicRelease_StorePtr(volatile SbAtomicPtr*</code><br>
-        <code>ptr</code></td>
-    <td> </td>
-  </tr>
-  <tr>
-    <td><code>SbAtomicPtr</code><br>
-        <code>value</code></td>
-    <td> </td>
-  </tr>
-</table>
-
         
+          
+            
           
         
       </div>
@@ -1381,11 +898,10 @@ SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
             
               
   
-    <span class="copyright-text">© Google 2016</span>
+    <span class="copyright-text">© Google 2019</span>
   
 
 
-            
             
             
             
@@ -1407,29 +923,35 @@ SbAtomicRelease_StorePtr(volatile SbAtomicPtr* ptr, SbAtomicPtr value) {
 
             
             
-            
           
         </div>
       
-        <div class="col-md-5 column-right">
+<!--
           
-          
-            
-            
-            
-            
-            
-            
-              &nbsp;
-            
-          
-        </div>
-      
+          <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/sdk.js#xfbml=1&version=v2.5";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<div class="fb-share-button" data-href="/reference/starboard/modules/atomic.html" data-layout=""></div>
+&nbsp;
+          <a href="https://twitter.com/" class="twitter-follow-button" data-show-screen-name="false" data-show-count="false" data-size=""></a>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+
+-->
     </div>
 </div>
 </footer>
 
     
+
+    <!-- TODO: Make sure no badness from moving common.js to styles.liquid -->
 
     
   </body>
