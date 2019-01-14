@@ -38,7 +38,8 @@ bool PathProviderStarboard(int key, FilePath *result) {
     }
 
     case base::DIR_EXE:
-    case base::DIR_MODULE: {
+    case base::DIR_MODULE:
+    case base::DIR_ASSETS: {
       bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
                                      SB_ARRAY_SIZE_INT(path));
       DCHECK(success);
@@ -49,6 +50,21 @@ bool PathProviderStarboard(int key, FilePath *result) {
       DLOG(ERROR) << "DIR_EXE/DIR_MODULE not defined.";
       return false;
     }
+
+#if defined(ENABLE_TEST_DATA)
+    case base::DIR_TEST_DATA: {
+      bool success = SbSystemGetPath(kSbSystemPathContentDirectory, path,
+                                     SB_ARRAY_SIZE_INT(path));
+      DCHECK(success);
+      if (success) {
+        // Append "test" to match the output of copy_test_data.gypi
+        *result = FilePath(path).Append(FILE_PATH_LITERAL("test"));
+        return true;
+      }
+      DLOG(ERROR) << "DIR_TEST_DATA not defined.";
+      return false;
+    }
+#endif  // ENABLE_TEST_DATA
 
     case base::DIR_CACHE: {
       bool success = SbSystemGetPath(kSbSystemPathCacheDirectory, path,
@@ -72,6 +88,10 @@ bool PathProviderStarboard(int key, FilePath *result) {
       DLOG(ERROR) << "DIR_TEMP not defined.";
       return false;
     }
+
+    case base::DIR_HOME:
+      // TODO: Add a home directory to SbSystemPathId and get it from there.
+      return PathProviderStarboard(base::DIR_CACHE, result);
 
     case base::DIR_SYSTEM_FONTS:
       if (SbSystemGetPath(kSbSystemPathFontDirectory, path,
