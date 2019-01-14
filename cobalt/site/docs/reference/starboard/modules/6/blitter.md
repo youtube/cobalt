@@ -48,7 +48,7 @@ to be supported by a particular device, so before using these formats in pixel
 data creation commands, it should be checked that they are supported first (e.g.
 via `SbBlitterIsPixelFormatSupportedByPixelData()`). `SbBlitterPixelDataFormat`
 specifies specific orderings of the color channels, and when doing so, byte-
-order is used, e.g. "`RGBA`" implies that a value for red is stored in the byte
+order is used, e.g. "RGBA" implies that a value for red is stored in the byte
 with the lowest memory address. All pixel values are assumed to be in
 premultiplied alpha format.
 
@@ -69,7 +69,7 @@ premultiplied alpha format.
 *   `kSbBlitterPixelDataFormatA8`
 
     8-bit pixels that contain only a single alpha channel. When rendered,
-    surfaces in this format will have (R, G, B) values of (255, 255, 255).
+    surfaces in this format will have `(R, G, B)` values of `(255, 255, 255)`.
 *   `kSbBlitterNumPixelDataFormats`
 
     Constant that indicates how many unique pixel formats Starboard supports.
@@ -79,8 +79,8 @@ premultiplied alpha format.
 
 Enumeration that describes the color format of surfaces. Note that
 `SbBlitterSurfaceFormat` does not differentiate between permutations of the
-color channel ordering (e.g. `RGBA` vs `ARGB`) since client code will never be
-able to access surface pixels directly. This is the main difference between
+color channel ordering (e.g. RGBA vs ARGB) since client code will never be able
+to access surface pixels directly. This is the main difference between
 `SbBlitterPixelDataFormat`, which does explicitly dictate an ordering.
 
 #### Values ####

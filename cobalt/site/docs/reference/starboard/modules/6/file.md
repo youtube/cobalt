@@ -300,7 +300,7 @@ int SbFileRead(SbFile file, char *data, int size)
 ### SbFileReadAll ###
 
 Reads `size` bytes (or until EOF is reached) from `file` into `data`, starting
-from the beginning of the file.
+at the file's current position.
 
 The return value specifies the number of bytes read or `-1` if there was an
 error. Note that, unlike `SbFileRead`, this function does make a best effort to

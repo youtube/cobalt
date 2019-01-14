@@ -7,6 +7,11 @@ Provides functionality to handle Window creation and management.
 
 ## Macros ##
 
+### kSbEventOnScreenKeyboardInvalidTicket ###
+
+System-triggered OnScreenKeyboard events have ticket value
+kSbEventOnScreenKeyboardInvalidTicket.
+
 ### kSbWindowInvalid ###
 
 Well-defined value for an invalid window handle.
@@ -43,6 +48,18 @@ Options that can be requested at window creation time.
 
     The name of the window to create.
 
+### SbWindowRect ###
+
+Defines a rectangle via a point `(x, y)` and a size `(width, height)`. This
+structure is used as output for SbWindowGetOnScreenKeyboardBoundingRect.
+
+#### Members ####
+
+*   `float x`
+*   `float y`
+*   `float width`
+*   `float height`
+
 ### SbWindowSize ###
 
 The size of a window in graphics rendering coordinates. The width and height of
@@ -77,6 +94,20 @@ that would be created to back that window.
     assumed to be the same as the graphics resolution (i.e. 1.0f).
 
 ## Functions ##
+
+### SbWindowBlurOnScreenKeyboard ###
+
+Blur the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardBlurred.
+kSbEventTypeOnScreenKeyboardBlurred has data `ticket`. Calling
+SbWindowBlurOnScreenKeyboard() when the keyboard is already blurred is
+permitted. Calling SbWindowBlurOnScreenKeyboard while the on screen keyboard is
+not showing does nothing and does not fire any event.
+
+#### Declaration ####
+
+```
+void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket)
+```
 
 ### SbWindowCreate ###
 
@@ -116,6 +147,45 @@ Destroys `window`, reclaiming associated resources.
 
 ```
 bool SbWindowDestroy(SbWindow window)
+```
+
+### SbWindowFocusOnScreenKeyboard ###
+
+Focus the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardFocused.
+kSbEventTypeOnScreenKeyboardFocused has data `ticket`. Calling
+SbWindowFocusOnScreenKeyboard() when the keyboard is already focused is
+permitted. Calling SbWindowFocusOnScreenKeyboard while the on screen keyboard is
+not showing does nothing and does not fire any event.
+
+#### Declaration ####
+
+```
+void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket)
+```
+
+### SbWindowGetDiagonalSizeInInches ###
+
+Gets the size of the diagonal between two opposing screen corners.
+
+A return value of 0 means that starboard does not know what the screen diagonal
+is.
+
+#### Declaration ####
+
+```
+float SbWindowGetDiagonalSizeInInches(SbWindow window)
+```
+
+### SbWindowGetOnScreenKeyboardBoundingRect ###
+
+Get the rectangle of the on screen keyboard in screen pixel coordinates. Return
+`true` if successful. Return `false` if the on screen keyboard is not showing.
+If the function returns `false`, then `rect` will not have been modified.
+
+#### Declaration ####
+
+```
+bool SbWindowGetOnScreenKeyboardBoundingRect(SbWindow window, SbWindowRect *bounding_rect)
 ```
 
 ### SbWindowGetPlatformHandle ###
@@ -192,6 +262,21 @@ Sets the default options for system windows.
 void SbWindowSetDefaultOptions(SbWindowOptions *options)
 ```
 
+### SbWindowSetOnScreenKeyboardKeepFocus ###
+
+Notify the system that `keepFocus` has been set for the OnScreenKeyboard.
+`keepFocus` true indicates that the user may not navigate focus off of the
+OnScreenKeyboard via input; focus may only be moved via events sent by the app.
+`keepFocus` false indicates that the user may navigate focus off of the
+OnScreenKeyboard via input. `keepFocus` is initialized to false in the
+OnScreenKeyboard constructor.
+
+#### Declaration ####
+
+```
+void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window, bool keep_focus)
+```
+
 ### SbWindowShowOnScreenKeyboard ###
 
 Show the on screen keyboard and populate the input with text `input_text`. Fire
@@ -199,7 +284,8 @@ kSbEventTypeWindowSizeChange and kSbEventTypeOnScreenKeyboardShown if necessary.
 kSbEventTypeOnScreenKeyboardShown has data `ticket`. The passed in `input_text`
 will never be NULL, but may be an empty string. Calling
 SbWindowShowOnScreenKeyboard() when the keyboard is already shown is permitted,
-and the input will be replaced with `input_text`.
+and the input will be replaced with `input_text`. Showing the on screen keyboard
+does not give it focus.
 
 #### Declaration ####
 

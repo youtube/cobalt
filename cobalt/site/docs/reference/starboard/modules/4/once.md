@@ -15,7 +15,7 @@ Function pointer type for methods that can be called via the SbOnce() system.
 #### Definition ####
 
 ```
-typedef void(* SbOnceInitRoutine)(void)
+typedef void(* SbOnceInitRoutine) (void)
 ```
 
 ## Functions ##

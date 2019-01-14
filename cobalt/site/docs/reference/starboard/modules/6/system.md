@@ -29,7 +29,7 @@ behavior of other APIs within the bounds of their operating range.
 *   `kSbSystemCapabilityCanQueryGPUMemoryStats`
 
     Whether this system has the ability to report on GPU memory usage. If (and
-    only if) a system has this capcability will SbSystemGetTotalGPUMemory() and
+    only if) a system has this capability will SbSystemGetTotalGPUMemory() and
     SbSystemGetUsedGPUMemory() be valid to call.
 
 ### SbSystemConnectionType ###
@@ -111,7 +111,8 @@ Enumeration of special paths that the platform can define.
     by Starboard applications.
 *   `kSbSystemPathSourceDirectory`
 
-    Path to the directory containing the root of the source tree.
+    Deprecated and unused. Tests looking for static data should instead look in
+    the 'test' subdirectory of kSbSystemPathContentDirectory.
 *   `kSbSystemPathTempDirectory`
 
     Path to a directory where temporary files can be written.
@@ -153,6 +154,13 @@ string generation.
 
 #### Values ####
 
+*   `kSbSystemPropertyCertificationScope`
+
+    The certification scope that identifies a group of devices.
+*   `kSbSystemPropertyBase64EncodedCertificationSecret`
+
+    The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
+    query parameters from the application startup URL.
 *   `kSbSystemPropertyChipsetModelNumber`
 
     The full model number of the main platform chipset, including any vendor-
@@ -216,7 +224,7 @@ Pointer to a function to compare two items. The return value uses standard
 #### Definition ####
 
 ```
-typedef int(* SbSystemComparator)(const void *a, const void *b)
+typedef int(* SbSystemComparator) (const void *a, const void *b)
 ```
 
 ### SbSystemError ###
@@ -251,7 +259,7 @@ the error. `user_data` is the opaque pointer that was passed to the call to
 #### Definition ####
 
 ```
-typedef void(* SbSystemPlatformErrorCallback)(SbSystemPlatformErrorResponse response, void *user_data)
+typedef void(* SbSystemPlatformErrorCallback) (SbSystemPlatformErrorResponse response, void *user_data)
 ```
 
 ## Functions ##
@@ -599,12 +607,12 @@ to then notify the user of the error and to provide a means for any required
 interaction, such as by showing a dialog.
 
 The return value is a handle that may be used in a subsequent call to
-`SbClearPlatformError`. For example, the handle could be used to programatically
-dismiss a dialog that was raised in response to the error. The lifetime of the
-object referenced by the handle is until the user reacts to the error or the
-error is dismissed by a call to SbSystemClearPlatformError, whichever happens
-first. Note that if the platform cannot respond to the error, then this function
-should return `kSbSystemPlatformErrorInvalid`.
+`SbSystemClearPlatformError`. For example, the handle could be used to
+programatically dismiss a dialog that was raised in response to the error. The
+lifetime of the object referenced by the handle is until the user reacts to the
+error or the error is dismissed by a call to SbSystemClearPlatformError,
+whichever happens first. Note that if the platform cannot respond to the error,
+then this function should return `kSbSystemPlatformErrorInvalid`.
 
 This function may be called from any thread, and it is the platform's
 responsibility to decide how to handle an error received while a previous error
