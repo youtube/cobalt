@@ -49,7 +49,7 @@ constexpr auto size(const Container& c) -> decltype(c.size()) {
 }
 
 template <typename T, size_t N>
-constexpr size_t size(const T (&array)[N]) noexcept {
+constexpr size_t size(const T (&)[N]) noexcept {
   return N;
 }
 
@@ -61,7 +61,7 @@ constexpr auto empty(const Container& c) -> decltype(c.empty()) {
 }
 
 template <typename T, size_t N>
-constexpr bool empty(const T (&array)[N]) noexcept {
+constexpr bool empty(const T (&)[N]) noexcept {
   return false;
 }
 

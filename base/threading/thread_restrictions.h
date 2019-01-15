@@ -470,6 +470,10 @@ class BASE_EXPORT ThreadRestrictions {
   static void AssertSingletonAllowed() {}
   static void DisallowWaiting() {}
 #endif
+#if defined(STARBOARD)
+  // Get whether the current thread can use singletons.
+  static bool GetSingletonAllowed();
+#endif  // defined(STARBOARD)
 
  private:
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS.

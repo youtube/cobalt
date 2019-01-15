@@ -773,7 +773,7 @@ std::enable_if_t<
     !(MakeFunctorTraits<Functor>::is_method &&
       std::is_pointer<std::decay_t<Receiver>>::value &&
       IsRefCountedType<std::remove_pointer_t<std::decay_t<Receiver>>>::value)>
-BanUnconstructedRefCountedReceiver(const Receiver& receiver, Unused&&...) {}
+BanUnconstructedRefCountedReceiver(const Receiver& /*receiver*/, Unused&&...) {}
 
 template <typename Functor>
 void BanUnconstructedRefCountedReceiver() {}
