@@ -4,6 +4,10 @@
 
 #include "net/cookies/cookie_util.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 
