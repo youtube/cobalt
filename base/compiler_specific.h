@@ -38,6 +38,21 @@
 #define MSVC_DISABLE_OPTIMIZE() __pragma(optimize("", off))
 #define MSVC_ENABLE_OPTIMIZE() __pragma(optimize("", on))
 
+#if defined(STARBOARD)
+// Allows |this| to be passed as an argument in constructor initializer lists.
+// This uses push/pop instead of the seemingly simpler suppress feature to avoid
+// having the warning be disabled for more than just |code|.
+//
+// Example usage:
+// Foo::Foo() : x(NULL), ALLOW_THIS_IN_INITIALIZER_LIST(y(this)), z(3) {}
+//
+// Compiler warning C4355: 'this': used in base member initializer list:
+// http://msdn.microsoft.com/en-us/library/3c594ae3(VS.80).aspx
+#define ALLOW_THIS_IN_INITIALIZER_LIST(code) MSVC_PUSH_DISABLE_WARNING(4355) \
+                                             code \
+                                             MSVC_POP_WARNING()
+#endif
+
 #else  // Not MSVC
 
 #define _Printf_format_string_
@@ -46,6 +61,9 @@
 #define MSVC_POP_WARNING()
 #define MSVC_DISABLE_OPTIMIZE()
 #define MSVC_ENABLE_OPTIMIZE()
+#if defined(STARBOARD)
+#define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
+#endif
 
 #endif  // COMPILER_MSVC
 

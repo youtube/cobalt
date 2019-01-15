@@ -47,11 +47,11 @@ class BASE_EXPORT DoNothing {
   // deduce it.
   template <typename... Args>
   static RepeatingCallback<void(Args...)> Repeatedly() {
-    return BindRepeating([](Args... args) {});
+    return BindRepeating([](Args... /*args*/) {});
   }
   template <typename... Args>
   static OnceCallback<void(Args...)> Once() {
-    return BindOnce([](Args... args) {});
+    return BindOnce([](Args... /*args*/) {});
   }
 };
 

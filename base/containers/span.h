@@ -104,7 +104,7 @@ using EnableIfSpanCompatibleContainerAndSpanIsStatic =
 template <size_t Extent>
 class ExtentStorage {
  public:
-  constexpr explicit ExtentStorage(size_t size) noexcept {}
+  constexpr explicit ExtentStorage(size_t ) noexcept {}
   constexpr size_t size() const noexcept { return Extent; }
 };
 
