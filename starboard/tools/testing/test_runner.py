@@ -198,7 +198,8 @@ class TestRunner(object):
                out_directory,
                application_name=None,
                dry_run=False,
-               xml_output_dir=None):
+               xml_output_dir=None,
+               log_xml_results=False):
     self.platform = platform
     self.config = config
     self.device_id = device_id
@@ -209,6 +210,7 @@ class TestRunner(object):
         application_name)
     self.dry_run = dry_run
     self.xml_output_dir = xml_output_dir
+    self.log_xml_results = log_xml_results
     self.threads = []
 
     _VerifyConfig(self._platform_config)
@@ -309,8 +311,12 @@ class TestRunner(object):
       test_params.append("--gtest_filter=-{}".format(":".join(
           self.test_targets[target_name])))
 
-    # Have gtest create and save a test result xml
-    if self.xml_output_dir:
+    if self.log_xml_results:
+      # Log the xml results
+      test_params.append("--gtest_output=xml:log")
+      print "Xml results for this test will be logged."
+    elif self.xml_output_dir:
+      # Have gtest create and save a test result xml
       xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
       try:
         os.makedirs(xml_output_subdir)
@@ -602,7 +608,12 @@ def main():
       help="If defined, results will be saved as xml files in given directory."
       " Output for each test suite will be in it's own subdirectory and file:"
       " <xml_output_dir>/<test_suite_name>/sponge_log.xml")
-
+  arg_parser.add_argument(
+      "-l",
+      "--log_xml_results",
+      action="store_true",
+      help="If set, results will be logged in xml format after all tests are"
+      " complete. --xml_output_dir will be ignored.")
   args = arg_parser.parse_args()
 
   # Extra arguments for the test target
@@ -612,7 +623,8 @@ def main():
 
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, target_params, args.out_directory,
-                      args.application_name, args.dry_run, args.xml_output_dir)
+                      args.application_name, args.dry_run, args.xml_output_dir,
+                      args.log_xml_results)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.
