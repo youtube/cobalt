@@ -44,6 +44,10 @@
 
 #include "net/cookies/canonical_cookie.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdio_poem.h"
+#endif
+
 #include "base/basictypes.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
