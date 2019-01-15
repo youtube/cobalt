@@ -14,8 +14,8 @@
 
 #include <cstdlib>
 
-#include "base/process/process_handle.h"
 #include "base/process/process.h"
+#include "base/process/process_handle.h"
 
 namespace {
 base::ProcessId kStarboardFakeProcessId = 1;
@@ -29,7 +29,7 @@ ProcessId GetCurrentProcId() {
 
 // static
 void Process::TerminateCurrentProcessImmediately(int exit_code) {
-    std::_Exit(exit_code);
+  std::_Exit(exit_code);
 }
 
 }  // namespace base
