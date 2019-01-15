@@ -15,18 +15,101 @@
 // This header file is deprecated. Use the corresponding C++11 type
 // instead. https://crbug.com/576864
 
-// Use a custom hasher instead.
-#define BASE_HASH_NAMESPACE base_hash
+// Chromium has moved away from compiler specific hash methods and instead uses
+// std::hashes unconditionally. Starboard sadly does not guarantee std::hash.
+#include "starboard/configuration.h"
+#if SB_HAS(STD_UNORDERED_HASH)
+#define BASE_HASH_DEFINE_LONG_LONG_HASHES 0
+#define BASE_HASH_DEFINE_STRING_HASHES 0
+#define BASE_HASH_USE_HASH 0
+#define BASE_HASH_MAP_INCLUDE <unordered_map>
+#define BASE_HASH_NAMESPACE std
+#define BASE_HASH_SET_INCLUDE <unordered_set>
+#define BASE_HASH_USE_HASH_STRUCT
+
+#else  // SB_HAS(STD_UNORDERED_HASH)
+#define BASE_HASH_DEFINE_LONG_LONG_HASHES !SB_HAS(LONG_LONG_HASH)
+#define BASE_HASH_DEFINE_STRING_HASHES !SB_HAS(STRING_HASH)
+#define BASE_HASH_USE_HASH !SB_HAS(HASH_USING)
+#define BASE_HASH_MAP_INCLUDE SB_HASH_MAP_INCLUDE
+#define BASE_HASH_NAMESPACE SB_HASH_NAMESPACE
+#define BASE_HASH_SET_INCLUDE SB_HASH_SET_INCLUDE
+#if !SB_HAS(HASH_VALUE)
+#define BASE_HASH_USE_HASH_STRUCT
+#endif
+#endif // SB_HAS(STD_UNORDERED_HASH)
+
+#include BASE_HASH_MAP_INCLUDE
+#include BASE_HASH_SET_INCLUDE
+
+// This is a hack to disable the gcc 4.4 warning about hash_map and hash_set
+// being deprecated.  We can get rid of this when we upgrade to VS2008 and we
+// can use <tr1/unordered_map> and <tr1/unordered_set>.
+#ifdef __DEPRECATED
+#define CHROME_OLD__DEPRECATED __DEPRECATED
+#undef __DEPRECATED
+#endif
+
+#include BASE_HASH_MAP_INCLUDE
+#include BASE_HASH_SET_INCLUDE
+
+#ifdef CHROME_OLD__DEPRECATED
+#define __DEPRECATED CHROME_OLD__DEPRECATED
+#undef CHROME_OLD__DEPRECATED
+#endif
+
+#if BASE_HASH_DEFINE_LONG_LONG_HASHES
+// The GNU C++ library provides identity hash functions for many integral types,
+// but not for |long long|.  This hash function will truncate if |size_t| is
+// narrower than |long long|.  This is probably good enough for what we will
+// use it for.
+
+#define DEFINE_TRIVIAL_HASH(integral_type) \
+    template<> \
+    struct hash<integral_type> { \
+      std::size_t operator()(integral_type value) const { \
+        return static_cast<std::size_t>(value); \
+      } \
+    }
 
 namespace BASE_HASH_NAMESPACE {
+DEFINE_TRIVIAL_HASH(long long);
+DEFINE_TRIVIAL_HASH(unsigned long long);
 
-// A separate hasher which, by default, forwards to std::hash. This is so legacy
-// uses of BASE_HASH_NAMESPACE with base::hash_map do not interfere with
-// std::hash mid-transition.
-template<typename T>
-struct hash {
-  std::size_t operator()(const T& value) const { return std::hash<T>()(value); }
+template <typename T>
+struct hash<T*> {
+  std::size_t operator()(T* value) const {
+    return BASE_HASH_NAMESPACE::hash<uintptr_t>()(
+        reinterpret_cast<uintptr_t>(value));
+  }
 };
+}  // namespace BASE_HASH_NAMESPACE
+
+#undef DEFINE_TRIVIAL_HASH
+#endif  // BASE_HASH_DEFINE_LONG_LONG_HASHES
+
+
+#if BASE_HASH_DEFINE_STRING_HASHES
+// Implement string hash functions so that strings of various flavors can
+// be used as keys in STL maps and sets.  The hash algorithm comes from the
+// GNU C++ library, in <tr1/functional>.  It is duplicated here because GCC
+// versions prior to 4.3.2 are unable to compile <tr1/functional> when RTTI
+// is disabled, as it is in our build.
+
+#define DEFINE_STRING_HASH(string_type) \
+    template<> \
+    struct hash<string_type> { \
+      std::size_t operator()(const string_type& s) const { \
+        std::size_t result = 0; \
+        for (string_type::const_iterator i = s.begin(); i != s.end(); ++i) \
+          result = (result * 131) + *i; \
+        return result; \
+      } \
+    }
+
+namespace BASE_HASH_NAMESPACE {
+DEFINE_STRING_HASH(std::string);
+DEFINE_STRING_HASH(base::string16);
 
 // Use base::IntPairHash from base/hash.h as a custom hasher instead.
 template <typename Type1, typename Type2>
@@ -38,38 +121,41 @@ struct hash<std::pair<Type1, Type2>> {
 
 }  // namespace BASE_HASH_NAMESPACE
 
+#undef DEFINE_STRING_HASH
+#endif  // BASE_HASH_DEFINE_STRING_HASHES
+
+
 namespace base {
+#if BASE_HASH_USE_HASH
+using BASE_HASH_NAMESPACE::hash;
+#endif
+#if SB_HAS(STD_UNORDERED_HASH)
+template <class K,
+          class V,
+          class Hash = std::hash<K>,
+          class KeyEqual = std::equal_to<K>>
+using hash_map = std::unordered_map<K, V, Hash, KeyEqual>;
+template <class K,
+          class V,
+          class Hash = std::hash<K>,
+          class KeyEqual = std::equal_to<K>>
+using hash_multimap = std::unordered_multimap<K, V, Hash, KeyEqual>;
+template <class K, class Hash = std::hash<K>, class KeyEqual = std::equal_to<K>>
+using hash_multiset = std::unordered_multiset<K, Hash, KeyEqual>;
+template <class K, class Hash = std::hash<K>, class KeyEqual = std::equal_to<K>>
+using hash_set = std::unordered_set<K, Hash, KeyEqual>;
+#else  // SB_HAS(STD_UNORDERED_HASH)
+using BASE_HASH_NAMESPACE::hash_map;
+using BASE_HASH_NAMESPACE::hash_multimap;
+using BASE_HASH_NAMESPACE::hash_multiset;
+using BASE_HASH_NAMESPACE::hash_set;
+#endif  // SB_HAS(STD_UNORDERED_HASH)
+}
 
-// Use std::unordered_map instead.
-template <class Key,
-          class T,
-          class Hash = BASE_HASH_NAMESPACE::hash<Key>,
-          class Pred = std::equal_to<Key>,
-          class Alloc = std::allocator<std::pair<const Key, T>>>
-using hash_map = std::unordered_map<Key, T, Hash, Pred, Alloc>;
+#undef BASE_HASH_DEFINE_LONG_LONG_HASHES
+#undef BASE_HASH_DEFINE_STRING_HASHES
+#undef BASE_HASH_MAP_INCLUDE
+#undef BASE_HASH_SET_INCLUDE
+#undef BASE_HASH_USE_HASH
 
-// Use std::unordered_multimap instead.
-template <class Key,
-          class T,
-          class Hash = BASE_HASH_NAMESPACE::hash<Key>,
-          class Pred = std::equal_to<Key>,
-          class Alloc = std::allocator<std::pair<const Key, T>>>
-using hash_multimap = std::unordered_multimap<Key, T, Hash, Pred, Alloc>;
-
-// Use std::unordered_multiset instead.
-template <class Key,
-          class Hash = BASE_HASH_NAMESPACE::hash<Key>,
-          class Pred = std::equal_to<Key>,
-          class Alloc = std::allocator<Key>>
-using hash_multiset = std::unordered_multiset<Key, Hash, Pred, Alloc>;
-
-// Use std::unordered_set instead.
-template <class Key,
-          class Hash = BASE_HASH_NAMESPACE::hash<Key>,
-          class Pred = std::equal_to<Key>,
-          class Alloc = std::allocator<Key>>
-using hash_set = std::unordered_set<Key, Hash, Pred, Alloc>;
-
-}  // namespace base
-
-#endif  // BASE_CONTAINERS_HASH_TABLES_H_
+#endif  // BASE_HASH_TABLES_H_

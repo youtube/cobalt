@@ -96,7 +96,7 @@ class VectorBuffer {
   template <typename T2 = T,
             typename std::enable_if<std::is_trivially_destructible<T2>::value,
                                     int>::type = 0>
-  void DestructRange(T* begin, T* end) {}
+  void DestructRange(T* , T* ) {}
 
   // Non-trivially destructible objects must have their destructors called
   // individually.
