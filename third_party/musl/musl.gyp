@@ -359,6 +359,8 @@
         'src/math/trunc.c',
         'src/math/truncf.c',
         'src/math/truncl.c',
+        'src/starboard/abort.c',
+        'src/starboard/time.c',
         'src/string/bcmp.c',
         'src/string/bcopy.c',
         'src/string/bzero.c',
