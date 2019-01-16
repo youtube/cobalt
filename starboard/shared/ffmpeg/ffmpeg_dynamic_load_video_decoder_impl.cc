@@ -20,7 +20,7 @@
 #include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
-#include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.h"
+#include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl_interface.h"
 
 namespace starboard {
 namespace shared {
