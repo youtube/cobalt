@@ -58,6 +58,9 @@
 #include <vector>
 
 #if GTEST_OS_STARBOARD
+// Starboard does not require any additional includes.
+
+#elif GTEST_OS_STARBOARD
 
 // TODO(kenton@google.com): Use autoconf to detect availability of
 // gettimeofday().
@@ -243,13 +246,13 @@ GTEST_DEFINE_string_(
     output,
     internal::StringFromGTestEnv("output", ""),
     "A format (currently must be \"xml\"), optionally followed "
-    "by a colon and an output file name or directory. If the output path is "
-    "\"log\", the results will be logged rather than saved to a file."
-    "If saving to file, a directory is indicated by a trailing pathname "
-    "separator. Examples: \"xml:filename.xml\", \"xml::directoryname/\". "
-    "If a directory is specified, output files will be created within that "
-    "directory, with file-names based on the test executable's name and, if "
-    "necessary, made unique by adding digits.");
+    "by a colon and an output file name or directory. A directory "
+    "is indicated by a trailing pathname separator. "
+    "Examples: \"xml:filename.xml\", \"xml::directoryname/\". "
+    "If a directory is specified, output files will be created "
+    "within that directory, with file-names based on the test "
+    "executable's name and, if necessary, made unique by adding "
+    "digits.");
 
 GTEST_DEFINE_bool_(
     print_time,
@@ -426,8 +429,7 @@ std::string UnitTestOptions::GetOutputFormat() {
 }
 
 // Returns the name of the requested output file, or the default if none
-// was explicitly specified. If the output file is "log", it does not represent
-// a real file and will return "log".
+// was explicitly specified.
 std::string UnitTestOptions::GetAbsolutePathToOutputFile() {
   const char* const gtest_output_flag = GTEST_FLAG(output).c_str();
   if (gtest_output_flag == NULL)
@@ -439,13 +441,6 @@ std::string UnitTestOptions::GetAbsolutePathToOutputFile() {
         internal::FilePath(
             UnitTest::GetInstance()->original_working_dir()),
         internal::FilePath(kDefaultOutputFile)).string();
-
-#if GTEST_OS_STARBOARD
-  const char* const output_name_chars = colon + 1;
-  if (!strcmp(output_name_chars, "log")) {
-    return "log";
-  }
-#endif
 
   internal::FilePath output_name(colon + 1);
   if (!output_name.IsAbsolutePath())
@@ -3469,15 +3464,10 @@ void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
 #if GTEST_OS_STARBOARD
   std::stringstream stream;
   PrintXmlUnitTest(&stream, unit_test);
-  if (output_file_ == "log") {
-    SB_LOG(ERROR) << '\n' << StringStreamToString(&stream).c_str();
-  } else {
-    starboard::ScopedFile cache_file(
-        output_file_.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
-    cache_file.WriteAll(StringStreamToString(&stream).c_str(),
-        static_cast<int>(StringStreamToString(&stream).size()));
-  }
-
+  starboard::ScopedFile cache_file(
+      output_file_.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+  cache_file.WriteAll(StringStreamToString(&stream).c_str(),
+                      static_cast<int>(StringStreamToString(&stream).size()));
 #else
   FILE* xmlout = NULL;
   FilePath output_file(output_file_);
