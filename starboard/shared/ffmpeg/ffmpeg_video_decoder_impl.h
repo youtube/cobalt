@@ -24,6 +24,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
+#include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl_interface.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -33,17 +34,6 @@
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
-
-// For each version V that is supported, there will be an explicit
-// specialization of the VideoDecoder class.
-template <int V>
-class VideoDecoderImpl : public VideoDecoder {
- public:
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec,
-                              SbPlayerOutputMode output_mode,
-                              SbDecodeTargetGraphicsContextProvider*
-                                  decode_target_graphics_context_provider);
-};
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
