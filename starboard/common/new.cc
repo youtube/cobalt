@@ -15,6 +15,7 @@
 // TODO: I believe this code will have to be linked into all DLLs on
 // Windows. I think Starboard can do this through GYP when the time comes.
 
+#include <new>
 #include "starboard/memory.h"
 
 void* operator new(size_t size) {
@@ -22,6 +23,14 @@ void* operator new(size_t size) {
 }
 
 void operator delete(void* pointer) noexcept {
+  SbMemoryDeallocate(pointer);
+}
+
+void* operator new (size_t size, const std::nothrow_t& nothrow_tag) {
+  return SbMemoryAllocate(size);
+}
+
+void operator delete (void* pointer, const std::nothrow_t& nothrow_tag) {
   SbMemoryDeallocate(pointer);
 }
 
