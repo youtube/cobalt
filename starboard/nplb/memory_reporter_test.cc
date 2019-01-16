@@ -88,6 +88,16 @@ struct NoMemTracking {
   ASSERT_FALSE(A);                                 \
 }
 
+// A structure that cannot be allocated because it throws an exception in its
+// constructor. This is needed to test the std::nothrow version of delete since
+// it is only called when the std::nothrow version of new fails.
+struct ThrowConstructor {
+  // ThrowConstructor() throw(std::exception) { throw std::exception(); }
+  ThrowConstructor() : foo_(1) { throw std::exception(); }
+  // Required to prevent the constructor from being inlined and optimized away.
+  volatile int foo_;
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // A memory reporter that is used to watch allocations from the system.
 class TestMemReporter {
@@ -348,7 +358,7 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
 }
 #endif  // SB_HAS(MMAP)
 
-// Tests the assumption that the operator/delete will report
+// Tests the assumption that the operator new/delete will report
 // memory allocations.
 TEST_F(MemoryReportingTest, CapturesOperatorNewDelete) {
   if (!MemoryReportingEnabled()) {
@@ -369,6 +379,59 @@ TEST_F(MemoryReportingTest, CapturesOperatorNewDelete) {
 
   // Expect last deallocation to be the expected pointer.
   EXPECT_EQ_NO_TRACKING(my_int, mem_reporter()->last_deallocation());
+}
+
+// Tests the assumption that the nothrow version of operator new will report
+// memory allocations.
+TEST_F(MemoryReportingTest, CapturesOperatorNewNothrow) {
+  if (!MemoryReportingEnabled()) {
+    SbLog(kSbLogPriorityInfo, "Memory reporting is disabled.\n");
+    return;
+  }
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  int* my_int = new (std::nothrow) int();
+  EXPECT_EQ_NO_TRACKING(1, mem_reporter()->number_allocs());
+
+  bool is_last_allocation =
+      my_int == mem_reporter()->last_allocation();
+
+  EXPECT_TRUE_NO_TRACKING(is_last_allocation);
+
+  delete my_int;
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+
+  // Expect last deallocation to be the expected pointer.
+  EXPECT_EQ_NO_TRACKING(my_int, mem_reporter()->last_deallocation());
+}
+
+// Tests the assumption that the nothrow version of operator delete will report
+// memory deallocations.
+TEST_F(MemoryReportingTest, CapturesOperatorDeleteNothrow) {
+  if (!MemoryReportingEnabled()) {
+    SbLog(kSbLogPriorityInfo, "Memory reporting is disabled.\n");
+    return;
+  }
+  const void* init_alloc = mem_reporter()->last_allocation();
+
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+  void* my_obj = nullptr;
+  bool caught_exception = false;
+  try {
+    my_obj = new (std::nothrow) ThrowConstructor();
+  } catch (std::exception e) {
+    caught_exception = true;
+  }
+  EXPECT_TRUE(caught_exception);
+  EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
+
+  // Expect that an allocation occurred, even though we never got a pointer.
+  EXPECT_EQ_NO_TRACKING(nullptr, my_obj);
+  EXPECT_NE_NO_TRACKING(nullptr, mem_reporter()->last_allocation());
+  EXPECT_NE_NO_TRACKING(init_alloc, mem_reporter()->last_allocation());
+
+  // Expect last deallocation to be the allocation we never got.
+  EXPECT_EQ_NO_TRACKING(mem_reporter()->last_allocation(),
+                        mem_reporter()->last_deallocation());
 }
 
 #else  // !defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
