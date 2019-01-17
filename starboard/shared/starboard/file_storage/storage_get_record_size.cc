@@ -22,6 +22,10 @@ int64_t SbStorageGetRecordSize(SbStorageRecord record) {
     return -1;
   }
 
+  if (!SbFileIsValid(record->file)) {
+    return -1;
+  }
+
   SbFileInfo info;
   bool success = SbFileGetInfo(record->file, &info);
   if (!success) {

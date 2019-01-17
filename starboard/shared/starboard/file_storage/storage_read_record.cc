@@ -28,6 +28,10 @@ int64_t SbStorageReadRecord(SbStorageRecord record,
     return -1;
   }
 
+  if (!SbFileIsValid(record->file)) {
+    return -1;
+  }
+
   int64_t total = SbFileSeek(record->file, kSbFileFromEnd, 0);
   if (total > data_size) {
     total = data_size;
