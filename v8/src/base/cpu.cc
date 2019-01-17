@@ -4,6 +4,10 @@
 
 #include "src/base/cpu.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 // Assume that if we're on a MIPS platform, we're on Linux.
 #define V8_OS_LINUX 1

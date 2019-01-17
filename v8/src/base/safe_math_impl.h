@@ -308,7 +308,7 @@ typename enable_if<
 CheckedAbs(T value, RangeConstraint* validity) {
   *validity =
       value != std::numeric_limits<T>::min() ? RANGE_VALID : RANGE_OVERFLOW;
-  return std::abs(value);
+  return abs(value);
 }
 
 template <typename T>
@@ -350,7 +350,7 @@ template <typename T>
 typename enable_if<std::numeric_limits<T>::is_iec559, T>::type CheckedAbs(
     T value,
     RangeConstraint*) {
-  return std::abs(value);
+  return abs(value);
 }
 
 // Floats carry around their validity state with them, but integers do not. So,
