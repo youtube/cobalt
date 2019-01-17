@@ -14,6 +14,10 @@
 
 #include "cobalt/css_parser/scanner.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include <limits>
 
 #include "base/string_util.h"
@@ -724,7 +728,7 @@ Token Scanner::ScanFromNumber(TokenValue* token_value) {
   // input value is not used. std::strtod() may parse more of the number than
   // we expect, e.g. in the case of hexadecimal format. In these cases
   // (number_end != number.end), return an invalid number token.
-  double real_as_double(std::strtod(number.begin, &number_end));
+  double real_as_double(strtod(number.begin, &number_end));
   if (number_end != number.end ||
       real_as_double != real_as_double ||  // n != n if and only if it's NaN.
       real_as_double == std::numeric_limits<float>::infinity() ||
