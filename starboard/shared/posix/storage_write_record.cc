@@ -72,7 +72,13 @@ bool SbStorageWriteRecord(SbStorageRecord record,
 
   SbFileFlush(temp_file);
 
-  if (!SbFileClose(record->file) || !SbFileDelete(original_file_path)) {
+  if (SbFileIsValid(record->file) && !SbFileClose(record->file)) {
+    return false;
+  }
+
+  record->file = kSbFileInvalid;
+
+  if (!SbFileDelete(original_file_path)) {
     return false;
   }
 
