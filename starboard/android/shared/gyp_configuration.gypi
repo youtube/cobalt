@@ -32,6 +32,11 @@
       '-O2',
     ],
     'compiler_flags': [
+     # Disable errors for the warning till the Android NDK r19 is fixed.
+     # The warning is trigger when compiling .c files and complains for
+     # '-stdlib=libc++' which is added by the NDK.
+     '-Wno-error=unused-command-line-argument',
+
       # We'll pretend not to be Linux, but Starboard instead.
       '-U__linux__',
 
