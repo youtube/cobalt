@@ -6,6 +6,10 @@
 #include "src/frames-inl.h"
 #include "src/frames.h"
 
+#if defined(STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
