@@ -54,7 +54,7 @@
     inline namespace _LIBCPP_NAMESPACE {
       inline void *SbMemorySet(void* destination, int byte_value,
                                size_t count) {
-        return::SbMemorySet(destination, byte_value, count);
+        return ::SbMemorySet(destination, byte_value, count);
       }
     }
   }
