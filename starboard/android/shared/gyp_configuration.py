@@ -149,6 +149,11 @@ class AndroidConfiguration(PlatformConfiguration):
           # Any warning will stop the build.
           '-Werror',
 
+          # Disable errors for the warning till the Android NDK r19 is fixed.
+          # The warning is trigger when compiling .c files and complains for
+          # '-stdlib=libc++' which is added by the NDK.
+          '-Wno-error=unused-command-line-argument',
+
           # Don't warn about register variables (in base and net)
           '-Wno-deprecated-register',
           # Don't warn about deprecated ICU methods (in googleurl and net)
