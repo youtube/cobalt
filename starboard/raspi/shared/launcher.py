@@ -102,7 +102,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     raspi_test_path = os.path.join(test_base_dir, test_file)
 
     # rsync command setup
-    options = '-avzh --exclude obj*'
+    options = '-avzLh --exclude obj/ --exclude obj.host/ --exclude gen/'
     source = test_dir_path
     destination = raspi_user_hostname + ':~/'
     self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
@@ -241,8 +241,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       logging.exception('pexpect encountered EOF while reading line.')
     except pexpect.TIMEOUT:
       logging.exception('pexpect timed out while reading line.')
-    # pylint: disable=W0703
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
       logging.exception('Error occured while running test.')
     finally:
       self._CleanupPexpectProcess()
