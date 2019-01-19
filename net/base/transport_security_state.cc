@@ -4,6 +4,10 @@
 
 #include "net/base/transport_security_state.h"
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #if defined(USE_OPENSSL)
 #include <openssl/ecdsa.h>
 #include <openssl/ssl.h>
