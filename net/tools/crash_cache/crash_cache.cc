@@ -7,6 +7,10 @@
 // works properly on debug mode, because the crash functionality is not compiled
 // on release builds of the cache.
 
+#if defined(OS_STARBOARD)
+#include "starboard/client_porting/poem/stdlib_poem.h"
+#endif
+
 #include <string>
 
 #include "base/at_exit.h"

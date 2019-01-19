@@ -6,6 +6,7 @@
 
 #if defined(OS_STARBOARD)
 #include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/stdlib_poem.h"
 #endif
 
 #include <cstdio>
