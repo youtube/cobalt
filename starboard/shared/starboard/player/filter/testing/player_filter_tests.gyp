@@ -30,6 +30,15 @@
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.cc',
         '<(DEPTH)/starboard/testing/fake_graphics_context_provider.h',
       ],
+      'conditions': [
+        ['gl_type != "none"', {
+          'sources': [
+            # This is needed because VideoDecoderTest depends on
+            # FakeGraphicsContextProvider which depends on EGL and GLES.
+            '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+          ],
+        }],
+      ],
       'defines': [
         # This allows the tests to include internal only header files.
         'STARBOARD_IMPLEMENTATION',
