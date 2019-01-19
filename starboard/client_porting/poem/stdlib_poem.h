@@ -46,6 +46,8 @@ static SB_C_INLINE int PoemAbs(int x) {
 // number conversion functions
 #undef strtol
 #define strtol(s, o, b) SbStringParseSignedInteger(s, o, b)
+#undef strtoll
+#define strtoll(s, o, b) SbStringParseSignedInteger(s, o, b)
 #undef atoi
 #define atoi(v) SbStringAToI(v)
 #undef atol
