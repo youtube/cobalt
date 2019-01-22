@@ -40,7 +40,6 @@
 // Starboard poems must be included before uposixdefs.h, or else they cause
 // compiler errors on some platforms.
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/eztime_poem.h"
 #include "starboard/client_porting/poem/math_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/stdlib_poem.h"
@@ -63,6 +62,9 @@
 #include "locmap.h"
 #include "ucln_cmn.h"
 #include "charstr.h"
+
+// Must be after "umitex.h" which includes "time.h" on some platforms.
+#include "starboard/client_porting/poem/eztime_poem.h"
 
 /* Include standard headers. */
 #if !defined(STARBOARD)
