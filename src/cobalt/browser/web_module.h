@@ -33,9 +33,10 @@
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
-#include "cobalt/debug/debug_dispatcher.h"
-#include "cobalt/debug/render_overlay.h"
+#include "cobalt/debug/backend/debug_dispatcher.h"
+#include "cobalt/debug/backend/render_overlay.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -242,6 +243,11 @@ class WebModule : public LifecycleObserver {
     // Whether layout is optimized to re-use boxes for still-valid elements.
     bool enable_partial_layout = true;
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+    // Whether the debugger should block until remote devtools connects.
+    bool wait_for_web_debugger = false;
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -261,7 +267,8 @@ class WebModule : public LifecycleObserver {
             media::CanPlayTypeHandler* can_play_type_handler,
             media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
-            const math::Size& window_dimensions, float video_pixel_ratio,
+            const cssom::ViewportSize& window_dimensions,
+            float video_pixel_ratio,
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options);
   ~WebModule();
@@ -319,13 +326,14 @@ class WebModule : public LifecycleObserver {
   // Gets a reference to the debug dispatcher that interacts with this web
   // module. The debug dispatcher is part of the debug module owned by this web
   // module, which is lazily created by this function if necessary.
-  debug::DebugDispatcher* GetDebugDispatcher();
+  debug::backend::DebugDispatcher* GetDebugDispatcher();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Sets the size and pixel ratio of this web module, possibly causing relayout
   // and re-render with the new parameters. Does nothing if the parameters are
   // not different from the current parameters.
-  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio);
+  void SetSize(const cssom::ViewportSize& view_port_size,
+               float video_pixel_ratio);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetWebMediaPlayerFactory(
@@ -367,7 +375,7 @@ class WebModule : public LifecycleObserver {
         media::CanPlayTypeHandler* can_play_type_handler,
         media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
-        const math::Size& window_dimensions, float video_pixel_ratio,
+        const cssom::ViewportSize& window_dimensions, float video_pixel_ratio,
         render_tree::ResourceProvider* resource_provider,
         int dom_max_element_depth, float layout_refresh_rate,
         const Options& options)
@@ -396,7 +404,7 @@ class WebModule : public LifecycleObserver {
     media::CanPlayTypeHandler* can_play_type_handler;
     media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;
-    math::Size window_dimensions;
+    cssom::ViewportSize window_dimensions;
     float video_pixel_ratio;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;

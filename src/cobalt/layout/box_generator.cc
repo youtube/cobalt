@@ -954,6 +954,37 @@ void BoxGenerator::Visit(dom::Document* /*document*/) { NOTREACHED(); }
 
 void BoxGenerator::Visit(dom::DocumentType* /*document_type*/) { NOTREACHED(); }
 
+namespace {
+scoped_refptr<web_animations::AnimationSet> GetAnimationsForAnonymousBox(
+    const scoped_refptr<const web_animations::AnimationSet>&
+        parent_animations) {
+  scoped_refptr<web_animations::AnimationSet> animations(
+      new web_animations::AnimationSet);
+  const web_animations::AnimationSet::InternalSet& animation_set =
+      parent_animations->animations();
+  const cssom::PropertyKeyVector& properties_set =
+    cssom::GetInheritedAnimatableProperties();
+
+  // Go through all the parent animations and only add those pertaining to
+  // inheritable properties.
+  for (const auto& animation : animation_set) {
+    const web_animations::KeyframeEffectReadOnly* keyframe_effect =
+        base::polymorphic_downcast<
+            const web_animations::KeyframeEffectReadOnly*>(
+            animation->effect().get());
+
+    for (const auto& property : properties_set) {
+      if (keyframe_effect->data().IsPropertyAnimated(property)) {
+        animations->AddAnimation(animation);
+        break;
+      }
+    }
+  }
+
+  return animations;
+}
+}  // namespace
+
 // Append the text from the text node to the text paragraph and create the
 // node's initial text box. The text box has indices that map to the paragraph,
 // which allows it to retrieve its underlying text. Initially, a single text box
@@ -973,8 +1004,9 @@ void BoxGenerator::Visit(dom::Text* text) {
   css_computed_style_declaration->SetData(
       GetComputedStyleOfAnonymousBox(parent_css_computed_style_declaration_));
 
-  // Copy the animations from the parent.
-  css_computed_style_declaration->set_animations(parent_animations_);
+  // Copy inheritable animatable properties from the parent.
+  css_computed_style_declaration->set_animations(
+      GetAnimationsForAnonymousBox(parent_animations_));
 
   DCHECK(text);
   DCHECK(css_computed_style_declaration->data());

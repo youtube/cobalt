@@ -329,10 +329,16 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
   std::size_t size_to_try = 0;
   if (allocation_increment_ > size) {
     size_to_try = std::max(size, allocation_increment_);
+    if (max_capacity_ && capacity_ + size_to_try > max_capacity_) {
+      return free_blocks_.end();
+    }
     ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
   }
   if (ptr == NULL) {
     size_to_try = size;
+    if (max_capacity_ && capacity_ + size_to_try > max_capacity_) {
+      return free_blocks_.end();
+    }
     ptr = fallback_allocator_->AllocateForAlignment(&size_to_try, alignment);
   }
   if (ptr != NULL) {
@@ -350,6 +356,9 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
   // in the hope that they are continuous and can be connect to a block that is
   // large enough to fulfill |size|.
   size_t size_difference = size - free_blocks_.rbegin()->size();
+  if (max_capacity_ && capacity_ + size_difference > max_capacity_) {
+    return free_blocks_.end();
+  }
   ptr = fallback_allocator_->AllocateForAlignment(&size_difference, alignment);
   if (ptr == NULL) {
     return free_blocks_.end();

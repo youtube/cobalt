@@ -426,7 +426,6 @@ void WebSocket::Initialize(script::EnvironmentSettings* settings,
   binary_type_ = dom::MessageEvent::kBlob;
   is_secure_ = false;
   port_ = -1;
-  preventing_gc_ = false;
   SetReadyState(kConnecting);
 
   settings_ = base::polymorphic_downcast<dom::DOMSettings*>(settings);
@@ -642,44 +641,32 @@ void WebSocket::PotentiallyAllowGarbageCollection() {
       NOTREACHED() << "Invalid ready_state: " << ready_state();
   }
 
-  if (prevent_gc != preventing_gc_) {
+  if (prevent_gc != (prevent_gc_while_listening_ != NULL)) {
     if (prevent_gc) {
-      PreventGarbageCollection();
+      prevent_gc_while_listening_.reset(
+          new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+              settings_->global_environment(), this));
     } else {
-      AllowGarbageCollection();
+      // Note: the fall through in this switch statement is on purpose.
+      switch (ready_state_) {
+        case kConnecting:
+          DCHECK(!HasOnOpenListener());
+        case kOpen:
+          DCHECK(!HasOnMessageListener());
+        case kClosing:
+          DCHECK(!HasOnErrorListener());
+          DCHECK(!HasOnCloseListener());
+        default:
+          break;
+      }
+
+      prevent_gc_while_listening_.reset();
     }
 
-    // The above function calls should change |preventing_gc_|.
-    DCHECK_EQ(prevent_gc, preventing_gc_);
+    // The above function calls should change |(prevent_gc_while_listening_ !=
+    // NULL)|.
+    DCHECK_EQ(prevent_gc, (prevent_gc_while_listening_ != NULL));
   }
-}
-
-void WebSocket::PreventGarbageCollection() {
-  settings_->global_environment()->PreventGarbageCollection(
-      make_scoped_refptr(this));
-  DCHECK(!preventing_gc_);
-  preventing_gc_ = true;
-}
-
-void WebSocket::AllowGarbageCollection() {
-  DCHECK(preventing_gc_);
-
-  // Note: the fall through in this switch statement is on purpose.
-  switch (ready_state_) {
-    case kConnecting:
-      DCHECK(!HasOnOpenListener());
-    case kOpen:
-      DCHECK(!HasOnMessageListener());
-    case kClosing:
-      DCHECK(!HasOnErrorListener());
-      DCHECK(!HasOnCloseListener());
-    default:
-      break;
-  }
-
-  preventing_gc_ = false;
-  settings_->global_environment()->AllowGarbageCollection(
-      make_scoped_refptr(this));
 }
 
 }  // namespace websocket

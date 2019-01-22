@@ -1046,7 +1046,9 @@ void XMLHttpRequest::UpdateProgress() {
 
 void XMLHttpRequest::IncrementActiveRequests() {
   if (active_requests_count_ == 0) {
-    PreventGarbageCollection();
+    prevent_gc_until_send_complete_.reset(
+        new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+            settings_->global_environment(), this));
   }
   active_requests_count_++;
 }
@@ -1055,31 +1057,21 @@ void XMLHttpRequest::DecrementActiveRequests() {
   DCHECK_GT(active_requests_count_, 0);
   active_requests_count_--;
   if (active_requests_count_ == 0) {
-    AllowGarbageCollection();
+    bool is_active = (state_ == kOpened && sent_) ||
+                     state_ == kHeadersReceived || state_ == kLoading;
+    bool has_event_listeners =
+        GetAttributeEventListener(base::Tokens::readystatechange()) ||
+        GetAttributeEventListener(base::Tokens::progress()) ||
+        GetAttributeEventListener(base::Tokens::abort()) ||
+        GetAttributeEventListener(base::Tokens::error()) ||
+        GetAttributeEventListener(base::Tokens::load()) ||
+        GetAttributeEventListener(base::Tokens::timeout()) ||
+        GetAttributeEventListener(base::Tokens::loadend());
+
+    DCHECK_EQ((is_active && has_event_listeners), false);
+
+    prevent_gc_until_send_complete_.reset();
   }
-}
-
-void XMLHttpRequest::PreventGarbageCollection() {
-  settings_->global_environment()->PreventGarbageCollection(
-      make_scoped_refptr(this));
-}
-
-void XMLHttpRequest::AllowGarbageCollection() {
-  bool is_active = (state_ == kOpened && sent_) || state_ == kHeadersReceived ||
-                   state_ == kLoading;
-  bool has_event_listeners =
-      GetAttributeEventListener(base::Tokens::readystatechange()) ||
-      GetAttributeEventListener(base::Tokens::progress()) ||
-      GetAttributeEventListener(base::Tokens::abort()) ||
-      GetAttributeEventListener(base::Tokens::error()) ||
-      GetAttributeEventListener(base::Tokens::load()) ||
-      GetAttributeEventListener(base::Tokens::timeout()) ||
-      GetAttributeEventListener(base::Tokens::loadend());
-
-  DCHECK_EQ((is_active && has_event_listeners), false);
-
-  settings_->global_environment()->AllowGarbageCollection(
-      make_scoped_refptr(this));
 }
 
 void XMLHttpRequest::StartRequest(const std::string& request_body) {

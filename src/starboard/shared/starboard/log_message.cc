@@ -21,7 +21,9 @@
 
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#include "starboard/common/recursive_mutex.h"
 #include "starboard/mutex.h"
+#include "starboard/once.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -31,7 +33,7 @@ namespace logging {
 
 namespace {
 SbLogPriority g_min_log_level = kSbLogPriorityUnknown;
-SbMutex g_log_mutex = SB_MUTEX_INITIALIZER;
+SB_ONCE_INITIALIZE_FUNCTION(RecursiveMutex, g_log_mutex);
 
 #if defined(COMPILER_MSVC)
 #pragma optimize("", off)
@@ -120,9 +122,9 @@ LogMessage::~LogMessage() {
     stream_ << Stack(1);
   }
   std::string str_newline(stream_.str());
-  SbMutexAcquire(&g_log_mutex);
+  g_log_mutex()->Acquire();
   SbLog(priority_, str_newline.c_str());
-  SbMutexRelease(&g_log_mutex);
+  g_log_mutex()->Release();
   if (priority_ == kSbLogPriorityFatal) {
     // Ensure the first characters of the string are on the stack so they
     // are contained in minidumps for diagnostic purposes.

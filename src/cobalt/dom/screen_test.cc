@@ -14,13 +14,17 @@
 
 #include "cobalt/dom/screen.h"
 
+#include "cobalt/cssom/viewport_size.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
 
 TEST(ScreenTest, Size) {
-  scoped_refptr<Screen> screen = new Screen(1280, 720);
+  ViewportSize view_size(ViewportSize(1280, 720, 55.f));
+  scoped_refptr<Screen> screen = new Screen(view_size);
 
   EXPECT_FLOAT_EQ(screen->width(), 1280.0f);
   EXPECT_FLOAT_EQ(screen->height(), 720.0f);
@@ -28,6 +32,7 @@ TEST(ScreenTest, Size) {
   EXPECT_FLOAT_EQ(screen->avail_height(), 720.0f);
   EXPECT_EQ(screen->color_depth(), 24);
   EXPECT_EQ(screen->pixel_depth(), 24);
+  EXPECT_EQ(screen->diagonal_inches(), 55.f);
 }
 
 }  // namespace dom

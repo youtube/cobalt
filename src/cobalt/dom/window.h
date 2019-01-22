@@ -29,6 +29,7 @@
 #include "cobalt/base/clock.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/crypto.h"
@@ -130,7 +131,7 @@ class Window : public EventTarget,
   };
 
   Window(
-      int width, int height, float device_pixel_ratio,
+      const cssom::ViewportSize& view_size, float device_pixel_ratio,
       base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
@@ -176,7 +177,7 @@ class Window : public EventTarget,
       ClockType clock_type = kClockTypeSystemTime,
       const CacheCallback& splash_screen_cache_callback = CacheCallback(),
       const scoped_refptr<captions::SystemCaptionSettings>& captions = nullptr,
-      bool log_tts=false);
+      bool log_tts = false);
 
   // Web API: Window
   //
@@ -215,6 +216,10 @@ class Window : public EventTarget,
       const AnimationFrameRequestCallbackList::FrameRequestCallbackArg&);
   void CancelAnimationFrame(int32 handle);
 
+  float viewport_diagonal_inches() const {
+    return viewport_size_.diagonal_inches();
+  }
+
   // Web API: CSSOM View Module (partial interface)
   //
 
@@ -229,11 +234,15 @@ class Window : public EventTarget,
   // The innerWidth attribute must return the viewport width including the size
   // of a rendered scroll bar (if any), or zero if there is no viewport.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-innerwidth
-  float inner_width() const { return static_cast<float>(width_); }
+  float inner_width() const {
+    return static_cast<float>(viewport_size_.width());
+  }
   // The innerHeight attribute must return the viewport height including the
   // size of a rendered scroll bar (if any), or zero if there is no viewport.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-innerheight
-  float inner_height() const { return static_cast<float>(height_); }
+  float inner_height() const {
+    return static_cast<float>(viewport_size_.height());
+  }
 
   // The screenX attribute must return the x-coordinate, relative to the origin
   // of the screen of the output device, of the left of the client window as
@@ -247,10 +256,10 @@ class Window : public EventTarget,
   float screen_y() const { return 0.0f; }
   // The outerWidth attribute must return the width of the client window.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerwidth
-  float outer_width() const { return static_cast<float>(width_); }
+  float outer_width() const { return inner_width(); }
   // The outerHeight attribute must return the height of the client window.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-outerheight
-  float outer_height() const { return static_cast<float>(height_); }
+  float outer_height() const { return inner_height(); }
   // The devicePixelRatio attribute returns the ratio of CSS pixels per device
   // pixel.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-window-devicepixelratio
@@ -335,7 +344,7 @@ class Window : public EventTarget,
       const SynchronousLayoutAndProduceRenderTreeCallback&
           synchronous_layout_callback);
 
-  void SetSize(int width, int height, float device_pixel_ratio);
+  void SetSize(cssom::ViewportSize size, float device_pixel_ratio);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
@@ -406,8 +415,8 @@ class Window : public EventTarget,
 
   void FireHashChangeEvent();
 
-  int width_;
-  int height_;
+  cssom::ViewportSize viewport_size_;
+
   float device_pixel_ratio_;
 
   // A resize event can be pending if a resize occurs and the current visibility

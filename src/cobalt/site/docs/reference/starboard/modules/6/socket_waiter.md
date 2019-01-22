@@ -85,7 +85,7 @@ Function pointer for socket waiter callbacks.
 #### Definition ####
 
 ```
-typedef void(* SbSocketWaiterCallback)(SbSocketWaiter waiter, SbSocket socket, void *context, int ready_interests)
+typedef void(* SbSocketWaiterCallback) (SbSocketWaiter waiter, SbSocket socket, void *context, int ready_interests)
 ```
 
 ## Functions ##

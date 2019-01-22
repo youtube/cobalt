@@ -1,4 +1,4 @@
-"""Set a JS timer that expires after exiting preload mode."""
+"""Verify correct visibility changes during and after suspend event."""
 
 from __future__ import absolute_import
 from __future__ import division

@@ -22,6 +22,7 @@
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/ratio_value.h"
 #include "cobalt/cssom/resolution_value.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/safe_integer_conversions.h"
 
 namespace cobalt {
@@ -58,14 +59,13 @@ static const int kGridMediaFeatureValue = 0;
 // i.e. the density of the pixels.
 //   https://www.w3.org/TR/css3-mediaqueries/#resolution
 // We calculate the pixel density from the length of the screen diagonal.
-static const float kScreenDiagonalInInches = 55.0f;
+static const float kScreenDefaultDiagonalInInches = 55.0f;
 
 // The 'scan' media feature describes the scanning process of "tv" output
 // devices.
 //   https://www.w3.org/TR/css3-mediaqueries/#scan
 static const MediaFeatureKeywordValue::Value kScanMediaFeatureValue =
     MediaFeatureKeywordValue::kProgressive;
-
 }  // namespace
 
 MediaFeature::MediaFeature(int name)
@@ -76,7 +76,8 @@ MediaFeature::MediaFeature(int name, const scoped_refptr<PropertyValue>& value)
       value_(value),
       operator_(kEquals) {}
 
-bool MediaFeature::CompareAspectRatio(const math::Size& viewport_size) {
+bool MediaFeature::CompareAspectRatio(
+    const cssom::ViewportSize& viewport_size) {
   math::Rational media_ratio(viewport_size.width(), viewport_size.height());
   RatioValue* specified_ratio =
       base::polymorphic_downcast<RatioValue*>(value_.get());
@@ -142,7 +143,8 @@ bool MediaFeature::CompareLengthValue(int length_in_pixels) {
   }
 }
 
-bool MediaFeature::CompareOrientation(const math::Size& viewport_size) {
+bool MediaFeature::CompareOrientation(
+    const cssom::ViewportSize& viewport_size) {
   MediaFeatureKeywordValue* specified_value =
       base::polymorphic_downcast<MediaFeatureKeywordValue*>(value_.get());
 
@@ -165,14 +167,19 @@ bool MediaFeature::CompareOrientation(const math::Size& viewport_size) {
   return false;
 }
 
-bool MediaFeature::CompareResolution(const math::Size& viewport_size) {
+bool MediaFeature::CompareResolution(const cssom::ViewportSize& viewport_size) {
   ResolutionValue* specified_value =
       base::polymorphic_downcast<ResolutionValue*>(value_.get());
 
-  float media_dpi = sqrtf(static_cast<float>(
-                        viewport_size.width() * viewport_size.width() +
-                        viewport_size.height() * viewport_size.height())) /
-                    kScreenDiagonalInInches;
+  float diagonal_pixels = sqrtf(
+      static_cast<float>(viewport_size.width() * viewport_size.width() +
+                         viewport_size.height() * viewport_size.height()));
+
+  float viewport_diagonal = viewport_size.diagonal_inches() > 0
+                                ? viewport_size.diagonal_inches()
+                                : kScreenDefaultDiagonalInInches;
+
+  float media_dpi = diagonal_pixels / viewport_diagonal;
 
   switch (operator_) {
     case kNonZero:
@@ -206,7 +213,7 @@ bool MediaFeature::CompareScan() {
   return false;
 }
 
-bool MediaFeature::EvaluateConditionValue(const math::Size& viewport_size) {
+bool MediaFeature::EvaluateConditionValue(const ViewportSize& viewport_size) {
   switch (name_) {
     case kInvalidFeature:
       break;

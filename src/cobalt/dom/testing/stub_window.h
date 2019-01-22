@@ -22,6 +22,7 @@
 #include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/window.h"
@@ -56,10 +57,11 @@ class StubWindow {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     window_ = new dom::Window(
-        1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
-        dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(), NULL,
-        NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL, NULL,
-        NULL, NULL, global_environment_->script_value_factory(), NULL,
+        cssom::ViewportSize(1920, 1080), 1.f, base::kApplicationStateStarted,
+        css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
+        loader_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
+        &local_storage_database_, NULL, NULL, NULL, NULL,
+        global_environment_->script_value_factory(), NULL,
         dom_stat_tracker_.get(), url_, "", "en-US", "en",
         base::Callback<void(const GURL&)>(), base::Bind(&StubErrorCallback),
         NULL, network_bridge::PostSender(), csp::kCSPRequired,

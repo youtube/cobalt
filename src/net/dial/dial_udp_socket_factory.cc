@@ -70,8 +70,14 @@ scoped_refptr<UDPListenSocket> UdpSocketFactory::CreateAndBind(
 
  SetupSocketAfterCreate(s);
 
- if (!NativeBind(s, address))
+ if (!NativeBind(s, address)) {
+#if defined(OS_POSIX)
+   close(s);
+#elif defined(OS_STARBOARD)
+   SbSocketDestroy(s);
+#endif
    return NULL;
+ }
 
  SetupSocketAfterBind(s);
 

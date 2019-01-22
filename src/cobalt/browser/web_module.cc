@@ -27,6 +27,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
@@ -37,7 +38,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
 #include "cobalt/css_parser/parser.h"
-#include "cobalt/debug/debug_module.h"
+#include "cobalt/debug/backend/debug_module.h"
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
@@ -70,6 +71,8 @@
 
 namespace cobalt {
 namespace browser {
+
+using cobalt::cssom::ViewportSize;
 
 namespace {
 
@@ -109,7 +112,9 @@ class WebModule::Impl {
   ~Impl();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug::DebugDispatcher* debug_dispatcher() const {
+  debug::backend::DebugDispatcher* debug_dispatcher() {
+    // Proceed if |CreateDebugModuleIfNull| already ran, otherwise wait for it.
+    debug_module_created_.Wait();
     return debug_module_->debug_dispatcher();
   }
 #endif  // ENABLE_DEBUG_CONSOLE
@@ -183,13 +188,20 @@ class WebModule::Impl {
   void CreateWindowDriver(
       const webdriver::protocol::WindowId& window_id,
       scoped_ptr<webdriver::WindowDriver>* window_driver_out);
-#endif
+#endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  void CreateDebugDispatcherIfNull();
-#endif  // ENABLE_DEBUG_CONSOLE
+  void CreateDebugModuleIfNull();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-  void SetSize(math::Size window_dimensions, float video_pixel_ratio);
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  void WaitForWebDebugger();
+  bool IsFinishedWaitingForWebDebugger() {
+    return wait_for_web_debugger_finished_.IsSignaled();
+  }
+#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+
+  void SetSize(cssom::ViewportSize window_dimensions, float video_pixel_ratio);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
   void SetWebMediaPlayerFactory(
       media::WebMediaPlayerFactory* web_media_player_factory);
@@ -393,12 +405,24 @@ class WebModule::Impl {
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Allows the debugger to add render components to the web module.
   // Used for DOM node highlighting and overlay messages.
-  scoped_ptr<debug::RenderOverlay> debug_overlay_;
+  scoped_ptr<debug::backend::RenderOverlay> debug_overlay_;
 
   // The core of the debugging system.
   // Created lazily when accessed via |GetDebugDispatcher|.
-  scoped_ptr<debug::DebugModule> debug_module_;
+  scoped_ptr<debug::backend::DebugModule> debug_module_;
+
+  // Blocks threads getting the |DebugDispatcher| until it's ready after the
+  // |CreateDebugModuleIfNull| task has run.
+  base::WaitableEvent debug_module_created_ = {true /* manual_reset */,
+                                               false /* initially_signaled */};
 #endif  // ENABLE_DEBUG_CONSOLE
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  // Used to avoid a deadlock when running |Impl::Pause| while waiting for the
+  // web debugger to connect.
+  base::WaitableEvent wait_for_web_debugger_finished_ = {
+      true /* manual_reset */, false /* initially_signaled */};
+#endif  // ENABLE_REMOTE_DEBUGGING
 
   // DocumentObserver that observes the loading document.
   scoped_ptr<DocumentLoadedObserver> document_load_observer_;
@@ -419,7 +443,7 @@ class WebModule::Impl {
   // correctly execute, even if there are multiple synchronous loads in queue
   // before the suspend (or other) event handlers.
   base::WaitableEvent synchronous_loader_interrupt_ = {
-      true /* manually reset */, false /* initially signaled */};
+      true /* manual_reset */, false /* initially_signaled */};
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -569,8 +593,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_session_client_ = media_session::MediaSessionClient::Create();
 
-  system_caption_settings_ =
-      new cobalt::dom::captions::SystemCaptionSettings();
+  system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings();
 
   dom::Window::CacheCallback splash_screen_cache_callback =
       CacheUrlContentCallback(data.options.splash_screen_cache);
@@ -580,16 +603,35 @@ WebModule::Impl::Impl(const ConstructionData& data)
   global_environment_->AddRoot(&mutation_observer_task_manager_);
   global_environment_->AddRoot(media_source_registry_.get());
 
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  if (data.options.wait_for_web_debugger) {
+    // Create the |DebugModule| early since we expect a web debugger to connect
+    // and we can't let |GetDebugDispatcher| get blocked when it does. This has
+    // to be done before we block the message loop in |WaitForWebDebugger|.
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
+                              base::Unretained(this)));
+    // Post a task that blocks the message loop and waits for the web debugger.
+    // This must be posted before the the window's task to load the document.
+    MessageLoop::current()->PostTask(
+        FROM_HERE, base::Bind(&WebModule::Impl::WaitForWebDebugger,
+                              base::Unretained(this)));
+  } else {
+    // We're not going to wait for the web debugger, so consider it finished.
+    wait_for_web_debugger_finished_.Signal();
+  }
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+
   bool log_tts = false;
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   log_tts = CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseTTS);
 #endif
 
   window_ = new dom::Window(
-      data.window_dimensions.width(), data.window_dimensions.height(),
-      data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
-      dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(),
-      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
+      data.window_dimensions, data.video_pixel_ratio,
+      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
+      fetcher_factory_.get(), loader_factory_.get(), &resource_provider_,
+      animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(),
       data.can_play_type_handler, data.web_media_player_factory,
@@ -664,7 +706,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset(
-      new debug::RenderOverlay(data.render_tree_produced_callback));
+      new debug::backend::RenderOverlay(data.render_tree_produced_callback));
 #endif  // ENABLE_DEBUG_CONSOLE
 
 #if !defined(COBALT_FORCE_CSP)
@@ -709,8 +751,8 @@ WebModule::Impl::~Impl() {
   media_session_client_.reset();
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug_overlay_.reset();
   debug_module_.reset();
+  debug_overlay_.reset();
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Disable callbacks for the resource caches. Otherwise, it is possible for a
@@ -893,7 +935,7 @@ void WebModule::Impl::OnRenderTreeProduced(
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
-#else  // ENABLE_DEBUG_CONSOLE
+#else   // ENABLE_DEBUG_CONSOLE
   render_tree_produced_callback_.Run(layout_results_with_callback);
 #endif  // ENABLE_DEBUG_CONSOLE
 }
@@ -968,7 +1010,7 @@ void WebModule::Impl::CreateWindowDriver(
 #endif  // defined(ENABLE_WEBDRIVER)
 
 #if defined(ENABLE_DEBUG_CONSOLE)
-void WebModule::Impl::CreateDebugDispatcherIfNull() {
+void WebModule::Impl::CreateDebugModuleIfNull() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
@@ -979,11 +1021,25 @@ void WebModule::Impl::CreateDebugDispatcherIfNull() {
     return;
   }
 
-  debug_module_.reset(new debug::DebugModule(
+  debug_module_.reset(new debug::backend::DebugModule(
       window_->console(), global_environment_, debug_overlay_.get(),
       resource_provider_, window_));
+  debug_module_created_.Signal();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+void WebModule::Impl::WaitForWebDebugger() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(debug_module_);
+  LOG(WARNING) << "\n-------------------------------------"
+                  "\n Waiting for web debugger to connect "
+                  "\n-------------------------------------";
+  // This blocks until the web debugger connects.
+  debug_module_->debug_dispatcher()->SetPaused(true);
+  wait_for_web_debugger_finished_.Signal();
+}
+#endif  // defined(ENABLE_REMOTE_DEBUGGING)
 
 void WebModule::Impl::InjectCustomWindowAttributes(
     const Options::InjectedWindowAttributes& attributes) {
@@ -1007,15 +1063,14 @@ void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   remote_typeface_cache_->SetCapacity(static_cast<uint32>(bytes));
 }
 
-void WebModule::Impl::SetSize(math::Size window_dimensions,
+void WebModule::Impl::SetSize(cssom::ViewportSize window_dimensions,
                               float video_pixel_ratio) {
   // A value of 0.0 for the video pixel ratio means that the ratio could not be
   // determined. In that case it should be assumed to be the same as the
   // graphics resolution, which corresponds to a device pixel ratio of 1.0.
   float device_pixel_ratio =
       video_pixel_ratio == 0.0f ? 1.0f : video_pixel_ratio;
-  window_->SetSize(window_dimensions.width(), window_dimensions.height(),
-                   device_pixel_ratio);
+  window_->SetSize(window_dimensions, device_pixel_ratio);
 }
 
 void WebModule::Impl::SetCamera3D(
@@ -1276,9 +1331,10 @@ WebModule::WebModule(
     const base::Closure& window_minimize_callback,
     media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
-    network::NetworkModule* network_module, const math::Size& window_dimensions,
-    float video_pixel_ratio, render_tree::ResourceProvider* resource_provider,
-    float layout_refresh_rate, const Options& options)
+    network::NetworkModule* network_module,
+    const ViewportSize& window_dimensions, float video_pixel_ratio,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
@@ -1497,24 +1553,27 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 // May be called from any thread.
-debug::DebugDispatcher* WebModule::GetDebugDispatcher() {
+debug::backend::DebugDispatcher* WebModule::GetDebugDispatcher() {
   DCHECK(message_loop());
   DCHECK(impl_);
 
-  message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugDispatcherIfNull,
-                            base::Unretained(impl_.get())));
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::CreateDebugModuleIfNull,
+                                      base::Unretained(impl_.get())));
 
+  // This blocks until |CreateDebugModuleIfNull| has run, either waiting for
+  // the one we just posted to run or returning immediately if it previously
+  // ran (making the one we just posted a no-op).
   return impl_->debug_dispatcher();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-void WebModule::SetSize(const math::Size& window_dimensions,
+void WebModule::SetSize(const ViewportSize& viewport_size,
                         float video_pixel_ratio) {
   message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::SetSize, base::Unretained(impl_.get()),
-                 window_dimensions, video_pixel_ratio));
+                 viewport_size, video_pixel_ratio));
 }
 
 void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
@@ -1577,11 +1636,25 @@ void WebModule::Pause() {
 
   impl_->CancelSynchronousLoads();
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
-  message_loop()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get())));
+  auto impl_pause =
+      base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get()));
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  // We normally need to block here so that the call doesn't return until the
+  // web application has had a chance to process the whole event. However, our
+  // message loop is blocked while waiting for the web debugger to connect, so
+  // we would deadlock here if the user switches to Chrome to run devtools on
+  // the same machine where Cobalt is running. Therefore, while we're still
+  // waiting for the debugger we post the pause task without blocking on it,
+  // letting it eventually run when the debugger connects and the message loop
+  // is unblocked again.
+  if (!impl_->IsFinishedWaitingForWebDebugger()) {
+    message_loop()->PostTask(FROM_HERE, impl_pause);
+    return;
+  }
+#endif  // defined(ENABLE_REMOTE_DEBUGGING)
+
+  message_loop()->PostBlockingTask(FROM_HERE, impl_pause);
 }
 
 void WebModule::Unpause() {

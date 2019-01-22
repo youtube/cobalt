@@ -19,7 +19,7 @@
 
 #include "starboard/memory.h"
 #include "starboard/player.h"
-#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
+#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl_interface.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 
 namespace starboard {

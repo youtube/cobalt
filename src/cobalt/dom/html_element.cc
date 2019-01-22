@@ -28,6 +28,7 @@
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/selector_tree.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_animatable.h"
@@ -54,6 +55,8 @@
 #include "cobalt/dom/html_video_element.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
@@ -1095,7 +1098,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
-    const math::Size& viewport_size) {
+    const ViewportSize& viewport_size) {
   // Select the winning value for each property by performing the cascade,
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
@@ -1113,7 +1116,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
   // will be resolved during layout.
   cssom::PromoteToComputedStyle(
       computed_style, parent_computed_style_declaration, root_computed_style,
-      viewport_size, property_key_to_base_url_map);
+      viewport_size.width_height(), property_key_to_base_url_map);
 
   return computed_style;
 }
@@ -1278,7 +1281,7 @@ void DoComputedStyleUpdate(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
-    const math::Size& viewport_size,
+    const ViewportSize& viewport_size,
     const scoped_refptr<const cssom::CSSComputedStyleData>&
         previous_computed_style,
     const base::TimeDelta& style_change_event_time,

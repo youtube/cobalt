@@ -73,8 +73,7 @@ TEST(StorageUpgradeTest, Upgrade) {
 
   Storage storage;
   EXPECT_TRUE(storage.ParseFromArray(buffer.data() + kStorageHeaderSize,
-                                     buffer.size()) -
-              kStorageHeaderSize);
+                                     buffer.size() - kStorageHeaderSize));
 
   if (storage.cookies(0).name() == "foo") {
     ValidateCookie(storage.cookies(0), "foo", "bar", "localhost", "/",

@@ -32,6 +32,16 @@ namespace debug {
 // class.
 class Command {
  public:
+  // Matches v8_inspector::protocol::DispatchResponse::ErrorCode
+  enum ErrorCode {
+    kParseError = -32700,
+    kInvalidRequest = -32600,
+    kMethodNotFound = -32601,
+    kInvalidParams = -32602,
+    kInternalError = -32603,
+    kServerError = -32000,
+  };
+
   explicit Command(const std::string& method, const std::string& json_params,
                    const DebugClient::ResponseCallback& response_callback)
       : method_(method),
@@ -54,9 +64,11 @@ class Command {
 
   void SendResponse() const { SendResponse(JSONObject()); }
 
-  void SendErrorResponse(const std::string& error_message) const {
+  void SendErrorResponse(ErrorCode error_code,
+                         const std::string& error_message) const {
     JSONObject error_response(new base::DictionaryValue());
-    error_response->SetString("error", error_message);
+    error_response->SetInteger("error.code", error_code);
+    error_response->SetString("error.message", error_message);
     SendResponse(error_response);
   }
 

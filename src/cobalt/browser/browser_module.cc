@@ -38,6 +38,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/webapi_extension.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
@@ -50,12 +51,15 @@
 #include "nb/memory_scope.h"
 #include "starboard/atomic.h"
 #include "starboard/configuration.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/time.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include "starboard/ps4/core_dump_handler.h"
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 
@@ -80,9 +84,8 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
 
 base::LazyInstance<NonTrivialGlobalVariables> non_trivial_global_variables =
     LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
-#endif
+#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
 
 namespace browser {
 namespace {
@@ -141,10 +144,7 @@ const char kSetMediaConfigCommandLongHelp[] =
     "MediaModule::SetConfiguration() on individual platform for settings "
     "supported on the particular platform.";
 
-// Command to take a screenshot.
 const char kScreenshotCommand[] = "screenshot";
-
-// Help strings for the navigate command.
 const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
 const char kScreenshotCommandLongHelp[] =
     "Creates a screenshot of the most recent layout tree and writes it "
@@ -248,7 +248,6 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
-      navigate_count_(0),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
@@ -389,8 +388,9 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
   if (qr_overlay_info_layer_) {
+    math::Size width_height = GetViewportSize().width_height();
     qr_code_overlay_.reset(new overlay_info::QrCodeOverlay(
-        GetViewportSize(), GetResourceProvider(),
+        width_height, GetResourceProvider(),
         base::Bind(&BrowserModule::QueueOnQrCodeOverlayRenderTreeProduced,
                    base::Unretained(this))));
   }
@@ -485,14 +485,14 @@ void BrowserModule::Navigate(const GURL& url) {
 
   // Wait until after the old WebModule is destroyed before setting the navigate
   // time so that it won't be included in the time taken to load the URL.
-  ++navigate_count_;
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
 
   // Show a splash screen while we're waiting for the web page to load.
-  const math::Size& viewport_size = GetViewportSize();
+  const ViewportSize viewport_size = GetViewportSize();
 
   DestroySplashScreen(base::TimeDelta());
-  if (options_.enable_splash_screen_on_reloads || navigate_count_ == 1) {
+  if (options_.enable_splash_screen_on_reloads ||
+      main_web_module_generation_ == 1) {
     base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
     if (fallback_splash_screen_url_ ||
         (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
@@ -547,6 +547,19 @@ void BrowserModule::Navigate(const GURL& url) {
   options.provide_screenshot_function =
       base::Bind(&ScreenShotWriter::RequestScreenshotToMemoryUnencoded,
                  base::Unretained(screen_shot_writer_.get()));
+
+#if defined(ENABLE_REMOTE_DEBUGGING)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kWaitForWebDebugger)) {
+    int wait_for_generation =
+        SbStringAToI(CommandLine::ForCurrentProcess()
+                         ->GetSwitchValueASCII(switches::kWaitForWebDebugger)
+                         .c_str());
+    if (wait_for_generation < 1) wait_for_generation = 1;
+    options.wait_for_web_debugger =
+        (wait_for_generation == main_web_module_generation_);
+  }
+#endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   web_module_.reset(new WebModule(
       url, application_state_,
@@ -629,8 +642,8 @@ void BrowserModule::RequestScreenshotToFile(
     return;
   }
 
-  screen_shot_writer_->RequestScreenshotToFile(
-      image_format, path, render_tree, done_callback);
+  screen_shot_writer_->RequestScreenshotToFile(image_format, path, render_tree,
+                                               done_callback);
 }
 
 void BrowserModule::RequestScreenshotToBuffer(
@@ -645,8 +658,8 @@ void BrowserModule::RequestScreenshotToBuffer(
     return;
   }
 
-  screen_shot_writer_->RequestScreenshotToMemory(
-      image_format, render_tree, screenshot_ready);
+  screen_shot_writer_->RequestScreenshotToMemory(image_format, render_tree,
+                                                 screenshot_ready);
 }
 
 scoped_refptr<render_tree::Node> BrowserModule::GetLastSubmissionAnimated() {
@@ -782,11 +795,11 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   render_tree_combiner_.SetTimelineLayer(splash_screen_layer_.get());
   splash_screen_layer_->Submit(renderer_submission);
 
-// TODO: write screen shot using render_tree_combiner_ (to combine
-// splash screen and main web_module). Consider when the splash
-// screen is overlaid on top of the main web module render tree, and
-// a screenshot is taken : there will be a race condition on which
-// web module update their render tree last.
+  // TODO: write screen shot using render_tree_combiner_ (to combine
+  // splash screen and main web_module). Consider when the splash
+  // screen is overlaid on top of the main web module render tree, and
+  // a screenshot is taken : there will be a race condition on which
+  // web module update their render tree last.
 
   SubmitCurrentRenderTreeToRenderer();
 }
@@ -841,18 +854,18 @@ void BrowserModule::OnWindowMinimize() {
 }
 
 #if SB_API_VERSION >= 8
-void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
-  math::Size math_size(size.width, size.height);
+void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size,
+                                        float video_pixel_ratio) {
   if (web_module_) {
-    web_module_->SetSize(math_size, size.video_pixel_ratio);
+    web_module_->SetSize(viewport_size, video_pixel_ratio);
   }
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {
-    debug_console_->web_module().SetSize(math_size, size.video_pixel_ratio);
+    debug_console_->web_module().SetSize(viewport_size, video_pixel_ratio);
   }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
   if (splash_screen_) {
-    splash_screen_->web_module().SetSize(math_size, size.video_pixel_ratio);
+    splash_screen_->web_module().SetSize(viewport_size, video_pixel_ratio);
   }
 
   return;
@@ -975,7 +988,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     return;
   }
 
-  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+  if (debug_console_->GetMode() == debug::console::DebugHub::kDebugConsoleOff) {
     // If the layer already has no render tree then simply return. In that case
     // nothing is changing.
     if (!debug_console_layer_->HasRenderTree()) {
@@ -1008,7 +1021,7 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // input events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->InjectOnScreenKeyboardInputEvent(type, event)) {
       return;
     }
@@ -1050,7 +1063,7 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // pointer events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterPointerEvent(type, event)) {
       return;
     }
@@ -1076,7 +1089,7 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // wheel events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterWheelEvent(type, event)) {
       return;
     }
@@ -1194,7 +1207,7 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
 #if defined(ENABLE_DEBUG_CONSOLE)
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
-  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+  if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterKeyEvent(type, event)) {
       return false;
     }
@@ -1311,7 +1324,7 @@ void BrowserModule::CreateWindowDriverInternal(
 scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
     debug::DebugClient::Delegate* delegate) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
-  debug::DebugDispatcher* debug_dispatcher = NULL;
+  debug::backend::DebugDispatcher* debug_dispatcher = NULL;
   self_message_loop_->PostBlockingTask(
       FROM_HERE,
       base::Bind(&BrowserModule::GetDebugDispatcherInternal,
@@ -1322,7 +1335,7 @@ scoped_ptr<debug::DebugClient> BrowserModule::CreateDebugClient(
 }
 
 void BrowserModule::GetDebugDispatcherInternal(
-    debug::DebugDispatcher** out_debug_dispatcher) {
+    debug::backend::DebugDispatcher** out_debug_dispatcher) {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
   *out_debug_dispatcher = web_module_->GetDebugDispatcher();
@@ -1493,8 +1506,12 @@ void BrowserModule::InitializeSystemWindow() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::InitializeSystemWindow()");
   resource_provider_stub_ = base::nullopt;
   DCHECK(!system_window_);
-  system_window_.reset(new system_window::SystemWindow(
-      event_dispatcher_, options_.requested_viewport_size));
+  base::optional<math::Size> maybe_size;
+  if (options_.requested_viewport_size) {
+    maybe_size = options_.requested_viewport_size->width_height();
+  }
+  system_window_.reset(
+      new system_window::SystemWindow(event_dispatcher_, maybe_size));
   // Reapply automem settings now that we may have a different viewport size.
   ApplyAutoMemSettings();
 
@@ -1549,7 +1566,7 @@ void BrowserModule::DestroyRendererModule() {
 }
 
 void BrowserModule::UpdateScreenSize() {
-  math::Size size = GetViewportSize();
+  ViewportSize size = GetViewportSize();
   float video_pixel_ratio = system_window_->GetVideoPixelRatio();
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (debug_console_) {
@@ -1566,7 +1583,7 @@ void BrowserModule::UpdateScreenSize() {
   }
 
   if (qr_code_overlay_) {
-    qr_code_overlay_->SetSize(size);
+    qr_code_overlay_->SetSize(size.width_height());
   }
 }
 
@@ -1647,15 +1664,28 @@ void BrowserModule::StartOrResumeInternalPostStateUpdate() {
   }
 }
 
-math::Size BrowserModule::GetViewportSize() {
-  // We trust the renderer module the most, if it exists.
+ViewportSize BrowserModule::GetViewportSize() {
+  // We trust the renderer module for width and height the most, if it exists.
   if (renderer_module_) {
-    return renderer_module_->render_target_size();
+    math::Size size = renderer_module_->render_target_size();
+    // ...but get the diagonal from one of the other modules.
+    float diagonal_inches = 0;
+    if (system_window_) {
+      diagonal_inches = system_window_->GetDiagonalSizeInches();
+    } else if (options_.requested_viewport_size) {
+      diagonal_inches = options_.requested_viewport_size->diagonal_inches();
+    }
+
+    ViewportSize v(size.width(), size.height(), diagonal_inches);
+    return v;
   }
 
   // If the system window exists, that's almost just as good.
   if (system_window_) {
-    return system_window_->GetWindowSize();
+    math::Size size = system_window_->GetWindowSize();
+    ViewportSize v(size.width(), size.height(),
+                   system_window_->GetDiagonalSizeInches());
+    return v;
   }
 
   // Otherwise, we assume we'll get the viewport size that was requested.
@@ -1668,13 +1698,14 @@ math::Size BrowserModule::GetViewportSize() {
 
   // No window and no viewport size was requested, so we return a conservative
   // default.
-  return math::Size(1280, 720);
+  ViewportSize view_size(1280, 720, 0);
+  return view_size;
 }
 
 void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
   auto_mem_.reset(new memory_settings::AutoMem(
-      GetViewportSize(), options_.command_line_auto_mem_settings,
+      GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
       options_.build_auto_mem_settings));
 
   LOG(INFO) << "\n\n" << auto_mem_->ToPrettyPrintString(SbLogIsTty()) << "\n\n";

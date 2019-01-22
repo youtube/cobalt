@@ -34,6 +34,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/document_ready_state.h"
 #include "cobalt/dom/document_timeline.h"
@@ -108,7 +109,7 @@ class Document : public Node,
             const scoped_refptr<base::Clock>& navigation_start_clock_value,
             const base::Callback<void(const GURL&)>& navigation_callback,
             const scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet,
-            const base::optional<math::Size>& viewport_size,
+            const base::optional<cssom::ViewportSize>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             csp::CSPHeaderPolicy require_csp,
@@ -136,7 +137,7 @@ class Document : public Node,
     scoped_refptr<base::Clock> navigation_start_clock;
     base::Callback<void(const GURL&)> navigation_callback;
     scoped_refptr<cssom::CSSStyleSheet> user_agent_style_sheet;
-    base::optional<math::Size> viewport_size;
+    base::optional<cssom::ViewportSize> viewport_size;
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
     csp::CSPHeaderPolicy require_csp;
@@ -366,8 +367,8 @@ class Document : public Node,
         synchronous_layout_and_produce_render_tree_callback;
   }
 
-  math::Size viewport_size() { return viewport_size_.value_or(math::Size()); }
-  void SetViewport(const math::Size& viewport_size);
+  cssom::ViewportSize viewport_size();
+  void SetViewport(const cssom::ViewportSize& viewport_size);
 
   const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
   initial_computed_style_declaration() const {
@@ -491,7 +492,7 @@ class Document : public Node,
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
   // Viewport size.
-  base::optional<math::Size> viewport_size_;
+  base::optional<cssom::ViewportSize> viewport_size_;
   // Content Security Policy enforcement for this document.
   scoped_ptr<CspDelegate> csp_delegate_;
   network_bridge::CookieJar* cookie_jar_;

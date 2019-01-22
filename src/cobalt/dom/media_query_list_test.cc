@@ -18,14 +18,20 @@
 
 #include "cobalt/cssom/media_list.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/screen.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::cssom::ViewportSize;
+
 namespace cobalt {
 namespace dom {
+namespace {
+const ViewportSize kViewSize(1920, 1080);
+}  // namespace
 
 TEST(MediaQueryListTest, MediaGetter) {
-  scoped_refptr<Screen> screen(new Screen(1920, 1080));
+  scoped_refptr<Screen> screen(new Screen(kViewSize));
   scoped_refptr<cssom::MediaList> media_list(new cssom::MediaList());
   scoped_refptr<cssom::MediaQuery> media_query_1(new cssom::MediaQuery(true));
   scoped_refptr<cssom::MediaQuery> media_query_2(new cssom::MediaQuery(false));
@@ -41,7 +47,7 @@ TEST(MediaQueryListTest, MediaGetter) {
 }
 
 TEST(MediaQueryListTest, MatchesFalse) {
-  scoped_refptr<Screen> screen(new Screen(1920, 1080));
+  scoped_refptr<Screen> screen(new Screen(kViewSize));
   scoped_refptr<cssom::MediaList> media_list(new cssom::MediaList());
   scoped_refptr<cssom::MediaQuery> media_query(new cssom::MediaQuery(false));
   media_list->Append(media_query);
@@ -52,7 +58,7 @@ TEST(MediaQueryListTest, MatchesFalse) {
 }
 
 TEST(MediaQueryListTest, MatchesTrue) {
-  scoped_refptr<Screen> screen(new Screen(1920, 1080));
+  scoped_refptr<Screen> screen(new Screen(kViewSize));
   scoped_refptr<cssom::MediaList> media_list(new cssom::MediaList());
   scoped_refptr<cssom::MediaQuery> media_query(new cssom::MediaQuery(true));
   media_list->Append(media_query);

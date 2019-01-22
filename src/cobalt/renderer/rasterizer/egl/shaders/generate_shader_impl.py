@@ -36,6 +36,19 @@ will have the following member functions in the generated class:
   GLuint inposition() const;
   GLuint a_depth() const;
 
+It also generates index based accessors for "#pragma array" directives.  For
+example, a shader file with the following directives:
+
+  #pragma array u_texture_coord(u_texture_coord_0, u_texture_coord_1);
+
+will have the following member functions in the generated class:
+  GLuint u_texture_coord(int index) const {
+    if (index == 0) return u_texture_coord_0();
+    if (index == 1) return u_texture_coord_1();
+    NOTREACHED();
+    return 0;
+  }
+
 Additionally, the generated classes will include definitions to bind attribute
 locations, query uniform locations, and initialize uniform samplers to default
 texture units. These are done in the class' InitializePreLink,
@@ -173,33 +186,43 @@ def GetShaderInputs(filename):
   attributes = []
   uniforms = []
   samplers = []
+  pragma_arrays = {}
 
-  with open(filename, 'r') as f:
-    # Read file as a single string to facilitate comment removal.
-    file_contents = f.read()
+  file_contents = ReadShaderFile(filename)
 
-    # Remove comments and directives.
-    file_contents = re.sub(r'/\*.*?\*/', '', file_contents, flags=re.DOTALL)
-    file_contents = re.sub(r'\#.*', '', file_contents)
-    file_contents = re.sub(r'//.*', '', file_contents)
+  # Remove everything associated with the main program.
+  file_contents = re.sub(
+      r'void main\(\) .*', '', file_contents, flags=re.DOTALL)
 
-    # Remove everything associated with the main program.
-    file_contents = re.sub(
-        r'void main\(\) .*', '', file_contents, flags=re.DOTALL)
+  # Handle #pragma array() directives
+  for line in file_contents.split(';'):
+    line = line.replace('\n', '').strip()
+    matches = re.match(r'\#pragma\s+array\s+([\d\w]+)\((.*)\)', line)
+    if matches and matches.lastindex == 2:
+      array_name = matches.group(1)
+      element_names = re.split(r',\s+', matches.group(2))
+      assert array_name
+      assert element_names
 
-    # Match attributes, uniforms, and samplers (a subset of uniforms).
-    for line in file_contents.split(';'):
-      words = line.strip().split()
-      if len(words) == 3:
-        type_name = words[0].lower()
-        if type_name == 'attribute':
-          attributes.append(words[2])
-        elif type_name == 'uniform':
-          uniforms.append(words[2])
-          if words[1].lower().startswith('sampler'):
-            samplers.append(words[2])
+      pragma_arrays[array_name] = element_names
 
-  return attributes, uniforms, samplers
+  # Remove all directives for further processing
+  file_contents = re.sub(r'\#.*', '', file_contents)
+  statements = re.split(r'{|}|;', file_contents)
+
+  # Match attributes, uniforms, and samplers (a subset of uniforms).
+  for statement in statements:
+    words = statement.strip().split()
+    if len(words) == 3:
+      type_name = words[0].lower()
+      if type_name == 'attribute':
+        attributes.append(words[2])
+      elif type_name == 'uniform':
+        uniforms.append(words[2])
+        if words[1].lower().startswith('sampler'):
+          samplers.append(words[2])
+
+  return attributes, uniforms, samplers, pragma_arrays
 
 
 def ParseUniformName(name):
@@ -225,8 +248,9 @@ def GetUniformMethods(uniforms):
     base, count = ParseUniformName(name)
     methods += '\nGLuint {0}() const {{ return {0}_; }}'.format(base)
     if count:
-      methods += ('\nstatic constexpr GLsizei {0}_count() {{ return {1}; }}'
-                  .format(base, count))
+      methods += (
+          '\nstatic constexpr GLsizei {0}_count() {{ return {1}; }}'.format(
+              base, count))
   return methods
 
 
@@ -234,8 +258,40 @@ def GetSamplerMethods(samplers):
   """Returns a string representing C++ methods for the given samplers."""
   methods = ''
   for index, name in enumerate(samplers):
-    methods += ('\nGLenum {0}_texunit() const {{ return GL_TEXTURE{1}; }}'
-                .format(name, index))
+    methods += (
+        '\nGLenum {0}_texunit() const {{ return GL_TEXTURE{1}; }}'.format(
+            name, index))
+  return methods
+
+
+def GetPragmaArrayMethods(pragma_arrays, samplers):
+  """Returns a string representing C++ methods for the given pragma arrays."""
+  methods = ''
+  for array_name in pragma_arrays:
+    elements = pragma_arrays[array_name]
+    if not elements:
+      continue
+
+    method = '\nGLuint {0}(int index) const {{\n'.format(array_name)
+
+    for index in range(len(elements)):
+      method += '  if (index == {0}) return {1}();\n'.format(
+          index, elements[index])
+    method += '  NOTREACHED();\n  return {0}();\n}}'.format(elements[0])
+
+    methods += (method)
+
+    if samplers.count(elements[0]) == 0:
+      continue
+
+    method = '\nGLenum {0}_texunit(int index) const {{\n'.format(array_name)
+    # Generate *_texunit() for samplers.
+    for index in range(len(elements)):
+      method += '  if (index == {0}) return {1}_texunit();\n'.format(
+          index, elements[index])
+    method += '  NOTREACHED();\n  return {0}_texunit();\n}}'.format(elements[0])
+
+    methods += (method)
   return methods
 
 
@@ -260,8 +316,8 @@ def GetInitializePostUse(samplers):
   """Returns a string representing C++ statements to process during postuse."""
   statements = ''
   for name in samplers:
-    statements += ('\nSetTextureUnitForUniformSampler({0}(), {0}_texunit());'
-                   .format(name))
+    statements += (
+        '\nSetTextureUnitForUniformSampler({0}(), {0}_texunit());'.format(name))
   return statements
 
 
@@ -280,7 +336,8 @@ class {class_name} : public ShaderBase {{
   const char* GetSource() const override {{ return kSource; }}
 {attribute_methods}\
 {uniform_methods}\
-{sampler_methods}
+{sampler_methods}\
+{pragma_array_methods}
 
  private:
   void InitializePreLink(GLuint program) override {{\
@@ -301,7 +358,7 @@ class {class_name} : public ShaderBase {{
 
 def GetClassDefinitionForFile(filename):
   """Returns a string representing a C++ class definition for a shader."""
-  attributes, uniforms, samplers = GetShaderInputs(filename)
+  attributes, uniforms, samplers, pragma_arrays = GetShaderInputs(filename)
   return CLASS_TEMPLATE.format(
       class_name=GetShaderClassName(filename),
       # For the following fields, each line in the strings should start with
@@ -309,6 +366,8 @@ def GetClassDefinitionForFile(filename):
       attribute_methods=IndentLines(GetAttributeMethods(attributes), 2),
       uniform_methods=IndentLines(GetUniformMethods(uniforms), 2),
       sampler_methods=IndentLines(GetSamplerMethods(samplers), 2),
+      pragma_array_methods=IndentLines(
+          GetPragmaArrayMethods(pragma_arrays, samplers), 2),
       initialize_prelink=IndentLines(GetInitializePreLink(attributes), 4),
       initialize_postlink=IndentLines(GetInitializePostLink(uniforms), 4),
       initialize_postuse=IndentLines(GetInitializePostUse(samplers), 4),
@@ -333,6 +392,7 @@ HEADER_FILE_TEMPLATE = """\
 #define {include_guard}
 
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "cobalt/renderer/rasterizer/egl/shader_base.h"
 
 namespace cobalt {{

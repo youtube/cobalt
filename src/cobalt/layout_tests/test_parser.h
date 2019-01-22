@@ -20,6 +20,7 @@
 
 #include "base/file_path.h"
 #include "base/optional.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
 #include "googleurl/src/gurl.h"
 
@@ -29,7 +30,7 @@ namespace layout_tests {
 // Final parsed information about an individual Layout Test entry.
 struct TestInfo {
   TestInfo(const FilePath& base_file_path, const GURL& url,
-           const base::optional<math::Size>& viewport_size)
+           const base::optional<cssom::ViewportSize>& viewport_size)
       : base_file_path(base_file_path),
         url(url),
         viewport_size(viewport_size) {}
@@ -49,7 +50,7 @@ struct TestInfo {
   // The viewport_size is the size of the viewport used during the test.  It
   // may not be specified, in which case it is intended that a default viewport
   // size be used.
-  base::optional<math::Size> viewport_size;
+  base::optional<cssom::ViewportSize> viewport_size;
 };
 
 // Define operator<< so that this test parameter can be printed by gtest if

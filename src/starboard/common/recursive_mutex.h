@@ -56,7 +56,7 @@ class RecursiveMutex {
 ////////////////////////// Implementation /////////////////////////////////////
 
 inline RecursiveMutex::RecursiveMutex()
-    : recurse_count_(0), owner_id_(kSbThreadInvalidId) {}
+    : owner_id_(kSbThreadInvalidId), recurse_count_(0) {}
 
 inline RecursiveMutex::~RecursiveMutex() {}
 
@@ -98,6 +98,19 @@ inline bool RecursiveMutex::AcquireTry() {
   recurse_count_ = 1;
   return true;
 }
+
+class ScopedRecursiveLock {
+ public:
+  explicit ScopedRecursiveLock(RecursiveMutex& mutex) : mutex_(mutex) {
+    mutex_.Acquire();
+  }
+
+  ~ScopedRecursiveLock() { mutex_.Release(); }
+
+ private:
+  RecursiveMutex& mutex_;
+  SB_DISALLOW_COPY_AND_ASSIGN(ScopedRecursiveLock);
+};
 
 }  // namespace starboard.
 

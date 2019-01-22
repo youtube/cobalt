@@ -16,6 +16,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/cssom/media_feature.h"
+#include "cobalt/cssom/viewport_size.h"
 
 namespace cobalt {
 namespace cssom {
@@ -39,7 +40,7 @@ std::string MediaQuery::media_query() {
   return "";
 }
 
-bool MediaQuery::EvaluateConditionValue(const math::Size& viewport_size) {
+bool MediaQuery::EvaluateConditionValue(const ViewportSize& viewport_size) {
   if (!evaluated_media_type_) {
     return false;
   }

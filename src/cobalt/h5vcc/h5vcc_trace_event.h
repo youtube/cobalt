@@ -58,7 +58,7 @@ class H5vccTraceEvent : public script::Wrappable {
  public:
   H5vccTraceEvent();
 
-  void Start();
+  void Start(const std::string& output_filename);
   void Stop();
 
   TRACE_EVENT0_FOR_EACH(DEFINE_H5VCC_TRACE_EVENT0)

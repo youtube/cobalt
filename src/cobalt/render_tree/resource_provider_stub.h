@@ -78,23 +78,55 @@ class ImageDataStub : public ImageData {
   scoped_array<uint8> memory_;
 };
 
-// Simply wraps the ImageDataStub object and also makes it visible to the
-// public so that tests can access the pixel data.
+// Wraps an ImageDataStub object or a RawImageMemory and its associated image
+// descriptor.  It also makes the wrapped object visible to the public so that
+// tests can access the pixel data.
 class ImageStub : public Image {
  public:
   explicit ImageStub(scoped_ptr<ImageDataStub> image_data)
       : image_data_(image_data.Pass()) {}
+  ImageStub(scoped_ptr<RawImageMemory> raw_image_memory,
+            const MultiPlaneImageDataDescriptor& multi_plane_descriptor)
+      : raw_image_memory_(raw_image_memory.Pass()),
+        multi_plane_descriptor_(multi_plane_descriptor) {}
 
   const math::Size& GetSize() const override {
-    return image_data_->GetDescriptor().size;
+    return is_multi_plane_image()
+               ? multi_plane_descriptor_->GetPlaneDescriptor(0).size
+               : image_data_->GetDescriptor().size;
   }
 
-  ImageDataStub* GetImageData() { return image_data_.get(); }
+  bool is_multi_plane_image() const {
+    if (image_data_ == NULL) {
+      DCHECK(raw_image_memory_ != NULL);
+      return true;
+    }
+    DCHECK(raw_image_memory_ == NULL);
+    return false;
+  }
+
+  ImageDataStub* GetImageData() {
+    DCHECK(!is_multi_plane_image());
+    return image_data_.get();
+  }
+
+  RawImageMemory* GetRawImageMemory() {
+    DCHECK(is_multi_plane_image());
+    return raw_image_memory_.get();
+  }
+
+  const MultiPlaneImageDataDescriptor& multi_plane_descriptor() const {
+    DCHECK(is_multi_plane_image());
+    return multi_plane_descriptor_.value();
+  }
 
  private:
   ~ImageStub() override {}
 
   scoped_ptr<ImageDataStub> image_data_;
+
+  scoped_ptr<RawImageMemory> raw_image_memory_;
+  base::optional<MultiPlaneImageDataDescriptor> multi_plane_descriptor_;
 };
 
 // Simple class that returns dummy data for metric information modeled on
@@ -281,8 +313,8 @@ class ResourceProviderStub : public ResourceProvider {
       scoped_ptr<RawImageMemory> raw_image_memory,
       const MultiPlaneImageDataDescriptor& descriptor) override {
     UNREFERENCED_PARAMETER(raw_image_memory);
-    UNREFERENCED_PARAMETER(descriptor);
-    return scoped_refptr<Image>();
+    return make_scoped_refptr(
+        new ImageStub(raw_image_memory.Pass(), descriptor));
   }
 
   bool HasLocalFontFamily(const char* font_family_name) const override {

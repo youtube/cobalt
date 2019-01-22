@@ -176,7 +176,7 @@ current.
 #### Definition ####
 
 ```
-typedef void(* SbDecodeTargetGlesContextRunner)(struct SbDecodeTargetGraphicsContextProvider *graphics_context_provider, SbDecodeTargetGlesContextRunnerTarget target_function, void *target_function_context)
+typedef void(* SbDecodeTargetGlesContextRunner) (struct SbDecodeTargetGraphicsContextProvider *graphics_context_provider, SbDecodeTargetGlesContextRunnerTarget target_function, void *target_function_context)
 ```
 
 ### SbDecodeTargetGlesContextRunnerTarget ###
@@ -187,7 +187,7 @@ SbDecodeTargetGlesContextRunner callback.
 #### Definition ####
 
 ```
-typedef void(* SbDecodeTargetGlesContextRunnerTarget)(void *gles_context_runner_target_context)
+typedef void(* SbDecodeTargetGlesContextRunnerTarget) (void *gles_context_runner_target_context)
 ```
 
 ## Structs ##

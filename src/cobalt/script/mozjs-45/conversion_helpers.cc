@@ -51,12 +51,17 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   JSAutoByteString auto_byte_string;
   char* utf8_chars = auto_byte_string.encodeUtf8(context, string);
-  if (!utf8_chars) {
+  // Utf8 encoded string is already linear, ensureFlat might make
+  // JSDpendentString independent. But the overhead is not much and the only
+  // API we are given requires flat string.
+  JSFlatString* flat_string = string->ensureFlat(context);
+
+  if (!utf8_chars || !flat_string) {
     exception_state->SetSimpleException(kConvertToUTF8Failed);
     return;
   }
 
-  *out_string = utf8_chars;
+  out_string->assign(utf8_chars, JS::GetDeflatedUTF8StringLength(flat_string));
 }
 
 // base::Time -> JSValue

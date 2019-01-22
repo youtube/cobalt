@@ -269,8 +269,8 @@ test("nplb") {
       "//starboard/testing/fake_graphics_context_provider.cc",
       "//starboard/testing/fake_graphics_context_provider.h",
       "player_create_test.cc",
-      "player_create_with_url_test.cc",
       "player_output_mode_supported_test.cc",
+      "url_player_create_test.cc",
     ]
   }
 

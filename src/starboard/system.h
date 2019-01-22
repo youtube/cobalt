@@ -74,6 +74,15 @@ typedef enum SbSystemPathId {
 // System properties that can be queried for. Many of these are used in
 // User-Agent string generation.
 typedef enum SbSystemPropertyId {
+#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+  // The certification scope that identifies a group of devices.
+  kSbSystemPropertyCertificationScope,
+
+  // The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
+  // query parameters from the application startup URL.
+  kSbSystemPropertyBase64EncodedCertificationSecret,
+#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+
   // The full model number of the main platform chipset, including any
   // vendor-specific prefixes.
   kSbSystemPropertyChipsetModelNumber,
@@ -188,6 +197,9 @@ typedef enum SbSystemCapabilityId {
   // incorrect.
   kSbSystemCapabilitySetsInputTimestamp,
 #endif
+
+  // ATTENTION: Do not add more to this enum. Instead add an "IsSupported"
+  // function in the relevant module.
 } SbSystemCapabilityId;
 
 // Enumeration of possible values for the |type| parameter passed to  the

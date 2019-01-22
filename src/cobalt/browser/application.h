@@ -31,7 +31,7 @@
 #endif
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
-#include "cobalt/debug/debug_web_server.h"
+#include "cobalt/debug/remote/debug_web_server.h"
 #endif
 
 namespace cobalt {
@@ -110,6 +110,9 @@ class Application {
   base::EventCallback on_screen_keyboard_focused_event_callback_;
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_HAS(CAPTIONS)
+  base::EventCallback on_caption_settings_changed_event_callback_;
+#endif  // SB_HAS(CAPTIONS)
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.
@@ -124,7 +127,7 @@ class Application {
 #if defined(ENABLE_REMOTE_DEBUGGING)
   // Web server to serve devtools front end. Debugging messages are sent and
   // received via a WebSocket and communicated to an embedded DebugDispatcher.
-  scoped_ptr<debug::DebugWebServer> debug_web_server_;
+  scoped_ptr<debug::remote::DebugWebServer> debug_web_server_;
 #endif
 
  private:

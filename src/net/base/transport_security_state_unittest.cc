@@ -34,7 +34,7 @@
 #include "crypto/nss_util.h"
 #endif
 
-#if defined(__LB_SHELL__)
+#if defined(OS_STARBOARD)
 // We don't support cert pinning, so it's not compiled in.
 // Disable all tests related to cert pins.
 #define MAYBE_IsPreloaded DISABLED_IsPreloaded

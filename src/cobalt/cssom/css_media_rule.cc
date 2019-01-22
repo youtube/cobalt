@@ -18,6 +18,7 @@
 #include "cobalt/cssom/css_rule_visitor.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/media_list.h"
+#include "cobalt/cssom/viewport_size.h"
 
 namespace cobalt {
 namespace cssom {
@@ -60,7 +61,7 @@ void CSSMediaRule::Accept(CSSRuleVisitor* visitor) {
 }
 
 bool CSSMediaRule::EvaluateConditionValueAndReturnIfChanged(
-    const math::Size& viewport_size) {
+    const ViewportSize& viewport_size) {
   return SetConditionValueAndTestIfChanged(
       media_list_->EvaluateConditionValue(viewport_size));
 }

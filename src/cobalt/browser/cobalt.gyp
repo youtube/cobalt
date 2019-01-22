@@ -24,7 +24,7 @@
         '<(DEPTH)/cobalt/browser/browser.gyp:browser',
       ],
       'conditions': [
-        ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6"]', {
+        ['clang and target_os not in ["tvos", "android", "orbis"] and sb_target_platform not in ["linux-x64x11-clang-3-6", "linux-x86x11"]', {
           'dependencies': [
             '<(DEPTH)/third_party/musl/musl.gyp:c'
           ],
@@ -37,11 +37,6 @@
         }, {
           'sources': [
             'main.cc',
-          ],
-        }],
-        ['cobalt_copy_debug_console == 1', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/browser/browser.gyp:browser_copy_debug_console',
           ],
         }],
         ['cobalt_splash_screen_file != ""', {

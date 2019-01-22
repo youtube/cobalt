@@ -46,11 +46,15 @@ class TexturedMeshRenderer {
   struct Image {
     enum Type {
       // YUV BT709 image, where the Y component is on one plane and the UV
-      // components are on a second plane.  NV12 would for example choose
-      // this format type.
+      // components are on a second plane.  The valid range of individual color
+      // component is [16, 235].  NV12 would for example choose this format
+      // type.
       YUV_2PLANE_BT709,
+      // YUV BT601 image where the Y, U and V components are all on different
+      // textures.  The valid range of individual color component is [0, 255].
+      YUV_3PLANE_BT601_FULL_RANGE,
       // YUV BT709 image where the Y, U and V components are all on different
-      // textures.
+      // textures.  The valid range of individual color component is [16, 235].
       YUV_3PLANE_BT709,
       // YUV BT2020 image where the Y, U and V components are all on different
       // 10bit unnormalized textures.
@@ -72,8 +76,9 @@ class TexturedMeshRenderer {
       switch (type) {
         case YUV_2PLANE_BT709:
           return 2;
-        case YUV_3PLANE_10BIT_BT2020:
+        case YUV_3PLANE_BT601_FULL_RANGE:
         case YUV_3PLANE_BT709:
+        case YUV_3PLANE_10BIT_BT2020:
           return 3;
         case RGBA:
         case YUV_UYVY_422_BT709:

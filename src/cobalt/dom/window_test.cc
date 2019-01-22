@@ -20,6 +20,7 @@
 #include "base/callback.h"
 #include "base/message_loop.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom_parser/parser.h"
@@ -32,6 +33,8 @@
 #include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
@@ -51,8 +54,10 @@ class WindowTest : public ::testing::Test {
         url_("about:blank") {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
+
+    ViewportSize view_size(1920, 1080);
     window_ = new Window(
-        1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
+        view_size, 1.f, base::kApplicationStateStarted, css_parser_.get(),
         dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL,
         global_environment_->script_value_factory(), NULL, NULL, url_, "",

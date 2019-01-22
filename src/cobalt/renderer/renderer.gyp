@@ -39,11 +39,11 @@
         'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
       ],
       'includes': [
-        'copy_font_data.gypi',
         'renderer_parameters_setup.gypi',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/content/fonts/fonts.gyp:copy_font_data',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:animations',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',

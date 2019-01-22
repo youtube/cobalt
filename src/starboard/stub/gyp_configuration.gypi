@@ -32,6 +32,7 @@
       '-U__linux__',
     ],
     'linker_flags': [
+      '-static-libstdc++'
     ],
     'compiler_flags_debug': [
       '-frtti',

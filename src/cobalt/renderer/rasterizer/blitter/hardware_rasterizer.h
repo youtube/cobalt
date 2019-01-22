@@ -36,11 +36,11 @@ namespace blitter {
 // cannot render.
 class HardwareRasterizer : public Rasterizer {
  public:
-  explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
-                              int skia_atlas_width, int skia_atlas_height,
-                              int scratch_surface_size_in_bytes,
-                              int software_surface_cache_size_in_bytes,
-                              bool purge_skia_font_caches_on_destruction);
+  HardwareRasterizer(backend::GraphicsContext* graphics_context,
+                     int skia_atlas_width, int skia_atlas_height,
+                     int scratch_surface_size_in_bytes,
+                     int software_surface_cache_size_in_bytes,
+                     bool purge_skia_font_caches_on_destruction);
   virtual ~HardwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed
@@ -52,6 +52,7 @@ class HardwareRasterizer : public Rasterizer {
   render_tree::ResourceProvider* GetResourceProvider() override;
 
   void MakeCurrent() override {}
+  void ReleaseContext() override {}
 
  private:
   class Impl;

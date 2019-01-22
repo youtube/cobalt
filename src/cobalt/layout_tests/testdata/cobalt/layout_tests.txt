@@ -25,3 +25,4 @@ user-agent-style-sheet-display
 user-agent-test
 window-onerror
 woff2-decoding
+btoa-with-null-char

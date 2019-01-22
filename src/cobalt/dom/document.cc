@@ -30,6 +30,7 @@
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -61,6 +62,8 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "nb/memory_scope.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
@@ -840,14 +843,17 @@ void Document::SetPartialLayout(bool enabled) {
 }
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-void Document::SetViewport(const math::Size& viewport_size) {
-  if (viewport_size_ && viewport_size_->width() == viewport_size.width() &&
-      viewport_size_->height() == viewport_size.height()) {
+ViewportSize Document::viewport_size() {
+  return viewport_size_.value_or(ViewportSize());
+}
+
+void Document::SetViewport(const ViewportSize& viewport_size) {
+  if (viewport_size_ && *viewport_size_ == viewport_size) {
     return;
   }
-
   viewport_size_ = viewport_size;
-  initial_computed_style_data_ = CreateInitialComputedStyle(*viewport_size_);
+  initial_computed_style_data_ =
+      CreateInitialComputedStyle(viewport_size_->width_height());
   initial_computed_style_declaration_->SetData(initial_computed_style_data_);
 
   is_computed_style_dirty_ = true;
@@ -1070,7 +1076,6 @@ void Document::UpdateMediaRules() {
          style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
       scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
           style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
-
       css_style_sheet->EvaluateMediaRules(*viewport_size_);
     }
   }

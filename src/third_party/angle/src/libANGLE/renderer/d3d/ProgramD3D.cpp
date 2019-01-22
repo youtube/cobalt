@@ -26,6 +26,21 @@
 #include "libANGLE/renderer/d3d/ShaderExecutableD3D.h"
 #include "libANGLE/renderer/d3d/VertexDataManager.h"
 
+#if defined(ANGLE_STD_ASYNC_WORKERS) && defined(_MSC_VER)
+#if (ANGLE_STD_ASYNC_WORKERS == ANGLE_ENABLED) && (_MSC_VER >= 1915)
+// Starting with MSVC++ 14.15 std::future::wait() will throw an exception
+// with the message "Illegal to wait on a task in a Windows Runtime STA"
+// whenever it is invoked from the UI thread. This define signals a
+// workaround to avoid this exception by invoking future::wait() on a
+// separate thread and then immediately doing a thread join.
+#define ANGLE_MSVC_STA_EXCEPTION_WORKAROUND
+#endif
+#endif
+
+#ifdef ANGLE_MSVC_STA_EXCEPTION_WORKAROUND
+#include <thread>
+#endif
+
 using namespace angle;
 
 namespace rx
@@ -1411,7 +1426,11 @@ LinkResult ProgramD3D::compileProgramExecutables(const gl::ContextState &context
                                                 workerPool->postWorkerTask(&pixelTask),
                                                 workerPool->postWorkerTask(&geometryTask)}};
 
+#ifdef ANGLE_MSVC_STA_EXCEPTION_WORKAROUND
+    std::thread([&]() { WaitableEvent::WaitMany(&waitEvents); }).join();
+#else
     WaitableEvent::WaitMany(&waitEvents);
+#endif
 
     infoLog << vertexTask.getInfoLog().str();
     infoLog << pixelTask.getInfoLog().str();

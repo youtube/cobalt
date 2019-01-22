@@ -25,6 +25,8 @@
           'atomicops_internals_tsan.h',
           'base64.cc',
           'base64.h',
+          'base64url.cc',
+          'base64url.h',
           'base_export.h',
           'base_paths.cc',
           'base_paths.h',

@@ -1136,35 +1136,36 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
   if (!player_) {
     return;
   }
+
 #if SB_HAS(PLAYER_WITH_URL)
-  switch (error) {
-    case kSbPlayerErrorNetwork:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK, message);
-      break;
-    case kSbPlayerErrorDecode:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
-      break;
-#if SB_API_VERSION >= 10
-    case kSbPlayerErrorCapabilityChanged:
-#endif  // SB_API_VERSION >= 10
-      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
-      break;
-    case kSbPlayerErrorSrcNotSupported:
-      ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_COULD_NOT_OPEN, message);
-      break;
-  }
-#else
-  switch (error) {
-    case kSbPlayerErrorDecode:
-      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
-      break;
-#if SB_API_VERSION >= 10
-    case kSbPlayerErrorCapabilityChanged:
-      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
-      break;
-#endif  // SB_API_VERSION >= 10
+  if (error >= kSbPlayerErrorMax) {
+    switch (static_cast<SbUrlPlayerError>(error)) {
+      case kSbUrlPlayerErrorNetwork:
+        ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK, message);
+        break;
+      case kSbUrlPlayerErrorSrcNotSupported:
+        ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_COULD_NOT_OPEN, message);
+        break;
+    }
+    return;
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+  switch (error) {
+    case kSbPlayerErrorDecode:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE, message);
+      break;
+#if SB_API_VERSION >= 10
+    case kSbPlayerErrorCapabilityChanged:
+      ResetAndRunIfNotNull(&error_cb_, PLAYBACK_CAPABILITY_CHANGED, message);
+      break;
+#endif  // SB_API_VERSION >= 10
+#if SB_API_VERSION >= SB_HAS_PLAYER_ERROR_MAX_VERSION
+    case kSbPlayerErrorMax:
+      NOTREACHED();
+      break;
+#endif  // SB_API_VERSION >= SB_HAS_PLAYER_ERROR_MAX_VERSION
+  }
 }
 #endif  // SB_HAS(PLAYER_ERROR_MESSAGE)
 

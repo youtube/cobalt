@@ -177,12 +177,14 @@ void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#ref-for-dom-mouseevent-buttons-2
   switch (input_event->type()) {
     case system_window::InputEvent::kTouchpadDown:
+    case system_window::InputEvent::kTouchscreenDown:
     case system_window::InputEvent::kPointerDown:
       // For 'down' events, ensure that the buttons state includes the currently
       // reported button press.
       buttons |= 1 << event->button();
       break;
     case system_window::InputEvent::kTouchpadUp:
+    case system_window::InputEvent::kTouchscreenUp:
     case system_window::InputEvent::kPointerUp:
       // For 'up' events, ensure that the buttons state excludes the currently
       // reported button press.
@@ -194,6 +196,7 @@ void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
     case system_window::InputEvent::kInput:
     case system_window::InputEvent::kPointerMove:
     case system_window::InputEvent::kTouchpadMove:
+    case system_window::InputEvent::kTouchscreenMove:
     case system_window::InputEvent::kWheel:
       break;
   }
@@ -251,6 +254,11 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
     case system_window::InputEvent::kTouchpadUp:
     case system_window::InputEvent::kTouchpadMove:
       pointer_event.set_pointer_type("touchpad");
+      break;
+    case system_window::InputEvent::kTouchscreenDown:
+    case system_window::InputEvent::kTouchscreenUp:
+    case system_window::InputEvent::kTouchscreenMove:
+      pointer_event.set_pointer_type("touch");
       break;
     case system_window::InputEvent::kKeyDown:
     case system_window::InputEvent::kKeyUp:
@@ -350,14 +358,17 @@ void InputDeviceManagerDesktop::HandleSystemWindowInputEvent(
       break;
     }
     case system_window::InputEvent::kPointerMove:
-    case system_window::InputEvent::kTouchpadMove: {
+    case system_window::InputEvent::kTouchpadMove:
+    case system_window::InputEvent::kTouchscreenMove: {
       HandlePointerEvent(base::Tokens::pointermove(), input_event);
       break;
     }
     case system_window::InputEvent::kTouchpadDown:
+    case system_window::InputEvent::kTouchscreenDown:
       HandlePointerEvent(base::Tokens::pointerdown(), input_event);
       break;
     case system_window::InputEvent::kTouchpadUp:
+    case system_window::InputEvent::kTouchscreenUp:
       HandlePointerEvent(base::Tokens::pointerup(), input_event);
       break;
     case system_window::InputEvent::kWheel:

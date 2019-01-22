@@ -78,8 +78,9 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
 
   network_module_.reset(new network::NetworkModule(network_options));
   fetcher_factory_.reset(new loader::FetcherFactory(network_module_.get()));
-  system_window_.reset(new system_window::SystemWindow(
-      &event_dispatcher_, math::Size(kViewportWidth, kViewportHeight)));
+  math::Size view_size(kViewportWidth, kViewportHeight);
+  system_window_.reset(
+      new system_window::SystemWindow(&event_dispatcher_, view_size));
 
   renderer::RendererModule::Options renderer_options;
   renderer_module_.reset(

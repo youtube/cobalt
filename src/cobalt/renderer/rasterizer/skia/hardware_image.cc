@@ -26,8 +26,8 @@
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
-#include "third_party/skia/include/gpu/gl/GrGLTypes.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/gl/GrGLTypes.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
 
 namespace cobalt {
@@ -431,6 +431,7 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : size_(descriptor.GetPlaneDescriptor(0).size),
+      estimated_size_in_bytes_(raw_image_memory->GetSizeInBytes()),
       format_(descriptor.image_format()) {
   scoped_refptr<backend::ConstRawTextureMemoryEGL> const_raw_texture_memory(
       new backend::ConstRawTextureMemoryEGL(
@@ -451,8 +452,10 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
     : size_(planes[0]->GetSize()), format_(format) {
   DCHECK(planes.size() <=
          render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes);
+  estimated_size_in_bytes_ = 0;
   for (unsigned int i = 0; i < planes.size(); ++i) {
     planes_[i] = planes[i];
+    estimated_size_in_bytes_ += planes_[i]->GetEstimatedSizeInBytes();
   }
 }
 

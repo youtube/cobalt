@@ -23,12 +23,13 @@ const char* kOutputTraceFilename = "h5vcc_trace_event.json";
 
 H5vccTraceEvent::H5vccTraceEvent() {}
 
-void H5vccTraceEvent::Start() {
+void H5vccTraceEvent::Start(const std::string& output_filename) {
   if (trace_to_file_) {
     DLOG(WARNING) << "H5vccTraceEvent is already started.";
   } else {
-    trace_to_file_.reset(
-        new trace_event::ScopedTraceToFile(FilePath(kOutputTraceFilename)));
+    FilePath output_filepath(output_filename.empty() ? kOutputTraceFilename
+                                                     : output_filename);
+    trace_to_file_.reset(new trace_event::ScopedTraceToFile(output_filepath));
   }
 }
 

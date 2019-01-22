@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 
 namespace cobalt {
@@ -39,6 +40,7 @@ class DummyGIFImageDecoder : public ImageDataDecoder {
  private:
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override;
+  scoped_refptr<Image> FinishInternal() override { return NULL; }
 };
 
 }  // namespace image

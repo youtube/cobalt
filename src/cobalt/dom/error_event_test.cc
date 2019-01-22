@@ -21,6 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/error_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/testing/gtest_workarounds.h"
@@ -40,9 +41,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using cobalt::cssom::ViewportSize;
+using cobalt::script::testing::FakeScriptValue;
+
 namespace cobalt {
 namespace dom {
-using ::cobalt::script::testing::FakeScriptValue;
 
 class MockErrorCallback : public base::Callback<void(const std::string&)> {
  public:
@@ -65,8 +68,9 @@ class ErrorEventTest : public ::testing::Test {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
 
+    ViewportSize view_size(1920, 1080);
     window_ = new Window(
-        1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
+        view_size, 1.f, base::kApplicationStateStarted, css_parser_.get(),
         dom_parser_.get(), fetcher_factory_.get(), loader_factory_.get(), NULL,
         NULL, NULL, NULL, NULL, NULL, &local_storage_database_, NULL, NULL,
         NULL, NULL, global_environment_->script_value_factory(), NULL, NULL,

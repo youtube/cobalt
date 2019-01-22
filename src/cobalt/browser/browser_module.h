@@ -33,6 +33,7 @@
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
+#include "cobalt/browser/lifecycle_console_commands.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -43,6 +44,7 @@
 #include "cobalt/browser/system_platform_error_handler.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/on_screen_keyboard_bridge.h"
@@ -67,7 +69,7 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/browser/debug_console.h"
 #include "cobalt/browser/trace_manager.h"
-#include "cobalt/debug/debug_dispatcher.h"
+#include "cobalt/debug/backend/debug_dispatcher.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "starboard/configuration.h"
 #include "starboard/window.h"
@@ -99,7 +101,7 @@ class BrowserModule {
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::optional<GURL> fallback_splash_screen_url;
-    base::optional<math::Size> requested_viewport_size;
+    base::optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
   };
@@ -154,7 +156,7 @@ class BrowserModule {
   scoped_ptr<debug::DebugClient> CreateDebugClient(
       debug::DebugClient::Delegate* delegate);
   void GetDebugDispatcherInternal(
-      debug::DebugDispatcher** out_debug_dispatcher);
+      debug::backend::DebugDispatcher** out_debug_dispatcher);
 #endif  // ENABLE_DEBUG_CONSOLE
 
   // Change the network proxy settings while the application is running.
@@ -180,7 +182,8 @@ class BrowserModule {
 
 #if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
-  void OnWindowSizeChanged(const SbWindowSize& size);
+  void OnWindowSizeChanged(const cssom::ViewportSize& viewport_size,
+                           float video_pixel_ratio);
 #endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
@@ -378,7 +381,7 @@ class BrowserModule {
   // viewport size. If there was no requested viewport size, it returns a
   // default viewport size of 1280x720 (720p). Once a system window is created,
   // it returns the confirmed size of the window.
-  math::Size GetViewportSize();
+  cssom::ViewportSize GetViewportSize();
 
   // Applies the current AutoMem settings to all applicable submodules.
   void ApplyAutoMemSettings();
@@ -504,9 +507,6 @@ class BrowserModule {
   // which could occur on navigation.
   base::Closure web_module_recreated_callback_;
 
-  // The total number of navigations that have occurred.
-  int navigate_count_;
-
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.
   base::CVal<int64, base::CValPublic> navigate_time_;
@@ -540,6 +540,10 @@ class BrowserModule {
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
 
   base::optional<SuspendFuzzer> suspend_fuzzer_;
+
+  // An object that registers and owns console commands for controlling
+  // Cobalt's lifecycle.
+  LifecycleConsoleCommands lifecycle_console_commands_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.
@@ -609,9 +613,10 @@ class BrowserModule {
   // screen will be displayed.
   base::optional<GURL> fallback_splash_screen_url_;
 
-  // Number of main web modules that have take place so far, helpful for
-  // ditinguishing lingering events produced by older web modules as we switch
-  // from one to another.  This is incremented with each navigation.
+  // Number of main web modules that have taken place so far, indicating how
+  // many navigations have occurred. This is helpful for distinguishing
+  // lingering events produced by older web modules as we switch from one to
+  // another. This is incremented with each navigation.
   int main_web_module_generation_;
 
   // Keeps track of a unique next ID to be assigned to new splash screen or

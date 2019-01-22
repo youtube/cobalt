@@ -108,6 +108,7 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
       isolate_fellowship->array_buffer_allocator;
+#if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
   auto* startup_data = &isolate_fellowship->startup_data;
   if (startup_data->data != nullptr) {
     create_params.snapshot_blob = startup_data;
@@ -117,6 +118,7 @@ V8cEngine::V8cEngine(const Options& options) : options_(options) {
     LOG(WARNING) << "Isolate fellowship startup data was null, this will "
                     "significantly slow down startup time.";
   }
+#endif  // !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
 
   isolate_ = v8::Isolate::New(create_params);
   CHECK(isolate_);

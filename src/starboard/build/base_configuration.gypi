@@ -156,8 +156,6 @@
 
     'compiler_flags_host%': [],
     'compiler_flags_c_host%': [],
-    'compiler_flags_cc_host%': [],
-    'linker_flags_host%': [],
     'defines_host%': [],
 
     'platform_libraries%': [],
@@ -166,6 +164,38 @@
 
     # List of platform-specific targets that get compiled into cobalt.
     'cobalt_platform_dependencies%': [],
+
+    'conditions': [
+      ['host_os=="linux"', {
+        'conditions': [
+          ['target_arch=="arm" or target_arch=="ia32" or target_arch=="x32"\
+           or target_arch=="mips" or target_arch=="mipsel" or\
+           target_arch=="ppc"', {
+            # All the 32 bit CPU architectures v8 supports.
+            'compiler_flags_cc_host%': [
+              '-m32',
+              '--std=gnu++11',
+            ],
+            'linker_flags_host%': [
+              '-target', 'i386-unknown-linux-gnu',
+              '-pthread',
+              '-fuse-ld=lld',
+            ],
+          }, {
+            'compiler_flags_cc_host%': [
+              '--std=gnu++11',
+            ],
+            'linker_flags_host%': [
+              '-pthread',
+              '-fuse-ld=lld',
+            ],
+          }],
+        ],
+      }, {
+        'compiler_flags_cc_host%': [],
+        'linker_flags_host%': [],
+      }],
+    ],
   },
 
   'target_defaults': {

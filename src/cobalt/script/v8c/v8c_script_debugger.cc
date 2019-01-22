@@ -14,6 +14,7 @@
 
 #include "cobalt/script/v8c/v8c_script_debugger.h"
 
+#include <sstream>
 #include <string>
 
 #include "base/logging.h"
@@ -82,12 +83,51 @@ void V8cScriptDebugger::DispatchProtocolMessage(const std::string& message) {
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::runMessageLoopOnPause(int contextGroupId) {
   DCHECK(contextGroupId == kContextGroupId);
-  delegate_->OnScriptDebuggerPause();
+  if (attached_) {
+    delegate_->OnScriptDebuggerPause();
+  }
 }
 
 // v8_inspector::V8InspectorClient implementation.
 void V8cScriptDebugger::quitMessageLoopOnPause() {
-  delegate_->OnScriptDebuggerResume();
+  if (attached_) {
+    delegate_->OnScriptDebuggerResume();
+  }
+}
+
+// v8_inspector::V8InspectorClient implementation.
+void V8cScriptDebugger::runIfWaitingForDebugger(int contextGroupId) {
+  if (attached_) {
+    delegate_->OnScriptDebuggerResume();
+  }
+}
+
+// v8_inspector::V8InspectorClient implementation.
+void V8cScriptDebugger::consoleAPIMessage(
+    int contextGroupId, v8::Isolate::MessageErrorLevel level,
+    const v8_inspector::StringView& message,
+    const v8_inspector::StringView& url, unsigned lineNumber,
+    unsigned columnNumber, v8_inspector::V8StackTrace* trace) {
+  UNREFERENCED_PARAMETER(contextGroupId);
+  UNREFERENCED_PARAMETER(trace);
+
+  std::stringstream log;
+  if (url.length()) {
+    log << '[' << FromStringView(url) << ", Line " << lineNumber << ", Col "
+        << columnNumber << ']';
+  }
+  log << FromStringView(message);
+
+  switch (level) {
+    case v8::Isolate::kMessageError:
+      LOG(ERROR) << log.str();
+      break;
+    case v8::Isolate::kMessageWarning:
+      LOG(WARNING) << log.str();
+      break;
+    default:
+      LOG(INFO) << log.str();
+  }
 }
 
 // v8_inspector::V8InspectorClient implementation.
@@ -105,15 +145,19 @@ v8::Local<v8::Context> V8cScriptDebugger::ensureDefaultContextInGroup(
 // v8_inspector::V8Inspector::Channel implementation.
 void V8cScriptDebugger::sendResponse(
     int callId, std::unique_ptr<v8_inspector::StringBuffer> message) {
-  std::string response = FromStringView(message->string());
-  delegate_->OnScriptDebuggerResponse(response);
+  if (attached_) {
+    std::string response = FromStringView(message->string());
+    delegate_->OnScriptDebuggerResponse(response);
+  }
 }
 
 // v8_inspector::V8Inspector::Channel implementation.
 void V8cScriptDebugger::sendNotification(
     std::unique_ptr<v8_inspector::StringBuffer> message) {
-  std::string event = FromStringView(message->string());
-  delegate_->OnScriptDebuggerEvent(event);
+  if (attached_) {
+    std::string event = FromStringView(message->string());
+    delegate_->OnScriptDebuggerEvent(event);
+  }
 }
 
 // Inspired by |CopyCharsUnsigned| in v8/src/utils.h

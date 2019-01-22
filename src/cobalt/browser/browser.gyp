@@ -32,6 +32,8 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'lifecycle_console_commands.cc',
+        'lifecycle_console_commands.h',
         'lifecycle_observer.h',
         'memory_settings/auto_mem.cc',
         'memory_settings/auto_mem.h',
@@ -262,16 +264,5 @@
       'includes': [ '<(DEPTH)/starboard/build/deploy.gypi' ],
     },
 
-    {
-      'target_name': 'browser_copy_debug_console',
-      'type': 'none',
-      'variables': {
-        'content_web_input_files': [
-          '<(DEPTH)/cobalt/browser/debug_console/',
-        ],
-        'content_web_output_subdir': 'cobalt/browser/debug_console/',
-      },
-      'includes': [ '<(DEPTH)/cobalt/build/copy_web_data.gypi' ],
-    },
   ],
 }

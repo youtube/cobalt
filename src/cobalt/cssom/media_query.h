@@ -21,6 +21,7 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/media_feature.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/wrappable.h"
 
@@ -41,7 +42,7 @@ class MediaQuery : public script::Wrappable {
   //
   std::string media_query();
 
-  bool EvaluateConditionValue(const math::Size& viewport_size);
+  bool EvaluateConditionValue(const ViewportSize& viewport_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaQuery);
 

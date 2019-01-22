@@ -20,8 +20,8 @@ namespace nplb {
 namespace {
 
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
-TEST(SbWindowGetDiagonialSizeInInches, RainyDay) {
-  ASSERT_EQ(0.f, SbWindowGetDiagonialSizeInInches(kSbWindowInvalid));
+TEST(SbWindowGetDiagonalSizeInInches, RainyDay) {
+  ASSERT_EQ(0.f, SbWindowGetDiagonalSizeInInches(kSbWindowInvalid));
 }
 #endif
 

@@ -35,6 +35,7 @@
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
       'cobalt_media_source_2016%': 1,
+      'cobalt_v8_buildtime_snapshot%': "true",
     },
 
     # Whether Cobalt is being built.
@@ -230,6 +231,9 @@
 
     # Some platforms have difficulty linking snapshot_app_stats
     'build_snapshot_app_stats%': 1,
+
+    # Set to "true" to enable v8 snapshot generation at Cobalt build time.
+    'cobalt_v8_buildtime_snapshot%': '<(cobalt_v8_buildtime_snapshot)',
 
     # Cache parameters
 
@@ -577,6 +581,11 @@
           'COBALT_DISABLE_SPDY',
         ],
       }],
+      ['cobalt_v8_buildtime_snapshot == "true"', {
+        'defines': [
+          'COBALT_V8_BUILDTIME_SNAPSHOT=1',
+        ],
+      }]
     ],
   }, # end of target_defaults
 

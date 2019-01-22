@@ -113,7 +113,7 @@ class ScriptValue {
   virtual void DeregisterOwner(Wrappable* owner) = 0;
 
   // Prevent/Allow garbage collection of the underlying ScriptValue. Calls
-  // must be balanced and are not idempodent. While the number of calls to
+  // must be balanced and are not idempotent. While the number of calls to
   // |Prevent| are greater than the number of calls to |Allow|, the underlying
   // value will never be garbage collected.
   virtual void PreventGarbageCollection() = 0;
@@ -196,7 +196,7 @@ class Handle {
   T* operator*() { return script_value_->GetValue(); }
   T* operator->() const { return script_value_->GetValue(); }
 
-  // These are primarly exposed for internals.  In most cases you don't need
+  // These are primarily exposed for internals.  In most cases you don't need
   // to work with the ScriptValue directly.
   ScriptValue<T>* GetScriptValue() { return script_value_; }
   const ScriptValue<T>* GetScriptValue() const { return script_value_; }

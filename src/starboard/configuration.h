@@ -91,8 +91,24 @@
 #define SB_HAS_AC3_AUDIO_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Adds support for allowing the platform to override its screen diagonal
-// length via SbWindowGetDiagonialSizeInInches().
+// length via SbWindowGetDiagonalSizeInInches().
 #define SB_HAS_SCREEN_DIAGONAL_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add support for startup url signing by adding
+// kSbSystemPropertyCertificationScope and
+// kSbSystemPropertyBase64EncodedCertificationSecret system property enums to
+// system.h.
+#define SB_HAS_STARTUP_URL_SIGNING_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Replace kSbMediaVideoCodecVp10 by kSbMediaVideoCodecAv1.
+// kSbMediaVideoCodecVp10 in media.h is replaced by kSbMediaVideoCodecAv1.
+#define SB_HAS_AV1_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add a new SbPlayerError enum kSbPlayerErrorMax in player.h.
+#define SB_HAS_PLAYER_ERROR_MAX_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Add support for SbThreadSampler and SbThreadContext to support profiling.
+#define SB_THREAD_SAMPLER_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 

@@ -13,9 +13,10 @@
 // limitations under the License.
 
 precision mediump float;
-uniform sampler2D u_texture;
 varying vec2 v_texcoord;
 
+#include "image_sampler_rgba.inc"
+
 void main() {
-  gl_FragColor = texture2D(u_texture, v_texcoord);
+  gl_FragColor = GetRgba();
 }

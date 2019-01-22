@@ -110,7 +110,7 @@ SB_EXPORT SbWindow SbWindowCreate(const SbWindowOptions* options);
 // A return value of 0 means that starboard does not know what the
 // screen diagonal is.
 #if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
-SB_EXPORT float SbWindowGetDiagonialSizeInInches(SbWindow window);
+SB_EXPORT float SbWindowGetDiagonalSizeInInches(SbWindow window);
 #endif
 
 // Sets the default options for system windows.

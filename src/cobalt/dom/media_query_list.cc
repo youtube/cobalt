@@ -18,8 +18,11 @@
 
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/media_query.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/safe_integer_conversions.h"
 #include "cobalt/math/size.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace dom {
@@ -37,9 +40,10 @@ bool MediaQueryList::matches() const {
   if (!media_list_ || !screen_) {
     return false;
   }
-  return media_list_->EvaluateConditionValue(
-      math::Size(math::ToRoundedInt(screen_->avail_width()),
-                 math::ToRoundedInt(screen_->avail_height())));
+  ViewportSize viewport(math::ToRoundedInt(screen_->avail_width()),
+                        math::ToRoundedInt(screen_->avail_height()),
+                        screen_->diagonal_inches());
+  return media_list_->EvaluateConditionValue(viewport);
 }
 
 void MediaQueryList::TraceMembers(script::Tracer* tracer) {

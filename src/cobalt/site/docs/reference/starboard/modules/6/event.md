@@ -183,7 +183,8 @@ the type of the value pointed to by that data argument, if any.
 
     The platform's accessibility settings have changed. The application should
     query the accessibility settings using the appropriate APIs to get the new
-    settings.
+    settings. Note this excludes captions settings changes, which causes
+    kSbEventTypeAccessibilityCaptionSettingsChanged to fire.
 *   `kSbEventTypeLowMemory`
 
     An optional event that platforms may send to indicate that the application
@@ -194,19 +195,43 @@ the type of the value pointed to by that data argument, if any.
 *   `kSbEventTypeOnScreenKeyboardShown`
 
     The platform has shown the on screen keyboard. This event is triggered by
-    the system or by the OnScreenKeyboard's show method in javascript. The event
-    has int data representing the ticket for looking up a promise reference
-    stored by the on screen keyboard. Javascript-triggered events have tickets
-    passed in via SbWindowShowOnScreenKeyboard. System-triggered events have
-    ticket value kSbEventOnScreenKeyboardInvalidTicket.
+    the system or by the application's OnScreenKeyboard show method. The event
+    has int data representing a ticket. The ticket is used by the application to
+    mark individual calls to the show method as successfully completed. Events
+    triggered by the application have tickets passed in via
+    SbWindowShowOnScreenKeyboard. System-triggered events have ticket value
+    kSbEventOnScreenKeyboardInvalidTicket.
 *   `kSbEventTypeOnScreenKeyboardHidden`
 
     The platform has hidden the on screen keyboard. This event is triggered by
-    the system or by the OnScreenKeyboard's hide method in javascript. The event
-    has int data representing the ticket for looking up a promise reference
-    stored by the on screen keyboard. Javascript-triggered events have tickets
-    passed in via SbWindowHideOnScreenKeyboard. System-triggered events have
-    ticket value kSbEventOnScreenKeyboardInvalidTicket.
+    the system or by the application's OnScreenKeyboard hide method. The event
+    has int data representing a ticket. The ticket is used by the application to
+    mark individual calls to the hide method as successfully completed. Events
+    triggered by the application have tickets passed in via
+    SbWindowHideOnScreenKeyboard. System-triggered events have ticket value
+    kSbEventOnScreenKeyboardInvalidTicket.
+*   `kSbEventTypeOnScreenKeyboardFocused`
+
+    The platform has focused the on screen keyboard. This event is triggered by
+    the system or by the application's OnScreenKeyboard focus method. The event
+    has int data representing a ticket. The ticket is used by the application to
+    mark individual calls to the focus method as successfully completed. Events
+    triggered by the application have tickets passed in via
+    SbWindowFocusOnScreenKeyboard. System-triggered events have ticket value
+    kSbEventOnScreenKeyboardInvalidTicket.
+*   `kSbEventTypeOnScreenKeyboardBlurred`
+
+    The platform has blurred the on screen keyboard. This event is triggered by
+    the system or by the application's OnScreenKeyboard blur method. The event
+    has int data representing a ticket. The ticket is used by the application to
+    mark individual calls to the blur method as successfully completed. Events
+    triggered by the application have tickets passed in via
+    SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
+    kSbEventOnScreenKeyboardInvalidTicket.
+*   `kSbEventTypeAccessibilityCaptionSettingsChanged`
+
+    One or more of the fields returned by SbAccessibilityGetCaptionSettings has
+    changed.
 
 ## Typedefs ##
 
@@ -217,7 +242,7 @@ A function that can be called back from the main Starboard event pump.
 #### Definition ####
 
 ```
-typedef void(* SbEventCallback)(void *context)
+typedef void(* SbEventCallback) (void *context)
 ```
 
 ### SbEventDataDestructor ###
@@ -227,7 +252,7 @@ A function that will cleanly destroy an event data instance of a specific type.
 #### Definition ####
 
 ```
-typedef void(* SbEventDataDestructor)(void *data)
+typedef void(* SbEventDataDestructor) (void *data)
 ```
 
 ### SbEventId ###

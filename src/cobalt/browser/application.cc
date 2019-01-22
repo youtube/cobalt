@@ -15,9 +15,12 @@
 #include "cobalt/browser/application.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 
+#include "base/base64.h"
+#include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
@@ -60,8 +63,12 @@
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
+#include "crypto/hmac.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/escape.h"
 #include "starboard/configuration.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace browser {
@@ -143,20 +150,127 @@ std::string GetWebDriverListenIp() {
 }
 #endif  // ENABLE_WEBDRIVER
 
+#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+std::string NumberToFourByteString(size_t n) {
+  std::string str;
+  str += static_cast<char>(((n & 0xff000000) >> 24));
+  str += static_cast<char>(((n & 0x00ff0000) >> 16));
+  str += static_cast<char>(((n & 0x0000ff00) >> 8));
+  str += static_cast<char>((n & 0x000000ff));
+  return str;
+}
+
+std::string BuildMessageFragment(const std::string& key,
+                                 const std::string& value) {
+  std::string msg_fragment = NumberToFourByteString(key.length()) + key +
+                             NumberToFourByteString(value.length()) + value;
+  return msg_fragment;
+}
+
+std::string ComputeSignature(const std::string& cert_scope,
+                             const std::string& start_time,
+                             const std::string& base_64_secret) {
+  const size_t kSHA256DigestSize = 32;
+
+  // Build signed_msg from cert_scope and start_time.
+  std::string signed_msg = BuildMessageFragment("cert_scope", cert_scope);
+  signed_msg += BuildMessageFragment("start_time", start_time);
+
+  // Decode secret from base_64_secret.
+  std::string secret;
+  base::Base64Decode(base_64_secret, &secret);
+
+  // Generate signature from signed_msg using HMAC-SHA256.
+  unsigned char signature_hash[kSHA256DigestSize] = {0};
+  crypto::HMAC hmac(crypto::HMAC::SHA256);
+  if (!hmac.Init(secret)) {
+    DLOG(ERROR) << "Unable to initialize HMAC-SHA256.";
+  }
+  if (!hmac.Sign(signed_msg, signature_hash, kSHA256DigestSize)) {
+    DLOG(ERROR) << "Unable to sign HMAC-SHA256.";
+  }
+  std::string signature(signature_hash, signature_hash + kSHA256DigestSize);
+
+  // Encode base_64_url_signature from signature.
+  std::string base_64_url_signature;
+  base::Base64UrlEncode(signature, base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &base_64_url_signature);
+
+  return base_64_url_signature;
+}
+#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+
 GURL GetInitialURL() {
+  GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kInitialURL)) {
     GURL url = GURL(command_line->GetSwitchValueASCII(switches::kInitialURL));
     if (url.is_valid()) {
-      return url;
+      initial_url = url;
     } else {
       DLOG(ERROR) << "URL from parameter " << command_line
                   << " is not valid, using default URL.";
     }
   }
 
-  return GURL(kDefaultURL);
+#if SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+  // Get cert_scope and base_64_secret
+  const size_t kCertificationScopeLength = 1023;
+  char cert_scope_property[kCertificationScopeLength + 1] = {0};
+  bool result =
+      SbSystemGetProperty(kSbSystemPropertyCertificationScope,
+                          cert_scope_property, kCertificationScopeLength);
+  if (!result) {
+    DLOG(ERROR) << "Unable to get kSbSystemPropertyCertificationScope";
+    return initial_url;
+  }
+  std::string cert_scope(cert_scope_property);
+
+  const size_t kBase64EncodedCertificationSecretLength = 1023;
+  char base_64_secret_property[kBase64EncodedCertificationSecretLength + 1] = {
+      0};
+  result = SbSystemGetProperty(
+      kSbSystemPropertyBase64EncodedCertificationSecret,
+      base_64_secret_property, kBase64EncodedCertificationSecretLength);
+  if (!result) {
+    DLOG(ERROR)
+        << "Unable to get kSbSystemPropertyBase64EncodedCertificationSecret";
+    return initial_url;
+  }
+  std::string base_64_secret(base_64_secret_property);
+
+  // Get current unix time in seconds.
+  std::string start_time =
+      std::to_string(static_cast<int64>(base::Time::Now().ToDoubleT()));
+
+  // Add signed_query to the initial_url.
+  std::map<std::string, std::string> signed_query;
+  signed_query["cert_scope"] = cert_scope;
+  signed_query["start_time"] = start_time;
+  signed_query["sig"] =
+      ComputeSignature(cert_scope, start_time, base_64_secret);
+
+  std::string query = initial_url.query();
+  std::map<std::string, std::string>::iterator it = signed_query.begin();
+  while (it != signed_query.end()) {
+    std::string key = it->first;
+    std::string value = it->second;
+
+    if (!query.empty()) query += "&";
+    query += net::EscapeQueryParamValue(key, true);
+    if (!value.empty()) {
+      query += "=" + net::EscapeQueryParamValue(value, true);
+    }
+    it++;
+  }
+
+  GURL::Replacements replacements;
+  replacements.SetQueryStr(query);
+  initial_url = initial_url.ReplaceComponents(replacements);
+#endif  // SB_API_VERSION >= SB_HAS_STARTUP_URL_SIGNING_VERSION
+
+  return initial_url;
 }
 
 base::optional<GURL> GetFallbackSplashScreenURL() {
@@ -228,32 +342,8 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-// Represents a parsed int.
-struct ParsedIntValue {
- public:
-  ParsedIntValue() : value_(0), error_(false) {}
-  ParsedIntValue(const ParsedIntValue& other)
-      : value_(other.value_), error_(other.error_) {}
-  int value_;
-  bool error_;  // true if there was a parse error.
-};
-
-// Parses a string like "1234x5678" to vector of parsed int values.
-std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
-  std::vector<ParsedIntValue> output;
-
-  std::vector<std::string> lengths;
-  base::SplitString(value_str, 'x', &lengths);
-
-  for (size_t i = 0; i < lengths.size(); ++i) {
-    ParsedIntValue parsed_value;
-    parsed_value.error_ = !base::StringToInt(lengths[i], &parsed_value.value_);
-    output.push_back(parsed_value);
-  }
-  return output;
-}
-
-base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
+base::optional<cssom::ViewportSize> GetRequestedViewportSize(
+    CommandLine* command_line) {
   DCHECK(command_line);
   if (!command_line->HasSwitch(browser::switches::kViewport)) {
     return base::nullopt;
@@ -261,41 +351,49 @@ base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
 
   std::string switch_value =
       command_line->GetSwitchValueASCII(browser::switches::kViewport);
-  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switch_value);
-  if (parsed_ints.size() < 1) {
+
+  std::vector<std::string> lengths;
+  base::SplitString(switch_value, 'x', &lengths);
+
+  if (lengths.empty()) {
+    DLOG(ERROR) << "Viewport " << switch_value << " is invalid.";
     return base::nullopt;
   }
 
-  const ParsedIntValue parsed_width = parsed_ints[0];
-  if (parsed_width.error_) {
-    DLOG(ERROR) << "Invalid value specified for viewport width: "
-                << switch_value << ". Using default viewport size.";
+  int width = 0;
+  if (!base::StringToInt(lengths[0], &width)) {
+    DLOG(ERROR) << "Viewport " << switch_value << " has invalid width.";
     return base::nullopt;
   }
 
-  const ParsedIntValue* parsed_height_ptr = NULL;
-  if (parsed_ints.size() >= 2) {
-    parsed_height_ptr = &parsed_ints[1];
-  }
-
-  if (!parsed_height_ptr) {
+  if (lengths.size() < 2) {
     // Allow shorthand specification of the viewport by only giving the
     // width. This calculates the height at 4:3 aspect ratio for smaller
     // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-    if (parsed_width.value_ >= 1280) {
-      return math::Size(parsed_width.value_, 9 * parsed_width.value_ / 16);
+    if (width >= 1280) {
+      return ViewportSize(width, 9 * width / 16, 0);
     }
-
-    return math::Size(parsed_width.value_, 3 * parsed_width.value_ / 4);
+    return ViewportSize(width, 3 * width / 4, 0);
   }
 
-  if (parsed_height_ptr->error_) {
-    DLOG(ERROR) << "Invalid value specified for viewport height: "
-                << switch_value << ". Using default viewport size.";
+  int height = 0;
+  if (!base::StringToInt(lengths[1], &height)) {
+    DLOG(ERROR) << "Viewport " << switch_value << " has invalid height.";
     return base::nullopt;
   }
 
-  return math::Size(parsed_width.value_, parsed_height_ptr->value_);
+  if (lengths.size() < 3) {
+    return ViewportSize(width, height);
+  }
+
+  double screen_diagonal_inches = 0.0;
+  if (!base::StringToDouble(lengths[2], &screen_diagonal_inches)) {
+    DLOG(ERROR) << "Viewport " << switch_value
+                << " has invalid screen_diagonal_inches.";
+    return base::nullopt;
+  }
+  return ViewportSize(width, height,
+                      static_cast<float>(screen_diagonal_inches));
 }
 
 std::string GetMinLogLevelString() {
@@ -435,7 +533,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  base::optional<math::Size> requested_viewport_size =
+  base::optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
   WebModule::Options web_options;
@@ -658,10 +756,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if SB_HAS(CAPTIONS)
+  on_caption_settings_changed_event_callback_ = base::Bind(
+      &Application::OnCaptionSettingsChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
-      base::Bind(&Application::OnCaptionSettingsChangedEvent,
-                 base::Unretained(this)));
+      on_caption_settings_changed_event_callback_);
 #endif  // SB_HAS(CAPTIONS)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -685,7 +784,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
   int remote_debugging_port = GetRemoteDebuggingPort();
-  debug_web_server_.reset(new debug::DebugWebServer(
+  debug_web_server_.reset(new debug::remote::DebugWebServer(
       remote_debugging_port,
       base::Bind(&BrowserModule::CreateDebugClient,
                  base::Unretained(browser_module_.get()))));
@@ -723,6 +822,26 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= 8
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardShownEvent::TypeId(),
+      on_screen_keyboard_shown_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardHiddenEvent::TypeId(),
+      on_screen_keyboard_hidden_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardFocusedEvent::TypeId(),
+      on_screen_keyboard_focused_event_callback_);
+  event_dispatcher_.RemoveEventCallback(
+      base::OnScreenKeyboardBlurredEvent::TypeId(),
+      on_screen_keyboard_blurred_event_callback_);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_HAS(CAPTIONS)
+  event_dispatcher_.RemoveEventCallback(
+      base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
+      on_caption_settings_changed_event_callback_);
+#endif  // SB_HAS(CAPTIONS)
+
   app_status_ = kShutDownAppStatus;
 }
 
@@ -957,7 +1076,16 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
   const base::WindowSizeChangedEvent* window_size_change_event =
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
-  browser_module_->OnWindowSizeChanged(window_size_change_event->size());
+  const auto& size = window_size_change_event->size();
+#if SB_API_VERSION >= SB_HAS_SCREEN_DIAGONAL_API_VERSION
+  float diagonal = SbWindowGetDiagonalSizeInInches(
+      window_size_change_event->window());
+#else
+  float diagonal = 0.0f;  // Special value meaning diagonal size is not known.
+#endif
+
+  cssom::ViewportSize viewport_size(size.width, size.height, diagonal);
+  browser_module_->OnWindowSizeChanged(viewport_size, size.video_pixel_ratio);
 }
 #endif  // SB_API_VERSION >= 8
 

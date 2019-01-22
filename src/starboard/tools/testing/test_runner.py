@@ -66,6 +66,20 @@ def _FilterTests(target_list, filters, config_name):
   return targets
 
 
+def _VerifyConfig(config):
+  """Ensures a platform or app config is self-consistent."""
+  targets = config.GetTestTargets()
+  filters = config.GetTestFilters()
+  filter_targets = [f.target_name for f in filters]
+
+  # Filters must be defined in the same config as the targets they're filtering,
+  # platform filters in platform config, and app filters in app config.
+  unknown_targets = set(filter_targets) - set(targets)
+  if unknown_targets:
+    raise ValueError("Unknown filter targets in {} config ({}): {}".format(
+        config.GetName(), config.__class__.__name__, sorted(unknown_targets)))
+
+
 class TestLineReader(object):
   """Reads lines from the test runner's launcher output via an OS pipe.
 
@@ -95,7 +109,7 @@ class TestLineReader(object):
           sys.stdout.write(line)
           sys.stdout.flush()
         except IOError as err:
-          self.output_lines.write("error: " + str(err) + '\n')
+          self.output_lines.write("error: " + str(err) + "\n")
           return
       else:
         break
@@ -184,7 +198,8 @@ class TestRunner(object):
                out_directory,
                application_name=None,
                dry_run=False,
-               xml_output_dir=None):
+               xml_output_dir=None,
+               log_xml_results=False):
     self.platform = platform
     self.config = config
     self.device_id = device_id
@@ -195,7 +210,11 @@ class TestRunner(object):
         application_name)
     self.dry_run = dry_run
     self.xml_output_dir = xml_output_dir
+    self.log_xml_results = log_xml_results
     self.threads = []
+
+    _VerifyConfig(self._platform_config)
+    _VerifyConfig(self._app_config)
 
     # If a particular test binary has been provided, configure only that one.
     if specified_targets:
@@ -219,16 +238,15 @@ class TestRunner(object):
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    targets = _FilterTests(
-        specified_targets, self._GetTestFilters(), self.config)
+    targets = _FilterTests(specified_targets, self._GetTestFilters(),
+                           self.config)
     if len(targets) != len(specified_targets):
       # If any of the provided target names have been filtered,
       # they will not all run.
-      sys.stderr.write(
-          "Test list has been filtered. Not all will run.\n"
-          "Original list: \"{}\".\n"
-          "Filtered list: \"{}\".\n".format(
-              specified_targets, list(targets.keys())))
+      sys.stderr.write("Test list has been filtered. Not all will run.\n"
+                       "Original list: \"{}\".\n"
+                       "Filtered list: \"{}\".\n".format(
+                           specified_targets, list(targets.keys())))
 
     return targets
 
@@ -293,8 +311,12 @@ class TestRunner(object):
       test_params.append("--gtest_filter=-{}".format(":".join(
           self.test_targets[target_name])))
 
-    # Have gtest create and save a test result xml
-    if self.xml_output_dir:
+    if self.log_xml_results:
+      # Log the xml results
+      test_params.append("--gtest_output=xml:log")
+      print "Xml results for this test will be logged."
+    elif self.xml_output_dir:
+      # Have gtest create and save a test result xml
       xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
       try:
         os.makedirs(xml_output_subdir)
@@ -323,6 +345,7 @@ class TestRunner(object):
     self.threads.append(test_reader)
 
     if self.dry_run:
+      # pylint: disable=g-long-ternary
       sys.stdout.write("{} {}\n".format(target_name, test_params)
                        if test_params else "{}\n".format(target_name))
       write_pipe.close()
@@ -585,7 +608,12 @@ def main():
       help="If defined, results will be saved as xml files in given directory."
       " Output for each test suite will be in it's own subdirectory and file:"
       " <xml_output_dir>/<test_suite_name>/sponge_log.xml")
-
+  arg_parser.add_argument(
+      "-l",
+      "--log_xml_results",
+      action="store_true",
+      help="If set, results will be logged in xml format after all tests are"
+      " complete. --xml_output_dir will be ignored.")
   args = arg_parser.parse_args()
 
   # Extra arguments for the test target
@@ -595,7 +623,8 @@ def main():
 
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, target_params, args.out_directory,
-                      args.application_name, args.dry_run, args.xml_output_dir)
+                      args.application_name, args.dry_run, args.xml_output_dir,
+                      args.log_xml_results)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.

@@ -44,8 +44,7 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
   }
   void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& /*wrappable*/) override {}
-  void AllowGarbageCollection(
-      const scoped_refptr<Wrappable>& /*wrappable*/) override {}
+  void AllowGarbageCollection(Wrappable* /*wrappable*/) override {}
   void AddRoot(Traceable* /*traceable*/) override {}
   void RemoveRoot(Traceable* /*traceable*/) override {}
   void DisableEval(const std::string& /*message*/) override {}

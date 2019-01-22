@@ -16,6 +16,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/css_parser/parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_parser.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -30,6 +31,8 @@
 #include "cobalt/webdriver/algorithms.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace webdriver {
@@ -47,7 +50,7 @@ class GetElementTextTest : public ::testing::Test {
 
   void SetUp() override {
     dom::Document::Options options;
-    options.viewport_size = math::Size(1920, 1080);
+    options.viewport_size = ViewportSize(1920, 1080);
     options.navigation_start_clock = new base::SystemMonotonicClock();
     document_ = new dom::Document(&html_element_context_, options);
     document_->AppendChild(new dom::HTMLHtmlElement(document_.get()));

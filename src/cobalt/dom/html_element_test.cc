@@ -22,6 +22,7 @@
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -37,13 +38,16 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using ::testing::Return;
-using ::testing::_;
+using cobalt::cssom::ViewportSize;
+using testing::Return;
+using testing::_;
 
 namespace cobalt {
 namespace dom {
 
 namespace {
+
+ViewportSize kViewSize(320, 240);
 
 // Useful for using base::Bind() along with GMock actions.
 ACTION_P(InvokeCallback0, callback) {
@@ -220,7 +224,7 @@ TEST_F(HTMLElementTest, Focus) {
   testing::StubWindow window;
   document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(math::Size(320, 240));
+  document_->SetViewport(kViewSize);
 
   scoped_refptr<HTMLElement> html_element_1 =
       document_->CreateElement("div")->AsHTMLElement();
@@ -272,7 +276,7 @@ TEST_F(HTMLElementTest, Blur) {
   testing::StubWindow window;
   document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(math::Size(320, 240));
+  document_->SetViewport(kViewSize);
 
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();
@@ -293,7 +297,7 @@ TEST_F(HTMLElementTest, RemoveActiveElementShouldRunBlur) {
   testing::StubWindow window;
   document_->set_window(window.window());
   // Give the document initial computed style.
-  document_->SetViewport(math::Size(320, 240));
+  document_->SetViewport(kViewSize);
 
   scoped_refptr<HTMLElement> html_element =
       document_->CreateElement("div")->AsHTMLElement();

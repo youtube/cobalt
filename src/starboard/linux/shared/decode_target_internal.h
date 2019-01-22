@@ -44,6 +44,14 @@ SbDecodeTarget DecodeTargetCreate(
     // Possibly valid structure to reuse, instead of allocating a new object.
     SbDecodeTarget decode_target);
 
+// Outputs an image into a SbDecodeTarget.
+SbDecodeTarget DecodeTargetCreate(
+    SbDecodeTargetGraphicsContextProvider* provider,
+    const uint8_t* image_data,
+    int width,
+    int height,
+    SbDecodeTargetFormat format);
+
 void DecodeTargetRelease(SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDecodeTarget decode_target);

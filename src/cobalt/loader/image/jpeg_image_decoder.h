@@ -20,6 +20,7 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 
 // Inhibit C++ name-mangling for libjpeg functions.
@@ -33,24 +34,60 @@ namespace image {
 
 class JPEGImageDecoder : public ImageDataDecoder {
  public:
-  explicit JPEGImageDecoder(render_tree::ResourceProvider* resource_provider);
+  // Pass true to |allow_image_decoding_to_multi_plane| to allow the decoder to
+  // produce output in YUV  whenever possible, which saves both decoding time
+  // and memory footprint.  Pass false to it on platforms that cannot render
+  // multi plane images efficiently, and the output will always be produced in
+  // single plane RGBA or BGRA.
+  JPEGImageDecoder(render_tree::ResourceProvider* resource_provider,
+                   bool allow_image_decoding_to_multi_plane);
   ~JPEGImageDecoder() override;
 
   // From ImageDataDecoder
   std::string GetTypeString() const override { return "JPEGImageDecoder"; }
 
  private:
+  enum OutputFormat {
+    kOutputFormatInvalid,
+    kOutputFormatYUV,
+    kOutputFormatRGBA,
+    kOutputFormatBGRA,
+  };
+
   // From ImageDataDecoder
   size_t DecodeChunkInternal(const uint8* data, size_t size) override;
+  scoped_refptr<Image> FinishInternal() override;
 
   bool ReadHeader();
   bool StartDecompress();
   bool DecodeProgressiveJPEG();
+  bool ReadYUVLines();
+  bool ReadRgbaOrGbraLines();
   bool ReadLines();
+
+  const bool allow_image_decoding_to_multi_plane_;
 
   jpeg_decompress_struct info_;
   jpeg_source_mgr source_manager_;
   jpeg_error_mgr error_manager_;
+
+  OutputFormat output_format_ = kOutputFormatInvalid;
+
+  // This is only used when |output_format_| is kOutputFormatRGBA or
+  // kOutputFormatBGRA.
+  scoped_ptr<render_tree::ImageData> decoded_image_data_;
+
+  // All the following variables are only valid when |output_format_| is
+  // kOutputFormatYUV.
+  scoped_ptr<render_tree::RawImageMemory> raw_image_memory_;
+
+  // Sample factors of y plane, they are 1 for yuv444 or 2 for yuv420 but may
+  // have other value combinations for other yuv formats.
+  int h_sample_factor_ = 0;
+  int v_sample_factor_ = 0;
+  // Width/height of y plane, aligned to |kDctScaleSize| * |y_sample_factor_|.
+  JDIMENSION y_plane_width_ = 0;
+  JDIMENSION y_plane_height_ = 0;
 };
 
 }  // namespace image

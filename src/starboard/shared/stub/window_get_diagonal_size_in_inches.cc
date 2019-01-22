@@ -14,7 +14,7 @@
 
 #include "starboard/window.h"
 
-float SbWindowGetDiagonialSizeInInches(SbWindow /*window*/) {
+float SbWindowGetDiagonalSizeInInches(SbWindow /*window*/) {
   // 0 is a signal meaning that the platform doesn't know the diagonal screen
   // length.
   return 0.f;

@@ -23,6 +23,7 @@
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/window.h"
 #include "googleurl/src/gurl.h"
 
@@ -37,7 +38,7 @@ class SplashScreen : public LifecycleObserver {
                const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
                network::NetworkModule* network_module,
-               const math::Size& window_dimensions,
+               const cssom::ViewportSize& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate,
                const base::optional<GURL>& fallback_splash_screen_url,
@@ -47,7 +48,8 @@ class SplashScreen : public LifecycleObserver {
                    on_splash_screen_shutdown_complete);
   ~SplashScreen();
 
-  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
+  void SetSize(const cssom::ViewportSize& window_dimensions,
+               float video_pixel_ratio) {
     web_module_->SetSize(window_dimensions, video_pixel_ratio);
   }
 

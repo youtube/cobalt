@@ -179,6 +179,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
 MozjsGlobalEnvironment::~MozjsGlobalEnvironment() {
   DCHECK(thread_checker_.CalledOnValidThread());
   JS_RemoveExtraGCRootsTracer(JS_GetRuntime(context_), TraceFunction, this);
+  destructing_ = true;
 }
 
 void MozjsGlobalEnvironment::CreateGlobalObject() {
@@ -348,12 +349,14 @@ void MozjsGlobalEnvironment::PreventGarbageCollection(
   }
 }
 
-void MozjsGlobalEnvironment::AllowGarbageCollection(
-    const scoped_refptr<Wrappable>& wrappable) {
+void MozjsGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  auto it = kept_alive_objects_.find(wrappable.get());
+  // AllowGarbageCollection is unnecessary when the environment is destroyed.
+  if (destructing_) return;
+
+  auto it = kept_alive_objects_.find(wrappable);
   DCHECK(it != kept_alive_objects_.end());
   it->second.count--;
   DCHECK_GE(it->second.count, 0);
@@ -529,7 +532,7 @@ void MozjsGlobalEnvironment::DoSweep() {
 void MozjsGlobalEnvironment::BeginGarbageCollection() {
   TRACK_MEMORY_SCOPE("Javascript");
   // It's possible that a GC could be triggered from within the
-  // BeginGarbageCollection callback. Only verify that |visisted_wrappables_|
+  // BeginGarbageCollection callback. Only verify that |visited_wrappables_|
   // is empty the first time we enter.
   garbage_collection_count_++;
 
@@ -539,7 +542,7 @@ void MozjsGlobalEnvironment::BeginGarbageCollection() {
 }
 
 void MozjsGlobalEnvironment::EndGarbageCollection() {
-  // Reset |visisted_wrappables_|.
+  // Reset |visited_wrappables_|.
   garbage_collection_count_--;
   DCHECK_GE(garbage_collection_count_, 0);
   if (garbage_collection_count_ == 0) {

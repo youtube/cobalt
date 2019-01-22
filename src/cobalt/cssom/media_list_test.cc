@@ -19,11 +19,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using testing::_;
+using testing::Return;
+
 namespace cobalt {
 namespace cssom {
-
-using ::testing::_;
-using ::testing::Return;
+namespace {
 
 TEST(MediaListTest, MediaTextSetter) {
   testing::MockCSSParser css_parser;
@@ -74,69 +75,70 @@ TEST(MediaListTest, EvaluateMediaQueryFalse) {
   scoped_refptr<MediaList> media_list(new MediaList());
 
   media_list->Append(media_query);
-  EXPECT_FALSE(media_list->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_list->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueryTrue) {
   scoped_refptr<MediaQuery> media_query(new MediaQuery(true));
-  EXPECT_TRUE(media_query->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesFalseAndFalse) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(false));
-  EXPECT_FALSE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_query_1->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(false));
-  EXPECT_FALSE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_query_2->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_FALSE(media_list->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_list->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesFalseAndTrue) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(false));
-  EXPECT_FALSE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_query_1->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
-  EXPECT_TRUE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query_2->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesTrueAndFalse) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
-  EXPECT_TRUE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query_1->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(false));
-  EXPECT_FALSE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_FALSE(media_query_2->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
 TEST(MediaListTest, EvaluateMediaQueriesTrueAndTrue) {
   scoped_refptr<MediaQuery> media_query_1(new MediaQuery(true));
-  EXPECT_TRUE(media_query_1->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query_1->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaQuery> media_query_2(new MediaQuery(true));
-  EXPECT_TRUE(media_query_2->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_query_2->EvaluateConditionValue(ViewportSize(0, 0)));
 
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query_1);
   media_list->Append(media_query_2);
-  EXPECT_TRUE(media_list->EvaluateConditionValue(math::Size(0, 0)));
+  EXPECT_TRUE(media_list->EvaluateConditionValue(ViewportSize(0, 0)));
 }
 
+}  // namespace
 }  // namespace cssom
 }  // namespace cobalt

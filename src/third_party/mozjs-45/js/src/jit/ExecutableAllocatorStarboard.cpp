@@ -50,6 +50,9 @@ js::jit::AllocateExecutableMemory(void* addr, size_t bytes, unsigned permissions
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
     SB_NOTREACHED();
     return nullptr;
+#elif !SB_HAS(MMAP)
+    SB_NOTIMPLEMENTED();
+    return nullptr;
 #else
     void* p = SbMemoryMap(bytes, kSbMemoryMapProtectReadWrite | kSbMemoryMapProtectExec, tag);
     return (p == SB_MEMORY_MAP_FAILED) ? nullptr : p;
@@ -60,8 +63,12 @@ void
 js::jit::DeallocateExecutableMemory(void* addr, size_t bytes, size_t pageSize)
 {
     MOZ_ASSERT(bytes % pageSize == 0);
+#if SB_HAS(MMAP)
     mozilla::DebugOnly<bool> result = SbMemoryUnmap(addr, bytes);
     MOZ_ASSERT(result);
+#else  // SB_HAS(MMAP)
+    SB_NOTIMPLEMENTED();
+#endif  // SB_HAS(MMAP)
 }
 
 ExecutablePool::Allocation

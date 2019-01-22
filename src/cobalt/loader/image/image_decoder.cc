@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/image_decoder_starboard.h"
@@ -23,8 +24,10 @@
 #include "cobalt/loader/image/png_image_decoder.h"
 #include "cobalt/loader/image/stub_image_decoder.h"
 #include "cobalt/loader/image/webp_image_decoder.h"
+#include "cobalt/loader/switches.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_status_code.h"
+#include "starboard/configuration.h"
 #include "starboard/image.h"
 
 namespace cobalt {
@@ -153,26 +156,8 @@ void ImageDecoder::Finish() {
   switch (state_) {
     case kDecoding:
       DCHECK(decoder_);
-      if (decoder_->FinishWithSuccess()) {
-        if (!decoder_->has_animation()) {
-#if SB_HAS(GRAPHICS)
-          SbDecodeTarget target = decoder_->RetrieveSbDecodeTarget();
-          if (SbDecodeTargetIsValid(target)) {
-            success_callback_.Run(new StaticImage(
-                resource_provider_->CreateImageFromSbDecodeTarget(target)));
-          } else  // NOLINT
-#endif
-          {
-            scoped_ptr<render_tree::ImageData> image_data =
-                decoder_->RetrieveImageData();
-            success_callback_.Run(
-                image_data ? new StaticImage(resource_provider_->CreateImage(
-                                 image_data.Pass()))
-                           : NULL);
-          }
-        } else {
-          success_callback_.Run(decoder_->animated_image());
-        }
+      if (auto image = decoder_->FinishAndMaybeReturnImage()) {
+        success_callback_.Run(image);
       } else {
         error_callback_.Run(decoder_->GetTypeString() +
                             " failed to decode image.");
@@ -331,8 +316,34 @@ scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     return make_scoped_ptr<ImageDataDecoder>(
         new StubImageDecoder(resource_provider));
   } else if (image_type == ImageDecoder::kImageTypeJPEG) {
-    return make_scoped_ptr<ImageDataDecoder>(
-        new JPEGImageDecoder(resource_provider));
+#if SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+    // Many image formats can produce native output in multi plane images in YUV
+    // 420.  Allow these images to be decoded into multi plane image not only
+    // reduces the space to store the decoded image to 37.5%, but also improves
+    // decoding performance by not converting the output from YUV to RGBA.
+    bool allow_image_decoding_to_multi_plane = true;
+#else   // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+    // Decoding to single plane by default because blitter platforms usually
+    // don't have the ability to perform hardware accelerated YUV-formatted
+    // image blitting.
+    // This also applies to skia based "hardware" rasterizers as the rendering
+    // of multi plane images in such cases are not optimized, but this may be
+    // improved in future.
+    bool allow_image_decoding_to_multi_plane = false;
+#endif  // SB_HAS(GLES2) && defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+    auto command_line = CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kAllowImageDecodingToMultiPlane)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kAllowImageDecodingToMultiPlane);
+      if (value == "true") {
+        allow_image_decoding_to_multi_plane = true;
+      } else {
+        DCHECK_EQ(value, "false");
+        allow_image_decoding_to_multi_plane = false;
+      }
+    }
+    return make_scoped_ptr<ImageDataDecoder>(new JPEGImageDecoder(
+        resource_provider, allow_image_decoding_to_multi_plane));
   } else if (image_type == ImageDecoder::kImageTypePNG) {
     return make_scoped_ptr<ImageDataDecoder>(
         new PNGImageDecoder(resource_provider));

@@ -22,6 +22,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/cssom/user_agent_style_sheet.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/base64.h"
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/console.h"
@@ -56,6 +57,7 @@
 #include "cobalt/speech/speech_synthesis.h"
 #include "starboard/file.h"
 
+using cobalt::cssom::ViewportSize;
 using cobalt::media_session::MediaSession;
 
 namespace cobalt {
@@ -88,7 +90,7 @@ const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
 }  // namespace
 
 Window::Window(
-    int width, int height, float device_pixel_ratio,
+    const ViewportSize& view_size, float device_pixel_ratio,
     base::ApplicationState initial_application_state,
     cssom::CSSParser* css_parser, Parser* dom_parser,
     loader::FetcherFactory* fetcher_factory,
@@ -135,8 +137,7 @@ Window::Window(
     // 'window' object EventTargets require special handling for onerror events,
     // see EventTarget constructor for more details.
     : EventTarget(kUnpackOnErrorEvents),
-      width_(width),
-      height_(height),
+      viewport_size_(view_size),
       device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
       is_reporting_script_error_(false),
@@ -160,7 +161,7 @@ Window::Window(
               base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
               performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
-              math::Size(width_, height_), cookie_jar, post_sender, require_csp,
+              view_size, cookie_jar, post_sender, require_csp,
               csp_enforcement_mode, csp_policy_changed_callback,
               csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(NULL),
@@ -179,7 +180,7 @@ Window::Window(
           new Storage(this, Storage::kLocalStorage, local_storage_database))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
-      screen_(new Screen(width, height)),
+      screen_(new Screen(view_size)),
       preflight_cache_(new loader::CORSPreflightCache()),
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
@@ -607,19 +608,16 @@ void Window::SetSynchronousLayoutAndProduceRenderTreeCallback(
   document_->set_synchronous_layout_and_produce_render_tree_callback(callback);
 }
 
-void Window::SetSize(int width, int height, float device_pixel_ratio) {
-  if (width_ == width && height_ == height &&
-      device_pixel_ratio_ == device_pixel_ratio) {
+void Window::SetSize(ViewportSize size, float device_pixel_ratio) {
+  if (size == viewport_size_ && device_pixel_ratio == device_pixel_ratio_) {
     return;
   }
 
-  width_ = width;
-  height_ = height;
+  viewport_size_ = size;
   device_pixel_ratio_ = device_pixel_ratio;
-  screen_->SetSize(width, height);
-
+  screen_->SetSize(viewport_size_);
   // This will cause layout invalidation.
-  document_->SetViewport(math::Size(width, height));
+  document_->SetViewport(viewport_size_);
 
   if (html_element_context_->page_visibility_state()->GetVisibilityState() ==
       page_visibility::kVisibilityStateVisible) {

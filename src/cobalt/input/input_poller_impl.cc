@@ -100,6 +100,9 @@ void InputPollerImpl::UpdateInputEvent(
     case system_window::InputEvent::kTouchpadDown:
     case system_window::InputEvent::kTouchpadUp:
     case system_window::InputEvent::kTouchpadMove:
+    case system_window::InputEvent::kTouchscreenDown:
+    case system_window::InputEvent::kTouchscreenUp:
+    case system_window::InputEvent::kTouchscreenMove:
     case system_window::InputEvent::kWheel:
       // Pointer and Wheel events are ignored here.
       break;

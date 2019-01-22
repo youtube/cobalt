@@ -55,7 +55,8 @@ SplashScreen::SplashScreen(
     base::ApplicationState initial_application_state,
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
-    network::NetworkModule* network_module, const math::Size& window_dimensions,
+    network::NetworkModule* network_module,
+    const cssom::ViewportSize& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const base::optional<GURL>& fallback_splash_screen_url,
     const GURL& initial_main_web_module_url,

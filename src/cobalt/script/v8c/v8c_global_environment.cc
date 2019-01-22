@@ -95,6 +95,7 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script",
                "V8cGlobalEnvironment::~V8cGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
+  destructing_ = true;
 }
 
 void V8cGlobalEnvironment::CreateGlobalObject() {
@@ -223,10 +224,12 @@ void V8cGlobalEnvironment::PreventGarbageCollection(
   WrapperPrivate::GetFromWrapperObject(wrapper)->IncrementRefCount();
 }
 
-void V8cGlobalEnvironment::AllowGarbageCollection(
-    const scoped_refptr<Wrappable>& wrappable) {
+void V8cGlobalEnvironment::AllowGarbageCollection(Wrappable* wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // AllowGarbageCollection is unnecessary when the environment is destroyed.
+  if (destructing_) return;
 
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(wrappable);
@@ -418,7 +421,8 @@ v8::MaybeLocal<v8::Value> V8cGlobalEnvironment::EvaluateScriptInternal(
 
   v8::Local<v8::String> source;
   if (!v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
-                               v8::NewStringType::kNormal)
+                               v8::NewStringType::kNormal,
+                               v8c_source_code->source_utf8().length())
            .ToLocal(&source)) {
     LOG(WARNING) << "Failed to convert source code to V8 UTF-8 string.";
     return {};

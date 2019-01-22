@@ -331,8 +331,10 @@ void TopmostEventTarget::MaybeSendPointerEvents(
         pointer_state->SetActive(pointer_event->pointer_id());
         // Implicitly capture the pointer to the active element.
         //   https://www.w3.org/TR/pointerevents/#implicit-pointer-capture
-        scoped_refptr<dom::HTMLElement> html_element =
-            view->document()->active_element()->AsHTMLElement();
+        scoped_refptr<dom::HTMLElement> html_element;
+        if (view->document()->active_element()) {
+          html_element = view->document()->active_element()->AsHTMLElement();
+        }
         if (html_element) {
           pointer_state->SetPendingPointerCaptureTargetOverride(
               pointer_event->pointer_id(), html_element);

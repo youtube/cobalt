@@ -10,7 +10,9 @@
 #include "src/conversions-inl.h"
 #include "src/factory.h"
 
+#if defined(V8_OS_STARBOARD)
 #include "starboard/log.h"
+#endif  // V8_OS_STARBOARD
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
@@ -21,7 +23,7 @@ namespace internal {
 
 namespace {
 
-#if defined(STARBOARD)
+#if defined(V8_OS_STARBOARD)
 
 template <typename T>
 inline T ExchangeSeqCst(T* p, T value) {
@@ -171,7 +173,7 @@ ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
 
 #error Unsupported platform!
 
-#endif
+#endif  // V8_OS_STARBOARD
 
 template <typename T>
 T FromObject(Handle<Object> number);

@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_SCREEN_H_
 #define COBALT_DOM_SCREEN_H_
 
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -25,31 +26,32 @@ namespace dom {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 class Screen : public script::Wrappable {
  public:
-  Screen(int width, int height) { SetSize(width, height); }
+  explicit Screen(const cssom::ViewportSize& view_size) { SetSize(view_size); }
 
-  void SetSize(int width, int height) {
-    width_ = static_cast<float>(width);
-    height_ = static_cast<float>(height);
+  void SetSize(int width, int height, float diagonal_inches) {
+    view_size_ = cssom::ViewportSize(width, height, diagonal_inches);
   }
+
+  void SetSize(const cssom::ViewportSize& view_size) { view_size_ = view_size; }
 
   // Web API
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 
   // The availWidth attribute must return the available width of the rendering
   // surface of the output device, in CSS pixels.
-  float avail_width() const { return width_; }
+  float avail_width() const { return view_size_.width(); }
 
   // The availHeight attribute must return the available height of the rendering
   // surface of the output device, in CSS pixels.
-  float avail_height() const { return height_; }
+  float avail_height() const { return view_size_.height(); }
 
   // The width attribute must return the width of the output device, in CSS
   // pixels.
-  float width() const { return width_; }
+  float width() const { return avail_width(); }
 
   // The height attribute must return the height of the output device, in CSS
   // pixels.
-  float height() const { return height_; }
+  float height() const { return avail_height(); }
 
   // The colorDepth attribute must return 24.
   unsigned int color_depth() const { return 24; }
@@ -57,11 +59,13 @@ class Screen : public script::Wrappable {
   // The pixelDepth attribute must return 24.
   unsigned int pixel_depth() const { return 24; }
 
+  // The length of the display screen as measured from opposing corners.
+  float diagonal_inches() const { return view_size_.diagonal_inches(); }
+
   DEFINE_WRAPPABLE_TYPE(Screen);
 
  private:
-  float width_;
-  float height_;
+  cssom::ViewportSize view_size_;
 };
 
 }  // namespace dom

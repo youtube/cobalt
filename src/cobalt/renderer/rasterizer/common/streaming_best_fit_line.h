@@ -59,9 +59,8 @@ class StreamingBestFitLine {
   // the best estimate line's slope will be clamped to non-negative values.
   // If |force_non_negative_y_intercept| is true, the best estimate line's
   // y intercept will be clamped to non-negative values.
-  explicit StreamingBestFitLine(float new_value_weight,
-                                bool force_non_negative_slope,
-                                bool force_non_negative_y_intercept)
+  StreamingBestFitLine(float new_value_weight, bool force_non_negative_slope,
+                       bool force_non_negative_y_intercept)
       : force_non_negative_slope_(force_non_negative_slope),
         force_non_negative_y_intercept_(force_non_negative_y_intercept),
         y_intercept_(new_value_weight),

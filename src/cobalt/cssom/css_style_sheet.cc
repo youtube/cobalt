@@ -24,6 +24,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
@@ -36,7 +37,7 @@ namespace {
 
 class MediaRuleUpdater : public CSSRuleVisitor {
  public:
-  explicit MediaRuleUpdater(const math::Size& viewport_size)
+  explicit MediaRuleUpdater(const ViewportSize& viewport_size)
       : any_condition_value_changed_(false), viewport_size_(viewport_size) {}
 
   void VisitCSSStyleRule(CSSStyleRule* /*css_style_rule*/) override {}
@@ -58,7 +59,7 @@ class MediaRuleUpdater : public CSSRuleVisitor {
 
  private:
   bool any_condition_value_changed_;
-  math::Size viewport_size_;
+  ViewportSize viewport_size_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaRuleUpdater);
 };
@@ -156,7 +157,7 @@ void CSSStyleSheet::set_css_rules(
   }
 }
 
-void CSSStyleSheet::EvaluateMediaRules(const math::Size& viewport_size) {
+void CSSStyleSheet::EvaluateMediaRules(const ViewportSize& viewport_size) {
   // If the media rules change, we have to do an update.
   bool should_update_media_rules = media_rules_changed_;
   media_rules_changed_ = false;

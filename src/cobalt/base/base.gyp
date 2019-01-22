@@ -93,13 +93,6 @@
       'export_dependent_settings': [
         '<(DEPTH)/base/base.gyp:base',
       ],
-      'conditions': [
-        ['OS != "starboard"', {
-          'includes': [
-            'copy_i18n_data.gypi',
-          ],
-        }],
-      ],
     },
     {
       'target_name': 'base_test',

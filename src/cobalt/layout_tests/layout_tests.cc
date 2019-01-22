@@ -19,6 +19,7 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/cssom/viewport_size.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
 #include "cobalt/layout_tests/test_parser.h"
 #include "cobalt/layout_tests/test_utils.h"
@@ -27,6 +28,8 @@
 #include "cobalt/renderer/render_tree_pixel_tester.h"
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 namespace layout_tests {
@@ -96,14 +99,14 @@ TEST_P(LayoutTest, LayoutTest) {
   // layout tests will have available to them.  We must make a trade-off between
   // room for tests to maneuver within and speed at which pixel tests can be
   // done.
-  const math::Size kDefaultViewportSize(640, 360);
-  math::Size viewport_size = GetParam().viewport_size
-                                 ? *GetParam().viewport_size
-                                 : kDefaultViewportSize;
+  const ViewportSize kDefaultViewportSize(640, 360);
+  ViewportSize viewport_size = GetParam().viewport_size
+                                   ? *GetParam().viewport_size
+                                   : kDefaultViewportSize;
 
   renderer::RenderTreePixelTester pixel_tester(
-      viewport_size, GetTestInputRootDirectory(), GetTestOutputRootDirectory(),
-      pixel_tester_options);
+      viewport_size.width_height(), GetTestInputRootDirectory(),
+      GetTestOutputRootDirectory(), pixel_tester_options);
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       GetParam().url, viewport_size, pixel_tester.GetResourceProvider(),

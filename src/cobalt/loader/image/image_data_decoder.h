@@ -41,36 +41,8 @@ class ImageDataDecoder {
 
   virtual std::string GetTypeString() const = 0;
 
-  scoped_ptr<render_tree::ImageData> RetrieveImageData() {
-    return image_data_.Pass();
-  }
-
-#if defined(STARBOARD)
-#if SB_HAS(GRAPHICS)
-  // Starboard version 3 adds support for hardware accelerated image decoding.
-  // In order to make use of this feature, subclasses of ImageDataDecoder may
-  // override this method in order to return an SbDecodeTarget, rather than a
-  // render_tree::ImageData, which could potentially save a copy from CPU
-  // memory to GPU memory, depending on the render_tree implementation and
-  // hardware image decoding functionality available.  If
-  // |RetrieveSbDecodeTarget| returns any value other than the default
-  // |kSbDecodeInvalid|, ImageDecoder will interpret it as a preference
-  // towards SbDecodeTarget rather than render_tree::ImageData.
-  virtual SbDecodeTarget RetrieveSbDecodeTarget() {
-    return kSbDecodeTargetInvalid;
-  }
-#endif  // SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
-
   void DecodeChunk(const uint8* data, size_t size);
-  // Return true if decoding succeeded.
-  bool FinishWithSuccess();
-
-  // If a format supports animation, subclass should implement these methods.
-  // When has_animation() is true, the intermediate result is returned in
-  // animated_image().
-  virtual bool has_animation() const { return false; }
-  virtual scoped_refptr<AnimatedImage> animated_image() { return NULL; }
+  scoped_refptr<Image> FinishAndMaybeReturnImage();
 
  protected:
   enum State {
@@ -84,21 +56,24 @@ class ImageDataDecoder {
   // the internal decoding. The return value of this function is the number of
   // decoded data.
   virtual size_t DecodeChunkInternal(const uint8* data, size_t input_byte) = 0;
-  // Subclass can override this function to get a last chance to do some work.
-  virtual void FinishInternal() {}
-
-  bool AllocateImageData(const math::Size& size, bool has_alpha);
+  // Subclass has to override to finalize the decoding and return decoded image.
+  virtual scoped_refptr<Image> FinishInternal() = 0;
 
   render_tree::ResourceProvider* resource_provider() {
     return resource_provider_;
   }
 
-  render_tree::ImageData* image_data() const { return image_data_.get(); }
-
   void set_state(State state) { state_ = state; }
   State state() const { return state_; }
 
   render_tree::PixelFormat pixel_format() const { return pixel_format_; }
+
+  // Helper functions used by derived classes to create image and various
+  // objects to hold decoded image data.
+  scoped_ptr<render_tree::ImageData> AllocateImageData(const math::Size& size,
+                                                       bool has_alpha);
+  scoped_refptr<Image> CreateStaticImage(
+      scoped_ptr<render_tree::ImageData> image_data);
 
  private:
   // Called on construction to query the ResourceProvider for the best image
@@ -107,8 +82,6 @@ class ImageDataDecoder {
 
   // |resource_provider_| is used to allocate render_tree::ImageData
   render_tree::ResourceProvider* const resource_provider_;
-  // Decoded image data.
-  scoped_ptr<render_tree::ImageData> image_data_;
   // |data_buffer_| is used to cache the undecoded data.
   std::vector<uint8> data_buffer_;
   // Record the current decoding status.

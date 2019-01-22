@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 
 namespace cobalt {
@@ -44,13 +45,18 @@ class StubImageDecoder : public ImageDataDecoder {
   size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override {
     UNREFERENCED_PARAMETER(data);
     UNREFERENCED_PARAMETER(input_byte);
-    if (!image_data()) {
-      bool results = AllocateImageData(math::Size(4, 4), true);
-      DCHECK(results);
+    if (!decoded_image_data_) {
+      decoded_image_data_ = AllocateImageData(math::Size(4, 4), true);
+      DCHECK(decoded_image_data_);
     }
     set_state(kDone);
     return input_byte;
   }
+  scoped_refptr<Image> FinishInternal() override {
+    return CreateStaticImage(decoded_image_data_.Pass());
+  }
+
+  scoped_ptr<render_tree::ImageData> decoded_image_data_;
 };
 
 }  // namespace image

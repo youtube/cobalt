@@ -53,7 +53,7 @@ void V8FlagsInit() {
   }
 }
 
-} // namespace
+}  // namespace
 
 IsolateFellowship::IsolateFellowship() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::IsolateFellowship");
@@ -64,11 +64,13 @@ IsolateFellowship::IsolateFellowship() {
   v8::V8::Initialize();
   array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
-  // If a new snapshot data is needed, a temporary v8 isoalte will be created
+  // If a new snapshot data is needed, a temporary v8 isolate will be created
   // to write the snapshot data. We need to make sure all global command line
   // flags are set before that.
   V8FlagsInit();
+#if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
   InitializeStartupData();
+#endif  // !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
 }
 
 IsolateFellowship::~IsolateFellowship() {
@@ -80,14 +82,17 @@ IsolateFellowship::~IsolateFellowship() {
   delete array_buffer_allocator;
   array_buffer_allocator = nullptr;
 
+#if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
   // Note that both us and V8 will have created this with new[], see
   // "snapshot-common.cc".  Also note that both startup data creation failure
   // from V8 is possible, and deleting a null pointer is safe, so there is no
   // DCHECK here.
   delete[] startup_data.data;
   startup_data = {nullptr, 0};
+#endif
 }
 
+#if !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
 void IsolateFellowship::InitializeStartupData() {
   TRACE_EVENT0("cobalt::script", "IsolateFellowship::InitializeStartupData");
   DCHECK(startup_data.data == nullptr);
@@ -223,6 +228,7 @@ void IsolateFellowship::InitializeStartupData() {
 
   maybe_remove_cache_file();
 }
+#endif  // !defined(COBALT_V8_BUILDTIME_SNAPSHOT)
 
 }  // namespace v8c
 }  // namespace script

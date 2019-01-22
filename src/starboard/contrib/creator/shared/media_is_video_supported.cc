@@ -22,7 +22,12 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_height,
                                        int64_t bitrate,
                                        int fps,
-                                       bool decode_to_texture_required) {
+                                       bool decode_to_texture_required,
+                                       SbMediaTransferId eotf) {
+  if (eotf != kSbMediaTransferIdBt709 &&
+      eotf != kSbMediaTransferIdUnspecified) {
+    return false;
+  }
   if (decode_to_texture_required) {
     // There is no Creator CI20 360 video implementation.
     return false;
